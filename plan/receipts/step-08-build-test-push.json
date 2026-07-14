@@ -1,0 +1,43 @@
+{
+  "step": "08-build-test-push",
+  "status": "blocked_on_git_authentication",
+  "updatedAt": "2026-07-15T06:46:00+08:00",
+  "targetRepository": {
+    "owner": "SAINTTaiYi",
+    "repo": "decathlon-bike-daily-phase1",
+    "visibility": "private",
+    "remote": "https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1.git",
+    "remoteState": "empty"
+  },
+  "localCommit": {
+    "branch": "main",
+    "sha": "4c4dffb2653f5a0d1683f1a62bb7dfa8333b1e96",
+    "subject": "feat: ship database-backed bike ops v5.2.7",
+    "files": 295,
+    "workingTreeAfterCommit": "clean"
+  },
+  "verification": {
+    "tests": "68/68 passed",
+    "typecheck": "Contracts, Database and API passed",
+    "build": "Contracts, Database, API and Web passed; Vite production build passed",
+    "version": "V5.2.7, 268 governed files, fingerprint 8f5a3125e55a5c6d1f1ebd68cf31e91b05bc1ab01f3a71775269238db05f1309",
+    "workflow": "4 YAML files parsed; 34/34 static policies passed",
+    "uiDetector": "0 findings",
+    "dockerRailway": "static validation passed",
+    "secretHeuristic": "0 findings across 295 prospective tracked files",
+    "githubSecretScanner": "not available because GitHub Advanced Security is not enabled for this private repository; Gitleaks CI workflow remains configured"
+  },
+  "pushAttempt": {
+    "command": "GIT_TERMINAL_PROMPT=0 git push -u origin main",
+    "result": "failed_before_network_transfer",
+    "error": "fatal: could not read Username for 'https://github.com': terminal prompts disabled",
+    "cause": "The shell has no gh CLI, GitHub PAT, credential helper or authenticated Git transport. GitHub MCP authorization does not provide a shell git credential."
+  },
+  "resume": [
+    "Authorize the current shell through a secure GitHub credential channel or install/authenticate gh outside ordinary chat.",
+    "Do not paste a PAT into chat or commit it to project files.",
+    "Run one non-interactive push attempt: git push -u origin main.",
+    "Confirm remote main SHA matches the local commit, then run strict Node 22 GitHub CI.",
+    "Write the completed receipt and mark step 08 completed only after remote verification."
+  ]
+}

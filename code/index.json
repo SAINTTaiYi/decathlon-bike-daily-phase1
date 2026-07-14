@@ -1805,13 +1805,13 @@
     },
     {
       "path": "plan/CHECKPOINT.md",
-      "size": 6407,
+      "size": 3447,
       "language": "markdown",
       "imports": []
     },
     {
       "path": "plan/CONTEXT.md",
-      "size": 3365,
+      "size": 3312,
       "language": "markdown",
       "imports": []
     },
@@ -1920,6 +1920,12 @@
     {
       "path": "plan/receipts/step-07-governance.json",
       "size": 1778,
+      "language": "json",
+      "imports": []
+    },
+    {
+      "path": "plan/receipts/step-08-build-test-push.json",
+      "size": 2150,
       "language": "json",
       "imports": []
     },
