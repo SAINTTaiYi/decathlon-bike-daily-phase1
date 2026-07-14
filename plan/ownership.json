@@ -1,0 +1,15 @@
+{
+  "package.json": "shell",
+  "pnpm-workspace.yaml": "shell",
+  "apps/web": "shell",
+  "apps/api": "route",
+  "packages/contracts": "shared",
+  "packages/domain": "shared",
+  "packages/database": "shared",
+  "supabase/migrations": "shared",
+  "infra": "shared",
+  ".github/workflows": "shell",
+  "PRODUCT.md": "shared",
+  "DESIGN.md": "shared",
+  "README.md": "shared"
+}

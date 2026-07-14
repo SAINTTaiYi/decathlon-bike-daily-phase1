@@ -1,0 +1,49 @@
+{
+  "step": "05-web-api",
+  "status": "completed",
+  "completedAt": "2026-07-15T05:08:57+08:00",
+  "subReceipts": [
+    "plan/receipts/step-05a-baseline.json",
+    "plan/receipts/step-05b-contract-audit.json",
+    "plan/receipts/step-05c-sync-safety.json",
+    "plan/receipts/step-05d-auth-boundary.json",
+    "plan/receipts/step-05e-audit-history.json"
+  ],
+  "files": [
+    "apps/web/src/api/**",
+    "apps/web/src/hooks/**",
+    "apps/web/src/App.jsx",
+    "apps/web/src/components/**",
+    "apps/web/src/data/auditEvents.js",
+    "apps/web/src/styles/**",
+    "apps/api/src/auth/**",
+    "apps/api/src/routes/**",
+    "apps/api/test/**",
+    "tests/api-client.test.mjs",
+    "tests/audit-events.test.mjs"
+  ],
+  "diffSummary": [
+    "The browser now uses authenticated database APIs as the formal business truth.",
+    "Remote bootstrap, offline/read-only, retry, revision-conflict and last-sync states are production-safe.",
+    "Temporary passwords are enforced at both API and UI boundaries.",
+    "Role-restricted local-v5 migration is hidden from operators.",
+    "Cross-day audit history covers deleted, sold and transitioned objects without exposing audit snapshots."
+  ],
+  "finalVerification": {
+    "domainTests": "4/4 passed",
+    "webTests": "33/33 passed",
+    "apiTests": "12/12 passed",
+    "totalTests": "49 passed, 0 failed",
+    "typecheck": "contracts, database and api passed",
+    "builds": "contracts, database, api and web passed",
+    "designDetector": "0 findings",
+    "diffCheck": "passed"
+  },
+  "deferredToStaging": [
+    "Real PostgreSQL integration and migration execution",
+    "Authenticated browser E2E against a deployed API",
+    "R2 upload/download smoke test",
+    "Android/iPhone device acceptance"
+  ],
+  "rationale": "All locally verifiable web/API integration boundaries are implemented and passing. Networked infrastructure and real-device checks belong to deployment/Staging verification."
+}

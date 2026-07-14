@@ -1,0 +1,52 @@
+{
+  "step": "06-deployment",
+  "status": "completed_local",
+  "completedAt": "2026-07-15T06:37:00+08:00",
+  "receipts": [
+    "plan/receipts/step-06a-deployment-audit.json",
+    "plan/receipts/step-06b-cli-hardening.json",
+    "plan/receipts/step-06c-workflow-hardening.json"
+  ],
+  "files": [
+    "infra/docker/api.Dockerfile",
+    ".dockerignore",
+    "railway.json",
+    "infra/state/example.json",
+    "scripts/ops/**",
+    "packages/database/scripts/migrate.mjs",
+    ".github/workflows/*.yml",
+    ".env.example"
+  ],
+  "delivered": [
+    "Strict environment-explicit plan/preflight/apply/release/verify CLI.",
+    "Atomic non-sensitive state checkpoints with corruption rejection.",
+    "Supabase direct migration URL separated from Railway transaction-pooler runtime URL.",
+    "Repository-owned checksum and PostgreSQL advisory-lock migration runner.",
+    "Environment-scoped R2 S3 credentials; invalid token-factory flow removed.",
+    "Cloudflare Pages/R2, Railway and Supabase reconciliation with safe deployment order.",
+    "Staging develop gate and Production main/manual/staging-SHA/version/SHA/approval/backup gates.",
+    "Bootstrap state artifacts and Pull Requests instead of direct protected-branch pushes.",
+    "Docker context exclusions for env files, dependencies, generated output, runtime state and internal plans.",
+    "Explicit VPN guidance and no blind retry for unreachable overseas npm/GitHub/cloud endpoints.",
+    "Static Workflow validator with 34 safety/order policies."
+  ],
+  "verification": {
+    "tests": "68/68 passed (Domain 4, Database 1, Web/Ops 51, API 12)",
+    "typecheck": "Contracts, Database and API passed",
+    "build": "Contracts, Database, API and Web passed; Vite production bundle completed",
+    "workflowYaml": "4/4 parsed successfully",
+    "workflowPolicy": "34/34 passed",
+    "impeccableDetector": "0 findings",
+    "dockerRailway": "Dockerfile/COPY/USER/CMD and railway.json static checks passed",
+    "offlineOps": "plan passed; credentialless preflight and Production release failed closed without secret leakage",
+    "localSecretHeuristic": "0 findings across 293 prospective tracked files",
+    "versionGuard": "V5.2.7 fingerprint passed"
+  },
+  "limitations": [
+    "The workspace device only provides Node 18.19.1; pnpm correctly blocks the strict >=22 <25 root command. Equivalent tests/typechecks/builds were run directly with local package binaries. GitHub CI and Staging must provide the strict Node 22 end-to-end result.",
+    "No local Docker daemon was available; Docker/Railway configuration was validated statically, not by building an image.",
+    "No real Cloudflare, Railway, Supabase or R2 account was connected; live apply/verify and mobile E2E remain Staging acceptance work.",
+    "Production apply/release was not executed and remains prohibited until Staging acceptance and separate user approval."
+  ],
+  "rationale": "Complete all credential-free deployment engineering and fail-closed validation before any cloud mutation."
+}

@@ -1,0 +1,40 @@
+{
+  "step": "06b-cli-hardening",
+  "parent": "06-deployment",
+  "status": "completed",
+  "completedAt": "2026-07-15T05:25:00+08:00",
+  "files": [
+    "scripts/ops/index.mjs",
+    "scripts/ops/lib.mjs",
+    "scripts/ops/cloudflare.mjs",
+    "scripts/ops/railway.mjs",
+    "scripts/ops/supabase.mjs",
+    "packages/database/scripts/migrate.mjs",
+    "packages/database/package.json",
+    "packages/database/test/migration.test.mjs",
+    "supabase/migrations/202607150001_initial_fullstack.sql",
+    "tests/ops-cli.test.mjs",
+    "tests/ops-lib.test.mjs",
+    "package.json",
+    "infra/state/example.json"
+  ],
+  "diffSummary": [
+    "Invalid commands and environments are rejected instead of falling back to staging.",
+    "State JSON corruption is fatal; state writes are atomic and non-sensitive checkpoints are persisted after each resource phase.",
+    "Sensitive command arguments are redacted.",
+    "Database migrations run through a repository-owned checksum/lock runner using DIRECT_DATABASE_URL from the environment.",
+    "Supabase runtime and migration URLs are separated (transaction pooler vs direct host).",
+    "The invalid R2 token-factory branch was removed; bucket-scoped S3 credentials are required explicitly.",
+    "Production release requires explicit production approval plus backup confirmation.",
+    "Custom web origins are propagated into API CORS.",
+    "Railway resource IDs/domains are checkpointed as they are created."
+  ],
+  "verification": {
+    "syntax": "all ops and migration scripts passed node --check",
+    "webAndOpsTests": "39/39 passed",
+    "databaseTests": "1/1 passed",
+    "offlinePlan": "passed",
+    "credentiallessPreflight": "expected failure; variable names only; Node >=22 requirement enforced"
+  },
+  "rationale": "Make bootstrap/release fail closed, resumable and non-secret before connecting any cloud account."
+}

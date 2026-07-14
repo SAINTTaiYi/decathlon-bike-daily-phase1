@@ -1,0 +1,20 @@
+{
+  "step": "05a-baseline",
+  "parent": "05-web-api",
+  "status": "completed",
+  "completedAt": "2026-07-15T04:42:50+08:00",
+  "files": [],
+  "commands": [
+    "PATH=/tmp/bike-ops-pnpm-bin:$PATH pnpm test",
+    "PATH=/tmp/bike-ops-pnpm-bin:$PATH pnpm typecheck"
+  ],
+  "results": {
+    "pnpm": "9.15.9 local cached executable",
+    "domainTests": "4/4 passed",
+    "webRuleTests": "30/30 passed",
+    "apiTests": "8/8 passed",
+    "totalTests": "42 passed, 0 failed",
+    "typecheck": "contracts, database and api passed"
+  },
+  "rationale": "建立前端 API 契约审计前的可重复验证基线；未访问网络，未修改业务源码。"
+}

@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bike_ops_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - name: Activate pinned pnpm
+        run: node scripts/ops/network-guard.mjs npm/pnpm corepack prepare pnpm@9.15.9 --activate
+      - name: Install dependencies
+        run: node scripts/ops/network-guard.mjs npm/pnpm pnpm install --frozen-lockfile
+      - name: Validate workflow policy
+        run: pnpm check:workflows
+      - name: Validate checksum migration runner on PostgreSQL 16
+        env:
+          DIRECT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/bike_ops_test?sslmode=disable
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d bike_ops_test -v ON_ERROR_STOP=1 <<'SQL'
+          create role anon;
+          create role authenticated;
+          SQL
+          pnpm --filter @bike-ops/database migrate
+          pnpm --filter @bike-ops/database migrate
+          test "$(psql -At -h 127.0.0.1 -U postgres -d bike_ops_test -c 'select count(*) from public.bike_ops_schema_migrations')" = "1"
+      - run: pnpm test
+      - run: pnpm typecheck
+      - run: pnpm build
+      - name: Verify frontend has no native select or legacy sample identity
+        run: |
+          ! grep -R '<select' apps/web/src
+          ! grep -R '周宁章' apps/web/dist
+
+  secrets:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,33 @@
+{
+  "step": "05b-contract-audit",
+  "parent": "05-web-api",
+  "status": "completed_with_findings",
+  "completedAt": "2026-07-15T04:47:34+08:00",
+  "filesReviewed": [
+    "apps/api/src/auth/middleware.ts",
+    "apps/api/src/auth/routes.ts",
+    "apps/api/src/routes/bootstrap.ts",
+    "apps/api/src/routes/audit.ts",
+    "apps/api/src/routes/closing.ts",
+    "apps/api/src/routes/work-items.ts",
+    "apps/api/src/routes/migrations.ts",
+    "apps/api/src/repositories/work-items.ts",
+    "apps/api/src/services/business.ts",
+    "packages/contracts/src/index.ts",
+    "apps/web/src/api/client.js",
+    "apps/web/src/api/workflow.js",
+    "apps/web/src/hooks/useAuth.js",
+    "apps/web/src/hooks/useRemoteClosingWorkflow.js",
+    "apps/web/src/App.jsx",
+    "apps/web/src/components/dialogs/*.jsx"
+  ],
+  "findings": [
+    "AbortError is converted to NETWORK_ERROR by the web API client.",
+    "Initial bootstrap failure can hydrate an empty state; refresh failure does not consistently lock writes.",
+    "LAST SYNC uses latest audit event time instead of successful bootstrap time.",
+    "mustChangePassword is returned but not enforced by API business routes or the web UI.",
+    "Local v5 migration entry is visible to operators although API requires manager/admin.",
+    "Bootstrap only returns current-day audit events, so cross-day object history and removed/sold module history are incomplete."
+  ],
+  "rationale": "契约字段与主要响应形状匹配，但以上生产边界会导致误导状态、权限噪声或审计历史缺失，必须在完成 05-web-api 前修复。"
+}

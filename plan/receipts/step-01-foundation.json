@@ -1,0 +1,14 @@
+{
+  "files": [
+    "package.json",
+    "pnpm-workspace.yaml",
+    "apps/web/**",
+    ".gitignore",
+    ".vercelignore",
+    ".env.example",
+    "tsconfig.base.json"
+  ],
+  "diffSummary": "Moved the existing Vite application into apps/web without UI changes; added the pnpm workspace, root commands, environment contract, and repository/deployment exclusions.",
+  "rationale": "Create an auditable full-stack workspace while preserving the existing frontend surface.",
+  "completedAt": "2026-07-14T16:21:45.729111+00:00"
+}

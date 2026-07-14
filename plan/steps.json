@@ -1,0 +1,101 @@
+[
+  {
+    "id": "01-foundation",
+    "files": [
+      "package.json",
+      "pnpm-workspace.yaml",
+      "apps/web/**",
+      ".gitignore",
+      ".env.example"
+    ],
+    "rationale": "建立可独立构建的全栈工作区并保留现有前端行为",
+    "risk": "high",
+    "status": "completed"
+  },
+  {
+    "id": "02-domain-database",
+    "files": [
+      "packages/domain/**",
+      "packages/contracts/**",
+      "packages/database/**",
+      "supabase/**",
+      "tests/**"
+    ],
+    "rationale": "将业务规则和数据库结构做成服务端可执行事实源",
+    "risk": "medium",
+    "status": "completed"
+  },
+  {
+    "id": "03-api-auth",
+    "files": [
+      "apps/api/src/auth/**",
+      "apps/api/src/server.*",
+      "apps/api/src/config.*",
+      "apps/api/package.json"
+    ],
+    "rationale": "实现真实账号、Session、CSRF、RBAC 和安全边界",
+    "risk": "medium",
+    "status": "completed"
+  },
+  {
+    "id": "04-api-business-media",
+    "files": [
+      "apps/api/src/routes/**",
+      "apps/api/src/services/**",
+      "apps/api/src/storage/**",
+      "apps/api/src/repositories/**"
+    ],
+    "rationale": "实现业务事务、审计、撤回和 R2 私有附件接口",
+    "risk": "high",
+    "status": "completed"
+  },
+  {
+    "id": "05-web-api",
+    "files": [
+      "apps/web/src/api/**",
+      "apps/web/src/hooks/**",
+      "apps/web/src/App.jsx",
+      "apps/web/src/components/**",
+      "apps/web/src/styles/**"
+    ],
+    "rationale": "将浏览器本地事实源替换为数据库 API 和真实登录",
+    "risk": "high",
+    "status": "completed"
+  },
+  {
+    "id": "06-deployment",
+    "files": [
+      "infra/**",
+      "scripts/ops/**",
+      ".github/workflows/**",
+      "wrangler.toml"
+    ],
+    "rationale": "建立 Cloudflare Pages、Railway、Supabase 和 R2 的幂等自动化",
+    "risk": "medium",
+    "status": "completed"
+  },
+  {
+    "id": "07-governance",
+    "files": [
+      "PRODUCT.md",
+      "DESIGN.md",
+      "README.md",
+      "AUTOMATED-DEPLOYMENT.md",
+      "deploy-summary.md",
+      "apps/web/src/data/releaseNotes.js",
+      "version-manifest.json"
+    ],
+    "rationale": "更新设计事实源、发布说明和全栈版本治理",
+    "risk": "medium",
+    "status": "completed"
+  },
+  {
+    "id": "08-build-test-push",
+    "files": [
+      "**"
+    ],
+    "rationale": "运行全量测试、构建、Secret 扫描并推送私有仓库",
+    "risk": "high",
+    "status": "in_progress"
+  }
+]

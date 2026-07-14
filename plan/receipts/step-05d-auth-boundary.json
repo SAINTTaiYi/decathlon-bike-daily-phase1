@@ -1,0 +1,36 @@
+{
+  "step": "05d-auth-boundary",
+  "parent": "05-web-api",
+  "status": "completed",
+  "completedAt": "2026-07-15T05:00:09+08:00",
+  "files": [
+    "apps/api/src/auth/middleware.ts",
+    "apps/api/src/auth/routes.ts",
+    "apps/api/src/routes/bootstrap.ts",
+    "apps/api/src/routes/closing.ts",
+    "apps/api/src/routes/work-items.ts",
+    "apps/api/src/routes/audit.ts",
+    "apps/api/src/routes/media.ts",
+    "apps/api/src/routes/migrations.ts",
+    "apps/api/test/auth-security.test.ts",
+    "apps/web/src/api/auth.js",
+    "apps/web/src/hooks/useAuth.js",
+    "apps/web/src/components/PasswordChangeGate.jsx",
+    "apps/web/src/App.jsx"
+  ],
+  "diffSummary": [
+    "Temporary-password sessions are blocked from every business route until password change completes.",
+    "Auth restore, logout and change-password remain available to restricted sessions.",
+    "The web app presents a non-bypassable first-sign-in password-change gate.",
+    "Password reuse is rejected by both UI validation and the API.",
+    "Operators no longer see the manager/admin-only local-v5 migration entry."
+  ],
+  "verification": {
+    "apiTests": "9/9 passed",
+    "webTests": "31/31 passed",
+    "typecheck": "contracts, database and api passed",
+    "webBuild": "passed",
+    "detector": "0 findings"
+  },
+  "rationale": "Make the temporary-password policy and migration permissions enforceable at the server boundary, not only by UI convention."
+}

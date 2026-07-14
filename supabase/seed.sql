@@ -1,0 +1,2 @@
+-- Preview seed intentionally contains no users, passwords, contact details, or business records.
+-- The first administrator is created through the one-time /api/v1/auth/setup endpoint.

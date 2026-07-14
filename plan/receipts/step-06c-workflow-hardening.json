@@ -1,0 +1,42 @@
+{
+  "step": "06c-workflow-hardening",
+  "parent": "06-deployment",
+  "status": "completed",
+  "completedAt": "2026-07-15T06:03:00+08:00",
+  "files": [
+    ".github/workflows/bootstrap-infrastructure.yml",
+    ".github/workflows/ci.yml",
+    ".github/workflows/deploy-staging.yml",
+    ".github/workflows/deploy-production.yml",
+    "scripts/ops/lib.mjs",
+    "scripts/ops/index.mjs",
+    "scripts/ops/cloudflare.mjs",
+    "scripts/ops/railway.mjs",
+    "scripts/ops/network-guard.mjs",
+    "scripts/ops/validate-workflows.mjs",
+    "tests/deployment-workflows.test.mjs",
+    "tests/ops-lib.test.mjs",
+    "tests/version-number.test.mjs",
+    "package.json"
+  ],
+  "diffSummary": [
+    "Bootstrap uses the selected GitHub Environment and maps only that environment's secrets into suffixed CLI variables.",
+    "Staging is restricted to develop; production is manual-only from main with staging source acceptance, immutable SHA/version checks, GitHub Environment approval, explicit production approval, and backup confirmation.",
+    "Release order is statically enforced as migration, Railway API deployment, API readiness/version verification, Cloudflare Pages deployment, then final API/web verification.",
+    "Infrastructure state is checkpointed as a short-lived Actions artifact and committed without secrets, including interrupted bootstrap runs when a checkpoint exists.",
+    "npm, GitHub, Cloudflare, Railway, Supabase API/PostgreSQL network failures stop immediately with an explicit VPN hint and no blind retry.",
+    "Workflow YAML and deployment policy have a repository-owned static validator plus regression tests.",
+    "Monorepo version scripts now target apps/web, fingerprint full source/deployment facts, synchronize root and web versions, and accept pnpm's argument separator."
+  ],
+  "verification": {
+    "syntax": "all ops/version/test scripts passed node --check",
+    "workflowYaml": "4/4 workflows parsed successfully",
+    "workflowPolicy": "24 policies passed",
+    "focusedTests": "17/17 passed",
+    "offlinePlan": "staging and production passed without network or mutation",
+    "credentiallessPreflight": "expected failure; missing variable names only",
+    "productionReleaseFailClosed": "expected failure before state/network with no credentials",
+    "networkGuard": "VPN hint and no-retry behavior covered by tests"
+  },
+  "rationale": "Make GitHub Actions environment-isolated, production-gated, ordered, recoverable, and explicit when overseas dependencies are unreachable."
+}

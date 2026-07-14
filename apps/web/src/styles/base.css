@@ -1,0 +1,19 @@
+* { box-sizing: border-box; }
+html { min-width: 320px; min-height: 100%; overflow-x: hidden; background: var(--paper-cool); scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: hidden; background-color: var(--paper-cool); background-image: url('/textures/paper-grain.png'); background-repeat: repeat; background-size: 256px 256px; color: var(--ink); font-family: var(--font-body); font-kerning: normal; font-optical-sizing: auto; -webkit-font-smoothing: antialiased; }
+body.is-booting, body.dialog-open { overflow: hidden; touch-action: none; }
+button, input { font: inherit; }
+:where(time, [class*='score'], [class*='number'], [class*='progress'], [class*='count'], [class*='index']) { font-variant-numeric: tabular-nums lining-nums; }
+button { appearance: none; border: 0; background: transparent; color: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+button:disabled { cursor: not-allowed; opacity: .45; }
+img, svg { display: block; max-width: 100%; }
+p, h1, h2, h3, figure, ol, ul { margin: 0; }
+ul, ol { padding: 0; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+::selection { background: var(--ink); color: var(--surface-raised); }
+.skip-link { position: fixed; left: .75rem; top: .75rem; z-index: 200; padding: .7rem .85rem; background: var(--ink); color: #fff; transform: translateY(-180%); }
+.skip-link:focus { transform: translateY(0); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

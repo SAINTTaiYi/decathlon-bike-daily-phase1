@@ -1,0 +1,34 @@
+{
+  "step": "06a-deployment-audit",
+  "parent": "06-deployment",
+  "status": "completed_with_findings",
+  "completedAt": "2026-07-15T05:15:00+08:00",
+  "filesReviewed": [
+    "scripts/ops/*.mjs",
+    ".github/workflows/*.yml",
+    "infra/docker/api.Dockerfile",
+    "railway.json",
+    ".env.example",
+    "infra/state/example.json",
+    "scripts/prepare-pages-headers.mjs"
+  ],
+  "offlineChecks": {
+    "planStaging": "exit 0, no network or mutation",
+    "planProduction": "exit 0, productionApprovalRequired true",
+    "preflightWithoutCredentials": "exit 1 with missing variable names only; Node v18.19.1 correctly rejected because deployment requires >=22",
+    "invalidEnvironment": "incorrectly defaulted to staging"
+  },
+  "findings": [
+    "Invalid environment values silently fall back to staging.",
+    "Malformed state JSON is treated as empty state and can cause duplicate resource creation.",
+    "Supabase database URLs are passed as command arguments and may leak in error text.",
+    "State is only persisted after a full successful apply, reducing interruption safety.",
+    "The Cloudflare token-factory branch hashes a management token and treats it as an R2 S3 secret; this is not a valid S3 credential flow.",
+    "DATABASE_URL and DIRECT_DATABASE_URL are identical instead of separating runtime transaction pooling from migration connectivity.",
+    "Production release lacks a CLI-level explicit approval flag.",
+    "Custom web origins are configured for R2 but omitted from API CORS_ALLOWED_ORIGINS.",
+    "Bootstrap workflow maps the selected environment's secrets into both staging and production variable names.",
+    "Deployment tools use pinned but dynamically downloaded npx CLIs; live execution requires reachable overseas package/platform endpoints."
+  ],
+  "rationale": "Establish a non-mutating deployment safety baseline before changing infrastructure automation."
+}

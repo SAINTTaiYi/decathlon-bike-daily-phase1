@@ -1,0 +1,41 @@
+{
+  "step": "07-governance",
+  "status": "completed",
+  "completedAt": "2026-07-15T06:37:00+08:00",
+  "files": [
+    "PRODUCT.md",
+    "DESIGN.md",
+    "README.md",
+    "AUTOMATED-DEPLOYMENT.md",
+    "deploy-summary.md",
+    "apps/web/src/data/releaseNotes.js",
+    "package.json",
+    "apps/web/package.json",
+    "scripts/bump-version.mjs",
+    "scripts/stamp-version.mjs",
+    "scripts/check-version.mjs",
+    "scripts/version-files.mjs",
+    "version-manifest.json",
+    "code/*.json"
+  ],
+  "delivered": [
+    "All product/design/development/deployment facts now describe the implemented database-backed authenticated system instead of the old local-only model.",
+    "V5.2.7 release notes cover full-stack data, private media, safe automation, production gates and VPN behavior.",
+    "Root and Web package versions are synchronized.",
+    "Version scripts use Monorepo paths, accept pnpm's argument separator and fingerprint source, tests, migrations, workflows, infrastructure configuration and fact-source documentation.",
+    "Derived code snapshot was rebuilt for the current Monorepo: 291 files, 30 React components and 30 API routes."
+  ],
+  "version": {
+    "value": "5.2.7",
+    "fingerprint": "8f5a3125e55a5c6d1f1ebd68cf31e91b05bc1ab01f3a71775269238db05f1309",
+    "fileCount": 268,
+    "releaseChanges": 5
+  },
+  "verification": {
+    "versionGuard": "passed",
+    "staleFactScan": "no V5.2.6/local-only/obsolete platform facts in active source documentation",
+    "jsonFacts": "all governance and code snapshot JSON parsed",
+    "impeccableContext": "PRODUCT.md and DESIGN.md read with product register; existing UI system preserved"
+  },
+  "rationale": "Make the documentation and version system a reliable recovery and release source of truth for V5.2.7."
+}

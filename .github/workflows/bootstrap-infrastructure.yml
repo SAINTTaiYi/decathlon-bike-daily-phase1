@@ -1,0 +1,172 @@
+name: Bootstrap infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to create or reconcile
+        required: true
+        type: choice
+        options: [staging, production]
+      approve_production:
+        description: Explicit approval required when environment is production
+        required: false
+        type: boolean
+        default: false
+      confirm_staging_acceptance:
+        description: Confirm staging has been accepted before production bootstrap
+        required: false
+        type: boolean
+        default: false
+      staging_accepted_sha:
+        description: Full accepted develop commit SHA required for production bootstrap
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: bootstrap-${{ inputs.environment }}
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+      RAILWAY_WORKSPACE_ID: ${{ secrets.RAILWAY_WORKSPACE_ID }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_ORG_ID: ${{ secrets.SUPABASE_ORG_ID }}
+      SELECTED_SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SELECTED_SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+      SELECTED_CSRF_SECRET: ${{ secrets.CSRF_SECRET }}
+      SELECTED_PASSWORD_PEPPER: ${{ secrets.PASSWORD_PEPPER }}
+      SELECTED_CONTACT_ENCRYPTION_KEY: ${{ secrets.CONTACT_ENCRYPTION_KEY }}
+      SELECTED_INITIAL_ADMIN_SETUP_TOKEN: ${{ secrets.INITIAL_ADMIN_SETUP_TOKEN }}
+      SELECTED_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      SELECTED_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      SELECTED_CUSTOM_WEB_ORIGINS: ${{ vars.CUSTOM_WEB_ORIGINS }}
+    steps:
+      - name: Enforce environment branch and production approval
+        env:
+          APPROVE_PRODUCTION: ${{ inputs.approve_production }}
+          CONFIRM_STAGING_ACCEPTANCE: ${{ inputs.confirm_staging_acceptance }}
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          expected_ref=refs/heads/develop
+          if [ "$TARGET_ENVIRONMENT" = production ]; then
+            expected_ref=refs/heads/main
+            test "$APPROVE_PRODUCTION" = true || {
+              echo "::error::Production bootstrap requires approve_production=true."
+              exit 1
+            }
+            test "$CONFIRM_STAGING_ACCEPTANCE" = true || {
+              echo "::error::Production bootstrap requires confirmed staging acceptance."
+              exit 1
+            }
+          fi
+          test "$GITHUB_REF" = "$expected_ref" || {
+            echo "::error::${TARGET_ENVIRONMENT} bootstrap must be dispatched from ${expected_ref#refs/heads/}."
+            exit 1
+          }
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Verify accepted staging source for production bootstrap
+        if: inputs.environment == 'production'
+        env:
+          STAGING_ACCEPTED_SHA: ${{ inputs.staging_accepted_sha }}
+        run: |
+          [[ "$STAGING_ACCEPTED_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::staging_accepted_sha must be a full 40-character lowercase commit SHA."
+            exit 1
+          }
+          node scripts/ops/network-guard.mjs GitHub git fetch --no-tags origin develop:refs/remotes/origin/develop
+          git cat-file -e "${STAGING_ACCEPTED_SHA}^{commit}" || {
+            echo "::error::The accepted staging SHA is not available in repository history."
+            exit 1
+          }
+          git merge-base --is-ancestor "$STAGING_ACCEPTED_SHA" origin/develop || {
+            echo "::error::The accepted staging SHA is not part of develop history."
+            exit 1
+          }
+          git diff --quiet "$STAGING_ACCEPTED_SHA" HEAD -- . ':(exclude)infra/state/*.json' || {
+            echo "::error::Production bootstrap source differs from accepted staging source."
+            exit 1
+          }
+      - run: corepack enable
+      - name: Activate pinned pnpm
+        run: node scripts/ops/network-guard.mjs npm/pnpm corepack prepare pnpm@9.15.9 --activate
+      - name: Install dependencies
+        run: node scripts/ops/network-guard.mjs npm/pnpm pnpm install --frozen-lockfile
+      - name: Map only the selected environment secrets
+        shell: bash
+        env:
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          suffix=$(printf '%s' "$TARGET_ENVIRONMENT" | tr '[:lower:]' '[:upper:]')
+          write_env() {
+            local name="$1"
+            local value="$2"
+            local delimiter="BIKE_OPS_${RANDOM}_$(date +%s%N)"
+            printf '%s<<%s\n%s\n%s\n' "$name" "$delimiter" "$value" "$delimiter" >> "$GITHUB_ENV"
+          }
+          write_env "SUPABASE_DB_PASSWORD_${suffix}" "$SELECTED_SUPABASE_DB_PASSWORD"
+          write_env "SESSION_SECRET_${suffix}" "$SELECTED_SESSION_SECRET"
+          write_env "CSRF_SECRET_${suffix}" "$SELECTED_CSRF_SECRET"
+          write_env "PASSWORD_PEPPER_${suffix}" "$SELECTED_PASSWORD_PEPPER"
+          write_env "CONTACT_ENCRYPTION_KEY_${suffix}" "$SELECTED_CONTACT_ENCRYPTION_KEY"
+          write_env "INITIAL_ADMIN_SETUP_TOKEN_${suffix}" "$SELECTED_INITIAL_ADMIN_SETUP_TOKEN"
+          write_env "R2_ACCESS_KEY_ID_${suffix}" "$SELECTED_R2_ACCESS_KEY_ID"
+          write_env "R2_SECRET_ACCESS_KEY_${suffix}" "$SELECTED_R2_SECRET_ACCESS_KEY"
+          write_env "CUSTOM_WEB_ORIGINS_${suffix}" "$SELECTED_CUSTOM_WEB_ORIGINS"
+      - name: Validate workflow policy
+        run: pnpm check:workflows
+      - name: Test, typecheck, and build before cloud mutation
+        run: pnpm test && pnpm typecheck && pnpm build
+      - name: Show infrastructure plan
+        run: pnpm ops plan ${{ inputs.environment }}
+      - name: Validate credentials and runtime
+        run: pnpm ops preflight ${{ inputs.environment }}
+      - name: Apply infrastructure
+        run: pnpm ops apply ${{ inputs.environment }} ${{ inputs.environment == 'production' && '--approve-production' || '' }}
+      - name: Preserve non-sensitive state checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: infrastructure-state-${{ inputs.environment }}-${{ github.run_id }}
+          path: infra/state/${{ inputs.environment }}.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Open pull request for non-sensitive resource state
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          test -f "infra/state/${TARGET_ENVIRONMENT}.json" || exit 0
+          target_branch=develop
+          if [ "$TARGET_ENVIRONMENT" = production ]; then target_branch=main; fi
+          state_branch="automation/infra-state-${TARGET_ENVIRONMENT}-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$state_branch"
+          git add "infra/state/${TARGET_ENVIRONMENT}.json"
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(infra): checkpoint ${TARGET_ENVIRONMENT} resource state"
+          node scripts/ops/network-guard.mjs GitHub git push --force-with-lease --set-upstream origin "$state_branch"
+          existing_pr=$(node scripts/ops/network-guard.mjs GitHub gh pr list --repo "$GITHUB_REPOSITORY" --head "$state_branch" --json url --jq '.[0].url')
+          if [ -n "$existing_pr" ]; then
+            echo "State pull request already exists: $existing_pr"
+          else
+            node scripts/ops/network-guard.mjs GitHub gh pr create --repo "$GITHUB_REPOSITORY" --base "$target_branch" --head "$state_branch" --title "chore(infra): checkpoint ${TARGET_ENVIRONMENT} resource state" --body "Created by infrastructure bootstrap run ${GITHUB_RUN_ID}. Contains non-sensitive resource IDs and domains only. Review before merge."
+          fi

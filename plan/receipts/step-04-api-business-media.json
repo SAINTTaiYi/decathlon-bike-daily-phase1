@@ -1,0 +1,13 @@
+{
+  "files": [
+    "apps/api/src/routes/**",
+    "apps/api/src/services/**",
+    "apps/api/src/storage/**",
+    "apps/api/src/repositories/**",
+    "apps/api/src/lib/contact-crypto.ts",
+    "apps/api/test/**"
+  ],
+  "diffSummary": "Implemented transactional closing and ledger APIs, optimistic revisions, append-only audit and latest-event undo, idempotency keys, server-side business dates and cleanup, AES-GCM contact encryption, explicit local-v5 import planning, and private R2 presigned upload/download/delete flows.",
+  "rationale": "Move all authoritative writes, audit identity, business validation, concurrency, and media access behind the authenticated API.",
+  "completedAt": "2026-07-14T17:04:28.722861+00:00"
+}

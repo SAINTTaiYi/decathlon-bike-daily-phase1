@@ -1,0 +1,32 @@
+@font-face {
+  font-family: 'Albert Sans Local';
+  src: url('/fonts/albert-sans-variable.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+}
+
+:root {
+  color-scheme: light;
+  --ink: #08080a;
+  --ink-soft: #272729;
+  --paper: #f4f5f0;
+  --paper-cool: #e7e9de;
+  --surface: #fbfbfa;
+  --surface-raised: #ffffff;
+  --line: #c9cbc3;
+  --line-strong: #8b8d86;
+  --muted: #62625e;
+  --accent: #075dff;
+  --critical: #b53b18;
+  --success: #17613c;
+  --font-body: 'Albert Sans Local', 'Noto Serif SC Variable';
+  --font-display: 'Albert Sans Local', 'Noto Serif SC Variable';
+  --font-mono: 'Albert Sans Local', 'Noto Serif SC Variable';
+  --shadow-tight: 0 10px 28px rgb(8 8 10 / .055);
+  --shadow-panel: 0 28px 72px rgb(8 8 10 / .075);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --page-pad: .75rem;
+  --section-air: clamp(4.5rem, 9svh, 6.75rem);
+  --dock-space: 7.5rem;
+}

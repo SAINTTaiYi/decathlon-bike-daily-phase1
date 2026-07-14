@@ -1,0 +1,28 @@
+{
+  "step": "05c-sync-safety",
+  "parent": "05-web-api",
+  "status": "completed",
+  "completedAt": "2026-07-15T04:54:11+08:00",
+  "files": [
+    "apps/web/src/api/client.js",
+    "apps/web/src/hooks/useRemoteClosingWorkflow.js",
+    "apps/web/src/App.jsx",
+    "apps/web/src/components/lookbook/ClosingSummary.jsx",
+    "apps/web/src/styles/components.css",
+    "tests/api-client.test.mjs"
+  ],
+  "diffSummary": [
+    "AbortError remains an AbortError instead of becoming NETWORK_ERROR.",
+    "First bootstrap failure blocks the workspace instead of presenting an empty ledger.",
+    "Refresh failure preserves the last snapshot but locks writes until resync succeeds.",
+    "Sync errors expose an explicit retry action.",
+    "LAST SYNC now uses the last successful bootstrap timestamp."
+  ],
+  "verification": {
+    "webTests": "31/31 passed",
+    "abortRegression": "passed",
+    "webBuild": "Vite production build passed",
+    "detector": "0 findings"
+  },
+  "rationale": "Prevent empty or stale remote state from being mistaken for writable database truth."
+}

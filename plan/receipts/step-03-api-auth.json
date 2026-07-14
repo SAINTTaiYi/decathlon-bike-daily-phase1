@@ -1,0 +1,15 @@
+{
+  "files": [
+    "apps/api/src/auth/**",
+    "apps/api/src/lib/**",
+    "apps/api/src/config.ts",
+    "apps/api/src/server.ts",
+    "apps/api/src/start.ts",
+    "apps/api/package.json",
+    "apps/api/test/auth-security.test.ts",
+    ".nvmrc"
+  ],
+  "diffSummary": "Implemented one-time admin setup, Argon2id password authentication, database-backed revocable sessions, rotating CSRF tokens, store-scoped RBAC, user provisioning, security headers, rate limits, health probes, and redacted logging.",
+  "rationale": "Replace the local username identity with a server-verified account and session boundary before exposing business writes.",
+  "completedAt": "2026-07-14T16:32:23.545976+00:00"
+}

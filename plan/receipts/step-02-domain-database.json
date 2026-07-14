@@ -1,0 +1,12 @@
+{
+  "files": [
+    "packages/contracts/**",
+    "packages/domain/**",
+    "packages/database/**",
+    "supabase/**",
+    "tests/**"
+  ],
+  "diffSummary": "Added versioned request contracts, shared server-side domain rules, private bike_ops PostgreSQL schema, attachment and idempotency models, and migration coverage tests. Updated legacy web tests to the relocated app path.",
+  "rationale": "Make PostgreSQL and server-side validation the authoritative data and rule layer before introducing network endpoints.",
+  "completedAt": "2026-07-14T16:28:56.233948+00:00"
+}

@@ -1,0 +1,30 @@
+{
+  "step": "05e-audit-history",
+  "parent": "05-web-api",
+  "status": "completed",
+  "completedAt": "2026-07-15T05:04:58+08:00",
+  "files": [
+    "apps/api/src/routes/audit.ts",
+    "apps/api/src/routes/bootstrap.ts",
+    "apps/api/test/audit-history.test.ts",
+    "apps/web/src/data/auditEvents.js",
+    "apps/web/src/hooks/useRemoteClosingWorkflow.js",
+    "tests/audit-events.test.mjs"
+  ],
+  "diffSummary": [
+    "Bootstrap now returns up to 500 cross-day audit events while the daily log remains filtered to the current business date.",
+    "Audit events expose scene, previousScene and nextScene derived server-side without exposing before/after snapshots.",
+    "Deleted and sold records remain discoverable in module history.",
+    "Repair-to-pickup events belong to both repair and pickup histories.",
+    "Cross-day audit events are read-only; undo is enforced as current-business-day only on the API.",
+    "Reverted events expose the actual revert timestamp."
+  ],
+  "verification": {
+    "apiTests": "12/12 passed",
+    "webTests": "33/33 passed",
+    "typecheck": "contracts, database and api passed",
+    "webBuild": "passed",
+    "detector": "0 findings"
+  },
+  "rationale": "Restore complete operational traceability across days and lifecycle removal without leaking encrypted audit snapshots to the browser."
+}

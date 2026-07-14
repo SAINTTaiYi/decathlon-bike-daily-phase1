@@ -1,0 +1,152 @@
+[
+  {
+    "name": "BlurText",
+    "path": "apps/web/src/components/BlurText.jsx",
+    "props": "{\n  as: Component = 'span',\n  text,\n  children,\n  className = '',\n  splitBy = 'auto',\n  mode = 'scroll',\n  delay = 45,\n  duration = 560,\n  rootMargin = '0px 0px -10% 0px',\n  threshold = 0.12,\n  once = true,\n  blur = 15,\n  lift = 22,\n  scrollStagger = 0.56,\n  scrollStart = 1.08,\n  scrollEnd = 0.24,\n  ...props\n}"
+  },
+  {
+    "name": "BootLoader",
+    "path": "apps/web/src/components/BootLoader.jsx",
+    "props": "{ onLogin, onComplete }"
+  },
+  {
+    "name": "AppDialog",
+    "path": "apps/web/src/components/dialogs/AppDialog.jsx",
+    "props": "{ open, onClose, title, eyebrow, description, children, className = '' }"
+  },
+  {
+    "name": "AttachmentDialog",
+    "path": "apps/web/src/components/dialogs/AttachmentDialog.jsx",
+    "props": "{ record, onClose, locked, onNotify }"
+  },
+  {
+    "name": "ConfirmClosingDialog",
+    "path": "apps/web/src/components/dialogs/ConfirmClosingDialog.jsx",
+    "props": "{ open, onClose, onConfirm }"
+  },
+  {
+    "name": "KpiDialog",
+    "path": "apps/web/src/components/dialogs/KpiDialog.jsx",
+    "props": "{ open, onClose, values, savedAt, onSave, onClear, onNotify }"
+  },
+  {
+    "name": "LocalMigrationDialog",
+    "path": "apps/web/src/components/dialogs/LocalMigrationDialog.jsx",
+    "props": "{ open, onClose, workflow, onNotify }"
+  },
+  {
+    "name": "LogDialog",
+    "path": "apps/web/src/components/dialogs/LogDialog.jsx",
+    "props": "{ open, onClose, events }"
+  },
+  {
+    "name": "MenuDialog",
+    "path": "apps/web/src/components/dialogs/MenuDialog.jsx",
+    "props": "{ open, onClose, onUndo, canUndo, onCopyReport, onReset, locked, currentUser, currentRole, currentStore, onSwitchUser, hasLocalData, onMigrate }"
+  },
+  {
+    "name": "OperationHistoryDialog",
+    "path": "apps/web/src/components/dialogs/OperationHistoryDialog.jsx",
+    "props": "{ open, onClose, title, events = [], canUndo, onUndo, onNotify }"
+  },
+  {
+    "name": "PickupConfirmDialog",
+    "path": "apps/web/src/components/dialogs/PickupConfirmDialog.jsx",
+    "props": "{ record, onClose, onConfirm }"
+  },
+  {
+    "name": "RecordEditorDialog",
+    "path": "apps/web/src/components/dialogs/RecordEditorDialog.jsx",
+    "props": "{ open, onClose, config, record, onSave, onNotify }"
+  },
+  {
+    "name": "EventAuditMeta",
+    "path": "apps/web/src/components/EventAuditMeta.jsx",
+    "props": "{ event }"
+  },
+  {
+    "name": "InitialSetup",
+    "path": "apps/web/src/components/InitialSetup.jsx",
+    "props": "{ token, onComplete }"
+  },
+  {
+    "name": "ActionDock",
+    "path": "apps/web/src/components/lookbook/ActionDock.jsx",
+    "props": "{ activeScene, onJump, closedAt }"
+  },
+  {
+    "name": "ClosingSummary",
+    "path": "apps/web/src/components/lookbook/ClosingSummary.jsx",
+    "props": "{ workflow, onJumpToRequirement, onCompleteClosing, onReopenClosing }"
+  },
+  {
+    "name": "FixedDigits",
+    "path": "apps/web/src/components/lookbook/FixedDigits.jsx",
+    "props": "{ value, min = 2, className = '' }"
+  },
+  {
+    "name": "LookbookHeader",
+    "path": "apps/web/src/components/lookbook/LookbookHeader.jsx",
+    "props": ""
+  },
+  {
+    "name": "MainHeadImage",
+    "path": "apps/web/src/components/lookbook/MainHeadImage.jsx",
+    "props": ""
+  },
+  {
+    "name": "RecordLedger",
+    "path": "apps/web/src/components/lookbook/RecordLedger.jsx",
+    "props": "{\n  records = [],\n  config,\n  closedAt,\n  onAdd,\n  onEdit,\n  onRemove,\n  onHistory,\n  onMedia,\n  onHandoverComplete,\n  onPickup,\n  onResaleListing,\n  onResaleSold,\n  onRepairComplete,\n  onPickupNotificationChange,\n  pickupErrors = {},\n  heading = 'ACTIVE LEDGER · 在册台账',\n  dark = false,\n  showAdd = true\n}"
+  },
+  {
+    "name": "ReleaseNotes",
+    "path": "apps/web/src/components/lookbook/ReleaseNotes.jsx",
+    "props": ""
+  },
+  {
+    "name": "PasswordChangeGate",
+    "path": "apps/web/src/components/PasswordChangeGate.jsx",
+    "props": "{ userName, onChangePassword, onLogout, onComplete }"
+  },
+  {
+    "name": "ProjectSelect",
+    "path": "apps/web/src/components/ProjectSelect.jsx",
+    "props": "{\n  value,\n  options,\n  onChange,\n  placeholder = '请选择',\n  ariaLabel,\n  disabled = false,\n  compact = false\n}"
+  },
+  {
+    "name": "StatusToast",
+    "path": "apps/web/src/components/StatusToast.jsx",
+    "props": "{ notice }"
+  },
+  {
+    "name": "OpeningScene",
+    "path": "apps/web/src/scenes/OpeningScene.jsx",
+    "props": "props"
+  },
+  {
+    "name": "PickupScene",
+    "path": "apps/web/src/scenes/PickupScene.jsx",
+    "props": "props"
+  },
+  {
+    "name": "PulseScene",
+    "path": "apps/web/src/scenes/PulseScene.jsx",
+    "props": "{ dateKey, kpi, kpiReady, records, closedAt, onJump, onEditKpi, onHistory }"
+  },
+  {
+    "name": "RepairScene",
+    "path": "apps/web/src/scenes/RepairScene.jsx",
+    "props": "props"
+  },
+  {
+    "name": "ResaleScene",
+    "path": "apps/web/src/scenes/ResaleScene.jsx",
+    "props": "props"
+  },
+  {
+    "name": "SalesScene",
+    "path": "apps/web/src/scenes/SalesScene.jsx",
+    "props": "{ kpi, kpiReady, savedAt, closedAt, onEditKpi, onHistory }"
+  }
+]
