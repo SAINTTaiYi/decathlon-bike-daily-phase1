@@ -1,7 +1,7 @@
 # 执行检查点
 
-保存时间：2026-07-15 06:46 +08:00
-当前阶段：Phase A / `08-build-test-push`（阻断：Shell 缺少 GitHub 认证）
+保存时间：2026-07-15 07:04 +08:00
+当前阶段：Phase A / `08-build-test-push`（阻断：GitHub 官方 OAuth 设备授权端点当前网络超时）
 
 ## 完成状态
 
@@ -12,7 +12,7 @@
 - `05-web-api`：completed，receipt `plan/receipts/step-05-web-api.json`。
 - `06-deployment`：completed_local，receipt `plan/receipts/step-06-deployment.json`。
 - `07-governance`：completed，receipt `plan/receipts/step-07-governance.json`。
-- `08-build-test-push`：in_progress / blocked_on_git_authentication，receipt `plan/receipts/step-08-build-test-push.json`。
+- `08-build-test-push`：in_progress / blocked_on_github_oauth_network，receipt `plan/receipts/step-08-build-test-push.json`。
 
 ## V5.2.7 release facts
 
@@ -38,24 +38,32 @@
 ## Git and remote
 
 - Remote repository：私有且为空，`SAINTTaiYi/decathlon-bike-daily-phase1`。
+- GitHub MCP 在 2026-07-15 07:03 +08:00 再次确认：远端无分支；当前用户对仓库拥有 `admin`、`maintain`、`push`、`triage`、`pull` 权限。
 - Origin：`https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1.git`。
 - Local branch：`main`。
 - Local root commit：`4c4dffb2653f5a0d1683f1a62bb7dfa8333b1e96`。
-- Subject：`feat: ship database-backed bike ops v5.2.7`。
-- Root commit 文件：295。
-- Push attempt：`GIT_TERMINAL_PROMPT=0 git push -u origin main`。
-- Push result：未传输，认证缺失：`fatal: could not read Username for 'https://github.com': terminal prompts disabled`。
-- Shell 无 `gh`、PAT、credential helper 或已认证 Git transport；MCP OAuth 不能供 shell git 使用。
+- Previous durable checkpoint HEAD：`f312474d189eb125dcac07204c03aaec717988cb`（`chore: checkpoint GitHub authentication blocker`）；本文件更新会形成后续治理 checkpoint，恢复时以 `git rev-parse HEAD` 为准。
+- 工作树在本轮操作开始时干净。
+- 已安装 GitHub CLI：`gh 2.45.0`。
+
+## Authentication and push attempts
+
+1. 无认证直接执行 `git push -u origin main`：在传输前失败，`could not read Username for 'https://github.com'`。
+2. 首次设备授权错误提取到 `gh` 二进制内另一个 OAuth 应用：账号可识别为 `SAINTTaiYi`，但该 token 看不到私有仓库；push 被 GitHub 以 `403 Write access not granted` 拒绝，远端未改变。
+3. 上述权限不足 token 已通过 `gh auth logout` 清除；临时 token/device 文件已删除，当前 `gh auth status` 为未登录。
+4. 改用 GitHub CLI 官方 OAuth 应用申请 `repo read:org gist workflow` 设备授权时，`https://github.com/login/device/code` 读取超时。按抗中断协议停止，不盲目重试。
+5. GitHub MCP 再次确认远端仍为空，不存在部分上传或远端分叉。
 
 ## Resume exactly here
 
-1. 用户通过安全通道为当前 Shell 配置 GitHub 凭证，或在设备上安装并授权 `gh`；不要在普通聊天粘贴 PAT。
-2. 确认 `git status --short` 为空，`git log -1` 为本检查点所列 SHA 或后续治理 commit。
-3. 只执行一次非交互 push：`git push -u origin main`。
-4. 使用 GitHub API 确认远端 `main` SHA。
-5. 读取 CI；Node 22、PostgreSQL migration runner、测试、typecheck、build、Gitleaks 全部通过后，标记 step 08 completed。
-6. 若 GitHub 不可达，停止并提示用户开启 VPN，不盲目重试。
-7. 未经 Staging 验收和用户另行批准，不得执行任何 Production apply/release。
+1. 用户开启可稳定访问 GitHub 的 VPN/代理后回复继续。
+2. 由助手重新发起 GitHub CLI 官方 OAuth 设备授权；用户只在 GitHub 官方设备页输入一次性设备码，不在聊天粘贴 PAT、密码或 token。
+3. 授权后先验证 `gh api repos/SAINTTaiYi/decathlon-bike-daily-phase1` 返回 `permissions.push=true`，再执行 `gh auth setup-git`。
+4. 确认 `git status --short` 为空并记录当前 `git rev-parse HEAD`。
+5. 只执行一次 `git push -u origin main`。
+6. 使用 GitHub API 确认远端 `main` SHA 与本地一致。
+7. 读取 CI；Node 22、PostgreSQL migration runner、测试、typecheck、build、Gitleaks 全部通过后，标记 step 08 completed。
+8. 未经 Staging 验收和用户另行批准，不得执行任何 Production apply/release。
 
 ## Safety
 
@@ -64,3 +72,4 @@
 - 未执行 Production。
 - 未删除旧 v5 迁移兼容代码。
 - 不在聊天、仓库、日志或 state 中存储凭证。
+- 本轮权限不足 OAuth token 已退出并删除本地临时副本。
