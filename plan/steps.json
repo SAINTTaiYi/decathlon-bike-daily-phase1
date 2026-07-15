@@ -188,7 +188,7 @@
     ],
     "rationale": "以 Supabase Free private Storage 和签名 URL 替换 R2，同时保持图片摘要、大小、数量、权限和软删除约束",
     "risk": "high",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "14-free-deployment-governance",

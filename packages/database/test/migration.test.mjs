@@ -10,3 +10,13 @@ test('初始数据库 migration 覆盖身份、业务、审计、幂等和附件
   assert.match(sql, /create schema if not exists extensions/u)
   assert.match(sql, /revoke all on schema bike_ops from anon, authenticated/u)
 })
+
+test('Supabase Storage migration 创建私有 Bucket 并限制图片类型与单文件大小', async () => {
+  const sql = await readFile(new URL('../../../supabase/migrations/202607150002_supabase_private_storage.sql', import.meta.url), 'utf8')
+  assert.match(sql, /to_regclass\('storage\.buckets'\)/u)
+  assert.match(sql, /'bike-ops-media'/u)
+  assert.match(sql, /false,\s*10485760/u)
+  assert.match(sql, /image\/jpeg/u)
+  assert.match(sql, /image\/png/u)
+  assert.match(sql, /image\/webp/u)
+})

@@ -1,6 +1,6 @@
 # 压缩上下文事实源
 
-更新时间：2026-07-15 11:24 +08:00
+更新时间：2026-07-15 11:42 +08:00
 
 ## Remote baseline
 
@@ -46,13 +46,21 @@ Receipt：`plan/receipts/step-10b-free-no-card-pivot.json`。
 - Local：API tests 14/14、Database 1/1；API/DB typecheck、API/Web build、wrapper import passed。
 - Receipt：`plan/receipts/step-12-edgeone-serverless-runtime.json`；无云资源变更。
 
+## Step 13 completed
+
+- R2 adapter/tests 已删除；Supabase private Storage adapter、`@supabase/supabase-js@2.110.5` 与 bucket migration 已加入。
+- 后端变量：`SUPABASE_URL`、`SUPABASE_SECRET_KEY`、默认 bucket `bike-ops-media`。
+- 上传签名 2 小时、下载签名 5 分钟；Secret 不进入浏览器。
+- Complete 验证 size/MIME/声明摘要，并重新下载对象计算真实 SHA-256。
+- Local：offline frozen install、API 16/16、DB 2/2、typecheck/build/wrapper import passed；R2 runtime refs 0。
+- Receipt：`plan/receipts/step-13-supabase-private-storage.json`；无云资源变更。
+
 ## Recovery queue
 
-1. Step 13：R2 改为 Supabase private Storage signed upload/download，保持媒体校验和审计。
-2. Step 14：删除旧 Railway/Cloudflare/R2 ops/workflow；重写免费部署治理、环境变量和文档。
-3. Step 15：tests/typecheck/build/workflow policy/Gitleaks，版本化并普通 push develop。
-4. Step 16：再次告知用户 Supabase Project 成本 0 元/月并确认 region 后，才创建免费 Staging Project；随后接入 EdgeOne Makers Free。
-5. Step 17：完整 Staging 验收；Production 继续禁止。
+1. Step 14：删除旧 Railway/Cloudflare/R2 ops/workflow；重写免费部署治理、环境变量和文档。
+2. Step 15：tests/typecheck/build/workflow policy/Gitleaks，版本化并普通 push develop。
+3. Step 16：再次告知用户 Supabase Project 成本 0 元/月并确认 region 后，才创建免费 Staging Project；随后接入 EdgeOne Makers Free。
+4. Step 17：完整 Staging 验收；Production 继续禁止。
 
 ## Free-tier boundary
 

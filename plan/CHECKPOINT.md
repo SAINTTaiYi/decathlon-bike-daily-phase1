@@ -1,7 +1,7 @@
 # 执行检查点
 
-保存时间：2026-07-15 11:24 +08:00
-当前阶段：Phase C / Step 10b 与 Step 12 completed；Step 13 Supabase private Storage pending
+保存时间：2026-07-15 11:42 +08:00
+当前阶段：Phase C / Step 10b、Step 12、Step 13 completed；Step 14 免费部署治理 pending
 
 ## Accepted remote baseline
 
@@ -72,13 +72,20 @@ Receipt：`plan/receipts/step-10b-free-no-card-pivot.json`。
 - Receipt：`plan/receipts/step-12-edgeone-serverless-runtime.json`。
 - 未创建或修改云资源。
 
+## Step 13 — Supabase private Storage completed
+
+- 删除 R2 runtime adapter 与 R2 signing tests。
+- 使用 `SUPABASE_URL` + server-only `SUPABASE_SECRET_KEY` + private bucket；Secret 不下发浏览器。
+- 上传使用对象级 signed upload URL（最长 2 小时），查看使用 5 分钟 signed download URL。
+- 保留 JPEG/PNG/WebP、单文件 10 MB、每记录最多 6 张、审计、Idempotency 和数据库软删除。
+- Complete 阶段同时验证 Storage info，并重新下载对象计算真实 SHA-256，拒绝被篡改内容。
+- 新增 `202607150002_supabase_private_storage.sql`：guarded private `bike-ops-media` bucket、10 MB 和 MIME 限制。
+- UI 文案已从 R2 改为 Supabase private Storage。
+- Local：offline frozen install passed；API tests 16/16、Database 2/2；typecheck/build/wrapper import passed；R2 runtime refs 0。
+- Receipt：`plan/receipts/step-13-supabase-private-storage.json`。
+- 未创建或修改云资源。
+
 ## New implementation queue
-
-### Step 13 — Supabase private Storage
-
-- 删除 R2 runtime adapter。
-- 使用 Supabase Free private bucket 和短期 signed upload/download URL。
-- 保留 JPEG/PNG/WebP、单文件 10 MB、每记录最多 6 张、SHA-256/大小验证、审计和软删除。
 
 ### Step 14 — Free deployment governance
 

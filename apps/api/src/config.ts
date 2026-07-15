@@ -22,11 +22,9 @@ const environmentSchema = z.object({
   TRUST_PROXY: booleanString.default('true'),
   APP_VERSION: z.string().default('0.0.0'),
   GIT_SHA: z.string().default('development'),
-  R2_ACCOUNT_ID: z.string().optional(),
-  R2_BUCKET: z.string().optional(),
-  R2_ACCESS_KEY_ID: z.string().optional(),
-  R2_SECRET_ACCESS_KEY: z.string().optional(),
-  R2_ENDPOINT: z.string().url().optional()
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SECRET_KEY: z.string().min(32).optional(),
+  SUPABASE_STORAGE_BUCKET: z.string().min(3).max(63).regex(/^[a-z0-9][a-z0-9._-]*[a-z0-9]$/u).default('bike-ops-media')
 })
 
 export type AppConfig = z.infer<typeof environmentSchema> & { allowedOrigins: string[] }
