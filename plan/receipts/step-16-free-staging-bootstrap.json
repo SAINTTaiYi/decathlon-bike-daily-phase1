@@ -1,7 +1,8 @@
 {
   "step": "16-free-staging-bootstrap",
-  "status": "in_progress",
-  "updatedAt": "2026-07-15T13:25:16+08:00",
+  "status": "blocked_on_manual_console_configuration",
+  "updatedAt": "2026-07-15T13:38:00+08:00",
+  "pausedByUser": true,
   "userConfirmation": {
     "organization": "SAINTTaiYi's Org",
     "organizationId": "sctiyeyjvaezeofhysfq",
@@ -77,7 +78,9 @@
     "githubCiRun": 29391482691,
     "githubCiConclusion": "success"
   },
+  "blocker": "User paused before manually configuring Supabase database credentials, GitHub staging Environment Secret, EdgeOne Git authorization/project, and EdgeOne runtime secrets.",
   "next": [
+    "Resume only after the user confirms manual console configuration is ready or requests guided setup.",
     "Configure migration/runtime secrets without exposing values.",
     "Create and configure the EdgeOne Makers Free Staging project.",
     "Run exact SHA/version/environment/database/Web deployment verification."

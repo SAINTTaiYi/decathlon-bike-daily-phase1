@@ -1,7 +1,7 @@
 # 执行检查点
 
 保存时间：2026-07-15 13:03 +08:00
-当前阶段：Phase C / Step 10b、12、13、14、15 completed；Step 16 in progress（Supabase Free Staging created，migration pending）
+当前阶段：Phase C / Step 10b、12、13、14、15 completed；Step 16 paused by user（等待人工控制台 Secret/EdgeOne 配置）
 
 ## Accepted repository baseline
 
@@ -114,9 +114,16 @@ EdgeOne 平台操作若当前网络不可达，停止并提醒开启 VPN；不�
 - EdgeOne Free：40 projects、500 builds/month、Cloud Functions 1M/month、Edge Functions 3M/month、5 GB site storage。
 - 70% quota 开始清理/归档；85% 冻结非必要附件上传；不自动升级。
 
+## Pause / resume boundary
+
+- 用户于 2026-07-15 13:38 +08:00 选择暂时暂停。
+- 恢复时从人工控制台配置开始：Supabase 数据库密码/连接串与 server-only key、GitHub `staging` 的 `MIGRATION_DATABASE_URL`、EdgeOne Git 授权/Free 项目/runtime variables。
+- 用户不得在聊天中发送密钥；完成后只回复配置状态。
+- 在用户恢复前，不创建 EdgeOne project、不配置 Secret、不触发 Staging deployment。
+
 ## Safety
 
-- 当前 Supabase projects 0；无 EdgeOne/Railway/Cloudflare Pages/R2 真实资源。
+- 当前已有一个 Supabase Free Staging project；无 EdgeOne/Railway/Cloudflare Pages/R2 真实资源。
 - 未配置真实 Secret、未部署 Staging、未创建 Production 资源。
 - 不在聊天、仓库、日志或 artifact 中保存凭据。
 - 无 force push、无历史改写。

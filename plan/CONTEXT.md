@@ -74,9 +74,12 @@
 - Supabase checkpoint `766d20db6a952e51a594d504ae240cca86ab5db2` passed GitHub CI `29391482691`.
 - Ordinary `edgeone-staging` branch created at `766d20db6a952e51a594d504ae240cca86ab5db2`; force push=false.
 
-## Recovery queue
+## Pause / recovery queue
 
-1. Configure GitHub migration and EdgeOne runtime values without exposing Secrets.
+- User paused at 2026-07-15 13:38 +08:00 before manual console Secret/EdgeOne configuration.
+- Do not create EdgeOne project, configure secrets, or deploy until user resumes.
+
+1. User manually configures or requests guided setup for Supabase DB credentials/server-only key, GitHub staging MIGRATION_DATABASE_URL, and EdgeOne Git project/runtime variables; no secret values in chat.
 2. Create/configure EdgeOne Free Staging project and run full deploy verify.
 3. Step17 full Staging acceptance.
 
