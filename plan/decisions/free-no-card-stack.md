@@ -1,7 +1,7 @@
 # 免费且无需外卡的部署架构决策
 
 决策时间：2026-07-15 11:00 +08:00
-状态：Accepted intent；实施尚未开始
+状态：Accepted；Step 12–14 已完成，待 Step 15 版本化验证与推送
 
 ## 用户约束
 
@@ -41,7 +41,7 @@ GitHub Free
 
 - MCP 已确认当前 Organization 的新项目成本为 0/月。
 - 两个免费项目足够隔离 Staging 与 Production。
-- 免费额度适合本门店工作台：500 MB PostgreSQL、1 GB Storage、5 GB egress。
+- 免费额度适合本门店工作台：500 MB PostgreSQL、1 GB Storage；当前官方带宽文档为 10 GB aggregate（5 GB cached + 5 GB uncached）。
 - 保留 PostgreSQL 事务、revision 并发控制、审计和现有关系模型。
 - 使用 private Storage 替换 Cloudflare R2，继续采用短期签名上传/下载 URL。
 
@@ -73,14 +73,14 @@ GitHub Free
 
 - Supabase Free 低活跃项目可能在约 7 天后自动暂停；可从 Dashboard 恢复，免费方案不承诺 24×7 SLA。
 - Supabase Free 没有托管日备份/PITR；Production 前必须增加免费、加密、可恢复验证过的导出方案，不能把“无备份”包装成已具备灾备。
-- Supabase Free 的 500 MB 数据库和 1 GB 文件额度是硬容量预算；接近阈值时必须清理/归档，不自动升级。
+- Supabase Free 的 500 MB 数据库、1 GB 文件和当前 10 GB aggregate bandwidth 是硬容量预算；接近阈值时必须清理/归档，不自动升级。
 - EdgeOne Makers 免费配额和产品条款可能调整；配置不得开启任何付费或按量计费能力。
 - 免费 Staging 与 Production 使用两个独立 Supabase Free Project 和两个 EdgeOne Project，不共享 Secret 或业务数据。
 
-## 尚未执行
+## 当前执行边界
 
+- EdgeOne Serverless adapter、Supabase private Storage 和免费部署治理代码已完成。
 - 未创建 Supabase Project。
 - 未创建 EdgeOne Makers Project。
-- 未修改应用运行时代码。
-- 未配置任何新 Secret。
+- 未配置任何真实 Secret。
 - 未部署 Staging；Production 仍禁止。

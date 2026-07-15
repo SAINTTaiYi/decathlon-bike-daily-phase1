@@ -204,7 +204,7 @@
     ],
     "rationale": "删除旧 Railway/Cloudflare/R2 发布依赖，建立 EdgeOne Git Integration、Supabase Free migration/storage 和零付费防护规则",
     "risk": "high",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "15-free-stack-build-test-push",
