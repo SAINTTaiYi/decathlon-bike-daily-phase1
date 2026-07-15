@@ -152,7 +152,7 @@ pnpm build
 
 The root test command runs Domain, Database, Web/Ops, and API suites. Build first enforces version consistency and the source/deployment fingerprint, then builds all workspaces.
 
-CI also runs the checksum migration twice against PostgreSQL 16 and verifies both committed migration records.
+CI runs the checksum migration twice against PostgreSQL 16 and verifies all three committed migration records.
 
 ## Deployment governance
 
@@ -190,7 +190,7 @@ Staging bootstrap checklist: [`docs/STAGING-ACCOUNT-SETUP.md`](./docs/STAGING-AC
 
 ## Version governance
 
-Current registered interface version: **V5.3.0**.
+Current registered interface version: **V5.3.1**.
 
 Version truth must match across:
 

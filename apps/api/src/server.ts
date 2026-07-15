@@ -45,7 +45,7 @@ export async function buildServer(config: AppConfig, sql: Database): Promise<Fas
       return reply.code(503).send({ status: 'not-ready' })
     }
   })
-  app.get('/api/v1/meta/version', async () => ({ appVersion: config.APP_VERSION, apiVersion: '1.0.0', schemaVersion: '202607150002_supabase_private_storage', gitSha: config.GIT_SHA, environment: config.APP_ENV }))
+  app.get('/api/v1/meta/version', async () => ({ appVersion: config.APP_VERSION, apiVersion: '1.0.0', schemaVersion: '202607150003_staging_security_indexes', gitSha: config.GIT_SHA, environment: config.APP_ENV }))
 
   await registerAuthRoutes(app, sql, config)
   await registerClosingRoutes(app, sql, config)

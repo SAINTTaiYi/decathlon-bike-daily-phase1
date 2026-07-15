@@ -20,3 +20,25 @@ test('Supabase Storage migration 创建私有 Bucket 并限制图片类型与单
   assert.match(sql, /image\/png/u)
   assert.match(sql, /image\/webp/u)
 })
+
+test('Staging 安全迁移保护 migration history 并覆盖外键索引', async () => {
+  const sql = await readFile(new URL('../../../supabase/migrations/202607150003_staging_security_indexes.sql', import.meta.url), 'utf8')
+  assert.match(sql, /alter table public\.bike_ops_schema_migrations enable row level security/u)
+  assert.match(sql, /revoke all on table public\.bike_ops_schema_migrations from public, anon, authenticated/u)
+  for (const index of [
+    'attachments_store_id_idx',
+    'attachments_uploaded_by_idx',
+    'audit_events_actor_user_id_idx',
+    'daily_closings_closed_by_idx',
+    'daily_closings_sales_saved_by_idx',
+    'handover_details_completed_by_idx',
+    'idempotency_requests_user_id_idx',
+    'import_jobs_imported_by_idx',
+    'pickup_details_picked_up_by_idx',
+    'pickup_details_repair_work_item_id_idx',
+    'store_members_user_id_idx',
+    'work_items_created_by_idx',
+    'work_items_deleted_by_idx',
+    'work_items_updated_by_idx'
+  ]) assert.match(sql, new RegExp(`create index if not exists ${index}`, 'u'))
+})

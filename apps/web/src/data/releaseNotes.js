@@ -1,14 +1,13 @@
-export const APP_VERSION = "5.3.0"
+export const APP_VERSION = "5.3.1"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.15",
-  title: "全免费云栈与受控发布",
-  summary: "将 Web/API/数据库/私有附件迁移到 EdgeOne Makers Free + Supabase Free，并用迁移先行的专用部署分支建立零付费发布治理。",
+  title: "Staging 数据库安全加固",
+  summary: "根据真实 Supabase PostgreSQL 17.6 顾问结果保护 migration history，并补齐业务外键覆盖索引。",
   changes: [
-    "Fastify API 已适配 EdgeOne Node.js Cloud Functions，与 Vite Web 使用同源 /api 和 /health。",
-    "Cloudflare R2 已替换为 Supabase private Storage，上传完成后会重新下载并校验真实 SHA-256。",
-    "删除 Railway、Cloudflare Pages/R2、容器和旧 bootstrap；发布改为测试构建、checksum migration、部署分支普通快进与 exact SHA 验收。",
-    "Staging/Production 强制 Free/no-billing 隔离，Production 额外要求已验收 Staging、加密导出和恢复演练。"
+    "为 public.bike_ops_schema_migrations 启用 RLS，并撤销 public、anon、authenticated 的表权限。",
+    "为附件、审计、闭店、待取、导入、成员和台账的外键补齐覆盖索引。",
+    "CI migration 记录计数更新为 3，并将运行时 schema version 提升到 staging_security_indexes。"
   ]
 }

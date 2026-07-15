@@ -149,7 +149,7 @@ Runtime API connections use the Supavisor transaction pooler on port `6543`, `pr
 
 1. Node 22 and pinned pnpm 9.15.9.
 2. Free-stack workflow policy validation.
-3. PostgreSQL 16 migration twice, verifying both migration checksums are recorded once.
+3. PostgreSQL 16 migration twice, verifying all three migration checksums are recorded once.
 4. Domain, Database, Web/Ops, and API tests.
 5. TypeScript typecheck.
 6. Monorepo build and version fingerprint check.
