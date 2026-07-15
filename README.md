@@ -190,7 +190,7 @@ Staging bootstrap checklist: [`docs/STAGING-ACCOUNT-SETUP.md`](./docs/STAGING-AC
 
 ## Version governance
 
-Current registered interface version: **V5.2.10**.
+Current registered interface version: **V5.3.0**.
 
 Version truth must match across:
 

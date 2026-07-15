@@ -69,7 +69,7 @@ export async function waitFor(label, check, { attempts = 60, delayMs = 5000 } = 
     } catch (error) {
       if (error?.noRetry || attempt === attempts) throw error
     }
-    process.stdout.write(`WAIT · ${label} · ${attempt}/${attempts}\n`)
+    process.stderr.write(`WAIT · ${label} · ${attempt}/${attempts}\n`)
     await new Promise((resolve) => setTimeout(resolve, delayMs))
   }
   throw new Error(`TIMEOUT · ${label}`)
