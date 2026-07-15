@@ -97,5 +97,40 @@
     "rationale": "运行全量测试、构建、Secret 扫描并推送私有仓库",
     "risk": "high",
     "status": "completed"
+  },
+  {
+    "id": "09-staging-foundation",
+    "files": [
+      ".github/workflows/deploy-staging.yml",
+      "scripts/ops/validate-workflows.mjs",
+      "tests/deployment-workflows.test.mjs",
+      "AUTOMATED-DEPLOYMENT.md",
+      "README.md",
+      "DESIGN.md",
+      "deploy-summary.md",
+      "version-manifest.json"
+    ],
+    "rationale": "建立 develop 与受分支限制的 staging Environment，并修复 Bootstrap 前的安全发布门禁",
+    "risk": "high",
+    "status": "completed_local_pending_remote_ci"
+  },
+  {
+    "id": "10-staging-bootstrap",
+    "files": [
+      "infra/state/staging.json",
+      "plan/receipts/step-10-staging-bootstrap.json"
+    ],
+    "rationale": "通过环境专属凭证创建并核验隔离的 Staging 云资源",
+    "risk": "high",
+    "status": "blocked_on_secure_environment_secrets"
+  },
+  {
+    "id": "11-staging-acceptance",
+    "files": [
+      "plan/receipts/step-11-staging-acceptance.json"
+    ],
+    "rationale": "完成账号、业务、并发、附件、迁移、离线、设备、无障碍与恢复验收",
+    "risk": "high",
+    "status": "pending"
   }
 ]

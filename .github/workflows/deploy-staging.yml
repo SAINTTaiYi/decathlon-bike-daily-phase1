@@ -13,7 +13,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.state.outputs.ready }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+      - name: Check whether staging has been bootstrapped
+        id: state
+        shell: bash
+        run: |
+          if test -s infra/state/staging.json; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Staging infrastructure is not bootstrapped yet; deployment is skipped safely."
+          fi
+
   deploy:
+    needs: readiness
+    if: needs.readiness.outputs.ready == 'true'
     runs-on: ubuntu-latest
     environment: staging
     env:
@@ -42,8 +64,9 @@ jobs:
         run: node scripts/ops/network-guard.mjs npm/pnpm pnpm install --frozen-lockfile
       - name: Export release identity
         run: |
-          echo "APP_VERSION=$(node -p \"require('./package.json').version\")" >> "$GITHUB_ENV"
-          echo "GIT_SHA=$GITHUB_SHA" >> "$GITHUB_ENV"
+          app_version=$(node -p "require('./package.json').version")
+          printf 'APP_VERSION=%s\n' "$app_version" >> "$GITHUB_ENV"
+          printf 'GIT_SHA=%s\n' "$GITHUB_SHA" >> "$GITHUB_ENV"
       - name: Verify committed staging state
         run: test -s infra/state/staging.json
       - name: Validate workflow policy

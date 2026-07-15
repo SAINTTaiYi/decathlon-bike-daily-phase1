@@ -89,6 +89,10 @@ assert(/persist-credentials: false/u.test(ci), 'ci: secret scan checkout must no
 
 const staging = workflows['deploy-staging.yml'] || ''
 assert(/branches: \[develop\]/u.test(staging), 'staging: push trigger must be develop')
+assert(/Check whether staging has been bootstrapped/u.test(staging), 'staging: bootstrap readiness gate is required')
+assert(/needs\.readiness\.outputs\.ready == 'true'/u.test(staging), 'staging: deploy job must require committed infrastructure state')
+assert(/app_version=\$\(node -p "require\('\.\/package\.json'\)\.version"\)/u.test(staging), 'staging: release identity export must use valid shell quoting')
+assert(!staging.includes('node -p \\"require'), 'staging: escaped shell quotes in command substitution are forbidden')
 assert(/environment: staging/u.test(staging), 'staging: GitHub Environment must be staging')
 assert(/pnpm ops preflight staging --release/u.test(staging), 'staging: release preflight is required')
 assert(/release-state-staging/u.test(staging), 'staging: release state artifact is required')
@@ -119,4 +123,4 @@ if (failures.length) {
   process.exit(1)
 }
 
-console.log(JSON.stringify({ ok: true, yamlParser, workflows: workflowNames, policies: 39 }, null, 2))
+console.log(JSON.stringify({ ok: true, yamlParser, workflows: workflowNames, policies: 43 }, null, 2))

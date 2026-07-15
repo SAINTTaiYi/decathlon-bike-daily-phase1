@@ -2,7 +2,7 @@
 
 ## Status
 
-V5.2.8 已实现本地可验证的基础设施与发布自动化，目标平台为：
+V5.2.9 已实现本地可验证的基础设施与发布自动化，目标平台为：
 
 - Web：Cloudflare Pages Direct Upload
 - API：Railway
@@ -11,7 +11,7 @@ V5.2.8 已实现本地可验证的基础设施与发布自动化，目标平台�
 - CI/CD：GitHub Actions
 - Environments：Staging + Production，资源与 Secret 完全隔离
 
-当前仓库尚未连接任何真实云账号，未创建云资源，未配置真实 Secret，未执行 Staging 或 Production。本文描述代码中已经存在的自动化和执行前提，不代表云端已验证成功。
+当前私有仓库已建立 `main` 与 `develop`，并已创建仅允许 `develop` 部署的 `staging` GitHub Environment。尚未连接真实云账号、创建云资源或配置真实 Secret，也未执行 Staging apply/release 或 Production。本文描述代码中已经存在的自动化和执行前提，不代表云端已验证成功。
 
 ## Safety model
 
@@ -258,8 +258,8 @@ pnpm ops release production --approve-production --confirm-backup
 ### `deploy-staging.yml`
 
 - push 到 `develop` 或从 `develop` 手动触发。
-- 要求已提交 `infra/state/staging.json`。
-- 顺序：测试/typecheck/build → release preflight → release → verify。
+- readiness job 先检查已提交的 `infra/state/staging.json`；尚未 Bootstrap 时安全跳过 deploy job，不读取 Environment Secret、不访问云平台。
+- state 就绪后，deploy job 再强制校验 `develop`，并按测试/typecheck/build → release preflight → release → verify 执行。
 
 ### `deploy-production.yml`
 
@@ -363,10 +363,10 @@ https://<web-origin>/#setup=<INITIAL_ADMIN_SETUP_TOKEN>
 
 ## Current execution boundary
 
-截至 V5.2.8 本地收口：
+截至 V5.2.9 Staging 准备阶段：
 
+- 私有 GitHub 仓库已有 `main` 与 `develop`；`staging` Environment 仅允许 `develop` 部署。
 - 无真实 Cloudflare/Railway/Supabase/R2 资源。
-- 无真实 Secret。
-- Git `main` 尚无 commit/remote。
-- Production apply/release 明确禁止。
+- 无真实 Environment Secret。
+- 未执行 Staging apply/release；Production apply/release 明确禁止。
 - 任何云执行都需要用户先安全配置 GitHub Environment Secret，并在当前网络可访问境外平台；不可达时请开启 VPN 后继续。

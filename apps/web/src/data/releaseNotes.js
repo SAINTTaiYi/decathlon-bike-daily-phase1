@@ -1,13 +1,13 @@
-export const APP_VERSION = "5.2.8"
+export const APP_VERSION = "5.2.9"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.15",
-  title: "CI 全历史 Secret 扫描加固",
-  summary: "修复首次推送时 Gitleaks 根提交范围失效的问题，并将 GitHub Actions 升级到 Node 24 运行时与固定提交 SHA。",
+  title: "Staging 启动门禁加固",
+  summary: "修复 Staging 发布身份导出的 Shell 引号错误，并在基础设施尚未 Bootstrap 时安全跳过自动部署。",
   changes: [
-    "Gitleaks 固定为 8.30.1，下载后校验官方 SHA-256，并扫描包含根提交在内的完整 Git 历史。",
-    "GitHub Actions checkout、setup-node 与 upload-artifact 固定到已审计的 Node 24 提交 SHA，消除 Node 20 弃用风险。",
-    "工作流静态治理新增外部 Action 完整 SHA、Gitleaks 版本、二进制摘要、完整历史和无持久凭证约束。"
+    "修复 deploy-staging 的 APP_VERSION 导出命令，避免 Bash 在云端发布前因错误转义提前失败。",
+    "新增已提交 staging state 的 readiness gate；未 Bootstrap 时只输出 notice，不读取 Secret、不执行发布或云资源变更。",
+    "Staging GitHub Environment 限制为 develop 分支，工作流治理扩展到 43 项策略并新增回归测试。"
   ]
 }

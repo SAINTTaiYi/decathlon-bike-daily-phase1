@@ -1,10 +1,10 @@
 # Decathlon Bike Ops · Daily Closing Lookbook
 
-V5.2.8 是数据库驱动的自行车部门闭店与跨日业务工作台。它保留移动端黑白硬边 product lookbook 视觉，同时以 Fastify API、Supabase PostgreSQL、真实账号、服务端业务规则、审计和私有 R2 附件支撑多设备协作。
+V5.2.9 是数据库驱动的自行车部门闭店与跨日业务工作台。它保留移动端黑白硬边 product lookbook 视觉，同时以 Fastify API、Supabase PostgreSQL、真实账号、服务端业务规则、审计和私有 R2 附件支撑多设备协作。
 
 > 本项目不接入迪卡侬官方业务 API。门店同事仍人工录入数据，但 PostgreSQL 是正式业务事实源；浏览器只保留运行时会话、最近成功加载的内存快照和可选的旧 v5 显式迁移来源。
 
-## V5.2.8 current state
+## V5.2.9 current state
 
 已在代码与本地验证中完成：
 
@@ -21,11 +21,12 @@ V5.2.8 是数据库驱动的自行车部门闭店与跨日业务工作台。它�
 - CI 使用固定版本并校验 SHA-256 的 Gitleaks 扫描完整 Git 历史；外部 Actions 固定到完整提交 SHA。
 - Staging/Production 完全隔离；Production 要求 Staging 源码验收、main、固定 SHA/version、审批、显式批准和备份确认。
 
-尚未执行：
+当前云执行边界：
 
-- 未创建任何真实云资源，未连接云账号，未写入真实 Secret。
+- 私有仓库已建立 `main` 与 `develop`；`staging` GitHub Environment 已创建并仅允许 `develop` 部署。
+- 尚未配置真实 Environment Secret，也未创建 Cloudflare、Railway、Supabase 或 R2 资源。
 - 未进行真实 Supabase/R2/Railway/Cloudflare 端到端测试或手机 Staging 验收。
-- 未执行 Production apply/release。
+- 未执行 Staging apply/release 或任何 Production 操作。
 
 ## Product rules
 
@@ -148,7 +149,7 @@ Database schema smoke test can also be run against PostgreSQL 16 using the same 
 
 ## Version governance
 
-Current version: **V5.2.8**.
+Current version: **V5.2.9**.
 
 Version truth must match across:
 

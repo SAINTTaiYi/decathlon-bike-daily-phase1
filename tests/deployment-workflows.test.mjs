@@ -60,6 +60,10 @@ test('Staging Workflow 固定 develop，先测试和 preflight，再发布与验
   const source = await workflow('deploy-staging.yml')
   const labels = ['Test, typecheck, and build', 'Preflight release credentials', 'Release in safe order', 'Verify deployed API and web']
   assert.match(source, /branches: \[develop\]/u)
+  assert.match(source, /Check whether staging has been bootstrapped/u)
+  assert.match(source, /needs\.readiness\.outputs\.ready == 'true'/u)
+  assert.match(source, /app_version=\$\(node -p "require\('\.\/package\.json'\)\.version"\)/u)
+  assert.equal(source.includes('node -p \\"require'), false)
   assert.match(source, /release-state-staging/u)
   let cursor = -1
   for (const label of labels) {
