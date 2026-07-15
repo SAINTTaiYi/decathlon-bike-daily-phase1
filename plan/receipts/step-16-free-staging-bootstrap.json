@@ -33,6 +33,8 @@
   },
   "cloudMutation": {
     "supabaseStagingProjectCreated": true,
+    "edgeOneStagingBranchCreated": true,
+    "edgeOneStagingBranchSha": "766d20db6a952e51a594d504ae240cca86ab5db2",
     "edgeOneProjectCreated": false,
     "productionResourcesCreated": false,
     "paidPlanEnabled": false,
@@ -66,8 +68,16 @@
     "tests": "70/70 passed",
     "cloudCompatibility": "PostgreSQL 16 CI and PostgreSQL 17.6 Staging both passed"
   },
+  "edgeOneBranch": {
+    "name": "edgeone-staging",
+    "sha": "766d20db6a952e51a594d504ae240cca86ab5db2",
+    "source": "verified develop checkpoint",
+    "pushMode": "ordinary push",
+    "forcePush": false,
+    "githubCiRun": 29391482691,
+    "githubCiConclusion": "success"
+  },
   "next": [
-    "Create the ordinary edgeone-staging branch from the verified V5.3.1 commit.",
     "Configure migration/runtime secrets without exposing values.",
     "Create and configure the EdgeOne Makers Free Staging project.",
     "Run exact SHA/version/environment/database/Web deployment verification."

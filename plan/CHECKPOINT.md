@@ -92,11 +92,13 @@ GitHub Free
 - Migration history：RLS=true，anon/authenticated 无读取权限，3 个 SHA 与仓库一致。
 - 14 个外键覆盖索引已建立；Security Advisor 无 ERROR；仅 deny-all 无 policy INFO；Performance 仅空库 unused-index INFO。
 - 顾问修复版本 V5.3.1 commit `eda86f8031aaa749009d0f7560bc719927353115`；GitHub CI run `29391234924` success；70/70 tests。
+- Supabase 验证检查点 `766d20db6a952e51a594d504ae240cca86ab5db2` 的 CI run `29391482691` success。
+- `edgeone-staging` 已用普通 push 创建并指向 `766d20db6a952e51a594d504ae240cca86ab5db2`；force push=false。
 
 下一顺序：
 
 ```text
-create ordinary edgeone-staging branch from verified V5.3.1
+edgeone-staging created at verified SHA 766d20db6a952e51a594d504ae240cca86ab5db2
 → configure migration/runtime secrets without exposing values
 → create/configure EdgeOne Makers Free Staging project
 → full deployment verification
