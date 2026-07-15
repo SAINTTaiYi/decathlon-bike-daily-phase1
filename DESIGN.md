@@ -221,7 +221,7 @@ packages/
 
 ## Version governance
 
-- 当前版本：`V5.2.7`。
+- 当前版本：`V5.2.8`。
 - 根 `package.json`、`apps/web/package.json`、`apps/web/src/data/releaseNotes.js` 与 `version-manifest.json` 必须一致。
 - `pnpm version:patch -- ...` 递增 V5 版本并生成当前发布说明。
 - 完成代码与文档后运行 `pnpm version:stamp`；`pnpm build` 先校验版本和源码/部署事实指纹。

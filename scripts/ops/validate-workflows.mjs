@@ -62,6 +62,9 @@ for (const [name, source] of Object.entries(workflows)) {
   if (/pnpm install/u.test(source)) assert(/network-guard\.mjs npm\/pnpm pnpm install --frozen-lockfile/u.test(source), `${name}: pnpm install must use network-guard`)
 }
 
+const actionReferences = Object.values(workflows).flatMap((source) => [...source.matchAll(/uses:\s+[^@\s]+@([^\s#]+)/gu)].map((match) => match[1]))
+assert(actionReferences.length > 0 && actionReferences.every((reference) => /^[0-9a-f]{40}$/u.test(reference)), 'workflows: every external action must be pinned to a full commit SHA')
+
 const bootstrap = workflows['bootstrap-infrastructure.yml'] || ''
 assert(/environment: \$\{\{ inputs\.environment \}\}/u.test(bootstrap), 'bootstrap: selected GitHub Environment is required')
 assert(/confirm_staging_acceptance:/u.test(bootstrap), 'bootstrap: production requires an explicit staging acceptance input')
@@ -79,6 +82,10 @@ includesInOrder(bootstrap, ['Test, typecheck, and build before cloud mutation', 
 const ci = workflows['ci.yml'] || ''
 assert((ci.match(/pnpm --filter @bike-ops\/database migrate/gu) || []).length >= 2, 'ci: checksum migration runner must execute twice')
 assert(/bike_ops_schema_migrations/u.test(ci), 'ci: migration history count must be verified')
+assert(/GITLEAKS_VERSION: 8\.30\.1/u.test(ci), 'ci: Gitleaks version must be pinned')
+assert(/551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb/u.test(ci), 'ci: Gitleaks linux_x64 archive checksum must be pinned')
+assert(/--log-opts="--all --full-history --no-merges"/u.test(ci), 'ci: Gitleaks must scan the complete Git history')
+assert(/persist-credentials: false/u.test(ci), 'ci: secret scan checkout must not persist GitHub credentials')
 
 const staging = workflows['deploy-staging.yml'] || ''
 assert(/branches: \[develop\]/u.test(staging), 'staging: push trigger must be develop')
@@ -112,4 +119,4 @@ if (failures.length) {
   process.exit(1)
 }
 
-console.log(JSON.stringify({ ok: true, yamlParser, workflows: workflowNames, policies: 34 }, null, 2))
+console.log(JSON.stringify({ ok: true, yamlParser, workflows: workflowNames, policies: 39 }, null, 2))

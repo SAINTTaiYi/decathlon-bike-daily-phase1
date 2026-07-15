@@ -1,6 +1,6 @@
 # 压缩上下文事实源
 
-更新时间：2026-07-15 07:04 +08:00
+更新时间：2026-07-15 08:22 +08:00
 
 ## 项目目标
 
@@ -10,47 +10,53 @@
 
 - 项目根目录：`/workspace/decathlon-bike-daily-phase1`
 - 事实源：`PRODUCT.md`、`DESIGN.md`、`AUTOMATED-DEPLOYMENT.md`、`plan/CHECKPOINT.md`
-- 步骤：01–07 completed；08-build-test-push in_progress / blocked_on_github_oauth_network。
-- 当前版本：V5.2.7。
-- 版本指纹：`8f5a3125e55a5c6d1f1ebd68cf31e91b05bc1ab01f3a71775269238db05f1309`，268 个治理文件。
+- 步骤：01–07 completed；08-build-test-push in_progress / ready_to_push_ci_fix。
+- 当前版本：V5.2.8。
+- 版本指纹：`c323b6258b544cd3a4eb95290680d569401f200c07227d831605d71dfa06d176`，268 个治理文件，3 项 release changes。
 - 前端正式运行使用 `useAuth` + `useRemoteClosingWorkflow`；旧 `useClosingWorkflow.js` 只作 v5 显式迁移与回归参考。
 - 无真实云 Secret、无 Cloudflare/Railway/Supabase/R2 资源；未执行 Staging/Production。
 
-## 已完成验证
+## 严格本地验证
 
+- Node.js 官方 v22.22.2 ARM64 包按官方 SHASUMS256 校验通过；pnpm 9.15.9。
+- `pnpm install --frozen-lockfile` passed。
 - 测试：68/68（Domain 4、Database 1、Web/Ops 51、API 12）。
 - TypeScript：Contracts、Database、API typecheck 通过。
 - Build：Contracts、Database、API、Web 通过；Vite production build 通过。
-- Workflow：4/4 YAML 可解析，34/34 静态安全/顺序策略通过。
-- Impeccable detector：0 findings。
-- Docker/Railway：Dockerfile、COPY source、非 root、CMD、health check 静态检查通过；本机无 Docker daemon，未构建镜像。
-- Secret：295 个候选文件本地 heuristic 0 findings；GitHub Advanced Security 未启用，因此 MCP Secret Scanner 不可用；CI 已配置 Gitleaks。
-- 当前设备只有 Node 18.19.1；项目 `engines >=22 <25` 与 `engine-strict=true` 会正确阻止根 pnpm 命令。使用本地包二进制完成等价测试/build；严格 Node 22 整链待 GitHub CI/Staging。
+- Version：V5.2.8、3 项更新、268 files、fingerprint guard 通过。
+- Workflow：4/4 YAML 可解析，39/39 静态安全/顺序策略通过。
+- Gitleaks 8.30.1：完整已提交历史 3 commits 0 findings；当前工作树 0 findings。
 
-## Git 与认证状态
+## Git、认证与远端
 
-- 私有远端仍为空：`SAINTTaiYi/decathlon-bike-daily-phase1`；GitHub MCP 在 2026-07-15 07:03 +08:00 确认无远端分支。
-- MCP 确认当前用户对仓库拥有完整 `admin/maintain/push/triage/pull` 权限。
+- 私有远端：`SAINTTaiYi/decathlon-bike-daily-phase1`。
 - `origin`：`https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1.git`。
-- 本地 root commit：`4c4dffb2653f5a0d1683f1a62bb7dfa8333b1e96`；上一个 durable checkpoint：`f312474d189eb125dcac07204c03aaec717988cb`。
-- 已安装 `gh 2.45.0`。
-- 无认证 push 首先因缺少 Username 失败。
-- 一次 OAuth 设备授权错误使用了 `gh` 二进制中另一个 OAuth 应用：能识别账号但看不到私有仓库，push 返回 403；远端未改变。
-- 该权限不足 token 已登出，临时 token/device 文件已删除；当前 `gh` 未登录。
-- 随后使用 GitHub CLI 官方 OAuth 应用申请 `repo read:org gist workflow` 权限时，GitHub 设备码端点读取超时。按抗中断协议已停止，需要 VPN/稳定境外网络后继续。
+- GitHub CLI `gh 2.45.0` 已通过官方 OAuth 登录 `SAINTTaiYi`；scopes `repo/workflow/read:org/gist`，仓库 `permissions.push=true`。
+- 已执行 `gh auth setup-git`。
+- 当前本地与远端 `main` 仍为 `c31dcf6f5102f246d72d50836f4adbb4690310a1`；V5.2.8 CI 修复尚未提交。
+
+## 首次 GitHub CI
+
+- Run `29377747730`，head `c31dcf6...`，overall failure。
+- verify job 全部通过：Node 22、PostgreSQL 16 migration runner、第二次幂等执行、workflow policy、68 tests、typecheck、build。
+- secrets job 并非发现 Secret，而是 `gitleaks-action@v2` 在首次 push 构造 `root_commit^..HEAD`；根提交无父节点，unknown revision，实际扫描 0 bytes。
+
+## V5.2.8 修复
+
+- Gitleaks 固定 8.30.1，校验官方 linux_x64 SHA-256 后执行完整 Git 历史扫描，覆盖根提交。
+- Secret scan checkout 不持久化凭证，SARIF artifact 保留 30 天。
+- checkout/setup-node/upload-artifact 使用 Node 24 运行时版本并固定完整 commit SHA。
+- 工作流治理新增完整 Action SHA、Gitleaks 版本、二进制摘要、完整历史与无持久凭证规则；总计 39 项。
+- Service Worker cache 与现行文档同步到 V5.2.8。
 
 ## 当前任务
 
-完成 `08-build-test-push`：
-
-1. 用户开启 VPN/代理后回复继续。
-2. 重新走 GitHub CLI 官方 OAuth 设备授权；只在 GitHub 官方页面输入一次性设备码，不在聊天粘贴 PAT。
-3. 验证 OAuth 能读取私有仓库且 `permissions.push=true`，然后 `gh auth setup-git`。
-4. 确认工作树和当前 HEAD，再执行一次 `git push -u origin main`。
-5. 确认远端 `main` SHA 与本地一致。
-6. 查看 GitHub CI 的 Node 22 严格结果；失败则按检查点继续修复。
-7. 写完成态 `step-08-build-test-push.json`，标记步骤 08 completed。
-8. 之后才配置 Staging GitHub Environment Secret；Production 继续禁止。
+1. 对最终 diff、JSON/YAML、version 与 Secret 做安全检查。
+2. 提交并推送 V5.2.8 CI 修复，不 force push。
+3. 等待新 CI 的 verify 与 secrets job。
+4. 成功后将 Step 08 标记 completed，提交最终治理记录并推送。
+5. 验证最终治理 commit 自身 CI，结果同步长期记忆。
+6. 之后才可准备 Staging；未获用户另行批准前，Production 继续禁止。
 
 ## 抗中断协议
 

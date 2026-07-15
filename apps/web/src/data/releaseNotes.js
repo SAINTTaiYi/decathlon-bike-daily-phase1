@@ -1,15 +1,13 @@
-export const APP_VERSION = "5.2.7"
+export const APP_VERSION = "5.2.8"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.15",
-  title: "数据库驱动全栈与安全发布",
-  summary: "闭店日报升级为数据库驱动的全栈 Monorepo，并建立 Staging/Production 隔离、可恢复基础设施状态与双确认生产发布流程。",
+  title: "CI 全历史 Secret 扫描加固",
+  summary: "修复首次推送时 Gitleaks 根提交范围失效的问题，并将 GitHub Actions 升级到 Node 24 运行时与固定提交 SHA。",
   changes: [
-    "正式业务读写接入 Fastify API、Supabase PostgreSQL、真实账号 Session、RBAC、审计撤回与 revision 并发控制。",
-    "用户上传附件改用 Cloudflare R2 私有对象与短期签名 URL，数据库只保存受控元数据。",
-    "新增幂等 ops CLI、checksum migration runner、Cloudflare Pages/Railway/Supabase/R2 自动化与非敏感阶段检查点。",
-    "GitHub Actions 按环境映射 Secret；Production 仅允许 main 手动发布，并要求 Staging 验收 SHA、显式批准和备份确认。",
-    "境外 npm、GitHub 与云平台不可达时立即停止并提示开启 VPN，不盲目重试。"
+    "Gitleaks 固定为 8.30.1，下载后校验官方 SHA-256，并扫描包含根提交在内的完整 Git 历史。",
+    "GitHub Actions checkout、setup-node 与 upload-artifact 固定到已审计的 Node 24 提交 SHA，消除 Node 20 弃用风险。",
+    "工作流静态治理新增外部 Action 完整 SHA、Gitleaks 版本、二进制摘要、完整历史和无持久凭证约束。"
   ]
 }

@@ -1,8 +1,8 @@
-# Decathlon Bike Ops V5.2.7 · Deployment Summary
+# Decathlon Bike Ops V5.2.8 · Deployment Summary
 
 ## Executive status
 
-V5.2.7 已从纯本机 Vite + React 应用升级为数据库驱动全栈 Monorepo：
+V5.2.8 已从纯本机 Vite + React 应用升级为数据库驱动全栈 Monorepo：
 
 ```text
 Cloudflare Pages
@@ -97,7 +97,7 @@ migration
 - TypeScript typecheck。
 - Workspace build 与版本指纹守卫。
 - PostgreSQL 16 migration validation（CI 配置）。
-- Workflow YAML 解析与 34 项静态发布策略。
+- Workflow YAML 解析与 39 项静态发布策略。
 - Production 无凭证 fail-closed。
 - Secret/连接串静态检查。
 
@@ -163,10 +163,10 @@ Production 前必须在真实 Staging 验证：
 
 ## Immediate next step
 
-本地收口完成后，进入 `08-build-test-push`：
+私有仓库和 `main` 已建立；V5.2.8 正在完成严格 CI 收口。后续顺序：
 
-1. 最终测试、typecheck、build、Workflow/Secret 检查。
-2. 确认无真实 Secret 与未跟踪生成物。
-3. 创建私有 GitHub 仓库和首个 commit。
-4. 推送前若 GitHub 不可达，停止并提示开启 VPN。
-5. 用户安全配置 Staging GitHub Environment Secret 后，再执行 Staging Bootstrap。
+1. GitHub CI 验证 Node 22、PostgreSQL 16 migration runner、测试、typecheck、build 与完整 Git 历史 Gitleaks 扫描。
+2. 确认远端 `main` SHA、CI 结论和本地版本指纹一致。
+3. 用户通过安全通道配置 `staging` GitHub Environment Secret，不在普通聊天或仓库中传递凭证。
+4. 从 `develop` 执行 Staging Bootstrap、真实设备与双用户验收。
+5. 未经 Staging 验收和用户另行批准，不执行 Production。

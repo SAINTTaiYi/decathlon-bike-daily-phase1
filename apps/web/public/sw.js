@@ -1,4 +1,4 @@
-const CACHE = 'bike-ops-v5.2.7-static'
+const CACHE = 'bike-ops-v5.2.8-static'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['/'])).then(() => self.skipWaiting()))

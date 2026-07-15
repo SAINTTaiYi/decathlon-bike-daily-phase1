@@ -1,15 +1,14 @@
 {
   "step": "08-build-test-push",
-  "status": "blocked_on_github_oauth_network",
-  "updatedAt": "2026-07-15T07:04:00+08:00",
+  "status": "ready_to_push_ci_fix",
+  "updatedAt": "2026-07-15T08:22:00+08:00",
   "targetRepository": {
     "owner": "SAINTTaiYi",
     "repo": "decathlon-bike-daily-phase1",
     "visibility": "private",
     "remote": "https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1.git",
-    "remoteState": "empty",
-    "remoteBranchesAtLastCheck": 0,
-    "currentUserPermissions": {
+    "remoteMainShaBeforeFix": "c31dcf6f5102f246d72d50836f4adbb4690310a1",
+    "permissions": {
       "admin": true,
       "maintain": true,
       "push": true,
@@ -17,58 +16,80 @@
       "pull": true
     }
   },
-  "localCommitAtPushAttempt": {
-    "branch": "main",
-    "sha": "f312474d189eb125dcac07204c03aaec717988cb",
-    "subject": "chore: checkpoint GitHub authentication blocker",
-    "workingTreeBeforeAttempt": "clean"
+  "authentication": {
+    "githubCli": "gh 2.45.0",
+    "account": "SAINTTaiYi",
+    "oauthApplication": "GitHub CLI official OAuth app",
+    "scopes": ["gist", "read:org", "repo", "workflow"],
+    "privateRepositoryReadable": true,
+    "pushPermissionVerified": true,
+    "gitCredentialConfigured": true,
+    "credentialSafety": "No PAT, password or OAuth token is stored in project files or ordinary chat."
   },
-  "verification": {
+  "initialPush": {
+    "command": "git push -u origin main",
+    "result": "success",
+    "branch": "main",
+    "sha": "c31dcf6f5102f246d72d50836f4adbb4690310a1",
+    "forced": false,
+    "localRemoteShaMatch": true
+  },
+  "initialGithubCi": {
+    "workflow": "CI",
+    "runId": 29377747730,
+    "headSha": "c31dcf6f5102f246d72d50836f4adbb4690310a1",
+    "status": "completed",
+    "conclusion": "failure",
+    "url": "https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/actions/runs/29377747730",
+    "verifyJob": "passed: Node 22, PostgreSQL 16 checksum migration runner and idempotent second run, workflow policy, 68 tests, typecheck and build",
+    "secretsJob": "scanner error: gitleaks-action@v2 constructed root_commit^..HEAD during the repository's first push; the root commit has no parent, so Git rejected the range and Gitleaks scanned 0 bytes",
+    "secretFinding": false
+  },
+  "remediation": {
+    "version": "5.2.8",
+    "fingerprint": "c323b6258b544cd3a4eb95290680d569401f200c07227d831605d71dfa06d176",
+    "governedFiles": 268,
+    "releaseChanges": 3,
+    "gitleaks": {
+      "version": "8.30.1",
+      "linuxX64Sha256": "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb",
+      "scan": "complete Git history with --all --full-history --no-merges",
+      "checkoutPersistsCredentials": false,
+      "sarifRetentionDays": 30
+    },
+    "actions": {
+      "checkout": "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "setupNode": "820762786026740c76f36085b0efc47a31fe5020",
+      "uploadArtifact": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "runtime": "Node 24",
+      "allExternalActionsPinnedToFullCommitSha": true
+    },
+    "workflowPolicies": 39
+  },
+  "strictLocalVerification": {
+    "node": "v22.22.2 official linux-arm64 archive verified against Node.js SHASUMS256.txt",
+    "pnpm": "9.15.9",
+    "frozenInstall": "passed",
     "tests": "68/68 passed",
     "typecheck": "Contracts, Database and API passed",
     "build": "Contracts, Database, API and Web passed; Vite production build passed",
-    "version": "V5.2.7, 268 governed files, fingerprint 8f5a3125e55a5c6d1f1ebd68cf31e91b05bc1ab01f3a71775269238db05f1309",
-    "workflow": "4 YAML files parsed; 34/34 static policies passed",
-    "uiDetector": "0 findings",
-    "dockerRailway": "static validation passed",
-    "secretHeuristic": "0 findings across 295 prospective tracked files",
-    "githubSecretScanner": "not available because GitHub Advanced Security is not enabled for this private repository; Gitleaks CI workflow remains configured"
+    "versionGuard": "V5.2.8, 3 release changes, 268 governed files passed",
+    "workflow": "4/4 YAML parsed; 39/39 static policies passed",
+    "gitleaksCommittedHistory": "3 commits, about 800 KB, 0 findings",
+    "gitleaksWorkingTree": "about 2.86 MB, 0 findings",
+    "shellArgumentAudit": "Gitleaks log options are passed as one argument"
   },
-  "authentication": {
-    "githubCli": "installed: gh 2.45.0",
-    "currentGhState": "logged_out",
-    "attempts": [
-      {
-        "kind": "unauthenticated_git_push",
-        "result": "failed_before_transfer",
-        "errorClass": "missing HTTPS username credential"
-      },
-      {
-        "kind": "oauth_device_flow_with_wrong_embedded_client",
-        "account": "SAINTTaiYi",
-        "result": "token could identify the account but could not access the private repository; git push returned HTTP 403",
-        "cleanup": "logged out and deleted temporary local token/device files"
-      },
-      {
-        "kind": "official_github_cli_oauth_device_flow",
-        "requestedScopes": "repo read:org gist workflow",
-        "result": "stopped because the GitHub device-code endpoint timed out on the current network",
-        "policy": "no blind retry; user should enable VPN or a stable route to GitHub"
-      }
-    ]
-  },
-  "pushAttempt": {
-    "command": "git push -u origin main",
-    "result": "rejected_before_repository_update",
-    "error": "HTTP 403 Write access not granted under the insufficient OAuth token",
-    "remoteChanged": false
-  },
-  "resume": [
-    "Enable VPN or another stable route to GitHub, then continue from plan/CHECKPOINT.md.",
-    "Use the official GitHub CLI OAuth device flow; do not paste a PAT, password or token into chat.",
-    "Verify gh can read the private repository and reports permissions.push=true before configuring git credentials.",
-    "Confirm the clean working tree and current git rev-parse HEAD, then run one git push -u origin main.",
-    "Confirm remote main SHA matches the local HEAD and inspect strict Node 22 CI.",
-    "Mark step 08 completed only after remote and CI verification."
-  ]
+  "next": [
+    "Run final diff, JSON, YAML, version and secret safety checks.",
+    "Commit and push the V5.2.8 CI fix without force push.",
+    "Confirm the new remote main SHA matches local HEAD.",
+    "Wait for both verify and secrets jobs in the new CI run.",
+    "After success, mark step 08 completed and push one final governance commit, then verify that commit's CI."
+  ],
+  "safety": {
+    "cloudResourcesCreated": false,
+    "realSecretsConfigured": false,
+    "stagingExecuted": false,
+    "productionExecuted": false
+  }
 }

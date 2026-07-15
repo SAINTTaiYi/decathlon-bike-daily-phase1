@@ -2,7 +2,7 @@
 
 ## Status
 
-V5.2.7 已实现本地可验证的基础设施与发布自动化，目标平台为：
+V5.2.8 已实现本地可验证的基础设施与发布自动化，目标平台为：
 
 - Web：Cloudflare Pages Direct Upload
 - API：Railway
@@ -243,7 +243,7 @@ pnpm ops release production --approve-production --confirm-backup
 5. TypeScript typecheck。
 6. 所有 Workspace build。
 7. 前端原生 select/旧示例身份检查。
-8. Gitleaks Secret 扫描。
+8. 固定 Gitleaks 8.30.1、校验官方 SHA-256 后扫描完整 Git 历史，并保留 SARIF artifact。
 
 ### `bootstrap-infrastructure.yml`
 
@@ -363,7 +363,7 @@ https://<web-origin>/#setup=<INITIAL_ADMIN_SETUP_TOKEN>
 
 ## Current execution boundary
 
-截至 V5.2.7 本地收口：
+截至 V5.2.8 本地收口：
 
 - 无真实 Cloudflare/Railway/Supabase/R2 资源。
 - 无真实 Secret。
