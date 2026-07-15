@@ -112,7 +112,7 @@
     ],
     "rationale": "建立 develop 与受分支限制的 staging Environment，并修复 Bootstrap 前的安全发布门禁",
     "risk": "high",
-    "status": "completed_local_pending_remote_ci"
+    "status": "completed"
   },
   {
     "id": "10-staging-bootstrap",

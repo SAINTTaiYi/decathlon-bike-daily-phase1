@@ -1,7 +1,7 @@
 {
   "step": "09-staging-foundation",
-  "status": "completed_local_pending_remote_ci",
-  "completedAt": "2026-07-15T08:53:00+08:00",
+  "status": "completed",
+  "completedAt": "2026-07-15T08:55:00+08:00",
   "repository": {
     "owner": "SAINTTaiYi",
     "repo": "decathlon-bike-daily-phase1",
@@ -36,6 +36,27 @@
       ],
       "environmentSecretsConfigured": false,
       "environmentVariablesConfigured": false
+    },
+    "v529Ci": {
+      "runId": 29380266721,
+      "headSha": "ebe6fbd7ed97f13f598e752858fada9d5c6f0842",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/actions/runs/29380266721",
+      "verify": "success",
+      "secrets": "success"
+    },
+    "v529StagingReadiness": {
+      "runId": 29380266732,
+      "headSha": "ebe6fbd7ed97f13f598e752858fada9d5c6f0842",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/actions/runs/29380266732",
+      "readiness": "success",
+      "deploy": "skipped",
+      "notice": "Staging infrastructure is not bootstrapped yet; deployment is skipped safely.",
+      "environmentSecretsRead": false,
+      "cloudMutationStarted": false
     }
   },
   "release": {
@@ -46,7 +67,13 @@
       "Fix valid Bash quoting for staging APP_VERSION export.",
       "Add a committed-state readiness job so pre-bootstrap develop pushes skip deployment without reading Environment Secrets or contacting cloud providers.",
       "Restrict staging GitHub Environment deployments to develop and extend workflow governance to 43 policies."
-    ]
+    ],
+    "commit": {
+      "sha": "ebe6fbd7ed97f13f598e752858fada9d5c6f0842",
+      "subject": "fix(staging): gate deploys until bootstrap",
+      "forced": false,
+      "remoteShaMatch": true
+    }
   },
   "localVerificationSoFar": {
     "workflowPolicies": "43/43 passed",
@@ -63,9 +90,9 @@
     "forcePushUsed": false
   },
   "next": [
-    "Commit and push V5.2.9 to develop, then verify CI and the safe staging readiness skip.",
     "Configure staging Environment Secrets through GitHub or another secure channel; do not paste them into ordinary chat or repository files.",
-    "Run Bootstrap Staging manually from develop only after credential preflight is complete."
+    "Run Bootstrap Staging manually from develop only after credential preflight is complete.",
+    "Review and merge the generated non-sensitive staging state pull request, then execute the full acceptance checklist."
   ],
   "localVerification": {
     "node": "v22.22.2 official linux-arm64 archive previously verified against Node.js SHASUMS256.txt",
