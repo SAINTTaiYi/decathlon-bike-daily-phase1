@@ -65,16 +65,18 @@
 - User confirmed Organization `sctiyeyjvaezeofhysfq`, cost 0元/月, Free boundary, and Singapore `ap-southeast-1`.
 - Supabase Staging created: `bike-ops-staging` / ref `xrxmayzwxabmzanwhkmo` / `https://xrxmayzwxabmzanwhkmo.supabase.co`.
 - Status `ACTIVE_HEALTHY`; organization remains Free; Production not approved/created.
-- Actual database is PostgreSQL 17.6.1.141; initial application migrations 0; Storage buckets 0.
+- Actual database is PostgreSQL 17.6.1.141; all 3 repository checksum migrations applied.
+- 15 bike_ops tables; private bike-ops-media bucket; migration history RLS deny-all; 14 FK covering indexes.
+- Security Advisor ERROR count 0; only intentional no-policy INFO. Performance FK warnings 0; empty-db unused-index INFO remains.
+- V5.3.1 security patch `eda86f8031aaa749009d0f7560bc719927353115`; GitHub CI `29391234924` success; 70/70 tests.
 - No secret or publishable key is recorded in plan files.
 
 ## Recovery queue
 
-1. Apply repository migrations with custom checksum records on real PostgreSQL 17.6.
-2. Verify schema, private bucket, security/performance advisors.
-3. Configure GitHub migration and EdgeOne runtime values without exposing Secrets.
-4. Create `edgeone-staging`, configure EdgeOne Free Staging project, full deploy verify.
-5. Step17 full Staging acceptance.
+1. Create ordinary `edgeone-staging` from verified V5.3.1 commit.
+2. Configure GitHub migration and EdgeOne runtime values without exposing Secrets.
+3. Create/configure EdgeOne Free Staging project and run full deploy verify.
+4. Step17 full Staging acceptance.
 
 ## Anti-interruption / safety
 

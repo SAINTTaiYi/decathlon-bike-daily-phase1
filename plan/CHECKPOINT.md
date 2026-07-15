@@ -86,16 +86,18 @@ GitHub Free
 - Supabase project `bike-ops-staging` / ref `xrxmayzwxabmzanwhkmo`。
 - URL：`https://xrxmayzwxabmzanwhkmo.supabase.co`。
 - Status：`ACTIVE_HEALTHY`；Organization plan 仍为 Free。
-- 实际数据库：PostgreSQL `17.6.1.141`（CI PostgreSQL 16 作为最低兼容验证；真实 Staging 需继续验证）。
-- 创建后 application migrations 0、Storage buckets 0。
+- 实际数据库：PostgreSQL `17.6.1.141`；CI PostgreSQL 16 与真实 Staging PostgreSQL 17.6 均已通过。
+- 已应用 3 份仓库 checksum migration；15 张 `bike_ops` 业务表；数据库约 10.98 MB。
+- Private bucket `bike-ops-media`：public=false、10 MB、JPEG/PNG/WebP。
+- Migration history：RLS=true，anon/authenticated 无读取权限，3 个 SHA 与仓库一致。
+- 14 个外键覆盖索引已建立；Security Advisor 无 ERROR；仅 deny-all 无 policy INFO；Performance 仅空库 unused-index INFO。
+- 顾问修复版本 V5.3.1 commit `eda86f8031aaa749009d0f7560bc719927353115`；GitHub CI run `29391234924` success；70/70 tests。
 
 下一顺序：
 
 ```text
-apply checksum-registered migrations on PostgreSQL 17.6
-→ verify tables/private bucket/advisors
+create ordinary edgeone-staging branch from verified V5.3.1
 → configure migration/runtime secrets without exposing values
-→ create edgeone-staging
 → create/configure EdgeOne Makers Free Staging project
 → full deployment verification
 ```
