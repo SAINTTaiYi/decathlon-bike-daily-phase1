@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@9.15.9",
   "engines": {
-    "node": ">=22 <25"
+    "node": ">=20 <25"
   },
   "scripts": {
     "dev": "pnpm --filter @bike-ops/web dev",
@@ -24,6 +24,7 @@
     "build": "pnpm run check:version && pnpm -r --if-present build",
     "build:web": "pnpm run check:version && pnpm --filter @bike-ops/web build",
     "build:api": "pnpm --filter @bike-ops/api build",
+    "build:edgeone": "pnpm run check:version && pnpm --filter @bike-ops/api build && pnpm --filter @bike-ops/web build",
     "preview": "pnpm --filter @bike-ops/web preview",
     "preview:lan": "pnpm --filter @bike-ops/web preview:lan",
     "ops": "node scripts/ops/index.mjs"

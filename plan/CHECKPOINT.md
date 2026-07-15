@@ -1,7 +1,7 @@
 # 执行检查点
 
-保存时间：2026-07-15 11:03 +08:00
-当前阶段：Phase C / Step 10b 免费且无需外卡的架构切换 completed；Step 12 EdgeOne Serverless runtime pending
+保存时间：2026-07-15 11:24 +08:00
+当前阶段：Phase C / Step 10b 与 Step 12 completed；Step 13 Supabase private Storage pending
 
 ## Accepted remote baseline
 
@@ -60,15 +60,19 @@ Receipt：`plan/receipts/step-10b-free-no-card-pivot.json`。
 - 原首次 Bootstrap 14 Secret + Bootstrap 后第 15 Secret 流程。
 - 原 `docs/STAGING-ACCOUNT-SETUP.md` 在 Step 14 重写前只作为历史文档，禁止照其配置。
 
+## Step 12 — EdgeOne Serverless runtime completed
+
+- 新增标准 Fetch Request/Response → Fastify `inject()` adapter；Cloud Function 不启动监听端口。
+- 新增 `cloud-functions/api/[[default]].js` 与 `cloud-functions/health/[[default]].js`，分别承载同源 `/api/*` 与 `/health/*`。
+- EdgeOne context 的 `env` 和 `clientIp` 进入 API runtime 与请求边界。
+- PostgreSQL pool/idle/connect timeout 可配置；Serverless 默认 `DATABASE_POOL_MAX=1`，继续 `prepare=false`。
+- 新增 `edgeone.json`：pnpm 9.15.9、Node 22.11.0、API + Web build、`apps/web/dist` 输出。
+- Root Node engine 放宽为 20–24，以覆盖 EdgeOne Cloud Functions Node 20/22 runtime；本地与 CI 继续 Node 22。
+- Local verification：Node 22.22.2 / pnpm 9.15.9；API tests 14/14、Database 1/1；API/Database typecheck、API/Web build、EdgeOne wrapper import 全通过。
+- Receipt：`plan/receipts/step-12-edgeone-serverless-runtime.json`。
+- 未创建或修改云资源。
+
 ## New implementation queue
-
-### Step 12 — EdgeOne Serverless runtime
-
-- 增加 EdgeOne Node.js Cloud Functions 入口/adapter。
-- 尽量复用 Fastify route/business/auth 源码，不重做 UI。
-- Web 默认调用同源 `/api/v1/*`。
-- PostgreSQL runtime 改为 Supavisor transaction pooler + serverless-safe 极小连接池 + `prepare=false`。
-- 增加 EdgeOne 配置与 adapter tests。
 
 ### Step 13 — Supabase private Storage
 

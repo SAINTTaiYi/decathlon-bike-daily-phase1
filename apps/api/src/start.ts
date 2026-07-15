@@ -3,7 +3,12 @@ import { loadConfig } from './config.js'
 import { buildServer } from './server.js'
 
 const config = loadConfig()
-const sql = createDatabase(config.DATABASE_URL, { prepare: false })
+const sql = createDatabase(config.DATABASE_URL, {
+  max: config.DATABASE_POOL_MAX,
+  prepare: false,
+  idleTimeoutSeconds: config.DATABASE_IDLE_TIMEOUT_SECONDS,
+  connectTimeoutSeconds: config.DATABASE_CONNECT_TIMEOUT_SECONDS
+})
 const app = await buildServer(config, sql)
 
 async function shutdown(signal: string) {

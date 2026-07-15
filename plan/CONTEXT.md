@@ -1,6 +1,6 @@
 # 压缩上下文事实源
 
-更新时间：2026-07-15 11:03 +08:00
+更新时间：2026-07-15 11:24 +08:00
 
 ## Remote baseline
 
@@ -36,14 +36,23 @@ Receipt：`plan/receipts/step-10b-free-no-card-pivot.json`。
 
 旧 Railway + Cloudflare Pages + R2 自动化与原 14/15 Secret 配置流程作废。`docs/STAGING-ACCOUNT-SETUP.md` 在重写前仅是历史资料，不得继续执行。
 
+## Step 12 completed
+
+- Fetch Request/Response → Fastify inject adapter 已实现，Cloud Function 不监听端口。
+- `cloud-functions/api/[[default]].js` 与 `cloud-functions/health/[[default]].js` 已加入。
+- EdgeOne context env/clientIp 已映射。
+- PostgreSQL Serverless 默认 pool max 1、idle 5 秒、connect 15 秒、prepare false。
+- `edgeone.json` 固定 pnpm 9.15.9、Node 22.11.0、API/Web build 和 `apps/web/dist`。
+- Local：API tests 14/14、Database 1/1；API/DB typecheck、API/Web build、wrapper import passed。
+- Receipt：`plan/receipts/step-12-edgeone-serverless-runtime.json`；无云资源变更。
+
 ## Recovery queue
 
-1. Step 12：增加 EdgeOne Node Cloud Function adapter；数据库连接改为 Supavisor transaction pooler + 极小 pool；Web 同源 API。
-2. Step 13：R2 改为 Supabase private Storage signed upload/download，保持媒体校验和审计。
-3. Step 14：删除旧 Railway/Cloudflare/R2 ops/workflow；重写免费部署治理、环境变量和文档。
-4. Step 15：tests/typecheck/build/workflow policy/Gitleaks，版本化并普通 push develop。
-5. Step 16：再次告知用户 Supabase Project 成本 0 元/月并确认 region 后，才创建免费 Staging Project；随后接入 EdgeOne Makers Free。
-6. Step 17：完整 Staging 验收；Production 继续禁止。
+1. Step 13：R2 改为 Supabase private Storage signed upload/download，保持媒体校验和审计。
+2. Step 14：删除旧 Railway/Cloudflare/R2 ops/workflow；重写免费部署治理、环境变量和文档。
+3. Step 15：tests/typecheck/build/workflow policy/Gitleaks，版本化并普通 push develop。
+4. Step 16：再次告知用户 Supabase Project 成本 0 元/月并确认 region 后，才创建免费 Staging Project；随后接入 EdgeOne Makers Free。
+5. Step 17：完整 Staging 验收；Production 继续禁止。
 
 ## Free-tier boundary
 

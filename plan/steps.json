@@ -175,7 +175,7 @@
     ],
     "rationale": "把现有 Fastify API 适配为 EdgeOne Makers Node.js Cloud Functions，并将 PostgreSQL 连接调整为 Supavisor serverless-safe 模式",
     "risk": "high",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "13-supabase-private-storage",

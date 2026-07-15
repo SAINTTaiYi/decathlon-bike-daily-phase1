@@ -1,0 +1,39 @@
+{
+  "step": "12-edgeone-serverless-runtime",
+  "status": "completed",
+  "completedAt": "2026-07-15T11:24:27+08:00",
+  "baselineSha": "a492fdb1e42b0dacce49ee27b4e426a3d584fa06",
+  "files": [
+    "apps/api/src/serverless.ts",
+    "apps/api/src/edgeone.ts",
+    "apps/api/src/config.ts",
+    "apps/api/src/start.ts",
+    "apps/api/test/serverless.test.ts",
+    "packages/database/src/index.ts",
+    "cloud-functions/api/[[default]].js",
+    "cloud-functions/health/[[default]].js",
+    "edgeone.json",
+    "package.json"
+  ],
+  "diffSummary": [
+    "Added a Fetch Request/Response to Fastify inject adapter for EdgeOne Node.js Cloud Functions without starting a listening socket.",
+    "Added EdgeOne API and health catch-all entries that load the built Fastify runtime.",
+    "Mapped EdgeOne context env/clientIp into runtime configuration and request injection.",
+    "Made PostgreSQL pool size and timeouts configurable; default pool max is one for serverless runtime and prepared statements remain disabled.",
+    "Added an EdgeOne build contract for pnpm 9.15.9, Node 22.11.0, API build, and Vite static output."
+  ],
+  "verification": {
+    "node": "22.22.2",
+    "pnpm": "9.15.9",
+    "apiTypecheck": "passed",
+    "apiTests": "14/14 passed",
+    "databaseTypecheck": "passed",
+    "databaseTests": "1/1 passed",
+    "apiBuild": "passed",
+    "webBuild": "passed",
+    "edgeOneWrapperImport": "passed",
+    "cloudMutationPerformed": false
+  },
+  "rationale": "Preserve the existing Fastify business and security boundary while replacing the always-on Railway listener with EdgeOne's request-driven free Node.js runtime.",
+  "nextStep": "13-supabase-private-storage"
+}
