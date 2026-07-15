@@ -135,16 +135,103 @@
       "infra/state/staging.json",
       "plan/receipts/step-10-staging-bootstrap.json"
     ],
-    "rationale": "通过环境专属凭证创建并核验隔离的 Staging 云资源",
+    "rationale": "旧 Cloudflare/Railway/R2 Bootstrap 已被全免费、无需外卡的 EdgeOne Makers + Supabase Free 架构取代",
     "risk": "high",
-    "status": "blocked_on_secure_environment_secrets"
+    "status": "superseded_by_free_no_card_pivot"
   },
   {
     "id": "11-staging-acceptance",
     "files": [
       "plan/receipts/step-11-staging-acceptance.json"
     ],
-    "rationale": "完成账号、业务、并发、附件、迁移、离线、设备、无障碍与恢复验收",
+    "rationale": "待免费运行时适配和新的 Staging Bootstrap 完成后，以新验收步骤执行",
+    "risk": "high",
+    "status": "superseded_by_free_stack_rebuild"
+  },
+  {
+    "id": "10b-free-no-card-pivot",
+    "files": [
+      "plan/decisions/free-no-card-stack.md",
+      "plan/plan.md",
+      "plan/steps.json",
+      "plan/ownership.json",
+      "plan/meta.json",
+      "plan/CHECKPOINT.md",
+      "plan/CONTEXT.md"
+    ],
+    "rationale": "停止腾讯云服务器和旧 Railway/Cloudflare/R2 方案，固定 EdgeOne Makers Free + Supabase Free + GitHub Free 的零固定费用架构与安全边界",
+    "risk": "high",
+    "status": "completed"
+  },
+  {
+    "id": "12-edgeone-serverless-runtime",
+    "files": [
+      "cloud-functions/**",
+      "apps/api/**",
+      "packages/database/**",
+      "edgeone.json",
+      "package.json",
+      "pnpm-lock.yaml"
+    ],
+    "rationale": "把现有 Fastify API 适配为 EdgeOne Makers Node.js Cloud Functions，并将 PostgreSQL 连接调整为 Supavisor serverless-safe 模式",
+    "risk": "high",
+    "status": "pending"
+  },
+  {
+    "id": "13-supabase-private-storage",
+    "files": [
+      "apps/api/src/storage/**",
+      "apps/api/src/routes/media.ts",
+      "apps/web/src/api/media.js",
+      "supabase/**",
+      "tests/**"
+    ],
+    "rationale": "以 Supabase Free private Storage 和签名 URL 替换 R2，同时保持图片摘要、大小、数量、权限和软删除约束",
+    "risk": "high",
+    "status": "pending"
+  },
+  {
+    "id": "14-free-deployment-governance",
+    "files": [
+      ".github/workflows/**",
+      "scripts/ops/**",
+      "tests/deployment-workflows.test.mjs",
+      ".env.example",
+      "README.md",
+      "AUTOMATED-DEPLOYMENT.md",
+      "deploy-summary.md",
+      "docs/**"
+    ],
+    "rationale": "删除旧 Railway/Cloudflare/R2 发布依赖，建立 EdgeOne Git Integration、Supabase Free migration/storage 和零付费防护规则",
+    "risk": "high",
+    "status": "pending"
+  },
+  {
+    "id": "15-free-stack-build-test-push",
+    "files": [
+      "**"
+    ],
+    "rationale": "运行全量测试、类型检查、构建、工作流治理和 Secret 扫描，版本化并普通推送 develop",
+    "risk": "high",
+    "status": "pending"
+  },
+  {
+    "id": "16-free-staging-bootstrap",
+    "files": [
+      "supabase/migrations/**",
+      "supabase/seed.sql",
+      "plan/receipts/step-16-free-staging-bootstrap.json"
+    ],
+    "rationale": "在用户确认 Supabase Project 为 0 元/月后创建免费 Staging Project、private bucket，并连接 EdgeOne Makers Free Project",
+    "risk": "high",
+    "status": "blocked_on_zero_cost_confirmation_and_runtime_rebuild"
+  },
+  {
+    "id": "17-free-staging-acceptance",
+    "files": [
+      "plan/receipts/step-17-free-staging-acceptance.json"
+    ],
+    "rationale": "在免费 Staging 上完成账号、业务、并发、附件、迁移、离线、设备、无障碍与恢复验收",
     "risk": "high",
     "status": "pending"
   }

@@ -1,108 +1,116 @@
 # 执行检查点
 
-保存时间：2026-07-15 10:21 +08:00
-当前阶段：Phase B / Step 09 与 Step 10a completed；Step 10 Staging Bootstrap 阻塞于真实账号、费用确认与安全配置 14 个 Bootstrap Secret
+保存时间：2026-07-15 11:03 +08:00
+当前阶段：Phase C / Step 10b 免费且无需外卡的架构切换 completed；Step 12 EdgeOne Serverless runtime pending
 
 ## Accepted remote baseline
 
 - 私有仓库：`SAINTTaiYi/decathlon-bike-daily-phase1`。
 - Accepted `main` SHA：`e2a64ad4bbec313a23bcec254e12300377763bc8`。
-- V5.2.10 feature commit：`9623c6e9090b74de984cfea744da8e584cc23d9c`（`fix(staging): use IPv4-compatible migration pooler`）。
-- 远端 `develop` 已核验为该 SHA；普通 push，无 force push。
+- 当前 `develop` baseline SHA：`64106b6b1f3dab9ea719bb90f31d99b6be68384c`。
 - `staging` GitHub Environment ID `18164650072`，custom deployment branch policy 仅允许 `develop`。
-- 当前私有仓库套餐不支持 wait timer/审批类 Environment rule；分支限制已生效。
+- Phase B Step 09 与 Step 10a 已完成，但原 Railway/Cloudflare/R2 Staging Bootstrap 未执行、未创建资源。
 
-## Step 09 — Staging foundation
+## Step 10b — Free/no-card architecture pivot
 
-- `develop` 已从 accepted main 创建。
-- V5.2.9 修复 Staging APP_VERSION Bash 引号，并增加 committed-state readiness gate。
-- 无 `infra/state/staging.json` 时，Staging deploy job 不读取 Environment Secret、不访问云平台并安全跳过。
-- Step 09 最终 CI `29380404926` success；Staging gate `29380404844` readiness success / deploy skipped。
+用户已明确：
 
-## Step 10a — Bootstrap compatibility completed
+- 不再使用腾讯云 CVM/轻量服务器；固定费用高且固定带宽小。
+- 整套 Staging/Production 改用免费额度，并且开户/运行不依赖外币信用卡。
+- 不允许自动升级、按量付费或超额扣费。
+- 保留现有多用户、PostgreSQL 事务、审计、并发控制、私有附件和移动端 UI。
 
-官方文档核对发现并修复：
+选定新架构：
 
-- Supabase 默认 direct host `db.<project-ref>.supabase.co:5432` 是 IPv6；Supabase 明确列出 GitHub Actions 为 IPv4-only 平台。
-- 原 Bootstrap 即使 Secret 全部正确，也可能在创建部分资源后才因 migration 网络不兼容失败。
-- Supabase Create Project API 要求 `organization_slug`；原 Secret 名 `SUPABASE_ORG_ID` 容易误填 UUID。
+```text
+Browser
+  └─ EdgeOne Makers Free
+       ├─ Vite/React static site
+       └─ Node.js Cloud Functions · same-origin /api
+            ├─ Supabase Free PostgreSQL
+            └─ Supabase Free private Storage
 
-V5.2.10 修复：
+GitHub Free
+  ├─ private source repository
+  ├─ CI / tests / build / Gitleaks
+  └─ EdgeOne Git Integration deployment
+```
 
-- Runtime `DATABASE_URL`：Supavisor transaction pooler（6543），仅供 Railway API。
-- Migration `MIGRATION_DATABASE_URL`：Supavisor session pooler（5432），GitHub-hosted runner 可通过 IPv4 访问，无需 Dedicated IPv4 Add-on。
-- Migration URL 不再注入 Railway API runtime。
-- Supabase Environment Secret/Preflight 正名为 `SUPABASE_ORG_SLUG`。
-- Workflow governance 从 43 增至 50 项。
-- 新增 `docs/STAGING-ACCOUNT-SETUP.md`：逐平台开户、MFA、账单/预算、最小权限、关键密钥备份、14 个 Bootstrap Secret 和 Bootstrap 后第 15 个 Railway Project Token 顺序。
-- Receipt：`plan/receipts/step-10a-staging-bootstrap-compatibility.json`。
+决策事实源：`plan/decisions/free-no-card-stack.md`。
+Receipt：`plan/receipts/step-10b-free-no-card-pivot.json`。
 
-## V5.2.10 release and local verification
+## Verified free-tier facts
 
-- Version：`5.2.10`。
-- Fingerprint：`9e837b2f485bab5cfb03344cda322cee04486ad375820394565b52b3c200fb10`。
-- Governed files：269；release changes：3。
-- Node 22.22.2 + pnpm 9.15.9 frozen install passed。
-- Tests：68/68 passed（Domain 4、Database 1、Web/Ops 51、API 12）。
-- Typecheck/build passed；V5.2.10 version guard passed。
-- Workflow：4/4 YAML parsed；50/50 policies passed；相关 deployment/ops tests 11/11 passed。
-- Offline `plan staging` passed；无凭据 `preflight staging` 正确 fail-closed，要求 `SUPABASE_ORG_SLUG`，不再要求旧名称。
-- Gitleaks 8.30.1：完整历史 7 commits / 约 848 KB 为 0 findings；提交前工作树约 2.89 MB 为 0 findings。
-- Setup 文档 Secret 值扫描 0 findings；git diff check passed。
+- EdgeOne Makers 官方当前声明 Free Plan 为 `$0/month` 且长期提供。
+- 当前免费配额包括：40 projects、500 builds/month、Cloud Functions 1,000,000 invocations/month、Edge Functions 3,000,000 invocations/month、5 GB site storage。
+- EdgeOne Node.js Cloud Functions 支持 npm 生态和框架模式，可承载 Serverless API adapter。
+- Supabase MCP 已认证 Organization `SAINTTaiYi's Org` / slug `sctiyeyjvaezeofhysfq`。
+- Supabase 当前 projects：0。
+- Supabase MCP `get_cost(project)` 返回 recurring monthly amount `0`。
+- Supabase Free 当前提供两个 active projects；足够隔离 Staging 和 Production。
+- 本次未创建、修改、删除任何云资源。
 
-## V5.2.10 GitHub verification
+## Superseded old bootstrap
 
-- CI run：`29381722889`。
-- Head SHA：`9623c6e9090b74de984cfea744da8e584cc23d9c`。
-- URL：`https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/actions/runs/29381722889`。
-- Overall：success；`verify=success`、`secrets=success`。
-- PostgreSQL 16 migration：首次 `MIGRATION APPLIED`；第二次 `MIGRATION SKIP`；`bike_ops_schema_migrations` 行数为 1。
-- Tests、typecheck、build、50 policies、完整历史 Gitleaks 全部 success。
-- Staging gate run：`29381722863`，overall success；`readiness=success`、`deploy=skipped`。
-- 未进入 Environment deploy job，未读取 Environment Secret，未访问或修改云资源。
+以下旧依赖和配置清单立即作废，不得继续执行：
 
-## MCP connection preflight — 2026-07-15
+- Railway API runtime、Project/Environment/Service、`RAILWAY_API_TOKEN`、`RAILWAY_WORKSPACE_ID`、`RAILWAY_TOKEN`。
+- Cloudflare Pages Direct Upload、`CLOUDFLARE_ACCOUNT_ID`、`CLOUDFLARE_API_TOKEN`。
+- Cloudflare R2、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`。
+- 原首次 Bootstrap 14 Secret + Bootstrap 后第 15 Secret 流程。
+- 原 `docs/STAGING-ACCOUNT-SETUP.md` 在 Step 14 重写前只作为历史文档，禁止照其配置。
 
-- Supabase MCP 已认证：发现 Organization `SAINTTaiYi's Org`，slug `sctiyeyjvaezeofhysfq`；当前 projects 为 0。
-- Cloudflare MCP 已认证：Pages projects 为 0。
-- Cloudflare R2 API 返回 `10042`：必须先在 Cloudflare Dashboard 启用 R2；未创建 Bucket 或其它资源。
-- Railway MCP 当前未接入。
-- 本次仅执行只读检查，没有创建、修改、删除资源，也没有读取或回显 Secret。
+## New implementation queue
 
-## Current external blocker — Step 10
+### Step 12 — EdgeOne Serverless runtime
 
-当前：
+- 增加 EdgeOne Node.js Cloud Functions 入口/adapter。
+- 尽量复用 Fastify route/business/auth 源码，不重做 UI。
+- Web 默认调用同源 `/api/v1/*`。
+- PostgreSQL runtime 改为 Supavisor transaction pooler + serverless-safe 极小连接池 + `prepare=false`。
+- 增加 EdgeOne 配置与 adapter tests。
 
-- Supabase 与 Cloudflare MCP 已接入，但 GitHub `staging` Environment Secret/Variable 仍为空；MCP 认证不会自动变成 GitHub Actions Secret。
-- Cloudflare R2 尚未在 Dashboard 启用。
-- Railway MCP/账号自动化仍未接入。
-- 无真实 Cloudflare Pages、R2、Railway 或 Supabase Project 资源。
-- 未执行 Staging apply/release。
+### Step 13 — Supabase private Storage
 
-首次 Bootstrap 前需要 14 个 Environment Secret：
+- 删除 R2 runtime adapter。
+- 使用 Supabase Free private bucket 和短期 signed upload/download URL。
+- 保留 JPEG/PNG/WebP、单文件 10 MB、每记录最多 6 张、SHA-256/大小验证、审计和软删除。
 
-- Cloudflare：`CLOUDFLARE_ACCOUNT_ID`、`CLOUDFLARE_API_TOKEN`。
-- Railway：`RAILWAY_API_TOKEN`、`RAILWAY_WORKSPACE_ID`。
-- Supabase：`SUPABASE_ACCESS_TOKEN`、`SUPABASE_ORG_SLUG`、`SUPABASE_DB_PASSWORD`。
-- R2：`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`。
-- App：`SESSION_SECRET`、`CSRF_SECRET`、`PASSWORD_PEPPER`、`CONTACT_ENCRYPTION_KEY`、`INITIAL_ADMIN_SETUP_TOKEN`。
+### Step 14 — Free deployment governance
 
-Bootstrap 创建 Railway Project/Environment 后，再创建第 15 个 Secret：`RAILWAY_TOKEN`（Project Token，限定 staging Environment）。可选 Variable：`CUSTOM_WEB_ORIGINS`。
+- 删除旧 Railway/Cloudflare/R2 ops 与 release workflow 依赖。
+- 建立 EdgeOne Git Integration + Supabase migration/storage 的免费部署文档、环境变量和治理测试。
+- 明确禁止开启付费套餐、按量付费或自动升级。
 
-## Next allowed work
+### Step 15 — Build/test/push
 
-1. 用户按 `docs/STAGING-ACCOUNT-SETUP.md` 创建三家账号，开启 MFA、账单/套餐、预算提醒与必要权限。
-2. 用户在 GitHub `staging` Environment 安全配置 14 个 Bootstrap Secret，并建立 `PASSWORD_PEPPER`、`CONTACT_ENCRYPTION_KEY`、数据库密码等关键值的受控备份；普通聊天不得发送值。
-3. 配置完成后只回复“Staging 14 个 Bootstrap Secret 已配置，关键密钥已备份”。
-4. 助手只核验 Secret 名称/更新时间，不读取值；再次向用户确认本次将创建可能收费的云资源。
-5. 用户确认费用影响后，从 `develop` 手动 dispatch Bootstrap Staging。
-6. Bootstrap 后创建 Railway `RAILWAY_TOKEN`，审查/合并非敏感 state PR，再执行真实 Staging 验收。
-7. 未完成 Staging 验收且未获用户另行批准前，Production 禁止。
+- tests、typecheck、build、workflow governance、Gitleaks 全量通过。
+- 版本化并普通 push `develop`，禁止 force push。
+
+### Step 16 — Free Staging bootstrap
+
+- 只有 Step 12–15 完成后才允许创建云项目。
+- 创建 Supabase Project 前必须再次向用户重复成本：`0 元/月`，并获得确认。
+- 需要用户选择/确认 Supabase region；默认建议 Singapore。
+- 创建 Supabase Free Staging Project、migration、private bucket，再连接 EdgeOne Makers Free Project。
+
+### Step 17 — Staging acceptance
+
+- 完整验证账号、角色、业务、并发、审计/撤回、图片、旧数据迁移、离线、设备和无障碍。
+
+## Free-tier operational boundary
+
+- Supabase Free 低活动项目可能在约 7 天后自动暂停，可从 Dashboard 恢复；不承诺 24×7 SLA。
+- Supabase Free 没有托管日备份/PITR；Production 前必须实现加密导出并完成恢复演练。
+- Supabase Free 预算：500 MB database、1 GB Storage、5 GB egress；接近阈值必须清理/归档，不自动升级。
+- EdgeOne 免费条款和配额可能调整；不得开启付费或按量计费能力。
+- Staging 与 Production 必须使用独立 Supabase Project、EdgeOne Project 和 Secret；不得复制 Production 数据到 Staging。
 
 ## Safety
 
-- 无真实云 Secret 或资源。
-- 未执行 Staging apply/release。
-- 未创建 Production Environment，未执行 Production。
+- 当前无真实 Supabase Project、EdgeOne Project、Railway、Cloudflare Pages 或 R2 资源。
+- 未配置真实 Secret。
+- 未部署 Staging。
+- Production Environment 未创建且 Production 继续禁止。
 - 不在聊天、仓库、日志或 state 中保存凭据。
 - 无 force push、无历史改写。

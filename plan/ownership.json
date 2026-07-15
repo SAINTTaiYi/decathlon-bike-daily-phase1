@@ -11,5 +11,8 @@
   ".github/workflows": "shell",
   "PRODUCT.md": "shared",
   "DESIGN.md": "shared",
-  "README.md": "shared"
+  "README.md": "shared",
+  "cloud-functions": "route",
+  "edgeone.json": "shell",
+  "plan/decisions": "shared"
 }
