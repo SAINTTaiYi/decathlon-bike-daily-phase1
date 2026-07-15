@@ -1,30 +1,28 @@
 # 压缩上下文事实源
 
-更新时间：2026-07-15 09:27 +08:00
+更新时间：2026-07-15 09:30 +08:00
 
 ## Remote baseline
 
-- 项目：`/workspace/decathlon-bike-daily-phase1`，私有仓库 `SAINTTaiYi/decathlon-bike-daily-phase1`。
+- 项目：`/workspace/decathlon-bike-daily-phase1`；私有仓库 `SAINTTaiYi/decathlon-bike-daily-phase1`。
 - Accepted main：`e2a64ad4bbec313a23bcec254e12300377763bc8`。
-- 当前 develop：`c702ec97c42f47c2b48295944b30786286986b5f`；Step 09 completed。
+- 当前 develop feature SHA：`9623c6e9090b74de984cfea744da8e584cc23d9c`。
 - `staging` Environment ID `18164650072`，仅允许 `develop`。
-- V5.2.9 CI `29380404926` success；staging gate `29380404844` readiness success / deploy skipped。
+- Step 09 completed；V5.2.9 最终 CI/staging gate 均成功，未 Bootstrap 时 deploy 安全跳过。
 
-## Step 10a current work
+## Step 10a completed — V5.2.10
 
-官方文档核对发现 Supabase 默认 direct host 是 IPv6，而 GitHub Actions 是 IPv4-only；原 migration 连接会让正确配置的 Bootstrap 在创建部分资源后仍可能失败。Create Project API 实际需要 organization slug，原 `SUPABASE_ORG_ID` 命名也会误导。
-
-V5.2.10 本地改动：
-
-- Migration 使用 `MIGRATION_DATABASE_URL` + Supavisor session pooler 5432（IPv4）。
-- Railway runtime 只保留 transaction pooler `DATABASE_URL` 6543，不再注入 migration URL。
+- 修复 GitHub Actions IPv4-only 与 Supabase default direct IPv6 的 migration 兼容性。
+- Migration 改用 `MIGRATION_DATABASE_URL` + Supavisor session pooler 5432；runtime 继续用 transaction pooler 6543。
+- Migration URL 不注入 Railway API runtime。
 - Supabase Secret 正名为 `SUPABASE_ORG_SLUG`。
-- V5.2.10 fingerprint `9e837b2f485bab5cfb03344cda322cee04486ad375820394565b52b3c200fb10`，269 governed files。
-- Frozen install、68/68 tests、typecheck/build、50/50 policies、离线 plan、无凭据 preflight fail-closed 全部通过。
-- Gitleaks 历史 7 commits/约 848 KB 与工作树约 2.89 MB 均 0 findings。
-- 新增 `docs/STAGING-ACCOUNT-SETUP.md` 与 Step 10a receipt；当前待 push 和 GitHub CI PostgreSQL 16 migration 验证。
+- 新增 `docs/STAGING-ACCOUNT-SETUP.md`。
+- Version 5.2.10；fingerprint `9e837b2f485bab5cfb03344cda322cee04486ad375820394565b52b3c200fb10`；269 governed files。
+- Local：frozen install、68/68 tests、typecheck/build、50/50 policies、无凭据 preflight fail-closed、Gitleaks history/worktree 0 findings。
+- GitHub CI `29381722889` success：PostgreSQL 16 migration 首次 applied、第二次 skipped、history count 1；tests/build/Gitleaks success。
+- Staging gate `29381722863` success：readiness success，deploy skipped。
 
-## External blocker
+## External blocker — Step 10
 
 - 用户确认 Cloudflare、Railway、Supabase 均未准备。
 - GitHub staging Environment Secret/Variable 为空；本地无云登录/环境变量。
@@ -34,11 +32,11 @@ V5.2.10 本地改动：
 
 ## Recovery queue
 
-1. V5.2.10 stamp + full verification + Gitleaks。
-2. Push develop，核验 CI PostgreSQL migration 与 staging safe-skip。
-3. 用户按 `docs/STAGING-ACCOUNT-SETUP.md` 完成账号/MFA/账单/14 Secret。
-4. 核验 Secret 名称并再次确认付费资源后 Bootstrap。
-5. 创建 Railway Project Token、合并 state PR、执行 Staging 验收。
+1. 用户按 `docs/STAGING-ACCOUNT-SETUP.md` 完成账号/MFA/账单/预算/权限与 14 Secret；Secret 不发普通聊天。
+2. 用户只回复配置完成与关键密钥已备份。
+3. 助手核验 Secret 名称并再次确认付费资源影响。
+4. 用户确认后 Bootstrap Staging。
+5. 创建 Railway Project Token、合并 state PR、执行 Staging 全验收。
 
 ## 抗中断协议
 

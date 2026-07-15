@@ -127,7 +127,7 @@
     ],
     "rationale": "修复 GitHub-hosted runner 到 Supabase migration 的 IPv4 兼容性、组织 slug 命名和迁移 Secret runtime 边界",
     "risk": "high",
-    "status": "completed_local_pending_remote_ci"
+    "status": "completed"
   },
   {
     "id": "10-staging-bootstrap",

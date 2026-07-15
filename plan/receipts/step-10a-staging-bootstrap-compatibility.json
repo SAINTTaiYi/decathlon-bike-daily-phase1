@@ -1,7 +1,7 @@
 {
   "step": "10a-staging-bootstrap-compatibility",
-  "status": "completed_local_pending_remote_ci",
-  "completedAt": "2026-07-15T09:27:00+08:00",
+  "status": "completed",
+  "completedAt": "2026-07-15T09:30:00+08:00",
   "discovery": {
     "supabaseDirectHost": "The default db.<project-ref>.supabase.co:5432 direct endpoint is IPv6 unless a paid Dedicated IPv4 add-on is enabled.",
     "githubHostedRunner": "Supabase documentation explicitly lists GitHub Actions among IPv4-only platforms.",
@@ -19,7 +19,13 @@
     "version": "5.2.10",
     "changes": 3,
     "fingerprint": "9e837b2f485bab5cfb03344cda322cee04486ad375820394565b52b3c200fb10",
-    "governedFiles": 269
+    "governedFiles": 269,
+    "commit": {
+      "sha": "9623c6e9090b74de984cfea744da8e584cc23d9c",
+      "subject": "fix(staging): use IPv4-compatible migration pooler",
+      "forced": false,
+      "remoteShaMatch": true
+    }
   },
   "targetedVerification": {
     "workflowPolicies": "50/50 passed",
@@ -35,9 +41,9 @@
     "productionExecuted": false
   },
   "next": [
-    "Commit and push V5.2.10 to develop.",
-    "Require GitHub CI PostgreSQL 16 migration execution, tests, build and Gitleaks success.",
-    "Keep Staging apply blocked until the user prepares accounts and securely configures the 14 bootstrap Secrets."
+    "User prepares Cloudflare, Railway and Supabase accounts using docs/STAGING-ACCOUNT-SETUP.md.",
+    "User securely configures the 14 bootstrap Secrets in the GitHub staging Environment and confirms key backup without sharing values.",
+    "After a separate cost-impact confirmation, manually dispatch Bootstrap infrastructure from develop for staging."
   ],
   "fullLocalVerification": {
     "node": "v22.22.2 official linux-arm64 archive previously verified against Node.js SHASUMS256.txt",
@@ -55,5 +61,30 @@
     "setupDocumentSecretValueScan": "0 findings",
     "gitDiffCheck": "passed",
     "postgres16Migration": "pending GitHub CI service-container execution"
+  },
+  "githubCi": {
+    "runId": 29381722889,
+    "headSha": "9623c6e9090b74de984cfea744da8e584cc23d9c",
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/actions/runs/29381722889",
+    "verify": "success",
+    "secrets": "success",
+    "postgres16Migration": {
+      "firstRun": "MIGRATION APPLIED · 202607150001_initial_fullstack.sql",
+      "secondRun": "MIGRATION SKIP · 202607150001_initial_fullstack.sql",
+      "historyRowCount": 1
+    }
+  },
+  "stagingGate": {
+    "runId": 29381722863,
+    "headSha": "9623c6e9090b74de984cfea744da8e584cc23d9c",
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/actions/runs/29381722863",
+    "readiness": "success",
+    "deploy": "skipped",
+    "environmentSecretsRead": false,
+    "cloudMutationStarted": false
   }
 }
