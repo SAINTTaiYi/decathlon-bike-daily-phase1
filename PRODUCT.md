@@ -82,11 +82,11 @@ Decathlon Bike Ops 是自行车部门的移动端优先闭店与跨日业务工�
 
 ## Attachments
 
-- 用户图片保存在私有 Cloudflare R2，前端不获取 R2 Secret。
+- 用户图片保存在 Supabase private Storage，浏览器永远不获取 server-only `SUPABASE_SECRET_KEY`。
 - 支持 JPEG、PNG、WebP；单文件最多 10 MB；每条业务记录最多 6 张。
-- API 校验账号、门店、MIME、大小和 SHA-256，返回 5 分钟 PUT 签名 URL。
-- 上传完成后 API 通过 HEAD 校验对象大小与 SHA-256 元数据，再标记数据库记录可用。
-- 查看使用短期 GET 签名 URL；删除先软删除数据库记录，再尝试清理对象。
+- API 校验账号、门店、MIME、大小和 SHA-256，返回对象级短期 signed upload URL。
+- 上传完成后 API 校验 Storage 对象信息，并重新下载对象计算真实 SHA-256；只有大小、MIME、声明摘要和实际摘要全部一致才标记可用。
+- 查看使用 5 分钟 signed download URL；删除先软删除数据库记录，再尝试清理私有对象。
 
 ## Synchronization and offline behavior
 
@@ -106,12 +106,12 @@ Decathlon Bike Ops 是自行车部门的移动端优先闭店与跨日业务工�
 
 ## Deployment environments
 
-- Web：Cloudflare Pages Direct Upload。
-- API：Railway 上的 Node.js 22 + Fastify 容器。
-- Database：两个完全独立的 Supabase PostgreSQL 16 项目。
-- Media：两个完全独立的 Cloudflare R2 私有 Bucket。
-- Staging 与 Production 使用不同 GitHub Environments、Secret、数据库、Bucket、Railway 环境和 Pages 项目。
-- Production 只有在 Staging 源码验收、main SHA/version 固定、环境审批、显式批准和数据库备份确认后才允许发布。
+- Web + API：两个完全独立的 EdgeOne Makers Free 项目；Vite/React 静态站点与 Node.js Cloud Functions 同源。
+- Database + Media：两个完全独立的 Supabase Free PostgreSQL / private Storage 项目。
+- Staging 与 Production 使用不同 GitHub Environments、Secret、Supabase 项目、EdgeOne 项目和专用部署分支。
+- EdgeOne 不直接监听 `develop` 或 `main`；GitHub 先完成测试与 checksum migration，再普通快进 `edgeone-staging` / `edgeone-production`。
+- 禁止付费套餐、按量计费、自动升级和 force push。
+- Production 只有在 Staging 源码验收、main SHA/version 固定、环境审批、显式批准、加密导出和恢复演练确认后才允许发布。
 
 ## Brand personality
 

@@ -4,9 +4,8 @@ dist/
 **/dist/
 coverage/
 .vercel/
-.wrangler/
-.railway/
 .supabase/
+apps/api/src/generated/
 .impeccable/
 .env
 .env.*

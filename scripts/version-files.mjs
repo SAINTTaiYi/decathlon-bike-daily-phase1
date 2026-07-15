@@ -10,12 +10,11 @@ const roots = [
   'apps',
   'packages',
   'supabase',
-  'infra/docker',
-  'infra/state/example.json',
+  'cloud-functions',
+  'edgeone.json',
   'scripts',
   'tests',
   'docs',
-  '.dockerignore',
   '.env.example',
   '.gitignore',
   '.npmrc',
@@ -24,7 +23,6 @@ const roots = [
   'pnpm-lock.yaml',
   'pnpm-workspace.yaml',
   'tsconfig.base.json',
-  'railway.json',
   'AUTOMATED-DEPLOYMENT.md',
   'PRODUCT.md',
   'DESIGN.md',
@@ -32,7 +30,7 @@ const roots = [
   'deploy-summary.md'
 ]
 
-const ignoredDirectories = new Set(['node_modules', 'dist', 'coverage', '.wrangler', '.railway', '.supabase'])
+const ignoredDirectories = new Set(['node_modules', 'dist', 'coverage', 'generated', '.supabase'])
 
 async function walk(path) {
   const info = await stat(path)

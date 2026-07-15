@@ -1,174 +1,172 @@
-# Decathlon Bike Ops V5.2.10 · Deployment Summary
+# Free-stack deployment summary
 
 ## Executive status
 
-V5.2.10 已从纯本机 Vite + React 应用升级为数据库驱动全栈 Monorepo：
+The application is now designed for this no-card, zero-fixed-cost stack:
 
 ```text
-Cloudflare Pages
-  → Railway Fastify API
-      → Supabase PostgreSQL 16
-      → Cloudflare R2 private media
+EdgeOne Makers Free
+  → Vite/React Web + same-origin Node.js Cloud Functions
+      → Supabase Free PostgreSQL
+      → Supabase Free private Storage
 ```
 
-代码已具备真实账号、Session/CSRF、RBAC、服务端业务规则、revision 并发控制、事务化审计/撤回、旧 v5 显式导入、R2 私有附件、幂等部署 CLI 和 GitHub Actions。
+The old Railway container, Cloudflare Pages Direct Upload, Cloudflare R2, infrastructure-state PR, and provider-token bootstrap automation have been removed from the active codebase.
 
-**当前已完成私有仓库、`develop` 和受分支限制的 `staging` GitHub Environment 准备，但尚未连接云账号、创建资源、写入 Secret、执行 Staging apply/release 或 Production。**
+No Supabase or EdgeOne project has been created. Staging is not deployed. Production remains forbidden.
 
 ## Platform decision
 
 | Layer | Platform | Reason |
 |---|---|---|
-| Web | Cloudflare Pages Direct Upload | 静态发布快、可由统一 Workflow 控制切换顺序 |
-| API | Railway | 运行 Node.js 22 Fastify 容器、环境级变量与固定服务域名 |
-| Database | Supabase PostgreSQL 16 | 独立项目、直接/Pooler 双连接、平台备份能力 |
-| Media | Cloudflare R2 | 私有对象、浏览器直传、S3-compatible 签名 |
-| CI/CD | GitHub Actions | Environment Secret、审批、分支与 SHA 门禁 |
+| Web + API | EdgeOne Makers Free | One same-origin project for static Web and Node.js Cloud Functions; no fixed server or foreign-card requirement |
+| Database | Supabase Free PostgreSQL | Preserve transactions, relational constraints, audit history, revision control, and existing SQL model |
+| Media | Supabase Free private Storage | Reuse the isolated project, keep objects private, and issue short-lived object-scoped URLs |
+| Source / CI | GitHub Free | Private source, protected environments, tests, migration gate, Gitleaks, and auditable deployment approvals |
 
-如果门店长期在中国大陆使用，必须在真实 Staging 验收网络时延和稳定性。若跨境链路不满足业务要求，应另行评估境内部署；不要在未测试前宣称当前海外平台满足大陆生产 SLA。
+## Release design
 
-## Environment isolation
-
-Staging 与 Production 分别拥有：
-
-- GitHub Environment Secret
-- Cloudflare Pages Project
-- R2 Bucket 与 Bucket-scoped S3 credential
-- Railway Project/Environment/Service
-- Supabase Project 与数据库密码
-- `infra/state/<environment>.json`
-
-Production 不复用 Staging 数据库、Bucket、连接串、Session Secret、CSRF Secret、Password Pepper、Contact Encryption Key 或 Setup Token。
-
-## Release flow
-
-### Infrastructure bootstrap
+EdgeOne projects watch dedicated branches instead of `develop`/`main`:
 
 ```text
-plan
-→ preflight
-→ Supabase
-→ Pages/R2
-→ Railway resources + variables
-→ migration
-→ API deploy + verify
-→ Pages deploy
-→ state checkpoint
+develop → approved workflow → migrate Staging DB → edgeone-staging → EdgeOne Staging
+main    → approved workflow → migrate Production DB → edgeone-production → EdgeOne Production
 ```
 
-### Subsequent release
+This prevents an ordinary code push from deploying before database migration approval.
+
+The promotion script:
+
+- accepts only `edgeone-staging` or `edgeone-production`;
+- reads the remote branch first;
+- rejects non-fast-forward movement;
+- uses normal `git push` only;
+- never force-pushes or rewrites history.
+
+## Runtime boundary
+
+EdgeOne build:
+
+- uses pinned Node 22.11.0 and pnpm 9.15.9;
+- installs from the frozen lockfile;
+- builds API output and Web output;
+- generates package version and checked-out Git SHA metadata;
+- does not run migrations or write cloud resources.
+
+EdgeOne runtime receives only environment-specific application values. Migration uses a separate GitHub Environment secret and never enters runtime.
+
+## Database and Storage
+
+Runtime:
 
 ```text
-migration
-→ Railway API
-→ readiness + version
-→ Cloudflare Pages
-→ final API/Web verification
+DATABASE_URL
+  Supavisor transaction pooler
+  port 6543
+  max pool size 1 per warm function instance
+  prepare=false
 ```
 
-### Production gates
+Migration:
 
-- Workflow 仅手动触发。
-- 必须从 `main`。
-- 必须输入完整 `release_sha`。
-- 必须输入已验收的 `staging_accepted_sha`。
-- 除非环境 state 文件，Production 源码必须与已验收 Staging 源码一致。
-- GitHub Production Environment 必须由 reviewer 批准。
-- `approve_production=true`。
-- `confirm_backup=true`。
-- CLI 再次要求 `--approve-production --confirm-backup`。
+```text
+MIGRATION_DATABASE_URL
+  Supavisor session pooler
+  port 5432
+  GitHub/local migration only
+```
+
+The migration runner uses advisory locking, per-file SHA-256, transaction boundaries, and immutable history. The private Storage migration reconciles `bike-ops-media` with private access, a 10 MB file limit, and JPEG/PNG/WebP allowlisting.
+
+## Attachment integrity
+
+The API does not trust browser metadata alone:
+
+1. validate user/store/record/MIME/size/count;
+2. create pending attachment;
+3. return object-scoped signed upload URL;
+4. inspect Storage object metadata;
+5. download the object server-side;
+6. compute actual SHA-256;
+7. mark ready only on an exact match;
+8. use short-lived signed download URL;
+9. soft-delete database visibility before object cleanup.
+
+## GitHub release gates
+
+### Staging
+
+Manual from `develop` only:
+
+- exact current remote SHA;
+- Free-plan confirmation;
+- no-billing/automatic-upgrade confirmation;
+- Staging-only confirmation;
+- full tests/typecheck/build;
+- migration before branch promotion;
+- exact deployed SHA/version/environment/database/Web verification.
+
+A `database_only_bootstrap` mode applies the schema before the first EdgeOne project import, preventing an initial function deployment against an empty database.
+
+### Production
+
+Manual from `main` only, additionally requiring:
+
+- exact requested version and main SHA;
+- current accepted `edgeone-staging` SHA;
+- accepted Staging ancestry and identical source tree;
+- Production Environment reviewer approval;
+- explicit Production approval;
+- encrypted external backup confirmation;
+- successful restore-drill confirmation;
+- Free-plan and no-billing confirmations.
+
+Production deployment branch/project must be prepared only after separate approval.
+
+## Free-tier operations
+
+Current capacity budget:
+
+| Resource | Budget |
+|---|---:|
+| Supabase database | 500 MB |
+| Supabase Storage | 1 GB |
+| Supabase bandwidth | 10 GB aggregate: 5 GB cached + 5 GB uncached |
+| EdgeOne projects | 40 |
+| EdgeOne builds | 500/month |
+| EdgeOne Cloud Functions | 1,000,000 executions/month |
+| EdgeOne Edge Functions | 3,000,000 executions/month |
+| EdgeOne site storage | 5 GB |
+
+Operational thresholds:
+
+- 70%: cleanup/archive plan required.
+- 85%: freeze non-essential media uploads and investigate.
+- Quota warning: incident; never permission to enable billing automatically.
+
+Supabase Free inactivity pause and lack of Production-grade managed daily backup/PITR remain explicit limitations.
 
 ## Security boundary
 
-- 密码：Argon2id + server pepper。
-- Session：HttpOnly/Secure/SameSite Cookie，数据库只存哈希。
-- CSRF：Session 绑定哈希；写请求必须验证。
-- Authorization：API 根据 user/store/role 判断。
-- Contacts：AES-256-GCM 加密，HMAC 指纹，不写普通日志。
-- Pickup code：只在当次请求中校验，不落库、不进审计。
-- Attachments：R2 private、5 分钟签名 URL、MIME/size/SHA-256 校验。
-- Secrets：只从 GitHub Environment/执行环境注入；state 与日志不得包含 Secret。
-- Database migration：direct URL 环境变量、checksum、advisory lock、事务执行。
-- Network failure：境外平台不可达时停止并提示 VPN，不盲目重试。
+- HttpOnly session, CSRF, RBAC, Argon2id, and password pepper.
+- AES-256-GCM protected contacts.
+- Pickup codes never persisted.
+- Supabase secret key server-only.
+- Explicit CORS origins; no wildcard.
+- Environment separation across GitHub, EdgeOne, Supabase, database passwords, and application secrets.
+- No secrets in repository, state, deployment receipts, or normal chat.
+- Network-unreachable errors stop and request VPN instead of blind retries.
 
-## Local verification completed before cloud execution
+## Immediate next steps
 
-- Domain、Database、Web/Ops、API 单元测试。
-- TypeScript typecheck。
-- Workspace build 与版本指纹守卫。
-- PostgreSQL 16 migration validation（CI 配置）。
-- Workflow YAML 解析与 50 项静态发布策略。
-- Production 无凭证 fail-closed。
-- Secret/连接串静态检查。
+1. Finish versioned full local validation and ordinary push to `develop`.
+2. Repeat the current Supabase project cost as 0 yuan/month and confirm the region.
+3. Create Supabase Free Staging project.
+4. Configure GitHub Staging `MIGRATION_DATABASE_URL` and run database-only bootstrap.
+5. Create `edgeone-staging`, import it into an EdgeOne Makers Free project, configure runtime variables, and set `EDGEONE_SITE_URL`.
+6. Run the full Staging release workflow and retain its receipt.
+7. Complete full Staging acceptance.
+8. Keep Production forbidden until separate approval, encrypted export implementation, and restore drill.
 
-最终数值以 `plan/receipts/step-06-deployment.json` 与 `step-07-governance.json` 为准。
-
-## Required GitHub setup
-
-1. 创建私有仓库并建立 `develop`、`main`。
-2. 创建 `staging`、`production` GitHub Environments。
-3. 为 Production 配置 required reviewers。
-4. 分别配置环境专属 Cloudflare、Railway、Supabase、应用和 R2 Secret。
-5. 先从 `develop` 运行 Bootstrap Staging。
-6. 验收 Staging 后记录 accepted SHA。
-7. 经用户单独批准后，从 `main` Bootstrap Production。
-8. Production release 前确认 Supabase backup/recovery point。
-
-完整 Secret 清单、CLI 参数、Workflow 行为和验收项见 [`AUTOMATED-DEPLOYMENT.md`](./AUTOMATED-DEPLOYMENT.md)。
-
-逐平台开户、权限与 Secret 配置顺序见 [`docs/STAGING-ACCOUNT-SETUP.md`](./docs/STAGING-ACCOUNT-SETUP.md)。
-
-## Staging acceptance
-
-Production 前必须在真实 Staging 验证：
-
-- Setup、登录、强制改密、Session 与角色权限。
-- 销售/闭店、维修、待取、二手车、其它交接。
-- 双设备 revision conflict 与幂等重复提交。
-- 审计查询和安全撤回。
-- R2 上传、查看、删除与签名过期。
-- 旧 v5 数据预览、导入、拒绝项与重复导入。
-- 离线只读、首次同步失败、45 秒同步和 Session 过期。
-- Android/iPhone、键盘、屏幕阅读器、200% 缩放、Reduced Motion。
-- 备份、API 回滚、Web 回滚与故障响应。
-
-## Go / No-Go
-
-### Go
-
-- 所有 Staging 核心流程通过。
-- Staging accepted SHA 已固定。
-- Production 资源与 Secret 独立。
-- 备份或恢复点可证明存在。
-- required reviewer 与负责人已批准。
-- 网络质量满足门店实际使用。
-
-### No-Go
-
-- 任何 Production Secret 与 Staging 共用。
-- 数据库备份未确认。
-- Production 源码不同于已验收 Staging。
-- R2 凭证不是 Bucket 范围受限。
-- 真实联系方式出现在日志、构建产物或 Secret 扫描结果。
-- 当前网络无法稳定访问平台且未开启 VPN。
-- 仍未完成真实手机和双用户并发验收。
-
-## Rollback boundary
-
-当前自动化没有一键 rollback/destroy/rotate-secrets 命令，不能宣称已自动化：
-
-- Web：重新部署上一固定 Git SHA。
-- API：Railway 回滚上一固定 deployment。
-- DB：Expand/Migrate/Contract；普通代码回滚不执行破坏性 down migration。
-- Disaster recovery：需负责人审批后使用 Supabase backup/PITR 能力。
-- R2：软删除优先，不随代码回滚批量删除对象。
-
-## Immediate next step
-
-私有仓库、`main`、`develop` 与受分支限制的 `staging` Environment 已建立。后续顺序：
-
-1. 完成 V5.2.10 全量本地验证和 `develop` CI，确认未 Bootstrap 时 Staging 自动部署安全跳过。
-2. 用户直接在 GitHub `staging` Environment 中配置真实 Secret，不在普通聊天或仓库中传递凭证。
-3. 从 `develop` 手动执行 Bootstrap Staging；审查并合并非敏感 state PR。
-4. 执行账号、业务、并发、R2、迁移、离线、双设备、无障碍、备份与回滚验收并固定 accepted SHA。
-5. 未经 Staging 验收和用户另行批准，不执行 Production。
+Full runbook: [`AUTOMATED-DEPLOYMENT.md`](./AUTOMATED-DEPLOYMENT.md).
+Staging setup: [`docs/STAGING-ACCOUNT-SETUP.md`](./docs/STAGING-ACCOUNT-SETUP.md).

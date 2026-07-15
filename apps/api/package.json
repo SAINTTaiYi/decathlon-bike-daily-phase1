@@ -9,9 +9,10 @@
     "start": "node dist/start.js",
     "test": "node --import tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "predev": "pnpm --filter @bike-ops/contracts build && pnpm --filter @bike-ops/database build",
-    "pretest": "pnpm --filter @bike-ops/contracts build && pnpm --filter @bike-ops/database build",
-    "prebuild": "pnpm --filter @bike-ops/contracts build && pnpm --filter @bike-ops/database build"
+    "predev": "node ../../scripts/generate-build-metadata.mjs && pnpm --filter @bike-ops/contracts build && pnpm --filter @bike-ops/database build",
+    "pretest": "node ../../scripts/generate-build-metadata.mjs && pnpm --filter @bike-ops/contracts build && pnpm --filter @bike-ops/database build",
+    "pretypecheck": "node ../../scripts/generate-build-metadata.mjs",
+    "prebuild": "node ../../scripts/generate-build-metadata.mjs && pnpm --filter @bike-ops/contracts build && pnpm --filter @bike-ops/database build"
   },
   "dependencies": {
     "@bike-ops/contracts": "workspace:*",

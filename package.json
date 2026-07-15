@@ -8,6 +8,10 @@
     "node": ">=20 <25"
   },
   "scripts": {
+    "generate:build-metadata": "node scripts/generate-build-metadata.mjs",
+    "pretest": "pnpm generate:build-metadata",
+    "pretypecheck": "pnpm generate:build-metadata",
+    "prebuild": "pnpm generate:build-metadata",
     "dev": "pnpm --filter @bike-ops/web dev",
     "dev:web": "pnpm --filter @bike-ops/web dev",
     "dev:api": "pnpm --filter @bike-ops/api dev",
@@ -26,7 +30,6 @@
     "build:api": "pnpm --filter @bike-ops/api build",
     "build:edgeone": "pnpm run check:version && pnpm --filter @bike-ops/api build && pnpm --filter @bike-ops/web build",
     "preview": "pnpm --filter @bike-ops/web preview",
-    "preview:lan": "pnpm --filter @bike-ops/web preview:lan",
-    "ops": "node scripts/ops/index.mjs"
+    "preview:lan": "pnpm --filter @bike-ops/web preview:lan"
   }
 }

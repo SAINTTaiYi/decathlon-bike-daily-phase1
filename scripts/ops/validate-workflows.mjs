@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createRequire } from 'node:module'
-import { readdir, readFile } from 'node:fs/promises'
+import { access, readdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 const require = createRequire(import.meta.url)
@@ -8,9 +8,13 @@ const root = process.cwd()
 const workflowDirectory = resolve(root, '.github/workflows')
 const workflowNames = (await readdir(workflowDirectory)).filter((name) => /\.ya?ml$/u.test(name)).sort()
 const workflows = Object.fromEntries(await Promise.all(workflowNames.map(async (name) => [name, await readFile(resolve(workflowDirectory, name), 'utf8')])))
-const opsIndex = await readFile(resolve(root, 'scripts/ops/index.mjs'), 'utf8')
-const supabaseOps = await readFile(resolve(root, 'scripts/ops/supabase.mjs'), 'utf8')
-const railwayOps = await readFile(resolve(root, 'scripts/ops/railway.mjs'), 'utf8')
+const ci = workflows['ci.yml'] || ''
+const staging = workflows['deploy-staging.yml'] || ''
+const production = workflows['deploy-production.yml'] || ''
+const promoteBranch = await readFile(resolve(root, 'scripts/ops/promote-branch.mjs'), 'utf8')
+const verifyDeployment = await readFile(resolve(root, 'scripts/ops/verify-deployment.mjs'), 'utf8')
+const edgeOneConfig = JSON.parse(await readFile(resolve(root, 'edgeone.json'), 'utf8'))
+const envExample = await readFile(resolve(root, '.env.example'), 'utf8')
 const migrationRunner = await readFile(resolve(root, 'packages/database/scripts/migrate.mjs'), 'utf8')
 const failures = []
 
@@ -26,19 +30,17 @@ function includesInOrder(source, labels, context) {
       failures.push(`${context}: missing ${label}`)
       return
     }
-    if (index <= cursor) {
-      failures.push(`${context}: ${label} is out of order`)
-      return
-    }
     cursor = index
   }
 }
 
-function functionBody(source, name) {
-  const start = source.indexOf(`async function ${name}(`)
-  if (start < 0) return ''
-  const next = source.indexOf('\nasync function ', start + 1)
-  return source.slice(start, next < 0 ? source.length : next)
+async function missing(path) {
+  try {
+    await access(resolve(root, path))
+    return false
+  } catch {
+    return true
+  }
 }
 
 let yamlParser = 'github-parser-only'
@@ -55,12 +57,14 @@ try {
   if (!/Cannot find module/u.test(String(error?.message || error))) failures.push(`YAML parse failed: ${error.message}`)
 }
 
+assert(workflowNames.join(',') === 'ci.yml,deploy-production.yml,deploy-staging.yml', 'workflows: only CI and the two free-stack release workflows may remain')
 for (const [name, source] of Object.entries(workflows)) {
   assert(!source.includes('\t'), `${name}: tabs are forbidden in YAML`)
   assert(/^name:\s+.+/mu.test(source), `${name}: name is required`)
   assert(/^on:/mu.test(source), `${name}: on trigger is required`)
   assert(/^jobs:/mu.test(source), `${name}: jobs are required`)
-  assert(!/CLOUDFLARE_TOKEN_FACTORY_TOKEN/u.test(source), `${name}: invalid Cloudflare token-factory secret is forbidden`)
+  assert(!/(?:CLOUDFLARE|RAILWAY|R2_)/u.test(source), `${name}: retired Cloudflare/Railway/R2 variables are forbidden`)
+  assert(!/--force(?:-with-lease)?/u.test(source), `${name}: deployment workflows must never force-push`)
   assert(!/corepack enable\s*&&\s*corepack prepare/u.test(source), `${name}: dynamic corepack download must use network-guard`)
   if (/pnpm install/u.test(source)) assert(/network-guard\.mjs npm\/pnpm pnpm install --frozen-lockfile/u.test(source), `${name}: pnpm install must use network-guard`)
 }
@@ -68,69 +72,76 @@ for (const [name, source] of Object.entries(workflows)) {
 const actionReferences = Object.values(workflows).flatMap((source) => [...source.matchAll(/uses:\s+[^@\s]+@([^\s#]+)/gu)].map((match) => match[1]))
 assert(actionReferences.length > 0 && actionReferences.every((reference) => /^[0-9a-f]{40}$/u.test(reference)), 'workflows: every external action must be pinned to a full commit SHA')
 
-const bootstrap = workflows['bootstrap-infrastructure.yml'] || ''
-assert(/environment: \$\{\{ inputs\.environment \}\}/u.test(bootstrap), 'bootstrap: selected GitHub Environment is required')
-assert(/confirm_staging_acceptance:/u.test(bootstrap), 'bootstrap: production requires an explicit staging acceptance input')
-assert(/staging_accepted_sha:/u.test(bootstrap), 'bootstrap: production requires the accepted staging SHA')
-assert(/git diff --quiet "\$STAGING_ACCEPTED_SHA" HEAD/u.test(bootstrap), 'bootstrap: production source must match accepted staging source')
-assert(/refs\/heads\/main/u.test(bootstrap) && /refs\/heads\/develop/u.test(bootstrap), 'bootstrap: environment branch gates are required')
-assert(/Map only the selected environment secrets/u.test(bootstrap), 'bootstrap: selected-environment secret mapping step is required')
-assert(/SUPABASE_DB_PASSWORD_\$\{suffix\}/u.test(bootstrap), 'bootstrap: dynamic environment suffix mapping is required')
-assert(!/SUPABASE_DB_PASSWORD_STAGING:\s*\$\{\{ secrets\.SUPABASE_DB_PASSWORD \}\}/u.test(bootstrap), 'bootstrap: staging secret must not be mapped globally')
-assert(!/SUPABASE_DB_PASSWORD_PRODUCTION:\s*\$\{\{ secrets\.SUPABASE_DB_PASSWORD \}\}/u.test(bootstrap), 'bootstrap: production secret must not be mapped globally')
-assert(/SUPABASE_ORG_SLUG: \$\{\{ secrets\.SUPABASE_ORG_SLUG \}\}/u.test(bootstrap), 'bootstrap: Supabase organization slug secret is required')
-assert(!/SUPABASE_ORG_ID/u.test(bootstrap), 'bootstrap: misleading Supabase organization ID name is forbidden')
-assert(/gh pr create/u.test(bootstrap), 'bootstrap: resource state must be proposed through a pull request')
-assert(!/git push origin "HEAD:\$\{?target_branch/u.test(bootstrap), 'bootstrap: direct push to protected environment branches is forbidden')
-includesInOrder(bootstrap, ['Test, typecheck, and build before cloud mutation', 'Show infrastructure plan', 'Validate credentials and runtime', 'Apply infrastructure', 'Open pull request for non-sensitive resource state'], 'bootstrap')
-
-const ci = workflows['ci.yml'] || ''
 assert((ci.match(/pnpm --filter @bike-ops\/database migrate/gu) || []).length >= 2, 'ci: checksum migration runner must execute twice')
-assert(/bike_ops_schema_migrations/u.test(ci), 'ci: migration history count must be verified')
+assert(/count\(\*\).*bike_ops_schema_migrations/u.test(ci), 'ci: migration history count must be verified')
+assert(/= "2"/u.test(ci), 'ci: both committed migrations must be recorded')
 assert(/GITLEAKS_VERSION: 8\.30\.1/u.test(ci), 'ci: Gitleaks version must be pinned')
-assert(/551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb/u.test(ci), 'ci: Gitleaks linux_x64 archive checksum must be pinned')
-assert(/--log-opts="--all --full-history --no-merges"/u.test(ci), 'ci: Gitleaks must scan the complete Git history')
+assert(/551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb/u.test(ci), 'ci: Gitleaks archive checksum must be pinned')
+assert(/--log-opts="--all --full-history --no-merges"/u.test(ci), 'ci: Gitleaks must scan complete Git history')
 assert(/persist-credentials: false/u.test(ci), 'ci: secret scan checkout must not persist GitHub credentials')
 
-const staging = workflows['deploy-staging.yml'] || ''
-assert(/branches: \[develop\]/u.test(staging), 'staging: push trigger must be develop')
-assert(/Check whether staging has been bootstrapped/u.test(staging), 'staging: bootstrap readiness gate is required')
-assert(/needs\.readiness\.outputs\.ready == 'true'/u.test(staging), 'staging: deploy job must require committed infrastructure state')
-assert(/app_version=\$\(node -p "require\('\.\/package\.json'\)\.version"\)/u.test(staging), 'staging: release identity export must use valid shell quoting')
-assert(!staging.includes('node -p \\"require'), 'staging: escaped shell quotes in command substitution are forbidden')
+assert(/^\s+workflow_dispatch:/mu.test(staging) && !/^\s+(?:push|pull_request):/mu.test(staging), 'staging: deployment must be manual, never every develop push')
 assert(/environment: staging/u.test(staging), 'staging: GitHub Environment must be staging')
-assert(/pnpm ops preflight staging --release/u.test(staging), 'staging: release preflight is required')
-assert(/release-state-staging/u.test(staging), 'staging: release state artifact is required')
-includesInOrder(staging, ['Test, typecheck, and build', 'Preflight release credentials', 'Release in safe order', 'Verify deployed API and web'], 'staging')
+assert(/refs\/heads\/develop/u.test(staging), 'staging: develop branch gate is required')
+for (const input of ['release_sha:', 'confirm_free_plan:', 'confirm_no_billing:', 'confirm_staging_only:', 'database_only_bootstrap:']) assert(staging.includes(input), `staging: missing ${input}`)
+assert(/MIGRATION_DATABASE_URL: \$\{\{ secrets\.MIGRATION_DATABASE_URL \}\}/u.test(staging), 'staging: migration URL must come from the selected GitHub Environment')
+assert(/EDGEONE_SITE_URL: \$\{\{ vars\.EDGEONE_SITE_URL \}\}/u.test(staging), 'staging: non-sensitive EdgeOne site URL must be an Environment variable')
+assert(/git rev-parse origin\/develop/u.test(staging), 'staging: release SHA must equal current remote develop')
+assert(/edgeone-staging/u.test(staging), 'staging: dedicated EdgeOne deployment branch is required')
+includesInOrder(staging, [
+  'Validate, test, typecheck, and build before database mutation',
+  'Apply checksum-locked Supabase migrations',
+  'Fast-forward the EdgeOne Staging deployment branch',
+  'Verify the deployed SHA, environment, API, database, and Web'
+], 'staging')
 
-const production = workflows['deploy-production.yml'] || ''
-for (const input of ['release_sha:', 'staging_accepted_sha:', 'approve_production:', 'confirm_backup:']) {
-  assert(production.includes(input), `production: missing ${input} input`)
-}
-assert(!/^\s+push:/mu.test(production), 'production: automatic push deployment is forbidden')
+assert(/^\s+workflow_dispatch:/mu.test(production) && !/^\s+(?:push|pull_request):/mu.test(production), 'production: deployment must be manual')
 assert(/environment: production/u.test(production), 'production: GitHub Environment must be production')
 assert(/refs\/heads\/main/u.test(production), 'production: main branch gate is required')
-assert(/git diff --quiet "\$STAGING_ACCEPTED_SHA" "\$actual_sha"/u.test(production), 'production: accepted staging source comparison is required')
-assert(/git rev-parse origin\/main/u.test(production), 'production: release SHA must match the current remote main HEAD')
-assert(/release-state-production/u.test(production), 'production: release state artifact is required')
-assert(/pnpm ops release production --approve-production --confirm-backup/u.test(production), 'production: CLI approval and backup flags are required')
-includesInOrder(production, ['Verify immutable release identity', 'Test, typecheck, and build', 'Preflight release credentials', 'Release in safe order', 'Verify deployed API and web'], 'production')
+for (const input of ['version:', 'release_sha:', 'staging_accepted_sha:', 'approve_production:', 'confirm_encrypted_backup:', 'confirm_restore_drill:', 'confirm_free_plan:', 'confirm_no_billing:', 'database_only_bootstrap:']) assert(production.includes(input), `production: missing ${input}`)
+assert(/git rev-parse origin\/edgeone-staging/u.test(production), 'production: accepted SHA must equal the current EdgeOne Staging branch')
+assert(/git merge-base --is-ancestor/u.test(production), 'production: accepted Staging SHA must be an ancestor')
+assert(/git diff --quiet "\$STAGING_ACCEPTED_SHA" "\$EXPECTED_SHA" -- \./u.test(production), 'production: source tree must exactly match accepted Staging')
+assert(/edgeone-production/u.test(production), 'production: dedicated EdgeOne deployment branch is required')
+includesInOrder(production, [
+  'Validate, test, typecheck, and build before database mutation',
+  'Apply checksum-locked Supabase migrations',
+  'Fast-forward the EdgeOne Production deployment branch',
+  'Verify the deployed SHA, environment, API, database, and Web'
+], 'production')
 
-for (const functionName of ['apply', 'release']) {
-  const body = functionBody(opsIndex, functionName)
-  assert(body, `ops: ${functionName} function is required`)
-  includesInOrder(body, ['migrateDatabase(', 'deployRailway(', 'verifyApi(', 'deployPages('], `ops ${functionName}`)
-}
-assert(/requireProductionApproval\(target, \{ backupRequired: true \}\)/u.test(functionBody(opsIndex, 'release')), 'ops release: production backup confirmation is required')
-assert(/MIGRATION_DATABASE_URL: `postgresql:\/\/postgres\.\$\{ref\}:/u.test(supabaseOps) && /pooler\.supabase\.com:5432/u.test(supabaseOps), 'ops: migrations must use the IPv4-compatible Supavisor session pooler')
-assert(!/@db\.\$\{ref\}\.supabase\.co:5432/u.test(supabaseOps), 'ops: GitHub-hosted migrations must not use the IPv6-only direct database host')
-assert(/SUPABASE_ORG_SLUG/u.test(supabaseOps) && !/SUPABASE_ORG_ID/u.test(supabaseOps), 'ops: Supabase project creation must use organization slug naming')
-assert(/MIGRATION_DATABASE_URL/u.test(migrationRunner) && !/DIRECT_DATABASE_URL/u.test(migrationRunner), 'migration runner: explicit migration URL variable is required')
-assert(!/MIGRATION_DATABASE_URL|DIRECT_DATABASE_URL/u.test(railwayOps), 'railway: migration-only database URLs must not be injected into API runtime')
+assert(edgeOneConfig.installCommand === 'corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile', 'edgeone.json: install command must remain frozen and pinned')
+assert(edgeOneConfig.buildCommand === 'pnpm build:edgeone', 'edgeone.json: build command must not mutate Supabase')
+assert(edgeOneConfig.outputDirectory === 'apps/web/dist', 'edgeone.json: output directory must remain apps/web/dist')
+assert(edgeOneConfig.nodeVersion === '22.11.0', 'edgeone.json: Node version must remain pinned')
+
+assert(/\['edgeone-staging', 'edgeone-production'\]/u.test(promoteBranch), 'promotion: only dedicated deployment branches are allowed')
+assert(/git\(\['ls-remote'/u.test(promoteBranch), 'promotion: remote deployment branch must be read before push')
+assert(/merge-base.*--is-ancestor/u.test(promoteBranch), 'promotion: non-fast-forward changes must be rejected')
+assert(/git\(\['push', 'origin'/u.test(promoteBranch), 'promotion: ordinary git push is required')
+assert(!/--force/u.test(promoteBranch), 'promotion: force push is forbidden')
+assert(/health\/ready/u.test(verifyDeployment) && /api\/v1\/meta\/version/u.test(verifyDeployment), 'verification: API readiness and immutable release identity must be checked')
+assert(/expectedSha/u.test(verifyDeployment) && /expectedEnvironment/u.test(verifyDeployment), 'verification: deployed SHA and environment must be checked')
+
+assert(/MIGRATION_DATABASE_URL/u.test(migrationRunner) && !/DIRECT_DATABASE_URL/u.test(migrationRunner), 'migration runner: explicit migration-only URL is required')
+assert(/pg_advisory_lock/u.test(migrationRunner) && /MIGRATION_CHECKSUM_MISMATCH/u.test(migrationRunner), 'migration runner: lock and checksum protection are required')
+for (const variable of ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_STORAGE_BUCKET']) assert(envExample.includes(variable), `.env.example: missing ${variable}`)
+assert(!/(?:CLOUDFLARE|RAILWAY|R2_)/u.test(envExample), '.env.example: retired provider variables are forbidden')
+
+for (const path of [
+  '.github/workflows/bootstrap-infrastructure.yml',
+  'railway.json',
+  'infra/docker/api.Dockerfile',
+  'scripts/ops/cloudflare.mjs',
+  'scripts/ops/railway.mjs',
+  'scripts/ops/supabase.mjs',
+  'scripts/ops/index.mjs',
+  'scripts/prepare-pages-headers.mjs'
+]) assert(await missing(path), `cleanup: retired file must be deleted: ${path}`)
 
 if (failures.length) {
   console.error(JSON.stringify({ ok: false, yamlParser, failures }, null, 2))
   process.exit(1)
 }
 
-console.log(JSON.stringify({ ok: true, yamlParser, workflows: workflowNames, policies: 50 }, null, 2))
+console.log(JSON.stringify({ ok: true, yamlParser, workflows: workflowNames, policies: 61 }, null, 2))

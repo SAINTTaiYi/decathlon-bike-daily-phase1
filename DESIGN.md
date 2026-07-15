@@ -28,7 +28,7 @@
 - 所有正式写入携带 Idempotency-Key；可并发编辑的对象使用 revision，冲突后刷新并让用户重新确认。
 - 业务写入和审计事件在同一数据库事务中提交。
 - 联系方式在服务端使用 AES-256-GCM 加密；取货码不持久化。
-- R2 对象保持私有；浏览器只接收短期签名 URL。
+- Supabase Storage 对象保持私有；浏览器只接收对象级短期 signed upload/download URL，server-only Secret 不进入前端。
 
 ### Browser state
 
@@ -103,7 +103,7 @@
 - 上传前显示 JPEG/PNG/WebP、10 MB、每条最多 6 张的限制。
 - 上传/删除必须具备明确 loading、success、error 状态。
 - 图片 URL 为短期签名地址；过期后重新请求，不能长期缓存带签名 URL。
-- 删除采用数据库软删除优先，R2 清理失败不得让已删除记录重新显示。
+- 删除采用数据库软删除优先，Supabase Storage 清理失败不得让已删除记录重新显示。
 
 ## Legacy migration
 
@@ -201,7 +201,7 @@ apps/api/src/
   routes/                 bootstrap、closing、work-items、audit、media、migrations
   services/               业务事务、幂等、旧数据导入与撤回恢复
   repositories/           数据库记录映射
-  storage/                R2 SigV4 签名与对象校验
+  storage/                Supabase private Storage 签名、对象信息与真实摘要校验
 
 packages/
   domain/                 共享业务规则
@@ -211,13 +211,15 @@ packages/
 
 ## Deployment design
 
-- Staging：`develop`；Production：`main` 且仅手动触发。
-- Production Workflow 必须验证 main HEAD、完整 release SHA、被验收的 Staging SHA 和源码一致性。
-- 发布顺序：migration → Railway API → readiness/version → Cloudflare Pages → final verify。
-- Production release 同时需要 GitHub Environment 审批、`approve_production` 和 `confirm_backup`。
-- Workflow Secret 按 GitHub Environment 隔离；不得同时把一个 Secret 注入 staging/production 变量名。
-- 非敏感 state 分阶段保存，可用 artifact 恢复，并通过自动 Pull Request 进入受保护分支；绝不保存连接串、Token 或密码。
-- 境外 npm、GitHub 或云平台不可达时停止并提示开启 VPN，不盲目重试。
+- Staging 源码为 `develop`，EdgeOne 只监听 `edgeone-staging`；Production 源码为 `main`，EdgeOne 只监听 `edgeone-production`。
+- 两个发布 Workflow 均仅手动触发；部署分支只允许普通快进，禁止 force push 和历史改写。
+- 发布顺序：immutable source gate → tests/typecheck/build → checksum migration → deployment-branch fast-forward → EdgeOne Git deployment → Web/API/database/version/SHA/environment verify。
+- EdgeOne build 只安装和构建，不执行 migration 或云资源变更。
+- Production Workflow 必须验证 main HEAD、完整 release SHA、当前已部署并验收的 Staging SHA、祖先关系和源码一致性。
+- Production release 同时需要 GitHub Environment 审批、显式 Production 批准、Free/no-billing 确认、加密导出和恢复演练确认。
+- Workflow Secret 按 GitHub Environment 隔离；GitHub 只保存 migration-only URL，EdgeOne 保存运行时变量。
+- Staging 与 Production 使用不同 Supabase Project 和 EdgeOne Project；不得复制 Production 数据到 Staging。
+- 境外 npm、GitHub、EdgeOne 或 Supabase 不可达时停止并提示开启 VPN，不盲目重试。
 
 ## Version governance
 

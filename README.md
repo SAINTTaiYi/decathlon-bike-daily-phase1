@@ -1,58 +1,60 @@
 # Decathlon Bike Ops · Daily Closing Lookbook
 
-V5.2.10 是数据库驱动的自行车部门闭店与跨日业务工作台。它保留移动端黑白硬边 product lookbook 视觉，同时以 Fastify API、Supabase PostgreSQL、真实账号、服务端业务规则、审计和私有 R2 附件支撑多设备协作。
+A database-backed bike-department closing and cross-day operations workspace. The interface keeps its mobile, black-and-white hard-edge product-lookbook language while a Fastify API, PostgreSQL transactions, real accounts, audit history, concurrency control, and private attachments support multi-user operation.
 
-> 本项目不接入迪卡侬官方业务 API。门店同事仍人工录入数据，但 PostgreSQL 是正式业务事实源；浏览器只保留运行时会话、最近成功加载的内存快照和可选的旧 v5 显式迁移来源。
+> This project does not connect to official Decathlon business APIs. Store colleagues enter data manually. PostgreSQL is the business source of truth; the browser keeps only runtime session state, the latest in-memory snapshot, and an optional explicit legacy-v5 import source.
 
-## V5.2.10 current state
+## Current implementation
 
-已在代码与本地验证中完成：
+Completed in code and local verification:
 
-- pnpm Monorepo：Web、API、Domain、Contracts、Database。
-- 用户名 + 密码、Argon2id、HttpOnly Session、CSRF、登录限流与首次强制改密。
-- `operator / manager / admin` 角色；闭店和旧数据迁移要求 manager/admin。
-- 服务端业务日期、revision 并发控制、Idempotency-Key 和事务化审计/撤回。
-- 销售、闭店、维修、待取、二手车、其它交接的 `/api/v1/*` 接口。
-- 维修联系方式 AES-256-GCM 加密与 HMAC 指纹。
-- R2 私有图片：短期 PUT/GET 签名 URL、SHA-256/大小校验、软删除。
-- Web 初始同步、写后刷新、窗口聚焦刷新、45 秒轮询、离线只读、Session 过期处理。
-- manager/admin 显式预览并导入旧 v5 本机数据；取货码在浏览器端剥离。
-- Cloudflare Pages + Railway + Supabase + R2 的幂等 ops CLI 和 GitHub Actions。
-- CI 使用固定版本并校验 SHA-256 的 Gitleaks 扫描完整 Git 历史；外部 Actions 固定到完整提交 SHA。
-- Staging/Production 完全隔离；Production 要求 Staging 源码验收、main、固定 SHA/version、审批、显式批准和备份确认。
+- pnpm monorepo: Web, API, Domain, Contracts, Database.
+- Username/password authentication, Argon2id, HttpOnly session, CSRF, login throttling, and forced password change.
+- `operator / manager / admin` roles; closing/reopen and legacy import require manager/admin.
+- Server business date, revision conflicts, Idempotency-Key, transactional audit, and safe undo.
+- Sales, closing, repair, pickup, resale, and handover APIs.
+- AES-256-GCM contact encryption and non-persistent pickup-code verification.
+- Supabase private Storage attachments with object-scoped signed upload/download URLs, 10 MB and MIME limits, server re-download, actual SHA-256 verification, and database-first soft deletion.
+- Vite/React Web synchronization, focus refresh, 45-second polling, offline read-only mode, and session-expiry handling.
+- EdgeOne Makers Node.js Cloud Function adapter for the existing Fastify application; no listening socket in Serverless runtime.
+- Supavisor transaction-pooler runtime with one connection per warm function instance by default.
+- EdgeOne Git Integration governance with checksum-locked Supabase migrations before dedicated deployment-branch promotion.
+- CI with PostgreSQL 16 migration smoke tests, tests/typecheck/build, immutable release metadata, and verified Gitleaks full-history scanning.
 
-当前云执行边界：
+Current cloud boundary:
 
-- 私有仓库已建立 `main` 与 `develop`；`staging` GitHub Environment 已创建并仅允许 `develop` 部署。
-- 尚未配置真实 Environment Secret，也未创建 Cloudflare、Railway、Supabase 或 R2 资源。
-- 未进行真实 Supabase/R2/Railway/Cloudflare 端到端测试或手机 Staging 验收。
-- 未执行 Staging apply/release 或任何 Production 操作。
+- Private GitHub repository has `main`, `develop`, and a branch-restricted `staging` GitHub Environment.
+- No real Supabase or EdgeOne project has been created.
+- No real cloud Secret is committed or configured by this repository work.
+- Staging has not been deployed or accepted.
+- Production resources and deployment remain forbidden.
 
 ## Product rules
 
-- 销售数据已保存是唯一闭店门槛。
-- 只有 manager/admin 可以完成闭店或重新打开。
-- 未变化的维修、待取、二手车和其它交接自然跨日。
-- 门店产品维修原地完成；付费/质保/免费维修完成后转入待取。
-- 非免费维修须已开付款单或质保单才可取车；免费维修可直接取车。
-- 自提取货码只用于当次请求，不保存、不记录。
-- 完成与取车记录当日标黑，下一服务端业务日从当前台账清理，审计历史保留。
-- 闭店后写操作锁定；查看历史仍可用。
+- Saved sales data is the only closing requirement.
+- Only manager/admin can close or reopen a day.
+- Unchanged repairs, pickups, resale items, and handovers naturally continue across days.
+- Store-product repairs finish in the repair module; other completed repairs move to pickup.
+- Paid/warranty repairs require the corresponding document status before pickup; free repairs can be picked up directly.
+- Pickup codes are validated only in the current request and are never stored or audited.
+- Completed/picked-up records are blacked out for the current business day, removed from the active ledger on the next server business day, and retained in audit history.
+- Closing locks business writes while preserving historical viewing.
 
-完整事实源见 [`PRODUCT.md`](./PRODUCT.md) 与 [`DESIGN.md`](./DESIGN.md)。
+Full product and design sources: [`PRODUCT.md`](./PRODUCT.md) and [`DESIGN.md`](./DESIGN.md).
 
 ## Architecture
 
 ```text
 Browser
-  └─ Cloudflare Pages · Vite 5 + React 18
-       └─ credentials: include + CSRF + Idempotency-Key
-            └─ Railway · Node.js 22 + Fastify + TypeScript
-                 ├─ Supabase PostgreSQL 16
-                 └─ Cloudflare R2 private bucket
+  └─ EdgeOne Makers Free
+       ├─ Vite 5 + React 18 static Web
+       └─ same-origin Node.js Cloud Functions
+            └─ Fastify + TypeScript
+                 ├─ Supabase Free PostgreSQL 16
+                 └─ Supabase Free private Storage
 ```
 
-运行时版本接口：
+Runtime endpoints:
 
 ```text
 GET /health/live
@@ -60,26 +62,26 @@ GET /health/ready
 GET /api/v1/meta/version
 ```
 
+The version endpoints report package version, checked-out Git SHA, schema version, and runtime environment. Deployment verification rejects stale or wrong-environment releases.
+
 ## Repository layout
 
 ```text
 apps/
-  web/                  Vite + React lookbook UI
-  api/                  Fastify auth/business/media API
+  web/                  Vite/React lookbook UI
+  api/                  Fastify auth/business/media API + EdgeOne adapter
+cloud-functions/        EdgeOne same-origin /api and /health entrypoints
 packages/
   domain/               shared business rules
   contracts/            Zod request/response contracts
-  database/             PostgreSQL client and migration runner
+  database/             PostgreSQL client and checksum migration runner
 supabase/
-  migrations/           explicit SQL schema history
+  migrations/           application schema + private Storage bucket
   seed.sql              no users, passwords, contacts, or business data
-infra/
-  docker/               Railway API Dockerfile
-  state/                non-sensitive resource IDs only
-scripts/ops/            plan/preflight/apply/release/verify automation
-.github/workflows/      CI, bootstrap, staging, production
-tests/                  Web, workflow, ops and version regression tests
-plan/                   execution plan, checkpoints and receipts
+scripts/ops/            workflow policy, network guard, branch promotion, deploy verification
+.github/workflows/      CI and manual Staging/Production free-stack release gates
+tests/                  Web, workflow, deployment, and version regression tests
+plan/                   execution checkpoints, decisions, and receipts
 ```
 
 ## Requirements
@@ -88,7 +90,7 @@ plan/                   execution plan, checkpoints and receipts
 - pnpm 9.15.9
 - PostgreSQL 16 or local Supabase CLI stack
 
-If npm, GitHub or cloud endpoints are unreachable from the current network, stop and enable VPN before continuing. The ops/network guard intentionally does not blindly retry a confirmed network-unreachable error.
+If npm, GitHub, EdgeOne, or Supabase is unreachable from the current network, stop and enable VPN. The network guard intentionally does not blindly retry a confirmed network-unreachable failure.
 
 ## Local setup
 
@@ -99,7 +101,7 @@ pnpm install --frozen-lockfile
 cp .env.example .env
 ```
 
-Start PostgreSQL/Supabase, fill `.env`, then run migrations:
+Start PostgreSQL/Supabase, fill `.env`, and migrate:
 
 ```bash
 pnpm --filter @bike-ops/database migrate
@@ -116,23 +118,28 @@ pnpm dev:web
 - API: `http://127.0.0.1:8787`
 - Local Supabase PostgreSQL default: `127.0.0.1:54322`
 
-The seed contains no account. For local first-run, set `ADMIN_SETUP_TOKEN_HASH` to the SHA-256 of a temporary token, then open:
+For local first-run, set `ADMIN_SETUP_TOKEN_HASH` to the SHA-256 of a temporary token and open:
 
 ```text
 http://127.0.0.1:5173/#setup=<temporary-token>
 ```
 
-After creating the first administrator, rotate the Environment Secret to a new unrecoverable value and re-apply. The current bootstrap preflight still requires this variable; the database user count independently prevents a second setup.
+After creating the first administrator, rotate or remove the setup digest through a controlled configuration change. The database user count independently prevents a second initialization.
 
 ## Environment variables
 
-See [`.env.example`](./.env.example). Important boundaries:
+See [`.env.example`](./.env.example).
 
-- `VITE_*` may reach the browser.
-- Database URLs, password pepper, Session/CSRF secrets, contact encryption key and R2 credentials are API-only.
-- `DATABASE_URL` is the runtime transaction-pooler URL.
-- `MIGRATION_DATABASE_URL` is the IPv4-compatible Supavisor session-pooler URL used only by migrations.
-- Production CORS origins must be explicit; `*` is rejected.
+Important boundaries:
+
+- `VITE_*` values may reach the browser.
+- Database URLs, Session/CSRF secrets, password pepper, contact encryption key, and `SUPABASE_SECRET_KEY` are server-only.
+- EdgeOne uses `DATABASE_URL` with the Supavisor transaction pooler on port 6543.
+- GitHub/local migration uses `MIGRATION_DATABASE_URL` with the Supavisor session pooler on port 5432.
+- `MIGRATION_DATABASE_URL` must never enter EdgeOne runtime.
+- EdgeOne uses an empty `VITE_API_BASE_URL` for same-origin `/api` calls.
+- `APP_VERSION` and `GIT_SHA` are generated during build; do not override them with stale console variables.
+- CORS origins are explicit; `*` is rejected.
 
 ## Verification
 
@@ -143,13 +150,47 @@ pnpm typecheck
 pnpm build
 ```
 
-The root test command runs Domain, Database, Web/Ops and API suites. The build command first enforces version consistency and the source/deployment fingerprint, then builds all packages.
+The root test command runs Domain, Database, Web/Ops, and API suites. Build first enforces version consistency and the source/deployment fingerprint, then builds all workspaces.
 
-Database schema smoke test can also be run against PostgreSQL 16 using the same steps in `.github/workflows/ci.yml`.
+CI also runs the checksum migration twice against PostgreSQL 16 and verifies both committed migration records.
+
+## Deployment governance
+
+EdgeOne must not deploy `develop` or `main` directly.
+
+| Environment | Source | Dedicated EdgeOne branch |
+|---|---|---|
+| Staging | `develop` | `edgeone-staging` |
+| Production | `main` | `edgeone-production` |
+
+Manual release flow:
+
+```text
+immutable SHA + approval checks
+→ tests/typecheck/build
+→ Supabase checksum migration
+→ normal fast-forward push to EdgeOne branch
+→ EdgeOne Git Integration deployment
+→ Web/API/database/version/SHA/environment verification
+```
+
+No force push is allowed. EdgeOne build never mutates the database. Staging and Production use separate Supabase projects, EdgeOne projects, GitHub Environments, and secrets.
+
+Detailed governance: [`AUTOMATED-DEPLOYMENT.md`](./AUTOMATED-DEPLOYMENT.md).
+Staging bootstrap checklist: [`docs/STAGING-ACCOUNT-SETUP.md`](./docs/STAGING-ACCOUNT-SETUP.md).
+
+## Free-tier constraints
+
+- Supabase Free is a capacity budget, not a Production SLA. Inactive projects may pause.
+- Current operating budget: 500 MB database, 1 GB Storage, and 10 GB aggregate bandwidth (5 GB cached + 5 GB uncached).
+- EdgeOne Makers Free currently publishes 40 projects, 500 builds/month, 1 million Cloud Function executions/month, 3 million Edge Function executions/month, and 5 GB site storage.
+- Paid plans, usage billing, automatic upgrade, and paid add-ons must remain disabled.
+- At 70% quota usage, plan cleanup/archive. At 85%, freeze non-essential attachment uploads and investigate.
+- Production requires an encrypted external export and successful restore drill; Free Supabase alone does not satisfy this requirement.
 
 ## Version governance
 
-Current version: **V5.2.10**.
+Current registered interface version: **V5.2.10**.
 
 Version truth must match across:
 
@@ -158,59 +199,41 @@ Version truth must match across:
 - `apps/web/src/data/releaseNotes.js`
 - `version-manifest.json`
 
-For the next product change:
+For the next product/deployment change:
 
 ```bash
 pnpm version:patch -- \
-  --title "更新标题" \
-  --summary "更新摘要" \
-  --change "更新项一" \
-  --change "更新项二"
+  --title "Update title" \
+  --summary "Update summary" \
+  --change "Change one" \
+  --change "Change two"
 
-# complete code and documentation changes first
 pnpm version:stamp
 pnpm build
 ```
 
-The fingerprint includes source code, tests, migrations, deployment workflows, infrastructure configuration and product/design documentation; generated `dist`, dependencies, runtime state and execution receipts are excluded.
-
-## Deployment commands
-
-All commands are environment-explicit and fail closed:
-
-```bash
-pnpm ops plan staging
-pnpm ops preflight staging
-pnpm ops apply staging
-pnpm ops verify staging
-
-pnpm ops plan production
-pnpm ops apply production --approve-production
-pnpm ops release production --approve-production --confirm-backup
-pnpm ops verify production
-```
-
-Never run Production before Staging acceptance. Cloud bootstrap requires environment-scoped GitHub Secrets; real tokens must not be committed or pasted into ordinary project files.
-
-Detailed automation and current limitations are in [`AUTOMATED-DEPLOYMENT.md`](./AUTOMATED-DEPLOYMENT.md) and [`deploy-summary.md`](./deploy-summary.md).
+The fingerprint includes source, tests, migrations, EdgeOne configuration, workflows, and product/deployment documentation; generated build metadata, dependencies, build output, execution receipts, and real secrets are excluded.
 
 ## Security notes
 
-- Do not commit `.env`, database passwords, PAT/API tokens, Session/CSRF secrets, contact encryption keys or R2 S3 keys.
-- `infra/state/*.json` may contain only non-sensitive resource IDs, names, domains, phase and release SHA.
-- Production data must never be copied into Staging.
-- Do not treat a successful static build as cloud or disaster-recovery validation.
-- R2 keys must be bucket-scoped and environment-specific.
+- Never commit `.env`, database URLs/passwords, Supabase secret keys, Session/CSRF secrets, peppers, contact encryption keys, or setup tokens.
+- Never expose server secrets through `VITE_` variables.
+- Never copy Production data into Staging.
+- Never connect EdgeOne directly to `develop` or `main`.
+- Never force-push deployment branches.
+- Never treat a successful static build as cloud, backup, or recovery validation.
+- Never create Production resources before Staging acceptance and separate user approval.
 
 ## Staging acceptance still required
 
 Before any Production action, validate on real Staging:
 
-- first admin setup, login, forced password change and role boundaries
-- CRUD, repair routing, pickup rules, closing/reopen and audit undo
-- revision conflict with two users/devices
-- R2 upload, display and deletion
-- old v5 migration preview/import and idempotency
-- offline read-only and Session expiry
-- Android/iPhone, keyboard, screen reader, 200% zoom and reduced motion
-- backup/recovery-point availability and rollback procedure
+- first-admin setup, login, forced password change, and role boundaries;
+- sales/closing, repair, pickup, resale, and handover lifecycles;
+- two-device revision conflicts and idempotent retries;
+- audit search and safe undo;
+- private attachment upload, integrity verification, viewing, expiration, and deletion;
+- legacy-v5 preview/import and duplicate handling;
+- offline read-only behavior and session expiry;
+- Android/iPhone, keyboard, screen reader, 200% zoom, and reduced motion;
+- quota monitoring, encrypted export, restore procedure, and rollback boundary.

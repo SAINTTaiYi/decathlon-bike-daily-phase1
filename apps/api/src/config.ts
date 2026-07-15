@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { BUILD_APP_VERSION, BUILD_GIT_SHA } from './generated/build-metadata.js'
 
 const booleanString = z.enum(['true', 'false']).transform((value) => value === 'true')
 
@@ -20,8 +21,8 @@ const environmentSchema = z.object({
   ADMIN_SETUP_TOKEN_HASH: z.string().regex(/^[a-f0-9]{64}$/u).optional(),
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(12),
   TRUST_PROXY: booleanString.default('true'),
-  APP_VERSION: z.string().default('0.0.0'),
-  GIT_SHA: z.string().default('development'),
+  APP_VERSION: z.string().default(BUILD_APP_VERSION),
+  GIT_SHA: z.string().default(BUILD_GIT_SHA),
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_SECRET_KEY: z.string().min(32).optional(),
   SUPABASE_STORAGE_BUCKET: z.string().min(3).max(63).regex(/^[a-z0-9][a-z0-9._-]*[a-z0-9]$/u).default('bike-ops-media')
