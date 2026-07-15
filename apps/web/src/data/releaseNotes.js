@@ -1,13 +1,13 @@
-export const APP_VERSION = "5.2.9"
+export const APP_VERSION = "5.2.10"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.15",
-  title: "Staging 启动门禁加固",
-  summary: "修复 Staging 发布身份导出的 Shell 引号错误，并在基础设施尚未 Bootstrap 时安全跳过自动部署。",
+  title: "Staging 云连接兼容性加固",
+  summary: "将 Supabase migration 切换到 GitHub Actions 可达的 IPv4 session pooler，并校正 Organization slug 与 Railway runtime Secret 边界。",
   changes: [
-    "修复 deploy-staging 的 APP_VERSION 导出命令，避免 Bash 在云端发布前因错误转义提前失败。",
-    "新增已提交 staging state 的 readiness gate；未 Bootstrap 时只输出 notice，不读取 Secret、不执行发布或云资源变更。",
-    "Staging GitHub Environment 限制为 develop 分支，工作流治理扩展到 43 项策略并新增回归测试。"
+    "Migration 改用 MIGRATION_DATABASE_URL 与 Supavisor session pooler 5432，避免 GitHub-hosted runner 访问默认 IPv6-only direct host。",
+    "Supabase 项目创建 Secret 正名为 SUPABASE_ORG_SLUG，并增加回归策略防止误填 UUID。",
+    "迁移专用数据库 URL 不再注入 Railway API runtime；新增逐平台 Staging 开户、权限、备份与 14+1 Secret 配置清单。"
   ]
 }

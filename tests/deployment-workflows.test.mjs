@@ -20,6 +20,8 @@ test('Bootstrap 只将所选 GitHub Environment 的 Secret 映射到对应后缀
   assert.match(source, /environment: \$\{\{ inputs\.environment \}\}/u)
   assert.match(source, /Map only the selected environment secrets/u)
   assert.match(source, /SUPABASE_DB_PASSWORD_\$\{suffix\}/u)
+  assert.match(source, /SUPABASE_ORG_SLUG: \$\{\{ secrets\.SUPABASE_ORG_SLUG \}\}/u)
+  assert.doesNotMatch(source, /SUPABASE_ORG_ID/u)
   assert.doesNotMatch(source, /SUPABASE_DB_PASSWORD_STAGING:\s*\$\{\{ secrets\.SUPABASE_DB_PASSWORD \}\}/u)
   assert.doesNotMatch(source, /SUPABASE_DB_PASSWORD_PRODUCTION:\s*\$\{\{ secrets\.SUPABASE_DB_PASSWORD \}\}/u)
 })

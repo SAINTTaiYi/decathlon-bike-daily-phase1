@@ -11,7 +11,7 @@ export function connectionUrls(ref, region, password) {
   const encodedPassword = encodeURIComponent(password)
   return {
     DATABASE_URL: `postgresql://postgres.${ref}:${encodedPassword}@aws-0-${region}.pooler.supabase.com:6543/postgres?sslmode=require`,
-    DIRECT_DATABASE_URL: `postgresql://postgres:${encodedPassword}@db.${ref}.supabase.co:5432/postgres?sslmode=require`
+    MIGRATION_DATABASE_URL: `postgresql://postgres.${ref}:${encodedPassword}@aws-0-${region}.pooler.supabase.com:5432/postgres?sslmode=require`
   }
 }
 
@@ -29,7 +29,7 @@ export async function ensureSupabase(environment, state, { onCheckpoint = async 
     const created = await jsonFetch(`${endpoint}/projects`, {
       method: 'POST', headers: headers(), body: JSON.stringify({
         name: `bike-ops-${environment}`,
-        organization_slug: required('SUPABASE_ORG_ID'),
+        organization_slug: required('SUPABASE_ORG_SLUG'),
         db_pass: password,
         region_selection: { type: 'smartGroup', code: 'apac' }
       })

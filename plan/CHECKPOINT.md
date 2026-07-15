@@ -1,96 +1,69 @@
 # 执行检查点
 
-保存时间：2026-07-15 08:55 +08:00
-当前阶段：Phase B / `09-staging-foundation` completed；`10-staging-bootstrap` 阻塞于安全配置真实 Staging Secret
+保存时间：2026-07-15 09:27 +08:00
+当前阶段：Phase B / Step 09 completed；Step 10a Bootstrap compatibility 本地验证完成待远端 CI；Step 10 仍阻塞于真实账号与 Secret
 
-## Phase A accepted baseline
+## Accepted remote baseline
 
-- Steps `01`–`08`：completed。
 - 私有仓库：`SAINTTaiYi/decathlon-bike-daily-phase1`。
-- `main` accepted SHA：`e2a64ad4bbec313a23bcec254e12300377763bc8`；本地/远端一致，无 force push。
-- Phase A V5.2.8：fingerprint `c323b6258b544cd3a4eb95290680d569401f200c07227d831605d71dfa06d176`，268 governed files。
-- 最终 Phase A CI run `29379263995`：verify/secrets success；68/68 tests、typecheck/build、39/39 workflow policies、完整历史 Gitleaks 0 findings。
+- Accepted `main` SHA：`e2a64ad4bbec313a23bcec254e12300377763bc8`。
+- 当前 `develop` SHA：`c702ec97c42f47c2b48295944b30786286986b5f`；本地/远端一致、工作树在本轮修改前干净，无 force push。
+- `staging` GitHub Environment ID `18164650072`，custom deployment branch policy 仅允许 `develop`。
+- 当前私有仓库套餐不支持 wait timer/审批类 Environment rule；分支限制已生效。
+- Step 09 V5.2.9：CI `29380404926` success；Staging gate `29380404844` readiness success / deploy skipped。
 
-## Step 09 — Staging foundation completed
+## Step 10a discovery
 
-- 用户已明确批准进入下一阶段。
-- 远端 `develop` 已从 accepted `main` 创建；本地跟踪 `origin/develop`。
-- V5.2.9 commit：`ebe6fbd7ed97f13f598e752858fada9d5c6f0842`（`fix(staging): gate deploys until bootstrap`）。
-- 远端 `develop` 已核验为该 SHA；普通 push，无 force push。
-- GitHub `staging` Environment ID `18164650072` 已创建。
-- Environment deployment branch policy 为 custom branch policy，仅允许 `develop`。
-- 当前私有仓库套餐不支持 wait timer/审批类 Environment protection rule；分支限制可用且已核验。未盲目重试不支持的规则。
+在用户要求逐平台开户清单后，核对最新官方文档发现：
 
-## Initial Staging workflow diagnosis
+- Supabase 默认 direct host `db.<project-ref>.supabase.co:5432` 是 IPv6；GitHub Actions 被 Supabase 明确列为 IPv4-only 平台。
+- 原 Bootstrap 使用 direct host 跑 migration，即使 Secret 全部正确，也可能在已创建部分资源后才失败。
+- Supabase Create Project API 要求 `organization_slug`；原 Secret 名 `SUPABASE_ORG_ID` 容易导致用户误填 UUID。
 
-- 首次 develop CI run `29379639020`：verify/secrets success。
-- 首次 Deploy staging run `29379639033`：failure。
-- 原因：旧 `Export release identity` 使用错误的 Bash 引号转义，shell 在 `require(...)` 处报语法错误。
-- 失败发生在 state 检查、credential preflight、release 和 verify 之前；没有读取真实凭据，没有创建或修改任何云资源。
+## V5.2.10 remediation
 
-## V5.2.9 remediation and verification
+- Runtime `DATABASE_URL` 保持 Supavisor transaction pooler（6543），供 Railway API 使用。
+- Migration 改用 `MIGRATION_DATABASE_URL` 与 Supavisor session pooler（5432），GitHub-hosted runner 可通过 IPv4 访问，不需要 Dedicated IPv4 Add-on。
+- Migration runner、CI 和 ops CLI 统一使用 `MIGRATION_DATABASE_URL`。
+- 迁移专用 URL 不再注入 Railway API runtime。
+- Supabase Environment Secret/Preflight 正名为 `SUPABASE_ORG_SLUG`。
+- 新增 7 项静态治理，workflow policies 由 43 增至 50。
+- 新增 `docs/STAGING-ACCOUNT-SETUP.md`，包含三平台开户、MFA、账单/预算、最小权限、备份、14 个 Bootstrap Secret 与 Bootstrap 后第 15 个 Railway Project Token 的顺序。
+- Full local verification：Node 22.22.2 + pnpm 9.15.9 frozen install、68/68 tests、typecheck/build、50/50 policies、离线 plan、无凭据 preflight fail-closed 全部通过。
+- Version：V5.2.10；fingerprint `9e837b2f485bab5cfb03344cda322cee04486ad375820394565b52b3c200fb10`；269 governed files；3 changes。
+- Gitleaks 8.30.1：完整历史 7 commits / 约 848 KB 0 findings；当前工作树约 2.89 MB 0 findings。
+- PostgreSQL 16 的 migration 两次执行/idempotency 将由推送后的 GitHub CI service container 验证。
+- Receipt：`plan/receipts/step-10a-staging-bootstrap-compatibility.json`。
 
-- Version：`5.2.9`。
-- Fingerprint：`f133e65e97ea4613451ef5f9fc931f43be8c1c7c81afc75079dddb251d230292`。
-- Governed files：268；release changes：3。
-- 修复 Staging `APP_VERSION` 的 Bash 导出方式。
-- 新增 readiness job：仅当已提交 `infra/state/staging.json` 时 deploy job 才运行；未 Bootstrap 时输出 notice 并安全跳过，不读取 Environment Secret、不访问云平台。
-- 保留 deploy job 内 `develop` 分支强制校验。
-- Node 22.22.2 + pnpm 9.15.9 frozen install passed。
-- Tests：68/68 passed（Domain 4、Database 1、Web/Ops 51、API 12）。
-- Typecheck/build passed；V5.2.9 version guard passed。
-- Workflow：4/4 YAML parsed；43/43 policies passed；专项 deployment workflow tests 7/7 passed。
-- Offline `plan staging` passed；无凭据 `preflight staging` 正确 fail-closed，只列出缺失变量名。
-- Gitleaks 8.30.1：完整历史 5 commits / 约 823 KB 为 0 findings；提交前工作树约 2.87 MB 为 0 findings。
+## Current account/Secret state
 
-## V5.2.9 GitHub verification
+- 用户确认 Cloudflare、Railway、Supabase 均未准备。
+- GitHub `staging` Environment Secret/Variable 仍为空。
+- 本地没有云 CLI 登录或相关环境变量。
+- 无真实 Cloudflare、Railway、Supabase、R2 资源。
 
-- CI run：`29380266721`。
-- Head SHA：`ebe6fbd7ed97f13f598e752858fada9d5c6f0842`。
-- URL：`https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/actions/runs/29380266721`。
-- Overall：success；`verify=success`、`secrets=success`。
-- Deploy staging run：`29380266732`。
-- Overall：success；`readiness=success`、`deploy=skipped`。
-- Notice：`Staging infrastructure is not bootstrapped yet; deployment is skipped safely.`
-- 未进入 Environment deploy job，未读取 Environment Secret，未访问或修改云资源。
+首次 Bootstrap 前需要 14 个 Environment Secret：
 
-## Current blocker — Step 10
+- Cloudflare：`CLOUDFLARE_ACCOUNT_ID`、`CLOUDFLARE_API_TOKEN`。
+- Railway：`RAILWAY_API_TOKEN`、`RAILWAY_WORKSPACE_ID`。
+- Supabase：`SUPABASE_ACCESS_TOKEN`、`SUPABASE_ORG_SLUG`、`SUPABASE_DB_PASSWORD`。
+- R2：`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`。
+- App：`SESSION_SECRET`、`CSRF_SECRET`、`PASSWORD_PEPPER`、`CONTACT_ENCRYPTION_KEY`、`INITIAL_ADMIN_SETUP_TOKEN`。
 
-GitHub `staging` Environment 当前没有 Secret/Variable；本地也没有 Cloudflare、Railway、Supabase CLI 登录或相关环境变量。Staging Bootstrap 需要通过安全通道配置真实且环境专属的：
-
-- `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_API_TOKEN`
-- `RAILWAY_API_TOKEN`
-- `RAILWAY_WORKSPACE_ID`
-- `RAILWAY_TOKEN`
-- `SUPABASE_ACCESS_TOKEN`
-- `SUPABASE_ORG_ID`
-- `SUPABASE_DB_PASSWORD`
-- `R2_ACCESS_KEY_ID`
-- `R2_SECRET_ACCESS_KEY`
-- `SESSION_SECRET`
-- `CSRF_SECRET`
-- `PASSWORD_PEPPER`
-- `CONTACT_ENCRYPTION_KEY`
-- `INITIAL_ADMIN_SETUP_TOKEN`
-
-可选 Environment Variable：`CUSTOM_WEB_ORIGINS`。
-
-不得把这些值粘贴到普通聊天、提交到仓库、写入日志或 `infra/state`。应用加密 Secret 也不能只保留 GitHub 中唯一一份；尤其 `CONTACT_ENCRYPTION_KEY` 必须先建立安全备份/恢复保管。
+Bootstrap 创建 Railway Project/Environment 后，再创建并配置第 15 个 Secret：`RAILWAY_TOKEN`（Project Token，限定 staging Environment）。可选 Variable：`CUSTOM_WEB_ORIGINS`。
 
 ## Next allowed work
 
-1. 用户直接在 GitHub `staging` Environment 或其它安全 Secret 管理通道配置上述值。
-2. 配置完成后，核验 Secret 名称存在（不读取值），从 `develop` 手动 dispatch Bootstrap Staging。
-3. Workflow 先执行 tests/typecheck/build、plan 和 preflight；只有 preflight 成功后才创建云资源。
-4. 审查并合并自动生成的非敏感 `infra/state/staging.json` PR。
-5. 完成账号、业务、双设备并发、R2、旧数据迁移、离线/Session、手机/无障碍、备份/回滚验收并固定 accepted SHA。
-6. 未完成 Staging 验收且未获用户另行批准前，Production 继续禁止。
+1. 完成 V5.2.10 fingerprint、全量 tests/typecheck/build、PostgreSQL migration、无凭据 preflight 与 Gitleaks。
+2. 普通 push 到 `develop`，核验 GitHub CI 的 PostgreSQL 16 migration、tests/build/secret scan 和 staging safe-skip。
+3. 用户按 `docs/STAGING-ACCOUNT-SETUP.md` 创建三家账号、开启 MFA/账单并配置 14 个 Bootstrap Secret；不要在普通聊天中发送值。
+4. 仅核验 Secret 名称后，另行确认可能产生费用，再手动 Bootstrap Staging。
+5. Bootstrap 后创建 Railway `RAILWAY_TOKEN`，审查/合并非敏感 state PR，再执行真实 Staging 验收。
+6. 未完成 Staging 验收且未获用户另行批准前，Production 禁止。
 
 ## Safety
 
-- 无真实云 Secret。
-- 无 Cloudflare、Railway、Supabase 或 R2 资源。
+- 无真实云 Secret 或资源。
 - 未执行 Staging apply/release。
 - 未创建 Production Environment，未执行 Production。
-- 无 force push、无历史改写。
+- 不在聊天、仓库、日志或 state 中保存凭据。

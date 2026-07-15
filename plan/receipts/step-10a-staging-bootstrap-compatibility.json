@@ -1,0 +1,59 @@
+{
+  "step": "10a-staging-bootstrap-compatibility",
+  "status": "completed_local_pending_remote_ci",
+  "completedAt": "2026-07-15T09:27:00+08:00",
+  "discovery": {
+    "supabaseDirectHost": "The default db.<project-ref>.supabase.co:5432 direct endpoint is IPv6 unless a paid Dedicated IPv4 add-on is enabled.",
+    "githubHostedRunner": "Supabase documentation explicitly lists GitHub Actions among IPv4-only platforms.",
+    "organizationField": "The Supabase Management API create-project body requires organization_slug; organization_id is deprecated/optional and is not what the current request sends.",
+    "risk": "With all credentials correctly configured, the previous bootstrap could still fail at migration from GitHub-hosted Actions, after creating partial cloud resources."
+  },
+  "remediation": {
+    "runtimeDatabase": "DATABASE_URL remains the Supavisor transaction pooler on port 6543 for Railway API runtime.",
+    "migrationDatabase": "MIGRATION_DATABASE_URL now uses the Supavisor session pooler on port 5432, which is IPv4-compatible and supports a single-session migration runner.",
+    "runtimeBoundary": "Migration-only database URL is no longer injected into Railway API variables.",
+    "supabaseOrganization": "GitHub Environment and preflight now require SUPABASE_ORG_SLUG instead of the misleading SUPABASE_ORG_ID name.",
+    "accountChecklist": "docs/STAGING-ACCOUNT-SETUP.md documents account creation, MFA, billing, least privilege, key backup, 14 bootstrap Secrets and the post-bootstrap Railway Project Token."
+  },
+  "release": {
+    "version": "5.2.10",
+    "changes": 3,
+    "fingerprint": "9e837b2f485bab5cfb03344cda322cee04486ad375820394565b52b3c200fb10",
+    "governedFiles": 269
+  },
+  "targetedVerification": {
+    "workflowPolicies": "50/50 passed",
+    "deploymentAndOpsTests": "11/11 passed",
+    "apiTypecheck": "passed",
+    "oldRuntimeReferences": "No active DIRECT_DATABASE_URL or SUPABASE_ORG_ID references remain outside historical receipts and negative regression assertions."
+  },
+  "safety": {
+    "cloudAccountsCreated": false,
+    "cloudResourcesCreated": false,
+    "realSecretsConfigured": false,
+    "stagingApplyOrReleaseExecuted": false,
+    "productionExecuted": false
+  },
+  "next": [
+    "Commit and push V5.2.10 to develop.",
+    "Require GitHub CI PostgreSQL 16 migration execution, tests, build and Gitleaks success.",
+    "Keep Staging apply blocked until the user prepares accounts and securely configures the 14 bootstrap Secrets."
+  ],
+  "fullLocalVerification": {
+    "node": "v22.22.2 official linux-arm64 archive previously verified against Node.js SHASUMS256.txt",
+    "pnpm": "9.15.9",
+    "frozenInstall": "passed",
+    "workflowPolicies": "4/4 YAML parsed; 50/50 policies passed",
+    "tests": "68/68 passed: Domain 4, Database 1, Web/Ops 51, API 12",
+    "typecheck": "Contracts, Database and API passed",
+    "build": "Contracts, Database, API and Web passed; Vite production build passed",
+    "versionGuard": "V5.2.10, 3 release changes, 269 governed files passed",
+    "offlinePlan": "staging plan passed without credentials or network mutation",
+    "credentiallessPreflight": "failed closed as expected and requires SUPABASE_ORG_SLUG",
+    "gitleaksCommittedHistory": "7 commits, about 848 KB, 0 findings",
+    "gitleaksWorkingTree": "about 2.89 MB, 0 findings",
+    "setupDocumentSecretValueScan": "0 findings",
+    "gitDiffCheck": "passed",
+    "postgres16Migration": "pending GitHub CI service-container execution"
+  }
+}

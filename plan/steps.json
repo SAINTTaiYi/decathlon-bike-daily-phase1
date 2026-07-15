@@ -115,6 +115,21 @@
     "status": "completed"
   },
   {
+    "id": "10a-staging-bootstrap-compatibility",
+    "files": [
+      "scripts/ops/supabase.mjs",
+      "scripts/ops/index.mjs",
+      "scripts/ops/railway.mjs",
+      "packages/database/scripts/migrate.mjs",
+      ".github/workflows/bootstrap-infrastructure.yml",
+      ".github/workflows/ci.yml",
+      "docs/STAGING-ACCOUNT-SETUP.md"
+    ],
+    "rationale": "修复 GitHub-hosted runner 到 Supabase migration 的 IPv4 兼容性、组织 slug 命名和迁移 Secret runtime 边界",
+    "risk": "high",
+    "status": "completed_local_pending_remote_ci"
+  },
+  {
     "id": "10-staging-bootstrap",
     "files": [
       "infra/state/staging.json",

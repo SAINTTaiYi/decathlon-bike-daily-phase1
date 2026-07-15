@@ -9,6 +9,9 @@ const workflowDirectory = resolve(root, '.github/workflows')
 const workflowNames = (await readdir(workflowDirectory)).filter((name) => /\.ya?ml$/u.test(name)).sort()
 const workflows = Object.fromEntries(await Promise.all(workflowNames.map(async (name) => [name, await readFile(resolve(workflowDirectory, name), 'utf8')])))
 const opsIndex = await readFile(resolve(root, 'scripts/ops/index.mjs'), 'utf8')
+const supabaseOps = await readFile(resolve(root, 'scripts/ops/supabase.mjs'), 'utf8')
+const railwayOps = await readFile(resolve(root, 'scripts/ops/railway.mjs'), 'utf8')
+const migrationRunner = await readFile(resolve(root, 'packages/database/scripts/migrate.mjs'), 'utf8')
 const failures = []
 
 function assert(condition, message) {
@@ -75,6 +78,8 @@ assert(/Map only the selected environment secrets/u.test(bootstrap), 'bootstrap:
 assert(/SUPABASE_DB_PASSWORD_\$\{suffix\}/u.test(bootstrap), 'bootstrap: dynamic environment suffix mapping is required')
 assert(!/SUPABASE_DB_PASSWORD_STAGING:\s*\$\{\{ secrets\.SUPABASE_DB_PASSWORD \}\}/u.test(bootstrap), 'bootstrap: staging secret must not be mapped globally')
 assert(!/SUPABASE_DB_PASSWORD_PRODUCTION:\s*\$\{\{ secrets\.SUPABASE_DB_PASSWORD \}\}/u.test(bootstrap), 'bootstrap: production secret must not be mapped globally')
+assert(/SUPABASE_ORG_SLUG: \$\{\{ secrets\.SUPABASE_ORG_SLUG \}\}/u.test(bootstrap), 'bootstrap: Supabase organization slug secret is required')
+assert(!/SUPABASE_ORG_ID/u.test(bootstrap), 'bootstrap: misleading Supabase organization ID name is forbidden')
 assert(/gh pr create/u.test(bootstrap), 'bootstrap: resource state must be proposed through a pull request')
 assert(!/git push origin "HEAD:\$\{?target_branch/u.test(bootstrap), 'bootstrap: direct push to protected environment branches is forbidden')
 includesInOrder(bootstrap, ['Test, typecheck, and build before cloud mutation', 'Show infrastructure plan', 'Validate credentials and runtime', 'Apply infrastructure', 'Open pull request for non-sensitive resource state'], 'bootstrap')
@@ -117,10 +122,15 @@ for (const functionName of ['apply', 'release']) {
   includesInOrder(body, ['migrateDatabase(', 'deployRailway(', 'verifyApi(', 'deployPages('], `ops ${functionName}`)
 }
 assert(/requireProductionApproval\(target, \{ backupRequired: true \}\)/u.test(functionBody(opsIndex, 'release')), 'ops release: production backup confirmation is required')
+assert(/MIGRATION_DATABASE_URL: `postgresql:\/\/postgres\.\$\{ref\}:/u.test(supabaseOps) && /pooler\.supabase\.com:5432/u.test(supabaseOps), 'ops: migrations must use the IPv4-compatible Supavisor session pooler')
+assert(!/@db\.\$\{ref\}\.supabase\.co:5432/u.test(supabaseOps), 'ops: GitHub-hosted migrations must not use the IPv6-only direct database host')
+assert(/SUPABASE_ORG_SLUG/u.test(supabaseOps) && !/SUPABASE_ORG_ID/u.test(supabaseOps), 'ops: Supabase project creation must use organization slug naming')
+assert(/MIGRATION_DATABASE_URL/u.test(migrationRunner) && !/DIRECT_DATABASE_URL/u.test(migrationRunner), 'migration runner: explicit migration URL variable is required')
+assert(!/MIGRATION_DATABASE_URL|DIRECT_DATABASE_URL/u.test(railwayOps), 'railway: migration-only database URLs must not be injected into API runtime')
 
 if (failures.length) {
   console.error(JSON.stringify({ ok: false, yamlParser, failures }, null, 2))
   process.exit(1)
 }
 
-console.log(JSON.stringify({ ok: true, yamlParser, workflows: workflowNames, policies: 43 }, null, 2))
+console.log(JSON.stringify({ ok: true, yamlParser, workflows: workflowNames, policies: 50 }, null, 2))

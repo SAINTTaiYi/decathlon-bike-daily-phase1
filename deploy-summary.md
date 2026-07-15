@@ -1,8 +1,8 @@
-# Decathlon Bike Ops V5.2.9 · Deployment Summary
+# Decathlon Bike Ops V5.2.10 · Deployment Summary
 
 ## Executive status
 
-V5.2.9 已从纯本机 Vite + React 应用升级为数据库驱动全栈 Monorepo：
+V5.2.10 已从纯本机 Vite + React 应用升级为数据库驱动全栈 Monorepo：
 
 ```text
 Cloudflare Pages
@@ -97,7 +97,7 @@ migration
 - TypeScript typecheck。
 - Workspace build 与版本指纹守卫。
 - PostgreSQL 16 migration validation（CI 配置）。
-- Workflow YAML 解析与 43 项静态发布策略。
+- Workflow YAML 解析与 50 项静态发布策略。
 - Production 无凭证 fail-closed。
 - Secret/连接串静态检查。
 
@@ -115,6 +115,8 @@ migration
 8. Production release 前确认 Supabase backup/recovery point。
 
 完整 Secret 清单、CLI 参数、Workflow 行为和验收项见 [`AUTOMATED-DEPLOYMENT.md`](./AUTOMATED-DEPLOYMENT.md)。
+
+逐平台开户、权限与 Secret 配置顺序见 [`docs/STAGING-ACCOUNT-SETUP.md`](./docs/STAGING-ACCOUNT-SETUP.md)。
 
 ## Staging acceptance
 
@@ -165,7 +167,7 @@ Production 前必须在真实 Staging 验证：
 
 私有仓库、`main`、`develop` 与受分支限制的 `staging` Environment 已建立。后续顺序：
 
-1. 完成 V5.2.9 全量本地验证和 `develop` CI，确认未 Bootstrap 时 Staging 自动部署安全跳过。
+1. 完成 V5.2.10 全量本地验证和 `develop` CI，确认未 Bootstrap 时 Staging 自动部署安全跳过。
 2. 用户直接在 GitHub `staging` Environment 中配置真实 Secret，不在普通聊天或仓库中传递凭证。
 3. 从 `develop` 手动执行 Bootstrap Staging；审查并合并非敏感 state PR。
 4. 执行账号、业务、并发、R2、迁移、离线、双设备、无障碍、备份与回滚验收并固定 accepted SHA。

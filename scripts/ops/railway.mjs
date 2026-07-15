@@ -90,7 +90,6 @@ export async function ensureRailway(environment, state, runtimeSecrets, allowedW
     APP_VERSION: process.env.APP_VERSION || process.env.npm_package_version || 'unknown',
     GIT_SHA: process.env.GITHUB_SHA || 'manual',
     DATABASE_URL: runtimeSecrets.DATABASE_URL,
-    DIRECT_DATABASE_URL: runtimeSecrets.DIRECT_DATABASE_URL,
     R2_ACCOUNT_ID: runtimeSecrets.R2_ACCOUNT_ID,
     R2_BUCKET: runtimeSecrets.R2_BUCKET,
     R2_ACCESS_KEY_ID: runtimeSecrets.R2_ACCESS_KEY_ID,

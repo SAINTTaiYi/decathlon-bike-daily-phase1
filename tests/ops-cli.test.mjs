@@ -28,10 +28,11 @@ test('部署 preflight 的 Node 支持范围与 package engines 一致', () => {
   assert.match(result.stdout, /"nodeRequired": ">=22 <25"/u)
 })
 
-test('Supabase 运行时使用 transaction pooler，migration 使用 direct host', () => {
+test('Supabase 运行时使用 transaction pooler，migration 使用 IPv4 session pooler', () => {
   const urls = connectionUrls('projectref', 'ap-southeast-1', 'p@ss word')
   assert.match(urls.DATABASE_URL, /pooler\.supabase\.com:6543/u)
-  assert.match(urls.DIRECT_DATABASE_URL, /@db\.projectref\.supabase\.co:5432/u)
-  assert.notEqual(urls.DATABASE_URL, urls.DIRECT_DATABASE_URL)
+  assert.match(urls.MIGRATION_DATABASE_URL, /postgres\.projectref:.*@aws-0-ap-southeast-1\.pooler\.supabase\.com:5432/u)
+  assert.doesNotMatch(urls.MIGRATION_DATABASE_URL, /@db\.projectref\.supabase\.co/u)
+  assert.notEqual(urls.DATABASE_URL, urls.MIGRATION_DATABASE_URL)
   assert.ok(!urls.DATABASE_URL.includes('p@ss word'))
 })

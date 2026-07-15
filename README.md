@@ -1,10 +1,10 @@
 # Decathlon Bike Ops · Daily Closing Lookbook
 
-V5.2.9 是数据库驱动的自行车部门闭店与跨日业务工作台。它保留移动端黑白硬边 product lookbook 视觉，同时以 Fastify API、Supabase PostgreSQL、真实账号、服务端业务规则、审计和私有 R2 附件支撑多设备协作。
+V5.2.10 是数据库驱动的自行车部门闭店与跨日业务工作台。它保留移动端黑白硬边 product lookbook 视觉，同时以 Fastify API、Supabase PostgreSQL、真实账号、服务端业务规则、审计和私有 R2 附件支撑多设备协作。
 
 > 本项目不接入迪卡侬官方业务 API。门店同事仍人工录入数据，但 PostgreSQL 是正式业务事实源；浏览器只保留运行时会话、最近成功加载的内存快照和可选的旧 v5 显式迁移来源。
 
-## V5.2.9 current state
+## V5.2.10 current state
 
 已在代码与本地验证中完成：
 
@@ -131,7 +131,7 @@ See [`.env.example`](./.env.example). Important boundaries:
 - `VITE_*` may reach the browser.
 - Database URLs, password pepper, Session/CSRF secrets, contact encryption key and R2 credentials are API-only.
 - `DATABASE_URL` is the runtime transaction-pooler URL.
-- `DIRECT_DATABASE_URL` is the direct PostgreSQL URL used by migrations.
+- `MIGRATION_DATABASE_URL` is the IPv4-compatible Supavisor session-pooler URL used only by migrations.
 - Production CORS origins must be explicit; `*` is rejected.
 
 ## Verification
@@ -149,7 +149,7 @@ Database schema smoke test can also be run against PostgreSQL 16 using the same 
 
 ## Version governance
 
-Current version: **V5.2.9**.
+Current version: **V5.2.10**.
 
 Version truth must match across:
 

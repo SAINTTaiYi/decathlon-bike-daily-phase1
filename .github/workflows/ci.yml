@@ -40,7 +40,7 @@ jobs:
         run: pnpm check:workflows
       - name: Validate checksum migration runner on PostgreSQL 16
         env:
-          DIRECT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/bike_ops_test?sslmode=disable
+          MIGRATION_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/bike_ops_test?sslmode=disable
           PGPASSWORD: postgres
         run: |
           psql -h 127.0.0.1 -U postgres -d bike_ops_test -v ON_ERROR_STOP=1 <<'SQL'

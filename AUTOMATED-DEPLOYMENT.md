@@ -2,7 +2,7 @@
 
 ## Status
 
-V5.2.9 已实现本地可验证的基础设施与发布自动化，目标平台为：
+V5.2.10 已实现本地可验证的基础设施与发布自动化，目标平台为：
 
 - Web：Cloudflare Pages Direct Upload
 - API：Railway
@@ -21,7 +21,7 @@ V5.2.9 已实现本地可验证的基础设施与发布自动化，目标平台�
 - State JSON 损坏时直接停止，不把损坏文件当成空环境。
 - State 使用原子写入，并在 Supabase、Cloudflare、Railway、Schema 等阶段保存非敏感检查点。
 - Secret 通过环境变量或 GitHub Environment Secret 注入，不写入仓库或 state。
-- 数据库连接串不作为命令行参数传递；migration 通过 `DIRECT_DATABASE_URL` 环境变量读取。
+- 数据库连接串不作为命令行参数传递；migration 通过 `MIGRATION_DATABASE_URL` 环境变量读取。
 - Staging 与 Production 使用独立 Supabase、R2、Railway Environment、Pages Project 和 Secret。
 - Production apply 需要 `--approve-production`。
 - Production release 需要 `--approve-production --confirm-backup`。
@@ -72,7 +72,7 @@ CLOUDFLARE_API_TOKEN
 RAILWAY_API_TOKEN
 RAILWAY_WORKSPACE_ID
 SUPABASE_ACCESS_TOKEN
-SUPABASE_ORG_ID
+SUPABASE_ORG_SLUG
 SUPABASE_DB_PASSWORD
 SESSION_SECRET
 CSRF_SECRET
@@ -142,14 +142,16 @@ DATABASE_URL
   aws-0-<region>.pooler.supabase.com:6543
   Railway API runtime
 
-DIRECT_DATABASE_URL
-  direct host
-  db.<project-ref>.supabase.co:5432
-  migration only
+MIGRATION_DATABASE_URL
+  Supavisor session pooler
+  aws-0-<region>.pooler.supabase.com:5432
+  GitHub-hosted migration only; IPv4-compatible
 ```
 
 Migration runner：
 
+- GitHub-hosted runner 不使用默认 IPv6-only 的 `db.<project-ref>.supabase.co:5432` direct host；使用 Supavisor session pooler（5432）避免要求 Dedicated IPv4 Add-on。
+- 迁移 URL 不注入 Railway API runtime，运行时只保留 transaction pooler `DATABASE_URL`。
 - 读取 `supabase/migrations/*.sql`，按文件名排序。
 - 使用 PostgreSQL advisory lock 防止并发迁移。
 - 在 `public.bike_ops_schema_migrations` 记录文件名、SHA-256 和执行时间。
@@ -191,7 +193,7 @@ preflight
 → save state checkpoint
 → create/reconcile Railway Project/Environment/Service/domain/variables
 → save state checkpoint
-→ checksum migration via DIRECT_DATABASE_URL
+→ checksum migration via MIGRATION_DATABASE_URL
 → save schema-ready checkpoint
 → Railway API deploy
 → API readiness + version verify
@@ -363,7 +365,7 @@ https://<web-origin>/#setup=<INITIAL_ADMIN_SETUP_TOKEN>
 
 ## Current execution boundary
 
-截至 V5.2.9 Staging 准备阶段：
+截至 V5.2.10 Staging 准备阶段：
 
 - 私有 GitHub 仓库已有 `main` 与 `develop`；`staging` Environment 仅允许 `develop` 部署。
 - 无真实 Cloudflare/Railway/Supabase/R2 资源。

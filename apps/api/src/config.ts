@@ -7,7 +7,6 @@ const environmentSchema = z.object({
   HOST: z.string().default('0.0.0.0'),
   PORT: z.coerce.number().int().positive().max(65535).default(8787),
   DATABASE_URL: z.string().min(1),
-  DIRECT_DATABASE_URL: z.string().min(1).optional(),
   SESSION_SECRET: z.string().min(32),
   CSRF_SECRET: z.string().min(32),
   PASSWORD_PEPPER: z.string().min(32),

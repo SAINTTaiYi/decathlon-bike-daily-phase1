@@ -26,7 +26,7 @@ async function preflight(target = environment, mode = 'apply') {
     ? ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN', `SUPABASE_DB_PASSWORD_${suffix}`]
     : [
         'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN', 'RAILWAY_API_TOKEN', 'RAILWAY_WORKSPACE_ID',
-        'SUPABASE_ACCESS_TOKEN', 'SUPABASE_ORG_ID', `SUPABASE_DB_PASSWORD_${suffix}`,
+        'SUPABASE_ACCESS_TOKEN', 'SUPABASE_ORG_SLUG', `SUPABASE_DB_PASSWORD_${suffix}`,
         `SESSION_SECRET_${suffix}`, `CSRF_SECRET_${suffix}`, `PASSWORD_PEPPER_${suffix}`,
         `CONTACT_ENCRYPTION_KEY_${suffix}`, `INITIAL_ADMIN_SETUP_TOKEN_${suffix}`,
         `R2_ACCESS_KEY_ID_${suffix}`, `R2_SECRET_ACCESS_KEY_${suffix}`
@@ -72,7 +72,7 @@ async function saveCheckpoint(target, state, phase) {
 
 async function migrateDatabase(database) {
   await run('pnpm', ['--filter', '@bike-ops/database', 'migrate'], {
-    env: { ...process.env, DIRECT_DATABASE_URL: database.DIRECT_DATABASE_URL },
+    env: { ...process.env, MIGRATION_DATABASE_URL: database.MIGRATION_DATABASE_URL },
     networkTarget: 'Supabase PostgreSQL'
   })
 }
