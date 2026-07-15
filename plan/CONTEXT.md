@@ -1,6 +1,6 @@
 # 压缩上下文事实源
 
-更新时间：2026-07-15 09:30 +08:00
+更新时间：2026-07-15 10:21 +08:00
 
 ## Remote baseline
 
@@ -22,13 +22,15 @@
 - GitHub CI `29381722889` success：PostgreSQL 16 migration 首次 applied、第二次 skipped、history count 1；tests/build/Gitleaks success。
 - Staging gate `29381722863` success：readiness success，deploy skipped。
 
-## External blocker — Step 10
+## MCP preflight and external blocker — Step 10
 
-- 用户确认 Cloudflare、Railway、Supabase 均未准备。
-- GitHub staging Environment Secret/Variable 为空；本地无云登录/环境变量。
+- Supabase MCP 已认证：Organization `SAINTTaiYi's Org` / slug `sctiyeyjvaezeofhysfq`，projects 0。
+- Cloudflare MCP 已认证：Pages projects 0；R2 返回 `10042`，需用户先在 Dashboard 启用 R2。
+- Railway MCP 尚未接入。
+- GitHub staging Environment Secret/Variable 为空；MCP 认证不会自动提供 GitHub Actions Secret。
 - 首次 Bootstrap 前 14 个 Secret：Cloudflare 2、Railway 2、Supabase 3、R2 2、App 5。
 - Bootstrap 创建 Railway Project 后增加第 15 个 `RAILWAY_TOKEN` Project Token。
-- 无真实云资源，未执行 Staging apply/release；Production Environment 未创建且禁止。
+- 本次 MCP 仅只读检查；无真实项目/Bucket/Pages/Railway 资源，未执行 Staging apply/release；Production Environment 未创建且禁止。
 
 ## Recovery queue
 

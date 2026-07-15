@@ -1,6 +1,6 @@
 # 执行检查点
 
-保存时间：2026-07-15 09:30 +08:00
+保存时间：2026-07-15 10:21 +08:00
 当前阶段：Phase B / Step 09 与 Step 10a completed；Step 10 Staging Bootstrap 阻塞于真实账号、费用确认与安全配置 14 个 Bootstrap Secret
 
 ## Accepted remote baseline
@@ -61,13 +61,22 @@ V5.2.10 修复：
 - Staging gate run：`29381722863`，overall success；`readiness=success`、`deploy=skipped`。
 - 未进入 Environment deploy job，未读取 Environment Secret，未访问或修改云资源。
 
+## MCP connection preflight — 2026-07-15
+
+- Supabase MCP 已认证：发现 Organization `SAINTTaiYi's Org`，slug `sctiyeyjvaezeofhysfq`；当前 projects 为 0。
+- Cloudflare MCP 已认证：Pages projects 为 0。
+- Cloudflare R2 API 返回 `10042`：必须先在 Cloudflare Dashboard 启用 R2；未创建 Bucket 或其它资源。
+- Railway MCP 当前未接入。
+- 本次仅执行只读检查，没有创建、修改、删除资源，也没有读取或回显 Secret。
+
 ## Current external blocker — Step 10
 
-用户确认 Cloudflare、Railway、Supabase 账号均未准备。当前：
+当前：
 
-- GitHub `staging` Environment Secret/Variable 为空。
-- 本地没有云 CLI 登录或相关环境变量。
-- 无真实 Cloudflare、Railway、Supabase 或 R2 资源。
+- Supabase 与 Cloudflare MCP 已接入，但 GitHub `staging` Environment Secret/Variable 仍为空；MCP 认证不会自动变成 GitHub Actions Secret。
+- Cloudflare R2 尚未在 Dashboard 启用。
+- Railway MCP/账号自动化仍未接入。
+- 无真实 Cloudflare Pages、R2、Railway 或 Supabase Project 资源。
 - 未执行 Staging apply/release。
 
 首次 Bootstrap 前需要 14 个 Environment Secret：
