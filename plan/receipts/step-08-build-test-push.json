@@ -1,13 +1,13 @@
 {
   "step": "08-build-test-push",
-  "status": "ready_to_push_ci_fix",
-  "updatedAt": "2026-07-15T08:22:00+08:00",
+  "status": "completed",
+  "completedAt": "2026-07-15T08:29:00+08:00",
   "targetRepository": {
     "owner": "SAINTTaiYi",
     "repo": "decathlon-bike-daily-phase1",
     "visibility": "private",
     "remote": "https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1.git",
-    "remoteMainShaBeforeFix": "c31dcf6f5102f246d72d50836f4adbb4690310a1",
+    "verifiedMainSha": "569ad0da4d7d8348029e1afbe321424fb5b68d2d",
     "permissions": {
       "admin": true,
       "maintain": true,
@@ -26,30 +26,42 @@
     "gitCredentialConfigured": true,
     "credentialSafety": "No PAT, password or OAuth token is stored in project files or ordinary chat."
   },
-  "initialPush": {
-    "command": "git push -u origin main",
-    "result": "success",
-    "branch": "main",
-    "sha": "c31dcf6f5102f246d72d50836f4adbb4690310a1",
-    "forced": false,
-    "localRemoteShaMatch": true
+  "release": {
+    "version": "5.2.8",
+    "fingerprint": "c323b6258b544cd3a4eb95290680d569401f200c07227d831605d71dfa06d176",
+    "governedFiles": 268,
+    "releaseChanges": 3,
+    "commit": {
+      "sha": "569ad0da4d7d8348029e1afbe321424fb5b68d2d",
+      "subject": "fix(ci): scan complete history with verified gitleaks",
+      "forced": false,
+      "remoteShaMatch": true
+    }
+  },
+  "strictLocalVerification": {
+    "node": "v22.22.2 official linux-arm64 archive verified against Node.js SHASUMS256.txt",
+    "pnpm": "9.15.9",
+    "frozenInstall": "passed",
+    "tests": "68/68 passed: Domain 4, Database 1, Web/Ops 51, API 12",
+    "typecheck": "Contracts, Database and API passed",
+    "build": "Contracts, Database, API and Web passed; Vite production build passed",
+    "versionGuard": "V5.2.8, 3 release changes, 268 governed files passed",
+    "workflow": "4/4 YAML parsed; 39/39 static policies passed",
+    "gitleaksCommittedHistory": "post-fix 4 commits, about 815 KB, 0 findings",
+    "gitleaksWorkingTree": "about 2.86 MB, 0 findings",
+    "shellArgumentAudit": "Gitleaks log options are passed as one argument",
+    "credentialPatternScan": "0 findings"
   },
   "initialGithubCi": {
     "workflow": "CI",
     "runId": 29377747730,
     "headSha": "c31dcf6f5102f246d72d50836f4adbb4690310a1",
-    "status": "completed",
     "conclusion": "failure",
-    "url": "https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/actions/runs/29377747730",
-    "verifyJob": "passed: Node 22, PostgreSQL 16 checksum migration runner and idempotent second run, workflow policy, 68 tests, typecheck and build",
-    "secretsJob": "scanner error: gitleaks-action@v2 constructed root_commit^..HEAD during the repository's first push; the root commit has no parent, so Git rejected the range and Gitleaks scanned 0 bytes",
+    "verifyJob": "success",
+    "secretsJob": "scanner error: gitleaks-action@v2 constructed root_commit^..HEAD during the repository's first push; Git rejected the nonexistent root parent and Gitleaks scanned 0 bytes",
     "secretFinding": false
   },
   "remediation": {
-    "version": "5.2.8",
-    "fingerprint": "c323b6258b544cd3a4eb95290680d569401f200c07227d831605d71dfa06d176",
-    "governedFiles": 268,
-    "releaseChanges": 3,
     "gitleaks": {
       "version": "8.30.1",
       "linuxX64Sha256": "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb",
@@ -66,30 +78,54 @@
     },
     "workflowPolicies": 39
   },
-  "strictLocalVerification": {
-    "node": "v22.22.2 official linux-arm64 archive verified against Node.js SHASUMS256.txt",
-    "pnpm": "9.15.9",
-    "frozenInstall": "passed",
-    "tests": "68/68 passed",
-    "typecheck": "Contracts, Database and API passed",
-    "build": "Contracts, Database, API and Web passed; Vite production build passed",
-    "versionGuard": "V5.2.8, 3 release changes, 268 governed files passed",
-    "workflow": "4/4 YAML parsed; 39/39 static policies passed",
-    "gitleaksCommittedHistory": "3 commits, about 800 KB, 0 findings",
-    "gitleaksWorkingTree": "about 2.86 MB, 0 findings",
-    "shellArgumentAudit": "Gitleaks log options are passed as one argument"
+  "successfulGithubCi": {
+    "workflow": "CI",
+    "runId": 29379029504,
+    "headSha": "569ad0da4d7d8348029e1afbe321424fb5b68d2d",
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/actions/runs/29379029504",
+    "verifyJob": {
+      "status": "success",
+      "checks": [
+        "Node 22 from .nvmrc",
+        "PostgreSQL 16 checksum migration runner",
+        "idempotent second migration run",
+        "39 workflow policies",
+        "68 tests",
+        "typecheck",
+        "build",
+        "frontend legacy guard"
+      ]
+    },
+    "secretsJob": {
+      "status": "success",
+      "checks": [
+        "verified Gitleaks 8.30.1 install",
+        "complete Git history scan",
+        "SARIF upload"
+      ]
+    },
+    "artifact": {
+      "id": 8328944245,
+      "name": "gitleaks-results-29379029504",
+      "expired": false
+    },
+    "commitCheckRuns": {
+      "verify": "success",
+      "secrets": "success"
+    }
   },
-  "next": [
-    "Run final diff, JSON, YAML, version and secret safety checks.",
-    "Commit and push the V5.2.8 CI fix without force push.",
-    "Confirm the new remote main SHA matches local HEAD.",
-    "Wait for both verify and secrets jobs in the new CI run.",
-    "After success, mark step 08 completed and push one final governance commit, then verify that commit's CI."
-  ],
   "safety": {
     "cloudResourcesCreated": false,
     "realSecretsConfigured": false,
     "stagingExecuted": false,
-    "productionExecuted": false
-  }
+    "productionExecuted": false,
+    "forcePushUsed": false
+  },
+  "next": [
+    "Commit and push this completion record as the final governance commit.",
+    "Verify that governance commit's automatic CI, then record the result in long-term memory without creating another receipt-only commit.",
+    "Wait for explicit user direction before preparing Staging; Production remains prohibited until Staging acceptance and separate approval."
+  ]
 }

@@ -96,6 +96,6 @@
     ],
     "rationale": "运行全量测试、构建、Secret 扫描并推送私有仓库",
     "risk": "high",
-    "status": "in_progress"
+    "status": "completed"
   }
 ]

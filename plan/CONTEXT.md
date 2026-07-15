@@ -1,6 +1,6 @@
 # 压缩上下文事实源
 
-更新时间：2026-07-15 08:22 +08:00
+更新时间：2026-07-15 08:29 +08:00
 
 ## 项目目标
 
@@ -10,7 +10,7 @@
 
 - 项目根目录：`/workspace/decathlon-bike-daily-phase1`
 - 事实源：`PRODUCT.md`、`DESIGN.md`、`AUTOMATED-DEPLOYMENT.md`、`plan/CHECKPOINT.md`
-- 步骤：01–07 completed；08-build-test-push in_progress / ready_to_push_ci_fix。
+- 步骤：01–08 completed。
 - 当前版本：V5.2.8。
 - 版本指纹：`c323b6258b544cd3a4eb95290680d569401f200c07227d831605d71dfa06d176`，268 个治理文件，3 项 release changes。
 - 前端正式运行使用 `useAuth` + `useRemoteClosingWorkflow`；旧 `useClosingWorkflow.js` 只作 v5 显式迁移与回归参考。
@@ -25,38 +25,39 @@
 - Build：Contracts、Database、API、Web 通过；Vite production build 通过。
 - Version：V5.2.8、3 项更新、268 files、fingerprint guard 通过。
 - Workflow：4/4 YAML 可解析，39/39 静态安全/顺序策略通过。
-- Gitleaks 8.30.1：完整已提交历史 3 commits 0 findings；当前工作树 0 findings。
+- Gitleaks 8.30.1：完整 Git 历史和工作树 0 findings；修复提交后 4 commits、约 815 KB、0 findings。
 
 ## Git、认证与远端
 
 - 私有远端：`SAINTTaiYi/decathlon-bike-daily-phase1`。
 - `origin`：`https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1.git`。
 - GitHub CLI `gh 2.45.0` 已通过官方 OAuth 登录 `SAINTTaiYi`；scopes `repo/workflow/read:org/gist`，仓库 `permissions.push=true`。
-- 已执行 `gh auth setup-git`。
-- 当前本地与远端 `main` 仍为 `c31dcf6f5102f246d72d50836f4adbb4690310a1`；V5.2.8 CI 修复尚未提交。
+- V5.2.8 修复 commit `569ad0da4d7d8348029e1afbe321424fb5b68d2d` 已普通推送；GitHub 确认远端 `main` 为该 SHA。
+- 无 force push 或历史改写。
 
-## 首次 GitHub CI
+## GitHub CI
 
-- Run `29377747730`，head `c31dcf6...`，overall failure。
-- verify job 全部通过：Node 22、PostgreSQL 16 migration runner、第二次幂等执行、workflow policy、68 tests、typecheck、build。
-- secrets job 并非发现 Secret，而是 `gitleaks-action@v2` 在首次 push 构造 `root_commit^..HEAD`；根提交无父节点，unknown revision，实际扫描 0 bytes。
+- 首次 run `29377747730`：verify 通过；secrets 因 gitleaks-action@v2 首次 push 根提交父引用错误而失败，扫描 0 bytes，不是 Secret finding。
+- 修复 run `29379029504`：overall success。
+- verify job：Node 22、PostgreSQL 16 checksum migration/idempotency、39 policies、68 tests、typecheck、build 与前端遗留检查全部 success。
+- secrets job：Gitleaks 8.30.1 下载、官方 SHA-256 校验、完整历史扫描和 SARIF 上传全部 success。
+- Artifact：`gitleaks-results-29379029504`，ID `8328944245`。
+- Commit checks：`verify=success`、`secrets=success`。
 
-## V5.2.8 修复
+## CI hardening
 
-- Gitleaks 固定 8.30.1，校验官方 linux_x64 SHA-256 后执行完整 Git 历史扫描，覆盖根提交。
-- Secret scan checkout 不持久化凭证，SARIF artifact 保留 30 天。
+- Gitleaks 固定 8.30.1，校验官方 linux_x64 SHA-256 后扫描完整 Git 历史。
+- Secret scan checkout 不持久化凭证，SARIF 保留 30 天。
 - checkout/setup-node/upload-artifact 使用 Node 24 运行时版本并固定完整 commit SHA。
 - 工作流治理新增完整 Action SHA、Gitleaks 版本、二进制摘要、完整历史与无持久凭证规则；总计 39 项。
-- Service Worker cache 与现行文档同步到 V5.2.8。
 
 ## 当前任务
 
-1. 对最终 diff、JSON/YAML、version 与 Secret 做安全检查。
-2. 提交并推送 V5.2.8 CI 修复，不 force push。
-3. 等待新 CI 的 verify 与 secrets job。
-4. 成功后将 Step 08 标记 completed，提交最终治理记录并推送。
-5. 验证最终治理 commit 自身 CI，结果同步长期记忆。
-6. 之后才可准备 Staging；未获用户另行批准前，Production 继续禁止。
+1. 提交并推送 Step 08 完成态 CHECKPOINT/CONTEXT/receipt/steps。
+2. 核验该最终治理 commit 自身 CI；成功后仅同步长期记忆，不再创建额外 receipt-only commit。
+3. 等待用户决定是否进入 Staging 准备。
+4. 若进入 Staging，先建立 `develop` 与 `staging` GitHub Environment，并通过安全通道配置环境专属 Secret。
+5. 未获用户单独批准前，Production 继续禁止。
 
 ## 抗中断协议
 
