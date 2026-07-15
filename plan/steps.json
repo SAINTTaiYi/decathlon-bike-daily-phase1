@@ -213,7 +213,7 @@
     ],
     "rationale": "运行全量测试、类型检查、构建、工作流治理和 Secret 扫描，版本化并普通推送 develop",
     "risk": "high",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "16-free-staging-bootstrap",
@@ -224,7 +224,7 @@
     ],
     "rationale": "在用户确认 Supabase Project 为 0 元/月后创建免费 Staging Project、private bucket，并连接 EdgeOne Makers Free Project",
     "risk": "high",
-    "status": "blocked_on_zero_cost_confirmation_and_runtime_rebuild"
+    "status": "blocked_on_zero_cost_and_region_confirmation"
   },
   {
     "id": "17-free-staging-acceptance",

@@ -1,0 +1,53 @@
+{
+  "step": "15-free-stack-build-test-push",
+  "status": "completed",
+  "completedAt": "2026-07-15T13:03:29+08:00",
+  "version": "5.3.0",
+  "releaseCommit": "89a60dd9d5db8432e22f865c86d89e915365dc3b",
+  "remote": {
+    "repository": "SAINTTaiYi/decathlon-bike-daily-phase1",
+    "branch": "develop",
+    "pushMode": "ordinary fast-forward push",
+    "forcePush": false,
+    "verifiedRemoteSha": "89a60dd9d5db8432e22f865c86d89e915365dc3b"
+  },
+  "versionGovernance": {
+    "previousVersion": "5.2.10",
+    "nextVersion": "5.3.0",
+    "rootPackage": "matched",
+    "webPackage": "matched",
+    "releaseNotes": "matched",
+    "serviceWorkerCache": "bike-ops-v5.3.0-static",
+    "versionManifest": "matched",
+    "versionedFileCount": 268,
+    "registeredChanges": 4
+  },
+  "toolchain": {
+    "node": "22.22.2 linux-arm64 official archive",
+    "nodeArchiveSha256": "e9e1930fd321a470e29bb68f30318bf58e3ecb4acb4f1533fb19c58328a091fe",
+    "pnpm": "9.15.9",
+    "gitleaks": "8.30.1 linux-arm64",
+    "gitleaksArchiveSha256": "e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080"
+  },
+  "verification": {
+    "offlineFrozenInstall": "passed",
+    "workflowPolicies": "61/61 passed",
+    "domainTests": "4/4 passed",
+    "databaseTests": "2/2 passed",
+    "webAndOpsTests": "47/47 passed",
+    "apiTests": "16/16 passed",
+    "totalTests": "69/69 passed",
+    "typecheck": "all TypeScript workspaces passed",
+    "build": "all buildable workspaces passed",
+    "edgeOneWrappers": "passed",
+    "frontendNativeSelectGuard": "passed",
+    "legacyIdentityGuard": "passed",
+    "cleanCommitBuildVersion": "5.3.0",
+    "cleanCommitBuildSha": "89a60dd9d5db8432e22f865c86d89e915365dc3b",
+    "workingTreeSecretScan": "0 findings",
+    "fullHistorySecretScan": "0 findings across 16 commits",
+    "gitDiffCheck": "passed"
+  },
+  "cloudMutationPerformed": false,
+  "nextStep": "16-free-staging-bootstrap after explicit 0-yuan/month and region confirmation"
+}

@@ -1,81 +1,76 @@
 # 压缩上下文事实源
 
-更新时间：2026-07-15 12:50 +08:00
+更新时间：2026-07-15 13:03 +08:00
 
-## Repository baseline
+## Repository state
 
 - 项目：`/workspace/decathlon-bike-daily-phase1`；私有仓库 `SAINTTaiYi/decathlon-bike-daily-phase1`。
 - Accepted main：`e2a64ad4bbec313a23bcec254e12300377763bc8`。
-- 远端 develop：`a492fdb1e42b0dacce49ee27b4e426a3d584fa06`。
-- Step 12 commit：`a77083447d6724bf1bf1e1e1722014fc70801ab6`。
-- Step 13 commit：`bc062820e85430149d6cf5d6c593fbfd24302818`。
-- Step 14 implementation commit：`8f462f2df58743210dea7f0a4ba4dd9c0657741d`。
-- 当前 develop 相对 origin/develop ahead 3；尚未执行 Step 15 普通 push。
+- V5.3.0 release SHA：`89a60dd9d5db8432e22f865c86d89e915365dc3b`，已普通 push 到 `origin/develop` 并验证一致。
+- Step12 `a77083447d6724bf1bf1e1e1722014fc70801ab6`；Step13 `bc062820e85430149d6cf5d6c593fbfd24302818`；Step14 implementation `8f462f2df58743210dea7f0a4ba4dd9c0657741d` / checkpoint `948fa5dc256a9f3cc3d0b1c68a2da294c7962681`。
 - `staging` GitHub Environment ID `18164650072`，仅允许 `develop`。
 
-## Accepted free/no-card architecture
+## Architecture
 
-```text
-Browser
-  └─ EdgeOne Makers Free
-       ├─ Vite/React static Web
-       └─ same-origin Node.js Cloud Functions
-            ├─ Supabase Free PostgreSQL
-            └─ Supabase Free private Storage
+- EdgeOne Makers Free：Vite/React Web + same-origin Node.js Cloud Functions。
+- Supabase Free：PostgreSQL + private Storage。
+- GitHub Free：private repo、CI/Gitleaks、migration-gated EdgeOne deployment branches。
+- 禁止付费计划、按量计费、自动升级、force push；Production 禁止。
 
-GitHub Free
-  ├─ private source + CI/Gitleaks
-  └─ migration-gated promotion to EdgeOne Git deployment branches
-```
+## Completed implementation
 
-用户约束：无需外币信用卡、零固定费用、不允许付费套餐/按量计费/自动升级；保留多用户、事务、审计、revision、RBAC、私有附件和移动端 UI。
+### Step 12
 
-## Step 12 completed — EdgeOne runtime
+- Fetch → Fastify inject adapter、同源 `/api`/`health` wrappers、context env/clientIp。
+- Supavisor transaction pooler，pool max 1、prepare false。
+- `edgeone.json` Node22/pnpm9/API+Web build。
 
-- Fetch Request/Response → Fastify inject adapter；Cloud Function 不监听端口。
-- `cloud-functions/api/[[default]].js`、`cloud-functions/health/[[default]].js`。
-- EdgeOne context env/clientIp 映射。
-- Supavisor transaction pooler，默认 pool max 1、idle 5 秒、connect 15 秒、prepare false。
-- `edgeone.json` 固定 Node 22.11.0 / pnpm 9.15.9 / `pnpm build:edgeone` / `apps/web/dist`。
+### Step 13
 
-## Step 13 completed — Supabase private Storage
+- Supabase private Storage adapter；server-only Secret。
+- Object-scoped signed upload、5-minute signed download。
+- Complete re-download + actual SHA-256 verification。
+- Guarded private `bike-ops-media` migration。
 
-- 删除 R2 runtime；使用 `SUPABASE_URL`、server-only `SUPABASE_SECRET_KEY`、private `bike-ops-media`。
-- 对象级 signed upload；5 分钟 signed download。
-- Complete 验证 size/MIME/声明 SHA，并重新下载对象计算真实 SHA-256。
-- 10 MB、JPEG/PNG/WebP、每记录 6 张、审计、Idempotency 和软删除保持不变。
-- Migration `202607150002_supabase_private_storage.sql` guarded reconcile private bucket。
+### Step 14
 
-## Step 14 completed — Free deployment governance
+- 删除 Railway/Cloudflare Pages/R2/bootstrap/Docker/infra state。
+- Manual release sequence：quality gates → checksum migration → ordinary fast-forward deployment branch → EdgeOne Git deploy → exact release verify。
+- Branches：`edgeone-staging`、`edgeone-production`；non-fast-forward/force push forbidden。
+- EdgeOne build does not migrate DB；Staging has database-only bootstrap。
+- Production requires accepted Staging, same source, approval, encrypted export, restore drill, Free/no-billing confirmation。
+- Workflow governance 61/61。
 
-- 删除 Railway、Cloudflare Pages/R2、容器、infra state PR、旧 bootstrap 和旧 ops CLI。
-- EdgeOne 不直接监听 `develop`/`main`；专用分支：`edgeone-staging`、`edgeone-production`。
-- 手动 GitHub workflow 顺序固定：immutable SHA/approval → tests/typecheck/build → checksum migration → ordinary fast-forward push → EdgeOne Git deploy → Web/API/database/version/SHA/environment verify。
-- `scripts/ops/promote-branch.mjs` 只允许两个部署分支，读取远端、拒绝 non-fast-forward、禁止 force push。
-- EdgeOne build 不执行 migration；GitHub Environment 只保存 migration-only URL 和非敏感 site URL。
-- Staging 支持 `database_only_bootstrap=true`，先建 schema/private bucket，再导入 EdgeOne project，避免首个函数对空库运行。
-- Production 要求 accepted Staging SHA、相同源码、审批、加密外部导出、恢复演练、Free/no-billing 确认。
-- Build metadata 从 package.json + checked-out Git commit 生成；部署验收核对 exact SHA/version/environment。
-- Workflow governance 61/61；plain Node tests 53/53；API 16/16；直接 typecheck/build、Web build、wrapper import passed。
-- Receipt：`plan/receipts/step-14-free-deployment-governance.json`。
+### Step 15
 
-## Current free-tier facts
+- Version 5.3.0；268 versioned files。
+- Node 22.22.2 / pnpm 9.15.9；offline frozen install passed。
+- Tests 69/69：Domain 4、DB 2、Web/Ops 47、API 16。
+- Typecheck/build/wrappers/frontend guards passed。
+- Clean build embedded version 5.3.0 and SHA `89a60dd9d5db8432e22f865c86d89e915365dc3b`。
+- Gitleaks 8.30.1：working tree 0；full history 16 commits 0。
+- Ordinary develop push succeeded and verified；no cloud mutation。
+- Receipt：`plan/receipts/step-15-free-stack-build-test-push.json`。
 
-- EdgeOne Makers Free：40 projects、500 builds/month、Cloud Functions 1M/month、Edge Functions 3M/month、5 GB site storage。
-- Supabase org：`SAINTTaiYi's Org` / `sctiyeyjvaezeofhysfq`；projects 0；MCP project cost monthly amount 0。
-- Supabase operational budget：500 MB DB、1 GB Storage、当前 10 GB aggregate bandwidth（5 GB cached + 5 GB uncached）。
-- Free inactive project may pause；Free 不满足 Production 托管日备份/PITR 要求。
-- 70% quota 开始清理/归档规划；85% 冻结非必要附件上传；不得自动升级。
+## Current platform facts
+
+- Supabase Organization `SAINTTaiYi's Org` / `sctiyeyjvaezeofhysfq`；projects 0。
+- Supabase MCP project cost：monthly amount 0。
+- Supabase operational budget：500 MB DB、1 GB Storage、10 GB aggregate bandwidth（5 cached + 5 uncached）。
+- Free inactive project may pause；Free 无满足本项目 Production 要求的托管日备份/PITR。
+- EdgeOne Free：40 projects、500 builds/month、Cloud Functions 1M/month、Edge Functions 3M/month、5 GB site storage。
 
 ## Recovery queue
 
-1. Step 15：版本化到下一 V5 版本，更新 release notes，Node 22/pnpm 9 全量 tests/typecheck/build/workflow/Gitleaks，普通 push develop，禁止 force push。
-2. Step 16：再次向用户重复 Supabase Project 成本 0 元/月并确认 region（默认建议 Singapore）后，才创建 Supabase Free Staging Project；先 database-only bootstrap，再创建 `edgeone-staging` 和 EdgeOne Free project。
-3. Step 17：完整 Staging 验收；Production 继续禁止。
+1. Ask user to explicitly confirm Supabase Staging project cost **0 元/月** and choose region; recommend Singapore `ap-southeast-1`.
+2. After confirmation, create Supabase Free Staging project only; Production remains forbidden.
+3. Configure migration/runtime values without exposing Secrets; run database-only bootstrap.
+4. Create `edgeone-staging`, configure EdgeOne Free Staging project, full deploy verify.
+5. Step17 full Staging acceptance.
 
-## Safety
+## Anti-interruption / safety
 
-- 当前 Supabase projects 0；EdgeOne project 0；无 Railway/Cloudflare Pages/R2 资源。
-- 未配置真实 Secret，未部署 Staging，未创建 Production Environment/资源。
-- 无 force push、无历史改写。
-- 境外平台不可达时停止并提醒开启 VPN，不盲目重试。
+- 每个可验证步骤更新 CHECKPOINT、CONTEXT、receipt、steps 和长期记忆。
+- Secret 不进入聊天、仓库、日志或 artifact。
+- 境外平台不可达时停止并提醒 VPN，不盲目重试。
+- 当前无 Supabase/EdgeOne/Railway/Cloudflare Pages/R2 真实资源；Production 未创建。
