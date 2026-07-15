@@ -1,0 +1,45 @@
+{
+  "step": "16-free-staging-bootstrap",
+  "status": "in_progress",
+  "updatedAt": "2026-07-15T13:10:54+08:00",
+  "userConfirmation": {
+    "organization": "SAINTTaiYi's Org",
+    "organizationId": "sctiyeyjvaezeofhysfq",
+    "confirmedMonthlyCost": 0,
+    "confirmedPlan": "free",
+    "region": "ap-southeast-1",
+    "regionLabel": "Singapore",
+    "productionApproved": false
+  },
+  "supabase": {
+    "projectId": "xrxmayzwxabmzanwhkmo",
+    "projectRef": "xrxmayzwxabmzanwhkmo",
+    "name": "bike-ops-staging",
+    "url": "https://xrxmayzwxabmzanwhkmo.supabase.co",
+    "status": "ACTIVE_HEALTHY",
+    "region": "ap-southeast-1",
+    "postgresVersion": "17.6.1.141",
+    "postgresEngine": "17",
+    "initialApplicationMigrations": 0,
+    "initialStorageBuckets": 0
+  },
+  "cloudMutation": {
+    "supabaseStagingProjectCreated": true,
+    "edgeOneProjectCreated": false,
+    "productionResourcesCreated": false,
+    "paidPlanEnabled": false,
+    "automaticBillingEnabled": false
+  },
+  "security": {
+    "secretValuesStoredInReceipt": false,
+    "publishableKeysStoredInReceipt": false,
+    "databasePasswordStoredInReceipt": false
+  },
+  "next": [
+    "Apply both checksum-registered application migrations to PostgreSQL 17.6.",
+    "Verify private bike-ops-media bucket and database tables.",
+    "Run Supabase security and performance advisors.",
+    "Configure migration/runtime secrets without exposing values.",
+    "Create edgeone-staging and EdgeOne Makers Free project only after database bootstrap."
+  ]
+}

@@ -1,7 +1,7 @@
 # 执行检查点
 
 保存时间：2026-07-15 13:03 +08:00
-当前阶段：Phase C / Step 10b、12、13、14、15 completed；Step 16 blocked on explicit zero-cost and region confirmation
+当前阶段：Phase C / Step 10b、12、13、14、15 completed；Step 16 in progress（Supabase Free Staging created，migration pending）
 
 ## Accepted repository baseline
 
@@ -72,21 +72,30 @@ GitHub Free
 - Receipt：`plan/receipts/step-15-free-stack-build-test-push.json`。
 - 未创建或修改任何云资源。
 
-## Step 16 — waiting for user confirmation
+## Step 16 — Free Staging bootstrap in progress
 
-在创建 Supabase Free Staging Project 前，必须得到用户明确确认：
+用户已明确确认：
 
-1. 当前 Supabase MCP 报价为 **0 元/月（monthly amount 0）**；用户理解免费额度/暂停/无 Production 备份 SLA 边界。
-2. 选择 region；默认建议 **Singapore / `ap-southeast-1`**。
+- Organization：`SAINTTaiYi's Org` / `sctiyeyjvaezeofhysfq`。
+- Supabase project cost：**0 元/月**，按 Free 边界创建；不启用付费/按量/自动升级。
+- Region：Singapore / `ap-southeast-1`。
+- Production 未批准。
 
-确认后顺序：
+已创建：
+
+- Supabase project `bike-ops-staging` / ref `xrxmayzwxabmzanwhkmo`。
+- URL：`https://xrxmayzwxabmzanwhkmo.supabase.co`。
+- Status：`ACTIVE_HEALTHY`；Organization plan 仍为 Free。
+- 实际数据库：PostgreSQL `17.6.1.141`（CI PostgreSQL 16 作为最低兼容验证；真实 Staging 需继续验证）。
+- 创建后 application migrations 0、Storage buckets 0。
+
+下一顺序：
 
 ```text
-create Supabase Free Staging project
-→ collect runtime/migration values without exposing secrets
-→ GitHub staging migration Secret
-→ database-only bootstrap
-→ create edgeone-staging branch
+apply checksum-registered migrations on PostgreSQL 17.6
+→ verify tables/private bucket/advisors
+→ configure migration/runtime secrets without exposing values
+→ create edgeone-staging
 → create/configure EdgeOne Makers Free Staging project
 → full deployment verification
 ```
