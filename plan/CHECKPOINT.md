@@ -1,7 +1,7 @@
 # 执行检查点
 
-保存时间：2026-07-17 04:26 +08:00
-当前阶段：Phase C / Step 10b、12、13、14、15 completed；Step 16 paused by user（转入 Skill 库整理；不得继续 Secret/EdgeOne 配置）
+保存时间：2026-07-17 04:31 +08:00
+当前阶段：Phase C / Step 10b、12、13、14、15 completed；Step 16 paused for RikkaHub Agent migration（不得继续 Secret/EdgeOne/部署）
 
 ## Accepted repository baseline
 
@@ -124,8 +124,8 @@ EdgeOne 平台操作若当前网络不可达，停止并提醒开启 VPN；不�
 
 ## Skill library cleanup completed
 
-- `/skills` 已从 504 个精简为 120 个活跃 Skill；此前归档的 384 个 Skill 已按用户明确要求永久删除。
-- 删除前 384/384 归档目录内容哈希验证通过；当前 120/120 活跃 Skill 元数据验证通过。
+- `/skills` 已从 504 个精简为 120 个活跃 Skill；此前归档的 384 个 Skill 已按用户明确要求永久删除；随后安装官方 `browser-harness`，当前活跃总数为 121。
+- 删除前 384/384 归档目录内容哈希验证通过；原 120/120 活跃 Skill 元数据验证通过；新增 `browser-harness` Skill 已单独校验。
 - 活跃能力目录：`/workspace/SKILLS-CATALOG.md`。
 - 删除回执：`/workspace/skill-archive/2026-07-17-compact/DELETION-RECEIPT.json`；旧批量安装源码/ZIP/报告仍单独保留在 `/workspace/skill-archive/2026-07-17-install-artifacts`。
 - 前端项目默认五件套均保留：`design-taste-frontend`、`impeccable`、`shadcn-ui`、`ui-ux-pro-max`、`design-md`。
@@ -142,11 +142,10 @@ EdgeOne 平台操作若当前网络不可达，停止并提醒开启 VPN；不�
 
 ## Pause / resume boundary
 
-- 用户于 2026-07-17 03:14 +08:00 再次明确暂停 Step 16，先整理全局 Skill 库。
-- 当前恢复点：Supabase Session pooler 模板已复制过，但完整 URI 尚未确认保存；GitHub `staging` 的 `MIGRATION_DATABASE_URL` 尚未配置。
-- Doppler 误操作已撤销，未保存任何连接串；后续禁止使用 Doppler。
-- 恢复时从 Supabase Connect 生成完整 Session pooler URI，并直接配置 GitHub Environment Secret；之后才收集 transaction pooler/server-only key 和 EdgeOne runtime secrets。
-- 暂停期间：不创建 EdgeOne project、不配置任何 Secret、不触发 Staging deployment、不创建 Production 资源。
+- 用户于 2026-07-17 04:31 +08:00 明确要求保存全部项目进展，随后自行从当前 RikkaHub 迁移至 RikkaHub Agent。
+- 迁移交接事实源：`plan/RIKKAHUB-AGENT-MIGRATION-HANDOFF.md`；远端检查点 tag：`rikkahub-agent-migration-20260717-0431`。
+- 当前恢复点：Supabase Session Pooler 模板已复制过，但完整 URI 尚未确认保存；GitHub `staging` 的 `MIGRATION_DATABASE_URL` 尚未确认配置。
+- 在用户迁移完成并明确恢复前：不创建 EdgeOne project、不配置任何 Secret、不触发 Staging deployment、不创建 Production 资源。
 
 ## Safety
 

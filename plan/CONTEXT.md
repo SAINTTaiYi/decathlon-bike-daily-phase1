@@ -1,6 +1,6 @@
 # 压缩上下文事实源
 
-更新时间：2026-07-17 04:26 +08:00
+更新时间：2026-07-17 04:31 +08:00
 
 ## Repository state
 
@@ -76,7 +76,7 @@
 
 ## Guided configuration / recovery queue
 
-- Step 16 was explicitly paused again by the user at 2026-07-17 03:14 +08:00 while the global Skill library is organized.
+- Step 16 is explicitly paused while the user migrates from current RikkaHub to RikkaHub Agent; no Secret/EdgeOne/deployment work may continue before explicit resume.
 - Supabase project remains healthy; no EdgeOne project exists; no Production resource exists.
 - Database password remains only in the user password manager.
 - Session pooler template was copied, but a complete URI has not been confirmed as stored or configured.
@@ -92,7 +92,7 @@ Recovery queue after the user resumes:
 
 ## Skill library cleanup result
 
-- Completed compact cleanup: 504 → 120 active; the 384 previously archived Skills were then permanently deleted at the user's explicit request.
+- Completed compact cleanup: 504 → 120 active; the 384 previously archived Skills were permanently deleted; official `browser-harness` was later added, making 121 active Skills.
 - Pre-deletion archive hashes 384/384 passed; current active metadata 120/120 passed.
 - Catalog: `/workspace/SKILLS-CATALOG.md`; deletion receipt: `/workspace/skill-archive/2026-07-17-compact/DELETION-RECEIPT.json`.
 - Old installer/source/ZIP/report artifacts remain separately at `/workspace/skill-archive/2026-07-17-install-artifacts`.
@@ -104,6 +104,13 @@ Recovery queue after the user resumes:
 - Verified `ExTV/rikkahub-agent` commit `b4dae335293c4a4a3f31fb17d0a3535c78b4accb`, release `v2.4.1-agent.2`: separate APK `excp.rikkahub`, in-app AI-controlled WebView, per-tool Browser toggles, optional global Accessibility screen automation.
 - Safest route for Step 16: install the agent fork side-by-side, restore an upstream RikkaHub backup if desired, enable only Browser plus the necessary browser write tools, keep `browser_eval_js` and global Accessibility off, and perform login/MFA/secret entry manually.
 - APK has not been installed. Step 16 remains paused pending user choice.
+
+## RikkaHub Agent migration handoff
+
+- Canonical handoff file: `plan/RIKKAHUB-AGENT-MIGRATION-HANDOFF.md`.
+- Remote restore tag planned/pushed with this checkpoint: `rikkahub-agent-migration-20260717-0431`.
+- The user will perform the app migration independently; do not provide migration steps unless later requested.
+- Resume only after the user explicitly requests Step 16 continuation.
 
 ## Anti-interruption / safety
 

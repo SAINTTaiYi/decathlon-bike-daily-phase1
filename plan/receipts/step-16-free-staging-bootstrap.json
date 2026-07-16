@@ -1,7 +1,7 @@
 {
   "step": "16-free-staging-bootstrap",
-  "status": "paused_by_user_for_skill_library_cleanup",
-  "updatedAt": "2026-07-17T04:26:13+08:00",
+  "status": "paused_for_rikkahub_agent_migration",
+  "updatedAt": "2026-07-17T04:31:06+08:00",
   "pausedByUser": true,
   "userConfirmation": {
     "organization": "SAINTTaiYi's Org",
@@ -85,12 +85,11 @@
     "githubCiRun": 29391482691,
     "githubCiConclusion": "success"
   },
-  "blocker": "User stopped Browser Harness cloud guidance and requested RikkaHub Agent investigation. Step 16 remains paused pending a decision about installing the separate agent APK.",
+  "blocker": "User is independently migrating from current RikkaHub to RikkaHub Agent. Step 16 must remain paused until explicit resume.",
   "next": [
-    "Organize and review the global Skill library without deleting skills before user approval.",
-    "After explicit resume, use Supabase Connect to produce the full Session pooler URI privately.",
-    "Configure GitHub staging MIGRATION_DATABASE_URL directly; never use Doppler.",
-    "Then collect runtime values, configure EdgeOne Staging, and verify deployment."
+    "After migration and explicit resume, read plan/RIKKAHUB-AGENT-MIGRATION-HANDOFF.md.",
+    "Privately produce the complete Session Pooler URI and configure GitHub staging MIGRATION_DATABASE_URL directly.",
+    "Collect remaining runtime values, configure EdgeOne Staging, and run exact deployment verification."
   ],
   "manualConsoleProgress": {
     "guidedSetupResumed": true,
@@ -110,7 +109,7 @@
   "skillLibraryCleanup": {
     "completed": true,
     "beforeActiveSkills": 504,
-    "afterActiveSkills": 120,
+    "afterActiveSkills": 121,
     "archivedSkills": 0,
     "deletedSkills": 384,
     "activeMetadataVerification": "120/120 passed",
@@ -141,5 +140,13 @@
       "apkInstalled": false
     },
     "recommendedMode": "in-app browser with minimal write tools; manual login/MFA/secret entry; no global Accessibility for this task"
+  },
+  "migrationHandoff": {
+    "target": "ExTV/rikkahub-agent",
+    "userWillMigrateIndependently": true,
+    "handoffFile": "plan/RIKKAHUB-AGENT-MIGRATION-HANDOFF.md",
+    "checkpointTag": "rikkahub-agent-migration-20260717-0431",
+    "secretsIncluded": false,
+    "resumeRequiresExplicitUserRequest": true
   }
 }
