@@ -1,7 +1,7 @@
 {
   "step": "16-free-staging-bootstrap",
   "status": "paused_by_user_for_skill_library_cleanup",
-  "updatedAt": "2026-07-17T03:42:31+08:00",
+  "updatedAt": "2026-07-17T04:26:13+08:00",
   "pausedByUser": true,
   "userConfirmation": {
     "organization": "SAINTTaiYi's Org",
@@ -85,7 +85,7 @@
     "githubCiRun": 29391482691,
     "githubCiConclusion": "success"
   },
-  "blocker": "Skill library cleanup is complete, but the user has not resumed Step 16. No secret configuration or EdgeOne work may continue until explicit resume.",
+  "blocker": "User stopped Browser Harness cloud guidance and requested RikkaHub Agent investigation. Step 16 remains paused pending a decision about installing the separate agent APK.",
   "next": [
     "Organize and review the global Skill library without deleting skills before user approval.",
     "After explicit resume, use Supabase Connect to produce the full Session pooler URI privately.",
@@ -119,5 +119,27 @@
     "preDeletionArchiveHashVerification": "384/384 passed",
     "restoreAvailable": false,
     "deletionReceipt": "/workspace/skill-archive/2026-07-17-compact/DELETION-RECEIPT.json"
+  },
+  "browserGuidanceInvestigation": {
+    "browserHarness": {
+      "installed": true,
+      "version": "0.1.5",
+      "source": "browser-use/browser-harness",
+      "telemetryEnabled": false,
+      "activeCloudBrowsers": 0,
+      "cloudAuthStored": false,
+      "androidExistingChromeAttachSupported": false
+    },
+    "rikkaHubAgent": {
+      "repository": "ExTV/rikkahub-agent",
+      "commit": "b4dae335293c4a4a3f31fb17d0a3535c78b4accb",
+      "latestRelease": "v2.4.1-agent.2",
+      "applicationId": "excp.rikkahub",
+      "canCoexistWithUpstream": true,
+      "inAppBrowserVerified": true,
+      "accessibilityScreenControlVerified": true,
+      "apkInstalled": false
+    },
+    "recommendedMode": "in-app browser with minimal write tools; manual login/MFA/secret entry; no global Accessibility for this task"
   }
 }

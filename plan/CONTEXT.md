@@ -1,6 +1,6 @@
 # 压缩上下文事实源
 
-更新时间：2026-07-17 03:42 +08:00
+更新时间：2026-07-17 04:26 +08:00
 
 ## Repository state
 
@@ -97,6 +97,13 @@ Recovery queue after the user resumes:
 - Catalog: `/workspace/SKILLS-CATALOG.md`; deletion receipt: `/workspace/skill-archive/2026-07-17-compact/DELETION-RECEIPT.json`.
 - Old installer/source/ZIP/report artifacts remain separately at `/workspace/skill-archive/2026-07-17-install-artifacts`.
 - Step 16 remains paused until explicit user resume.
+
+## Browser-control investigation
+
+- Installed official `browser-harness` 0.1.5 and disabled telemetry. It cannot attach to the existing Android Chrome across the app sandbox. Temporary Browser Use Cloud sessions were stopped and local cloud auth was removed.
+- Verified `ExTV/rikkahub-agent` commit `b4dae335293c4a4a3f31fb17d0a3535c78b4accb`, release `v2.4.1-agent.2`: separate APK `excp.rikkahub`, in-app AI-controlled WebView, per-tool Browser toggles, optional global Accessibility screen automation.
+- Safest route for Step 16: install the agent fork side-by-side, restore an upstream RikkaHub backup if desired, enable only Browser plus the necessary browser write tools, keep `browser_eval_js` and global Accessibility off, and perform login/MFA/secret entry manually.
+- APK has not been installed. Step 16 remains paused pending user choice.
 
 ## Anti-interruption / safety
 

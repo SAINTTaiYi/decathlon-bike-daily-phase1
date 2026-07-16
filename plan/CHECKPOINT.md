@@ -1,6 +1,6 @@
 # 执行检查点
 
-保存时间：2026-07-17 03:42 +08:00
+保存时间：2026-07-17 04:26 +08:00
 当前阶段：Phase C / Step 10b、12、13、14、15 completed；Step 16 paused by user（转入 Skill 库整理；不得继续 Secret/EdgeOne 配置）
 
 ## Accepted repository baseline
@@ -130,6 +130,15 @@ EdgeOne 平台操作若当前网络不可达，停止并提醒开启 VPN；不�
 - 删除回执：`/workspace/skill-archive/2026-07-17-compact/DELETION-RECEIPT.json`；旧批量安装源码/ZIP/报告仍单独保留在 `/workspace/skill-archive/2026-07-17-install-artifacts`。
 - 前端项目默认五件套均保留：`design-taste-frontend`、`impeccable`、`shadcn-ui`、`ui-ux-pro-max`、`design-md`。
 - Step 16 仍保持暂停；Skill 整理完成不等于恢复 Secret/EdgeOne 配置。
+
+## Browser guidance tooling investigation
+
+- Official `browser-use/browser-harness` v0.1.5 installed at `/usr/local/bin/browser-harness`; Skill registered at `/skills/browser-harness`; telemetry disabled.
+- Android app sandbox prevents the CLI from attaching directly to the phone's existing Chrome. Two temporary Browser Use Cloud browsers were stopped; no daemon remains; local Cloud OAuth credential was logged out and removed.
+- `ExTV/rikkahub-agent` was inspected at commit `b4dae335293c4a4a3f31fb17d0a3535c78b4accb`, latest release `v2.4.1-agent.2`. It is a separate Android APK (`applicationId=excp.rikkahub`) and can coexist with upstream RikkaHub.
+- Verified capabilities: an AI-driven in-app WebView with 18 browser tools (`browser_open`, read/screenshot/DOM/link tools, click/type/scroll/submit/select/key/eval tools, and `browser_done`), plus optional global AccessibilityService screen tools. Read browser tools default on; write browser tools default off.
+- Recommended project path is the in-app browser with minimal Browser write tools enabled; do not grant global Accessibility, SMS, contacts, files, location, notification, or screen-control permissions for this task. Login/password/MFA must remain manual.
+- No RikkaHub Agent APK has been downloaded or installed yet. Step 16 remains paused.
 
 ## Pause / resume boundary
 
