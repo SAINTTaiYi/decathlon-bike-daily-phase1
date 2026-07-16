@@ -1,7 +1,7 @@
 # 执行检查点
 
-保存时间：2026-07-15 13:03 +08:00
-当前阶段：Phase C / Step 10b、12、13、14、15 completed；Step 16 paused by user（等待人工控制台 Secret/EdgeOne 配置）
+保存时间：2026-07-17 03:14 +08:00
+当前阶段：Phase C / Step 10b、12、13、14、15 completed；Step 16 paused by user（转入 Skill 库整理；不得继续 Secret/EdgeOne 配置）
 
 ## Accepted repository baseline
 
@@ -95,11 +95,19 @@ GitHub Free
 - Supabase 验证检查点 `766d20db6a952e51a594d504ae240cca86ab5db2` 的 CI run `29391482691` success。
 - `edgeone-staging` 已用普通 push 创建并指向 `766d20db6a952e51a594d504ae240cca86ab5db2`；force push=false。
 
+人工配置进度（2026-07-16）：
+
+- 用户已进入 `bike-ops-staging` 项目概览，确认状态正常。
+- 用户已在 Supabase Database Settings 重置数据库密码，并确认只保存在密码管理器中；密码值未进入聊天、仓库、日志或 receipt。
+- 用户已复制 Session Pooler 连接串模板；曾误进入 Doppler `bike-ops/stg`，但未保存并已明确撤销，Doppler 中未持久化连接串。后续不使用 Doppler，直接配置 GitHub Environment Secret。
+
 下一顺序：
 
 ```text
-edgeone-staging created at verified SHA 766d20db6a952e51a594d504ae240cca86ab5db2
-→ configure migration/runtime secrets without exposing values
+collect Supavisor session + transaction pooler URLs without exposing values
+→ collect Supabase server-only secret key without exposing value
+→ configure GitHub staging MIGRATION_DATABASE_URL
+→ generate isolated application runtime secrets
 → create/configure EdgeOne Makers Free Staging project
 → full deployment verification
 ```
@@ -116,10 +124,11 @@ EdgeOne 平台操作若当前网络不可达，停止并提醒开启 VPN；不�
 
 ## Pause / resume boundary
 
-- 用户于 2026-07-15 13:38 +08:00 选择暂时暂停。
-- 恢复时从人工控制台配置开始：Supabase 数据库密码/连接串与 server-only key、GitHub `staging` 的 `MIGRATION_DATABASE_URL`、EdgeOne Git 授权/Free 项目/runtime variables。
-- 用户不得在聊天中发送密钥；完成后只回复配置状态。
-- 在用户恢复前，不创建 EdgeOne project、不配置 Secret、不触发 Staging deployment。
+- 用户于 2026-07-17 03:14 +08:00 再次明确暂停 Step 16，先整理全局 Skill 库。
+- 当前恢复点：Supabase Session pooler 模板已复制过，但完整 URI 尚未确认保存；GitHub `staging` 的 `MIGRATION_DATABASE_URL` 尚未配置。
+- Doppler 误操作已撤销，未保存任何连接串；后续禁止使用 Doppler。
+- 恢复时从 Supabase Connect 生成完整 Session pooler URI，并直接配置 GitHub Environment Secret；之后才收集 transaction pooler/server-only key 和 EdgeOne runtime secrets。
+- 暂停期间：不创建 EdgeOne project、不配置任何 Secret、不触发 Staging deployment、不创建 Production 资源。
 
 ## Safety
 

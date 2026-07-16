@@ -224,7 +224,7 @@
     ],
     "rationale": "在用户确认 Supabase Project 为 0 元/月后创建免费 Staging Project、private bucket，并连接 EdgeOne Makers Free Project",
     "risk": "high",
-    "status": "blocked_on_zero_cost_and_region_confirmation"
+    "status": "paused_by_user_for_skill_library_cleanup"
   },
   {
     "id": "17-free-staging-acceptance",

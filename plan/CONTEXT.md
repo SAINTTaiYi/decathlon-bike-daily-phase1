@@ -1,6 +1,6 @@
 # 压缩上下文事实源
 
-更新时间：2026-07-15 13:03 +08:00
+更新时间：2026-07-17 03:14 +08:00
 
 ## Repository state
 
@@ -74,14 +74,21 @@
 - Supabase checkpoint `766d20db6a952e51a594d504ae240cca86ab5db2` passed GitHub CI `29391482691`.
 - Ordinary `edgeone-staging` branch created at `766d20db6a952e51a594d504ae240cca86ab5db2`; force push=false.
 
-## Pause / recovery queue
+## Guided configuration / recovery queue
 
-- User paused at 2026-07-15 13:38 +08:00 before manual console Secret/EdgeOne configuration.
-- Do not create EdgeOne project, configure secrets, or deploy until user resumes.
+- Step 16 was explicitly paused again by the user at 2026-07-17 03:14 +08:00 while the global Skill library is organized.
+- Supabase project remains healthy; no EdgeOne project exists; no Production resource exists.
+- Database password remains only in the user password manager.
+- Session pooler template was copied, but a complete URI has not been confirmed as stored or configured.
+- A mistaken Doppler entry was discarded unsaved; Doppler must not be used.
 
-1. User manually configures or requests guided setup for Supabase DB credentials/server-only key, GitHub staging MIGRATION_DATABASE_URL, and EdgeOne Git project/runtime variables; no secret values in chat.
-2. Create/configure EdgeOne Free Staging project and run full deploy verify.
-3. Step17 full Staging acceptance.
+Recovery queue after the user resumes:
+
+1. Use Supabase Connect to produce the full Session pooler URI privately.
+2. Configure GitHub `staging` Environment Secret `MIGRATION_DATABASE_URL` directly.
+3. Collect transaction-pooler and server-only runtime values, generate isolated runtime secrets.
+4. Create/configure EdgeOne Free Staging and run full deploy verification.
+5. Step17 full Staging acceptance.
 
 ## Anti-interruption / safety
 
