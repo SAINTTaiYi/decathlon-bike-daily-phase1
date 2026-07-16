@@ -1,6 +1,6 @@
 # 执行检查点
 
-保存时间：2026-07-17 03:14 +08:00
+保存时间：2026-07-17 03:37 +08:00
 当前阶段：Phase C / Step 10b、12、13、14、15 completed；Step 16 paused by user（转入 Skill 库整理；不得继续 Secret/EdgeOne 配置）
 
 ## Accepted repository baseline
@@ -121,6 +121,15 @@ EdgeOne 平台操作若当前网络不可达，停止并提醒开启 VPN；不�
 - Free inactive project may pause；Production 前必须实现加密外部导出并完成恢复演练。
 - EdgeOne Free：40 projects、500 builds/month、Cloud Functions 1M/month、Edge Functions 3M/month、5 GB site storage。
 - 70% quota 开始清理/归档；85% 冻结非必要附件上传；不自动升级。
+
+## Skill library cleanup completed
+
+- `/skills` 已从 504 个精简为 120 个活跃 Skill；384 个移动到可恢复归档，删除数为 0。
+- 384/384 归档目录内容哈希验证通过；120/120 活跃 Skill 元数据验证通过；单项恢复往返测试通过。
+- 活跃能力目录：`/workspace/SKILLS-CATALOG.md`。
+- Skill 归档：`/workspace/skill-archive/2026-07-17-compact`；旧批量安装源码/ZIP/报告归档：`/workspace/skill-archive/2026-07-17-install-artifacts`。
+- 前端项目默认五件套均保留：`design-taste-frontend`、`impeccable`、`shadcn-ui`、`ui-ux-pro-max`、`design-md`。
+- Step 16 仍保持暂停；Skill 整理完成不等于恢复 Secret/EdgeOne 配置。
 
 ## Pause / resume boundary
 

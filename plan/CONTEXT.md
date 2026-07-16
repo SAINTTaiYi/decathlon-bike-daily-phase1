@@ -1,6 +1,6 @@
 # 压缩上下文事实源
 
-更新时间：2026-07-17 03:14 +08:00
+更新时间：2026-07-17 03:37 +08:00
 
 ## Repository state
 
@@ -89,6 +89,14 @@ Recovery queue after the user resumes:
 3. Collect transaction-pooler and server-only runtime values, generate isolated runtime secrets.
 4. Create/configure EdgeOne Free Staging and run full deploy verification.
 5. Step17 full Staging acceptance.
+
+## Skill library cleanup result
+
+- Completed reversible compact cleanup: 504 → 120 active; 384 archived; 0 deleted.
+- Archive hashes 384/384 passed; active metadata 120/120 passed; single-skill restore round-trip passed.
+- Catalog: `/workspace/SKILLS-CATALOG.md`.
+- Skill archive: `/workspace/skill-archive/2026-07-17-compact`; old installer/source/report artifacts: `/workspace/skill-archive/2026-07-17-install-artifacts`.
+- Step 16 remains paused until explicit user resume.
 
 ## Anti-interruption / safety
 

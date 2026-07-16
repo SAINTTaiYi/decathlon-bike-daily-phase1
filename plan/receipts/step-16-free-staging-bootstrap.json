@@ -1,7 +1,7 @@
 {
   "step": "16-free-staging-bootstrap",
   "status": "paused_by_user_for_skill_library_cleanup",
-  "updatedAt": "2026-07-17T03:14:45+08:00",
+  "updatedAt": "2026-07-17T03:37:59+08:00",
   "pausedByUser": true,
   "userConfirmation": {
     "organization": "SAINTTaiYi's Org",
@@ -85,7 +85,7 @@
     "githubCiRun": 29391482691,
     "githubCiConclusion": "success"
   },
-  "blocker": "User explicitly paused Step 16 to organize the global Skill library. No secret configuration or EdgeOne work may continue until the user resumes.",
+  "blocker": "Skill library cleanup is complete, but the user has not resumed Step 16. No secret configuration or EdgeOne work may continue until explicit resume.",
   "next": [
     "Organize and review the global Skill library without deleting skills before user approval.",
     "After explicit resume, use Supabase Connect to produce the full Session pooler URI privately.",
@@ -106,5 +106,18 @@
     "secretPersistedToDoppler": false,
     "sessionPoolerTemplateCopiedToClipboard": true,
     "pausedForSkillLibraryCleanup": true
+  },
+  "skillLibraryCleanup": {
+    "completed": true,
+    "beforeActiveSkills": 504,
+    "afterActiveSkills": 120,
+    "archivedSkills": 384,
+    "deletedSkills": 0,
+    "archiveHashVerification": "384/384 passed",
+    "activeMetadataVerification": "120/120 passed",
+    "restoreRoundTrip": "passed",
+    "catalog": "/workspace/SKILLS-CATALOG.md",
+    "archive": "/workspace/skill-archive/2026-07-17-compact",
+    "installerArtifactsArchive": "/workspace/skill-archive/2026-07-17-install-artifacts"
   }
 }
