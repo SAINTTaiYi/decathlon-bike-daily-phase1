@@ -1,6 +1,6 @@
 # 压缩上下文事实源
 
-更新时间：2026-07-17 03:37 +08:00
+更新时间：2026-07-17 03:42 +08:00
 
 ## Repository state
 
@@ -92,10 +92,10 @@ Recovery queue after the user resumes:
 
 ## Skill library cleanup result
 
-- Completed reversible compact cleanup: 504 → 120 active; 384 archived; 0 deleted.
-- Archive hashes 384/384 passed; active metadata 120/120 passed; single-skill restore round-trip passed.
-- Catalog: `/workspace/SKILLS-CATALOG.md`.
-- Skill archive: `/workspace/skill-archive/2026-07-17-compact`; old installer/source/report artifacts: `/workspace/skill-archive/2026-07-17-install-artifacts`.
+- Completed compact cleanup: 504 → 120 active; the 384 previously archived Skills were then permanently deleted at the user's explicit request.
+- Pre-deletion archive hashes 384/384 passed; current active metadata 120/120 passed.
+- Catalog: `/workspace/SKILLS-CATALOG.md`; deletion receipt: `/workspace/skill-archive/2026-07-17-compact/DELETION-RECEIPT.json`.
+- Old installer/source/ZIP/report artifacts remain separately at `/workspace/skill-archive/2026-07-17-install-artifacts`.
 - Step 16 remains paused until explicit user resume.
 
 ## Anti-interruption / safety

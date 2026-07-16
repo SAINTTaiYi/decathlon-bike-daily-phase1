@@ -1,7 +1,7 @@
 {
   "step": "16-free-staging-bootstrap",
   "status": "paused_by_user_for_skill_library_cleanup",
-  "updatedAt": "2026-07-17T03:37:59+08:00",
+  "updatedAt": "2026-07-17T03:42:31+08:00",
   "pausedByUser": true,
   "userConfirmation": {
     "organization": "SAINTTaiYi's Org",
@@ -111,13 +111,13 @@
     "completed": true,
     "beforeActiveSkills": 504,
     "afterActiveSkills": 120,
-    "archivedSkills": 384,
-    "deletedSkills": 0,
-    "archiveHashVerification": "384/384 passed",
+    "archivedSkills": 0,
+    "deletedSkills": 384,
     "activeMetadataVerification": "120/120 passed",
-    "restoreRoundTrip": "passed",
     "catalog": "/workspace/SKILLS-CATALOG.md",
-    "archive": "/workspace/skill-archive/2026-07-17-compact",
-    "installerArtifactsArchive": "/workspace/skill-archive/2026-07-17-install-artifacts"
+    "installerArtifactsArchive": "/workspace/skill-archive/2026-07-17-install-artifacts",
+    "preDeletionArchiveHashVerification": "384/384 passed",
+    "restoreAvailable": false,
+    "deletionReceipt": "/workspace/skill-archive/2026-07-17-compact/DELETION-RECEIPT.json"
   }
 }
