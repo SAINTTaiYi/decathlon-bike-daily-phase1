@@ -133,7 +133,7 @@ export function authRoutes() {
     })
   })
 
-  app.get('/api/v1/auth/me', auth.loadSession, auth.requireAuth, async (c) => {
+  app.get('/api/v1/auth/me', auth.loadSession, async (c) => {
     const config = c.get('config')
     const context = c.get('auth')!
     const csrfToken = randomToken()
@@ -172,7 +172,7 @@ export function authRoutes() {
     })
   })
 
-  app.post('/api/v1/auth/logout', auth.loadSession, auth.requireAuth, auth.requireCsrf, async (c) => {
+  app.post('/api/v1/auth/logout', auth.loadSession, auth.requireCsrf, async (c) => {
     const context = c.get('auth')!
     await c.env.DB.prepare('UPDATE auth_sessions SET revoked_at = ? WHERE token_hash = ?')
       .bind(nowIso(), context.sessionTokenHash)
@@ -181,7 +181,7 @@ export function authRoutes() {
     return c.body(null, 204)
   })
 
-  app.post('/api/v1/auth/change-password', auth.loadSession, auth.requireAuth, auth.requireCsrf, async (c) => {
+  app.post('/api/v1/auth/change-password', auth.loadSession, auth.requireCsrf, async (c) => {
     const config = c.get('config')
     const context = c.get('auth')!
     const body = await c.req.json() as { currentPassword?: string; nextPassword?: string }

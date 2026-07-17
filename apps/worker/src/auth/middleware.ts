@@ -1,9 +1,10 @@
 import type { MiddlewareHandler } from 'hono'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import { camelRow, first, nowIso } from '../db.js'
+import { safeEqualHex } from '../lib/crypto.js'
 import { ApiProblem } from '../services/problems.js'
 import type { AuthContext } from './types.js'
-import { readCookie, SESSION_COOKIE, sessionTokenHash } from './session.js'
+import { csrfTokenHash, readCookie, SESSION_COOKIE, sessionTokenHash } from './session.js'
 
 type Vars = {
   config: AppConfig
@@ -12,34 +13,32 @@ type Vars = {
 
 export function createAuthMiddleware(): {
   loadSession: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }>
-  requireAuth: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }>
   requirePasswordChanged: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }>
   requireCsrf: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }>
+  requireRole: (...roles: Array<'operator' | 'manager' | 'admin'>) => MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }>
 } {
   const loadSession: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }> = async (c, next) => {
     c.set('auth', null)
     const config = c.get('config')
     const token = readCookie(c, SESSION_COOKIE)
-    if (!token) return next()
+    if (!token) throw new ApiProblem(401, 'UNAUTHENTICATED', '登录状态已失效，请重新登录。')
     const tokenHash = await sessionTokenHash(token, config)
     const selectedStore = c.req.header('x-store-id') ?? null
     const row = await first(c.env.DB.prepare(`
-      SELECT s.token_hash, s.csrf_hash, s.user_id, u.display_name, u.must_change_password,
-             st.id AS store_id, st.code AS store_code, st.name AS store_name, st.timezone, sm.role
+      SELECT s.token_hash, s.csrf_hash, u.id AS user_id, u.display_name, u.must_change_password,
+             st.id AS store_id, st.code AS store_code, st.name AS store_name, st.timezone AS store_timezone, sm.role
       FROM auth_sessions s
-      JOIN users u ON u.id = s.user_id
+      JOIN users u ON u.id = s.user_id AND u.status = 'active'
       JOIN store_members sm ON sm.user_id = u.id
-      JOIN stores st ON st.id = sm.store_id
+      JOIN stores st ON st.id = sm.store_id AND st.status = 'active'
       WHERE s.token_hash = ?
         AND s.revoked_at IS NULL
         AND s.expires_at > ?
-        AND u.status = 'active'
-        AND st.status = 'active'
         AND (? IS NULL OR st.id = ?)
       ORDER BY sm.created_at ASC
       LIMIT 1
     `).bind(tokenHash, nowIso(), selectedStore, selectedStore))
-    if (!row) return next()
+    if (!row) throw new ApiProblem(401, 'UNAUTHENTICATED', '登录状态已失效，请重新登录。')
     const mapped = camelRow(row)
     c.set('auth', {
       userId: mapped.userId,
@@ -48,7 +47,7 @@ export function createAuthMiddleware(): {
       storeId: mapped.storeId,
       storeCode: mapped.storeCode,
       storeName: mapped.storeName,
-      storeTimezone: mapped.timezone,
+      storeTimezone: mapped.storeTimezone ?? mapped.timezone,
       role: mapped.role,
       sessionTokenHash: mapped.tokenHash,
       csrfHash: mapped.csrfHash
@@ -61,15 +60,10 @@ export function createAuthMiddleware(): {
     return next()
   }
 
-  const requireAuth: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }> = async (c, next) => {
-    if (!c.get('auth')) throw new ApiProblem(401, 'UNAUTHENTICATED', '请重新登录。')
-    return next()
-  }
-
   const requirePasswordChanged: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }> = async (c, next) => {
     const auth = c.get('auth')
     if (!auth) throw new ApiProblem(401, 'UNAUTHENTICATED', '请重新登录。')
-    if (auth.mustChangePassword) throw new ApiProblem(403, 'PASSWORD_CHANGE_REQUIRED', '请先修改初始密码。')
+    if (auth.mustChangePassword) throw new ApiProblem(428, 'PASSWORD_CHANGE_REQUIRED', '首次登录必须先修改临时密码。')
     return next()
   }
 
@@ -77,12 +71,19 @@ export function createAuthMiddleware(): {
     const auth = c.get('auth')
     if (!auth) throw new ApiProblem(401, 'UNAUTHENTICATED', '请重新登录。')
     const header = c.req.header('x-csrf-token')
-    if (!header) throw new ApiProblem(403, 'CSRF_FAILED', '请求缺少安全校验。')
-    const { csrfTokenHash } = await import('./session.js')
+    if (!header) throw new ApiProblem(403, 'INVALID_CSRF', '安全令牌已失效，请刷新页面后重试。')
     const hash = await csrfTokenHash(header, c.get('config'))
-    if (hash !== auth.csrfHash) throw new ApiProblem(403, 'CSRF_FAILED', '请求安全校验失败。')
+    if (!safeEqualHex(hash, auth.csrfHash)) throw new ApiProblem(403, 'INVALID_CSRF', '安全令牌已失效，请刷新页面后重试。')
     return next()
   }
 
-  return { loadSession, requireAuth, requirePasswordChanged, requireCsrf }
+  function requireRole(...roles: Array<'operator' | 'manager' | 'admin'>): MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }> {
+    return async (c, next) => {
+      const auth = c.get('auth')
+      if (!auth || !roles.includes(auth.role)) throw new ApiProblem(403, 'FORBIDDEN', '当前账号没有执行该操作的权限。')
+      return next()
+    }
+  }
+
+  return { loadSession, requirePasswordChanged, requireCsrf, requireRole }
 }

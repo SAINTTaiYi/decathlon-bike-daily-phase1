@@ -5,7 +5,11 @@ import type { AppConfig, WorkerEnv } from './env.js'
 import { loadConfig } from './env.js'
 import type { AuthContext } from './auth/types.js'
 import { authRoutes } from './routes/auth.js'
+import { auditRoutes } from './routes/audit.js'
+import { bootstrapRoutes } from './routes/bootstrap.js'
+import { closingRoutes } from './routes/closing.js'
 import { healthRoutes } from './routes/health.js'
+import { workItemRoutes } from './routes/work-items.js'
 import { ApiProblem } from './services/problems.js'
 
 type Vars = {
@@ -16,8 +20,6 @@ type Vars = {
 const app = new Hono<{ Bindings: WorkerEnv; Variables: Vars }>()
 
 app.use('*', async (c, next) => {
-  // Config load is deferred for asset-only paths if secrets missing during bootstrap
-  // but API/health always need config.
   const path = new URL(c.req.url).pathname
   if (path.startsWith('/api/') || path.startsWith('/health/')) {
     c.set('config', loadConfig(c.env))
@@ -40,8 +42,12 @@ app.use('*', async (c, next) => {
 
 app.route('/', healthRoutes())
 app.route('/', authRoutes())
+app.route('/', closingRoutes())
+app.route('/', workItemRoutes())
+app.route('/', auditRoutes())
+app.route('/', bootstrapRoutes())
 
-// Temporary explicit stub for media — product has no file storage requirement on Cloudflare path.
+// Product has no file-storage requirement on the Cloudflare path.
 app.all('/api/v1/attachments/*', (c) => c.json({
   error: 'MEDIA_DISABLED',
   message: '当前 Cloudflare 架构不包含文件存储；附件功能已禁用。'

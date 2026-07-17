@@ -53,16 +53,22 @@ Existing Supabase (`xrxmayzwxabmzanwhkmo`) and EdgeOne project remain **untouche
 - [x] Worker scaffold: env, db helpers, WebCrypto password/contact crypto, auth middleware, health + auth routes
 - [x] `wrangler.jsonc` with Static Assets + D1 binding + `run_worker_first` for `/api/*` and `/health/*`
 
+## Phase B (API port)
+
+- [x] Idempotency helper for D1
+- [x] Closing / KPI routes
+- [x] Work-items CRUD + actions (repair/pickup/resale/handover)
+- [x] Audit list + undo
+- [x] Bootstrap aggregate
+- [ ] Legacy local import (optional, deferred)
+- [ ] Install hono deps + typecheck
+- [ ] Deploy staging Worker with secrets
+
 ## Next queue (ordered)
 
 1. ~~Apply D1 migration~~ done.
 2. Install `hono` + `@cloudflare/workers-types` in workspace; ensure `pnpm` resolves `@bike-ops/worker`.
-3. Port remaining Fastify routes to Hono/D1:
-   - closing / KPI
-   - work-items (+ repair/pickup/resale/handover)
-   - audit / undo
-   - bootstrap
-   - legacy local import (if still required)
+3. ~~Port remaining Fastify routes~~ core routes done; legacy import deferred.
 4. Wire deploy workflow `Deploy staging · Cloudflare free stack` (replace EdgeOne/Supabase steps; keep free-plan confirmations).
 5. Generate Worker secrets offline; set via dashboard / `wrangler secret put` (never chat/repo).
 6. Build web, deploy Worker, set `CORS_ALLOWED_ORIGINS` to real `*.workers.dev` URL.
