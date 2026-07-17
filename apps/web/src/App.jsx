@@ -148,6 +148,27 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  const exportClosingReport = async () => {
+    if (!workflow.closedAt) return setToast({ message: '请先完成闭店，再导出日报图。', tone: 'error' })
+    try {
+      const model = buildClosingReportModel({
+        businessDate: workflow.dateKey,
+        storeName: currentStore?.storeName || '门店',
+        exporterName: currentUser,
+        kpi: workflow.kpi,
+        records: workflow.records,
+        closedAt: workflow.closedAt,
+        appVersion: APP_VERSION
+      })
+      const result = await exportClosingReportImage(model)
+      setToast(result.mode === 'share'
+        ? '日报图已打开系统分享，请选择保存到相册'
+        : '日报图已开始下载，请在浏览器下载项中保存到相册')
+    } catch (error) {
+      setToast({ message: error?.message || '导出日报图失败。', tone: 'error' })
+    }
+  }
+
   const reopen = async () => {
     if (!canManageClosing) return setToast({ message: '只有经理或管理员可以重新打开闭店。', tone: 'error' })
     const result = await workflow.reopenClosing()
