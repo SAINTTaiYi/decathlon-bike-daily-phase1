@@ -3,18 +3,22 @@ name: Deploy Cloudflare staging · free stack
 on:
   workflow_dispatch:
     inputs:
+      release_sha:
+        description: Full 40-character SHA at the selected Staging branch head
+        required: true
+        type: string
       confirm_free_plan:
-        description: Confirm Cloudflare Workers/D1 remain on free plan
+        description: Confirm Cloudflare Workers and D1 remain on the Free plan
         required: true
         type: boolean
         default: false
       confirm_no_billing:
-        description: Confirm paid plans, usage-based billing, and automatic upgrades are disabled
+        description: Confirm paid plans, usage billing, and automatic upgrades are disabled
         required: true
         type: boolean
         default: false
       confirm_staging_only:
-        description: Confirm this run deploys Staging only and Production remains forbidden
+        description: Confirm this deploys Staging only and Production remains forbidden
         required: true
         type: boolean
         default: false
@@ -29,12 +33,14 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: staging
     if: github.ref == 'refs/heads/feature/cloudflare-workers-d1' || github.ref == 'refs/heads/develop'
     env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - name: Enforce free-tier confirmations
+      - name: Enforce Free, no-billing, and Staging-only confirmations
         env:
           CONFIRM_FREE_PLAN: ${{ inputs.confirm_free_plan }}
           CONFIRM_NO_BILLING: ${{ inputs.confirm_no_billing }}
@@ -45,26 +51,40 @@ jobs:
           test "$CONFIRM_STAGING_ONLY" = true || { echo "::error::confirm_staging_only=true required"; exit 1; }
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN secret missing"; exit 1; }
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::CLOUDFLARE_ACCOUNT_ID secret missing"; exit 1; }
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
+      - name: Verify release SHA equals the selected remote Staging branch head
+        run: |
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::release_sha must be a full lowercase SHA"; exit 1; }
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          git fetch --no-tags origin "$BRANCH"
+          REMOTE_SHA="$(git rev-parse "origin/$BRANCH")"
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          test "$RELEASE_SHA" = "$REMOTE_SHA" || { echo "::error::release_sha must equal the remote $BRANCH head"; exit 1; }
+          test "$RELEASE_SHA" = "$CHECKED_OUT_SHA" || { echo "::error::checkout does not match release_sha"; exit 1; }
       - run: corepack enable
-      - run: corepack prepare pnpm@9.15.9 --activate
-      - run: pnpm install --frozen-lockfile
-      - name: Build web + worker bundle
+      - name: Activate pinned pnpm
+        run: node scripts/ops/network-guard.mjs npm/pnpm corepack prepare pnpm@9.15.9 --activate
+      - name: Install frozen dependencies
+        run: node scripts/ops/network-guard.mjs npm/pnpm pnpm install --frozen-lockfile
+      - name: Validate, test, typecheck, and build before Cloudflare deployment
+        run: pnpm check:workflows && pnpm test && pnpm typecheck && pnpm build
+      - name: Generate minified Worker bundle from the validated source
         run: |
-          pnpm --filter @bike-ops/web build
-          node scripts/build-worker-bundle.mjs
-          # Prefer minified if present from local artifact path; otherwise use esbuild output
-          if [ -f deploy-artifacts/worker.min.js ]; then
-            cp deploy-artifacts/worker.min.js dist/worker/index.js
-          fi
-          ls -la dist/worker apps/web/dist | head
-      - name: Deploy Worker with Static Assets via Wrangler
+          pnpm build:worker-bundle
+          cp dist/worker/index.min.js dist/worker/index.js
+          test -s dist/worker/index.js
+          test -s apps/web/dist/index.html
+      - name: Install pinned Wrangler through the network guard
+        run: node scripts/ops/network-guard.mjs npm/pnpm npm install --global wrangler@4.112.0
+      - name: Prepare the Staging Worker, Static Assets, and D1 configuration
         run: |
-          npm install -g wrangler@4
-          # Write a temporary wrangler config pointing at bundled JS
           cat > wrangler.deploy.jsonc <<'JSON'
           {
             "name": "bike-ops-staging",
@@ -88,29 +108,35 @@ jobs:
             ],
             "vars": {
               "APP_ENV": "staging",
-              "APP_VERSION": "5.3.2",
+              "APP_VERSION": "__APP_VERSION__",
               "COOKIE_SECURE": "true",
               "SESSION_TTL_HOURS": "12",
               "CORS_ALLOWED_ORIGINS": "https://bike-ops-staging.geeklightonefish.workers.dev",
-              "GIT_SHA": "${{ github.sha }}"
+              "GIT_SHA": "__RELEASE_SHA__"
             }
           }
           JSON
-          # Fix GIT_SHA properly
           node -e "
             const fs=require('fs');
+            const pkg=require('./package.json');
             const p='wrangler.deploy.jsonc';
             let t=fs.readFileSync(p,'utf8');
-            t=t.replace('\${{ github.sha }}', process.env.GITHUB_SHA);
+            t=t.replace('__APP_VERSION__', pkg.version).replace('__RELEASE_SHA__', process.env.RELEASE_SHA);
             fs.writeFileSync(p,t);
           "
-          wrangler deploy --config wrangler.deploy.jsonc
-      - name: Smoke health
+      - name: Deploy the Staging Worker with Static Assets and D1
+        run: wrangler deploy --config wrangler.deploy.jsonc
+      - name: Verify the deployed Staging API, release identity, and Web shell
         run: |
-          set -e
+          set -euo pipefail
           BASE=https://bike-ops-staging.geeklightonefish.workers.dev
+          APP_VERSION="$(node -p "require('./package.json').version")"
           curl -fsS "$BASE/health/live" | tee /tmp/live.json
           curl -fsS "$BASE/health/ready" | tee /tmp/ready.json
           curl -fsS "$BASE/api/v1/meta/version" | tee /tmp/meta.json
+          curl -fsS "$BASE/" | tee /tmp/index.html >/dev/null
           grep -q '"status":"ok"' /tmp/live.json
           grep -q '"status":"ready"' /tmp/ready.json
+          grep -Fq "\"appVersion\":\"$APP_VERSION\"" /tmp/meta.json
+          grep -Fq "\"gitSha\":\"$RELEASE_SHA\"" /tmp/meta.json
+          grep -qi '<!doctype html' /tmp/index.html

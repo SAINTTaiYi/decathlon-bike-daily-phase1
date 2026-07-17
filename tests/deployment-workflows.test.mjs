@@ -22,7 +22,29 @@ test('免费栈 Workflow 静态策略验证器通过', () => {
   const result = spawnSync(process.execPath, ['scripts/ops/validate-workflows.mjs'], { cwd: process.cwd(), encoding: 'utf8' })
   assert.equal(result.status, 0, result.stderr || result.stdout)
   assert.match(result.stdout, /"ok": true/u)
-  assert.match(result.stdout, /"policies": 61/u)
+  assert.match(result.stdout, /"policies": 76/u)
+})
+
+
+
+test('Cloudflare Staging 仅手动部署固定 SHA 到 Worker Static Assets 和 D1', async () => {
+  const source = await workflow('deploy-cloudflare-staging.yml')
+  assert.match(source, /^\s+workflow_dispatch:/mu)
+  assert.doesNotMatch(source, /^\s+(?:push|pull_request):/mu)
+  assert.match(source, /environment: staging/u)
+  for (const input of ['release_sha:', 'confirm_free_plan:', 'confirm_no_billing:', 'confirm_staging_only:']) assert.match(source, new RegExp(input, 'u'))
+  assert.match(source, /refs\/heads\/feature\/cloudflare-workers-d1/u)
+  assert.match(source, /refs\/heads\/develop/u)
+  assert.match(source, /git rev-parse "origin\/\$BRANCH"/u)
+  assert.match(source, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/u)
+  assert.match(source, /database_id": "91e78387-9b24-4126-a5a1-27f9c1792975"/u)
+  assert.match(source, /directory": "apps\/web\/dist"/u)
+  assert.match(source, /run_worker_first/u)
+  assert.match(source, /wrangler@4\.112\.0/u)
+  assert.match(source, /pnpm check:workflows && pnpm test && pnpm typecheck && pnpm build/u)
+  assert.match(source, /pnpm build:worker-bundle/u)
+  assert.match(source, /dist\/worker\/index\.min\.js/u)
+  assert.doesNotMatch(source, /environment: production|bike-ops-production|R2_/u)
 })
 
 test('Staging 只允许手动从 develop 迁移后快进 EdgeOne 部署分支', async () => {

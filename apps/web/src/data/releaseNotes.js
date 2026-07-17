@@ -1,12 +1,13 @@
-export const APP_VERSION = "5.3.2"
+export const APP_VERSION = "5.3.3"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.17",
-  title: "EdgeOne 安装兼容修复",
-  summary: "修复 EdgeOne 只读构建环境中的 Corepack 安装失败，并同步部署治理测试。",
+  title: "Cloudflare 登录兼容修复",
+  summary: "修复 Cloudflare Workers 对 PBKDF2 迭代次数的运行时限制，并加固 Worker 构建与测试链。",
   changes: [
-    "EdgeOne 安装与构建改用固定版本的 corepack pnpm，不再向 /usr/local/bin 写入 shim。",
-    "同步 Workflow 治理验证器和部署测试，确保配置与 CI 期望一致。"
+    "密码哈希统一使用 Cloudflare WebCrypto 支持的 100000 次 PBKDF2，并对不兼容哈希安全失败。",
+    "新增 Worker 密码哈希回归测试，并纳入仓库完整测试流程。",
+    "Cloudflare 部署每次从源码生成 minified Worker，不再依赖可能过期的临时制品。"
   ]
 }

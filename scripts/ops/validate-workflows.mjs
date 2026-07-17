@@ -11,6 +11,7 @@ const workflows = Object.fromEntries(await Promise.all(workflowNames.map(async (
 const ci = workflows['ci.yml'] || ''
 const staging = workflows['deploy-staging.yml'] || ''
 const production = workflows['deploy-production.yml'] || ''
+const cloudflareStaging = workflows['deploy-cloudflare-staging.yml'] || ''
 const promoteBranch = await readFile(resolve(root, 'scripts/ops/promote-branch.mjs'), 'utf8')
 const verifyDeployment = await readFile(resolve(root, 'scripts/ops/verify-deployment.mjs'), 'utf8')
 const edgeOneConfig = JSON.parse(await readFile(resolve(root, 'edgeone.json'), 'utf8'))
@@ -57,13 +58,17 @@ try {
   if (!/Cannot find module/u.test(String(error?.message || error))) failures.push(`YAML parse failed: ${error.message}`)
 }
 
-assert(workflowNames.join(',') === 'ci.yml,deploy-production.yml,deploy-staging.yml', 'workflows: only CI and the two free-stack release workflows may remain')
+assert(workflowNames.join(',') === 'ci.yml,deploy-cloudflare-staging.yml,deploy-production.yml,deploy-staging.yml', 'workflows: only CI, the legacy release workflows, and Cloudflare Staging may remain')
 for (const [name, source] of Object.entries(workflows)) {
   assert(!source.includes('\t'), `${name}: tabs are forbidden in YAML`)
   assert(/^name:\s+.+/mu.test(source), `${name}: name is required`)
   assert(/^on:/mu.test(source), `${name}: on trigger is required`)
   assert(/^jobs:/mu.test(source), `${name}: jobs are required`)
-  assert(!/(?:CLOUDFLARE|RAILWAY|R2_)/u.test(source), `${name}: retired Cloudflare/Railway/R2 variables are forbidden`)
+  if (name === 'deploy-cloudflare-staging.yml') {
+    assert(!/(?:RAILWAY|R2_)/u.test(source), `${name}: Railway and R2 variables are forbidden`)
+  } else {
+    assert(!/(?:CLOUDFLARE|RAILWAY|R2_)/u.test(source), `${name}: retired provider variables are forbidden`)
+  }
   assert(!/--force(?:-with-lease)?/u.test(source), `${name}: deployment workflows must never force-push`)
   assert(!/corepack enable\s*&&\s*corepack prepare/u.test(source), `${name}: dynamic corepack download must use network-guard`)
   if (/pnpm install/u.test(source)) assert(/network-guard\.mjs npm\/pnpm pnpm install --frozen-lockfile/u.test(source), `${name}: pnpm install must use network-guard`)
@@ -79,6 +84,29 @@ assert(/GITLEAKS_VERSION: 8\.30\.1/u.test(ci), 'ci: Gitleaks version must be pin
 assert(/551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb/u.test(ci), 'ci: Gitleaks archive checksum must be pinned')
 assert(/--log-opts="--all --full-history --no-merges"/u.test(ci), 'ci: Gitleaks must scan complete Git history')
 assert(/persist-credentials: false/u.test(ci), 'ci: secret scan checkout must not persist GitHub credentials')
+
+
+assert(/^\s+workflow_dispatch:/mu.test(cloudflareStaging) && !/^\s+(?:push|pull_request):/mu.test(cloudflareStaging), 'cloudflare staging: deployment must be manual')
+assert(/environment: staging/u.test(cloudflareStaging), 'cloudflare staging: GitHub Environment must be staging')
+assert(/refs\/heads\/feature\/cloudflare-workers-d1/u.test(cloudflareStaging) && /refs\/heads\/develop/u.test(cloudflareStaging), 'cloudflare staging: only the migration feature branch or develop may run')
+for (const input of ['release_sha:', 'confirm_free_plan:', 'confirm_no_billing:', 'confirm_staging_only:']) assert(cloudflareStaging.includes(input), `cloudflare staging: missing ${input}`)
+assert(/CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/u.test(cloudflareStaging), 'cloudflare staging: API token must come from the staging Environment')
+assert(/CLOUDFLARE_ACCOUNT_ID: \$\{\{ secrets\.CLOUDFLARE_ACCOUNT_ID \}\}/u.test(cloudflareStaging), 'cloudflare staging: account ID must come from the staging Environment')
+assert(/\^\[0-9a-f\]\{40\}\$/u.test(cloudflareStaging), 'cloudflare staging: release SHA must be a full lowercase commit SHA')
+assert(/git rev-parse "origin\/\$BRANCH"/u.test(cloudflareStaging), 'cloudflare staging: release SHA must equal the selected remote branch head')
+assert(/database_id": "91e78387-9b24-4126-a5a1-27f9c1792975"/u.test(cloudflareStaging), 'cloudflare staging: the Staging D1 database must remain pinned')
+assert(/directory": "apps\/web\/dist"/u.test(cloudflareStaging) && /run_worker_first/u.test(cloudflareStaging), 'cloudflare staging: Static Assets and API-first routing are required')
+assert(/wrangler@4\.112\.0/u.test(cloudflareStaging), 'cloudflare staging: Wrangler version must be pinned')
+assert(/network-guard\.mjs npm\/pnpm npm install --global wrangler@4\.112\.0/u.test(cloudflareStaging), 'cloudflare staging: Wrangler install must use network-guard')
+assert(/pnpm check:workflows && pnpm test && pnpm typecheck && pnpm build/u.test(cloudflareStaging), 'cloudflare staging: full validation is required before deployment')
+assert(/pnpm build:worker-bundle/u.test(cloudflareStaging) && /dist\/worker\/index\.min\.js/u.test(cloudflareStaging), 'cloudflare staging: minified Worker must be generated from validated source')
+assert(!/environment: production|bike-ops-production|R2_/u.test(cloudflareStaging), 'cloudflare staging: Production and R2 are forbidden')
+includesInOrder(cloudflareStaging, [
+  'Validate, test, typecheck, and build before Cloudflare deployment',
+  'Generate minified Worker bundle from the validated source',
+  'Deploy the Staging Worker with Static Assets and D1',
+  'Verify the deployed Staging API, release identity, and Web shell'
+], 'cloudflare staging')
 
 assert(/^\s+workflow_dispatch:/mu.test(staging) && !/^\s+(?:push|pull_request):/mu.test(staging), 'staging: deployment must be manual, never every develop push')
 assert(/environment: staging/u.test(staging), 'staging: GitHub Environment must be staging')
@@ -144,4 +172,4 @@ if (failures.length) {
   process.exit(1)
 }
 
-console.log(JSON.stringify({ ok: true, yamlParser, workflows: workflowNames, policies: 61 }, null, 2))
+console.log(JSON.stringify({ ok: true, yamlParser, workflows: workflowNames, policies: 76 }, null, 2))
