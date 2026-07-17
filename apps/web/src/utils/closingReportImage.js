@@ -257,11 +257,31 @@ const CARD_PAD_X = 28
 
 function layoutCardColumns(width) {
   // left content | mid contact | right date panel (inside card)
+  // mid gets enough width for an 11-digit mainland phone at ~32px
   const inner = width - BAR_W
-  const leftW = Math.floor(inner * 0.50)
-  const midW = Math.floor(inner * 0.22)
+  const leftW = Math.floor(inner * 0.46)
+  const midW = Math.floor(inner * 0.28)
   const rightW = inner - leftW - midW
   return { leftW, midW, rightW }
+}
+
+function fitContactFont(ctx, text, maxWidth, maxSize = 44, minSize = 22) {
+  let size = maxSize
+  while (size > minSize) {
+    ctx.font = `800 ${size}px ${FONT_DISPLAY}`
+    if (ctx.measureText(text).width <= maxWidth) return size
+    size -= 2
+  }
+  ctx.font = `800 ${minSize}px ${FONT_DISPLAY}`
+  return minSize
+}
+
+function formatContactDisplay(value) {
+  const raw = String(value || '').trim() || '0'
+  // keep digits/spaces; group 11-digit CN mobile as 3-4-4 for readability when space allows
+  const digits = raw.replace(/\D/g, '')
+  if (digits.length === 11) return `${digits.slice(0, 3)} ${digits.slice(3, 7)} ${digits.slice(7)}`
+  return raw
 }
 
 function measureCard(ctx, item, contentW) {
@@ -377,28 +397,38 @@ function drawCard(ctx, item, x, y, width, index) {
   // ——— mid column: phone stack, vertically + horizontally centered in mid band ———
   const midX = leftX + leftW
   const contactLabel = itemContactLabel(item)
-  const contactValue = String(item.contactValue || '0').trim() || '0'
+  const contactRaw = String(item.contactValue || '0').trim() || '0'
+  const contactValue = formatContactDisplay(contactRaw)
   const pay = itemPaymentLabel(item)
+  const midInnerPad = 12
+  const midMaxW = midW - midInnerPad * 2
+  const contactSize = fitContactFont(ctx, contactValue, midMaxW, contactRaw.length <= 4 ? 48 : 40, 20)
+  const contactLineH = contactSize + 6
 
-  // measure mid stack
-  ctx.font = `600 20px ${FONT_MONO}`
-  const midStackH = 22 + 14 + 48 + 14 + 22
+  const midStackH = 22 + 12 + contactLineH + 12 + 22
   let my = y + Math.round((h - midStackH) / 2)
   const midCenterX = midX + midW / 2
+
+  ctx.save()
+  // hard clip so digits never bleed into the date panel
+  ctx.beginPath()
+  ctx.rect(midX + 4, y + 8, midW - 8, h - 16)
+  ctx.clip()
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
   ctx.fillStyle = MUTED_SOFT
   ctx.font = `600 20px ${FONT_MONO}`
   ctx.fillText(contactLabel, midCenterX, my)
-  my += 28
+  my += 26
   ctx.fillStyle = INK
-  ctx.font = `800 52px ${FONT_DISPLAY}`
+  ctx.font = `800 ${contactSize}px ${FONT_DISPLAY}`
   ctx.fillText(contactValue, midCenterX, my)
-  my += 58
+  my += contactLineH + 10
   ctx.fillStyle = MUTED_SOFT
   ctx.font = `600 18px ${FONT_MONO}`
   ctx.fillText(pay, midCenterX, my)
+  ctx.restore()
 
   // ——— right date panel content, centered in panel ———
   const dateLabel = '取车时间'
@@ -433,18 +463,22 @@ function drawEmptyCard(ctx, x, y, width, label) {
 }
 
 function drawSectionHead(ctx, y, en, title, count) {
+  // EN label row
   ctx.fillStyle = MUTED
   ctx.font = `700 20px ${FONT_MONO}`
   ctx.textAlign = 'left'
+  ctx.textBaseline = 'alphabetic'
   ctx.fillText(en, PAD, y)
   ctx.textAlign = 'right'
   ctx.fillText(`${count} 条`, WIDTH - PAD, y)
   ctx.textAlign = 'left'
-  y += 42
+  // clear air between EN eyebrow and Chinese title (was too tight / overlapping optically)
+  y += 56
   ctx.fillStyle = INK
   ctx.font = `900 52px ${FONT_DISPLAY}`
   ctx.fillText(title, PAD, y)
-  return y + 36
+  // space under Chinese title before first card
+  return y + 52
 }
 
 function drawList(ctx, items, y, emptyLabel) {
@@ -466,7 +500,7 @@ export async function renderClosingReportCanvas(model) {
 
   // fixed header + sales block estimate + sections + footer + bottom safe
   const headerSalesH = 820
-  const sectionHeads = 140 * (1 + (model.handovers.length || model.handovers ? 1 : 0) + 1)
+  const sectionHeads = 170 * (1 + (model.handovers.length || model.handovers ? 1 : 0) + 1)
   const finalHeight = Math.ceil(
     headerSalesH + pickupH + repairH + handoverH + sectionHeads + BOTTOM_SAFE + 180
   )
@@ -525,12 +559,12 @@ export async function renderClosingReportCanvas(model) {
   ctx.fillStyle = INK
   ctx.font = `900 48px ${FONT_DISPLAY}`
   ctx.fillText('销售数据', PAD, y)
-  y += 28
+  y += 34
   ctx.fillStyle = MUTED
   ctx.font = `700 18px ${FONT_MONO}`
   ctx.fillText('SALES / KPI', PAD, y)
 
-  y += 28
+  y += 36
   const heroH = 248
   const subH = 128
   const blockH = heroH + subH
