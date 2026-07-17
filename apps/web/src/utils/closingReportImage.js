@@ -1,8 +1,18 @@
 const WIDTH = 1080
-const MARGIN = 48
-const COL_GAP = 28
-const CONTENT_LEFT = MARGIN
-const CONTENT_RIGHT = WIDTH - MARGIN
+const PAD = 48
+const INK = '#08080a'
+const INK_SOFT = '#272729'
+const PAPER = '#f4f5f0'
+const PAPER_COOL = '#e7e9de'
+const LINE = '#c9cbc3'
+const MUTED = '#62625e'
+const SURFACE = '#fbfbfa'
+
+const FONT_BODY = '"Albert Sans Local", "Noto Serif SC Variable"'
+const FONT_DISPLAY = '"Albert Sans Local", "Noto Serif SC Variable"'
+const FONT_MONO = '"Albert Sans Local", "Noto Serif SC Variable"'
+
+let fontsReadyPromise
 
 function pad2(value) {
   return String(value ?? 0).padStart(2, '0')
@@ -29,9 +39,6 @@ export function buildClosingReportModel({
   closedAt = '',
   appVersion = ''
 }) {
-  const pickups = records.filter(isOpenPickup)
-  const repairs = records.filter(isOpenRepair)
-  const handovers = records.filter(isOpenHandover)
   return {
     businessDate,
     storeName,
@@ -46,248 +53,267 @@ export function buildClosingReportModel({
       usedSold: Number(kpi.usedSold || 0),
       usedReceived: Number(kpi.usedReceived || 0)
     },
-    pickups,
-    repairs,
-    handovers
+    pickups: records.filter(isOpenPickup),
+    repairs: records.filter(isOpenRepair),
+    handovers: records.filter(isOpenHandover)
   }
+}
+
+function collectSiteFontUrls() {
+  const albert = new Set()
+  const noto = new Set()
+  for (const sheet of document.styleSheets) {
+    let rules
+    try {
+      rules = sheet.cssRules
+    } catch {
+      continue
+    }
+    for (const rule of rules || []) {
+      if (!(rule instanceof CSSFontFaceRule)) continue
+      const family = String(rule.style.getPropertyValue('font-family') || '').replace(/['"]/g, '')
+      const src = String(rule.style.getPropertyValue('src') || '')
+      const match = src.match(/url\((['"]?)(.*?)\1\)/u)
+      if (!match?.[2]) continue
+      if (family.includes('Albert Sans Local')) albert.add(match[2])
+      if (family.includes('Noto Serif SC Variable')) noto.add(match[2])
+    }
+  }
+  return {
+    albert: [...albert],
+    noto: [...noto]
+  }
+}
+
+async function ensureReportFonts() {
+  if (fontsReadyPromise) return fontsReadyPromise
+  fontsReadyPromise = (async () => {
+    const found = collectSiteFontUrls()
+    const faces = []
+    const albertUrls = found.albert.length ? found.albert : ['/fonts/albert-sans-variable.woff2']
+    for (const url of albertUrls) {
+      faces.push(new FontFace('Albert Sans Local', `url('${url}') format('woff2')`, {
+        style: 'normal',
+        weight: '100 900',
+        display: 'block'
+      }))
+    }
+
+    // Prefer exact site stylesheet slices so CJK uses website font, not phone font.
+    let notoUrls = found.noto
+    if (!notoUrls.length) {
+      // Same-origin stylesheet parsing failed; load the complete published set by probing public directory is not available,
+      // so require stylesheet injection: wait one frame and re-scan.
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()))
+      notoUrls = collectSiteFontUrls().noto
+    }
+    if (!notoUrls.length) {
+      throw new Error('无法读取网站 Noto Serif SC 字体文件，拒绝回退到手机字体。')
+    }
+    for (const url of notoUrls) {
+      faces.push(new FontFace('Noto Serif SC Variable', `url('${url}') format('woff2-variations')`, {
+        style: 'normal',
+        weight: '200 900',
+        display: 'block'
+      }))
+    }
+
+    const results = await Promise.all(faces.map(async (face) => {
+      try {
+        const loaded = await face.load()
+        document.fonts.add(loaded)
+        return true
+      } catch {
+        return false
+      }
+    }))
+    await document.fonts.ready.catch(() => undefined)
+    await Promise.all([
+      document.fonts.load(`900 64px ${FONT_DISPLAY}`),
+      document.fonts.load(`700 22px ${FONT_MONO}`),
+      document.fonts.load(`500 24px ${FONT_BODY}`),
+      document.fonts.load(`900 48px "Noto Serif SC Variable"`),
+      document.fonts.load(`500 24px "Noto Serif SC Variable"`)
+    ])
+    if (!results.some(Boolean)) throw new Error('站点字体加载失败。')
+    // Verify Chinese text is not missing glyphs by measuring against a known loaded family name.
+    const probe = document.createElement('canvas').getContext('2d')
+    probe.font = `700 40px ${FONT_DISPLAY}`
+    if (probe.measureText('闭店日报').width < 8) {
+      throw new Error('网站中文字体未就绪。')
+    }
+  })()
+  return fontsReadyPromise
 }
 
 function wrapText(ctx, text, maxWidth) {
   const value = String(text || '').trim() || '—'
-  const chars = [...value]
   const lines = []
   let current = ''
-  for (const char of chars) {
+  for (const char of [...value]) {
     const next = current + char
     if (ctx.measureText(next).width > maxWidth && current) {
       lines.push(current)
       current = char
-    } else {
-      current = next
-    }
+    } else current = next
   }
   if (current) lines.push(current)
   return lines
 }
 
-function drawGrid(ctx, width, height) {
-  ctx.save()
-  ctx.strokeStyle = 'rgba(0,0,0,0.08)'
-  ctx.lineWidth = 1
-  const step = 36
-  for (let x = 0; x <= width; x += step) {
-    ctx.beginPath()
-    ctx.moveTo(x + 0.5, 0)
-    ctx.lineTo(x + 0.5, height)
-    ctx.stroke()
-  }
-  for (let y = 0; y <= height; y += step) {
-    ctx.beginPath()
-    ctx.moveTo(0, y + 0.5)
-    ctx.lineTo(width, y + 0.5)
-    ctx.stroke()
-  }
-  ctx.restore()
+function drawInkLine(ctx, x1, y, x2, strong = true) {
+  ctx.strokeStyle = strong ? INK : LINE
+  ctx.lineWidth = strong ? 2 : 1
+  ctx.beginPath()
+  ctx.moveTo(x1, y + 0.5)
+  ctx.lineTo(x2, y + 0.5)
+  ctx.stroke()
 }
 
-function drawDotBlock(ctx, x, y, w, h) {
-  ctx.save()
-  ctx.fillStyle = '#111'
-  ctx.fillRect(x, y, w, h)
-  ctx.fillStyle = '#f4f4f0'
-  const gap = 10
-  for (let yy = y + 8; yy < y + h - 6; yy += gap) {
-    for (let xx = x + 8; xx < x + w - 6; xx += gap) {
-      ctx.beginPath()
-      ctx.arc(xx, yy, 2.2, 0, Math.PI * 2)
-      ctx.fill()
+function measureList(ctx, items, width) {
+  if (!items.length) return 72
+  let h = 0
+  for (const item of items) {
+    h += 26
+    ctx.font = `900 34px ${FONT_DISPLAY}`
+    h += wrapText(ctx, item.title || '未命名', width - 8).length * 40
+    h += 26
+    const detail = item.detail || item.repairProject || ''
+    if (detail) {
+      ctx.font = `500 22px ${FONT_BODY}`
+      h += wrapText(ctx, detail, width - 8).length * 30
     }
+    const meta = [
+      item.pickupDate ? `取车 ${item.pickupDate}` : '',
+      item.repairType || '',
+      item.meta || '',
+      item.contactValue ? `${item.contactType === 'member' ? '会员' : '电话'} ${item.contactValue}` : ''
+    ].filter(Boolean).join(' · ')
+    if (meta) {
+      ctx.font = `700 16px ${FONT_MONO}`
+      h += wrapText(ctx, meta, width - 8).length * 24
+    }
+    h += 26
   }
-  ctx.restore()
+  return h
 }
 
-function drawNoiseBand(ctx, x, y, w, h) {
-  ctx.save()
-  const image = ctx.createImageData(w, h)
-  for (let i = 0; i < image.data.length; i += 4) {
-    const n = Math.random() * 255
-    const v = n > 210 ? 255 : n > 120 ? 40 : 0
-    image.data[i] = v
-    image.data[i + 1] = v
-    image.data[i + 2] = v
-    image.data[i + 3] = 255
-  }
-  ctx.putImageData(image, x, y)
-  ctx.restore()
-}
-
-function sectionTitle(ctx, title, en, x, y) {
-  ctx.fillStyle = '#000'
-  ctx.font = '700 42px "Noto Serif SC Variable", "Noto Serif SC", serif'
-  ctx.fillText(title, x, y)
-  ctx.font = '600 18px "Albert Sans", system-ui, sans-serif'
-  ctx.fillStyle = '#333'
-  ctx.fillText(en, x, y + 28)
-  return y + 56
-}
-
-function drawList(ctx, items, x, y, maxWidth, emptyLabel) {
+function drawList(ctx, items, x, y, width, emptyLabel) {
   if (!items.length) {
-    ctx.fillStyle = '#111'
-    ctx.font = '500 24px "Albert Sans", system-ui, sans-serif'
-    ctx.fillText(emptyLabel, x, y)
-    return y + 42
+    ctx.fillStyle = PAPER_COOL
+    ctx.fillRect(x, y, width, 64)
+    ctx.fillStyle = MUTED
+    ctx.font = `700 18px ${FONT_MONO}`
+    ctx.fillText(emptyLabel, x + 18, y + 38)
+    return y + 80
   }
   let cursor = y
   items.forEach((item, index) => {
-    const title = item.title || '未命名'
-    const status = item.status || '进行中'
-    const detail = item.detail || item.repairProject || ''
-    const metaBits = [
-      item.pickupDate ? `取车 ${item.pickupDate}` : '',
-      item.repairType || '',
-      item.meta || ''
-    ].filter(Boolean)
-    const meta = metaBits.join(' · ')
-
-    ctx.fillStyle = index % 2 === 0 ? '#000' : '#111'
-    ctx.fillRect(x, cursor, maxWidth, 8)
-    cursor += 36
-
-    ctx.fillStyle = '#000'
-    ctx.font = '700 30px "Noto Serif SC Variable", "Noto Serif SC", serif'
-    const titleLines = wrapText(ctx, `${pad2(index + 1)}  ${title}`, maxWidth - 24)
-    titleLines.forEach((line) => {
-      ctx.fillText(line, x, cursor)
-      cursor += 36
-    })
-
-    ctx.font = '600 20px "Albert Sans", system-ui, sans-serif'
-    ctx.fillStyle = '#222'
-    ctx.fillText(`STATUS · ${status}`, x, cursor)
+    drawInkLine(ctx, x, cursor, x + width, false)
     cursor += 28
-
+    ctx.fillStyle = MUTED
+    ctx.font = `700 16px ${FONT_MONO}`
+    ctx.fillText(pad2(index + 1), x, cursor)
+    ctx.fillStyle = INK
+    ctx.font = `900 34px ${FONT_DISPLAY}`
+    const titleLines = wrapText(ctx, item.title || '未命名', width - 48)
+    titleLines.forEach((line, lineIndex) => {
+      ctx.fillText(line, x + (lineIndex ? 0 : 42), cursor + lineIndex * 40)
+    })
+    cursor += Math.max(1, titleLines.length) * 40
+    ctx.fillStyle = MUTED
+    ctx.font = `700 17px ${FONT_MONO}`
+    ctx.fillText(`STATUS · ${item.status || '进行中'}`, x, cursor)
+    cursor += 26
+    const detail = item.detail || item.repairProject || ''
     if (detail) {
-      ctx.font = '400 22px "Albert Sans", system-ui, sans-serif'
-      wrapText(ctx, detail, maxWidth - 12).forEach((line) => {
+      ctx.fillStyle = INK_SOFT
+      ctx.font = `500 22px ${FONT_BODY}`
+      wrapText(ctx, detail, width - 8).forEach((line) => {
         ctx.fillText(line, x, cursor)
-        cursor += 28
+        cursor += 30
       })
     }
+    const meta = [
+      item.pickupDate ? `取车 ${item.pickupDate}` : '',
+      item.repairType || '',
+      item.meta || '',
+      item.contactValue ? `${item.contactType === 'member' ? '会员' : '电话'} ${item.contactValue}` : ''
+    ].filter(Boolean).join(' · ')
     if (meta) {
-      ctx.font = '500 18px "Albert Sans", system-ui, sans-serif'
-      ctx.fillStyle = '#444'
-      wrapText(ctx, meta, maxWidth - 12).forEach((line) => {
+      ctx.fillStyle = MUTED
+      ctx.font = `700 16px ${FONT_MONO}`
+      wrapText(ctx, meta, width - 8).forEach((line) => {
         ctx.fillText(line, x, cursor)
         cursor += 24
       })
     }
-    cursor += 24
+    cursor += 20
   })
-  return cursor
-}
-
-function measureListHeight(ctx, items, maxWidth, emptyLabel) {
-  // approximate by running a dummy measure using same wrap rules on an offscreen path
-  // reuse drawList math via a light clone: use actual canvas measure only
-  if (!items.length) return 42
-  let height = 0
-  items.forEach((item, index) => {
-    height += 8 + 28
-    const title = `${pad2(index + 1)}  ${item.title || '未命名'}`
-    ctx.font = '700 30px "Noto Serif SC Variable", "Noto Serif SC", serif'
-    height += wrapText(ctx, title, maxWidth - 24).length * 36
-    height += 28
-    const detail = item.detail || item.repairProject || ''
-    if (detail) {
-      ctx.font = '400 22px "Albert Sans", system-ui, sans-serif'
-      height += wrapText(ctx, detail, maxWidth - 12).length * 28
-    }
-    const metaBits = [
-      item.pickupDate ? `取车 ${item.pickupDate}` : '',
-      item.repairType || '',
-      item.meta || ''
-    ].filter(Boolean)
-    if (metaBits.length) {
-      ctx.font = '500 18px "Albert Sans", system-ui, sans-serif'
-      height += wrapText(ctx, metaBits.join(' · '), maxWidth - 12).length * 24
-    }
-    height += 24
-  })
-  return Math.max(height, emptyLabel ? 42 : 0)
+  drawInkLine(ctx, x, cursor, x + width, false)
+  return cursor + 18
 }
 
 export async function renderClosingReportCanvas(model) {
-  await document.fonts.ready.catch(() => undefined)
+  await ensureReportFonts()
   const measure = document.createElement('canvas').getContext('2d')
-  const colWidth = (WIDTH - MARGIN * 2 - COL_GAP) / 2
-  const kpiBlock = 280
-  const header = 420
-  const listTopPad = 70
-  const pickupH = measureListHeight(measure, model.pickups, colWidth, '本日无待取车辆')
-  const repairH = measureListHeight(measure, model.repairs, colWidth, '本日无维修车辆')
-  const handoverH = measureListHeight(measure, model.handovers, CONTENT_RIGHT - CONTENT_LEFT, '本日无交接事项')
-  const listsRow = Math.max(pickupH, repairH) + listTopPad + 40
-  const height = Math.ceil(header + kpiBlock + listsRow + handoverH + 220)
+  const contentW = WIDTH - PAD * 2
+  const colW = (contentW - 28) / 2
+  const pickupH = measureList(measure, model.pickups, colW)
+  const repairH = measureList(measure, model.repairs, colW)
+  const handoverH = measureList(measure, model.handovers, contentW)
+  const height = Math.ceil(250 + 300 + Math.max(pickupH, repairH) + 150 + handoverH + 180)
 
   const canvas = document.createElement('canvas')
   canvas.width = WIDTH
   canvas.height = height
   const ctx = canvas.getContext('2d')
 
-  // paper
-  ctx.fillStyle = '#F4F5F0'
+  // cool paper page + inset sheet (lookbook page feel)
+  ctx.fillStyle = PAPER_COOL
   ctx.fillRect(0, 0, WIDTH, height)
-  drawGrid(ctx, WIDTH, height)
+  ctx.fillStyle = PAPER
+  ctx.fillRect(16, 16, WIDTH - 32, height - 32)
 
-  // vertical left rail
-  ctx.fillStyle = '#000'
-  ctx.fillRect(0, 0, 28, height)
+  // masthead like report-masthead
+  ctx.fillStyle = INK
+  ctx.font = `900 70px ${FONT_DISPLAY}`
+  ctx.fillText('WORKSHOP OPS', PAD, 78)
+  ctx.fillStyle = INK
+  ctx.fillRect(WIDTH - PAD - 156, 40, 156, 50)
+  ctx.fillStyle = '#fff'
+  ctx.font = `900 28px ${FONT_DISPLAY}`
+  ctx.fillText(`V${model.appVersion || '—'}`, WIDTH - PAD - 136, 74)
 
-  // big vertical title
-  ctx.save()
-  ctx.translate(92, 96)
-  ctx.rotate(Math.PI / 2)
-  ctx.fillStyle = '#000'
-  ctx.font = '900 118px "Noto Serif SC Variable", "Noto Serif SC", serif'
-  ctx.textBaseline = 'top'
-  ctx.fillText('闭店日报', 0, -96)
-  ctx.restore()
+  ctx.fillStyle = MUTED
+  ctx.font = `700 18px ${FONT_MONO}`
+  ctx.fillText(`${model.storeName} · ${model.businessDate} · DATABASE SYNC`, PAD, 118)
+  drawInkLine(ctx, PAD, 140, WIDTH - PAD, true)
 
-  // right vertical caption
-  ctx.save()
-  ctx.translate(WIDTH - 36, 80)
-  ctx.rotate(Math.PI / 2)
-  ctx.fillStyle = '#000'
-  ctx.font = '700 28px "Albert Sans", system-ui, sans-serif'
-  ctx.fillText(`${model.storeName}  /  ${model.businessDate}  /  CLOSING REPORT`, 0, 0)
-  ctx.restore()
-
-  // collage blocks near top
-  drawDotBlock(ctx, 180, 72, 150, 150)
-  ctx.fillStyle = '#000'
-  ctx.fillRect(360, 72, 180, 72)
-  ctx.fillStyle = '#F4F5F0'
-  ctx.font = '700 22px "Albert Sans", system-ui, sans-serif'
-  ctx.fillText('GRID SYSTEMS', 376, 104)
-  ctx.fillText('IN STORE OPS', 376, 130)
-  drawNoiseBand(ctx, 560, 72, 220, 150)
-  ctx.fillStyle = '#000'
-  ctx.fillRect(800, 72, 160, 150)
-
-  // meta strip
-  ctx.fillStyle = '#000'
-  ctx.fillRect(180, 250, WIDTH - 180 - MARGIN, 64)
-  ctx.fillStyle = '#F4F5F0'
-  ctx.font = '600 22px "Albert Sans", system-ui, sans-serif'
+  // summary block
+  ctx.fillStyle = INK
+  ctx.font = `900 62px ${FONT_DISPLAY}`
+  ctx.fillText('CLOSING COMPLETE', PAD, 210)
   const closedLabel = model.closedAt
     ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(model.closedAt))
     : '--:--'
-  ctx.fillText(`CLOSED ${closedLabel}   ·   EXPORT ${new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date())}   ·   BY ${model.exporterName || '同事'}`, 200, 290)
+  ctx.fillStyle = MUTED
+  ctx.font = `500 22px ${FONT_BODY}`
+  ctx.fillText(`已闭店 ${closedLabel}  ·  导出 ${new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date())}  ·  ${model.exporterName || '同事'}`, PAD, 250)
 
   // KPI section
-  let y = 360
-  y = sectionTitle(ctx, '销售数据', 'SALES / KPI', CONTENT_LEFT + 140, y)
+  let y = 300
+  drawInkLine(ctx, PAD, y, WIDTH - PAD, true)
+  y += 36
+  ctx.fillStyle = MUTED
+  ctx.font = `700 17px ${FONT_MONO}`
+  ctx.fillText('SALES / KPI · 当日闭店门槛', PAD, y)
+  y += 48
+  ctx.fillStyle = INK
+  ctx.font = `900 52px ${FONT_DISPLAY}`
+  ctx.fillText('销售数据', PAD, y)
+  y += 36
+
   const metrics = [
     ['车辆销售', model.kpi.salesVehicles],
     ['安全检查', model.kpi.safetyChecks],
@@ -295,54 +321,73 @@ export async function renderClosingReportCanvas(model) {
     ['二手售出', model.kpi.usedSold],
     ['二手收车', model.kpi.usedReceived]
   ]
-  const boxW = (WIDTH - MARGIN * 2 - 140 - 32 * 4) / 5
+  const boxW = (contentW - 16 * 4) / 5
   metrics.forEach(([label, value], index) => {
-    const x = CONTENT_LEFT + 140 + index * (boxW + 32)
-    ctx.fillStyle = index % 2 === 0 ? '#000' : '#111'
-    ctx.fillRect(x, y, boxW, 150)
-    ctx.fillStyle = '#F4F5F0'
-    ctx.font = '800 58px "Albert Sans", system-ui, sans-serif'
-    ctx.fillText(String(value), x + 18, y + 78)
-    ctx.font = '600 20px "Noto Serif SC Variable", "Noto Serif SC", serif'
-    ctx.fillText(label, x + 18, y + 120)
+    const x = PAD + index * (boxW + 16)
+    const dark = index === 0
+    ctx.fillStyle = dark ? INK : SURFACE
+    ctx.fillRect(x, y, boxW, 148)
+    ctx.strokeStyle = INK
+    ctx.lineWidth = 2
+    ctx.strokeRect(x + 1, y + 1, boxW - 2, 146)
+    ctx.fillStyle = dark ? '#fff' : INK
+    ctx.font = `900 56px ${FONT_DISPLAY}`
+    ctx.fillText(String(value), x + 14, y + 78)
+    ctx.fillStyle = dark ? 'rgba(255,255,255,0.72)' : MUTED
+    ctx.font = `700 17px ${FONT_MONO}`
+    ctx.fillText(label, x + 14, y + 116)
   })
-  y += 180
+  y += 170
   if (model.kpi.safetyModel) {
-    ctx.fillStyle = '#000'
-    ctx.font = '500 22px "Albert Sans", system-ui, sans-serif'
-    ctx.fillText(`安检车型 · ${model.kpi.safetyModel}`, CONTENT_LEFT + 140, y)
-    y += 36
+    ctx.fillStyle = MUTED
+    ctx.font = `700 17px ${FONT_MONO}`
+    ctx.fillText(`安检车型 · ${model.kpi.safetyModel}`, PAD, y)
+    y += 24
   }
 
-  // two-column lists
-  const leftX = CONTENT_LEFT
-  const rightX = CONTENT_LEFT + colWidth + COL_GAP
-  const listStart = y + 20
-  sectionTitle(ctx, '待取车辆', `PICKUP · ${pad2(model.pickups.length)}`, leftX, listStart)
-  sectionTitle(ctx, '维修车辆', `REPAIR · ${pad2(model.repairs.length)}`, rightX, listStart)
-  const listY = listStart + 70
-  drawList(ctx, model.pickups, leftX, listY, colWidth, '本日无待取车辆')
-  drawList(ctx, model.repairs, rightX, listY, colWidth, '本日无维修车辆')
+  // two column open ledgers
+  y += 24
+  drawInkLine(ctx, PAD, y, WIDTH - PAD, true)
+  const colTop = y + 34
+  const leftX = PAD
+  const rightX = PAD + colW + 28
 
-  // full-width handover
-  let hy = listStart + 70 + Math.max(pickupH, repairH) + 48
-  // divider band
-  ctx.fillStyle = '#000'
-  ctx.fillRect(0, hy - 24, WIDTH, 12)
-  hy = sectionTitle(ctx, '交接事项', `HANDOVER · ${pad2(model.handovers.length)}`, CONTENT_LEFT, hy + 20)
-  hy = drawList(ctx, model.handovers, CONTENT_LEFT, hy, CONTENT_RIGHT - CONTENT_LEFT, '本日无交接事项')
+  ctx.fillStyle = MUTED
+  ctx.font = `700 16px ${FONT_MONO}`
+  ctx.fillText(`PICKUP · ${pad2(model.pickups.length)} OPEN`, leftX, colTop)
+  ctx.fillText(`REPAIR · ${pad2(model.repairs.length)} OPEN`, rightX, colTop)
+  ctx.fillStyle = INK
+  ctx.font = `900 46px ${FONT_DISPLAY}`
+  ctx.fillText('待取车辆', leftX, colTop + 48)
+  ctx.fillText('维修车辆', rightX, colTop + 48)
 
-  // footer collage
-  const footerY = Math.max(hy + 40, height - 140)
-  ctx.fillStyle = '#000'
-  ctx.fillRect(MARGIN, footerY, 220, 72)
-  ctx.fillStyle = '#F4F5F0'
-  ctx.font = '800 28px "Albert Sans", system-ui, sans-serif'
-  ctx.fillText('BIKE OPS', MARGIN + 24, footerY + 46)
-  ctx.fillStyle = '#000'
-  ctx.font = '500 18px "Albert Sans", system-ui, sans-serif'
-  ctx.fillText(`V${model.appVersion || '—'}  ·  ONE LONG SHEET  ·  SWISS GRID STYLE`, MARGIN + 250, footerY + 44)
-  ctx.fillRect(WIDTH - MARGIN - 160, footerY, 160, 72)
+  const listY = colTop + 78
+  const leftEnd = drawList(ctx, model.pickups, leftX, listY, colW, '本日无待取车辆')
+  const rightEnd = drawList(ctx, model.repairs, rightX, listY, colW, '本日无维修车辆')
+  y = Math.max(leftEnd, rightEnd) + 18
+
+  // handover full width
+  drawInkLine(ctx, PAD, y, WIDTH - PAD, true)
+  y += 34
+  ctx.fillStyle = MUTED
+  ctx.font = `700 16px ${FONT_MONO}`
+  ctx.fillText(`HANDOVER · ${pad2(model.handovers.length)} OPEN`, PAD, y)
+  y += 48
+  ctx.fillStyle = INK
+  ctx.font = `900 46px ${FONT_DISPLAY}`
+  ctx.fillText('交接事项', PAD, y)
+  y += 30
+  y = drawList(ctx, model.handovers, PAD, y, contentW, '本日无交接事项')
+
+  // footer
+  y = Math.max(y + 20, height - 100)
+  drawInkLine(ctx, PAD, y, WIDTH - PAD, true)
+  ctx.fillStyle = MUTED
+  ctx.font = `700 16px ${FONT_MONO}`
+  ctx.fillText('LOOKBOOK STYLE · SITE FONTS ONLY · ONE LONG SHEET', PAD, y + 36)
+  ctx.textAlign = 'right'
+  ctx.fillText(`${model.storeName}`, WIDTH - PAD, y + 36)
+  ctx.textAlign = 'left'
 
   return canvas
 }
