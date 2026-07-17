@@ -242,25 +242,46 @@ function itemContactLabel(item) {
 
 function itemPaymentLabel(item) {
   const meta = String(item.meta || item.repairType || '').trim()
-  if (meta.includes('付费') || meta.includes('付款')) return meta
-  return '付款 · 付费'
+  if (meta.includes('付费') || meta.includes('付款')) {
+    // prefer short chip like reference "付费"
+    if (meta.includes('付费') && !meta.includes('付款')) return '付费'
+    if (meta.includes('付费')) return '付费'
+    return meta
+  }
+  return '付费'
+}
+
+const BAR_W = 10
+const CARD_PAD_Y = 28
+const CARD_PAD_X = 28
+
+function layoutCardColumns(width) {
+  // left content | mid contact | right date panel (inside card)
+  const inner = width - BAR_W
+  const leftW = Math.floor(inner * 0.50)
+  const midW = Math.floor(inner * 0.22)
+  const rightW = inner - leftW - midW
+  return { leftW, midW, rightW }
 }
 
 function measureCard(ctx, item, contentW) {
-  const leftW = Math.floor(contentW * 0.48)
+  const { leftW } = layoutCardColumns(contentW)
+  const textW = leftW - CARD_PAD_X * 2
   const detail = itemDetail(item)
   ctx.font = `500 24px ${FONT_BODY}`
-  const detailLines = detail ? wrapText(ctx, detail, leftW - 36).slice(0, 4) : []
+  const detailLines = detail ? wrapText(ctx, detail, textW).slice(0, 4) : []
   const title = String(item.title || '未命名')
   ctx.font = `800 40px ${FONT_DISPLAY}`
-  const titleLines = wrapText(ctx, title, leftW - 70).slice(0, 2)
-  // top pad + index/title + status + detail + bottom pad
-  let h = 28
-  h += Math.max(1, titleLines.length) * 44
-  h += 18 + 34 + 16
-  if (detailLines.length) h += detailLines.length * 32 + 8
-  h += 28
-  return Math.max(168, h)
+  const titleLines = wrapText(ctx, title, textW - 52).slice(0, 2)
+
+  // stacked left column height, then vertical-center within card
+  let contentH = 0
+  contentH += Math.max(1, titleLines.length) * 44
+  contentH += 14 + 34 // gap + status chip
+  contentH += 14
+  if (detailLines.length) contentH += detailLines.length * 32
+  // mid/right stacks are shorter; card follows left stack + vertical padding
+  return Math.max(176, contentH + CARD_PAD_Y * 2)
 }
 
 function measureList(ctx, items, contentW) {
@@ -268,83 +289,137 @@ function measureList(ctx, items, contentW) {
   return items.reduce((sum, item) => sum + measureCard(ctx, item, contentW) + CARD_GAP, 0)
 }
 
+function drawLeftAccentBar(ctx, x, y, h) {
+  // black vertical accent flush to left rounded edge
+  ctx.save()
+  roundRect(ctx, x, y, BAR_W + R, h, R)
+  ctx.clip()
+  ctx.fillStyle = INK
+  ctx.fillRect(x, y, BAR_W, h)
+  ctx.restore()
+}
+
 function drawCard(ctx, item, x, y, width, index) {
   const h = measureCard(ctx, item, width)
+  const { leftW, midW, rightW } = layoutCardColumns(width)
+
+  // shell
   drawSoftShadow(ctx, x, y, width, h, R)
   fillRound(ctx, x, y, width, h, R, SURFACE)
 
-  const leftW = Math.floor(width * 0.48)
-  const midW = Math.floor(width * 0.22)
-  const rightW = width - leftW - midW
-  const midX = x + leftW
-  const rightX = midX + midW
+  // left black accent bar (inside rounded shell)
+  drawLeftAccentBar(ctx, x, y, h)
 
-  // left content
-  let cy = y + 34
+  // right date panel as inset rounded rect inside the card (not overflowing)
+  const rightX = x + BAR_W + leftW + midW
+  const panelPad = 14
+  const panelX = rightX + 8
+  const panelY = y + panelPad
+  const panelW = rightW - 16
+  const panelH = h - panelPad * 2
+  fillRound(ctx, panelX, panelY, panelW, panelH, 16, PANEL)
+
+  // ——— left column (vertically centered) ———
+  const leftX = x + BAR_W
+  const textW = leftW - CARD_PAD_X * 2
+  const title = String(item.title || '未命名')
+  ctx.font = `800 40px ${FONT_DISPLAY}`
+  const titleLines = wrapText(ctx, title, textW - 52).slice(0, 2)
+  const detail = itemDetail(item)
+  ctx.font = `500 24px ${FONT_BODY}`
+  const detailLines = detail ? wrapText(ctx, detail, textW).slice(0, 4) : []
+
+  let stackH = Math.max(1, titleLines.length) * 44 + 14 + 34 + 14
+  if (detailLines.length) stackH += detailLines.length * 32
+  let cy = y + Math.round((h - stackH) / 2)
+
+  // index + title on one baseline row (title may wrap)
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'alphabetic'
+  const titleBaseline = cy + 34
   ctx.fillStyle = MUTED
   ctx.font = `700 22px ${FONT_MONO}`
-  ctx.textAlign = 'left'
-  ctx.fillText(pad2(index + 1), x + 28, cy)
+  ctx.fillText(pad2(index + 1), leftX + CARD_PAD_X, titleBaseline)
 
-  const title = String(item.title || '未命名')
   ctx.fillStyle = INK
   ctx.font = `800 40px ${FONT_DISPLAY}`
-  const titleLines = wrapText(ctx, title, leftW - 70).slice(0, 2)
   titleLines.forEach((line, i) => {
-    ctx.fillText(line, x + 70, cy + i * 44)
+    ctx.fillText(line, leftX + CARD_PAD_X + 52, titleBaseline + i * 44)
   })
-  cy += Math.max(1, titleLines.length) * 44 + 14
+  cy = titleBaseline + (Math.max(1, titleLines.length) - 1) * 44 + 18
 
+  // status chip
   const status = String(item.status || '进行中')
   const statusText = `STATUS · ${status}`
   ctx.font = `700 18px ${FONT_MONO}`
-  const sw = ctx.measureText(statusText).width + 22
-  const sh = 30
-  fillRound(ctx, x + 28, cy - 20, sw, sh, 6, CHIP_BG)
-  strokeRound(ctx, x + 28, cy - 20, sw, sh, 6, CHIP_BORDER, 1.5)
+  const sw = Math.ceil(ctx.measureText(statusText).width + 24)
+  const sh = 32
+  const chipX = leftX + CARD_PAD_X
+  const chipY = cy
+  fillRound(ctx, chipX, chipY, sw, sh, 8, CHIP_BG)
+  strokeRound(ctx, chipX, chipY, sw, sh, 8, CHIP_BORDER, 1.5)
   ctx.fillStyle = INK
-  ctx.fillText(statusText, x + 39, cy + 1)
-  cy += 28
+  // center label inside chip
+  ctx.textBaseline = 'middle'
+  ctx.fillText(statusText, chipX + 12, chipY + sh / 2)
+  ctx.textBaseline = 'alphabetic'
+  cy = chipY + sh + 16
 
-  const detail = itemDetail(item)
-  if (detail) {
+  if (detailLines.length) {
     ctx.fillStyle = MUTED
     ctx.font = `500 24px ${FONT_BODY}`
-    wrapText(ctx, detail, leftW - 36).slice(0, 4).forEach((line) => {
-      ctx.fillText(line, x + 28, cy)
+    detailLines.forEach((line) => {
+      ctx.fillText(line, leftX + CARD_PAD_X, cy + 20)
       cy += 32
     })
   }
 
-  // mid column - contact
+  // ——— mid column: phone stack, vertically + horizontally centered in mid band ———
+  const midX = leftX + leftW
   const contactLabel = itemContactLabel(item)
   const contactValue = String(item.contactValue || '0').trim() || '0'
+  const pay = itemPaymentLabel(item)
+
+  // measure mid stack
+  ctx.font = `600 20px ${FONT_MONO}`
+  const midStackH = 22 + 14 + 48 + 14 + 22
+  let my = y + Math.round((h - midStackH) / 2)
+  const midCenterX = midX + midW / 2
+
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'top'
   ctx.fillStyle = MUTED_SOFT
   ctx.font = `600 20px ${FONT_MONO}`
-  ctx.textAlign = 'left'
-  ctx.fillText(contactLabel, midX + 18, y + 42)
+  ctx.fillText(contactLabel, midCenterX, my)
+  my += 28
   ctx.fillStyle = INK
-  ctx.font = `800 48px ${FONT_DISPLAY}`
-  ctx.fillText(contactValue, midX + 18, y + 96)
+  ctx.font = `800 52px ${FONT_DISPLAY}`
+  ctx.fillText(contactValue, midCenterX, my)
+  my += 58
   ctx.fillStyle = MUTED_SOFT
   ctx.font = `600 18px ${FONT_MONO}`
-  ctx.fillText(itemPaymentLabel(item), midX + 18, y + 130)
+  ctx.fillText(pay, midCenterX, my)
 
-  // right panel - pickup date
-  fillRound(ctx, rightX, y, rightW, h, R, PANEL)
-  // cover left corners of right panel so only right side is rounded visually with card
-  ctx.fillStyle = PANEL
-  ctx.fillRect(rightX, y, 24, h)
+  // ——— right date panel content, centered in panel ———
+  const dateLabel = '取车时间'
+  const dateValue = formatDateSlash(item.pickupDate)
+  ctx.font = `600 18px ${FONT_MONO}`
+  const rightStackH = 22 + 16 + 34
+  let ry = panelY + Math.round((panelH - rightStackH) / 2)
+  const rightCenterX = panelX + panelW / 2
 
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'top'
   ctx.fillStyle = MUTED
   ctx.font = `600 18px ${FONT_MONO}`
-  ctx.textAlign = 'right'
-  ctx.fillText('取车时间', rightX + rightW - 28, y + 42)
+  ctx.fillText(dateLabel, rightCenterX, ry)
+  ry += 30
   ctx.fillStyle = INK
-  ctx.font = `800 30px ${FONT_DISPLAY}`
-  ctx.fillText(formatDateSlash(item.pickupDate), rightX + rightW - 28, y + 96)
-  ctx.textAlign = 'left'
+  ctx.font = `800 28px ${FONT_DISPLAY}`
+  ctx.fillText(dateValue, rightCenterX, ry)
 
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'alphabetic'
   return y + h + CARD_GAP
 }
 
@@ -507,13 +582,18 @@ export async function renderClosingReportCanvas(model) {
       ctx.lineTo(cx, subY + subH - 28)
       ctx.stroke()
     }
+    // vertically center label+value stack in the cell
+    const stackH = 22 + 12 + 52
+    const sy = subY + Math.round((subH - stackH) / 2)
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
     ctx.fillStyle = MUTED
     ctx.font = `600 18px ${FONT_MONO}`
-    ctx.textAlign = 'left'
-    ctx.fillText(label, cx + 28, subY + 42)
+    ctx.fillText(label, cx + 28, sy)
     ctx.fillStyle = INK
-    ctx.font = `900 56px ${FONT_DISPLAY}`
-    ctx.fillText(String(value), cx + 28, subY + 100)
+    ctx.font = `900 52px ${FONT_DISPLAY}`
+    ctx.fillText(String(value), cx + 28, sy + 30)
+    ctx.textBaseline = 'alphabetic'
   })
 
   y = blockY + blockH + 52

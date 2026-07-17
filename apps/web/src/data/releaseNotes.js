@@ -1,13 +1,13 @@
-export const APP_VERSION = "5.4.5"
+export const APP_VERSION = "5.4.6"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.18",
-  title: "闭店长图按参考稿重构",
-  summary: "导出长图按 WORKSHOP OPS 参考界面一比一重绘：黑底销售主卡+四指标、圆角三栏票据卡、页脚 W/O。",
+  title: "票据卡左黑条与栏内居中",
+  summary: "待取/维修卡片：左侧黑条强调；左/中/右三栏内容相对栏高垂直居中；取车时间在卡内浅底圆角区水平居中。",
   changes: [
-    "销售区改为黑底大数字 + 火花线 + 底部四格 KPI。",
-    "待取/维修改为圆角三栏卡片（车型/手机/取车时间）。",
-    "页眉 WORKSHOP OPS + 版本徽标、页脚 W/O 与参考稿对齐。"
+    "卡片左侧增加黑色竖条。",
+    "手机号、付费、取车时间等文字在各自栏内水平/垂直居中。",
+    "取车时间改为卡内嵌面板，不再溢出卡片。"
   ]
 }
