@@ -291,3 +291,33 @@
 .initial-setup-panel header p, .initial-setup-panel > small { color: var(--muted); font-size: .78rem; line-height: 1.5; }
 .initial-setup-grid { display: grid; grid-template-columns: .72fr 1.28fr; gap: .8rem; }
 @media (max-width: 420px) { .initial-setup-grid { grid-template-columns: 1fr; } }
+
+
+.role-options {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.role-options legend {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.role-option-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.role-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 0.75rem;
+}
+
+.role-option input {
+  margin: 0;
+}

@@ -29,6 +29,13 @@ export const setupAdminSchema = z.object({
   storeName: z.string().trim().min(1).max(120)
 }).strict()
 
+export const createUserSchema = z.object({
+  username: usernameSchema,
+  displayName: usernameSchema.optional(),
+  password: passwordSchema,
+  role: z.enum(appRoles).default('operator')
+}).strict()
+
 export const kpiSchema = z.object({
   salesVehicles: z.coerce.number().int().min(0).max(9999),
   safetyChecks: z.coerce.number().int().min(0).max(9999),
@@ -106,3 +113,4 @@ export type AppRole = typeof appRoles[number]
 export type LoginInput = z.infer<typeof loginSchema>
 export type KpiInput = z.infer<typeof kpiSchema>
 export type WorkItemCreateInput = z.infer<typeof workItemCreateSchema>
+export type CreateUserInput = z.infer<typeof createUserSchema>

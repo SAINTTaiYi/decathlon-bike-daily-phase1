@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { loginSchema, passwordSchema, setupAdminSchema } from '@bike-ops/contracts'
+import { createUserSchema, loginSchema, passwordSchema, setupAdminSchema } from '@bike-ops/contracts'
 import { usernameKey } from '@bike-ops/domain'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
@@ -179,6 +179,42 @@ export function authRoutes() {
       .run()
     clearSessionCookie(c, c.get('config'))
     return c.body(null, 204)
+  })
+
+
+  app.post('/api/v1/users', auth.loadSession, auth.requirePasswordChanged, auth.requireCsrf, auth.requireRole('admin'), async (c) => {
+    const config = c.get('config')
+    const context = c.get('auth')!
+    const input = createUserSchema.parse(await c.req.json())
+    const username = input.username
+    const displayName = input.displayName ?? input.username
+    const role = input.role
+    const existing = await first<{ id: string }>(
+      c.env.DB.prepare('SELECT id FROM users WHERE username_key = ? LIMIT 1').bind(usernameKey(username))
+    )
+    if (existing) throw new ApiProblem(409, 'USERNAME_EXISTS', '该用户名已存在。')
+    const passwordHash = await hashPassword(input.password, config.PASSWORD_PEPPER)
+    const stamp = nowIso()
+    const userId = uuid()
+    await c.env.DB.batch([
+      c.env.DB.prepare(`
+        INSERT INTO users (id, username_key, display_name, password_hash, status, must_change_password, failed_login_count, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'active', 1, 0, ?, ?)
+      `).bind(userId, usernameKey(username), displayName, passwordHash, stamp, stamp),
+      c.env.DB.prepare(`
+        INSERT INTO store_members (store_id, user_id, role, created_at) VALUES (?, ?, ?, ?)
+      `).bind(context.storeId, userId, role, stamp)
+    ])
+    return c.json({
+      ok: true,
+      user: {
+        id: userId,
+        username,
+        displayName,
+        role,
+        mustChangePassword: true
+      }
+    }, 201)
   })
 
   app.post('/api/v1/auth/change-password', auth.loadSession, auth.requireCsrf, async (c) => {
