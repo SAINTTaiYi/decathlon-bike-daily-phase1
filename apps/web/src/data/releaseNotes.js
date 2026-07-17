@@ -1,13 +1,13 @@
-export const APP_VERSION = "5.3.4"
+export const APP_VERSION = "5.3.5"
 
 export const currentRelease = {
   version: APP_VERSION,
-  date: "2026.07.17",
-  title: "管理员可添加用户",
-  summary: "在日报菜单中为管理员提供添加同事账号的能力，并补齐 Worker 与 API 的创建用户接口。",
+  date: "2026.07.18",
+  title: "GitHub 直连 Cloudflare 发布",
+  summary: "把 Staging 发布改为 GitHub Actions + Wrangler 直传，去掉手机分片中转。",
   changes: [
-    "管理员可在日报菜单中添加当前门店用户，并生成首次登录临时密码。",
-    "Worker 与 API 新增仅管理员可用的创建用户接口，新账号首次登录必须改密。",
-    "新增账号创建对话框与角色选择，避免继续依赖助手手工改库。"
+    "Cloudflare Account ID 与 Staging URL 改为 Environment Variable。",
+    "部署工作流读取 STAGING_BASE_URL，直接 wrangler deploy 并自动验收。",
+    "补齐治理断言，为一次性 API Token 高速发布路径铺路。"
   ]
 }

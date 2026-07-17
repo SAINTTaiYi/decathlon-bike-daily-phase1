@@ -22,6 +22,10 @@ on:
         required: true
         type: boolean
         default: false
+  # Optional direct path: only the migration feature branch or develop may auto-deploy after CI succeeds.
+  # Disabled by default until the first manual deploy with GitHub Secrets proves the token path.
+  # push:
+  #   branches: [feature/cloudflare-workers-d1, develop]
 
 permissions:
   contents: read
@@ -36,24 +40,34 @@ jobs:
     environment: staging
     if: github.ref == 'refs/heads/feature/cloudflare-workers-d1' || github.ref == 'refs/heads/develop'
     env:
-      RELEASE_SHA: ${{ inputs.release_sha }}
+      RELEASE_SHA: ${{ inputs.release_sha || github.sha }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
     steps:
-      - name: Enforce Free, no-billing, and Staging-only confirmations
+      - name: Enforce Free, no-billing, Staging-only, and required credentials
         env:
           CONFIRM_FREE_PLAN: ${{ inputs.confirm_free_plan }}
           CONFIRM_NO_BILLING: ${{ inputs.confirm_no_billing }}
           CONFIRM_STAGING_ONLY: ${{ inputs.confirm_staging_only }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          test "$CONFIRM_FREE_PLAN" = true || { echo "::error::confirm_free_plan=true required"; exit 1; }
-          test "$CONFIRM_NO_BILLING" = true || { echo "::error::confirm_no_billing=true required"; exit 1; }
-          test "$CONFIRM_STAGING_ONLY" = true || { echo "::error::confirm_staging_only=true required"; exit 1; }
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            test "$CONFIRM_FREE_PLAN" = true || { echo "::error::confirm_free_plan=true required"; exit 1; }
+            test "$CONFIRM_NO_BILLING" = true || { echo "::error::confirm_no_billing=true required"; exit 1; }
+            test "$CONFIRM_STAGING_ONLY" = true || { echo "::error::confirm_staging_only=true required"; exit 1; }
+          fi
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN secret missing"; exit 1; }
-          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::CLOUDFLARE_ACCOUNT_ID secret missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::CLOUDFLARE_ACCOUNT_ID variable missing"; exit 1; }
+          test -n "$STAGING_BASE_URL" || { echo "::error::STAGING_BASE_URL variable missing"; exit 1; }
+          case "$STAGING_BASE_URL" in
+            https://*) ;;
+            *) echo "::error::STAGING_BASE_URL must be an https URL"; exit 1 ;;
+          esac
+          test "$CLOUDFLARE_ACCOUNT_ID" = "02cb272ad6a5fd7e157a84061c8c5d42" || { echo "::error::unexpected Cloudflare account id"; exit 1; }
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ inputs.release_sha }}
+          ref: ${{ env.RELEASE_SHA }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -111,7 +125,7 @@ jobs:
               "APP_VERSION": "__APP_VERSION__",
               "COOKIE_SECURE": "true",
               "SESSION_TTL_HOURS": "12",
-              "CORS_ALLOWED_ORIGINS": "https://bike-ops-staging.geeklightonefish.workers.dev",
+              "CORS_ALLOWED_ORIGINS": "__STAGING_BASE_URL__",
               "GIT_SHA": "__RELEASE_SHA__"
             }
           }
@@ -121,7 +135,10 @@ jobs:
             const pkg=require('./package.json');
             const p='wrangler.deploy.jsonc';
             let t=fs.readFileSync(p,'utf8');
-            t=t.replace('__APP_VERSION__', pkg.version).replace('__RELEASE_SHA__', process.env.RELEASE_SHA);
+            t=t
+              .replace('__APP_VERSION__', pkg.version)
+              .replace('__RELEASE_SHA__', process.env.RELEASE_SHA)
+              .replace('__STAGING_BASE_URL__', process.env.STAGING_BASE_URL);
             fs.writeFileSync(p,t);
           "
       - name: Deploy the Staging Worker with Static Assets and D1
@@ -129,7 +146,7 @@ jobs:
       - name: Verify the deployed Staging API, release identity, and Web shell
         run: |
           set -euo pipefail
-          BASE=https://bike-ops-staging.geeklightonefish.workers.dev
+          BASE="$STAGING_BASE_URL"
           APP_VERSION="$(node -p "require('./package.json').version")"
           curl -fsS "$BASE/health/live" | tee /tmp/live.json
           curl -fsS "$BASE/health/ready" | tee /tmp/ready.json
