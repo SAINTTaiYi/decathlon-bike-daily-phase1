@@ -12,6 +12,21 @@ const FONT_BODY = '"Albert Sans Local", "Noto Serif SC Variable"'
 const FONT_DISPLAY = '"Albert Sans Local", "Noto Serif SC Variable"'
 const FONT_MONO = '"Albert Sans Local", "Noto Serif SC Variable"'
 
+// Vertical rhythm (px) — keep clear air around rules/chips/callouts
+const GAP = {
+  afterRule: 36,
+  sectionEnToTitle: 28,
+  titleToBody: 40,
+  statusToDetail: 28,
+  detailToFacts: 32,
+  factsToMeta: 28,
+  metaToNext: 36,
+  ticketPadTop: 40,
+  ticketPadBottom: 44,
+  betweenSections: 52,
+  bottomSafe: 160
+}
+
 let fontsReadyPromise
 
 function pad2(value) {
@@ -103,10 +118,10 @@ async function ensureReportFonts() {
     }))
     await document.fonts.ready.catch(() => undefined)
     await Promise.all([
-      document.fonts.load(`900 84px ${FONT_DISPLAY}`),
-      document.fonts.load(`700 28px ${FONT_MONO}`),
-      document.fonts.load(`500 32px ${FONT_BODY}`),
-      document.fonts.load('900 56px "Noto Serif SC Variable"')
+      document.fonts.load(`900 72px ${FONT_DISPLAY}`),
+      document.fonts.load(`700 26px ${FONT_MONO}`),
+      document.fonts.load(`500 30px ${FONT_BODY}`),
+      document.fonts.load('900 48px "Noto Serif SC Variable"')
     ])
     if (!loaded.some(Boolean)) throw new Error('站点字体加载失败。')
     const probe = document.createElement('canvas').getContext('2d')
@@ -141,7 +156,7 @@ function drawInkLine(ctx, x1, y, x2, strong = true) {
 }
 
 function drawCallout(ctx, x, y, w, label, value, align = 'left') {
-  const h = 92
+  const h = 100
   ctx.fillStyle = SURFACE
   ctx.strokeStyle = INK
   ctx.lineWidth = 4
@@ -150,74 +165,72 @@ function drawCallout(ctx, x, y, w, label, value, align = 'left') {
   ctx.fillStyle = MUTED
   ctx.font = `800 20px ${FONT_MONO}`
   ctx.textAlign = align
-  const tx = align === 'right' ? x + w - 16 : x + 16
-  ctx.fillText(label, tx, y + 30)
+  const tx = align === 'right' ? x + w - 18 : x + 18
+  ctx.fillText(label, tx, y + 34)
   ctx.fillStyle = INK
-  ctx.font = `900 34px ${FONT_DISPLAY}`
-  const lines = wrapText(ctx, value || '—', w - 32)
+  ctx.font = `900 36px ${FONT_DISPLAY}`
+  const lines = wrapText(ctx, value || '—', w - 36)
   lines.slice(0, 2).forEach((line, i) => {
-    ctx.fillText(line, tx, y + 62 + i * 28)
+    ctx.fillText(line, tx, y + 70 + i * 30)
   })
   ctx.textAlign = 'left'
   return h
 }
 
 function measureTicket(ctx, item, width) {
-  let h = 48 // top padding after divider breathing
-  ctx.font = `900 50px ${FONT_DISPLAY}`
-  h += wrapText(ctx, item.title || '未命名', width - 90).length * 58
-  h += 40 // status
+  let h = GAP.ticketPadTop
+  ctx.font = `900 48px ${FONT_DISPLAY}`
+  h += wrapText(ctx, item.title || '未命名', width - 96).length * 56
+  h += GAP.titleToBody
+  h += 40 // status chip row
+  h += GAP.statusToDetail
   const detail = item.detail || item.repairProject || ''
   if (detail) {
     ctx.font = `500 30px ${FONT_BODY}`
-    h += wrapText(ctx, detail, width - 16).length * 40 + 12
+    h += wrapText(ctx, detail, width - 16).length * 40
+    h += GAP.detailToFacts
+  } else {
+    h += GAP.detailToFacts
   }
-  // facts row breathing + callouts
-  const hasFacts = Boolean(item.pickupDate || item.contactValue)
-  h += hasFacts ? 120 : 28
-  // meta chips
-  const chips = [
-    item.repairType || '',
-    item.meta || '',
-    item.scene === 'pickup' && item.pickupSource ? `来源 ${item.pickupSource}` : ''
-  ].filter(Boolean)
-  if (chips.length) h += 42
-  h += 36 // bottom padding
+  if (item.pickupDate || item.contactValue) {
+    h += 100 + GAP.factsToMeta
+  }
+  const chips = [item.repairType || '', item.meta || ''].filter(Boolean)
+  if (chips.length) h += 34 + 12
+  h += GAP.ticketPadBottom
   return h
 }
 
 function measureList(ctx, items, width) {
-  if (!items.length) return 110
+  if (!items.length) return 120
   return items.reduce((sum, item) => sum + measureTicket(ctx, item, width), 0)
 }
 
 function drawTicket(ctx, item, x, y, width, index) {
-  // breathing before hairline
-  y += 28
+  y += GAP.ticketPadTop
   drawInkLine(ctx, x, y, x + width, false)
-  y += 42
+  y += GAP.afterRule
 
-  // index + title
   ctx.fillStyle = MUTED
   ctx.font = `700 24px ${FONT_MONO}`
-  ctx.fillText(pad2(index + 1), x, y + 8)
+  ctx.fillText(pad2(index + 1), x, y + 6)
   ctx.fillStyle = INK
-  ctx.font = `900 50px ${FONT_DISPLAY}`
-  const titleLines = wrapText(ctx, item.title || '未命名', width - 90)
-  titleLines.forEach((line, i) => ctx.fillText(line, x + 70, y + i * 58))
-  y += Math.max(1, titleLines.length) * 58 + 18
+  ctx.font = `900 48px ${FONT_DISPLAY}`
+  const titleLines = wrapText(ctx, item.title || '未命名', width - 96)
+  titleLines.forEach((line, i) => ctx.fillText(line, x + 72, y + i * 56))
+  y += Math.max(1, titleLines.length) * 56 + GAP.titleToBody
 
-  // status chip
   const status = item.status || '进行中'
   ctx.font = `800 22px ${FONT_MONO}`
   const statusText = `STATUS · ${status}`
-  const sw = ctx.measureText(statusText).width + 24
+  const sw = ctx.measureText(statusText).width + 28
+  const chipTop = y - 8
   ctx.strokeStyle = INK
   ctx.lineWidth = 2
-  ctx.strokeRect(x, y - 22, sw, 36)
+  ctx.strokeRect(x, chipTop, sw, 40)
   ctx.fillStyle = INK
-  ctx.fillText(statusText, x + 12, y)
-  y += 40
+  ctx.fillText(statusText, x + 14, chipTop + 28)
+  y = chipTop + 40 + GAP.statusToDetail
 
   const detail = item.detail || item.repairProject || ''
   if (detail) {
@@ -227,36 +240,31 @@ function drawTicket(ctx, item, x, y, width, index) {
       ctx.fillText(line, x, y)
       y += 40
     })
-    y += 12
+    y += GAP.detailToFacts
+  } else {
+    y += Math.floor(GAP.detailToFacts * 0.5)
   }
 
-  // highlighted facts: pickup date + phone/member
   const contactLabel = item.contactType === 'member' ? '会员号' : '手机号'
   const contactValue = String(item.contactValue || '').trim()
   const pickupDate = String(item.pickupDate || '').trim()
   if (pickupDate || contactValue) {
-    y += 12
-    const gap = 20
+    const gap = 24
     if (pickupDate && contactValue) {
       const leftW = Math.floor((width - gap) * 0.48)
       const rightW = width - gap - leftW
       drawCallout(ctx, x, y, leftW, contactLabel, contactValue, 'left')
       drawCallout(ctx, x + leftW + gap, y, rightW, '取车时间', pickupDate.replaceAll('-', ' / '), 'right')
     } else if (contactValue) {
-      drawCallout(ctx, x, y, Math.min(width, 420), contactLabel, contactValue, 'left')
+      drawCallout(ctx, x, y, Math.min(width, 460), contactLabel, contactValue, 'left')
     } else {
-      drawCallout(ctx, x + width - Math.min(width, 420), y, Math.min(width, 420), '取车时间', pickupDate.replaceAll('-', ' / '), 'right')
+      const w = Math.min(width, 460)
+      drawCallout(ctx, x + width - w, y, w, '取车时间', pickupDate.replaceAll('-', ' / '), 'right')
     }
-    y += 110
-  } else {
-    y += 18
+    y += 100 + GAP.factsToMeta
   }
 
-  // secondary meta chips
-  const chips = [
-    item.repairType || '',
-    item.meta || ''
-  ].filter(Boolean)
+  const chips = [item.repairType || '', item.meta || ''].filter(Boolean)
   if (chips.length) {
     ctx.fillStyle = MUTED
     ctx.font = `700 22px ${FONT_MONO}`
@@ -264,32 +272,32 @@ function drawTicket(ctx, item, x, y, width, index) {
     y += 34
   }
 
-  y += 18
+  y += GAP.ticketPadBottom
   return y
 }
 
 function drawList(ctx, items, x, y, width, emptyLabel) {
   if (!items.length) {
-    y += 28
+    y += 24
     ctx.fillStyle = PAPER_COOL
-    ctx.fillRect(x, y, width, 88)
+    ctx.fillRect(x, y, width, 96)
     ctx.fillStyle = MUTED
     ctx.font = `700 26px ${FONT_MONO}`
-    ctx.fillText(emptyLabel, x + 24, y + 54)
+    ctx.fillText(emptyLabel, x + 28, y + 58)
     return y + 120
   }
   items.forEach((item, index) => {
     y = drawTicket(ctx, item, x, y, width, index)
   })
+  y += 12
   drawInkLine(ctx, x, y, x + width, false)
-  return y + 24
+  return y + 28
 }
 
 function drawSectionHead(ctx, y, en, title, countLabel) {
-  // more breathing above thick rule
-  y += 18
+  y += GAP.betweenSections
   drawInkLine(ctx, PAD, y, WIDTH - PAD, true)
-  y += 52
+  y += GAP.afterRule + 8
   ctx.fillStyle = MUTED
   ctx.font = `700 24px ${FONT_MONO}`
   ctx.fillText(en, PAD, y)
@@ -298,11 +306,11 @@ function drawSectionHead(ctx, y, en, title, countLabel) {
     ctx.fillText(countLabel, WIDTH - PAD, y)
     ctx.textAlign = 'left'
   }
-  y += 66
+  y += GAP.sectionEnToTitle + 36
   ctx.fillStyle = INK
-  ctx.font = `900 68px ${FONT_DISPLAY}`
+  ctx.font = `900 64px ${FONT_DISPLAY}`
   ctx.fillText(title, PAD, y)
-  return y + 56
+  return y + GAP.titleToBody + 8
 }
 
 export async function renderClosingReportCanvas(model) {
@@ -313,109 +321,103 @@ export async function renderClosingReportCanvas(model) {
   const repairH = measureList(measure, model.repairs, contentW)
   const handoverH = measureList(measure, model.handovers, contentW)
 
-  // Target sales block ~1/4 of final page height. First estimate body then size sales block.
-  const bodyEstimate = 360 + pickupH + repairH + handoverH + 280
-  const salesTarget = Math.max(420, Math.round(bodyEstimate / 3)) // sales + header together ~1/4 after composition
-  const height = Math.ceil(Math.max(bodyEstimate + salesTarget * 0.15, (bodyEstimate) * 4 / 3))
-
-  // Recompute so sales block is ~25% of total canvas
-  const salesBlockH = Math.max(460, Math.round(height * 0.25))
-  const finalHeight = Math.ceil(salesBlockH + pickupH + repairH + handoverH + 420)
+  // Section visual budget 3:2:1:1 for 销售:待取:维修:交接 (sales moderate, not oversized)
+  // Sales block fixed moderate height; lists grow with content.
+  const salesBlockH = 380
+  const headerH = 200
+  const finalHeight = Math.ceil(
+    headerH + salesBlockH + pickupH + repairH + handoverH + GAP.betweenSections * 3 + GAP.bottomSafe + 220
+  )
 
   const canvas = document.createElement('canvas')
   canvas.width = WIDTH
   canvas.height = finalHeight
   const ctx = canvas.getContext('2d')
 
-  // page + sheet
   ctx.fillStyle = PAPER_COOL
   ctx.fillRect(0, 0, WIDTH, finalHeight)
   ctx.fillStyle = PAPER
   ctx.fillRect(18, 18, WIDTH - 36, finalHeight - 36)
 
-  // header
+  // masthead
   ctx.fillStyle = INK
-  ctx.font = `900 86px ${FONT_DISPLAY}`
-  ctx.fillText('WORKSHOP OPS', PAD, 100)
-  ctx.fillRect(WIDTH - PAD - 200, 48, 200, 66)
+  ctx.font = `900 80px ${FONT_DISPLAY}`
+  ctx.fillText('WORKSHOP OPS', PAD, 96)
+  ctx.fillRect(WIDTH - PAD - 190, 46, 190, 60)
   ctx.fillStyle = '#fff'
-  ctx.font = `900 36px ${FONT_DISPLAY}`
-  ctx.fillText(`V${model.appVersion || '—'}`, WIDTH - PAD - 172, 94)
+  ctx.font = `900 34px ${FONT_DISPLAY}`
+  ctx.fillText(`V${model.appVersion || '—'}`, WIDTH - PAD - 164, 88)
 
   ctx.fillStyle = MUTED
-  ctx.font = `700 26px ${FONT_MONO}`
-  ctx.fillText(`${model.storeName} · ${model.businessDate} · DATABASE SYNC`, PAD, 156)
-  // breathing before first rule
-  drawInkLine(ctx, PAD, 188, WIDTH - PAD, true)
+  ctx.font = `700 24px ${FONT_MONO}`
+  ctx.fillText(`${model.storeName} · ${model.businessDate} · DATABASE SYNC`, PAD, 148)
+  // breathing under meta before rule
+  drawInkLine(ctx, PAD, 184, WIDTH - PAD, true)
 
-  // sales region starts and occupies ~1/4 page
-  const salesTop = 220
-  const salesBottom = salesTop + salesBlockH
-  // soft panel for sales quarter
-  ctx.fillStyle = SURFACE
-  ctx.fillRect(PAD - 8, salesTop - 8, contentW + 16, salesBlockH)
-
+  // sales — moderate, ratio-friendly 3-weight unit
+  let y = 184 + GAP.afterRule + 12
   ctx.fillStyle = INK
-  ctx.font = `900 78px ${FONT_DISPLAY}`
-  ctx.fillText('CLOSING COMPLETE', PAD, salesTop + 70)
+  ctx.font = `900 64px ${FONT_DISPLAY}`
+  ctx.fillText('CLOSING COMPLETE', PAD, y + 52)
   const closedLabel = model.closedAt
     ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(model.closedAt))
     : '--:--'
   ctx.fillStyle = MUTED
-  ctx.font = `500 30px ${FONT_BODY}`
+  ctx.font = `500 28px ${FONT_BODY}`
   ctx.fillText(
     `已闭店 ${closedLabel}  ·  导出 ${new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date())}  ·  ${model.exporterName || '同事'}`,
     PAD,
-    salesTop + 122
+    y + 100
   )
 
-  // sales title
+  y += 140
   ctx.fillStyle = MUTED
-  ctx.font = `700 24px ${FONT_MONO}`
-  ctx.fillText('SALES / KPI · 当日闭店门槛', PAD, salesTop + 180)
+  ctx.font = `700 22px ${FONT_MONO}`
+  ctx.fillText('SALES / KPI · 当日闭店门槛', PAD, y)
+  y += GAP.sectionEnToTitle + 28
   ctx.fillStyle = INK
-  ctx.font = `900 64px ${FONT_DISPLAY}`
-  ctx.fillText('销售数据', PAD, salesTop + 248)
+  ctx.font = `900 56px ${FONT_DISPLAY}`
+  ctx.fillText('销售数据', PAD, y)
+  y += GAP.titleToBody + 12
 
-  // big primary sales figure like site kpi-primary
-  const primaryH = Math.max(210, salesBottom - (salesTop + 290) - 70)
-  const primaryY = salesTop + 280
-  ctx.fillStyle = INK
-  ctx.fillRect(PAD, primaryY, contentW, primaryH)
-  ctx.fillStyle = 'rgba(255,255,255,0.72)'
-  ctx.font = `700 26px ${FONT_MONO}`
-  ctx.fillText('VEHICLES SOLD · 车辆销售', PAD + 28, primaryY + 46)
-  ctx.fillStyle = '#fff'
-  ctx.font = `900 ${Math.min(180, primaryH * 0.72)}px ${FONT_DISPLAY}`
-  ctx.fillText(String(model.kpi.salesVehicles), PAD + 20, primaryY + primaryH - 48)
-
-  // secondary metrics strip under primary if room, else overlapping bottom band
-  const secondary = [
-    ['安全检查', model.kpi.safetyChecks],
-    ['有效评价', model.kpi.validReviews],
-    ['二手售出', model.kpi.usedSold],
-    ['二手收车', model.kpi.usedReceived]
+  // KPI proportion 3:2:1:1:1 across five cells — vehicles 3, safety 2, rest 1 each
+  const units = 3 + 2 + 1 + 1 + 1
+  const gap = 16
+  const unitW = (contentW - gap * 4) / units
+  const metrics = [
+    ['车辆销售', model.kpi.salesVehicles, 3],
+    ['安全检查', model.kpi.safetyChecks, 2],
+    ['有效评价', model.kpi.validReviews, 1],
+    ['二手售出', model.kpi.usedSold, 1],
+    ['二手收车', model.kpi.usedReceived, 1]
   ]
-  const bandY = primaryY + primaryH + 18
-  const cellW = contentW / 4
-  secondary.forEach(([label, value], i) => {
-    const x = PAD + i * cellW
-    drawInkLine(ctx, x, bandY, x + cellW - 16, false)
-    ctx.fillStyle = MUTED
+  let x = PAD
+  const boxH = 150
+  metrics.forEach(([label, value, weight], index) => {
+    const w = unitW * weight
+    const dark = index === 0
+    ctx.fillStyle = dark ? INK : SURFACE
+    ctx.fillRect(x, y, w, boxH)
+    ctx.strokeStyle = INK
+    ctx.lineWidth = 3
+    ctx.strokeRect(x + 1.5, y + 1.5, w - 3, boxH - 3)
+    ctx.fillStyle = dark ? '#fff' : INK
+    ctx.font = `900 ${weight >= 3 ? 64 : weight >= 2 ? 54 : 48}px ${FONT_DISPLAY}`
+    ctx.fillText(String(value), x + 16, y + 78)
+    ctx.fillStyle = dark ? 'rgba(255,255,255,0.76)' : MUTED
     ctx.font = `700 22px ${FONT_MONO}`
-    ctx.fillText(label, x, bandY + 36)
-    ctx.fillStyle = INK
-    ctx.font = `900 48px ${FONT_DISPLAY}`
-    ctx.fillText(String(value), x, bandY + 90)
+    ctx.fillText(label, x + 16, y + 118)
+    x += w + gap
   })
+  y += boxH + 28
   if (model.kpi.safetyModel) {
     ctx.fillStyle = MUTED
     ctx.font = `700 24px ${FONT_MONO}`
-    ctx.fillText(`安检车型 · ${model.kpi.safetyModel}`, PAD, Math.min(salesBottom - 24, bandY + 130))
+    ctx.fillText(`安检车型 · ${model.kpi.safetyModel}`, PAD, y)
+    y += 36
   }
 
-  // tickets
-  let y = salesBottom + 24
+  // sections
   y = drawSectionHead(ctx, y, `PICKUP · ${pad2(model.pickups.length)} OPEN`, '待取车辆', `${model.pickups.length} 条`)
   y = drawList(ctx, model.pickups, PAD, y, contentW, '本日无待取车辆')
 
@@ -425,14 +427,30 @@ export async function renderClosingReportCanvas(model) {
   y = drawSectionHead(ctx, y, `HANDOVER · ${pad2(model.handovers.length)} OPEN`, '交接事项', `${model.handovers.length} 条`)
   y = drawList(ctx, model.handovers, PAD, y, contentW, '本日无交接事项')
 
-  y = Math.max(y + 20, finalHeight - 120)
+  // bottom safe area so last ticket isn't flush to edge
+  y += 24
   drawInkLine(ctx, PAD, y, WIDTH - PAD, true)
   ctx.fillStyle = MUTED
-  ctx.font = `700 24px ${FONT_MONO}`
+  ctx.font = `700 22px ${FONT_MONO}`
   ctx.fillText('TICKET STYLE · SITE FONTS ONLY · LONG SHEET', PAD, y + 48)
   ctx.textAlign = 'right'
   ctx.fillText(String(model.storeName || ''), WIDTH - PAD, y + 48)
   ctx.textAlign = 'left'
+
+  // ensure canvas has bottom padding beyond footer text
+  const needed = y + GAP.bottomSafe
+  if (needed > finalHeight) {
+    // grow canvas if underestimate
+    const bigger = document.createElement('canvas')
+    bigger.width = WIDTH
+    bigger.height = needed
+    const bctx = bigger.getContext('2d')
+    bctx.fillStyle = PAPER_COOL
+    bctx.fillRect(0, 0, WIDTH, needed)
+    bctx.drawImage(canvas, 0, 0)
+    // redraw footer area already on image; just return taller with cool paper bottom
+    return bigger
+  }
 
   return canvas
 }
