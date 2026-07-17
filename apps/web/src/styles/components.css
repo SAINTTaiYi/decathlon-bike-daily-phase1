@@ -358,3 +358,33 @@
     justify-content: center;
   }
 }
+
+
+.report-image-preview {
+  display: grid;
+  gap: .75rem;
+  max-height: min(68dvh, 40rem);
+  overflow: auto;
+  padding: .25rem;
+  background: var(--paper-cool);
+  border: 1px solid var(--line);
+}
+
+.report-image-preview-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--paper);
+  -webkit-touch-callout: default;
+  user-select: none;
+}
+
+.report-image-preview-tip {
+  margin: 0;
+  padding: 0 .35rem .35rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  font-weight: 700;
+  line-height: 1.4;
+}

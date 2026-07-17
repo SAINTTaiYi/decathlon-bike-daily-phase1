@@ -16,6 +16,7 @@ import KpiDialog from './components/dialogs/KpiDialog.jsx'
 import LocalMigrationDialog, { hasLocalV5Data } from './components/dialogs/LocalMigrationDialog.jsx'
 import LogDialog from './components/dialogs/LogDialog.jsx'
 import CreateUserDialog from './components/dialogs/CreateUserDialog.jsx'
+import ReportImageDialog from './components/dialogs/ReportImageDialog.jsx'
 import MenuDialog from './components/dialogs/MenuDialog.jsx'
 import OperationHistoryDialog from './components/dialogs/OperationHistoryDialog.jsx'
 import PickupConfirmDialog from './components/dialogs/PickupConfirmDialog.jsx'
@@ -54,6 +55,7 @@ export default function App() {
   const [kpiOpen, setKpiOpen] = useState(false)
   const [migrationOpen, setMigrationOpen] = useState(false)
   const [createUserOpen, setCreateUserOpen] = useState(false)
+  const [reportImage, setReportImage] = useState(null)
   const [recordEditor, setRecordEditor] = useState(null)
   const [mediaRecord, setMediaRecord] = useState(null)
   const [pickupConfirm, setPickupConfirm] = useState(null)
@@ -160,13 +162,32 @@ export default function App() {
         closedAt: workflow.closedAt,
         appVersion: APP_VERSION
       })
+      if (reportImage?.revoke) reportImage.revoke()
       const result = await exportClosingReportImage(model)
-      setToast(result.mode === 'share'
-        ? '日报图已打开系统分享，请选择保存到相册'
-        : '日报图已开始下载，请在浏览器下载项中保存到相册')
+      setReportImage(result)
+      setToast(result.mode === 'download'
+        ? '已开始下载；也可在预览里长按图片保存到相册'
+        : '请在预览中长按图片保存到相册，或点“再次下载”')
     } catch (error) {
       setToast({ message: error?.message || '导出日报图失败。', tone: 'error' })
     }
+  }
+
+  const closeReportImage = () => {
+    if (reportImage?.revoke) reportImage.revoke()
+    setReportImage(null)
+  }
+
+  const redownloadReportImage = () => {
+    if (!reportImage?.objectUrl) return
+    const anchor = document.createElement('a')
+    anchor.href = reportImage.objectUrl
+    anchor.download = reportImage.filename || '闭店日报.png'
+    anchor.rel = 'noopener'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    setToast('已再次触发下载')
   }
 
   const reopen = async () => {
@@ -232,7 +253,14 @@ export default function App() {
   }
 
   if (authenticated && mustChangePassword && introDone) {
-    return <><PasswordChangeGate userName={currentUser} onChangePassword={auth.changePassword} onLogout={auth.logout} onComplete={() => setToast('密码已更新，业务工作台已解锁。')} /><StatusToast notice={toast} /></>
+    return <><PasswordChangeGate userName={currentUser} onChangePassword={auth.changePassword} onLogout={auth.logout} onComplete={() => setToast('密码已更新，业务工作台已解锁。')} /><ReportImageDialog
+        open={Boolean(reportImage?.objectUrl)}
+        onClose={closeReportImage}
+        imageUrl={reportImage?.objectUrl || ''}
+        filename={reportImage?.filename || ''}
+        onDownload={redownloadReportImage}
+      />
+      <StatusToast notice={toast} /></>
   }
 
   if (authenticated && !workflow.hydrated && (auth.source === 'restore' || loginAnimationDone)) {
@@ -308,6 +336,13 @@ export default function App() {
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
       </div>
       {introDone ? <ActionDock activeScene={activeScene} onJump={jumpTo} closedAt={workflow.closedAt} /> : null}
+      <ReportImageDialog
+        open={Boolean(reportImage?.objectUrl)}
+        onClose={closeReportImage}
+        imageUrl={reportImage?.objectUrl || ''}
+        filename={reportImage?.filename || ''}
+        onDownload={redownloadReportImage}
+      />
       <StatusToast notice={toast} />
     </>
   )
