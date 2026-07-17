@@ -1,0 +1,165 @@
+name: Deploy Cloudflare preview · free stack
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Full 40-character SHA at the selected Preview branch head
+        required: true
+        type: string
+      confirm_free_plan:
+        description: Confirm Cloudflare Workers and D1 remain on the Free plan
+        required: true
+        type: boolean
+        default: false
+      confirm_no_billing:
+        description: Confirm paid plans, usage billing, and automatic upgrades are disabled
+        required: true
+        type: boolean
+        default: false
+      confirm_preview_only:
+        description: Confirm this deploys Preview only; Staging and Production remain untouched
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-cloudflare-preview
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: preview
+    if: github.ref == 'refs/heads/feature/cloudflare-workers-d1' || github.ref == 'refs/heads/develop'
+    env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      PREVIEW_BASE_URL: ${{ vars.PREVIEW_BASE_URL }}
+    steps:
+      - name: Enforce Free, no-billing, Preview-only, and required credentials
+        env:
+          CONFIRM_FREE_PLAN: ${{ inputs.confirm_free_plan }}
+          CONFIRM_NO_BILLING: ${{ inputs.confirm_no_billing }}
+          CONFIRM_PREVIEW_ONLY: ${{ inputs.confirm_preview_only }}
+        run: |
+          test "$CONFIRM_FREE_PLAN" = true || { echo "::error::confirm_free_plan=true required"; exit 1; }
+          test "$CONFIRM_NO_BILLING" = true || { echo "::error::confirm_no_billing=true required"; exit 1; }
+          test "$CONFIRM_PREVIEW_ONLY" = true || { echo "::error::confirm_preview_only=true required"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN secret missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::CLOUDFLARE_ACCOUNT_ID variable missing"; exit 1; }
+          test -n "$PREVIEW_BASE_URL" || { echo "::error::PREVIEW_BASE_URL variable missing"; exit 1; }
+          case "$PREVIEW_BASE_URL" in
+            https://*) ;;
+            *) echo "::error::PREVIEW_BASE_URL must be an https URL"; exit 1 ;;
+          esac
+          test "$CLOUDFLARE_ACCOUNT_ID" = "02cb272ad6a5fd7e157a84061c8c5d42" || { echo "::error::unexpected Cloudflare account id"; exit 1; }
+          case "$PREVIEW_BASE_URL" in
+            *production*) echo "::error::Preview URL must not point at production"; exit 1 ;;
+          esac
+          if [[ "$PREVIEW_BASE_URL" != *"bike-ops-preview"* ]]; then
+            echo "::error::Preview URL must target the bike-ops-preview host"
+            exit 1
+          fi
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Verify release SHA equals the selected remote Preview branch head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::release_sha must be a full lowercase SHA"; exit 1; }
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags origin "$BRANCH"
+          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          REMOTE_SHA="$(git rev-parse "origin/$BRANCH")"
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          test "$RELEASE_SHA" = "$REMOTE_SHA" || { echo "::error::release_sha must equal the remote $BRANCH head"; exit 1; }
+          test "$RELEASE_SHA" = "$CHECKED_OUT_SHA" || { echo "::error::checkout does not match release_sha"; exit 1; }
+      - run: corepack enable
+      - name: Activate pinned pnpm
+        run: node scripts/ops/network-guard.mjs npm/pnpm corepack prepare pnpm@9.15.9 --activate
+      - name: Install frozen dependencies
+        run: node scripts/ops/network-guard.mjs npm/pnpm pnpm install --frozen-lockfile
+      - name: Validate, test, typecheck, and build before Cloudflare Preview deployment
+        run: pnpm check:workflows && pnpm test && pnpm typecheck && pnpm build
+      - name: Generate minified Worker bundle from the validated source
+        run: |
+          pnpm build:worker-bundle
+          cp dist/worker/index.min.js dist/worker/index.js
+          test -s dist/worker/index.js
+          test -s apps/web/dist/index.html
+      - name: Install pinned Wrangler through the network guard
+        run: node scripts/ops/network-guard.mjs npm/pnpm npm install --global wrangler@4.112.0
+      - name: Prepare the Preview Worker, Static Assets, and D1 configuration
+        run: |
+          cat > wrangler.preview.jsonc <<'JSON'
+          {
+            "name": "bike-ops-preview",
+            "main": "dist/worker/index.js",
+            "compatibility_date": "2026-07-17",
+            "compatibility_flags": ["nodejs_compat"],
+            "workers_dev": true,
+            "assets": {
+              "directory": "apps/web/dist",
+              "not_found_handling": "single-page-application",
+              "binding": "ASSETS",
+              "run_worker_first": ["/api/*", "/health/*"]
+            },
+            "d1_databases": [
+              {
+                "binding": "DB",
+                "database_name": "bike-ops-preview",
+                "database_id": "e40af8eb-6340-4b9e-8484-20247323fd84",
+                "migrations_dir": "migrations/d1"
+              }
+            ],
+            "vars": {
+              "APP_ENV": "preview",
+              "APP_VERSION": "__APP_VERSION__",
+              "COOKIE_SECURE": "true",
+              "SESSION_TTL_HOURS": "12",
+              "CORS_ALLOWED_ORIGINS": "__PREVIEW_BASE_URL__",
+              "GIT_SHA": "__RELEASE_SHA__"
+            }
+          }
+          JSON
+          node -e "
+            const fs=require('fs');
+            const pkg=require('./package.json');
+            const p='wrangler.preview.jsonc';
+            let t=fs.readFileSync(p,'utf8');
+            t=t
+              .replace('__APP_VERSION__', pkg.version)
+              .replace('__RELEASE_SHA__', process.env.RELEASE_SHA)
+              .replace('__PREVIEW_BASE_URL__', process.env.PREVIEW_BASE_URL);
+            fs.writeFileSync(p,t);
+          "
+      - name: Apply Preview D1 migrations
+        run: wrangler d1 migrations apply bike-ops-preview --remote --config wrangler.preview.jsonc
+      - name: Deploy the Preview Worker with Static Assets and D1
+        run: wrangler deploy --config wrangler.preview.jsonc
+      - name: Verify the deployed Preview API, release identity, and Web shell
+        run: |
+          set -euo pipefail
+          BASE="$PREVIEW_BASE_URL"
+          APP_VERSION="$(node -p "require('./package.json').version")"
+          curl -fsS "$BASE/health/live" | tee /tmp/live.json
+          curl -fsS "$BASE/health/ready" | tee /tmp/ready.json
+          curl -fsS "$BASE/api/v1/meta/version" | tee /tmp/meta.json
+          curl -fsS "$BASE/" | tee /tmp/index.html >/dev/null
+          grep -q '"status":"ok"' /tmp/live.json
+          grep -q '"status":"ready"' /tmp/ready.json
+          grep -Fq "\"appVersion\":\"$APP_VERSION\"" /tmp/meta.json
+          grep -Fq "\"gitSha\":\"$RELEASE_SHA\"" /tmp/meta.json
+          grep -qi '<!doctype html' /tmp/index.html
