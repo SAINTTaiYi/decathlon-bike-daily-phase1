@@ -30,6 +30,8 @@
     "build:api": "pnpm --filter @bike-ops/api build",
     "build:edgeone": "pnpm run check:version && pnpm --filter @bike-ops/api build && pnpm --filter @bike-ops/web build",
     "preview": "pnpm --filter @bike-ops/web preview",
-    "preview:lan": "pnpm --filter @bike-ops/web preview:lan"
+    "preview:lan": "pnpm --filter @bike-ops/web preview:lan",
+    "build:worker": "pnpm --filter @bike-ops/web build",
+    "cf:typecheck": "pnpm --filter @bike-ops/worker typecheck"
   }
 }

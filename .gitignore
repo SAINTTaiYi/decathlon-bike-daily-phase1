@@ -15,3 +15,8 @@ apps/api/src/generated/
 tmp_rcrf_images/
 archive-static-v1/
 data/mock-data.json
+
+# Cloudflare / wrangler local state
+.wrangler/
+.dev.vars
+.d1_*
