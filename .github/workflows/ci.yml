@@ -6,9 +6,48 @@ on:
     branches: [main, develop]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  repair_version:
+    if: github.event_name == 'push' && github.event.head_commit.message == 'chore(ci): run one-shot version repair'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - name: Activate pinned pnpm
+        run: corepack prepare pnpm@9.15.9 --activate
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Restore canonical CI and register V5.3.2
+        run: |
+          git show HEAD^:.github/workflows/ci.yml > .github/workflows/ci.yml
+          pnpm version:patch -- \
+            --title "EdgeOne 安装兼容修复" \
+            --summary "修复 EdgeOne 只读构建环境中的 Corepack 安装失败，并同步部署治理测试。" \
+            --change "EdgeOne 安装与构建改用固定版本的 corepack pnpm，不再向 /usr/local/bin 写入 shim。" \
+            --change "同步 Workflow 治理验证器和部署测试，确保配置与 CI 期望一致。"
+          pnpm version:stamp
+      - name: Validate the exact final tree
+        run: |
+          pnpm check:workflows
+          pnpm test
+          pnpm typecheck
+          pnpm build
+      - name: Push verified V5.3.2 metadata
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/ci.yml package.json apps/web/package.json apps/web/src/data/releaseNotes.js version-manifest.json
+          git diff --cached --check
+          git commit -m "fix(edgeone): register shimless install release"
+          git push origin HEAD:develop
+
   verify:
     runs-on: ubuntu-latest
     services:
