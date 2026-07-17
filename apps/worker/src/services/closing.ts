@@ -1,6 +1,7 @@
 import { first, nowIso, uuid } from '../db.js'
 
 export interface DayRow {
+  [key: string]: unknown
   id: string
   business_date: string
   sales_vehicles: number

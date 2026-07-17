@@ -32,6 +32,11 @@
     "preview": "pnpm --filter @bike-ops/web preview",
     "preview:lan": "pnpm --filter @bike-ops/web preview:lan",
     "build:worker": "pnpm --filter @bike-ops/web build",
-    "cf:typecheck": "pnpm --filter @bike-ops/worker typecheck"
+    "cf:typecheck": "pnpm --filter @bike-ops/worker typecheck",
+    "build:worker-bundle": "node scripts/build-worker-bundle.mjs",
+    "typecheck:worker": "pnpm --filter @bike-ops/worker typecheck"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.5"
   }
 }

@@ -19,13 +19,35 @@ type Vars = {
 
 const app = new Hono<{ Bindings: WorkerEnv; Variables: Vars }>()
 
+function needsSecrets(path: string): boolean {
+  if (path === '/health/live') return false
+  if (path === '/api/v1/meta/version') return false
+  if (path.startsWith('/health/') || path.startsWith('/api/')) return true
+  return false
+}
+
 app.use('*', async (c, next) => {
   const path = new URL(c.req.url).pathname
   if (path.startsWith('/api/') || path.startsWith('/health/')) {
-    c.set('config', loadConfig(c.env))
     c.set('auth', null)
+    if (needsSecrets(path)) {
+      c.set('config', loadConfig(c.env))
+    } else {
+      // Minimal config for public health/meta without requiring secrets.
+      c.set('config', {
+        APP_ENV: (c.env.APP_ENV ?? 'staging') as AppConfig['APP_ENV'],
+        APP_VERSION: c.env.APP_VERSION ?? '0.0.0',
+        GIT_SHA: c.env.GIT_SHA ?? 'unknown',
+        COOKIE_SECURE: (c.env.COOKIE_SECURE ?? 'true') === 'true',
+        SESSION_TTL_HOURS: Number(c.env.SESSION_TTL_HOURS ?? '12'),
+        allowedOrigins: ['https://bike-ops-staging.workers.dev'],
+        SESSION_SECRET: 'public-route-placeholder-not-used',
+        CSRF_SECRET: 'public-route-placeholder-not-used',
+        PASSWORD_PEPPER: 'public-route-placeholder-not-used'
+      })
+    }
     const origin = c.req.header('origin')
-    if (origin) {
+    if (origin && needsSecrets(path)) {
       if (!c.get('config').allowedOrigins.includes(origin)) {
         throw new ApiProblem(403, 'ORIGIN_NOT_ALLOWED', '请求来源不受允许。')
       }
@@ -47,7 +69,6 @@ app.route('/', workItemRoutes())
 app.route('/', auditRoutes())
 app.route('/', bootstrapRoutes())
 
-// Product has no file-storage requirement on the Cloudflare path.
 app.all('/api/v1/attachments/*', (c) => c.json({
   error: 'MEDIA_DISABLED',
   message: '当前 Cloudflare 架构不包含文件存储；附件功能已禁用。'

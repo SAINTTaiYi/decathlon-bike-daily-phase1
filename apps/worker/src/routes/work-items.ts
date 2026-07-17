@@ -133,7 +133,7 @@ export function workItemRoutes() {
   app.patch('/api/v1/work-items/:id', ...write, async (c) => {
     const context = c.get('auth')!
     const config = c.get('config')
-    const id = c.req.param('id')
+    const id = String(c.req.param('id') ?? '')
     const body = await c.req.json()
     const input = workItemUpdateSchema.parse(body)
     const result = await idempotent(c, body, async (db) => {
@@ -219,7 +219,8 @@ export function workItemRoutes() {
     app.post(path, ...write, async (c) => {
       const context = c.get('auth')!
       const config = c.get('config')
-      const id = c.req.param('id')
+      const id = String(c.req.param('id') ?? '')
+      if (!id) throw new ApiProblem(400, 'VALIDATION_ERROR', '缺少业务记录标识。')
       const body = await c.req.json()
       const input = actionSchema.parse(body)
       const result = await idempotent(c, body, async (db) => {
@@ -333,7 +334,7 @@ export function workItemRoutes() {
   app.post('/api/v1/work-items/:id/notification', ...write, async (c) => {
     const context = c.get('auth')!
     const config = c.get('config')
-    const id = c.req.param('id')
+    const id = String(c.req.param('id') ?? '')
     const body = await c.req.json()
     const input = notificationSchema.parse(body)
     const result = await idempotent(c, body, async (db) => {
@@ -373,7 +374,7 @@ export function workItemRoutes() {
   app.post('/api/v1/work-items/:id/pick-up', ...write, async (c) => {
     const context = c.get('auth')!
     const config = c.get('config')
-    const id = c.req.param('id')
+    const id = String(c.req.param('id') ?? '')
     const body = await c.req.json()
     const input = pickupCompleteSchema.parse(body)
     const result = await idempotent(c, body, async (db) => {
@@ -414,7 +415,7 @@ export function workItemRoutes() {
 
   app.delete('/api/v1/work-items/:id', ...write, async (c) => {
     const context = c.get('auth')!
-    const id = c.req.param('id')
+    const id = String(c.req.param('id') ?? '')
     const body = await c.req.json()
     const input = actionSchema.parse(body)
     const result = await idempotent(c, body, async (db) => {

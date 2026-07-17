@@ -64,6 +64,22 @@ Existing Supabase (`xrxmayzwxabmzanwhkmo`) and EdgeOne project remain **untouche
 - [ ] Install hono deps + typecheck
 - [ ] Deploy staging Worker with secrets
 
+## Phase C (build + bootstrap deploy)
+
+- [x] Install `hono` + workers-types (workspace)
+- [x] Worker typecheck passes
+- [x] esbuild bundle `dist/worker/index.js` (~256KB; Android cannot run workerd/wrangler)
+- [x] Web production build `apps/web/dist`
+- [x] Offline secrets generated in Termux private dir `~/.bike-ops-staging-secrets/` (mode 600; never in repo/chat)
+- [x] Bootstrap Worker deployed: `bike-ops-staging` on workers.dev subdomain `geeklightonefish`
+- [x] Smoke: `/health/live`, `/health/ready` (D1), `/api/v1/meta/version`
+- [ ] Upload full Hono API bundle (needs deploy path without putting secrets in chat)
+- [ ] Attach static assets + set CORS to workers.dev origin
+- [ ] Put Worker secrets via dashboard / wrangler on a supported host
+- [ ] Full smoke: setup → login → bootstrap → work-item
+
+**Staging URL (bootstrap):** `https://bike-ops-staging.geeklightonefish.workers.dev`
+
 ## Next queue (ordered)
 
 1. ~~Apply D1 migration~~ done.

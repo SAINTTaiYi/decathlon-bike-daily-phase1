@@ -20,3 +20,8 @@ data/mock-data.json
 .wrangler/
 .dev.vars
 .d1_*
+
+# Local Cloudflare build artifacts
+dist/worker/
+apps/web/dist/
+

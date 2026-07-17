@@ -1,4 +1,4 @@
-export type Row = Record<string, unknown>
+export type Row = Record<string, any>
 
 export function nowIso(): string {
   return new Date().toISOString()
@@ -30,12 +30,12 @@ export function camelRows<T extends Row>(rows: T[]): any[] {
   return rows.map((row) => camelRow(row))
 }
 
-export async function first<T extends Row>(stmt: D1PreparedStatement): Promise<T | null> {
+export async function first<T = Row>(stmt: D1PreparedStatement): Promise<T | null> {
   const result = await stmt.first<T>()
   return result ?? null
 }
 
-export async function all<T extends Row>(stmt: D1PreparedStatement): Promise<T[]> {
+export async function all<T = Row>(stmt: D1PreparedStatement): Promise<T[]> {
   const result = await stmt.all<T>()
   if (!result.success) throw new Error(result.error || 'D1_QUERY_FAILED')
   return result.results ?? []
