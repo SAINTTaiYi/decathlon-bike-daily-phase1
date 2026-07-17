@@ -456,66 +456,67 @@ export async function renderClosingReportCanvas(model) {
   ctx.fillText('SALES / KPI', PAD, y)
 
   y += 28
-  const heroH = 250
+  const heroH = 248
+  const subH = 128
+  const blockH = heroH + subH
   const heroX = PAD
   const heroW = contentW
-  // black hero with top rounded corners only feel
-  fillRound(ctx, heroX, y, heroW, heroH, 18, INK)
+  const blockY = y
+
+  // white shell + soft shadow for whole sales card
+  drawSoftShadow(ctx, heroX, blockY, heroW, blockH, 20)
+  fillRound(ctx, heroX, blockY, heroW, blockH, 20, SURFACE)
+
+  // black hero top
+  ctx.save()
+  roundRect(ctx, heroX, blockY, heroW, heroH + 20, 20)
+  ctx.clip()
   ctx.fillStyle = INK
-  ctx.fillRect(heroX, y + heroH - 18, heroW, 18)
+  ctx.fillRect(heroX, blockY, heroW, heroH)
+  ctx.restore()
+  // ensure bottom of black is square against white strip
+  ctx.fillStyle = INK
+  ctx.fillRect(heroX, blockY + heroH - 20, heroW, 20)
 
   ctx.fillStyle = 'rgba(255,255,255,0.55)'
   ctx.font = `700 18px ${FONT_MONO}`
-  ctx.fillText('VEHICLES SOLD  ·  车辆销售', heroX + 36, y + 42)
+  ctx.fillText('VEHICLES SOLD  ·  车辆销售', heroX + 36, blockY + 42)
 
   ctx.fillStyle = '#ffffff'
   ctx.font = `900 148px ${FONT_DISPLAY}`
-  ctx.fillText(String(model.kpi.salesVehicles), heroX + 36, y + 188)
+  ctx.fillText(String(model.kpi.salesVehicles), heroX + 36, blockY + 186)
 
-  drawSparkline(ctx, heroX + heroW * 0.42, y + 20, heroW * 0.54, heroH - 40)
+  drawSparkline(ctx, heroX + heroW * 0.42, blockY + 18, heroW * 0.54, heroH - 36)
 
-  y += heroH
-
-  // four metric cells under hero
-  const subH = 132
-  const salesLeadLabel = model.kpi.safetyModel
-    ? `发起销售 · ${model.kpi.safetyModel}`
-    : '发起销售 · 01'
+  // four metric cells — same order/labels as reference sheet
   const labels = [
-    [salesLeadLabel, model.kpi.safetyChecks],
+    ['发起销售 · 01', model.kpi.safetyChecks],
     ['有效评价', model.kpi.validReviews],
     ['二手售出', model.kpi.usedSold],
     ['二手收车', model.kpi.usedReceived]
   ]
   const cellW = heroW / 4
-  fillRound(ctx, heroX, y - 8, heroW, subH + 8, 18, SURFACE)
-  // square top of white strip under black
-  ctx.fillStyle = SURFACE
-  ctx.fillRect(heroX, y - 8, heroW, 24)
-
-  // outer stroke for whole sales block
-  strokeRound(ctx, heroX, y - heroH, heroW, heroH + subH, 18, 'rgba(0,0,0,0.06)', 1)
-
+  const subY = blockY + heroH
   labels.forEach(([label, value], i) => {
     const cx = heroX + cellW * i
     if (i > 0) {
       ctx.strokeStyle = LINE
       ctx.lineWidth = 1
       ctx.beginPath()
-      ctx.moveTo(cx, y + 24)
-      ctx.lineTo(cx, y + subH - 22)
+      ctx.moveTo(cx, subY + 28)
+      ctx.lineTo(cx, subY + subH - 28)
       ctx.stroke()
     }
     ctx.fillStyle = MUTED
     ctx.font = `600 18px ${FONT_MONO}`
     ctx.textAlign = 'left'
-    ctx.fillText(label, cx + 28, y + 42)
+    ctx.fillText(label, cx + 28, subY + 42)
     ctx.fillStyle = INK
     ctx.font = `900 56px ${FONT_DISPLAY}`
-    ctx.fillText(String(value), cx + 28, y + 100)
+    ctx.fillText(String(value), cx + 28, subY + 100)
   })
 
-  y += subH + 48
+  y = blockY + blockH + 52
 
   // ——— pickups ———
   y = drawSectionHead(ctx, y, `PICKUP · ${pad2(model.pickups.length)} OPEN`, '待取车辆', model.pickups.length)
