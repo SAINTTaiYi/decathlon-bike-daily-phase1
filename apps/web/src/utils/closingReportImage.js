@@ -1,38 +1,46 @@
 const WIDTH = 1242
-const PAD = 56
-const INK = '#08080a'
-const INK_SOFT = '#272729'
-const PAPER = '#f4f5f0'
-const PAPER_COOL = '#e7e9de'
-const LINE = '#c9cbc3'
-const MUTED = '#62625e'
+const PAD = 64
+const INK = '#0b0b0d'
+const INK_SOFT = '#3a3a3c'
+const PAPER = '#f7f6f2'
+const PAPER_SOFT = '#f0efeb'
+const LINE = '#e4e2db'
+const MUTED = '#8a8984'
+const MUTED_SOFT = '#a8a69f'
 const SURFACE = '#ffffff'
+const PANEL = '#f0eee8'
+const CHIP_BG = '#ffffff'
+const CHIP_BORDER = '#1a1a1a'
 
 const FONT_BODY = '"Albert Sans Local", "Noto Serif SC Variable"'
 const FONT_DISPLAY = '"Albert Sans Local", "Noto Serif SC Variable"'
 const FONT_MONO = '"Albert Sans Local", "Noto Serif SC Variable"'
 
-// Vertical rhythm (px) — clear air around rules / status / callouts / chips
-const GAP = {
-  afterRule: 44,
-  sectionEnToTitle: 32,
-  titleToBody: 52,
-  statusToDetail: 40,
-  detailToFacts: 44,
-  factsToMeta: 40,
-  metaToNext: 48,
-  ticketPadTop: 52,
-  ticketPadBottom: 64,
-  betweenSections: 64,
-  bottomSafe: 280,
-  calloutH: 118,
-  calloutInnerPad: 22
-}
+const R = 22
+const CARD_GAP = 18
+const BOTTOM_SAFE = 120
 
 let fontsReadyPromise
 
 function pad2(value) {
   return String(value ?? 0).padStart(2, '0')
+}
+
+function formatDateSlash(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return '— / — / —'
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m) return `${m[1]} / ${m[2]} / ${m[3]}`
+  return raw.replaceAll('-', ' / ')
+}
+
+function formatClock(iso) {
+  if (!iso) return '--:--'
+  try {
+    return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso))
+  } catch {
+    return '--:--'
+  }
 }
 
 function isOpenPickup(record) {
@@ -120,9 +128,9 @@ async function ensureReportFonts() {
     }))
     await document.fonts.ready.catch(() => undefined)
     await Promise.all([
-      document.fonts.load(`900 72px ${FONT_DISPLAY}`),
-      document.fonts.load(`700 26px ${FONT_MONO}`),
-      document.fonts.load(`500 30px ${FONT_BODY}`),
+      document.fonts.load(`900 96px ${FONT_DISPLAY}`),
+      document.fonts.load(`700 24px ${FONT_MONO}`),
+      document.fonts.load(`500 26px ${FONT_BODY}`),
       document.fonts.load('900 48px "Noto Serif SC Variable"')
     ])
     if (!loaded.some(Boolean)) throw new Error('站点字体加载失败。')
@@ -148,172 +156,229 @@ function wrapText(ctx, text, maxWidth) {
   return lines
 }
 
-function drawInkLine(ctx, x1, y, x2, strong = true) {
-  ctx.strokeStyle = strong ? INK : LINE
-  ctx.lineWidth = strong ? 3 : 2
+function roundRect(ctx, x, y, w, h, r) {
+  const radius = Math.min(r, w / 2, h / 2)
   ctx.beginPath()
-  ctx.moveTo(x1, y + 0.5)
-  ctx.lineTo(x2, y + 0.5)
+  ctx.moveTo(x + radius, y)
+  ctx.arcTo(x + w, y, x + w, y + h, radius)
+  ctx.arcTo(x + w, y + h, x, y + h, radius)
+  ctx.arcTo(x, y + h, x, y, radius)
+  ctx.arcTo(x, y, x + w, y, radius)
+  ctx.closePath()
+}
+
+function fillRound(ctx, x, y, w, h, r, fill) {
+  roundRect(ctx, x, y, w, h, r)
+  ctx.fillStyle = fill
+  ctx.fill()
+}
+
+function strokeRound(ctx, x, y, w, h, r, stroke, lineWidth = 1.5) {
+  roundRect(ctx, x, y, w, h, r)
+  ctx.strokeStyle = stroke
+  ctx.lineWidth = lineWidth
   ctx.stroke()
 }
 
-function drawCallout(ctx, x, y, w, label, value, align = 'left') {
-  const h = GAP.calloutH
-  ctx.fillStyle = SURFACE
-  ctx.fillRect(x, y, w, h)
-  ctx.strokeStyle = INK
-  ctx.lineWidth = 3
-  ctx.strokeRect(x + 2, y + 2, w - 4, h - 4)
-  ctx.fillStyle = MUTED
-  ctx.font = `800 20px ${FONT_MONO}`
-  ctx.textAlign = align === 'right' ? 'right' : 'left'
-  const tx = align === 'right' ? x + w - GAP.calloutInnerPad : x + GAP.calloutInnerPad
-  ctx.fillText(label, tx, y + 38)
-  ctx.fillStyle = INK
-  ctx.font = `900 34px ${FONT_DISPLAY}`
-  const lines = wrapText(ctx, value || '—', w - GAP.calloutInnerPad * 2)
-  lines.slice(0, 2).forEach((line, i) => {
-    ctx.fillText(line, tx, y + 78 + i * 28)
-  })
-  ctx.textAlign = 'left'
-  return h
+function drawSoftShadow(ctx, x, y, w, h, r) {
+  ctx.save()
+  ctx.shadowColor = 'rgba(12, 12, 14, 0.06)'
+  ctx.shadowBlur = 24
+  ctx.shadowOffsetY = 8
+  fillRound(ctx, x, y, w, h, r, SURFACE)
+  ctx.restore()
 }
 
-function measureTicket(ctx, item, width) {
-  let h = GAP.ticketPadTop + GAP.afterRule
-  ctx.font = `900 48px ${FONT_DISPLAY}`
-  const titleLines = wrapText(ctx, item.title || '未命名', width - 96)
-  h += Math.max(1, titleLines.length) * 56 + GAP.titleToBody
-  // status chip
-  h += 44 + GAP.statusToDetail
-  const detail = item.detail || item.repairProject || ''
-  if (detail) {
-    ctx.font = `500 30px ${FONT_BODY}`
-    h += wrapText(ctx, detail, width - 16).length * 42 + GAP.detailToFacts
-  } else {
-    h += Math.floor(GAP.detailToFacts * 0.5)
+function drawBarcode(ctx, x, y) {
+  const pattern = [2, 1, 1, 3, 1, 2, 1, 1, 2, 3, 1, 1, 2, 1, 3, 1, 2, 1, 1, 2]
+  let cx = x
+  ctx.fillStyle = MUTED_SOFT
+  for (let i = 0; i < pattern.length; i += 1) {
+    const w = pattern[i]
+    if (i % 2 === 0) ctx.fillRect(cx, y, w, 18)
+    cx += w + 1
   }
-  const contactValue = String(item.contactValue || '').trim()
-  const pickupDate = String(item.pickupDate || '').trim()
-  if (pickupDate || contactValue) {
-    h += GAP.calloutH + GAP.factsToMeta
-  }
-  const chips = [item.repairType || '', item.meta || ''].filter(Boolean)
-  if (chips.length) h += 36 + 16
-  h += GAP.ticketPadBottom
-  return h
 }
 
-function measureList(ctx, items, width) {
-  if (!items.length) return 120
-  return items.reduce((sum, item) => sum + measureTicket(ctx, item, width), 0)
-}
-
-function drawTicket(ctx, item, x, y, width, index) {
-  y += GAP.ticketPadTop
-  drawInkLine(ctx, x, y, x + width, false)
-  y += GAP.afterRule
-
-  ctx.fillStyle = MUTED
-  ctx.font = `700 24px ${FONT_MONO}`
-  ctx.fillText(pad2(index + 1), x, y + 6)
-  ctx.fillStyle = INK
-  ctx.font = `900 48px ${FONT_DISPLAY}`
-  const titleLines = wrapText(ctx, item.title || '未命名', width - 96)
-  titleLines.forEach((line, i) => ctx.fillText(line, x + 72, y + i * 56))
-  y += Math.max(1, titleLines.length) * 56 + GAP.titleToBody
-
-  const status = item.status || '进行中'
-  ctx.font = `800 22px ${FONT_MONO}`
-  const statusText = `STATUS · ${status}`
-  const sw = ctx.measureText(statusText).width + 32
-  const chipTop = y
-  ctx.strokeStyle = INK
-  ctx.lineWidth = 2
-  ctx.strokeRect(x, chipTop, sw, 44)
-  ctx.fillStyle = INK
-  ctx.fillText(statusText, x + 16, chipTop + 30)
-  y = chipTop + 44 + GAP.statusToDetail
-
-  const detail = item.detail || item.repairProject || ''
-  if (detail) {
-    ctx.fillStyle = INK_SOFT
-    ctx.font = `500 30px ${FONT_BODY}`
-    wrapText(ctx, detail, width - 16).forEach((line) => {
-      ctx.fillText(line, x, y)
-      y += 42
-    })
-    y += GAP.detailToFacts
-  } else {
-    y += Math.floor(GAP.detailToFacts * 0.5)
-  }
-
-  const contactLabel = item.contactType === 'member' ? '会员号' : '手机号'
-  const contactValue = String(item.contactValue || '').trim()
-  const pickupDate = String(item.pickupDate || '').trim()
-  if (pickupDate || contactValue) {
-    const gap = 28
-    if (pickupDate && contactValue) {
-      const leftW = Math.floor((width - gap) * 0.48)
-      const rightW = width - gap - leftW
-      drawCallout(ctx, x, y, leftW, contactLabel, contactValue, 'left')
-      drawCallout(ctx, x + leftW + gap, y, rightW, '取车时间', pickupDate.replaceAll('-', ' / '), 'right')
-    } else if (contactValue) {
-      drawCallout(ctx, x, y, Math.min(width, 480), contactLabel, contactValue, 'left')
-    } else {
-      const w = Math.min(width, 480)
-      drawCallout(ctx, x + width - w, y, w, '取车时间', pickupDate.replaceAll('-', ' / '), 'right')
+function drawSparkline(ctx, x, y, w, h) {
+  // dotted grid
+  ctx.fillStyle = 'rgba(255,255,255,0.12)'
+  for (let i = 0; i < 18; i += 1) {
+    for (let j = 0; j < 8; j += 1) {
+      ctx.beginPath()
+      ctx.arc(x + 18 + i * (w / 18), y + 24 + j * (h / 9), 1.1, 0, Math.PI * 2)
+      ctx.fill()
     }
-    y += GAP.calloutH + GAP.factsToMeta
   }
-
-  const chips = [item.repairType || '', item.meta || ''].filter(Boolean)
-  if (chips.length) {
-    ctx.fillStyle = MUTED
-    ctx.font = `700 22px ${FONT_MONO}`
-    ctx.fillText(chips.join('  ·  '), x, y)
-    y += 36 + 16
+  // rising curve
+  const pts = []
+  const n = 28
+  for (let i = 0; i < n; i += 1) {
+    const t = i / (n - 1)
+    const px = x + 20 + t * (w - 48)
+    const wave = Math.sin(t * Math.PI * 1.15) * 0.18
+    const py = y + h - 36 - (t * t * 0.72 + wave) * (h - 70)
+    pts.push([px, py])
   }
-
-  y += GAP.ticketPadBottom
-  return y
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  pts.forEach(([px, py], i) => (i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)))
+  ctx.stroke()
+  const [ex, ey] = pts[pts.length - 1]
+  ctx.fillStyle = '#ffffff'
+  ctx.beginPath()
+  ctx.arc(ex, ey, 5, 0, Math.PI * 2)
+  ctx.fill()
 }
 
-function drawList(ctx, items, x, y, width, emptyLabel) {
-  if (!items.length) {
-    y += 24
-    ctx.fillStyle = PAPER_COOL
-    ctx.fillRect(x, y, width, 96)
-    ctx.fillStyle = MUTED
-    ctx.font = `700 26px ${FONT_MONO}`
-    ctx.fillText(emptyLabel, x + 28, y + 58)
-    return y + 120
-  }
-  items.forEach((item, index) => {
-    y = drawTicket(ctx, item, x, y, width, index)
+function itemDetail(item) {
+  return String(item.detail || item.repairProject || item.meta || item.repairType || '').trim()
+}
+
+function itemContactLabel(item) {
+  return item.contactType === 'member' ? '会员' : '手机'
+}
+
+function itemPaymentLabel(item) {
+  const meta = String(item.meta || item.repairType || '').trim()
+  if (meta.includes('付费') || meta.includes('付款')) return meta
+  return '付款 · 付费'
+}
+
+function measureCard(ctx, item, contentW) {
+  const leftW = Math.floor(contentW * 0.48)
+  const detail = itemDetail(item)
+  ctx.font = `500 24px ${FONT_BODY}`
+  const detailLines = detail ? wrapText(ctx, detail, leftW - 36).slice(0, 4) : []
+  const title = String(item.title || '未命名')
+  ctx.font = `800 40px ${FONT_DISPLAY}`
+  const titleLines = wrapText(ctx, title, leftW - 70).slice(0, 2)
+  // top pad + index/title + status + detail + bottom pad
+  let h = 28
+  h += Math.max(1, titleLines.length) * 44
+  h += 18 + 34 + 16
+  if (detailLines.length) h += detailLines.length * 32 + 8
+  h += 28
+  return Math.max(168, h)
+}
+
+function measureList(ctx, items, contentW) {
+  if (!items.length) return 120
+  return items.reduce((sum, item) => sum + measureCard(ctx, item, contentW) + CARD_GAP, 0)
+}
+
+function drawCard(ctx, item, x, y, width, index) {
+  const h = measureCard(ctx, item, width)
+  drawSoftShadow(ctx, x, y, width, h, R)
+  fillRound(ctx, x, y, width, h, R, SURFACE)
+
+  const leftW = Math.floor(width * 0.48)
+  const midW = Math.floor(width * 0.22)
+  const rightW = width - leftW - midW
+  const midX = x + leftW
+  const rightX = midX + midW
+
+  // left content
+  let cy = y + 34
+  ctx.fillStyle = MUTED
+  ctx.font = `700 22px ${FONT_MONO}`
+  ctx.textAlign = 'left'
+  ctx.fillText(pad2(index + 1), x + 28, cy)
+
+  const title = String(item.title || '未命名')
+  ctx.fillStyle = INK
+  ctx.font = `800 40px ${FONT_DISPLAY}`
+  const titleLines = wrapText(ctx, title, leftW - 70).slice(0, 2)
+  titleLines.forEach((line, i) => {
+    ctx.fillText(line, x + 70, cy + i * 44)
   })
-  y += 12
-  drawInkLine(ctx, x, y, x + width, false)
-  return y + 28
+  cy += Math.max(1, titleLines.length) * 44 + 14
+
+  const status = String(item.status || '进行中')
+  const statusText = `STATUS · ${status}`
+  ctx.font = `700 18px ${FONT_MONO}`
+  const sw = ctx.measureText(statusText).width + 22
+  const sh = 30
+  fillRound(ctx, x + 28, cy - 20, sw, sh, 6, CHIP_BG)
+  strokeRound(ctx, x + 28, cy - 20, sw, sh, 6, CHIP_BORDER, 1.5)
+  ctx.fillStyle = INK
+  ctx.fillText(statusText, x + 39, cy + 1)
+  cy += 28
+
+  const detail = itemDetail(item)
+  if (detail) {
+    ctx.fillStyle = MUTED
+    ctx.font = `500 24px ${FONT_BODY}`
+    wrapText(ctx, detail, leftW - 36).slice(0, 4).forEach((line) => {
+      ctx.fillText(line, x + 28, cy)
+      cy += 32
+    })
+  }
+
+  // mid column - contact
+  const contactLabel = itemContactLabel(item)
+  const contactValue = String(item.contactValue || '0').trim() || '0'
+  ctx.fillStyle = MUTED_SOFT
+  ctx.font = `600 20px ${FONT_MONO}`
+  ctx.textAlign = 'left'
+  ctx.fillText(contactLabel, midX + 18, y + 42)
+  ctx.fillStyle = INK
+  ctx.font = `800 48px ${FONT_DISPLAY}`
+  ctx.fillText(contactValue, midX + 18, y + 96)
+  ctx.fillStyle = MUTED_SOFT
+  ctx.font = `600 18px ${FONT_MONO}`
+  ctx.fillText(itemPaymentLabel(item), midX + 18, y + 130)
+
+  // right panel - pickup date
+  fillRound(ctx, rightX, y, rightW, h, R, PANEL)
+  // cover left corners of right panel so only right side is rounded visually with card
+  ctx.fillStyle = PANEL
+  ctx.fillRect(rightX, y, 24, h)
+
+  ctx.fillStyle = MUTED
+  ctx.font = `600 18px ${FONT_MONO}`
+  ctx.textAlign = 'right'
+  ctx.fillText('取车时间', rightX + rightW - 28, y + 42)
+  ctx.fillStyle = INK
+  ctx.font = `800 30px ${FONT_DISPLAY}`
+  ctx.fillText(formatDateSlash(item.pickupDate), rightX + rightW - 28, y + 96)
+  ctx.textAlign = 'left'
+
+  return y + h + CARD_GAP
 }
 
-function drawSectionHead(ctx, y, en, title, countLabel) {
-  y += GAP.betweenSections
-  drawInkLine(ctx, PAD, y, WIDTH - PAD, true)
-  y += GAP.afterRule + 8
+function drawEmptyCard(ctx, x, y, width, label) {
+  const h = 110
+  fillRound(ctx, x, y, width, h, R, PAPER_SOFT)
   ctx.fillStyle = MUTED
   ctx.font = `700 24px ${FONT_MONO}`
+  ctx.fillText(label, x + 32, y + 64)
+  return y + h + CARD_GAP
+}
+
+function drawSectionHead(ctx, y, en, title, count) {
+  ctx.fillStyle = MUTED
+  ctx.font = `700 20px ${FONT_MONO}`
+  ctx.textAlign = 'left'
   ctx.fillText(en, PAD, y)
-  if (countLabel) {
-    ctx.textAlign = 'right'
-    ctx.fillText(countLabel, WIDTH - PAD, y)
-    ctx.textAlign = 'left'
-  }
-  y += GAP.sectionEnToTitle + 36
+  ctx.textAlign = 'right'
+  ctx.fillText(`${count} 条`, WIDTH - PAD, y)
+  ctx.textAlign = 'left'
+  y += 42
   ctx.fillStyle = INK
-  ctx.font = `900 64px ${FONT_DISPLAY}`
+  ctx.font = `900 52px ${FONT_DISPLAY}`
   ctx.fillText(title, PAD, y)
-  return y + GAP.titleToBody + 8
+  return y + 36
+}
+
+function drawList(ctx, items, y, emptyLabel) {
+  const contentW = WIDTH - PAD * 2
+  if (!items.length) return drawEmptyCard(ctx, PAD, y, contentW, emptyLabel)
+  items.forEach((item, index) => {
+    y = drawCard(ctx, item, PAD, y, contentW, index)
+  })
+  return y
 }
 
 export async function renderClosingReportCanvas(model) {
@@ -324,12 +389,11 @@ export async function renderClosingReportCanvas(model) {
   const repairH = measureList(measure, model.repairs, contentW)
   const handoverH = measureList(measure, model.handovers, contentW)
 
-  // Sales section vertical visual weights 3:2:1:1 (label band : title : metrics : note)
-  // Keep sales compact; list sections grow with content.
-  const salesBlockH = 300
-  const headerH = 200
+  // fixed header + sales block estimate + sections + footer + bottom safe
+  const headerSalesH = 820
+  const sectionHeads = 140 * (1 + (model.handovers.length || model.handovers ? 1 : 0) + 1)
   const finalHeight = Math.ceil(
-    headerH + salesBlockH + pickupH + repairH + handoverH + GAP.betweenSections * 3 + GAP.bottomSafe + 240
+    headerSalesH + pickupH + repairH + handoverH + sectionHeads + BOTTOM_SAFE + 180
   )
 
   const canvas = document.createElement('canvas')
@@ -337,129 +401,180 @@ export async function renderClosingReportCanvas(model) {
   canvas.height = finalHeight
   const ctx = canvas.getContext('2d')
 
-  ctx.fillStyle = PAPER_COOL
-  ctx.fillRect(0, 0, WIDTH, finalHeight)
+  // paper background
   ctx.fillStyle = PAPER
-  ctx.fillRect(18, 18, WIDTH - 36, finalHeight - 36)
+  ctx.fillRect(0, 0, WIDTH, finalHeight)
 
-  // masthead
+  // ——— masthead ———
   ctx.fillStyle = INK
-  ctx.font = `900 80px ${FONT_DISPLAY}`
-  ctx.fillText('WORKSHOP OPS', PAD, 96)
-  ctx.fillRect(WIDTH - PAD - 190, 46, 190, 60)
+  ctx.font = `900 92px ${FONT_DISPLAY}`
+  ctx.fillText('WORKSHOP OPS', PAD, 108)
+
+  // version badge
+  const ver = `V${model.appVersion || '—'}`
+  ctx.font = `800 26px ${FONT_DISPLAY}`
+  const vw = ctx.measureText(ver).width + 36
+  fillRound(ctx, WIDTH - PAD - vw, 58, vw, 48, 8, INK)
   ctx.fillStyle = '#fff'
-  ctx.font = `900 34px ${FONT_DISPLAY}`
-  ctx.fillText(`V${model.appVersion || '—'}`, WIDTH - PAD - 164, 88)
+  ctx.fillText(ver, WIDTH - PAD - vw + 18, 90)
 
+  // store meta + barcode
   ctx.fillStyle = MUTED
-  ctx.font = `700 24px ${FONT_MONO}`
-  ctx.fillText(`${model.storeName} · ${model.businessDate} · DATABASE SYNC`, PAD, 148)
-  // breathing under meta before rule
-  drawInkLine(ctx, PAD, 184, WIDTH - PAD, true)
+  ctx.font = `600 22px ${FONT_MONO}`
+  ctx.fillText(`${model.storeName} · ${model.businessDate} · DATABASE SYNC`, PAD, 156)
+  drawBarcode(ctx, WIDTH - PAD - 92, 140)
 
-  // sales — moderate, ratio-friendly 3-weight unit
-  let y = 184 + GAP.afterRule + 12
+  // rule
+  ctx.strokeStyle = INK
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.moveTo(PAD, 184)
+  ctx.lineTo(WIDTH - PAD, 184)
+  ctx.stroke()
+
+  // ——— closing complete ———
+  let y = 248
   ctx.fillStyle = INK
-  ctx.font = `900 64px ${FONT_DISPLAY}`
-  ctx.fillText('CLOSING COMPLETE', PAD, y + 52)
-  const closedLabel = model.closedAt
-    ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(model.closedAt))
-    : '--:--'
-  ctx.fillStyle = MUTED
-  ctx.font = `500 28px ${FONT_BODY}`
-  ctx.fillText(
-    `已闭店 ${closedLabel}  ·  导出 ${new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date())}  ·  ${model.exporterName || '同事'}`,
-    PAD,
-    y + 100
-  )
+  ctx.font = `900 72px ${FONT_DISPLAY}`
+  ctx.fillText('CLOSING COMPLETE', PAD, y)
 
-  // Sales vertical stack weights 3:2:1:1 → label(3) title(2) metrics(1) note(1) of a compact unit
-  const salesUnit = 22
-  y += 120
-  // weight 3 — label band
+  y += 48
   ctx.fillStyle = MUTED
-  ctx.font = `700 20px ${FONT_MONO}`
-  ctx.fillText('SALES / KPI · 当日闭店门槛', PAD, y)
-  y += salesUnit * 3
+  ctx.font = `500 24px ${FONT_BODY}`
+  const closedLabel = formatClock(model.closedAt)
+  const exportLabel = formatClock(new Date().toISOString())
+  ctx.fillText(`◎  闭店 ${closedLabel}   ·   ↗  导出 ${exportLabel}   ·   ${model.exporterName || '同事'}`, PAD, y)
 
-  // weight 2 — section title (kept smaller than list section titles)
+  // ——— sales ———
+  y += 72
   ctx.fillStyle = INK
-  ctx.font = `900 42px ${FONT_DISPLAY}`
+  ctx.font = `900 48px ${FONT_DISPLAY}`
   ctx.fillText('销售数据', PAD, y)
-  y += salesUnit * 2 + 18
+  y += 28
+  ctx.fillStyle = MUTED
+  ctx.font = `700 18px ${FONT_MONO}`
+  ctx.fillText('SALES / KPI', PAD, y)
 
-  // weight 1 — metric row (equal cells, modest numbers — not a hero banner)
-  const metrics = [
-    ['车辆销售', model.kpi.salesVehicles],
-    ['安全检查', model.kpi.safetyChecks],
+  y += 28
+  const heroH = 250
+  const heroX = PAD
+  const heroW = contentW
+  // black hero with top rounded corners only feel
+  fillRound(ctx, heroX, y, heroW, heroH, 18, INK)
+  ctx.fillStyle = INK
+  ctx.fillRect(heroX, y + heroH - 18, heroW, 18)
+
+  ctx.fillStyle = 'rgba(255,255,255,0.55)'
+  ctx.font = `700 18px ${FONT_MONO}`
+  ctx.fillText('VEHICLES SOLD  ·  车辆销售', heroX + 36, y + 42)
+
+  ctx.fillStyle = '#ffffff'
+  ctx.font = `900 148px ${FONT_DISPLAY}`
+  ctx.fillText(String(model.kpi.salesVehicles), heroX + 36, y + 188)
+
+  drawSparkline(ctx, heroX + heroW * 0.42, y + 20, heroW * 0.54, heroH - 40)
+
+  y += heroH
+
+  // four metric cells under hero
+  const subH = 132
+  const salesLeadLabel = model.kpi.safetyModel
+    ? `发起销售 · ${model.kpi.safetyModel}`
+    : '发起销售 · 01'
+  const labels = [
+    [salesLeadLabel, model.kpi.safetyChecks],
     ['有效评价', model.kpi.validReviews],
     ['二手售出', model.kpi.usedSold],
     ['二手收车', model.kpi.usedReceived]
   ]
-  const gap = 14
-  const boxH = 108
-  const cellW = (contentW - gap * (metrics.length - 1)) / metrics.length
-  let x = PAD
-  metrics.forEach(([label, value], index) => {
-    const dark = index === 0
-    ctx.fillStyle = dark ? INK : SURFACE
-    ctx.fillRect(x, y, cellW, boxH)
-    ctx.strokeStyle = INK
-    ctx.lineWidth = 2
-    ctx.strokeRect(x + 1, y + 1, cellW - 2, boxH - 2)
-    ctx.fillStyle = dark ? '#fff' : INK
-    ctx.font = `900 40px ${FONT_DISPLAY}`
-    ctx.fillText(String(value), x + 14, y + 52)
-    ctx.fillStyle = dark ? 'rgba(255,255,255,0.72)' : MUTED
-    ctx.font = `700 18px ${FONT_MONO}`
-    ctx.fillText(label, x + 14, y + 84)
-    x += cellW + gap
-  })
-  y += boxH + salesUnit * 1
+  const cellW = heroW / 4
+  fillRound(ctx, heroX, y - 8, heroW, subH + 8, 18, SURFACE)
+  // square top of white strip under black
+  ctx.fillStyle = SURFACE
+  ctx.fillRect(heroX, y - 8, heroW, 24)
 
-  // weight 1 — note / safety model
-  if (model.kpi.safetyModel) {
+  // outer stroke for whole sales block
+  strokeRound(ctx, heroX, y - heroH, heroW, heroH + subH, 18, 'rgba(0,0,0,0.06)', 1)
+
+  labels.forEach(([label, value], i) => {
+    const cx = heroX + cellW * i
+    if (i > 0) {
+      ctx.strokeStyle = LINE
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(cx, y + 24)
+      ctx.lineTo(cx, y + subH - 22)
+      ctx.stroke()
+    }
     ctx.fillStyle = MUTED
-    ctx.font = `700 22px ${FONT_MONO}`
-    ctx.fillText(`安检车型 · ${model.kpi.safetyModel}`, PAD, y)
-    y += salesUnit * 1 + 12
-  } else {
-    y += 8
+    ctx.font = `600 18px ${FONT_MONO}`
+    ctx.textAlign = 'left'
+    ctx.fillText(label, cx + 28, y + 42)
+    ctx.fillStyle = INK
+    ctx.font = `900 56px ${FONT_DISPLAY}`
+    ctx.fillText(String(value), cx + 28, y + 100)
+  })
+
+  y += subH + 48
+
+  // ——— pickups ———
+  y = drawSectionHead(ctx, y, `PICKUP · ${pad2(model.pickups.length)} OPEN`, '待取车辆', model.pickups.length)
+  y = drawList(ctx, model.pickups, y, '本日无待取车辆')
+  y += 20
+
+  // ——— repairs ———
+  y = drawSectionHead(ctx, y, `REPAIR · ${pad2(model.repairs.length)} OPEN`, '维修车辆', model.repairs.length)
+  y = drawList(ctx, model.repairs, y, '本日无维修车辆')
+  y += 20
+
+  // ——— handovers (same card system if any) ———
+  if (model.handovers.length) {
+    y = drawSectionHead(ctx, y, `HANDOVER · ${pad2(model.handovers.length)} OPEN`, '交接事项', model.handovers.length)
+    y = drawList(ctx, model.handovers, y, '本日无交接事项')
+    y += 20
   }
 
-  // sections
-  y = drawSectionHead(ctx, y, `PICKUP · ${pad2(model.pickups.length)} OPEN`, '待取车辆', `${model.pickups.length} 条`)
-  y = drawList(ctx, model.pickups, PAD, y, contentW, '本日无待取车辆')
+  // ——— footer ———
+  y += 12
+  ctx.strokeStyle = LINE
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(PAD, y)
+  ctx.lineTo(WIDTH - PAD, y)
+  ctx.stroke()
 
-  y = drawSectionHead(ctx, y, `REPAIR · ${pad2(model.repairs.length)} OPEN`, '维修车辆', `${model.repairs.length} 条`)
-  y = drawList(ctx, model.repairs, PAD, y, contentW, '本日无维修车辆')
-
-  y = drawSectionHead(ctx, y, `HANDOVER · ${pad2(model.handovers.length)} OPEN`, '交接事项', `${model.handovers.length} 条`)
-  y = drawList(ctx, model.handovers, PAD, y, contentW, '本日无交接事项')
-
-  // bottom safe area so last ticket / footer stay clear of image edge
-  y += 40
-  drawInkLine(ctx, PAD, y, WIDTH - PAD, true)
-  ctx.fillStyle = MUTED
-  ctx.font = `700 22px ${FONT_MONO}`
-  ctx.fillText('TICKET STYLE · SITE FONTS ONLY · LONG SHEET', PAD, y + 52)
+  y += 42
+  ctx.fillStyle = MUTED_SOFT
+  ctx.font = `700 18px ${FONT_MONO}`
+  ctx.textAlign = 'left'
+  ctx.fillText('WORKSHOP OPS  ·  DAILY REPORT', PAD, y)
   ctx.textAlign = 'right'
-  ctx.fillText(String(model.storeName || ''), WIDTH - PAD, y + 52)
+  ctx.fillStyle = INK
+  ctx.font = `900 36px ${FONT_DISPLAY}`
+  ctx.fillText('W/O', WIDTH - PAD, y + 4)
   ctx.textAlign = 'left'
 
-  // ensure canvas has bottom padding beyond footer text
-  const needed = y + GAP.bottomSafe
+  // ensure bottom safe padding
+  const needed = y + BOTTOM_SAFE
   if (needed > finalHeight) {
-    // grow canvas if underestimate
     const bigger = document.createElement('canvas')
     bigger.width = WIDTH
     bigger.height = needed
     const bctx = bigger.getContext('2d')
-    bctx.fillStyle = PAPER_COOL
+    bctx.fillStyle = PAPER
     bctx.fillRect(0, 0, WIDTH, needed)
     bctx.drawImage(canvas, 0, 0)
-    // redraw footer area already on image; just return taller with cool paper bottom
     return bigger
+  }
+
+  // trim excess empty paper if overestimated, keep bottom safe
+  if (finalHeight - needed > 80) {
+    const trimmed = document.createElement('canvas')
+    trimmed.width = WIDTH
+    trimmed.height = needed
+    const tctx = trimmed.getContext('2d')
+    tctx.drawImage(canvas, 0, 0)
+    return trimmed
   }
 
   return canvas
