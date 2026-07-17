@@ -154,12 +154,30 @@ jobs:
           set -euo pipefail
           BASE="$PREVIEW_BASE_URL"
           APP_VERSION="$(node -p "require('./package.json').version")"
-          curl -fsS "$BASE/health/live" | tee /tmp/live.json
-          curl -fsS "$BASE/health/ready" | tee /tmp/ready.json
-          curl -fsS "$BASE/api/v1/meta/version" | tee /tmp/meta.json
-          curl -fsS "$BASE/" | tee /tmp/index.html >/dev/null
-          grep -q '"status":"ok"' /tmp/live.json
-          grep -q '"status":"ready"' /tmp/ready.json
-          grep -Fq "\"appVersion\":\"$APP_VERSION\"" /tmp/meta.json
-          grep -Fq "\"gitSha\":\"$RELEASE_SHA\"" /tmp/meta.json
-          grep -qi '<!doctype html' /tmp/index.html
+          # Edge may briefly serve the previous isolate; poll until identity matches this release.
+          for attempt in $(seq 1 24); do
+            curl -fsS "$BASE/health/live" | tee /tmp/live.json >/dev/null
+            curl -fsS "$BASE/health/ready" | tee /tmp/ready.json >/dev/null
+            curl -fsS "$BASE/api/v1/meta/version" | tee /tmp/meta.json >/dev/null
+            curl -fsS "$BASE/" | tee /tmp/index.html >/dev/null
+            if grep -q '"status":"ok"' /tmp/live.json \
+              && grep -q '"status":"ready"' /tmp/ready.json \
+              && grep -Fq "\"appVersion\":\"$APP_VERSION\"" /tmp/meta.json \
+              && grep -Fq "\"gitSha\":\"$RELEASE_SHA\"" /tmp/meta.json \
+              && grep -Fq "\"version\":\"$APP_VERSION\"" /tmp/live.json \
+              && grep -Fq "\"version\":\"$APP_VERSION\"" /tmp/ready.json \
+              && grep -qi '<!doctype html' /tmp/index.html; then
+              echo "Preview identity matched on attempt $attempt"
+              cat /tmp/live.json; echo
+              cat /tmp/ready.json; echo
+              cat /tmp/meta.json; echo
+              exit 0
+            fi
+            echo "attempt $attempt: waiting for Preview identity to converge"
+            cat /tmp/live.json; echo
+            cat /tmp/ready.json; echo
+            cat /tmp/meta.json; echo
+            sleep 5
+          done
+          echo "::error::Preview identity did not converge to $APP_VERSION / $RELEASE_SHA"
+          exit 1

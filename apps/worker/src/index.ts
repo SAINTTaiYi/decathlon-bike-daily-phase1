@@ -20,7 +20,10 @@ type Vars = {
 const app = new Hono<{ Bindings: WorkerEnv; Variables: Vars }>()
 
 function needsSecrets(path: string): boolean {
+  // Public identity/health endpoints must read plain env vars (APP_VERSION/GIT_SHA)
+  // so post-deploy verification is not blocked by secret loading or stale secret-path config.
   if (path === '/health/live') return false
+  if (path === '/health/ready') return false
   if (path === '/api/v1/meta/version') return false
   if (path.startsWith('/health/') || path.startsWith('/api/')) return true
   return false
