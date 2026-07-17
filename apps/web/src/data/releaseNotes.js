@@ -1,13 +1,12 @@
-export const APP_VERSION = "5.3.5"
+export const APP_VERSION = "5.3.6"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.18",
-  title: "GitHub 直连 Cloudflare 发布",
-  summary: "把 Staging 发布改为 GitHub Actions + Wrangler 直传，去掉手机分片中转。",
+  title: "修复私有仓库 Staging 发布校验",
+  summary: "修复 GitHub Actions 在 persist-credentials=false 时无法读取远程分支头的问题。",
   changes: [
-    "Cloudflare Account ID 与 Staging URL 改为 Environment Variable。",
-    "部署工作流读取 STAGING_BASE_URL，直接 wrangler deploy 并自动验收。",
-    "补齐治理断言，为一次性 API Token 高速发布路径铺路。"
+    "Staging 发布校验仅临时使用 github.token 做只读 fetch。",
+    "继续保持 Cloudflare Free Staging 直连 Wrangler 发布路径。"
   ]
 }
