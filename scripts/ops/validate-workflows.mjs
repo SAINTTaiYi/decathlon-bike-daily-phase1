@@ -110,8 +110,8 @@ includesInOrder(production, [
   'Verify the deployed SHA, environment, API, database, and Web'
 ], 'production')
 
-assert(edgeOneConfig.installCommand === 'corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile', 'edgeone.json: install command must remain frozen and pinned')
-assert(edgeOneConfig.buildCommand === 'pnpm build:edgeone', 'edgeone.json: build command must not mutate Supabase')
+assert(edgeOneConfig.installCommand === 'corepack pnpm@9.15.9 install --frozen-lockfile', 'edgeone.json: install command must remain frozen and pinned without global shim writes')
+assert(edgeOneConfig.buildCommand === 'corepack pnpm@9.15.9 build:edgeone', 'edgeone.json: build command must remain pinned and must not mutate Supabase')
 assert(edgeOneConfig.outputDirectory === 'apps/web/dist', 'edgeone.json: output directory must remain apps/web/dist')
 assert(edgeOneConfig.nodeVersion === '22.11.0', 'edgeone.json: Node version must remain pinned')
 
