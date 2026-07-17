@@ -3,11 +3,13 @@ import BootLoader from './components/BootLoader.jsx'
 import InitialSetup from './components/InitialSetup.jsx'
 import PasswordChangeGate from './components/PasswordChangeGate.jsx'
 import StatusToast from './components/StatusToast.jsx'
+import ReleaseNotes from './components/lookbook/ReleaseNotes.jsx'
+import { APP_VERSION } from './data/releaseNotes.js'
+import { buildClosingReportModel, exportClosingReportImage } from './utils/closingReportImage.js'
 import ActionDock from './components/lookbook/ActionDock.jsx'
 import ClosingSummary from './components/lookbook/ClosingSummary.jsx'
 import LookbookHeader from './components/lookbook/LookbookHeader.jsx'
 import MainHeadImage from './components/lookbook/MainHeadImage.jsx'
-import ReleaseNotes from './components/lookbook/ReleaseNotes.jsx'
 import AttachmentDialog from './components/dialogs/AttachmentDialog.jsx'
 import ConfirmClosingDialog from './components/dialogs/ConfirmClosingDialog.jsx'
 import KpiDialog from './components/dialogs/KpiDialog.jsx'
@@ -246,7 +248,7 @@ export default function App() {
           <LookbookHeader />
           <div className="active-user-strip" aria-label={`当前登录用户：${currentUser}`}><span>{currentStore?.storeName || 'DATABASE'} · {roleLabels[role]}</span><strong>{currentUser}</strong><button type="button" onClick={() => setMenuOpen(true)}>菜单</button></div>
           {!online ? <p className="offline-banner" role="status">OFFLINE · 当前离线，仅可查看最近加载的数据；恢复网络后才能修改。</p> : null}
-          <div id="closing-summary"><ClosingSummary workflow={workflow} onJumpToRequirement={jumpToRequirement} onCompleteClosing={requestClose} onReopenClosing={() => void reopen()} /></div>
+          <div id="closing-summary"><ClosingSummary workflow={workflow} onJumpToRequirement={jumpToRequirement} onCompleteClosing={requestClose} onReopenClosing={() => void reopen()} onExportReport={exportClosingReport} /></div>
           <ReleaseNotes />
           <MainHeadImage />
           <PulseScene dateKey={workflow.dateKey} kpi={workflow.kpi} kpiReady={workflow.kpiReady} records={workflow.records} closedAt={writeLocked} onJump={jumpTo} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'pulse', record: null })} />

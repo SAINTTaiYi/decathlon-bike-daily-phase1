@@ -321,3 +321,40 @@
 .role-option input {
   margin: 0;
 }
+
+
+.summary-next-closed {
+  align-items: center;
+  gap: 1rem;
+}
+
+.summary-closed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-left: auto;
+}
+
+.summary-closed-actions .primary-action,
+.summary-closed-actions .secondary-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+@media (max-width: 720px) {
+  .summary-next-closed {
+    flex-wrap: wrap;
+  }
+
+  .summary-closed-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .summary-closed-actions .primary-action,
+  .summary-closed-actions .secondary-action {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}

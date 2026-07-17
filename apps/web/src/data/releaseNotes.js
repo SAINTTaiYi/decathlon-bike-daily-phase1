@@ -1,13 +1,13 @@
-export const APP_VERSION = "5.3.7"
+export const APP_VERSION = "5.3.8"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.18",
-  title: "增加独立预览发布通道",
-  summary: "后续更新先部署到独立 Preview 供人工验收，确认后再更新 Staging。",
+  title: "闭店日报长图导出",
+  summary: "闭店后可导出瑞士网格风格日报长图，完整包含销售与未完成台账并保存到手机。",
   changes: [
-    "新增 Cloudflare Preview 工作流与独立 D1/Worker。",
-    "Preview 与 Staging 分离，避免预览覆盖线上验收环境。",
-    "更新治理策略与测试，强制 Preview 仅手动触发。"
+    "闭店完成后提供全员可用的“导出日报图”按钮。",
+    "按参考图黑白网格风格生成一张业务长图。",
+    "仅导出未完成的待取、维修与交接事项，销售取当日闭店数据。"
   ]
 }
