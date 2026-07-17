@@ -74,8 +74,8 @@ test('发布顺序固定为全量验证、数据库迁移、普通快进 push、
 
 test('EdgeOne 配置只负责冻结安装和构建，不在构建期间修改数据库', async () => {
   const config = JSON.parse(await readFile('edgeone.json', 'utf8'))
-  assert.equal(config.installCommand, 'corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile')
-  assert.equal(config.buildCommand, 'pnpm build:edgeone')
+  assert.equal(config.installCommand, 'corepack pnpm@9.15.9 install --frozen-lockfile')
+  assert.equal(config.buildCommand, 'corepack pnpm@9.15.9 build:edgeone')
   assert.equal(config.outputDirectory, 'apps/web/dist')
   assert.equal(config.nodeVersion, '22.11.0')
   assert.doesNotMatch(config.buildCommand, /migrate|supabase|database/u)
