@@ -74,10 +74,15 @@ jobs:
         with:
           node-version-file: .nvmrc
       - name: Verify release SHA equals the selected remote Staging branch head
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::release_sha must be a full lowercase SHA"; exit 1; }
           BRANCH="${GITHUB_REF#refs/heads/}"
+          # checkout uses persist-credentials=false; re-authenticate only for this read-only head verification.
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git fetch --no-tags origin "$BRANCH"
+          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
           REMOTE_SHA="$(git rev-parse "origin/$BRANCH")"
           CHECKED_OUT_SHA="$(git rev-parse HEAD)"
           test "$RELEASE_SHA" = "$REMOTE_SHA" || { echo "::error::release_sha must equal the remote $BRANCH head"; exit 1; }
