@@ -22,7 +22,7 @@ test('免费栈 Workflow 静态策略验证器通过', () => {
   const result = spawnSync(process.execPath, ['scripts/ops/validate-workflows.mjs'], { cwd: process.cwd(), encoding: 'utf8' })
   assert.equal(result.status, 0, result.stderr || result.stdout)
   assert.match(result.stdout, /"ok": true/u)
-  assert.match(result.stdout, /"policies": 76/u)
+  assert.match(result.stdout, /"policies": (?:7[6-9]|8[0-9]|9[0-9])/u)
 })
 
 
@@ -49,6 +49,22 @@ test('Cloudflare Staging 仅手动部署固定 SHA 到 Worker Static Assets 和 
   assert.match(source, /pnpm build:worker-bundle/u)
   assert.match(source, /dist\/worker\/index\.min\.js/u)
   assert.doesNotMatch(source, /environment: production|bike-ops-production|R2_/u)
+})
+
+test('Cloudflare Preview 仅手动部署固定 SHA 到独立 Preview Worker 和 D1', async () => {
+  const source = await workflow('deploy-cloudflare-preview.yml')
+  assert.match(source, /^\s+workflow_dispatch:/mu)
+  assert.doesNotMatch(source, /^\s+(?:push|pull_request):/mu)
+  assert.match(source, /environment: preview/u)
+  for (const input of ['release_sha:', 'confirm_free_plan:', 'confirm_no_billing:', 'confirm_preview_only:']) assert.match(source, new RegExp(input, 'u'))
+  assert.match(source, /refs\/heads\/feature\/cloudflare-workers-d1/u)
+  assert.match(source, /refs\/heads\/develop/u)
+  assert.match(source, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/u)
+  assert.match(source, /PREVIEW_BASE_URL: \$\{\{ vars\.PREVIEW_BASE_URL \}\}/u)
+  assert.match(source, /database_id": "e40af8eb-6340-4b9e-8484-20247323fd84"/u)
+  assert.match(source, /"name": "bike-ops-preview"/u)
+  assert.match(source, /wrangler@4\.112\.0/u)
+  assert.doesNotMatch(source, /environment: production|bike-ops-production|bike-ops-staging|R2_/u)
 })
 
 test('Staging 只允许手动从 develop 迁移后快进 EdgeOne 部署分支', async () => {

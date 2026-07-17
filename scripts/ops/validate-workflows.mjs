@@ -12,6 +12,7 @@ const ci = workflows['ci.yml'] || ''
 const staging = workflows['deploy-staging.yml'] || ''
 const production = workflows['deploy-production.yml'] || ''
 const cloudflareStaging = workflows['deploy-cloudflare-staging.yml'] || ''
+const cloudflarePreview = workflows['deploy-cloudflare-preview.yml'] || ''
 const promoteBranch = await readFile(resolve(root, 'scripts/ops/promote-branch.mjs'), 'utf8')
 const verifyDeployment = await readFile(resolve(root, 'scripts/ops/verify-deployment.mjs'), 'utf8')
 const edgeOneConfig = JSON.parse(await readFile(resolve(root, 'edgeone.json'), 'utf8'))
@@ -58,13 +59,13 @@ try {
   if (!/Cannot find module/u.test(String(error?.message || error))) failures.push(`YAML parse failed: ${error.message}`)
 }
 
-assert(workflowNames.join(',') === 'ci.yml,deploy-cloudflare-staging.yml,deploy-production.yml,deploy-staging.yml', 'workflows: only CI, the legacy release workflows, and Cloudflare Staging may remain')
+assert(workflowNames.join(',') === 'ci.yml,deploy-cloudflare-preview.yml,deploy-cloudflare-staging.yml,deploy-production.yml,deploy-staging.yml', 'workflows: only CI, the legacy release workflows, Cloudflare Preview, and Cloudflare Staging may remain')
 for (const [name, source] of Object.entries(workflows)) {
   assert(!source.includes('\t'), `${name}: tabs are forbidden in YAML`)
   assert(/^name:\s+.+/mu.test(source), `${name}: name is required`)
   assert(/^on:/mu.test(source), `${name}: on trigger is required`)
   assert(/^jobs:/mu.test(source), `${name}: jobs are required`)
-  if (name === 'deploy-cloudflare-staging.yml') {
+  if (name === 'deploy-cloudflare-staging.yml' || name === 'deploy-cloudflare-preview.yml') {
     assert(!/(?:RAILWAY|R2_)/u.test(source), `${name}: Railway and R2 variables are forbidden`)
   } else {
     assert(!/(?:CLOUDFLARE|RAILWAY|R2_)/u.test(source), `${name}: retired provider variables are forbidden`)
@@ -109,6 +110,26 @@ includesInOrder(cloudflareStaging, [
   'Deploy the Staging Worker with Static Assets and D1',
   'Verify the deployed Staging API, release identity, and Web shell'
 ], 'cloudflare staging')
+
+
+assert(/^\s+workflow_dispatch:/mu.test(cloudflarePreview) && !/^\s+(?:push|pull_request):/mu.test(cloudflarePreview), 'cloudflare preview: deployment must be manual')
+assert(/environment: preview/u.test(cloudflarePreview), 'cloudflare preview: GitHub Environment must be preview')
+assert(/refs\/heads\/feature\/cloudflare-workers-d1/u.test(cloudflarePreview) && /refs\/heads\/develop/u.test(cloudflarePreview), 'cloudflare preview: only the migration feature branch or develop may run')
+for (const input of ['release_sha:', 'confirm_free_plan:', 'confirm_no_billing:', 'confirm_preview_only:']) assert(cloudflarePreview.includes(input), `cloudflare preview: missing ${input}`)
+assert(/CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/u.test(cloudflarePreview), 'cloudflare preview: API token must come from the preview Environment')
+assert(/CLOUDFLARE_ACCOUNT_ID: \$\{\{ vars\.CLOUDFLARE_ACCOUNT_ID \}\}/u.test(cloudflarePreview), 'cloudflare preview: account ID must come from the preview Environment variable')
+assert(/PREVIEW_BASE_URL: \$\{\{ vars\.PREVIEW_BASE_URL \}\}/u.test(cloudflarePreview), 'cloudflare preview: site URL must come from the preview Environment variable')
+assert(/database_id": "e40af8eb-6340-4b9e-8484-20247323fd84"/u.test(cloudflarePreview), 'cloudflare preview: the Preview D1 database must remain pinned')
+assert(/"name": "bike-ops-preview"/u.test(cloudflarePreview), 'cloudflare preview: Worker name must remain bike-ops-preview')
+assert(/wrangler@4\.112\.0/u.test(cloudflarePreview), 'cloudflare preview: Wrangler version must be pinned')
+assert(/pnpm check:workflows && pnpm test && pnpm typecheck && pnpm build/u.test(cloudflarePreview), 'cloudflare preview: full validation is required before deployment')
+assert(!/environment: production|bike-ops-production|bike-ops-staging|R2_/u.test(cloudflarePreview), 'cloudflare preview: Production, Staging Worker, and R2 are forbidden')
+includesInOrder(cloudflarePreview, [
+  'Validate, test, typecheck, and build before Cloudflare Preview deployment',
+  'Generate minified Worker bundle from the validated source',
+  'Deploy the Preview Worker with Static Assets and D1',
+  'Verify the deployed Preview API, release identity, and Web shell'
+], 'cloudflare preview')
 
 assert(/^\s+workflow_dispatch:/mu.test(staging) && !/^\s+(?:push|pull_request):/mu.test(staging), 'staging: deployment must be manual, never every develop push')
 assert(/environment: staging/u.test(staging), 'staging: GitHub Environment must be staging')
@@ -174,4 +195,4 @@ if (failures.length) {
   process.exit(1)
 }
 
-console.log(JSON.stringify({ ok: true, yamlParser, workflows: workflowNames, policies: 76 }, null, 2))
+console.log(JSON.stringify({ ok: true, yamlParser, workflows: workflowNames, policies: 88 }, null, 2))
