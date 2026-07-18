@@ -265,13 +265,12 @@ button:not(:disabled) { transition-duration: 150ms; }
 
 .record-detail-line {
   margin: 0 0 0 2.55rem;
-  overflow: hidden;
   color: var(--ink-soft);
   font-size: .84rem;
   font-weight: 650;
-  line-height: 1.35;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .record-scan-line {
@@ -318,30 +317,39 @@ button:not(:disabled) { transition-duration: 150ms; }
 .record-inline-error { padding: .4rem .55rem; border: 1px solid var(--critical); color: var(--critical); }
 
 .record-actions {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: .3rem;
   margin: .15rem 0 0 2.55rem;
   padding-top: .55rem;
   border-top: 1px solid var(--line);
+}
+.record-actions:empty {
+  display: none;
 }
 .record-actions button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: .28rem;
-  min-height: 32px;
-  padding: .28rem .4rem;
+  flex: 1 1 calc(50% - .15rem);
+  min-height: 34px;
+  min-width: 0;
+  padding: .34rem .5rem;
   border: 1px solid var(--ink);
   border-radius: 0;
   background: #fff;
   color: var(--ink);
-  font-size: .68rem;
-  font-weight: 700;
+  font-size: .72rem;
+  font-weight: 750;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 .record-actions .record-primary-action {
+  flex: 1 1 100%;
   border-width: 1.5px;
   background: #fff;
+  font-weight: 800;
 }
 .record-actions .record-delete {
   border-color: color-mix(in srgb, var(--critical) 55%, var(--line-strong));
@@ -472,8 +480,8 @@ button:not(:disabled) { transition-duration: 150ms; }
   .record-resolution-note,
   .record-inline-error,
   .record-actions { margin-left: 0; }
-  .record-actions { grid-template-columns: repeat(3, minmax(0,1fr)); }
-  .record-actions .record-primary-action { grid-column: 1 / -1; }
+  .record-actions button { flex: 1 1 calc(50% - .15rem); }
+  .record-actions .record-primary-action { flex-basis: 100%; }
   .look-dock { width: calc(100% - .5rem); }
   .look-dock button span { font-size: .52rem; }
   .dock-status { display: none; }

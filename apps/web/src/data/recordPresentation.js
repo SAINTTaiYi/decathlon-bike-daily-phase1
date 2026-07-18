@@ -25,20 +25,14 @@ export function splitMaintenanceItems(value) {
   return items.length ? items : [source]
 }
 
-export function joinMaintenanceLine(value, maxItems = 3) {
+export function joinMaintenanceLine(value) {
   const items = splitMaintenanceItems(value)
   if (!items.length) return ''
-  if (items.length <= maxItems) return items.join('｜')
-  return `${items.slice(0, maxItems).join('｜')}……`
+  return items.join('｜')
 }
 
-export function maskContactValue(value = '') {
-  const source = String(value ?? '').trim()
-  if (!source) return ''
-  const digits = source.replace(/\D/gu, '')
-  if (digits.length >= 7) return `${digits.slice(0, 3)}****${digits.slice(-4)}`
-  if (source.length <= 4) return source
-  return `${source.slice(0, 2)}****${source.slice(-2)}`
+export function displayContactValue(value = '') {
+  return String(value ?? '').trim()
 }
 
 export function formatScanDate(value = '') {

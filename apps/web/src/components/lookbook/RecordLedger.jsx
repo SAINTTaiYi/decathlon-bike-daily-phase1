@@ -17,7 +17,7 @@ import {
   formatScanDate,
   formatTicketNumber,
   joinMaintenanceLine,
-  maskContactValue
+  displayContactValue
 } from '../../data/recordPresentation.js'
 
 function Badge({ children }) {
@@ -70,7 +70,7 @@ export default function RecordLedger({
             {record.scene === 'resale' && record.resaleStage === 'listed' ? <button type="button" className="record-primary-action" onClick={() => onResaleSold(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />已售出</button> : null}
             {record.scene === 'repair' && !record.completedOn ? <button type="button" className="record-primary-action" onClick={() => onRepairComplete(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />维修完毕</button> : null}
             {record.scene === 'poster' && !record.completedOn ? <button type="button" className="record-primary-action" onClick={() => onHandoverComplete(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />完成</button> : null}
-            {record.scene === 'pickup' && !record.pickedUpOn ? <button type="button" className="record-primary-action" onClick={() => onPickup(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />取车</button> : null}
+            {record.scene === 'pickup' && !record.pickedUpOn ? <button type="button" className="record-primary-action" onClick={() => onPickup(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />确认取车</button> : null}
             {!resolved ? <button type="button" onClick={() => onEdit(record)} disabled={Boolean(closedAt)} aria-label={`编辑：${record.title}`}><IconEdit width={15} height={15} aria-hidden="true" />编辑</button> : null}
             {!resolved ? <button type="button" className="record-delete" onClick={() => onRemove(record)} disabled={Boolean(closedAt)} aria-label={`删除：${record.title}`}><IconTrash width={15} height={15} aria-hidden="true" />删除</button> : null}
           </>
@@ -93,7 +93,7 @@ export default function RecordLedger({
             </header>
 
             {detailLine ? (
-              <p className="record-detail-line" title={detail} aria-label={`维修内容：${detail}`}>
+              <p className="record-detail-line" aria-label={`维修内容：${detail}`}>
                 {detailLine}
               </p>
             ) : null}
@@ -102,7 +102,7 @@ export default function RecordLedger({
               {contactValue ? (
                 <span className="record-scan-item" title={`${contactLabel} ${contactValue}`}>
                   <IconPhone width={14} height={14} aria-hidden="true" />
-                  <span>{maskContactValue(contactValue)}</span>
+                  <span>{displayContactValue(contactValue)}</span>
                 </span>
               ) : null}
               {record.pickupDate ? (
