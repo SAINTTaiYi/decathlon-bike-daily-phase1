@@ -53,7 +53,7 @@ export default function useMotionSystem(enabled) {
       pressed = event.target.closest(selector)
       if (!pressed) return
       pressed.dataset.pressed = 'true'
-      run(pressed, { scale: .94, opacity: .88 }, 90)
+      run(pressed, { scale: .98, opacity: .92 }, 90)
     }
     const up = () => {
       if (!pressed) return

@@ -27,7 +27,7 @@ export function healthRoutes() {
     return c.json({
       appVersion: config.APP_VERSION,
       apiVersion: '1.0.0',
-      schemaVersion: '0001_initial_sqlite',
+      schemaVersion: '0002_work_item_ticket_numbers',
       gitSha: config.GIT_SHA,
       environment: config.APP_ENV,
       platform: 'cloudflare-workers-d1'

@@ -4,6 +4,7 @@ import { decryptContact } from '../lib/contact-crypto.js'
 
 export interface WorkItemRecord {
   id: string
+  ticketNo: number
   scene: 'pickup' | 'poster' | 'repair' | 'resale'
   kind: string
   title: string
@@ -35,7 +36,7 @@ export interface WorkItemRecord {
 }
 
 const joinedSelect = `
-  SELECT w.id, w.kind, w.title, w.detail, w.meta, w.status, w.lifecycle, w.revision, w.created_at, w.updated_at,
+  SELECT w.id, w.ticket_no, w.kind, w.title, w.detail, w.meta, w.status, w.lifecycle, w.revision, w.created_at, w.updated_at,
          r.contact_type, r.contact_ciphertext, r.repair_type, r.repair_project, r.pickup_date,
          r.repair_completed_at, r.completed_on AS repair_completed_on, r.completed_at AS repair_completed_at_final,
          p.pickup_source, p.self_pickup_platform, p.notification_status, p.picked_up_on, p.picked_up_at,
@@ -65,6 +66,7 @@ export async function mapWorkItem(row: any, businessDate: string, config: AppCon
   }
   return {
     id: row.id,
+    ticketNo: Number(row.ticket_no),
     scene: sceneFor(row.kind),
     kind: row.kind,
     title: row.title,

@@ -4,10 +4,11 @@ export default function ActionDock({ activeScene, onJump, closedAt }) {
   return (
     <nav className="look-dock" aria-label="全部日报模块" data-motion="dock">
       <ul>
-        {lookbookScenes.map(({ id, no, cn, NavIcon }) => (
+        {lookbookScenes.map(({ id, cn, dock, NavIcon }) => (
           <li key={id}>
-            <button type="button" data-active={id === activeScene} onClick={() => onJump(id)} aria-current={id === activeScene ? 'page' : undefined} aria-label={`LOOK ${no} ${cn}`}>
-              <NavIcon width={22} height={22} strokeWidth={1.65} aria-hidden="true" /><small>{no}</small>
+            <button type="button" data-active={id === activeScene} onClick={() => onJump(id)} aria-current={id === activeScene ? 'page' : undefined} aria-label={cn}>
+              <NavIcon width={20} height={20} strokeWidth={1.65} aria-hidden="true" />
+              <span>{dock}</span>
             </button>
           </li>
         ))}

@@ -48,6 +48,7 @@ test('Cloudflare Staging 仅手动部署固定 SHA 到 Worker Static Assets 和 
   assert.match(source, /pnpm check:workflows && pnpm test && pnpm typecheck && pnpm build/u)
   assert.match(source, /pnpm build:worker-bundle/u)
   assert.match(source, /dist\/worker\/index\.min\.js/u)
+  assert.match(source, /wrangler d1 migrations apply bike-ops-staging --remote --config wrangler\.deploy\.jsonc/u)
   assert.doesNotMatch(source, /environment: production|bike-ops-production|R2_/u)
 })
 

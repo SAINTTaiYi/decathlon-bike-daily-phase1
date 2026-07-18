@@ -152,6 +152,8 @@ jobs:
               .replace('__CORS_ALLOWED_ORIGINS__', cors);
             fs.writeFileSync(p,t);
           "
+      - name: Apply Staging D1 migrations
+        run: wrangler d1 migrations apply bike-ops-staging --remote --config wrangler.deploy.jsonc
       - name: Deploy the Staging Worker with Static Assets and D1
         run: wrangler deploy --config wrangler.deploy.jsonc
       - name: Verify the deployed Staging API, release identity, and Web shell

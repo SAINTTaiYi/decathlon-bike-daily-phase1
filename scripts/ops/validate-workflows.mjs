@@ -103,10 +103,12 @@ assert(/wrangler@4\.112\.0/u.test(cloudflareStaging), 'cloudflare staging: Wrang
 assert(/network-guard\.mjs npm\/pnpm npm install --global wrangler@4\.112\.0/u.test(cloudflareStaging), 'cloudflare staging: Wrangler install must use network-guard')
 assert(/pnpm check:workflows && pnpm test && pnpm typecheck && pnpm build/u.test(cloudflareStaging), 'cloudflare staging: full validation is required before deployment')
 assert(/pnpm build:worker-bundle/u.test(cloudflareStaging) && /dist\/worker\/index\.min\.js/u.test(cloudflareStaging), 'cloudflare staging: minified Worker must be generated from validated source')
+assert(/wrangler d1 migrations apply bike-ops-staging --remote --config wrangler\.deploy\.jsonc/u.test(cloudflareStaging), 'cloudflare staging: D1 migrations must run before deployment')
 assert(!/environment: production|bike-ops-production|R2_/u.test(cloudflareStaging), 'cloudflare staging: Production and R2 are forbidden')
 includesInOrder(cloudflareStaging, [
   'Validate, test, typecheck, and build before Cloudflare deployment',
   'Generate minified Worker bundle from the validated source',
+  'Apply Staging D1 migrations',
   'Deploy the Staging Worker with Static Assets and D1',
   'Verify the deployed Staging API, release identity, and Web shell'
 ], 'cloudflare staging')

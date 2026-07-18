@@ -1,3 +1,5 @@
+import { formatTicketNumber, splitMaintenanceItems } from '../data/recordPresentation.js'
+
 const WIDTH = 1242
 const PAD = 64
 const INK = '#0b0b0d'
@@ -248,7 +250,7 @@ function itemPaymentLabel(item) {
     if (meta.includes('付费')) return '付费'
     return meta
   }
-  return '付费'
+  return String(item.repairType || '').trim()
 }
 
 const BAR_W = 10
@@ -287,17 +289,17 @@ function formatContactDisplay(value) {
 function measureCard(ctx, item, contentW) {
   const { leftW } = layoutCardColumns(contentW)
   const textW = leftW - CARD_PAD_X * 2
-  const detail = itemDetail(item)
+  const detailItems = splitMaintenanceItems(itemDetail(item))
   ctx.font = `500 24px ${FONT_BODY}`
-  const detailLines = detail ? wrapText(ctx, detail, textW).slice(0, 4) : []
+  const detailLines = detailItems.flatMap((entry) => wrapText(ctx, `• ${entry}`, textW)).slice(0, 4)
   const title = String(item.title || '未命名')
   ctx.font = `800 40px ${FONT_DISPLAY}`
-  const titleLines = wrapText(ctx, title, textW - 52).slice(0, 2)
+  const titleLines = wrapText(ctx, title, textW).slice(0, 2)
 
-  // stacked left column height, then vertical-center within card
-  let contentH = 0
+  // ticket number, model, status, then maintenance list
+  let contentH = 24 + 10
   contentH += Math.max(1, titleLines.length) * 44
-  contentH += 14 + 34 // gap + status chip
+  contentH += 14 + 34
   contentH += 14
   if (detailLines.length) contentH += detailLines.length * 32
   // mid/right stacks are shorter; card follows left stack + vertical padding
@@ -344,27 +346,28 @@ function drawCard(ctx, item, x, y, width, index) {
   const textW = leftW - CARD_PAD_X * 2
   const title = String(item.title || '未命名')
   ctx.font = `800 40px ${FONT_DISPLAY}`
-  const titleLines = wrapText(ctx, title, textW - 52).slice(0, 2)
-  const detail = itemDetail(item)
+  const titleLines = wrapText(ctx, title, textW).slice(0, 2)
+  const detailItems = splitMaintenanceItems(itemDetail(item))
   ctx.font = `500 24px ${FONT_BODY}`
-  const detailLines = detail ? wrapText(ctx, detail, textW).slice(0, 4) : []
+  const detailLines = detailItems.flatMap((entry) => wrapText(ctx, `• ${entry}`, textW)).slice(0, 4)
 
-  let stackH = Math.max(1, titleLines.length) * 44 + 14 + 34 + 14
+  let stackH = 24 + 10 + Math.max(1, titleLines.length) * 44 + 14 + 34 + 14
   if (detailLines.length) stackH += detailLines.length * 32
   let cy = y + Math.round((h - stackH) / 2)
 
-  // index + title on one baseline row (title may wrap)
   ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
+  ctx.fillStyle = MUTED
+  ctx.font = `700 20px ${FONT_MONO}`
+  ctx.fillText(formatTicketNumber(item.ticketNo, item.id), leftX + CARD_PAD_X, cy)
+  cy += 34
+
   ctx.textBaseline = 'alphabetic'
   const titleBaseline = cy + 34
-  ctx.fillStyle = MUTED
-  ctx.font = `700 22px ${FONT_MONO}`
-  ctx.fillText(pad2(index + 1), leftX + CARD_PAD_X, titleBaseline)
-
   ctx.fillStyle = INK
   ctx.font = `800 40px ${FONT_DISPLAY}`
   titleLines.forEach((line, i) => {
-    ctx.fillText(line, leftX + CARD_PAD_X + 52, titleBaseline + i * 44)
+    ctx.fillText(line, leftX + CARD_PAD_X, titleBaseline + i * 44)
   })
   cy = titleBaseline + (Math.max(1, titleLines.length) - 1) * 44 + 18
 
@@ -402,7 +405,7 @@ function drawCard(ctx, item, x, y, width, index) {
   const pay = itemPaymentLabel(item)
   const midInnerPad = 12
   const midMaxW = midW - midInnerPad * 2
-  const contactSize = fitContactFont(ctx, contactValue, midMaxW, contactRaw.length <= 4 ? 48 : 40, 20)
+  const contactSize = fitContactFont(ctx, contactValue, midMaxW, contactRaw.length <= 4 ? 32 : 28, 18)
   const contactLineH = contactSize + 6
 
   const midStackH = 22 + 12 + contactLineH + 12 + 22
@@ -445,7 +448,7 @@ function drawCard(ctx, item, x, y, width, index) {
   ctx.fillText(dateLabel, rightCenterX, ry)
   ry += 30
   ctx.fillStyle = INK
-  ctx.font = `800 28px ${FONT_DISPLAY}`
+  ctx.font = `800 24px ${FONT_DISPLAY}`
   ctx.fillText(dateValue, rightCenterX, ry)
 
   ctx.textAlign = 'left'

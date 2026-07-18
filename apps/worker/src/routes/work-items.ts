@@ -82,14 +82,22 @@ export function workItemRoutes() {
       } else {
         ;({ title, detail, meta, status } = input.values as any)
       }
+      const counter = await first<{ last_value: number }>(db.prepare(`
+        INSERT INTO work_item_counters (store_id, last_value)
+        VALUES (?, 1)
+        ON CONFLICT(store_id) DO UPDATE SET last_value = last_value + 1
+        RETURNING last_value
+      `).bind(context.storeId))
+      if (!counter) throw new ApiProblem(500, 'TICKET_NUMBER_FAILED', '无法生成维修单号，请稍后重试。')
+      const ticketNo = Number(counter.last_value)
       const id = uuid()
       const stamp = nowIso()
       await db.prepare(`
         INSERT INTO work_items (
-          id, store_id, kind, title, detail, meta, status, lifecycle, revision,
+          id, store_id, ticket_no, kind, title, detail, meta, status, lifecycle, revision,
           created_by, updated_by, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?, ?, ?)
-      `).bind(id, context.storeId, kindForScene(input.scene), title, detail, meta, status, context.userId, context.userId, stamp, stamp).run()
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?, ?, ?)
+      `).bind(id, context.storeId, ticketNo, kindForScene(input.scene), title, detail, meta, status, context.userId, context.userId, stamp, stamp).run()
 
       if (input.scene === 'repair' && repairFields) {
         const key = requireContactKey(config)

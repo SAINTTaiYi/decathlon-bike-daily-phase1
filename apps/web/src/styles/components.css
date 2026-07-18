@@ -393,7 +393,7 @@
 /* Instant press feedback for all interactive controls (GSAP/anime also apply transform) */
 button:not(:disabled):active,
 button:not(:disabled)[data-pressed='true'] {
-  transform: scale(.94);
+  transform: scale(.98);
   opacity: .9;
   transition: transform 90ms var(--ease-out), opacity 90ms var(--ease-out);
 }
