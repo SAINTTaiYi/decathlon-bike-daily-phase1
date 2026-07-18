@@ -1,7 +1,6 @@
 import IconEdit from '@iconoir/EditPencil.mjs'
 import IconJournal from '@iconoir/Journal.mjs'
 import IconPlus from '@iconoir/Plus.mjs'
-import IconMedia from '@iconoir/MediaImage.mjs'
 import IconTrash from '@iconoir/Trash.mjs'
 import ProjectSelect from '../ProjectSelect.jsx'
 import {
@@ -20,7 +19,6 @@ export default function RecordLedger({
   onEdit,
   onRemove,
   onHistory,
-  onMedia,
   onHandoverComplete,
   onPickup,
   onResaleListing,
@@ -54,7 +52,7 @@ export default function RecordLedger({
         const pickupNotificationStatus = pickupRecord ? inferPickupNotificationStatus(record) : null
         const contactValue = String(record.contactValue ?? '').trim()
         const contactLabel = record.contactType === 'member' ? '会员号' : '手机号'
-        const contactHeading = `${contactLabel}${record.repairType ? ` · ${record.repairType}` : ''}`
+        const contactHeading = contactLabel
         const normalizedMeta = String(record.meta || '')
           .replace(/\s*·\s*取车[：:]\s*\d{4}-\d{2}-\d{2}/u, '')
           .replace(/^\s*(手机号|会员号)[：:][^·]*(?:\s*·\s*)?/u, '')
@@ -68,7 +66,6 @@ export default function RecordLedger({
             {record.scene === 'repair' && !record.completedOn ? <button type="button" className="record-primary-action" onClick={() => onRepairComplete(record)} disabled={Boolean(closedAt)}>维修完毕</button> : null}
             {record.scene === 'poster' && !record.completedOn ? <button type="button" className="record-primary-action" onClick={() => onHandoverComplete(record)} disabled={Boolean(closedAt)}>完成</button> : null}
             {record.scene === 'pickup' && !record.pickedUpOn ? <button type="button" className="record-primary-action" onClick={() => onPickup(record)} disabled={Boolean(closedAt)}>确认取车</button> : null}
-            <button type="button" onClick={() => onMedia(record)} aria-label={`查看“${record.title}”的图片`}><IconMedia width={17} height={17} aria-hidden="true" />图片</button>
             {!resolved ? <button type="button" onClick={() => onEdit(record)} disabled={Boolean(closedAt)} aria-label={`编辑：${record.title}`}><IconEdit width={17} height={17} aria-hidden="true" />编辑</button> : null}
             {!resolved ? <button type="button" className="record-delete" onClick={() => onRemove(record)} disabled={Boolean(closedAt)} aria-label={`删除：${record.title}`}><IconTrash width={17} height={17} aria-hidden="true" />删除</button> : null}
           </>
@@ -104,14 +101,12 @@ export default function RecordLedger({
             </div>
             {serviceTicket ? (
               <>
-                {record.pickupDate ? (
-                  <div className="record-date-row">
-                    <time className="pickup-date-callout" dateTime={record.pickupDate}><span>取车时间</span><strong>{record.pickupDate.replaceAll('-', ' / ')}</strong></time>
-                  </div>
-                ) : null}
                 <div className="record-bottom-row">
                   <div className="record-bottom-facts">
-                    {contactValue ? <div className="contact-callout"><span>{contactHeading}</span><strong>{contactValue}</strong></div> : null}
+                    <div className="record-fact-pair">
+                      {contactValue ? <div className="contact-callout"><span>{contactHeading}</span><strong>{contactValue}</strong></div> : <span aria-hidden="true" />}
+                      {record.pickupDate ? <time className="pickup-date-callout" dateTime={record.pickupDate}><span>取车时间</span><strong>{record.pickupDate.replaceAll('-', ' / ')}</strong></time> : null}
+                    </div>
                     <div className="record-identity">
                       {pickupRecord ? <small className="pickup-source-label">SOURCE · {pickupSourceLabel(record)}{selfPickupPlatformLabel(record) ? ` · ${selfPickupPlatformLabel(record)}` : ''}</small> : null}
                       {repairRecord && record.repairType ? <small className="pickup-source-label">TYPE · {record.repairType}</small> : null}

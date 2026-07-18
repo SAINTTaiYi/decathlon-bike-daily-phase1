@@ -1,13 +1,13 @@
-export const APP_VERSION = "5.4.7"
+export const APP_VERSION = "5.4.8"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.18",
-  title: "手机号不溢出 + 分区标题间距",
-  summary: "中栏手机号自适应字号并裁剪，避免盖住取车时间；REPAIR/PICKUP 等英文眉题与中文标题拉开间距。",
+  title: "票据卡布局精简",
+  summary: "去掉图片按钮；取车时间与手机号同一水平线；手机号标题不再重复显示付费/TYPE。",
   changes: [
-    "手机号在中栏内自适应缩小，必要时分组显示，硬裁剪不越界。",
-    "中栏加宽，右栏取车时间面板仍在卡内。",
-    "分区英文与中文标题、标题与卡片之间加大间距。"
+    "票据操作区移除「图片」按钮。",
+    "取车时间下移，与手机号组件同一行对齐。",
+    "手机号标签仅显示手机号/会员号，付费信息只保留 TYPE 标签。"
   ]
 }
