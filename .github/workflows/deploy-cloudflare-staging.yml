@@ -130,7 +130,7 @@ jobs:
               "APP_VERSION": "__APP_VERSION__",
               "COOKIE_SECURE": "true",
               "SESSION_TTL_HOURS": "12",
-              "CORS_ALLOWED_ORIGINS": "__STAGING_BASE_URL__",
+              "CORS_ALLOWED_ORIGINS": "__CORS_ALLOWED_ORIGINS__",
               "GIT_SHA": "__RELEASE_SHA__"
             }
           }
@@ -140,10 +140,16 @@ jobs:
             const pkg=require('./package.json');
             const p='wrangler.deploy.jsonc';
             let t=fs.readFileSync(p,'utf8');
+            const base = process.env.STAGING_BASE_URL;
+            const cors = Array.from(new Set([
+              base,
+              'https://workshop.skin',
+              'https://bike-ops-staging.geeklightonefish.workers.dev'
+            ].filter(Boolean))).join(',');
             t=t
               .replace('__APP_VERSION__', pkg.version)
               .replace('__RELEASE_SHA__', process.env.RELEASE_SHA)
-              .replace('__STAGING_BASE_URL__', process.env.STAGING_BASE_URL);
+              .replace('__CORS_ALLOWED_ORIGINS__', cors);
             fs.writeFileSync(p,t);
           "
       - name: Deploy the Staging Worker with Static Assets and D1
