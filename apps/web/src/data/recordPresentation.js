@@ -1,4 +1,4 @@
-const ITEM_SPLIT = /(?:\r?\n|\s*[+＋;；、]\s*)+/u
+const ITEM_SPLIT = /(?:\r?\n|\s*[+＋;；、|｜]\s*)+/u
 
 function fallbackTicketNumber(id = '') {
   let hash = 2166136261
@@ -23,6 +23,40 @@ export function splitMaintenanceItems(value) {
     .map((item) => item.replace(/^[•·\-–—]\s*/u, '').trim())
     .filter(Boolean)
   return items.length ? items : [source]
+}
+
+export function joinMaintenanceLine(value, maxItems = 3) {
+  const items = splitMaintenanceItems(value)
+  if (!items.length) return ''
+  if (items.length <= maxItems) return items.join('｜')
+  return `${items.slice(0, maxItems).join('｜')}……`
+}
+
+export function maskContactValue(value = '') {
+  const source = String(value ?? '').trim()
+  if (!source) return ''
+  const digits = source.replace(/\D/gu, '')
+  if (digits.length >= 7) return `${digits.slice(0, 3)}****${digits.slice(-4)}`
+  if (source.length <= 4) return source
+  return `${source.slice(0, 2)}****${source.slice(-2)}`
+}
+
+export function formatScanDate(value = '') {
+  const source = String(value ?? '').trim()
+  if (!source) return ''
+  const match = source.match(/(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})/u)
+  if (match) return `${match[2].padStart(2, '0')}.${match[3].padStart(2, '0')}`
+  const short = source.match(/(\d{1,2})[-/.](\d{1,2})/u)
+  if (short) return `${short[1].padStart(2, '0')}.${short[2].padStart(2, '0')}`
+  return source
+}
+
+export function formatDetailDate(value = '') {
+  const source = String(value ?? '').trim()
+  if (!source) return ''
+  const match = source.match(/(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})/u)
+  if (match) return `${match[1]}.${match[2].padStart(2, '0')}.${match[3].padStart(2, '0')}`
+  return source.replaceAll('-', '.')
 }
 
 export function serviceSectionLabel(record) {
