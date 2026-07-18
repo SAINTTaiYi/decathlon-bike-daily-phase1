@@ -58,18 +58,62 @@ export default function useRemoteClosingWorkflow(enabled) {
     return () => { controller.abort(); window.removeEventListener('focus', focus); window.clearInterval(timer) }
   }, [enabled, refresh])
 
-  const run = useCallback(async (operation) => {
+  const applyServerResult = useCallback((result) => {
+    if (!result || typeof result !== 'object') return
+    setState((current) => {
+      let records = current.records
+      let events = current.events
+      let day = current.day
+      if (result.record?.id) {
+        const next = result.record
+        const index = records.findIndex((item) => item.id === next.id)
+        if (index >= 0) {
+          records = records.slice()
+          records[index] = { ...records[index], ...next }
+        } else {
+          records = [next, ...records]
+        }
+      }
+      if (result.removedId) {
+        records = records.filter((item) => item.id !== result.removedId)
+      }
+      if (result.eventId && result.record) {
+        const stamp = new Date().toISOString()
+        events = [{
+          id: result.eventId,
+          entityId: result.record.id,
+          entityType: 'work-item',
+          createdAt: stamp,
+          canUndo: true,
+          summary: result.summary || '',
+          action: result.action || 'update'
+        }, ...events]
+      }
+      if (result.day) day = { ...day, ...result.day }
+      if (records === current.records && events === current.events && day === current.day) return current
+      return { ...current, records, events, day }
+    })
+  }, [])
+
+  const run = useCallback(async (operation, { sync = 'background' } = {}) => {
     if (!navigator.onLine) return { ok: false, error: '当前离线，只能查看最近加载的数据。' }
     if (storageError) return { ok: false, error: '数据库同步尚未恢复。请先重新同步，再执行修改。' }
     try {
       const result = await operation()
-      await refresh()
+      // Paint local UI immediately from the mutation response when possible.
+      applyServerResult(result)
+      if (sync === 'full') {
+        await refresh()
+      } else if (sync === 'background') {
+        // Do not block toast/button feedback on a full bootstrap round-trip.
+        void refresh()
+      }
       return { ok: true, ...result }
     } catch (error) {
       if (error.code === 'REVISION_CONFLICT') await refresh()
       return { ok: false, error: error.message, code: error.code }
     }
-  }, [refresh, storageError])
+  }, [applyServerResult, refresh, storageError])
 
   const recordsByScene = useMemo(() => state.records.reduce((groups, record) => {
     groups[record.scene] ??= []
@@ -80,12 +124,19 @@ export default function useRemoteClosingWorkflow(enabled) {
   const remainingRequirements = kpiReady ? [] : [{ id: 'daily-kpi', scene: 'pulse', title: '填写当日销售数据', label: '这是唯一的闭店要求' }]
 
   const findRecord = useCallback((id) => state.records.find((record) => record.id === id), [state.records])
-  const saveKpi = useCallback((values) => run(() => saveSales({ ...values, expectedRevision: state.day.revision })), [run, state.day.revision])
-  const clearKpi = useCallback(() => run(() => clearSales(state.day.revision)), [run, state.day.revision])
+  const saveKpi = useCallback((values) => run(() => saveSales({ ...values, expectedRevision: state.day.revision }), { sync: 'full' }), [run, state.day.revision])
+  const clearKpi = useCallback(() => run(() => clearSales(state.day.revision), { sync: 'full' }), [run, state.day.revision])
   const addRecord = useCallback((scene, values) => run(() => createWorkItem(scene, values)), [run])
   const editRecord = useCallback((id, values) => { const record = findRecord(id); return record ? run(() => updateWorkItem(record, values)) : Promise.resolve({ ok: false, error: '没有找到这条台账记录。' }) }, [findRecord, run])
   const action = useCallback((id, name, extra) => { const record = findRecord(id); return record ? run(() => workItemAction(record, name, extra)) : Promise.resolve({ ok: false, error: '没有找到这条台账记录。' }) }, [findRecord, run])
-  const removeRecord = useCallback((id) => { const record = findRecord(id); return record ? run(() => removeWorkItem(record)) : Promise.resolve({ ok: false, error: '没有找到这条台账记录。' }) }, [findRecord, run])
+  const removeRecord = useCallback((id) => {
+    const record = findRecord(id)
+    if (!record) return Promise.resolve({ ok: false, error: '没有找到这条台账记录。' })
+    return run(async () => {
+      const result = await removeWorkItem(record)
+      return { ...result, removedId: record.id }
+    })
+  }, [findRecord, run])
   const allEvents = state.events
   const dayEvents = useMemo(() => currentBusinessDayEvents(allEvents, state.businessDate), [allEvents, state.businessDate])
   const getOperationHistory = useCallback((scene, recordId = null) => {
@@ -134,9 +185,9 @@ export default function useRemoteClosingWorkflow(enabled) {
     getOperationHistory,
     canUndoHistoryEvent,
     undoHistoryEvent,
-    completeClosing: () => run(closeDay),
-    reopenClosing: () => run(reopenDay),
-    resetDay: () => run(() => clearSales(state.day.revision)),
+    completeClosing: () => run(closeDay, { sync: 'full' }),
+    reopenClosing: () => run(reopenDay, { sync: 'full' }),
+    resetDay: () => run(() => clearSales(state.day.revision), { sync: 'full' }),
     refresh,
     previewLocalV5,
     planLocalV5Import

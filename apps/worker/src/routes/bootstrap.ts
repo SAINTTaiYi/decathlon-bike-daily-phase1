@@ -17,7 +17,11 @@ export function bootstrapRoutes() {
     const context = c.get('auth')!
     const config = c.get('config')
     const businessDate = await businessDateFor(context)
-    await cleanupPreviousCompleted(c.env.DB, context, businessDate)
+    // Cleanup must not delay interactive bootstrap / post-mutation refresh.
+    const cleanup = cleanupPreviousCompleted(c.env.DB, context, businessDate)
+    const waitUntil = c.executionCtx?.waitUntil?.bind(c.executionCtx)
+    if (waitUntil) waitUntil(cleanup)
+    else void cleanup
     const [day, records, events] = await Promise.all([
       getOrCreateDay(c.env.DB, context.storeId, businessDate),
       listWorkItems(c.env.DB, context.storeId, businessDate, config),
