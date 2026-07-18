@@ -70,7 +70,7 @@ export default function RecordLedger({
             {record.scene === 'resale' && record.resaleStage === 'listed' ? <button type="button" className="record-primary-action" onClick={() => onResaleSold(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />已售出</button> : null}
             {record.scene === 'repair' && !record.completedOn ? <button type="button" className="record-primary-action" onClick={() => onRepairComplete(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />维修完毕</button> : null}
             {record.scene === 'poster' && !record.completedOn ? <button type="button" className="record-primary-action" onClick={() => onHandoverComplete(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />完成</button> : null}
-            {record.scene === 'pickup' && !record.pickedUpOn ? <button type="button" className="record-primary-action" onClick={() => onPickup(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />确认取车</button> : null}
+            {record.scene === 'pickup' && !pickedUp ? <button type="button" className="record-primary-action" onClick={() => onPickup(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />确认取车</button> : null}
             {!resolved ? <button type="button" onClick={() => onEdit(record)} disabled={Boolean(closedAt)} aria-label={`编辑：${record.title}`}><IconEdit width={15} height={15} aria-hidden="true" />编辑</button> : null}
             {!resolved ? <button type="button" className="record-delete" onClick={() => onRemove(record)} disabled={Boolean(closedAt)} aria-label={`删除：${record.title}`}><IconTrash width={15} height={15} aria-hidden="true" />删除</button> : null}
           </>
@@ -92,37 +92,39 @@ export default function RecordLedger({
               </div>
             </header>
 
-            {detailLine ? (
-              <p className="record-detail-line" aria-label={`维修内容：${detail}`}>
-                {detailLine}
-              </p>
-            ) : null}
-
-            <div className="record-scan-line">
-              {contactValue ? (
-                <span className="record-scan-item" title={`${contactLabel} ${contactValue}`}>
-                  <IconPhone width={14} height={14} aria-hidden="true" />
-                  <span>{displayContactValue(contactValue)}</span>
-                </span>
+            <div className="record-body">
+              {detailLine ? (
+                <p className="record-detail-line" aria-label={`维修内容：${detail}`}>
+                  {detailLine}
+                </p>
               ) : null}
-              {record.pickupDate ? (
-                <span className="record-scan-item" title={`取车日期 ${record.pickupDate}`}>
-                  <IconCalendar width={14} height={14} aria-hidden="true" />
-                  <time dateTime={record.pickupDate}>{formatScanDate(record.pickupDate)}</time>
-                </span>
-              ) : null}
-            </div>
 
-            <div className="record-badge-row" aria-label="来源、支付与状态">
-              <Badge>{sourceLabel}</Badge>
-              <Badge>{paymentOrType}</Badge>
-              <Badge>{stateLabel}</Badge>
-              {!serviceTicket && record.meta ? <Badge>{record.meta}</Badge> : null}
-            </div>
+              <div className="record-scan-line">
+                {contactValue ? (
+                  <span className="record-scan-item" title={`${contactLabel} ${contactValue}`}>
+                    <IconPhone width={14} height={14} aria-hidden="true" />
+                    <span>{displayContactValue(contactValue)}</span>
+                  </span>
+                ) : null}
+                {record.pickupDate ? (
+                  <span className="record-scan-item" title={`取车日期 ${record.pickupDate}`}>
+                    <IconCalendar width={14} height={14} aria-hidden="true" />
+                    <time dateTime={record.pickupDate}>{formatScanDate(record.pickupDate)}</time>
+                  </span>
+                ) : null}
+              </div>
 
-            {pickupError ? <p className="record-inline-error" role="alert">{pickupError}</p> : null}
-            {resolved ? <p className="record-resolution-note">{pickedUp ? '本条今日保留，下一业务日自动移除。' : '本条今日保留，下一业务日自动清除。'}</p> : null}
-            <footer className="record-actions">{actionButtons}</footer>
+              <div className="record-badge-row" aria-label="来源、支付与状态">
+                <Badge>{sourceLabel}</Badge>
+                <Badge>{paymentOrType}</Badge>
+                <Badge>{stateLabel}</Badge>
+                {!serviceTicket && record.meta ? <Badge>{record.meta}</Badge> : null}
+              </div>
+
+              {pickupError ? <p className="record-inline-error" role="alert">{pickupError}</p> : null}
+              {resolved ? <p className="record-resolution-note">{pickedUp ? '本条今日保留，下一业务日自动移除。' : '本条今日保留，下一业务日自动清除。'}</p> : null}
+              <footer className="record-actions">{actionButtons}</footer>
+            </div>
           </article>
         )
       }) : <p className="empty-inline">当前没有记录。{showAdd ? `使用“${config.addLabel}”开始录入。` : ''}</p>}
