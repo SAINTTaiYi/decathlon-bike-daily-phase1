@@ -388,3 +388,18 @@
   font-weight: 700;
   line-height: 1.4;
 }
+
+
+/* Instant press feedback for all interactive controls (GSAP/anime also apply transform) */
+button:not(:disabled):active,
+button:not(:disabled)[data-pressed='true'] {
+  transform: scale(.94);
+  opacity: .9;
+  transition: transform 90ms var(--ease-out), opacity 90ms var(--ease-out);
+}
+button:not(:disabled) {
+  transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out), background-color .2s var(--ease-out), color .2s var(--ease-out), border-color .2s var(--ease-out);
+}
+.record-row[data-exiting='true'] {
+  pointer-events: none;
+}

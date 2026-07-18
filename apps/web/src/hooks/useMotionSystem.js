@@ -44,13 +44,24 @@ export default function useMotionSystem(enabled) {
     const selector = 'button:not(:disabled)'
     const running = new Set()
     let pressed = null
-    const run = (target, scale, duration) => {
-      const instance = animate(target, { scale, duration, ease: 'out(4)', composition: 'replace' })
+    const run = (target, values, duration) => {
+      const instance = animate(target, { ...values, duration, ease: 'out(4)', composition: 'replace' })
       running.add(instance)
       instance.then(() => running.delete(instance))
     }
-    const down = (event) => { pressed = event.target.closest(selector); if (pressed) run(pressed, .978, 100) }
-    const up = () => { if (pressed) run(pressed, 1, 190); pressed = null }
+    const down = (event) => {
+      pressed = event.target.closest(selector)
+      if (!pressed) return
+      pressed.dataset.pressed = 'true'
+      run(pressed, { scale: .94, opacity: .88 }, 90)
+    }
+    const up = () => {
+      if (!pressed) return
+      const target = pressed
+      target.dataset.pressed = 'false'
+      run(target, { scale: 1, opacity: 1 }, 180)
+      pressed = null
+    }
     document.addEventListener('pointerdown', down)
     document.addEventListener('pointerup', up)
     document.addEventListener('pointercancel', up)

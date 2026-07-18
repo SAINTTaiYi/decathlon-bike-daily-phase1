@@ -28,6 +28,7 @@ import useActiveScene from './hooks/useActiveScene.js'
 import useAuth from './hooks/useAuth.js'
 import useRemoteClosingWorkflow from './hooks/useRemoteClosingWorkflow.js'
 import useMotionSystem from './hooks/useMotionSystem.js'
+import { gsap } from 'gsap'
 import OpeningScene from './scenes/OpeningScene.jsx'
 import PickupScene from './scenes/PickupScene.jsx'
 import PulseScene from './scenes/PulseScene.jsx'
@@ -216,11 +217,27 @@ export default function App() {
     onResaleListing: (record) => void perform(() => workflow.completeResaleListing(record.id), `维修完毕，已进入二手车在册：${record.title}`),
     onResaleSold: (record) => void perform(() => workflow.sellResale(record.id), `已售出：${record.title}`),
     onRepairComplete: async (record) => {
+      const row = document.querySelector(`[data-record-id="${record.id}"]`)
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      if (row && !reduced) {
+        await new Promise((resolve) => {
+          gsap.to(row, {
+            x: -28,
+            autoAlpha: 0,
+            duration: 0.38,
+            ease: 'expo.in',
+            onComplete: resolve
+          })
+        })
+      }
       const result = await workflow.completeRepair(record.id)
-      if (!result.ok) return setToast({ message: result.error, tone: 'error' })
+      if (!result.ok) {
+        if (row && !reduced) gsap.set(row, { clearProps: 'all' })
+        return setToast({ message: result.error, tone: 'error' })
+      }
       if (result.route === 'completed') return setToast(`门店产品维修已完成：${record.title}`)
+      // Stay on repair module; ticket exits left and leaves the repair ledger.
       setToast(`维修完毕，已携带维修单转入待取：${record.title}`)
-      jumpTo('pickup')
     },
     onHandoverComplete: (record) => void perform(() => workflow.completeHandover(record.id), `已完成交接：${record.title}`),
     onPickupNotificationChange: async (record, notificationStatus) => {

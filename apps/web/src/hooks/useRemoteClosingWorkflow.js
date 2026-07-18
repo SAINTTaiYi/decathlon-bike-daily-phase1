@@ -5,6 +5,8 @@ import {
   clearSales, closeDay, createWorkItem, getBootstrap, planLocalV5Import, previewLocalV5,
   removeWorkItem, reopenDay, saveSales, undoAuditEvent, updateWorkItem, workItemAction
 } from '../api/workflow.js'
+import { buildPickupNotificationUpdate } from '../data/pickupRecord.js'
+import { buildRepairCompletion } from '../data/repairRecord.js'
 
 const emptyState = { businessDate: '', day: { kpi: emptyKpi, kpiSavedAt: null, closedAt: null, revision: 0 }, records: [], events: [], store: null }
 
@@ -128,7 +130,21 @@ export default function useRemoteClosingWorkflow(enabled) {
   const clearKpi = useCallback(() => run(() => clearSales(state.day.revision), { sync: 'full' }), [run, state.day.revision])
   const addRecord = useCallback((scene, values) => run(() => createWorkItem(scene, values)), [run])
   const editRecord = useCallback((id, values) => { const record = findRecord(id); return record ? run(() => updateWorkItem(record, values)) : Promise.resolve({ ok: false, error: '没有找到这条台账记录。' }) }, [findRecord, run])
-  const action = useCallback((id, name, extra) => { const record = findRecord(id); return record ? run(() => workItemAction(record, name, extra)) : Promise.resolve({ ok: false, error: '没有找到这条台账记录。' }) }, [findRecord, run])
+  const patchRecordLocal = useCallback((id, patch) => {
+    setState((current) => {
+      const index = current.records.findIndex((item) => item.id === id)
+      if (index < 0) return current
+      const records = current.records.slice()
+      records[index] = { ...records[index], ...patch, updatedAt: new Date().toISOString() }
+      return { ...current, records }
+    })
+  }, [])
+
+  const action = useCallback((id, name, extra) => {
+    const record = findRecord(id)
+    if (!record) return Promise.resolve({ ok: false, error: '没有找到这条台账记录。' })
+    return run(() => workItemAction(record, name, extra))
+  }, [findRecord, run])
   const removeRecord = useCallback((id) => {
     const record = findRecord(id)
     if (!record) return Promise.resolve({ ok: false, error: '没有找到这条台账记录。' })
@@ -176,10 +192,45 @@ export default function useRemoteClosingWorkflow(enabled) {
     editRecord,
     completeResaleListing: (id) => action(id, 'list-resale'),
     sellResale: (id) => action(id, 'sell-resale'),
-    completeRepair: (id) => action(id, 'complete-repair'),
+    completeRepair: (id) => {
+      const previous = findRecord(id)
+      if (!previous || previous.scene !== 'repair') return Promise.resolve({ ok: false, error: '没有找到可完成的维修车辆。' })
+      const at = new Date().toISOString()
+      const completion = buildRepairCompletion(previous, state.businessDate, at)
+      if (!completion.ok) return Promise.resolve(completion)
+      // Optimistic: apply local completion immediately for instant UI.
+      applyServerResult({ record: completion.record })
+      return run(async () => {
+        try {
+          const result = await workItemAction(previous, 'complete-repair')
+          return { ...result, route: result.route || completion.route }
+        } catch (error) {
+          // Rollback optimistic change on failure
+          applyServerResult({ record: previous })
+          throw error
+        }
+      }, { sync: 'background' })
+    },
     completeHandover: (id) => action(id, 'complete-handover'),
-    updatePickupNotification: (id, notificationStatus) => action(id, 'notification', { notificationStatus }),
+    updatePickupNotification: (id, notificationStatus) => {
+      const previous = findRecord(id)
+      if (!previous) return Promise.resolve({ ok: false, error: '没有找到这条台账记录。' })
+      const at = new Date().toISOString()
+      const update = buildPickupNotificationUpdate(previous, notificationStatus, at)
+      if (!update.ok) return Promise.resolve(update)
+      if (previous.notificationStatus === notificationStatus) return Promise.resolve({ ok: true, unchanged: true, record: previous })
+      applyServerResult({ record: update.record })
+      return run(async () => {
+        try {
+          return await workItemAction(previous, 'notification', { notificationStatus })
+        } catch (error) {
+          applyServerResult({ record: previous })
+          throw error
+        }
+      }, { sync: 'background' })
+    },
     completePickup: (id, pickupCode = '') => action(id, 'pick-up', { pickupCode }),
+    patchRecordLocal,
     removeRecord,
     undoLast: () => latestUndo ? undoHistoryEvent(latestUndo) : Promise.resolve({ ok: false, error: '没有可撤回的操作。' }),
     getOperationHistory,
