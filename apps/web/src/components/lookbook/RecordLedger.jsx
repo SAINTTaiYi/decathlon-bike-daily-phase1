@@ -101,12 +101,14 @@ export default function RecordLedger({
             </div>
             {serviceTicket ? (
               <>
+                {(contactValue || record.pickupDate) ? (
+                  <div className="record-facts">
+                    {contactValue ? <div className="contact-callout"><span>{contactHeading}</span><strong>{contactValue}</strong></div> : <span aria-hidden="true" />}
+                    {record.pickupDate ? <time className="pickup-date-callout" dateTime={record.pickupDate}><span>取车时间</span><strong>{record.pickupDate.replaceAll('-', ' / ')}</strong></time> : null}
+                  </div>
+                ) : null}
                 <div className="record-bottom-row">
                   <div className="record-bottom-facts">
-                    <div className="record-fact-pair">
-                      {contactValue ? <div className="contact-callout"><span>{contactHeading}</span><strong>{contactValue}</strong></div> : <span aria-hidden="true" />}
-                      {record.pickupDate ? <time className="pickup-date-callout" dateTime={record.pickupDate}><span>取车时间</span><strong>{record.pickupDate.replaceAll('-', ' / ')}</strong></time> : null}
-                    </div>
                     <div className="record-identity">
                       {pickupRecord ? <small className="pickup-source-label">SOURCE · {pickupSourceLabel(record)}{selfPickupPlatformLabel(record) ? ` · ${selfPickupPlatformLabel(record)}` : ''}</small> : null}
                       {repairRecord && record.repairType ? <small className="pickup-source-label">TYPE · {record.repairType}</small> : null}
