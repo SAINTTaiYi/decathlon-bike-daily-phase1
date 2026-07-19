@@ -228,10 +228,10 @@ button:not(:disabled) { transition-duration: 150ms; }
 }
 .record-row-head {
   display: grid !important;
-  grid-template-columns: 2rem minmax(0,1fr) auto !important;
+  grid-template-columns: 2rem minmax(0,1fr) minmax(6.5rem, 11.5rem) !important;
   grid-column: auto !important;
   align-items: start;
-  gap: .55rem;
+  gap: .55rem .7rem;
   width: 100%;
   min-width: 0;
 }
@@ -261,18 +261,20 @@ button:not(:disabled) { transition-duration: 150ms; }
   font-weight: 800;
   letter-spacing: .06em;
 }
-.record-state-line {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: .35rem;
-  min-height: 32px;
+.record-notify-line {
+  margin-top: .2rem;
   min-width: 0;
-  max-width: 100%;
-  white-space: nowrap;
+}
+.record-head-meta {
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: .35rem;
+  min-width: 0;
+  max-width: 11.5rem;
 }
 .record-state {
-  flex: 0 0 auto;
+  justify-self: end;
   padding: .16rem .34rem;
   border: 1px solid var(--line-strong);
   border-radius: 999px;
@@ -280,6 +282,14 @@ button:not(:disabled) { transition-duration: 150ms; }
   font-size: .55rem;
   font-weight: 800;
   letter-spacing: .05em;
+  white-space: nowrap;
+}
+.record-head-meta .record-badge-row {
+  justify-content: flex-end;
+  max-width: 100%;
+}
+.record-head-meta .record-badge {
+  max-width: 100%;
 }
 
 .record-body {
@@ -417,7 +427,9 @@ button:not(:disabled) { transition-duration: 150ms; }
 .record-ledger[data-dark='true'] .record-badge,
 .record-row[data-row-dark='true'] .record-badge,
 .record-ledger[data-dark='true'] .record-state,
-.record-row[data-row-dark='true'] .record-state {
+.record-row[data-row-dark='true'] .record-state,
+.record-ledger[data-dark='true'] .record-head-meta .record-badge,
+.record-row[data-row-dark='true'] .record-head-meta .record-badge {
   border-color: rgb(255 255 255 / .42);
   color: #fff;
 }
@@ -528,8 +540,8 @@ button:not(:disabled) { transition-duration: 150ms; }
   .head-photo-caption { width: 78%; }
   .summary-grid { grid-template-columns: minmax(0,1fr) auto; }
   .summary-copy h2 { font-size: clamp(1.9rem, 9vw, 2.65rem); }
-  .record-row-head { grid-template-columns: 2rem minmax(0,1fr) !important; }
-  .record-state-line { grid-column: 2; justify-content: flex-start; min-height: 28px; }
+  .record-row-head { grid-template-columns: 2rem minmax(0,1fr) minmax(6rem, 42%) !important; }
+  .record-head-meta { max-width: none; }
   .record-body { padding-left: 0; }
   .record-actions button { flex: 1 1 calc(50% - .15rem) !important; }
   .record-actions .record-primary-action { flex: 1 1 100% !important; }
@@ -539,6 +551,13 @@ button:not(:disabled) { transition-duration: 150ms; }
 }
 
 @media (max-width: 374px) {
+  .record-row-head { grid-template-columns: 2rem minmax(0,1fr) !important; }
+  .record-head-meta {
+    grid-column: 2;
+    justify-items: start;
+    max-width: none;
+  }
+  .record-head-meta .record-badge-row { justify-content: flex-start; }
   .report-masthead h1 { font-size: 1.9rem; }
   .summary-grid { grid-template-columns: 1fr; }
   .summary-score { justify-self: start; margin-top: .5rem; }

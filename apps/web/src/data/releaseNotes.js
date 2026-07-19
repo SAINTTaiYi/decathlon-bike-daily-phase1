@@ -1,13 +1,13 @@
-export const APP_VERSION = "5.5.6"
+export const APP_VERSION = "5.5.7"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.19",
-  title: "修复更新提示触发",
-  summary: "未确认当前版本时也会弹出全屏刷新提示，避免首次进入静默跳过。",
+  title: "卡片状态徽章靠右",
+  summary: "把来源/支付/状态徽章上移到卡片顶部右侧，减少右侧空白，维修内容仍全宽。",
   changes: [
-    "去掉首次静默写入逻辑：只要本地未确认当前 APP_VERSION 就弹窗。",
-    "立即刷新与稍后手动刷新都会把当前版本记为已确认。",
-    "补充测试锁定该触发规则。"
+    "顶部右侧集中放置 ACTIVE 与来源/支付/状态徽章。",
+    "维修内容、电话、日期继续全宽横排，不被右侧栏挤压。",
+    "超窄屏下徽章回落到标题下方，避免车型被挤扁。"
   ]
 }

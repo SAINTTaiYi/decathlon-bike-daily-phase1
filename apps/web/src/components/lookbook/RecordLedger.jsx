@@ -83,12 +83,20 @@ export default function RecordLedger({
               <div className="record-model-block">
                 <strong>{record.title}</strong>
                 <span>{ticketNumber}</span>
-              </div>
-              <div className="record-state-line">
                 {pickupRecord && !pickedUp ? (
-                  <ProjectSelect value={pickupNotificationStatus} options={PICKUP_NOTIFICATION_STATUSES} onChange={(value) => onPickupNotificationChange(record, value)} disabled={Boolean(closedAt)} ariaLabel={`${record.title}的通知状态`} compact />
+                  <div className="record-notify-line">
+                    <ProjectSelect value={pickupNotificationStatus} options={PICKUP_NOTIFICATION_STATUSES} onChange={(value) => onPickupNotificationChange(record, value)} disabled={Boolean(closedAt)} ariaLabel={`${record.title}的通知状态`} compact />
+                  </div>
                 ) : null}
+              </div>
+              <div className="record-head-meta" aria-label="来源、支付与状态">
                 <span className="record-state">{englishState}</span>
+                <div className="record-badge-row">
+                  <Badge>{sourceLabel}</Badge>
+                  <Badge>{paymentOrType}</Badge>
+                  <Badge>{stateLabel}</Badge>
+                  {!serviceTicket && record.meta ? <Badge>{record.meta}</Badge> : null}
+                </div>
               </div>
             </header>
 
@@ -112,13 +120,6 @@ export default function RecordLedger({
                     <time dateTime={record.pickupDate}>{formatScanDate(record.pickupDate)}</time>
                   </span>
                 ) : null}
-              </div>
-
-              <div className="record-badge-row" aria-label="来源、支付与状态">
-                <Badge>{sourceLabel}</Badge>
-                <Badge>{paymentOrType}</Badge>
-                <Badge>{stateLabel}</Badge>
-                {!serviceTicket && record.meta ? <Badge>{record.meta}</Badge> : null}
               </div>
 
               {pickupError ? <p className="record-inline-error" role="alert">{pickupError}</p> : null}
