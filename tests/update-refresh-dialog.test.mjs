@@ -26,3 +26,13 @@ test('App 根树挂载 UpdateRefreshDialog，覆盖登录后主路径', () => {
   assert.match(appSource, /import UpdateRefreshDialog from '\.\/components\/dialogs\/UpdateRefreshDialog\.jsx'/)
   assert.match(appSource, /<UpdateRefreshDialog \/>/)
 })
+
+test('切回前台时请求服务端版本并与本地 APP_VERSION 比较', () => {
+  assert.match(source, /\/api\/v1\/meta\/version/)
+  assert.match(source, /cache:\s*['"]no-store['"]/)
+  assert.match(source, /addEventListener\('focus'/)
+  assert.match(source, /visibilitychange/)
+  assert.match(source, /remoteVersion === APP_VERSION|remoteVersion !== APP_VERSION|remoteVersion === APP_VERSION|remoteVersion/)
+  assert.match(source, /dismissed-remote-version/)
+  assert.match(source, /document\.visibilityState/)
+})
