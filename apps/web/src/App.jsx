@@ -17,6 +17,7 @@ import LocalMigrationDialog, { hasLocalV5Data } from './components/dialogs/Local
 import LogDialog from './components/dialogs/LogDialog.jsx'
 import CreateUserDialog from './components/dialogs/CreateUserDialog.jsx'
 import ReportImageDialog from './components/dialogs/ReportImageDialog.jsx'
+import UpdateRefreshDialog from './components/dialogs/UpdateRefreshDialog.jsx'
 import MenuDialog from './components/dialogs/MenuDialog.jsx'
 import OperationHistoryDialog from './components/dialogs/OperationHistoryDialog.jsx'
 import PickupConfirmDialog from './components/dialogs/PickupConfirmDialog.jsx'
@@ -262,11 +263,11 @@ export default function App() {
   })
 
   if (setupToken && !authenticated) {
-    return <InitialSetup token={setupToken} onComplete={() => { setSetupToken(''); setToast('首位管理员已创建，请使用新账号登录。') }} />
+    return <><InitialSetup token={setupToken} onComplete={() => { setSetupToken(''); setToast('首位管理员已创建，请使用新账号登录。') }} /><UpdateRefreshDialog /></>
   }
 
   if (auth.status === 'restoring') {
-    return <main className="hydration-state" role="status" aria-live="polite"><strong>VERIFYING SESSION</strong><span>正在验证数据库账号…</span></main>
+    return <><main className="hydration-state" role="status" aria-live="polite"><strong>VERIFYING SESSION</strong><span>正在验证数据库账号…</span></main><UpdateRefreshDialog /></>
   }
 
   if (authenticated && mustChangePassword && introDone) {
@@ -277,24 +278,27 @@ export default function App() {
         filename={reportImage?.filename || ''}
         onDownload={redownloadReportImage}
       />
-      <StatusToast notice={toast} /></>
+      <UpdateRefreshDialog /><StatusToast notice={toast} /></>
   }
 
   if (authenticated && !workflow.hydrated && (auth.source === 'restore' || loginAnimationDone)) {
-    return <main className="hydration-state" role="status" aria-live="polite"><strong>SYNCING DATABASE</strong><span>正在读取门店业务台账…</span></main>
+    return <><main className="hydration-state" role="status" aria-live="polite"><strong>SYNCING DATABASE</strong><span>正在读取门店业务台账…</span></main><UpdateRefreshDialog /></>
   }
 
   if (authenticated && introDone && workflow.hydrated && !workflow.hasSnapshot) {
     return (
-      <main className="hydration-state sync-failure" role="alert" aria-live="assertive">
-        <strong>DATABASE UNAVAILABLE</strong>
-        <span>{workflow.storageError || '暂时无法读取门店业务台账。'}</span>
-        <p>为避免把空页面误认为真实数据，工作台不会在首次同步成功前开放。</p>
-        <div className="hydration-state-actions">
-          <button type="button" className="primary-action" onClick={() => void workflow.refresh()} disabled={workflow.syncing}>{workflow.syncing ? '正在重试…' : '重新同步'}</button>
-          <button type="button" className="secondary-action" onClick={() => void logout()}>退出登录</button>
-        </div>
-      </main>
+      <>
+        <main className="hydration-state sync-failure" role="alert" aria-live="assertive">
+          <strong>DATABASE UNAVAILABLE</strong>
+          <span>{workflow.storageError || '暂时无法读取门店业务台账。'}</span>
+          <p>为避免把空页面误认为真实数据，工作台不会在首次同步成功前开放。</p>
+          <div className="hydration-state-actions">
+            <button type="button" className="primary-action" onClick={() => void workflow.refresh()} disabled={workflow.syncing}>{workflow.syncing ? '正在重试…' : '重新同步'}</button>
+            <button type="button" className="secondary-action" onClick={() => void logout()}>退出登录</button>
+          </div>
+        </main>
+        <UpdateRefreshDialog />
+      </>
     )
   }
 
@@ -360,6 +364,7 @@ export default function App() {
         filename={reportImage?.filename || ''}
         onDownload={redownloadReportImage}
       />
+      <UpdateRefreshDialog />
       <StatusToast notice={toast} />
     </>
   )

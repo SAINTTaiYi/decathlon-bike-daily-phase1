@@ -572,3 +572,61 @@ button:not(:disabled) { transition-duration: 150ms; }
 @media (prefers-reduced-motion: reduce) {
   .record-actions button, .ledger-history, .ledger-add { transform: none !important; }
 }
+
+
+/* Fullscreen update prompt — shown once per new APP_VERSION */
+.app-dialog.update-refresh-dialog {
+  width: min(calc(100% - 1rem), 34rem);
+}
+.update-refresh-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .75rem;
+  padding: .9rem 0 0;
+  border-top: 1px solid var(--line);
+}
+.update-refresh-card > div {
+  display: grid;
+  gap: .25rem;
+  min-width: 0;
+}
+.update-refresh-card span {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .05em;
+}
+.update-refresh-card strong {
+  font-size: 1.35rem;
+  line-height: 1;
+  letter-spacing: -.03em;
+}
+.update-refresh-copy {
+  display: grid;
+  gap: .55rem;
+}
+.update-refresh-copy p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: .84rem;
+  line-height: 1.5;
+}
+.update-refresh-copy ol {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: .35rem;
+}
+.update-refresh-copy li {
+  color: var(--ink-soft);
+  font-size: .8rem;
+  line-height: 1.45;
+}
+.update-refresh-actions {
+  margin-top: .35rem;
+}
+@media (max-width: 420px) {
+  .update-refresh-card { grid-template-columns: 1fr; }
+  .update-refresh-actions { grid-template-columns: 1fr; }
+}
