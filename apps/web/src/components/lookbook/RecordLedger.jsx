@@ -7,9 +7,11 @@ import IconPlus from '@iconoir/Plus.mjs'
 import IconTrash from '@iconoir/Trash.mjs'
 import ProjectSelect from '../ProjectSelect.jsx'
 import {
+  decodePickupContact,
   inferPickupNotificationStatus,
   inferPickupSource,
   PICKUP_NOTIFICATION_STATUSES,
+  pickupContactLabel,
   pickupSourceLabel,
   selfPickupPlatformLabel
 } from '../../data/pickupRecord.js'
@@ -52,9 +54,18 @@ export default function RecordLedger({
         const repairPickup = pickupSource === 'repair'
         const serviceTicket = pickupRecord || repairRecord
         const pickupNotificationStatus = pickupRecord ? inferPickupNotificationStatus(record) : null
-        const manualPickupPhone = pickupRecord && !repairPickup ? String(record.contactValue ?? record.meta ?? '').trim() : ''
-        const contactValue = String(record.contactValue ?? (manualPickupPhone || '')).trim()
-        const contactLabel = record.contactType === 'member' ? '会员号' : '电话号码'
+        const manualContact = pickupRecord && !repairPickup ? decodePickupContact(record) : null
+        const contactType = repairPickup || repairRecord
+          ? (record.contactType === 'member' ? 'member' : 'phone')
+          : (manualContact?.contactType || 'phone')
+        const contactValue = String(
+          repairPickup || repairRecord
+            ? (record.contactValue ?? '')
+            : (manualContact?.contactValue ?? '')
+        ).trim()
+        const contactLabel = pickupContactLabel(contactType)
+        const contactDisplay = contactValue || '无'
+        const showContact = repairRecord || pickupRecord
         const detail = String(record.repairProject || record.detail || '').trim()
         const detailLine = joinMaintenanceLine(detail)
         const ticketNumber = formatTicketNumber(record.ticketNo, record.id)
@@ -109,10 +120,10 @@ export default function RecordLedger({
               ) : null}
 
               <div className="record-scan-line">
-                {contactValue ? (
-                  <span className="record-scan-item" title={`${contactLabel} ${contactValue}`}>
+                {showContact ? (
+                  <span className="record-scan-item" title={`${contactLabel} ${contactDisplay}`}>
                     <IconPhone width={14} height={14} aria-hidden="true" />
-                    <span>{displayContactValue(contactValue)}</span>
+                    <span>{contactValue ? displayContactValue(contactValue) : '无'}</span>
                   </span>
                 ) : null}
                 {record.pickupDate ? (

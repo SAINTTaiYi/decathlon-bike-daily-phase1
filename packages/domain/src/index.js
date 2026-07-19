@@ -46,18 +46,30 @@ export function repairCompletionRoute(record) {
 }
 
 export function validatePickup(values) {
+  const contactTypeRaw = String(values.contactType ?? 'phone').trim().slice(0, 16) || 'phone'
+  // Prefer structured contactValue; fall back to meta for V5.5.8 / legacy clients.
+  const contactValueRaw = String(values.contactValue ?? values.meta ?? '').trim().slice(0, 80)
+  const contactType = ['phone', 'member'].includes(contactTypeRaw) ? contactTypeRaw : ''
+  let meta = ''
+  if (contactValueRaw) {
+    meta = contactType === 'member' ? `会员号：${contactValueRaw}` : contactValueRaw
+  }
+
   const fields = {
     pickupSource: String(values.pickupSource ?? ''),
     selfPickupPlatform: String(values.selfPickupPlatform ?? ''),
     title: String(values.title ?? '').trim().slice(0, 120),
     detail: String(values.detail ?? '').trim().slice(0, 500),
-    meta: String(values.meta ?? '').trim().slice(0, 240),
-    status: String(values.status ?? '').trim().slice(0, 80)
+    meta: meta.slice(0, 240),
+    status: String(values.status ?? '').trim().slice(0, 80),
+    contactType: contactType || 'phone',
+    contactValue: contactValueRaw
   }
   if (!['self-pickup', 'customer-storage'].includes(fields.pickupSource)) return { ok: false, error: '请选择自提订单车辆或顾客暂存。' }
   if (!fields.title) return { ok: false, error: '请填写车辆或顾客标识。' }
   if (!fields.status) return { ok: false, error: '请填写当前状态。' }
-  if (!fields.meta) return { ok: false, error: '请填写电话号码。' }
+  if (!['phone', 'member'].includes(fields.contactType)) return { ok: false, error: '请选择手机号或会员号。' }
+  // contactValue / meta are optional; empty surfaces as「无」on cards.
   if (fields.pickupSource === 'self-pickup') {
     if (!SELF_PICKUP_PLATFORMS.includes(fields.selfPickupPlatform)) return { ok: false, error: '请选择天猫、京东或小程序。' }
     fields.detail = ''

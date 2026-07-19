@@ -19,17 +19,67 @@ export const PICKUP_NOTIFICATION_STATUSES = [
   { value: 'notified', label: '已通知' }
 ]
 
+/** Same options as repair contact fieldset: phone + member. */
+export const PICKUP_CONTACT_TYPES = [
+  { value: 'phone', label: '手机号' },
+  { value: 'member', label: '会员号' }
+]
+
 export const emptyPickupDraft = {
   title: '',
   detail: '',
   meta: '',
   status: '等待取车',
   pickupSource: 'customer-storage',
-  selfPickupPlatform: ''
+  selfPickupPlatform: '',
+  contactType: 'phone',
+  contactValue: ''
 }
 
 function text(value, max) {
   return String(value ?? '').trim().slice(0, max)
+}
+
+/**
+ * Encode contact into work_items.meta for manual pickup rows.
+ * - empty → ''
+ * - phone → plain value (backward compatible with V5.5.8 phone-only meta)
+ * - member → "会员号：{value}"
+ */
+export function encodePickupContactMeta(contactType, contactValue) {
+  const type = PICKUP_CONTACT_TYPES.some(({ value }) => value === contactType) ? contactType : 'phone'
+  const value = text(contactValue, 80)
+  if (!value) return ''
+  if (type === 'member') return `会员号：${value}`
+  return value
+}
+
+/**
+ * Decode contact from record.meta / contact* fields for manual pickup rows.
+ */
+export function decodePickupContact(record = {}) {
+  const rawType = text(record.contactType, 16)
+  const rawValue = text(record.contactValue, 80)
+  if (rawValue || (rawType && rawType !== 'phone' && record.contactValue !== undefined && record.contactValue !== null && String(record.contactValue).length > 0)) {
+    const contactType = PICKUP_CONTACT_TYPES.some(({ value }) => value === rawType) ? rawType : 'phone'
+    return { contactType, contactValue: rawValue }
+  }
+
+  const meta = text(record.meta, 120)
+  if (!meta) return { contactType: 'phone', contactValue: '' }
+
+  const memberMatch = meta.match(/^会员号\s*[：:]\s*(.*)$/u)
+  if (memberMatch) return { contactType: 'member', contactValue: text(memberMatch[1], 80) }
+
+  const phoneMatch = meta.match(/^手机号\s*[：:]\s*(.*)$/u)
+  if (phoneMatch) return { contactType: 'phone', contactValue: text(phoneMatch[1], 80) }
+
+  return { contactType: 'phone', contactValue: text(meta, 80) }
+}
+
+export function pickupContactLabel(contactType) {
+  return PICKUP_CONTACT_TYPES.find(({ value }) => value === contactType)?.label
+    || (contactType === 'member' ? '会员号' : '手机号')
 }
 
 export function inferPickupSource(record) {
@@ -96,43 +146,50 @@ export function normalizePickupNotificationRecord(record) {
 export function pickupRecordToDraft(record) {
   if (!record) return { ...emptyPickupDraft }
   const pickupSource = inferPickupSource(record)
+  const contact = decodePickupContact(record)
   return {
     title: record?.title || '',
     detail: record?.detail || '',
     meta: record?.meta || '',
     status: record?.status || '',
     pickupSource,
-    selfPickupPlatform: pickupSource === 'self-pickup' ? inferSelfPickupPlatform(record) : ''
+    selfPickupPlatform: pickupSource === 'self-pickup' ? inferSelfPickupPlatform(record) : '',
+    contactType: contact.contactType,
+    contactValue: contact.contactValue
   }
 }
 
 export function normalizePickupValues(values) {
   const title = text(values.title, 80)
   const detail = text(values.detail, 240)
-  const meta = text(values.meta, 120)
   const status = text(values.status, 80)
   const pickupSource = text(values.pickupSource, 32)
   const selfPickupPlatform = text(values.selfPickupPlatform, 32)
-  const contactValue = text(values.meta, 80) // phone stored in meta for manual pickup rows
+  const contactType = text(values.contactType, 16) || 'phone'
+  // Prefer structured contactValue; fall back to meta for older callers / V5.5.8 payloads.
+  const contactValue = text(values.contactValue ?? values.meta, 80)
 
   if (!MANUAL_PICKUP_SOURCES.some(({ value }) => value === pickupSource)) return { ok: false, error: '手动增加待取车辆时，请选择自提订单车辆或顾客暂存。' }
   if (!title || !status) return { ok: false, error: '请填写车辆标识和当前状态。' }
-  if (!contactValue) return { ok: false, error: '请填写电话号码。' }
+  if (!PICKUP_CONTACT_TYPES.some(({ value }) => value === contactType)) return { ok: false, error: '请选择手机号或会员号。' }
+  // contactValue is optional; empty is allowed and surfaces as「无」on cards.
   if (pickupSource === 'customer-storage' && !detail) return { ok: false, error: '请填写顾客暂存说明。' }
   if (pickupSource === 'self-pickup' && !SELF_PICKUP_PLATFORMS.some(({ value }) => value === selfPickupPlatform)) {
     return { ok: false, error: '请选择天猫、京东或小程序。' }
   }
+
+  const meta = encodePickupContactMeta(contactType, contactValue)
 
   return {
     ok: true,
     fields: {
       title,
       detail: pickupSource === 'self-pickup' ? '' : detail,
-      meta: contactValue,
+      meta,
       status,
       pickupSource,
       selfPickupPlatform: pickupSource === 'self-pickup' ? selfPickupPlatform : '',
-      contactType: 'phone',
+      contactType,
       contactValue
     }
   }

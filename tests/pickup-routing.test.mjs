@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { buildRepairCompletion } from '../apps/web/src/data/repairRecord.js'
 import {
   buildPickupNotificationUpdate,
+  decodePickupContact,
+  encodePickupContactMeta,
   inferPickupNotificationStatus,
   inferPickupSource,
   normalizePickupNotificationRecord,
@@ -120,10 +122,14 @@ test('顾客暂存无需附加校验，可直接取车', () => {
   assert.equal(pickupSourceLabel(storage), '顾客暂存')
 })
 
-test('手动新增待取仅允许自提订单或顾客暂存，电话号码必填并写入台账', () => {
-  const base = { title: '订单车辆', detail: '顾客今日到店', meta: '18172049175', status: '等待取车' }
+test('手动新增待取仅允许自提订单或顾客暂存；联系方式可空并写入台账', () => {
+  const base = { title: '订单车辆', detail: '顾客今日到店', contactType: 'phone', contactValue: '18172049175', status: '等待取车' }
   assert.equal(normalizePickupValues({ ...base, pickupSource: 'repair' }).ok, false)
-  assert.equal(normalizePickupValues({ ...base, pickupSource: 'self-pickup', selfPickupPlatform: 'tmall', meta: '' }).ok, false)
+  // 联系方式可空
+  const emptyContact = normalizePickupValues({ ...base, pickupSource: 'self-pickup', selfPickupPlatform: 'tmall', contactValue: '' })
+  assert.equal(emptyContact.ok, true)
+  assert.equal(emptyContact.fields.meta, '')
+  assert.equal(emptyContact.fields.contactValue, '')
   const order = normalizePickupValues({ ...base, pickupSource: 'self-pickup', selfPickupPlatform: 'tmall' })
   assert.equal(order.ok, true)
   assert.equal(order.fields.meta, '18172049175')
@@ -135,12 +141,16 @@ test('手动新增待取仅允许自提订单或顾客暂存，电话号码必�
   assert.equal(storage.fields.meta, '18172049175')
   assert.equal(storage.fields.contactValue, '18172049175')
   assert.equal('pickupCode' in storage.fields, false)
+  const member = normalizePickupValues({ ...base, pickupSource: 'customer-storage', contactType: 'member', contactValue: 'M-9' })
+  assert.equal(member.ok, true)
+  assert.equal(member.fields.meta, '会员号：M-9')
+  assert.equal(member.fields.contactType, 'member')
 })
 
-test('自提订单必须选择天猫、京东或小程序，电话号码必填且不保存取车说明', () => {
-  const base = { title: '订单车辆', detail: '这段说明不应保存', meta: '18172049175', status: '等待顾客取车', pickupSource: 'self-pickup' }
+test('自提订单必须选择天猫、京东或小程序；联系方式可空且不保存取车说明', () => {
+  const base = { title: '订单车辆', detail: '这段说明不应保存', contactType: 'phone', contactValue: '18172049175', status: '等待顾客取车', pickupSource: 'self-pickup' }
   assert.equal(normalizePickupValues(base).ok, false)
-  assert.equal(normalizePickupValues({ ...base, selfPickupPlatform: 'tmall', meta: '' }).ok, false)
+  assert.equal(normalizePickupValues({ ...base, selfPickupPlatform: 'tmall', contactValue: '' }).ok, true)
   for (const selfPickupPlatform of ['tmall', 'jd', 'mini-program']) {
     const result = normalizePickupValues({ ...base, selfPickupPlatform })
     assert.equal(result.ok, true)
@@ -152,10 +162,12 @@ test('自提订单必须选择天猫、京东或小程序，电话号码必填�
   assert.equal(normalizePickupValues({ ...base, selfPickupPlatform: 'taobao' }).ok, false)
 })
 
-test('顾客暂存仍需填写说明与电话号码，且不会保留自提平台', () => {
-  const base = { title: '暂存车辆', meta: '18172049175', status: '等待取车', pickupSource: 'customer-storage', selfPickupPlatform: 'tmall' }
+test('顾客暂存仍需填写说明；联系方式可空且不会保留自提平台', () => {
+  const base = { title: '暂存车辆', contactType: 'phone', contactValue: '18172049175', status: '等待取车', pickupSource: 'customer-storage', selfPickupPlatform: 'tmall' }
   assert.equal(normalizePickupValues({ ...base, detail: '' }).ok, false)
-  assert.equal(normalizePickupValues({ ...base, detail: '暂存说明', meta: '' }).ok, false)
+  const emptyContact = normalizePickupValues({ ...base, detail: '暂存说明', contactValue: '' })
+  assert.equal(emptyContact.ok, true)
+  assert.equal(emptyContact.fields.meta, '')
   const result = normalizePickupValues({ ...base, detail: '暂存说明' })
   assert.equal(result.ok, true)
   assert.equal(result.fields.detail, '暂存说明')
@@ -175,4 +187,14 @@ test('旧待取记录按维修痕迹或线上自提标记推断来源', () => {
   assert.equal(inferPickupSource({ detail: '维修完成', status: '维修中' }), 'repair')
   assert.equal(inferPickupSource({ kind: 'online', meta: '线上自提' }), 'self-pickup')
   assert.equal(inferPickupSource({ detail: '顾客临时放店内' }), 'customer-storage')
+})
+
+test('联系方式 meta 编解码兼容空值、手机号与会员号', () => {
+  assert.equal(encodePickupContactMeta('phone', ''), '')
+  assert.equal(encodePickupContactMeta('phone', '18172049175'), '18172049175')
+  assert.equal(encodePickupContactMeta('member', 'M-1'), '会员号：M-1')
+  assert.deepEqual(decodePickupContact({ meta: '' }), { contactType: 'phone', contactValue: '' })
+  assert.deepEqual(decodePickupContact({ meta: '18172049175' }), { contactType: 'phone', contactValue: '18172049175' })
+  assert.deepEqual(decodePickupContact({ meta: '会员号：M-1' }), { contactType: 'member', contactValue: 'M-1' })
+  assert.deepEqual(decodePickupContact({ contactType: 'member', contactValue: 'M-2' }), { contactType: 'member', contactValue: 'M-2' })
 })

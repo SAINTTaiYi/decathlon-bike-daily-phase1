@@ -4,6 +4,7 @@ import AppDialog from './AppDialog.jsx'
 import {
   emptyPickupDraft,
   MANUAL_PICKUP_SOURCES,
+  PICKUP_CONTACT_TYPES,
   pickupRecordToDraft,
   SELF_PICKUP_PLATFORMS
 } from '../../data/pickupRecord.js'
@@ -62,18 +63,33 @@ function PickupFields({ draft, setDraft }) {
       ) : null}
       <label className="field-row"><span>车辆或顾客标识</span><input required maxLength="80" value={draft.title} onChange={(event) => set('title', event.target.value)} /></label>
       {!selfPickup ? <label className="field-row"><span>顾客暂存说明</span><textarea required rows="4" maxLength="240" value={draft.detail} onChange={(event) => set('detail', event.target.value)} /></label> : null}
-      <label className="field-row">
-        <span>电话号码</span>
-        <input
-          required
-          maxLength="80"
-          inputMode="tel"
-          autoComplete="tel"
-          value={draft.meta}
-          onChange={(event) => set('meta', event.target.value)}
-          placeholder="例如：18172049175"
-        />
-      </label>
+      <fieldset className="field-group">
+        <legend>联系方式</legend>
+        <div className="contact-field-grid">
+          <div className="field-row">
+            <span>联系标识类型</span>
+            <ProjectSelect
+              value={draft.contactType || 'phone'}
+              options={PICKUP_CONTACT_TYPES}
+              onChange={(value) => set('contactType', value)}
+              ariaLabel="选择联系标识类型"
+            />
+          </div>
+          <label className="field-row">
+            <span>{draft.contactType === 'member' ? '会员号' : '手机号'}</span>
+            <input
+              maxLength="80"
+              inputMode={draft.contactType === 'phone' ? 'tel' : 'text'}
+              autoComplete={draft.contactType === 'phone' ? 'tel' : 'off'}
+              value={draft.contactValue || ''}
+              onChange={(event) => set('contactValue', event.target.value)}
+              aria-describedby="pickup-contact-help"
+              placeholder="可不填"
+            />
+          </label>
+        </div>
+        <small id="pickup-contact-help" className="field-help">可不填；留空时卡片显示「无」。填写 0 也会作为有效联系方式保存。</small>
+      </fieldset>
       {selfPickup
         ? <p className="conditional-field-note"><strong>取车时输入取货码</strong><span>取货码在点击“确认取车”后输入，不保存在台账、票据或操作记录中。</span></p>
         : <p className="conditional-field-note"><strong>顾客暂存无需附加校验</strong><span>确认顾客身份后可直接点按“确认取车”。</span></p>}
@@ -192,7 +208,7 @@ export default function RecordEditorDialog({ open, onClose, config, record, onSa
   const description = repairForm
     ? '按门店维修单结构登记；固定选项不可自由输入。门店产品维修完成后原地留档，付费、质保与免费维修完成后转入待取。'
     : pickupForm
-      ? '请选择自提订单车辆或顾客暂存，并填写电话号码。自提订单需选择天猫、京东或小程序，不填写取车说明；确认取车时再输入取货码。'
+      ? '请选择自提订单车辆或顾客暂存，并按需登记联系方式（手机号或会员号，可留空）。自提订单需选择天猫、京东或小程序，不填写取车说明；确认取车时再输入取货码。'
       : '这条记录会跨日期保留；当天没有编辑时会原样延续到下一日期。新增、编辑和删除都会写入操作记录。'
 
   return (

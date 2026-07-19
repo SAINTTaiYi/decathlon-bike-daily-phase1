@@ -22,6 +22,8 @@ export interface NormalizedPickupFields {
   detail: string
   meta: string
   status: string
+  contactType: string
+  contactValue: string
 }
 
 export interface PickupCompletionRecord {
