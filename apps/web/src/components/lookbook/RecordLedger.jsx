@@ -52,8 +52,9 @@ export default function RecordLedger({
         const repairPickup = pickupSource === 'repair'
         const serviceTicket = pickupRecord || repairRecord
         const pickupNotificationStatus = pickupRecord ? inferPickupNotificationStatus(record) : null
-        const contactValue = String(record.contactValue ?? '').trim()
-        const contactLabel = record.contactType === 'member' ? '会员号' : '手机号'
+        const manualPickupPhone = pickupRecord && !repairPickup ? String(record.contactValue ?? record.meta ?? '').trim() : ''
+        const contactValue = String(record.contactValue ?? (manualPickupPhone || '')).trim()
+        const contactLabel = record.contactType === 'member' ? '会员号' : '电话号码'
         const detail = String(record.repairProject || record.detail || '').trim()
         const detailLine = joinMaintenanceLine(detail)
         const ticketNumber = formatTicketNumber(record.ticketNo, record.id)

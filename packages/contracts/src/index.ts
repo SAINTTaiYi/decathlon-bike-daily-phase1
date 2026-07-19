@@ -68,7 +68,7 @@ export const pickupInputSchema = z.object({
   selfPickupPlatform: z.enum(selfPickupPlatforms).or(z.literal('')).default(''),
   title: z.string().trim().min(1).max(120),
   detail: z.string().trim().max(500).default(''),
-  meta: z.string().trim().max(240).default(''),
+  meta: z.string().trim().min(1).max(80),
   status: z.string().trim().min(1).max(80)
 }).strict()
 

@@ -120,36 +120,48 @@ test('顾客暂存无需附加校验，可直接取车', () => {
   assert.equal(pickupSourceLabel(storage), '顾客暂存')
 })
 
-test('手动新增待取仅允许自提订单或顾客暂存，取货码不写入台账', () => {
-  const base = { title: '订单车辆', detail: '顾客今日到店', meta: 'ORDER-01', status: '等待取车' }
+test('手动新增待取仅允许自提订单或顾客暂存，电话号码必填并写入台账', () => {
+  const base = { title: '订单车辆', detail: '顾客今日到店', meta: '18172049175', status: '等待取车' }
   assert.equal(normalizePickupValues({ ...base, pickupSource: 'repair' }).ok, false)
+  assert.equal(normalizePickupValues({ ...base, pickupSource: 'self-pickup', selfPickupPlatform: 'tmall', meta: '' }).ok, false)
   const order = normalizePickupValues({ ...base, pickupSource: 'self-pickup', selfPickupPlatform: 'tmall' })
   assert.equal(order.ok, true)
+  assert.equal(order.fields.meta, '18172049175')
+  assert.equal(order.fields.contactValue, '18172049175')
+  assert.equal(order.fields.contactType, 'phone')
   assert.equal('pickupCode' in order.fields, false)
   const storage = normalizePickupValues({ ...base, pickupSource: 'customer-storage' })
   assert.equal(storage.ok, true)
+  assert.equal(storage.fields.meta, '18172049175')
+  assert.equal(storage.fields.contactValue, '18172049175')
   assert.equal('pickupCode' in storage.fields, false)
 })
 
-test('自提订单必须选择天猫、京东或小程序且不保存取车说明', () => {
-  const base = { title: '订单车辆', detail: '这段说明不应保存', meta: 'ORDER-02', status: '等待顾客取车', pickupSource: 'self-pickup' }
+test('自提订单必须选择天猫、京东或小程序，电话号码必填且不保存取车说明', () => {
+  const base = { title: '订单车辆', detail: '这段说明不应保存', meta: '18172049175', status: '等待顾客取车', pickupSource: 'self-pickup' }
   assert.equal(normalizePickupValues(base).ok, false)
+  assert.equal(normalizePickupValues({ ...base, selfPickupPlatform: 'tmall', meta: '' }).ok, false)
   for (const selfPickupPlatform of ['tmall', 'jd', 'mini-program']) {
     const result = normalizePickupValues({ ...base, selfPickupPlatform })
     assert.equal(result.ok, true)
     assert.equal(result.fields.selfPickupPlatform, selfPickupPlatform)
     assert.equal(result.fields.detail, '')
+    assert.equal(result.fields.meta, '18172049175')
+    assert.equal(result.fields.contactValue, '18172049175')
   }
   assert.equal(normalizePickupValues({ ...base, selfPickupPlatform: 'taobao' }).ok, false)
 })
 
-test('顾客暂存仍需填写说明且不会保留自提平台', () => {
-  const base = { title: '暂存车辆', meta: '', status: '等待取车', pickupSource: 'customer-storage', selfPickupPlatform: 'jd' }
+test('顾客暂存仍需填写说明与电话号码，且不会保留自提平台', () => {
+  const base = { title: '暂存车辆', meta: '18172049175', status: '等待取车', pickupSource: 'customer-storage', selfPickupPlatform: 'tmall' }
   assert.equal(normalizePickupValues({ ...base, detail: '' }).ok, false)
-  const result = normalizePickupValues({ ...base, detail: '顾客稍后回来取车' })
+  assert.equal(normalizePickupValues({ ...base, detail: '暂存说明', meta: '' }).ok, false)
+  const result = normalizePickupValues({ ...base, detail: '暂存说明' })
   assert.equal(result.ok, true)
-  assert.equal(result.fields.detail, '顾客稍后回来取车')
+  assert.equal(result.fields.detail, '暂存说明')
   assert.equal(result.fields.selfPickupPlatform, '')
+  assert.equal(result.fields.meta, '18172049175')
+  assert.equal(result.fields.contactValue, '18172049175')
 })
 
 test('读取旧记录时剥离遗留取货码且不修改原对象', () => {

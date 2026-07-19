@@ -113,9 +113,11 @@ export function normalizePickupValues(values) {
   const status = text(values.status, 80)
   const pickupSource = text(values.pickupSource, 32)
   const selfPickupPlatform = text(values.selfPickupPlatform, 32)
+  const contactValue = text(values.meta, 80) // phone stored in meta for manual pickup rows
 
   if (!MANUAL_PICKUP_SOURCES.some(({ value }) => value === pickupSource)) return { ok: false, error: '手动增加待取车辆时，请选择自提订单车辆或顾客暂存。' }
   if (!title || !status) return { ok: false, error: '请填写车辆标识和当前状态。' }
+  if (!contactValue) return { ok: false, error: '请填写电话号码。' }
   if (pickupSource === 'customer-storage' && !detail) return { ok: false, error: '请填写顾客暂存说明。' }
   if (pickupSource === 'self-pickup' && !SELF_PICKUP_PLATFORMS.some(({ value }) => value === selfPickupPlatform)) {
     return { ok: false, error: '请选择天猫、京东或小程序。' }
@@ -126,10 +128,12 @@ export function normalizePickupValues(values) {
     fields: {
       title,
       detail: pickupSource === 'self-pickup' ? '' : detail,
-      meta,
+      meta: contactValue,
       status,
       pickupSource,
-      selfPickupPlatform: pickupSource === 'self-pickup' ? selfPickupPlatform : ''
+      selfPickupPlatform: pickupSource === 'self-pickup' ? selfPickupPlatform : '',
+      contactType: 'phone',
+      contactValue
     }
   }
 }

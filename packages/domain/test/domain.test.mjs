@@ -22,8 +22,11 @@ test('维修规则在共享服务端 domain 中保持现有分流', () => {
 })
 
 test('自提平台、顾客暂存和取车校验由服务端共享规则约束', () => {
-  assert.equal(validatePickup({ pickupSource: 'self-pickup', selfPickupPlatform: '', title: '车', status: '待取' }).ok, false)
-  assert.equal(validatePickup({ pickupSource: 'customer-storage', title: '车', detail: '', status: '待取' }).ok, false)
+  assert.equal(validatePickup({ pickupSource: 'self-pickup', selfPickupPlatform: '', title: '车', status: '待取', meta: '18172049175' }).ok, false)
+  assert.equal(validatePickup({ pickupSource: 'self-pickup', selfPickupPlatform: 'tmall', title: '车', status: '待取', meta: '' }).ok, false)
+  assert.equal(validatePickup({ pickupSource: 'customer-storage', title: '车', detail: '', status: '待取', meta: '18172049175' }).ok, false)
+  assert.equal(validatePickup({ pickupSource: 'customer-storage', title: '车', detail: '暂存说明', status: '待取', meta: '' }).ok, false)
+  assert.equal(validatePickup({ pickupSource: 'customer-storage', title: '车', detail: '暂存说明', status: '待取', meta: '18172049175' }).ok, true)
   assert.equal(validatePickupCompletion({ pickupSource: 'self-pickup' }, '').ok, false)
   assert.equal(validatePickupCompletion({ pickupSource: 'repair', repairType: '付费', status: '维修中' }).ok, false)
   assert.equal(validatePickupCompletion({ pickupSource: 'repair', repairType: '免费', status: '维修中' }).ok, true)

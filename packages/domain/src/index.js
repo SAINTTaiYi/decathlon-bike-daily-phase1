@@ -57,6 +57,7 @@ export function validatePickup(values) {
   if (!['self-pickup', 'customer-storage'].includes(fields.pickupSource)) return { ok: false, error: '请选择自提订单车辆或顾客暂存。' }
   if (!fields.title) return { ok: false, error: '请填写车辆或顾客标识。' }
   if (!fields.status) return { ok: false, error: '请填写当前状态。' }
+  if (!fields.meta) return { ok: false, error: '请填写电话号码。' }
   if (fields.pickupSource === 'self-pickup') {
     if (!SELF_PICKUP_PLATFORMS.includes(fields.selfPickupPlatform)) return { ok: false, error: '请选择天猫、京东或小程序。' }
     fields.detail = ''
