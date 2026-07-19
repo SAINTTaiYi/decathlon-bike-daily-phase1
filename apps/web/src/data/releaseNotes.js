@@ -1,13 +1,13 @@
-export const APP_VERSION = "5.5.5"
+export const APP_VERSION = "5.5.6"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.19",
-  title: "版本更新强制刷新提示",
-  summary: "版本变化时全屏提示用户刷新，避免继续使用缓存旧页面。",
+  title: "修复更新提示触发",
+  summary: "未确认当前版本时也会弹出全屏刷新提示，避免首次进入静默跳过。",
   changes: [
-    "进入网站检测到 APP_VERSION 变化时弹出全屏更新提示。",
-    "提供立即刷新与稍后手动刷新；本地记住已确认版本，同版本不再重复弹出。",
-    "覆盖登录、同步与主工作台路径，保证更新后第一时间可见。"
+    "去掉首次静默写入逻辑：只要本地未确认当前 APP_VERSION 就弹窗。",
+    "立即刷新与稍后手动刷新都会把当前版本记为已确认。",
+    "补充测试锁定该触发规则。"
   ]
 }

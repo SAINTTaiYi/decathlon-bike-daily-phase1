@@ -13,12 +13,13 @@ test('更新提示使用稳定 localStorage key，并绑定当前 APP_VERSION', 
   assert.match(APP_VERSION, /^\d+\.\d+\.\d+$/)
 })
 
-test('更新提示提供立即刷新与稍后手动刷新，并在版本变化时弹出', () => {
+test('未确认当前版本时弹出，已确认同版本不弹，并提供立即刷新', () => {
+  assert.match(source, /seen === APP_VERSION/)
+  assert.match(source, /setOpen\(true\)/)
+  assert.doesNotMatch(source, /if \(!seen\) \{\s*writeSeenVersion\(APP_VERSION\)/)
   assert.match(source, /立即刷新/)
   assert.match(source, /稍后手动刷新/)
   assert.match(source, /location\.reload\(\)/)
-  assert.match(source, /seen === APP_VERSION/)
-  assert.match(source, /setOpen\(true\)/)
 })
 
 test('App 根树挂载 UpdateRefreshDialog，覆盖登录后主路径', () => {

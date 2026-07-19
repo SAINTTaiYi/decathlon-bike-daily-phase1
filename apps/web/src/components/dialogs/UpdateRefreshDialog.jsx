@@ -27,10 +27,8 @@ export default function UpdateRefreshDialog() {
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
     const seen = readSeenVersion()
-    if (!seen) {
-      writeSeenVersion(APP_VERSION)
-      return undefined
-    }
+    // Show whenever the current version has not been confirmed yet.
+    // That covers first visit after deploy, version upgrades, and cleared storage.
     if (seen === APP_VERSION) return undefined
     setPreviousVersion(seen)
     setOpen(true)
@@ -63,7 +61,7 @@ export default function UpdateRefreshDialog() {
         </div>
         <div>
           <span>上次访问</span>
-          <strong>{previousVersion ? `V${previousVersion}` : '未知'}</strong>
+          <strong>{previousVersion ? `V${previousVersion}` : '未确认'}</strong>
         </div>
       </div>
 
