@@ -27,12 +27,18 @@ test('App 根树挂载 UpdateRefreshDialog，覆盖登录后主路径', () => {
   assert.match(appSource, /<UpdateRefreshDialog \/>/)
 })
 
-test('切回前台时请求服务端版本并与本地 APP_VERSION 比较', () => {
+test('已打开页面通过前台聚焦、定时轮询与交互节流检查服务端版本', () => {
   assert.match(source, /\/api\/v1\/meta\/version/)
   assert.match(source, /cache:\s*['"]no-store['"]/)
   assert.match(source, /addEventListener\('focus'/)
   assert.match(source, /visibilitychange/)
-  assert.match(source, /remoteVersion === APP_VERSION|remoteVersion !== APP_VERSION|remoteVersion === APP_VERSION|remoteVersion/)
+  assert.match(source, /setInterval/)
+  assert.match(source, /POLL_INTERVAL_MS/)
+  assert.match(source, /INTERACTION_THROTTLE_MS/)
+  assert.match(source, /pointerdown/)
+  assert.match(source, /keydown/)
+  assert.match(source, /input/)
+  assert.match(source, /scroll/)
   assert.match(source, /dismissed-remote-version/)
   assert.match(source, /document\.visibilityState/)
 })

@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import AppDialog from './AppDialog.jsx'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
 
 const STORAGE_KEY = 'workshop.ledger.seen-app-version'
 const DISMISSED_REMOTE_KEY = 'workshop.ledger.dismissed-remote-version'
 const VERSION_ENDPOINT = '/api/v1/meta/version'
+/** How often a visible tab re-checks the server while idle. */
+const POLL_INTERVAL_MS = 30_000
+/** Minimum gap between interaction-triggered checks (scroll/tap/edit). */
+const INTERACTION_THROTTLE_MS = 30_000
 
 function readStorage(key) {
   try {
@@ -53,6 +57,13 @@ export default function UpdateRefreshDialog() {
   const [previousVersion, setPreviousVersion] = useState('')
   const [availableVersion, setAvailableVersion] = useState(APP_VERSION)
   const [remoteUpdate, setRemoteUpdate] = useState(false)
+  const openRef = useRef(false)
+  const lastRemoteCheckAtRef = useRef(0)
+  const inFlightRef = useRef(false)
+
+  useEffect(() => {
+    openRef.current = open
+  }, [open])
 
   const openLocalPrompt = useCallback(() => {
     const seen = readSeenVersion()
@@ -75,19 +86,27 @@ export default function UpdateRefreshDialog() {
     return true
   }, [])
 
-  const checkRemoteVersion = useCallback(async (signal) => {
+  const checkRemoteVersion = useCallback(async ({ force = false, signal } = {}) => {
     if (typeof window === 'undefined') return
     if (document.visibilityState === 'hidden') return
     if (!navigator.onLine) return
+    if (openRef.current) return
+    const now = Date.now()
+    if (!force && now - lastRemoteCheckAtRef.current < INTERACTION_THROTTLE_MS) return
+    if (inFlightRef.current) return
+
+    inFlightRef.current = true
+    lastRemoteCheckAtRef.current = now
     try {
       const remoteVersion = await fetchRemoteAppVersion(signal)
       if (signal?.aborted) return
       if (!remoteVersion) return
-      // Only interrupt an already-open local prompt when a newer remote version is found.
       openRemotePrompt(remoteVersion)
     } catch (error) {
       if (error?.name === 'AbortError') return
       // Network blips should not surface as UI errors for this soft check.
+    } finally {
+      inFlightRef.current = false
     }
   }, [openRemotePrompt])
 
@@ -97,24 +116,43 @@ export default function UpdateRefreshDialog() {
     // 1) Existing first-load behaviour against the bundled APP_VERSION.
     openLocalPrompt()
 
-    // 2) When the tab returns to the foreground, compare against the server.
+    // 2) Continuous remote checks: focus/visibility, timer, and user interaction.
     let controller = new AbortController()
-    const runRemoteCheck = () => {
+    const runRemoteCheck = (options = {}) => {
       controller.abort()
       controller = new AbortController()
-      void checkRemoteVersion(controller.signal)
+      void checkRemoteVersion({ ...options, signal: controller.signal })
     }
 
-    const onFocus = () => runRemoteCheck()
+    const onFocus = () => runRemoteCheck({ force: true })
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') runRemoteCheck()
+      if (document.visibilityState === 'visible') runRemoteCheck({ force: true })
     }
+    const onInteraction = () => runRemoteCheck({ force: false })
 
+    // Periodic poll while the tab stays open and visible.
+    const pollTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') runRemoteCheck({ force: true })
+    }, POLL_INTERVAL_MS)
+
+    // Usage-time checks: scroll / tap / edit (throttled inside checkRemoteVersion).
+    const interactionEvents = ['pointerdown', 'keydown', 'input', 'scroll', 'touchstart']
+    for (const eventName of interactionEvents) {
+      window.addEventListener(eventName, onInteraction, { passive: true, capture: true })
+    }
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVisibility)
 
+    // One immediate remote check after mount so a long-lived tab that just
+    // received this bundle still learns about a newer server release quickly.
+    runRemoteCheck({ force: true })
+
     return () => {
       controller.abort()
+      window.clearInterval(pollTimer)
+      for (const eventName of interactionEvents) {
+        window.removeEventListener(eventName, onInteraction, { capture: true })
+      }
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibility)
     }
@@ -122,7 +160,7 @@ export default function UpdateRefreshDialog() {
 
   const dismiss = () => {
     if (remoteUpdate) {
-      // Remember this remote version so focus spam does not re-open the same prompt.
+      // Remember this remote version so focus/poll spam does not re-open the same prompt.
       writeStorage(DISMISSED_REMOTE_KEY, availableVersion)
     } else {
       writeSeenVersion(APP_VERSION)
@@ -134,8 +172,6 @@ export default function UpdateRefreshDialog() {
     if (remoteUpdate) {
       writeStorage(DISMISSED_REMOTE_KEY, availableVersion)
     }
-    // After reload the new bundle becomes APP_VERSION; clear seen only if we already
-    // match, otherwise leave seen as-is so the post-reload prompt can still fire if needed.
     writeSeenVersion(APP_VERSION)
     window.location.reload()
   }
