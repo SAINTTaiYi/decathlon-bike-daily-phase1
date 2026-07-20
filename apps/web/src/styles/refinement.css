@@ -984,7 +984,7 @@ button:not(:disabled) { transition-duration: 150ms; }
   .pickup-pixel-fill i { visibility: hidden; }
 }
 
-/* V5.6.8 repair completion: server-confirmed repairs invert the pickup arrival into a full-card white pixel dissolve drifting left. */
+/* V5.6.9 repair completion: server-confirmed repair records become a hard-edged arcade pixel field. Individual white blocks jump left and switch off in a randomized, right-biased order. */
 .repair-pixel-dissolve {
   position: absolute;
   z-index: 8;
@@ -997,23 +997,25 @@ button:not(:disabled) { transition-duration: 150ms; }
   overflow: hidden;
   pointer-events: none;
   isolation: isolate;
-  background: #fff;
+  background: var(--ink);
+  image-rendering: pixelated;
 }
 .repair-pixel-dissolve i {
   display: block;
   width: var(--repair-pixel-size);
   height: var(--repair-pixel-size);
   background: #fff;
-  box-shadow: inset 0 0 0 1px rgb(11 11 12 / .035);
+  box-shadow: inset 0 0 0 1px rgb(11 11 12 / .56);
+  image-rendering: pixelated;
   will-change: transform, opacity;
 }
 .record-row[data-repair-pixel-dissolving='true'] {
   pointer-events: none;
-  background: #fff;
+  background: var(--ink);
 }
 .record-row[data-repair-pixel-dissolving='true'] > :not(.repair-pixel-dissolve) { visibility: hidden; }
 .record-row[data-repair-pixel-dissolving='true']::before { opacity: 0 !important; }
 @media (prefers-reduced-motion: reduce) {
-  .repair-pixel-dissolve { background: #fff; }
+  .repair-pixel-dissolve { background: var(--ink); }
   .repair-pixel-dissolve i { visibility: hidden; }
 }
