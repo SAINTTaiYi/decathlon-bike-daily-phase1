@@ -839,3 +839,20 @@ button:not(:disabled) { transition-duration: 150ms; }
     will-change: auto;
   }
 }
+
+
+/* V5.6.3 premium scroll reveals: complete layout stays present; GSAP owns only compositor-safe depth. */
+.record-ledger[data-reveal-group] { perspective: 1050px; transform-style: preserve-3d; }
+[data-motion='row'],
+[data-motion='data'],
+[data-motion='title'],
+[data-motion='photo'] {
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-motion='row'],
+  [data-motion='data'],
+  [data-motion='title'],
+  [data-motion='photo'] { transform: none !important; opacity: 1 !important; visibility: visible !important; }
+}

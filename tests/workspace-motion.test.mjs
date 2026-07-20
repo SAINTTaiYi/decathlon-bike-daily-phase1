@@ -67,3 +67,16 @@ test('现有首页首屏组件成为空间编排对象，且登录品牌开屏�
   assert.match(boot, /duration: 0\.74/)
   assert.match(boot, /0\.72\)/)
 })
+
+
+test('滚动组件进入使用批量 GSAP 空间 reveal，不使用 clip-path 或 blur 裁切内容', () => {
+  const ledger = sourceOf('../apps/web/src/components/lookbook/RecordLedger.jsx')
+  assert.match(motion, /data-reveal-group/)
+  assert.match(motion, /transformPerspective: 1050/)
+  assert.match(motion, /rotationX: profile\.rotationX/)
+  assert.match(motion, /stagger/)
+  assert.match(motion, /MutationObserver/)
+  assert.doesNotMatch(motion, /clipPath/)
+  assert.doesNotMatch(motion, /filter: 'blur/)
+  assert.match(ledger, /data-reveal-group="records"/)
+})
