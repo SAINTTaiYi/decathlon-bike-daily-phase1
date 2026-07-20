@@ -2,7 +2,7 @@ import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
 
 export default function ReleaseNotes() {
   return (
-    <details className="release-notes" data-motion="data">
+    <details className="release-notes" data-motion="data" data-workspace-module="true">
       <summary>
         <span>V{APP_VERSION}</span>
         <strong>{currentRelease.title}</strong>

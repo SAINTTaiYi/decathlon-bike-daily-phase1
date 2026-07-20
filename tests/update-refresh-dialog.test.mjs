@@ -42,3 +42,11 @@ test('已打开页面通过前台聚焦、定时轮询与交互节流检查服�
   assert.match(source, /dismissed-remote-version/)
   assert.match(source, /document\.visibilityState/)
 })
+
+
+test('工作台入场期间可延迟版本弹窗，避免抢占跳过动画的焦点', () => {
+  assert.match(source, /function UpdateRefreshDialog\(\{ enabled = true \}\)/)
+  assert.match(source, /if \(!enabled \|\| typeof window === 'undefined'\) return undefined/)
+  assert.match(appSource, /deferUpdatePrompt = auth\.source === 'login'/)
+  assert.match(appSource, /<UpdateRefreshDialog enabled=\{!deferUpdatePrompt && !workspaceLaunching\} \/>/)
+})

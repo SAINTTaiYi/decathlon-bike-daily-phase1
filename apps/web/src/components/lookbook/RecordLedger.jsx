@@ -89,7 +89,7 @@ export default function RecordLedger({
         )
 
         return (
-          <article className="record-row" key={record.id} data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row">
+          <article className="record-row" data-spatial-tilt="true" key={record.id} data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row">
             <header className="record-row-head">
               <button type="button" className="record-history-mark" onClick={() => onHistory(record)} aria-label={`查看“${record.title}”的操作记录`}><IconJournal width={16} height={16} aria-hidden="true" /></button>
               <div className="record-model-block">

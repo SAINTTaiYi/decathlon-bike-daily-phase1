@@ -52,7 +52,7 @@ async function fetchRemoteAppVersion(signal) {
   return isValidVersion(version) ? version : ''
 }
 
-export default function UpdateRefreshDialog() {
+export default function UpdateRefreshDialog({ enabled = true }) {
   const [open, setOpen] = useState(false)
   const [previousVersion, setPreviousVersion] = useState('')
   const [availableVersion, setAvailableVersion] = useState(APP_VERSION)
@@ -111,7 +111,7 @@ export default function UpdateRefreshDialog() {
   }, [openRemotePrompt])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return undefined
+    if (!enabled || typeof window === 'undefined') return undefined
 
     // 1) Existing first-load behaviour against the bundled APP_VERSION.
     openLocalPrompt()
@@ -156,7 +156,7 @@ export default function UpdateRefreshDialog() {
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [checkRemoteVersion, openLocalPrompt])
+  }, [checkRemoteVersion, enabled, openLocalPrompt])
 
   const dismiss = () => {
     if (remoteUpdate) {
