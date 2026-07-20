@@ -50,3 +50,21 @@ test('所有主操作与编辑操作在同一行，编辑始终位于左侧、�
   assert.match(ledger, /data-has-primary=\{primaryAction \? 'true' : undefined\}/)
   assert.match(styles, /\.record-actions\[data-has-primary='true'\] \.record-primary-action \{ flex: 1 1 calc\(50% - \.15rem\) !important; \}/)
 })
+
+const workflow = readFileSync(new URL('../apps/web/src/hooks/useRemoteClosingWorkflow.js', import.meta.url), 'utf8')
+
+test('确认取车独享像素填黑，延迟落入既有黑色保留卡；其它完成操作不改', () => {
+  assert.match(ledger, /function PickupPixelFill/)
+  assert.match(ledger, /data-pickup-pixel-filling/)
+  assert.match(ledger, /record\.scene === 'pickup' && !pickedUp/)
+  assert.match(ledger, /pickupPixelFillId === record\.id/)
+  assert.match(ledger, /const deletable = !resolved && !closedAt/)
+  assert.match(ledger, /disabled=\{Boolean\(closedAt\) \|\| pickupProcessing\}/)
+  assert.match(app, /completePickupWithPixelFill/)
+  assert.match(app, /pickupProcessingRef\.current/)
+  assert.match(app, /workflow\.completePickup\(record\.id, pickupCode, \{ apply: false, sync: 'none' \}\)/)
+  assert.match(app, /workflow\.commitDeferredResult\(pending\.result\)/)
+  assert.match(workflow, /commitDeferredResult/)
+  assert.match(styles, /V5\.6\.6 pickup completion/)
+  assert.match(styles, /--pickup-pixel-size/)
+})

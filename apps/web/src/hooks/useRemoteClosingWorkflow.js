@@ -97,13 +97,13 @@ export default function useRemoteClosingWorkflow(enabled) {
     })
   }, [])
 
-  const run = useCallback(async (operation, { sync = 'background' } = {}) => {
+  const run = useCallback(async (operation, { sync = 'background', apply = true } = {}) => {
     if (!navigator.onLine) return { ok: false, error: '当前离线，只能查看最近加载的数据。' }
     if (storageError) return { ok: false, error: '数据库同步尚未恢复。请先重新同步，再执行修改。' }
     try {
       const result = await operation()
-      // Paint local UI immediately from the mutation response when possible.
-      applyServerResult(result)
+      // Most mutations paint immediately. Pickup can defer this one visual state change until its pixel fill completes.
+      if (apply) applyServerResult(result)
       if (sync === 'full') {
         await refresh()
       } else if (sync === 'background') {
@@ -140,11 +140,15 @@ export default function useRemoteClosingWorkflow(enabled) {
     })
   }, [])
 
-  const action = useCallback((id, name, extra) => {
+  const action = useCallback((id, name, extra, options) => {
     const record = findRecord(id)
     if (!record) return Promise.resolve({ ok: false, error: '没有找到这条台账记录。' })
-    return run(() => workItemAction(record, name, extra))
+    return run(() => workItemAction(record, name, extra), options)
   }, [findRecord, run])
+  const commitDeferredResult = useCallback((result) => {
+    applyServerResult(result)
+    void refresh()
+  }, [applyServerResult, refresh])
   const removeRecord = useCallback((id) => {
     const record = findRecord(id)
     if (!record) return Promise.resolve({ ok: false, error: '没有找到这条台账记录。' })
@@ -229,7 +233,8 @@ export default function useRemoteClosingWorkflow(enabled) {
         }
       }, { sync: 'background' })
     },
-    completePickup: (id, pickupCode = '') => action(id, 'pick-up', { pickupCode }),
+    completePickup: (id, pickupCode = '', options) => action(id, 'pick-up', { pickupCode }, options),
+    commitDeferredResult,
     patchRecordLocal,
     removeRecord,
     undoLast: () => latestUndo ? undoHistoryEvent(latestUndo) : Promise.resolve({ ok: false, error: '没有可撤回的操作。' }),
