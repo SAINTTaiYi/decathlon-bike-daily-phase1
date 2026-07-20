@@ -196,24 +196,25 @@ export default function useRemoteClosingWorkflow(enabled) {
     editRecord,
     completeResaleListing: (id) => action(id, 'list-resale'),
     sellResale: (id) => action(id, 'sell-resale'),
-    completeRepair: (id) => {
+    completeRepair: (id, options = {}) => {
       const previous = findRecord(id)
       if (!previous || previous.scene !== 'repair') return Promise.resolve({ ok: false, error: '没有找到可完成的维修车辆。' })
       const at = new Date().toISOString()
       const completion = buildRepairCompletion(previous, state.businessDate, at)
       if (!completion.ok) return Promise.resolve(completion)
-      // Optimistic: apply local completion immediately for instant UI.
-      applyServerResult({ record: completion.record })
+      const apply = options.apply ?? true
+      const sync = options.sync ?? 'background'
+      // The default is instant. Pixel-dissolve callers defer this local commit until the server-confirmed visual departure ends.
+      if (apply) applyServerResult({ record: completion.record })
       return run(async () => {
         try {
           const result = await workItemAction(previous, 'complete-repair')
           return { ...result, route: result.route || completion.route }
         } catch (error) {
-          // Rollback optimistic change on failure
-          applyServerResult({ record: previous })
+          if (apply) applyServerResult({ record: previous })
           throw error
         }
-      }, { sync: 'background' })
+      }, { sync, apply })
     },
     completeHandover: (id) => action(id, 'complete-handover'),
     updatePickupNotification: (id, notificationStatus) => {

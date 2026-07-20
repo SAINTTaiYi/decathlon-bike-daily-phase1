@@ -983,3 +983,37 @@ button:not(:disabled) { transition-duration: 150ms; }
   .pickup-pixel-fill { background: var(--ink); }
   .pickup-pixel-fill i { visibility: hidden; }
 }
+
+/* V5.6.8 repair completion: server-confirmed repairs invert the pickup arrival into a full-card white pixel dissolve drifting left. */
+.repair-pixel-dissolve {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--repair-pixel-columns), var(--repair-pixel-size));
+  grid-auto-rows: var(--repair-pixel-size);
+  align-content: start;
+  justify-content: start;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+  background: #fff;
+}
+.repair-pixel-dissolve i {
+  display: block;
+  width: var(--repair-pixel-size);
+  height: var(--repair-pixel-size);
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgb(11 11 12 / .035);
+  will-change: transform, opacity;
+}
+.record-row[data-repair-pixel-dissolving='true'] {
+  pointer-events: none;
+  background: #fff;
+}
+.record-row[data-repair-pixel-dissolving='true'] > :not(.repair-pixel-dissolve) { visibility: hidden; }
+.record-row[data-repair-pixel-dissolving='true']::before { opacity: 0 !important; }
+@media (prefers-reduced-motion: reduce) {
+  .repair-pixel-dissolve { background: #fff; }
+  .repair-pixel-dissolve i { visibility: hidden; }
+}

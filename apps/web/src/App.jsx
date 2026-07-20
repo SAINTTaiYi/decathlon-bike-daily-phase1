@@ -69,8 +69,10 @@ export default function App() {
   const [pickupErrors, setPickupErrors] = useState({})
   const [primaryProcessingId, setPrimaryProcessingId] = useState('')
   const [pickupPixelFillId, setPickupPixelFillId] = useState('')
+  const [repairPixelDissolveId, setRepairPixelDissolveId] = useState('')
   const primaryProcessingRef = useRef('')
   const deferredPickupResultRef = useRef(null)
+  const deferredRepairResultRef = useRef(null)
   const [historyTarget, setHistoryTarget] = useState(null)
   const [toast, setToast] = useState('')
   const [online, setOnline] = useState(() => navigator.onLine)
@@ -324,26 +326,31 @@ export default function App() {
     setToast(`已确认取车：${pending.title}`)
   }, [clearPrimaryConfirmation, workflow])
 
-  const completeRepairWithConfirmation = useCallback(async (record) => performPrimaryAction(record, async () => {
-    const row = document.querySelector(`[data-record-id="${record.id}"]`)
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    if (row && !reduced) {
-      await new Promise((resolve) => {
-        gsap.to(row, {
-          x: -28,
-          autoAlpha: 0,
-          duration: 0.38,
-          ease: 'expo.in',
-          onComplete: resolve
-        })
-      })
+  const completeRepairWithConfirmation = useCallback(async (record) => {
+    if (!beginPrimaryConfirmation(record.id)) return
+    await waitForPrimaryFeedback()
+    const result = await workflow.completeRepair(record.id, { apply: false, sync: 'none' })
+    if (!result.ok) {
+      clearPrimaryConfirmation(record.id)
+      setToast({ message: result.error, tone: 'error' })
+      return
     }
-    const result = await workflow.completeRepair(record.id)
-    if (!result.ok && row && !reduced) gsap.set(row, { clearProps: 'all' })
-    return result
-  }, (result) => result.route === 'completed'
-    ? `门店产品维修已完成：${record.title}`
-    : `维修完毕，已携带维修单转入待取：${record.title}`), [performPrimaryAction, workflow])
+    // Only a confirmed server transition is allowed to start the repair card's visual departure.
+    deferredRepairResultRef.current = { id: record.id, result, title: record.title }
+    setRepairPixelDissolveId(record.id)
+  }, [beginPrimaryConfirmation, clearPrimaryConfirmation, waitForPrimaryFeedback, workflow])
+
+  const completeRepairPixelDissolve = useCallback((recordId) => {
+    const pending = deferredRepairResultRef.current
+    if (!pending || pending.id !== recordId) return
+    deferredRepairResultRef.current = null
+    workflow.commitDeferredResult(pending.result)
+    setRepairPixelDissolveId('')
+    clearPrimaryConfirmation(recordId)
+    setToast(pending.result.route === 'completed'
+      ? `门店产品维修已完成：${pending.title}`
+      : `维修完毕，已携带维修单转入待取：${pending.title}`)
+  }, [clearPrimaryConfirmation, workflow])
 
   const recordProps = (scene) => ({
     records: workflow.recordsByScene[scene] || [],
@@ -365,6 +372,8 @@ export default function App() {
     primaryActionBusy: Boolean(primaryProcessingId),
     pickupPixelFillId,
     onPickupPixelFillComplete: completePickupPixelFill,
+    repairPixelDissolveId,
+    onRepairPixelDissolveComplete: completeRepairPixelDissolve,
     onPickup: async (record) => {
       if (inferPickupSource(record) === 'self-pickup') return setPickupConfirm(record)
       const result = await completePickupWithPixelFill(record)
