@@ -304,10 +304,7 @@ export default function App() {
       setPickupErrors((current) => { const next = { ...current }; delete next[record.id]; return next })
       setToast(`已确认取车：${record.title}`)
     },
-    onRemove: async (record) => {
-      if (!window.confirm(`确认从长期台账删除“${record.title}”？删除后可在该模块的操作记录中撤回。`)) return
-      await perform(() => workflow.removeRecord(record.id), `已删除：${record.title}`)
-    }
+    onRemove: (record) => perform(() => workflow.removeRecord(record.id), `已删除：${record.title}`)
   })
 
   if (setupToken && !authenticated) {
