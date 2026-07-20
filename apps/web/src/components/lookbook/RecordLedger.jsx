@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react'
+import { gsap } from 'gsap'
 import IconCalendar from '@iconoir/Calendar.mjs'
 import IconCheck from '@iconoir/Check.mjs'
 import IconEdit from '@iconoir/EditPencil.mjs'
@@ -22,9 +24,187 @@ import {
   displayContactValue
 } from '../../data/recordPresentation.js'
 
+const swipeActionWidth = 92
+const interactiveSelector = 'button, input, textarea, select, [contenteditable="true"], [role="combobox"]'
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
+
 function Badge({ children }) {
   if (!children) return null
   return <span className="record-badge">{children}</span>
+}
+
+function SwipeDeleteRecord({ record, disabled, onRemove, children }) {
+  const frameRef = useRef(null)
+  const surfaceRef = useRef(null)
+  const actionRef = useRef(null)
+  const gestureRef = useRef(null)
+  const [open, setOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const moveSurface = (offset, duration = 0) => {
+    const surface = surfaceRef.current
+    if (!surface) return
+    gsap.killTweensOf(surface, '--swipe-offset')
+    if (duration) {
+      gsap.to(surface, { '--swipe-offset': offset, duration, ease: 'power3.out', overwrite: 'auto' })
+    } else {
+      gsap.set(surface, { '--swipe-offset': offset })
+    }
+  }
+
+  const settle = (nextOpen, duration = .22) => {
+    setOpen(nextOpen)
+    moveSurface(nextOpen ? -swipeActionWidth : 0, duration)
+  }
+
+  useEffect(() => () => {
+    gsap.killTweensOf([frameRef.current, surfaceRef.current])
+  }, [])
+
+  useEffect(() => {
+    if (disabled || deleting) settle(false, .16)
+  }, [deleting, disabled])
+
+  const onPointerDown = (event) => {
+    if (disabled || deleting) return
+    if (event.target.closest(interactiveSelector)) return
+    gestureRef.current = {
+      id: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      baseOffset: open ? -swipeActionWidth : 0,
+      offset: open ? -swipeActionWidth : 0,
+      axis: null
+    }
+  }
+
+  const onPointerMove = (event) => {
+    const gesture = gestureRef.current
+    if (!gesture || gesture.id !== event.pointerId || deleting) return
+    const deltaX = event.clientX - gesture.startX
+    const deltaY = event.clientY - gesture.startY
+    if (!gesture.axis) {
+      if (Math.hypot(deltaX, deltaY) < 7) return
+      if (Math.abs(deltaY) >= Math.abs(deltaX)) {
+        gesture.axis = 'vertical'
+        return
+      }
+      gesture.axis = 'horizontal'
+      event.currentTarget.setPointerCapture?.(event.pointerId)
+    }
+    if (gesture.axis !== 'horizontal') return
+    if (event.cancelable) event.preventDefault()
+    gesture.offset = clamp(gesture.baseOffset + deltaX, -swipeActionWidth, 0)
+    moveSurface(gesture.offset)
+  }
+
+  const endGesture = (event, cancelled = false) => {
+    const gesture = gestureRef.current
+    if (!gesture || gesture.id !== event.pointerId) return
+    gestureRef.current = null
+    if (gesture.axis !== 'horizontal') return
+    settle(cancelled ? open : gesture.offset <= -(swipeActionWidth * .46))
+  }
+
+  const onKeyDown = (event) => {
+    if (disabled || deleting) return
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      settle(true)
+      window.requestAnimationFrame(() => actionRef.current?.focus())
+    }
+    if (event.key === 'Escape' || event.key === 'ArrowRight') {
+      event.preventDefault()
+      settle(false)
+    }
+  }
+
+  const restoreAfterFailure = () => {
+    const frame = frameRef.current
+    if (!frame) return
+    gsap.killTweensOf(frame)
+    gsap.set(frame, {
+      autoAlpha: 1,
+      scaleY: 1,
+      y: 0,
+      filter: 'none',
+      pointerEvents: 'auto',
+      '--swipe-glitch': 0
+    })
+    gsap.fromTo(frame,
+      { autoAlpha: .36, y: -5 },
+      {
+        autoAlpha: 1,
+        y: 0,
+        duration: .26,
+        ease: 'power3.out',
+        clearProps: 'transform,opacity,visibility,filter,willChange'
+      }
+    )
+  }
+
+  const playDeleteExit = () => {
+    const frame = frameRef.current
+    if (!frame) return Promise.resolve()
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduced) return Promise.resolve()
+    return new Promise((resolve) => {
+      const timeline = gsap.timeline({ onComplete: resolve })
+      timeline
+        .set(frame, { pointerEvents: 'none', willChange: 'transform, opacity, filter' })
+        .to(frame, { '--swipe-glitch': 1, duration: .02 }, 0)
+        .to(frame, { autoAlpha: .38, duration: .05 }, .02)
+        .to(frame, { autoAlpha: .92, duration: .04 }, .07)
+        .to(frame, { autoAlpha: .16, duration: .055 }, .115)
+        .to(frame, { autoAlpha: .96, duration: .045 }, .17)
+        .to(frame, { filter: 'contrast(1.22) brightness(1.12)', duration: .05 }, .215)
+        .to(frame, { autoAlpha: 0, scaleY: .83, y: -8, duration: .32, ease: 'expo.in' }, .27)
+    })
+  }
+
+  const deleteRecord = async () => {
+    if (disabled || deleting) return
+    setDeleting(true)
+    await playDeleteExit()
+    const result = await Promise.resolve(onRemove(record)).catch(() => ({ ok: false }))
+    if (result?.ok) return
+    restoreAfterFailure()
+    setDeleting(false)
+    settle(false, .18)
+  }
+
+  return (
+    <div
+      ref={frameRef}
+      className="record-swipe-frame"
+      data-swipe-delete="true"
+      data-open={open ? 'true' : undefined}
+      data-deleting={deleting ? 'true' : undefined}
+      tabIndex={0}
+      role="group"
+      aria-label={`${record.title}，左滑或按左方向键显示删除操作`}
+      onKeyDown={onKeyDown}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endGesture}
+      onPointerCancel={(event) => endGesture(event, true)}
+    >
+      <button
+        ref={actionRef}
+        type="button"
+        className="record-swipe-delete-action"
+        onClick={() => void deleteRecord()}
+        disabled={!open || disabled || deleting}
+        aria-label={`删除：${record.title}`}
+      >
+        <IconTrash width={18} height={18} aria-hidden="true" />
+        <span>删除</span>
+      </button>
+      <div ref={surfaceRef} className="record-swipe-surface">
+        {children}
+      </div>
+    </div>
+  )
 }
 
 export default function RecordLedger({
@@ -33,10 +213,16 @@ export default function RecordLedger({
   onRepairComplete, onPickupNotificationChange, pickupErrors = {},
   heading = 'ACTIVE LEDGER / 在册台账', dark = false, showAdd = true
 }) {
+  const hasSwipeDelete = !closedAt && records.some((record) => !record.pickedUpToday && !record.completedToday)
+
   return (
     <div className="record-ledger" data-reveal-group="records" data-dark={dark ? 'true' : undefined} aria-label={`${config.singular}台账，共 ${records.length} 条`}>
       <div className="record-ledger-head">
-        <div><span>{heading}</span><small>WORKSHOP LEDGER</small></div>
+        <div>
+          <span>{heading}</span>
+          <small>WORKSHOP LEDGER</small>
+          {hasSwipeDelete ? <p className="ledger-swipe-hint">左滑记录，点按删除</p> : null}
+        </div>
         <strong>{String(records.length).padStart(2, '0')}</strong>
         <div className="ledger-head-actions" data-single={!showAdd ? 'true' : undefined}>
           <button type="button" className="ledger-history" onClick={() => onHistory()}><IconJournal width={17} height={17} aria-hidden="true" />操作记录</button>
@@ -47,6 +233,7 @@ export default function RecordLedger({
         const pickedUp = Boolean(record.pickedUpToday)
         const completedToday = Boolean(record.completedToday)
         const resolved = pickedUp || completedToday
+        const deletable = !resolved && !closedAt
         const pickupError = pickupErrors[record.id] || ''
         const pickupRecord = record.scene === 'pickup'
         const repairRecord = record.scene === 'repair'
@@ -84,12 +271,11 @@ export default function RecordLedger({
             {record.scene === 'poster' && !record.completedOn ? <button type="button" className="record-primary-action" onClick={() => onHandoverComplete(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />完成</button> : null}
             {record.scene === 'pickup' && !pickedUp ? <button type="button" className="record-primary-action" onClick={() => onPickup(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />确认取车</button> : null}
             {!resolved ? <button type="button" onClick={() => onEdit(record)} disabled={Boolean(closedAt)} aria-label={`编辑：${record.title}`}><IconEdit width={15} height={15} aria-hidden="true" />编辑</button> : null}
-            {!resolved ? <button type="button" className="record-delete" onClick={() => onRemove(record)} disabled={Boolean(closedAt)} aria-label={`删除：${record.title}`}><IconTrash width={15} height={15} aria-hidden="true" />删除</button> : null}
           </>
         )
 
-        return (
-          <article className="record-row" data-spatial-tilt="true" key={record.id} data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row">
+        const row = (
+          <article className="record-row" data-spatial-tilt="true" data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row">
             <header className="record-row-head">
               <button type="button" className="record-history-mark" onClick={() => onHistory(record)} aria-label={`查看“${record.title}”的操作记录`}><IconJournal width={16} height={16} aria-hidden="true" /></button>
               <div className="record-model-block">
@@ -140,6 +326,10 @@ export default function RecordLedger({
             </div>
           </article>
         )
+
+        return deletable
+          ? <SwipeDeleteRecord key={record.id} record={record} disabled={Boolean(closedAt)} onRemove={onRemove}>{row}</SwipeDeleteRecord>
+          : <div key={record.id}>{row}</div>
       }) : <p className="empty-inline">当前没有记录。{showAdd ? `使用“${config.addLabel}”开始录入。` : ''}</p>}
     </div>
   )

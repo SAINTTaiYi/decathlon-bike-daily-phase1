@@ -15,7 +15,7 @@ const profiles = {
   dock: { y: 26, z: -24, rotationX: 2.4, scale: .992, duration: .5 }
 }
 
-const interactiveSelector = 'input, textarea, select, button, [contenteditable="true"], [role="combobox"], [role="menu"]'
+const interactiveSelector = 'input, textarea, select, button, [contenteditable="true"], [role="combobox"], [role="menu"], [data-swipe-delete]'
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 
 export default function useMotionSystem({ enabled, rootRef, quiet = false }) {

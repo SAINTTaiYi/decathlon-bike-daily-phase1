@@ -856,3 +856,73 @@ button:not(:disabled) { transition-duration: 150ms; }
   [data-motion='title'],
   [data-motion='photo'] { transform: none !important; opacity: 1 !important; visibility: visible !important; }
 }
+
+/* V5.6.4 swipe delete: the record article keeps GSAP reveal/tilt ownership; only its nested surface moves horizontally. */
+.ledger-swipe-hint {
+  margin: .18rem 0 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: .58rem;
+  font-weight: 750;
+  letter-spacing: .04em;
+}
+.record-swipe-frame {
+  --swipe-offset: 0px;
+  --swipe-glitch: 0;
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  touch-action: pan-y;
+}
+.record-swipe-surface {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  background: var(--paper);
+  transform: translate3d(var(--swipe-offset), 0, 0);
+  will-change: transform;
+}
+.record-swipe-delete-action {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-content: center;
+  gap: .28rem;
+  width: 5.75rem;
+  padding: .6rem;
+  background: var(--critical);
+  color: #fff;
+  font-size: .68rem;
+  font-weight: 850;
+  line-height: 1;
+  text-align: center;
+}
+.record-swipe-delete-action:disabled { pointer-events: none; }
+.record-swipe-delete-action svg { justify-self: center; }
+.record-swipe-frame::after {
+  content: '';
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--swipe-glitch);
+  background:
+    repeating-linear-gradient(0deg, transparent 0 5px, rgb(255 255 255 / .48) 5px 6px),
+    linear-gradient(90deg, rgb(181 59 24 / .08), transparent 42%, rgb(255 255 255 / .42));
+  mix-blend-mode: screen;
+}
+.record-swipe-frame[data-open='true'] .record-swipe-surface { box-shadow: 12px 0 24px rgb(11 11 12 / .13); }
+.record-swipe-frame[data-deleting='true'] { pointer-events: none; }
+.record-row[data-row-dark='true'] .record-swipe-surface,
+.record-ledger[data-dark='true'] .record-swipe-surface { background: var(--ink); }
+.record-row[data-error='true'] .record-swipe-surface { background: rgb(181 59 24 / .055); }
+@media (hover: hover) and (pointer: fine) {
+  .record-swipe-delete-action:not(:disabled):hover { background: color-mix(in srgb, var(--critical) 88%, #000); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .record-swipe-surface { transition: none !important; }
+  .record-swipe-frame::after { display: none; }
+}
