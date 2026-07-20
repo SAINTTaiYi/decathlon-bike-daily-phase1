@@ -419,6 +419,12 @@ button:not(:disabled) { transition-duration: 150ms; }
   color: var(--critical) !important;
 }
 .record-actions button:disabled { opacity: .45; }
+/* V5.6.7: every record workflow action shares the same committed confirmation state while its server transition is pending. */
+.record-actions .record-primary-action[data-processing='true']:disabled {
+  opacity: 1;
+  cursor: wait;
+}
+.record-actions .record-primary-action[data-processing='true'] svg { flex: 0 0 auto; }
 
 .record-ledger[data-dark='true'] { margin-inline: 0; padding-inline: .85rem; }
 .record-ledger[data-dark='true'] .record-detail-line,
@@ -468,6 +474,14 @@ button:not(:disabled) { transition-duration: 150ms; }
 
 .primary-action, .secondary-action, .text-action { font-size: .76rem; }
 .primary-action { background: var(--ink); }
+.primary-action[data-processing='true'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+  opacity: 1;
+  cursor: wait;
+}
 .secondary-action { background: transparent; }
 
 .app-dialog { width: min(calc(100% - 1rem), 48rem); border: 0; }

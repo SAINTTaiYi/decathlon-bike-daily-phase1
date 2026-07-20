@@ -67,9 +67,9 @@ export default function App() {
   const [mediaRecord, setMediaRecord] = useState(null)
   const [pickupConfirm, setPickupConfirm] = useState(null)
   const [pickupErrors, setPickupErrors] = useState({})
-  const [pickupProcessingId, setPickupProcessingId] = useState('')
+  const [primaryProcessingId, setPrimaryProcessingId] = useState('')
   const [pickupPixelFillId, setPickupPixelFillId] = useState('')
-  const pickupProcessingRef = useRef('')
+  const primaryProcessingRef = useRef('')
   const deferredPickupResultRef = useRef(null)
   const [historyTarget, setHistoryTarget] = useState(null)
   const [toast, setToast] = useState('')
@@ -260,20 +260,58 @@ export default function App() {
     return result
   }
 
+  const beginPrimaryConfirmation = useCallback((recordId) => {
+    if (primaryProcessingRef.current) return false
+    primaryProcessingRef.current = recordId
+    setPrimaryProcessingId(recordId)
+    return true
+  }, [])
+
+  const clearPrimaryConfirmation = useCallback((recordId) => {
+    if (primaryProcessingRef.current !== recordId) return
+    primaryProcessingRef.current = ''
+    setPrimaryProcessingId('')
+  }, [])
+
+  const waitForPrimaryFeedback = useCallback(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return Promise.resolve()
+    return new Promise((resolve) => window.setTimeout(resolve, 180))
+  }, [])
+
+  const performPrimaryAction = useCallback(async (record, operation, successMessage) => {
+    if (!beginPrimaryConfirmation(record.id)) {
+      return { ok: false, error: '已有业务操作正在确认，请稍候。' }
+    }
+    try {
+      await waitForPrimaryFeedback()
+      const result = await operation()
+      if (!result.ok) {
+        setToast({ message: result.error, tone: 'error' })
+        return result
+      }
+      setToast(typeof successMessage === 'function' ? successMessage(result) : successMessage)
+      return result
+    } catch (error) {
+      const result = { ok: false, error: error?.message || '业务操作未完成，请重试。' }
+      setToast({ message: result.error, tone: 'error' })
+      return result
+    } finally {
+      clearPrimaryConfirmation(record.id)
+    }
+  }, [beginPrimaryConfirmation, clearPrimaryConfirmation, waitForPrimaryFeedback])
+
   const completePickupWithPixelFill = useCallback(async (record, pickupCode = '') => {
-    if (pickupProcessingRef.current) return { ok: false, error: '该取车操作正在确认，请稍候。' }
-    pickupProcessingRef.current = record.id
-    setPickupProcessingId(record.id)
+    if (!beginPrimaryConfirmation(record.id)) return { ok: false, error: '该取车操作正在确认，请稍候。' }
+    await waitForPrimaryFeedback()
     const result = await workflow.completePickup(record.id, pickupCode, { apply: false, sync: 'none' })
     if (!result.ok) {
-      pickupProcessingRef.current = ''
-      setPickupProcessingId('')
+      clearPrimaryConfirmation(record.id)
       return result
     }
     deferredPickupResultRef.current = { id: record.id, result, title: record.title }
     setPickupPixelFillId(record.id)
     return result
-  }, [workflow])
+  }, [beginPrimaryConfirmation, clearPrimaryConfirmation, waitForPrimaryFeedback, workflow])
 
   const completePickupPixelFill = useCallback((recordId) => {
     const pending = deferredPickupResultRef.current
@@ -281,11 +319,31 @@ export default function App() {
     deferredPickupResultRef.current = null
     workflow.commitDeferredResult(pending.result)
     setPickupPixelFillId('')
-    pickupProcessingRef.current = ''
-    setPickupProcessingId('')
+    clearPrimaryConfirmation(recordId)
     setPickupErrors((current) => { const next = { ...current }; delete next[recordId]; return next })
     setToast(`已确认取车：${pending.title}`)
-  }, [workflow])
+  }, [clearPrimaryConfirmation, workflow])
+
+  const completeRepairWithConfirmation = useCallback(async (record) => performPrimaryAction(record, async () => {
+    const row = document.querySelector(`[data-record-id="${record.id}"]`)
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (row && !reduced) {
+      await new Promise((resolve) => {
+        gsap.to(row, {
+          x: -28,
+          autoAlpha: 0,
+          duration: 0.38,
+          ease: 'expo.in',
+          onComplete: resolve
+        })
+      })
+    }
+    const result = await workflow.completeRepair(record.id)
+    if (!result.ok && row && !reduced) gsap.set(row, { clearProps: 'all' })
+    return result
+  }, (result) => result.route === 'completed'
+    ? `门店产品维修已完成：${record.title}`
+    : `维修完毕，已携带维修单转入待取：${record.title}`), [performPrimaryAction, workflow])
 
   const recordProps = (scene) => ({
     records: workflow.recordsByScene[scene] || [],
@@ -294,38 +352,17 @@ export default function App() {
     onEdit: (record) => setRecordEditor({ scene, record }),
     onHistory: (record = null) => setHistoryTarget({ scene, record }),
     onMedia: (record) => setMediaRecord(record),
-    onResaleListing: (record) => void perform(() => workflow.completeResaleListing(record.id), `维修完毕，已进入二手车在册：${record.title}`),
-    onResaleSold: (record) => void perform(() => workflow.sellResale(record.id), `已售出：${record.title}`),
-    onRepairComplete: async (record) => {
-      const row = document.querySelector(`[data-record-id="${record.id}"]`)
-      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-      if (row && !reduced) {
-        await new Promise((resolve) => {
-          gsap.to(row, {
-            x: -28,
-            autoAlpha: 0,
-            duration: 0.38,
-            ease: 'expo.in',
-            onComplete: resolve
-          })
-        })
-      }
-      const result = await workflow.completeRepair(record.id)
-      if (!result.ok) {
-        if (row && !reduced) gsap.set(row, { clearProps: 'all' })
-        return setToast({ message: result.error, tone: 'error' })
-      }
-      if (result.route === 'completed') return setToast(`门店产品维修已完成：${record.title}`)
-      // Stay on repair module; ticket exits left and leaves the repair ledger.
-      setToast(`维修完毕，已携带维修单转入待取：${record.title}`)
-    },
-    onHandoverComplete: (record) => void perform(() => workflow.completeHandover(record.id), `已完成交接：${record.title}`),
+    onResaleListing: (record) => void performPrimaryAction(record, () => workflow.completeResaleListing(record.id), `维修完毕，已进入二手车在册：${record.title}`),
+    onResaleSold: (record) => void performPrimaryAction(record, () => workflow.sellResale(record.id), `已售出：${record.title}`),
+    onRepairComplete: (record) => void completeRepairWithConfirmation(record),
+    onHandoverComplete: (record) => void performPrimaryAction(record, () => workflow.completeHandover(record.id), `已完成交接：${record.title}`),
     onPickupNotificationChange: async (record, notificationStatus) => {
       const result = await workflow.updatePickupNotification(record.id, notificationStatus)
       setToast(result.ok ? `${record.title}：${notificationStatus === 'notified' ? '已通知' : '等待确认通知'}` : { message: result.error, tone: 'error' })
     },
     pickupErrors,
-    pickupProcessingId,
+    primaryProcessingId,
+    primaryActionBusy: Boolean(primaryProcessingId),
     pickupPixelFillId,
     onPickupPixelFillComplete: completePickupPixelFill,
     onPickup: async (record) => {

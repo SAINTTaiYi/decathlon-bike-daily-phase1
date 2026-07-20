@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import IconCheck from '@iconoir/Check.mjs'
 import AppDialog from './AppDialog.jsx'
 
 export default function PickupConfirmDialog({ record, onClose, onConfirm }) {
@@ -33,7 +34,7 @@ export default function PickupConfirmDialog({ record, onClose, onConfirm }) {
           <input data-autofocus required maxLength="40" autoComplete="off" inputMode="numeric" value={pickupCode} onChange={(event) => { setPickupCode(event.target.value); setError('') }} />
         </label>
         {error ? <p className="form-error" role="alert">{error}</p> : null}
-        <div className="dialog-footer"><button type="button" className="secondary-action" onClick={onClose}>取消</button><button type="submit" className="primary-action" disabled={submitting}>{submitting ? '正在确认…' : '确认取车'}</button></div>
+        <div className="dialog-footer"><button type="button" className="secondary-action" onClick={onClose}>取消</button><button type="submit" className="primary-action" disabled={submitting} data-processing={submitting ? 'true' : undefined} aria-busy={submitting || undefined}>{submitting ? <><IconCheck width={15} height={15} aria-hidden="true" />确认中…</> : '确认取车'}</button></div>
       </form>
     </AppDialog>
   )
