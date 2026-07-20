@@ -33,7 +33,7 @@ function Badge({ children }) {
   return <span className="record-badge">{children}</span>
 }
 
-function usePixelGrid(overlayRef) {
+function usePixelGrid(overlayRef, density = 'fine') {
   const [grid, setGrid] = useState(null)
 
   useLayoutEffect(() => {
@@ -42,7 +42,9 @@ function usePixelGrid(overlayRef) {
     const measure = () => {
       const rect = overlay.getBoundingClientRect()
       if (!rect.width || !rect.height) return
-      const size = rect.width < 520 ? 17 : 21
+      const size = density === 'coarse'
+        ? (rect.width < 520 ? 22 : 28)
+        : (rect.width < 520 ? 17 : 21)
       const columns = Math.ceil(rect.width / size)
       const rows = Math.ceil(rect.height / size)
       setGrid((current) => current?.columns === columns && current?.rows === rows && current?.size === size
@@ -53,7 +55,7 @@ function usePixelGrid(overlayRef) {
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
     observer?.observe(overlay)
     return () => observer?.disconnect()
-  }, [overlayRef])
+  }, [density, overlayRef])
 
   return grid
 }
@@ -109,7 +111,7 @@ function PickupPixelFill({ recordId, onComplete }) {
 function RepairPixelDissolve({ recordId, onComplete }) {
   const overlayRef = useRef(null)
   const completedRef = useRef(false)
-  const grid = usePixelGrid(overlayRef)
+  const grid = usePixelGrid(overlayRef, 'coarse')
 
   useLayoutEffect(() => {
     const overlay = overlayRef.current
@@ -121,6 +123,19 @@ function RepairPixelDissolve({ recordId, onComplete }) {
       window.queueMicrotask(() => onComplete(recordId))
       return undefined
     }
+    const seeded = (value) => {
+      const sample = Math.sin(value * 12.9898) * 43758.5453
+      return sample - Math.floor(sample)
+    }
+    // Random within the field, but right-side blocks are more likely to leave first. Every block jumps in a hard 8-bit step before switching off.
+    const departure = pixels.map((pixel, index) => {
+      const column = index % grid.columns
+      const random = seeded((index + 1) * (grid.rows + 7))
+      const rightFirstBias = 1 - (column / Math.max(1, grid.columns - 1))
+      return { pixel, index, random, score: (random * .74) + (rightFirstBias * .26) }
+    }).sort((a, b) => a.score - b.score)
+    const duration = Math.min(2.85, Math.max(1.6, departure.length * .006))
+    const step = duration / Math.max(1, departure.length - 1)
     const timeline = gsap.timeline({
       defaults: { overwrite: 'auto' },
       onComplete: () => {
@@ -128,17 +143,15 @@ function RepairPixelDissolve({ recordId, onComplete }) {
         onComplete(recordId)
       }
     })
-    timeline
-      .set(pixels, { autoAlpha: 1, x: 0, y: 0, scale: 1, transformOrigin: '50% 50%' })
-      .to(pixels, {
-        x: (index) => -(32 + ((index % grid.columns) / Math.max(1, grid.columns - 1)) * 68),
-        y: (index) => ((Math.floor(index / grid.columns) % 3) - 1) * 5,
-        autoAlpha: 0,
-        scale: .64,
-        duration: 1.05,
-        ease: 'power2.in',
-        stagger: { grid: [grid.rows, grid.columns], from: 'end', amount: .78 }
-      })
+    timeline.set(pixels, { autoAlpha: 1, x: 0, y: 0, scale: 1, transformOrigin: '50% 50%' })
+    departure.forEach(({ pixel, index, random }, order) => {
+      const jump = grid.size * (1 + Math.floor(seeded(index + 31) * 4))
+      const lane = (Math.floor((random * 5)) - 2) * Math.max(2, Math.round(grid.size * .18))
+      const at = order * step
+      timeline
+        .set(pixel, { x: -jump, y: lane, scale: 1 }, at)
+        .set(pixel, { autoAlpha: 0 }, at + .075)
+    })
     return () => timeline.kill()
   }, [grid, onComplete, recordId])
 
