@@ -2,8 +2,7 @@
 -- The earlier implementation restored work_items but left a pickup_details row behind.
 -- A later complete-repair then changed the work item before failing on that duplicate detail row,
 -- leaving the record in Pickup without an audit event. Recreate only that missing, reversible audit edge.
-
-BEGIN IMMEDIATE;
+-- Wrangler owns the migration transaction; do not add SQL BEGIN/COMMIT because Cloudflare D1 rejects them.
 
 WITH missing_completion AS (
   SELECT
@@ -53,5 +52,3 @@ SELECT
   lower(hex(randomblob(16))),
   strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 FROM missing_completion;
-
-COMMIT;

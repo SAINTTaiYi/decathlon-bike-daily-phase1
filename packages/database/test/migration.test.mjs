@@ -45,11 +45,12 @@ test('Staging 安全迁移保护 migration history 并覆盖外键索引', async
 
 test('D1 一致性迁移仅补回非店修撤回后丢失的完成维修审计边', async () => {
   const sql = await readFile(new URL('../../../migrations/d1/0003_repair_undo_consistency.sql', import.meta.url), 'utf8')
-  assert.match(sql, /BEGIN IMMEDIATE;/u)
+  const executableSql = sql.replace(/^--.*$/gmu, '')
+  assert.doesNotMatch(executableSql, /\b(?:BEGIN|COMMIT|SAVEPOINT)\b/u)
   assert.match(sql, /JOIN audit_events AS undone ON undone\.reverted_event_id = completed\.id/u)
   assert.match(sql, /JOIN pickup_details AS pickup ON pickup\.work_item_id = item\.id AND pickup\.pickup_source = 'repair'/u)
   assert.match(sql, /completed\.action = 'complete-repair'/u)
   assert.match(sql, /'recover-complete-repair'/u)
   assert.match(sql, /'系统修复'/u)
-  assert.match(sql, /COMMIT;/u)
+  assert.match(sql, /Wrangler owns the migration transaction/u)
 })
