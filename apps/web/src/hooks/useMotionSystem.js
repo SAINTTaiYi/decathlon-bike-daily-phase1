@@ -16,6 +16,7 @@ const profiles = {
 }
 
 const interactiveSelector = 'input, textarea, select, button, [contenteditable="true"], [role="combobox"], [role="menu"]'
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 
 export default function useMotionSystem({ enabled, rootRef, quiet = false }) {
   const quietRef = useRef(quiet)
@@ -104,45 +105,37 @@ export default function useMotionSystem({ enabled, rootRef, quiet = false }) {
     const root = rootRef.current
     if (!root) return undefined
 
-    const environment = root.querySelector('[data-workspace-layer="environment"]')
-    const scrollPlane = root.querySelector('[data-workspace-layer="structure"]')
-    const pointerPlane = root.querySelector('[data-workspace-layer="pointer-plane"]')
+    // Never transform the scroll-bearing shell or its content wrapper while scrolling.
+    // Only fixed ambience and visual-only child surfaces receive depth updates.
+    const farPlane = root.querySelector('[data-workspace-layer="depth-far"]')
+    const nearPlane = root.querySelector('[data-workspace-layer="depth-near"]')
     const navigation = [...root.querySelectorAll('[data-workspace-layer="navigation"]')]
-    if (!environment || !scrollPlane || !pointerPlane) return undefined
+    const sections = [...root.querySelectorAll('[data-depth-section]')]
+    const cards = [...root.querySelectorAll('[data-depth-card]')]
+    if (!farPlane || !nearPlane) return undefined
 
     const compact = window.matchMedia?.('(max-width: 639px)').matches || false
     const constrained = Number(navigator.hardwareConcurrency || 8) <= 4
-    const deviceFactor = (compact ? .55 : 1) * (constrained ? .68 : 1)
+    // Mobile intentionally carries the strongest persistent depth, not a reduced desktop copy.
+    const deviceFactor = (compact ? 1.34 : 1) * (constrained ? .82 : 1)
     const hoverCapable = window.matchMedia?.('(hover: hover) and (pointer: fine)').matches || false
-    const pointerX = gsap.quickTo(pointerPlane, 'x', { duration: .46, ease: 'power3.out' })
-    const pointerY = gsap.quickTo(pointerPlane, 'y', { duration: .46, ease: 'power3.out' })
-    const pointerRX = gsap.quickTo(pointerPlane, 'rotationX', { duration: .46, ease: 'power3.out' })
-    const pointerRY = gsap.quickTo(pointerPlane, 'rotationY', { duration: .46, ease: 'power3.out' })
-    const environmentY = gsap.quickTo(environment, 'y', { duration: .32, ease: 'none' })
-    const planeY = gsap.quickTo(scrollPlane, 'y', { duration: .32, ease: 'none' })
-    const navTweens = navigation.map((element) => ({
-      x: gsap.quickTo(element, 'x', { duration: .42, ease: 'power3.out' }),
-      y: gsap.quickTo(element, 'y', { duration: .42, ease: 'power3.out' }),
-      rx: gsap.quickTo(element, 'rotationX', { duration: .42, ease: 'power3.out' }),
-      ry: gsap.quickTo(element, 'rotationY', { duration: .42, ease: 'power3.out' })
-    }))
+    const setFarY = gsap.quickSetter(farPlane, 'y', 'px')
+    const setNearY = gsap.quickSetter(nearPlane, 'y', 'px')
+    const setNearX = gsap.quickSetter(nearPlane, 'x', 'px')
+    const setSectionDepth = sections.map((element) => gsap.quickSetter(element, '--depth-shift', 'px'))
+    const setCardDepth = cards.map((element) => gsap.quickSetter(element, '--depth-card-shift', 'px'))
+    const setNavigationDepth = navigation.map((element) => gsap.quickSetter(element, '--nav-depth-shift', 'px'))
     const cardTweens = new WeakMap()
     let activeCard = null
     let touchStart = null
 
-    const factor = () => deviceFactor * (quietRef.current ? .25 : 1)
-    const resetPointer = () => {
-      pointerX(0); pointerY(0); pointerRX(0); pointerRY(0)
-      navTweens.forEach((tween) => { tween.x(0); tween.y(0); tween.rx(0); tween.ry(0) })
-      if (activeCard) resetCard(activeCard)
-      activeCard = null
-    }
+    const factor = () => deviceFactor * (quietRef.current ? .22 : 1)
     const controlsCard = (element) => cardTweens.get(element) || (() => {
       const tween = {
-        x: gsap.quickTo(element, 'x', { duration: .42, ease: 'power3.out' }),
-        y: gsap.quickTo(element, 'y', { duration: .42, ease: 'power3.out' }),
-        rx: gsap.quickTo(element, 'rotationX', { duration: .42, ease: 'power3.out' }),
-        ry: gsap.quickTo(element, 'rotationY', { duration: .42, ease: 'power3.out' })
+        x: gsap.quickTo(element, 'x', { duration: .3, ease: 'power3.out' }),
+        y: gsap.quickTo(element, 'y', { duration: .3, ease: 'power3.out' }),
+        rx: gsap.quickTo(element, 'rotationX', { duration: .3, ease: 'power3.out' }),
+        ry: gsap.quickTo(element, 'rotationY', { duration: .3, ease: 'power3.out' })
       }
       cardTweens.set(element, tween)
       return tween
@@ -151,39 +144,33 @@ export default function useMotionSystem({ enabled, rootRef, quiet = false }) {
       const tween = controlsCard(element)
       tween.x(0); tween.y(0); tween.rx(0); tween.ry(0)
     }
+    const resetPointer = () => {
+      setNearX(0)
+      if (activeCard) resetCard(activeCard)
+      activeCard = null
+    }
     const updateCard = (element, event, strength = 1) => {
       if (!element || quietRef.current) return
       const rect = element.getBoundingClientRect()
       if (!rect.width || !rect.height) return
-      const x = Math.max(-1, Math.min(1, ((event.clientX - rect.left) / rect.width - .5) * 2))
-      const y = Math.max(-1, Math.min(1, ((event.clientY - rect.top) / rect.height - .5) * 2))
+      const x = clamp(((event.clientX - rect.left) / rect.width - .5) * 2, -1, 1)
+      const y = clamp(((event.clientY - rect.top) / rect.height - .5) * 2, -1, 1)
       const tween = controlsCard(element)
       const local = deviceFactor * strength
-      tween.x(x * .7 * local)
-      tween.y(-1.5 * local)
-      tween.rx(-y * 2.2 * local)
-      tween.ry(x * 2.2 * local)
+      tween.x(x * 1.6 * local)
+      tween.y(-3.5 * local)
+      tween.rx(-y * 4.2 * local)
+      tween.ry(x * 4.2 * local)
     }
-    const updatePointer = (event, touch = false) => {
+    const updateAmbientX = (event, touch = false) => {
       const rect = root.getBoundingClientRect()
-      const normalizedX = Math.max(-1, Math.min(1, ((event.clientX - rect.left) / rect.width - .5) * 2))
-      const normalizedY = Math.max(-1, Math.min(1, ((event.clientY - rect.top) / rect.height - .5) * 2))
-      const currentFactor = factor() * (touch ? .55 : 1)
-      pointerX(normalizedX * 4 * currentFactor)
-      pointerY(normalizedY * 3 * currentFactor)
-      pointerRX(-normalizedY * .55 * currentFactor)
-      pointerRY(normalizedX * .55 * currentFactor)
-      navTweens.forEach((tween) => {
-        tween.x(normalizedX * 2.2 * currentFactor)
-        tween.y(normalizedY * 1.5 * currentFactor)
-        tween.rx(-normalizedY * .32 * currentFactor)
-        tween.ry(normalizedX * .32 * currentFactor)
-      })
+      const normalizedX = clamp(((event.clientX - rect.left) / rect.width - .5) * 2, -1, 1)
+      setNearX(normalizedX * 22 * factor() * (touch ? .72 : 1))
     }
     const isInteractive = (target) => Boolean(target.closest(interactiveSelector))
     const onPointerMove = (event) => {
       if (event.pointerType === 'mouse' && hoverCapable) {
-        updatePointer(event)
+        updateAmbientX(event)
         const nextCard = isInteractive(event.target) ? null : event.target.closest('[data-spatial-tilt]')
         if (nextCard !== activeCard) {
           if (activeCard) resetCard(activeCard)
@@ -195,28 +182,42 @@ export default function useMotionSystem({ enabled, rootRef, quiet = false }) {
       if (event.pointerType !== 'touch' || !touchStart || isInteractive(event.target)) return
       const distance = Math.hypot(event.clientX - touchStart.x, event.clientY - touchStart.y)
       if (distance < 8) return
-      updatePointer(event, true)
+      updateAmbientX(event, true)
       const nextCard = event.target.closest('[data-spatial-tilt]')
       if (nextCard && nextCard !== activeCard) {
         if (activeCard) resetCard(activeCard)
         activeCard = nextCard
       }
-      if (activeCard) updateCard(activeCard, event, .45)
+      if (activeCard) updateCard(activeCard, event, .78)
     }
     const onPointerDown = (event) => {
       if (event.pointerType === 'touch' && !isInteractive(event.target)) touchStart = { x: event.clientX, y: event.clientY }
     }
     const onPointerEnd = () => { touchStart = null; resetPointer() }
+    const renderDepth = (progress) => {
+      const strength = factor()
+      const centered = progress - .5
+      setFarY(-centered * 168 * strength)
+      setNearY(centered * 94 * strength)
+      setNavigationDepth.forEach((setter) => setter(centered * -10 * strength))
+      const viewportCenter = window.innerHeight * .5
+      sections.forEach((section, index) => {
+        const rect = section.getBoundingClientRect()
+        const relative = clamp((viewportCenter - (rect.top + rect.height * .5)) / window.innerHeight, -1, 1)
+        setSectionDepth[index](relative * 34 * strength)
+      })
+      cards.forEach((card, index) => {
+        const rect = card.getBoundingClientRect()
+        const relative = clamp((viewportCenter - (rect.top + rect.height * .5)) / window.innerHeight, -1, 1)
+        setCardDepth[index](relative * 18 * strength)
+      })
+    }
     const scrollTrigger = ScrollTrigger.create({
       trigger: root,
       start: 'top top',
       end: 'bottom bottom',
       invalidateOnRefresh: true,
-      onUpdate: (self) => {
-        const currentFactor = factor()
-        environmentY(self.progress * 14 * currentFactor)
-        planeY(-self.progress * 6 * currentFactor)
-      }
+      onUpdate: (self) => renderDepth(self.progress)
     })
 
     root.addEventListener('pointermove', onPointerMove, { passive: true })
@@ -224,7 +225,10 @@ export default function useMotionSystem({ enabled, rootRef, quiet = false }) {
     root.addEventListener('pointerup', onPointerEnd, { passive: true })
     root.addEventListener('pointercancel', onPointerEnd, { passive: true })
     root.addEventListener('pointerleave', onPointerEnd, { passive: true })
-    const refreshFrame = window.requestAnimationFrame(() => ScrollTrigger.refresh())
+    const refreshFrame = window.requestAnimationFrame(() => {
+      ScrollTrigger.refresh()
+      renderDepth(scrollTrigger.progress)
+    })
 
     return () => {
       window.cancelAnimationFrame(refreshFrame)
@@ -234,9 +238,11 @@ export default function useMotionSystem({ enabled, rootRef, quiet = false }) {
       root.removeEventListener('pointerup', onPointerEnd)
       root.removeEventListener('pointercancel', onPointerEnd)
       root.removeEventListener('pointerleave', onPointerEnd)
-      gsap.killTweensOf([environment, scrollPlane, pointerPlane, ...navigation])
       if (activeCard) gsap.killTweensOf(activeCard)
-      gsap.set([environment, scrollPlane, pointerPlane, ...navigation], { clearProps: 'transform,willChange' })
+      gsap.set([farPlane, nearPlane, ...navigation], { clearProps: 'transform,willChange' })
+      sections.forEach((section) => section.style.removeProperty('--depth-shift'))
+      cards.forEach((card) => card.style.removeProperty('--depth-card-shift'))
+      navigation.forEach((element) => element.style.removeProperty('--nav-depth-shift'))
     }
   }, [enabled, rootRef])
 }

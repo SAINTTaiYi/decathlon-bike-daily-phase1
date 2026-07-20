@@ -178,9 +178,10 @@
 - Motion 只承担登录过渡、内容进入与即时反馈，不使用 ambient loop。
 - 不动画布局属性；主要过渡 150–250ms，按钮按压使用克制的 0.98 缩放；品牌开屏可更长但不得阻塞 reduced-motion 用户。
 - `prefers-reduced-motion: reduce` 下跳过编排并立即展示可操作内容。
-- V5.6.1 post-login workspace assembly：仅在真实登录后的首个已水合首页播放一次约 2.4 秒的 GSAP 空间组装；普通刷新和会话恢复不播放，退出后重新登录会重播。
+- V5.6.2 post-login workspace assembly：仅在真实登录后的首个已水合首页播放一次约 2.4 秒的 GSAP 空间组装；普通刷新和会话恢复不播放，退出后重新登录会重播。
 - 该入场只编排现有刊头、身份条、闭店摘要、版本条、工坊图片与首个 KPI 工作区，不引入自行车图形、额外营销页或主题插画；点击遮罩、跳过按钮或 Escape 可立即收束至可操作页面。
 - 常驻动效采用有限的 GSAP ScrollTrigger 组级视差和 pointer/touch 低幅 3D 响应；输入、筛选、菜单和 Dialog 状态会降至 25% 以下，且不劫持滚动、不使用陀螺仪。
+- V5.6.2 repair：原生页面壳与滚动内容容器永不在滚动期间被 transform 或 tween；滚动深度只作用于独立固定背景平面、导航变量和局部视觉区块。手机端使用更明显的分层位移与阴影，但保持 `touch-action: pan-y` 和连续原生滑动。
 
 ## Architecture
 
