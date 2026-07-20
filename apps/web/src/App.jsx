@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BootLoader from './components/BootLoader.jsx'
 import InitialSetup from './components/InitialSetup.jsx'
 import PasswordChangeGate from './components/PasswordChangeGate.jsx'
@@ -29,6 +29,7 @@ import useActiveScene from './hooks/useActiveScene.js'
 import useAuth from './hooks/useAuth.js'
 import useRemoteClosingWorkflow from './hooks/useRemoteClosingWorkflow.js'
 import useMotionSystem from './hooks/useMotionSystem.js'
+import useWorkspaceMotion from './hooks/useWorkspaceMotion.js'
 import { gsap } from 'gsap'
 import OpeningScene from './scenes/OpeningScene.jsx'
 import PickupScene from './scenes/PickupScene.jsx'
@@ -42,6 +43,9 @@ const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员
 export default function App() {
   const auth = useAuth()
   const [loginAnimationDone, setLoginAnimationDone] = useState(false)
+  const [workspaceAssemblyDone, setWorkspaceAssemblyDone] = useState(false)
+  const [taskInputFocused, setTaskInputFocused] = useState(false)
+  const workspaceRootRef = useRef(null)
   const [setupToken, setSetupToken] = useState(() => {
     const match = window.location.hash.match(/^#setup=([^&]+)$/u)
     return match ? decodeURIComponent(match[1]) : ''
@@ -49,6 +53,7 @@ export default function App() {
   const authenticated = auth.status === 'authenticated'
   const introDone = authenticated && (auth.source === 'restore' || loginAnimationDone)
   const mustChangePassword = Boolean(auth.user?.mustChangePassword)
+  const deferUpdatePrompt = auth.source === 'login' && !mustChangePassword && !workspaceAssemblyDone
   const workflow = useRemoteClosingWorkflow(authenticated && !mustChangePassword)
   const { activeScene, jumpTo } = useActiveScene()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -72,11 +77,54 @@ export default function App() {
   const canManageClosing = role === 'manager' || role === 'admin'
   const writeLocked = Boolean(workflow.closedAt) || !online || Boolean(workflow.storageError)
 
-  useMotionSystem(introDone && workflow.hydrated)
+  const workspaceLaunching = authenticated && auth.source === 'login' && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone
+  const completeWorkspaceAssembly = useCallback(() => {
+    setWorkspaceAssemblyDone(true)
+    window.requestAnimationFrame(() => document.getElementById('main-content')?.focus({ preventScroll: true }))
+  }, [])
+  const { skip: skipWorkspaceAssembly } = useWorkspaceMotion({
+    active: workspaceLaunching,
+    rootRef: workspaceRootRef,
+    onComplete: completeWorkspaceAssembly
+  })
+  const taskFocused = Boolean(taskInputFocused || menuOpen || logOpen || confirmOpen || kpiOpen || migrationOpen || createUserOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
+
+  useMotionSystem({ enabled: introDone && workflow.hydrated && !workspaceLaunching, rootRef: workspaceRootRef, quiet: taskFocused })
 
   useEffect(() => {
-    if (auth.status === 'anonymous') setLoginAnimationDone(false)
+    if (auth.status === 'anonymous') {
+      setLoginAnimationDone(false)
+      setWorkspaceAssemblyDone(false)
+    }
   }, [auth.status])
+
+  useEffect(() => {
+    if (!workspaceLaunching) return undefined
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        skipWorkspaceAssembly()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [skipWorkspaceAssembly, workspaceLaunching])
+
+  useEffect(() => {
+    const root = workspaceRootRef.current
+    if (!root) return undefined
+    const syncTaskFocus = () => {
+      const focused = document.activeElement
+      setTaskInputFocused(Boolean(focused && root.contains(focused) && focused.matches('input, textarea, select, [contenteditable="true"], [role="combobox"]')))
+    }
+    const deferTaskFocusSync = () => window.setTimeout(syncTaskFocus, 0)
+    root.addEventListener('focusin', syncTaskFocus)
+    root.addEventListener('focusout', deferTaskFocusSync)
+    return () => {
+      root.removeEventListener('focusin', syncTaskFocus)
+      root.removeEventListener('focusout', deferTaskFocusSync)
+    }
+  }, [introDone, workflow.hydrated])
 
   useEffect(() => {
     if (!toast) return undefined
@@ -263,11 +311,11 @@ export default function App() {
   })
 
   if (setupToken && !authenticated) {
-    return <><InitialSetup token={setupToken} onComplete={() => { setSetupToken(''); setToast('首位管理员已创建，请使用新账号登录。') }} /><UpdateRefreshDialog /></>
+    return <><InitialSetup token={setupToken} onComplete={() => { setSetupToken(''); setToast('首位管理员已创建，请使用新账号登录。') }} /><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
 
   if (auth.status === 'restoring') {
-    return <><main className="hydration-state" role="status" aria-live="polite"><strong>VERIFYING SESSION</strong><span>正在验证数据库账号…</span></main><UpdateRefreshDialog /></>
+    return <><main className="hydration-state" role="status" aria-live="polite"><strong>VERIFYING SESSION</strong><span>正在验证数据库账号…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
 
   if (authenticated && mustChangePassword && introDone) {
@@ -282,7 +330,7 @@ export default function App() {
   }
 
   if (authenticated && !workflow.hydrated && (auth.source === 'restore' || loginAnimationDone)) {
-    return <><main className="hydration-state" role="status" aria-live="polite"><strong>SYNCING DATABASE</strong><span>正在读取门店业务台账…</span></main><UpdateRefreshDialog /></>
+    return <><main className="hydration-state" role="status" aria-live="polite"><strong>SYNCING DATABASE</strong><span>正在读取门店业务台账…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
 
   if (authenticated && introDone && workflow.hydrated && !workflow.hasSnapshot) {
@@ -297,7 +345,7 @@ export default function App() {
             <button type="button" className="secondary-action" onClick={() => void logout()}>退出登录</button>
           </div>
         </main>
-        <UpdateRefreshDialog />
+        <UpdateRefreshDialog enabled={!deferUpdatePrompt} />
       </>
     )
   }
@@ -313,27 +361,30 @@ export default function App() {
     <>
       {showBoot ? <BootLoader onLogin={auth.login} onComplete={() => setLoginAnimationDone(true)} /> : null}
       {introDone ? <a className="skip-link" href="#closing-summary">跳到闭店摘要</a> : null}
-      <div className="app-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} inert={!introDone ? '' : undefined} aria-hidden={!introDone ? 'true' : undefined}>
-        <main className="lookbook-shell" id="main-content">
-          <LookbookHeader />
-          <div className="active-user-strip" aria-label={`当前登录用户：${currentUser}`}><span>{currentStore?.storeName || 'DATABASE'} · {roleLabels[role]}</span><strong>{currentUser}</strong><button type="button" onClick={() => setMenuOpen(true)}>菜单</button></div>
-          {!online ? <p className="offline-banner" role="status">OFFLINE · 当前离线，仅可查看最近加载的数据；恢复网络后才能修改。</p> : null}
-          <div id="closing-summary"><ClosingSummary workflow={workflow} onJumpToRequirement={jumpToRequirement} onCompleteClosing={requestClose} onReopenClosing={() => void reopen()} onExportReport={exportClosingReport} /></div>
-          <ReleaseNotes />
-          <MainHeadImage />
-          <PulseScene dateKey={workflow.dateKey} kpi={workflow.kpi} kpiReady={workflow.kpiReady} records={workflow.records} closedAt={writeLocked} onJump={jumpTo} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'pulse', record: null })} />
-          <PickupScene {...recordProps('pickup')} />
-          <OpeningScene {...recordProps('poster')} />
-          <RepairScene {...recordProps('repair')} />
-          <ResaleScene {...recordProps('resale')} />
-          <SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} />
-          <footer className="closing-footer">
-            <div className="footer-identity"><span>{currentStore?.storeName || 'ACTIVE USER'} · {roleLabels[role]}</span><strong>{currentUser}</strong></div>
-            <span>LAST SYNC · 最后同步</span>
-            <strong>{workflow.lastSyncedAt ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(workflow.lastSyncedAt)) : '尚未同步'}</strong>
-            <button type="button" className="primary-action" onClick={requestClose} disabled={writeLocked || !canManageClosing}>{workflow.closedAt ? '今日已闭店' : workflow.kpiReady ? '完成闭店' : '填写销售数据'}</button>
-            <div className="footer-utility-actions" aria-label="日报辅助操作"><button type="button" onClick={() => setMenuOpen(true)}>日报菜单</button><button type="button" onClick={() => setLogOpen(true)}>当日日志</button></div>
-          </footer>
+      <div ref={workspaceRootRef} className="app-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
+        <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
+        <main className="lookbook-shell" id="main-content" tabIndex="-1" data-workspace-layer="structure">
+          <div className="workspace-pointer-plane" data-workspace-layer="pointer-plane">
+            <div data-workspace-layer="navigation" data-workspace-priority="true"><LookbookHeader /></div>
+            <div className="active-user-strip" data-workspace-layer="navigation" data-workspace-priority="true" aria-label={`当前登录用户：${currentUser}`}><span>{currentStore?.storeName || 'DATABASE'} · {roleLabels[role]}</span><strong>{currentUser}</strong><button type="button" onClick={() => setMenuOpen(true)}>菜单</button></div>
+            {!online ? <p className="offline-banner" role="status">OFFLINE · 当前离线，仅可查看最近加载的数据；恢复网络后才能修改。</p> : null}
+            <div className="workspace-focus" data-workspace-layer="focus" data-workspace-priority="true" data-spatial-tilt="true" id="closing-summary"><ClosingSummary workflow={workflow} onJumpToRequirement={jumpToRequirement} onCompleteClosing={requestClose} onReopenClosing={() => void reopen()} onExportReport={exportClosingReport} /></div>
+            <ReleaseNotes />
+            <MainHeadImage />
+            <PulseScene dateKey={workflow.dateKey} kpi={workflow.kpi} kpiReady={workflow.kpiReady} records={workflow.records} closedAt={writeLocked} onJump={jumpTo} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'pulse', record: null })} />
+            <PickupScene {...recordProps('pickup')} />
+            <OpeningScene {...recordProps('poster')} />
+            <RepairScene {...recordProps('repair')} />
+            <ResaleScene {...recordProps('resale')} />
+            <SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} />
+            <footer className="closing-footer">
+              <div className="footer-identity"><span>{currentStore?.storeName || 'ACTIVE USER'} · {roleLabels[role]}</span><strong>{currentUser}</strong></div>
+              <span>LAST SYNC · 最后同步</span>
+              <strong>{workflow.lastSyncedAt ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(workflow.lastSyncedAt)) : '尚未同步'}</strong>
+              <button type="button" className="primary-action" onClick={requestClose} disabled={writeLocked || !canManageClosing}>{workflow.closedAt ? '今日已闭店' : workflow.kpiReady ? '完成闭店' : '填写销售数据'}</button>
+              <div className="footer-utility-actions" aria-label="日报辅助操作"><button type="button" onClick={() => setMenuOpen(true)}>日报菜单</button><button type="button" onClick={() => setLogOpen(true)}>当日日志</button></div>
+            </footer>
+          </div>
         </main>
         <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} hasLocalData={canManageClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canCreateUser={role === 'admin'} onCreateUser={() => setCreateUserOpen(true)} />
         <CreateUserDialog open={createUserOpen} onClose={() => setCreateUserOpen(false)} onNotify={setToast} />
@@ -355,8 +406,9 @@ export default function App() {
         <ConfirmClosingDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={confirmClose} />
         <KpiDialog open={kpiOpen} onClose={() => setKpiOpen(false)} values={workflow.kpi} savedAt={workflow.kpiSavedAt} onSave={workflow.saveKpi} onClear={workflow.clearKpi} onNotify={setToast} />
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
+        {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={activeScene} onJump={jumpTo} closedAt={workflow.closedAt} /></div> : null}
       </div>
-      {introDone ? <ActionDock activeScene={activeScene} onJump={jumpTo} closedAt={workflow.closedAt} /> : null}
+      {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button></div> : null}
       <ReportImageDialog
         open={Boolean(reportImage?.objectUrl)}
         onClose={closeReportImage}
@@ -364,7 +416,7 @@ export default function App() {
         filename={reportImage?.filename || ''}
         onDownload={redownloadReportImage}
       />
-      <UpdateRefreshDialog />
+      {introDone ? <UpdateRefreshDialog enabled={!deferUpdatePrompt && !workspaceLaunching} /> : null}
       <StatusToast notice={toast} />
     </>
   )

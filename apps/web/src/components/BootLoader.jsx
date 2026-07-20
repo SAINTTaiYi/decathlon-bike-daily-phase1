@@ -60,12 +60,12 @@ export default function BootLoader({ onLogin, onComplete }) {
       .set(rootRef.current, { pointerEvents: 'none' }, 0)
       .to(loginRef.current, { autoAlpha: 0, y: 18, filter: 'blur(8px)', duration: 0.36, ease: 'power3.out' }, 0)
       .to(seamRef.current, { autoAlpha: 1, scaleY: 1, duration: 0.18, ease: 'power3.out' }, 0.05)
-      .to(decathlonRef.current, { yPercent: -118, filter: 'blur(6px)', duration: 1.02 }, 0.08)
-      .to(bikeOpsRef.current, { yPercent: 118, filter: 'blur(6px)', duration: 1.02 }, 0.08)
-      .to(topHalfRef.current, { yPercent: -104, duration: 1.08 }, 0.1)
-      .to(bottomHalfRef.current, { yPercent: 104, duration: 1.08 }, 0.1)
-      .to(seamRef.current, { autoAlpha: 0, scaleY: 2.4, duration: 0.46, ease: 'power4.out' }, 0.44)
-      .to(rootRef.current, { autoAlpha: 0, duration: 0.2, ease: 'power2.out' }, 1.04)
+      .to(decathlonRef.current, { yPercent: -118, filter: 'blur(6px)', duration: 0.68 }, 0.08)
+      .to(bikeOpsRef.current, { yPercent: 118, filter: 'blur(6px)', duration: 0.68 }, 0.08)
+      .to(topHalfRef.current, { yPercent: -104, duration: 0.74 }, 0.1)
+      .to(bottomHalfRef.current, { yPercent: 104, duration: 0.74 }, 0.1)
+      .to(seamRef.current, { autoAlpha: 0, scaleY: 2.4, duration: 0.32, ease: 'power4.out' }, 0.34)
+      .to(rootRef.current, { autoAlpha: 0, duration: 0.16, ease: 'power2.out' }, 0.72)
   }
 
   useEffect(() => {
