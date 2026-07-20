@@ -280,10 +280,10 @@ export default function RecordLedger({
   records = [], config, closedAt, onAdd, onEdit, onRemove, onHistory,
   onHandoverComplete, onPickup, onResaleListing, onResaleSold,
   onRepairComplete, onPickupNotificationChange, pickupErrors = {},
-  pickupProcessingId = '', pickupPixelFillId = '', onPickupPixelFillComplete,
+  primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete,
   heading = 'ACTIVE LEDGER / 在册台账', dark = false, showAdd = true
 }) {
-  const hasSwipeDelete = !closedAt && records.some((record) => !record.pickedUpToday && !record.completedToday && record.id !== pickupProcessingId)
+  const hasSwipeDelete = !closedAt && records.some((record) => !record.pickedUpToday && !record.completedToday)
 
   return (
     <div className="record-ledger" data-reveal-group="records" data-dark={dark ? 'true' : undefined} aria-label={`${config.singular}台账，共 ${records.length} 条`}>
@@ -306,7 +306,8 @@ export default function RecordLedger({
         const deletable = !resolved && !closedAt
         const pickupError = pickupErrors[record.id] || ''
         const pickupRecord = record.scene === 'pickup'
-        const pickupProcessing = pickupProcessingId === record.id
+        const primaryProcessing = primaryProcessingId === record.id
+        const primaryActionLocked = Boolean(closedAt) || primaryActionBusy
         const pickupPixelFill = pickupPixelFillId === record.id
         const repairRecord = record.scene === 'repair'
         const pickupSource = pickupRecord ? inferPickupSource(record) : ''
@@ -335,20 +336,34 @@ export default function RecordLedger({
         const paymentOrType = repairRecord || repairPickup ? record.repairType : ''
         const rowDark = dark || resolved
         const englishState = pickedUp ? 'PICKED UP' : completedToday ? 'COMPLETED' : record.scene === 'resale' && record.resaleStage === 'pending' ? 'PENDING' : 'ACTIVE'
+        const primaryButton = (label, onClick) => (
+          <button
+            type="button"
+            className="record-primary-action"
+            onClick={onClick}
+            disabled={primaryActionLocked}
+            data-processing={primaryProcessing ? 'true' : undefined}
+            aria-busy={primaryProcessing || undefined}
+            aria-label={primaryProcessing ? `${label}，确认中` : label}
+          >
+            <IconCheck width={15} height={15} aria-hidden="true" />
+            <span aria-live="polite">{primaryProcessing ? '确认中…' : label}</span>
+          </button>
+        )
         const primaryAction = record.scene === 'resale' && record.resaleStage === 'pending'
-          ? <button type="button" className="record-primary-action" onClick={() => onResaleListing(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />维修完毕</button>
+          ? primaryButton('维修完毕', () => onResaleListing(record))
           : record.scene === 'resale' && record.resaleStage === 'listed'
-            ? <button type="button" className="record-primary-action" onClick={() => onResaleSold(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />已售出</button>
+            ? primaryButton('已售出', () => onResaleSold(record))
             : record.scene === 'repair' && !record.completedOn
-              ? <button type="button" className="record-primary-action" onClick={() => onRepairComplete(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />维修完毕</button>
+              ? primaryButton('维修完毕', () => onRepairComplete(record))
               : record.scene === 'poster' && !record.completedOn
-                ? <button type="button" className="record-primary-action" onClick={() => onHandoverComplete(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />完成</button>
+                ? primaryButton('完成', () => onHandoverComplete(record))
                 : record.scene === 'pickup' && !pickedUp
-                  ? <button type="button" className="record-primary-action" onClick={() => onPickup(record)} disabled={Boolean(closedAt) || pickupProcessing}><IconCheck width={15} height={15} aria-hidden="true" />{pickupProcessing ? '确认中…' : '确认取车'}</button>
+                  ? primaryButton('确认取车', () => onPickup(record))
                   : null
         const actionButtons = (
           <>
-            {!resolved ? <button type="button" className="record-edit-action" onClick={() => onEdit(record)} disabled={Boolean(closedAt)} aria-label={`编辑：${record.title}`}><IconEdit width={15} height={15} aria-hidden="true" />编辑</button> : null}
+            {!resolved ? <button type="button" className="record-edit-action" onClick={() => onEdit(record)} disabled={Boolean(closedAt) || primaryProcessing} aria-label={`编辑：${record.title}`}><IconEdit width={15} height={15} aria-hidden="true" />编辑</button> : null}
             {primaryAction}
           </>
         )
@@ -408,7 +423,7 @@ export default function RecordLedger({
         )
 
         return deletable
-          ? <SwipeDeleteRecord key={record.id} record={record} disabled={Boolean(closedAt) || pickupProcessing} onRemove={onRemove}>{row}</SwipeDeleteRecord>
+          ? <SwipeDeleteRecord key={record.id} record={record} disabled={Boolean(closedAt) || primaryProcessing} onRemove={onRemove}>{row}</SwipeDeleteRecord>
           : <div key={record.id}>{row}</div>
       }) : <p className="empty-inline">当前没有记录。{showAdd ? `使用“${config.addLabel}”开始录入。` : ''}</p>}
     </div>
