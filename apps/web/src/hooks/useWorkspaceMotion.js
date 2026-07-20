@@ -33,7 +33,7 @@ export default function useWorkspaceMotion({ active, rootRef, onComplete }) {
       timelineRef.current?.kill()
       gsap.set(targets, { clearProps: 'transform,filter,opacity,visibility,willChange' })
       if (overlay) gsap.set(overlay, { clearProps: 'opacity,visibility,pointerEvents,willChange' })
-      gsap.set(root, { clearProps: 'perspective,transformStyle' })
+      gsap.set(structure, { clearProps: 'perspective,transformStyle' })
       root.dataset.workspaceAssembled = 'true'
     }
 
@@ -57,7 +57,7 @@ export default function useWorkspaceMotion({ active, rootRef, onComplete }) {
     }
 
     const ctx = gsap.context(() => {
-      gsap.set(root, { perspective: 1180, transformStyle: 'preserve-3d' })
+      gsap.set(structure, { perspective: 1180, transformStyle: 'preserve-3d' })
       gsap.set(targets, { willChange: 'transform, opacity, filter' })
       gsap.set(environment, { autoAlpha: 0.65, scale: 1.025, filter: 'blur(8px)' })
       gsap.set(structure, { autoAlpha: 0.01, y: 22, z: -70, rotationX: 1.5, transformStyle: 'preserve-3d' })
