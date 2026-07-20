@@ -3,10 +3,10 @@ import type { AppConfig, WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
 import { createAuthMiddleware } from '../auth/middleware.js'
 import { all, first, nowIso } from '../db.js'
-import { businessDateFor, ensureDayOpen, writeAudit } from '../services/business.js'
+import { businessDateFor, ensureDayOpen, prepareAudit } from '../services/business.js'
 import { idempotent } from '../services/idempotency.js'
 import { ApiProblem } from '../services/problems.js'
-import { restoreSnapshot } from '../services/restore.js'
+import { buildRestoreSnapshotStatements } from '../services/restore.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
 type AuditScene = 'pickup' | 'poster' | 'repair' | 'resale'
@@ -134,22 +134,23 @@ export function auditRoutes() {
       const beforeState = parseJson(target.before_state)
       const afterState = parseJson(target.after_state)
 
+      let restoreStatements: D1PreparedStatement[]
       if (target.entity_type === 'work-item') {
         if (!target.entity_id) throw new ApiProblem(422, 'INVALID_AUDIT_EVENT', '审计事件缺少业务对象。')
         if (beforeState) {
-          await restoreSnapshot(db, beforeState)
+          restoreStatements = buildRestoreSnapshotStatements(db, beforeState)
         } else {
           const stamp = nowIso()
-          await db.prepare(`
+          restoreStatements = [db.prepare(`
             UPDATE work_items SET lifecycle = 'deleted', deleted_at = ?, deleted_by = ?,
               updated_by = ?, revision = revision + 1, updated_at = ?
             WHERE id = ? AND store_id = ?
-          `).bind(stamp, context.userId, context.userId, stamp, target.entity_id, context.storeId).run()
+          `).bind(stamp, context.userId, context.userId, stamp, target.entity_id, context.storeId)]
         }
       } else if (target.entity_type === 'daily-closing') {
         const before = beforeState as { kpi?: Record<string, unknown>; kpiSavedAt?: string | null } | null
         if (!before?.kpi || !target.entity_id) throw new ApiProblem(422, 'INVALID_AUDIT_EVENT', '审计快照不完整。')
-        await db.prepare(`
+        restoreStatements = [db.prepare(`
           UPDATE daily_closings SET
             sales_vehicles = ?, safety_checks = ?, safety_model = ?, valid_reviews = ?,
             used_sold = ?, used_received = ?, sales_saved_at = ?, revision = revision + 1, updated_at = ?
@@ -165,12 +166,13 @@ export function auditRoutes() {
           nowIso(),
           target.entity_id,
           context.storeId
-        ).run()
+        )]
       } else {
         throw new ApiProblem(409, 'UNDO_NOT_AVAILABLE', '该类型操作不能撤回。')
       }
 
-      const eventId = await writeAudit(db, {
+      // The restored state and its undo audit event must either both commit or both roll back.
+      const audit = prepareAudit(db, {
         context,
         action: 'undo-operation',
         entityType: target.entity_type,
@@ -182,7 +184,8 @@ export function auditRoutes() {
         reversible: false,
         revertedEventId: target.id
       })
-      return { status: 200, body: { ok: true, eventId, targetEventId: target.id } }
+      await db.batch([...restoreStatements, audit.statement])
+      return { status: 200, body: { ok: true, eventId: audit.id, targetEventId: target.id } }
     })
     return c.json(result.body, result.status as any)
   })

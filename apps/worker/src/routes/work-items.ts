@@ -18,6 +18,7 @@ import { createAuthMiddleware } from '../auth/middleware.js'
 import { first, nowIso, uuid } from '../db.js'
 import { contactFingerprint, encryptContact } from '../lib/contact-crypto.js'
 import { getWorkItem, internalSnapshot, listWorkItems } from '../repositories/work-items.js'
+import { restoreSnapshot } from '../services/restore.js'
 import { businessDateFor, ensureDayOpen, writeAudit } from '../services/business.js'
 import { idempotent } from '../services/idempotency.js'
 import { ApiProblem } from '../services/problems.js'
@@ -238,13 +239,23 @@ export function workItemRoutes() {
         if (!before) throw new ApiProblem(404, 'NOT_FOUND', '没有找到这条台账记录。')
         const item = before.workItem as Record<string, unknown>
         if (item.revision !== input.expectedRevision) throw new ApiProblem(409, 'REVISION_CONFLICT', '数据已被其他同事修改。')
-        const outcome = await handler(db, context, id, input.expectedRevision, businessDate)
-        const after = await internalSnapshot(db, context.storeId, id)
-        const revision = Number((after?.workItem as any)?.revision ?? input.expectedRevision + 1)
-        const eventId = await writeAudit(db, {
-          context, action, entityType: 'work-item', entityId: id, entityRevision: revision,
-          businessDate, summary: outcome.summary, before, after, reversible: true
-        })
+        let outcome: { summary: string; extra?: Record<string, unknown> }
+        let eventId: string
+        let stateChanged = false
+        try {
+          outcome = await handler(db, context, id, input.expectedRevision, businessDate)
+          stateChanged = true
+          const after = await internalSnapshot(db, context.storeId, id)
+          const revision = Number((after?.workItem as any)?.revision ?? input.expectedRevision + 1)
+          eventId = await writeAudit(db, {
+            context, action, entityType: 'work-item', entityId: id, entityRevision: revision,
+            businessDate, summary: outcome.summary, before, after, reversible: true
+          })
+        } catch (error) {
+          // Only roll back after a completed state transition when its audit write fails; validation/conflict failures must not rewrite a concurrent record.
+          if (stateChanged) await restoreSnapshot(db, before)
+          throw error
+        }
         const record = await getWorkItem(db, context.storeId, id, businessDate, config)
         return { status: 200, body: { ok: true, record, eventId, ...(outcome.extra ?? {}) } }
       })
@@ -308,16 +319,34 @@ export function workItemRoutes() {
       `).bind(stamp, businessDate, stamp, id).run()
       return { summary: `维修完毕：${repair.title}`, extra: { route: 'completed' } }
     }
-    const updated = await db.prepare(`
-      UPDATE work_items SET kind = 'pickup', revision = revision + 1, updated_by = ?, updated_at = ?
-      WHERE id = ? AND store_id = ? AND revision = ?
-    `).bind(context.userId, stamp, id, context.storeId, revision).run()
-    if (!updated.meta.changes) throw new ApiProblem(409, 'REVISION_CONFLICT', '维修记录已被其他同事修改。')
-    await db.prepare(`UPDATE repair_details SET repair_completed_at = ? WHERE work_item_id = ?`).bind(stamp, id).run()
-    await db.prepare(`
-      INSERT INTO pickup_details (work_item_id, pickup_source, self_pickup_platform, notification_status, repair_work_item_id)
-      VALUES (?, 'repair', NULL, 'pending', ?)
-    `).bind(id, id).run()
+    // Keep the non-store repair transition all-or-nothing. This also removes a stale pickup row
+    // left by an older undo before reinserting the canonical repair-origin pickup detail.
+    const [updated] = await db.batch([
+      db.prepare(`
+        UPDATE work_items SET kind = 'pickup', revision = revision + 1, updated_by = ?, updated_at = ?
+        WHERE id = ? AND store_id = ? AND revision = ?
+      `).bind(context.userId, stamp, id, context.storeId, revision),
+      db.prepare(`
+        UPDATE repair_details SET repair_completed_at = ?
+        WHERE work_item_id = ? AND EXISTS (
+          SELECT 1 FROM work_items WHERE id = ? AND store_id = ? AND kind = 'pickup' AND revision = ?
+        )
+      `).bind(stamp, id, id, context.storeId, revision + 1),
+      db.prepare(`
+        DELETE FROM pickup_details
+        WHERE work_item_id = ? AND EXISTS (
+          SELECT 1 FROM work_items WHERE id = ? AND store_id = ? AND kind = 'pickup' AND revision = ?
+        )
+      `).bind(id, id, context.storeId, revision + 1),
+      db.prepare(`
+        INSERT INTO pickup_details (work_item_id, pickup_source, self_pickup_platform, notification_status, repair_work_item_id)
+        SELECT ?, 'repair', NULL, 'pending', ?
+        WHERE EXISTS (
+          SELECT 1 FROM work_items WHERE id = ? AND store_id = ? AND kind = 'pickup' AND revision = ?
+        )
+      `).bind(id, id, id, context.storeId, revision + 1)
+    ])
+    if (!updated?.meta.changes) throw new ApiProblem(409, 'REVISION_CONFLICT', '维修记录已被其他同事修改。')
     return { summary: `维修完毕并转入待取：${repair.title}`, extra: { route: 'pickup' } }
   })
 
