@@ -940,3 +940,32 @@ button:not(:disabled) { transition-duration: 150ms; }
   .record-swipe-surface { transition: none !important; }
   .record-swipe-frame::after { display: none; }
 }
+
+/* V5.6.6 pickup completion: only a confirmed pickup resolves through a black pixel-fill before its existing dark retained state. */
+.record-row { position: relative; overflow: hidden; }
+.pickup-pixel-fill {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--pickup-pixel-columns), var(--pickup-pixel-size));
+  grid-auto-rows: var(--pickup-pixel-size);
+  align-content: start;
+  justify-content: start;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+}
+.pickup-pixel-fill i {
+  display: block;
+  width: var(--pickup-pixel-size);
+  height: var(--pickup-pixel-size);
+  background: var(--ink);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .025);
+}
+.record-row[data-pickup-pixel-filling='true'] { pointer-events: none; }
+.record-row[data-pickup-pixel-filling='true']::before { opacity: 0 !important; }
+@media (prefers-reduced-motion: reduce) {
+  .pickup-pixel-fill { background: var(--ink); }
+  .pickup-pixel-fill i { visibility: hidden; }
+}

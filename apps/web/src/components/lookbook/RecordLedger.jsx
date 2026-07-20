@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import IconCalendar from '@iconoir/Calendar.mjs'
 import IconCheck from '@iconoir/Check.mjs'
@@ -31,6 +31,73 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 function Badge({ children }) {
   if (!children) return null
   return <span className="record-badge">{children}</span>
+}
+
+function PickupPixelFill({ recordId, onComplete }) {
+  const overlayRef = useRef(null)
+  const completedRef = useRef(false)
+  const [grid, setGrid] = useState(null)
+
+  useLayoutEffect(() => {
+    const overlay = overlayRef.current
+    if (!overlay) return undefined
+    const measure = () => {
+      const rect = overlay.getBoundingClientRect()
+      if (!rect.width || !rect.height) return
+      const size = rect.width < 520 ? 17 : 21
+      const columns = Math.ceil(rect.width / size)
+      const rows = Math.ceil(rect.height / size)
+      setGrid((current) => current?.columns === columns && current?.rows === rows && current?.size === size
+        ? current
+        : { columns, rows, size })
+    }
+    measure()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+    observer?.observe(overlay)
+    return () => observer?.disconnect()
+  }, [])
+
+  useLayoutEffect(() => {
+    const overlay = overlayRef.current
+    if (!overlay || !grid || completedRef.current) return undefined
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const pixels = [...overlay.querySelectorAll('[data-pickup-pixel]')]
+    if (reduced) {
+      completedRef.current = true
+      window.queueMicrotask(() => onComplete(recordId))
+      return undefined
+    }
+    const timeline = gsap.timeline({
+      defaults: { overwrite: 'auto' },
+      onComplete: () => {
+        completedRef.current = true
+        onComplete(recordId)
+      }
+    })
+    timeline
+      .set(pixels, { autoAlpha: 0, scale: .72, transformOrigin: '50% 50%' })
+      .to(pixels, {
+        autoAlpha: 1,
+        scale: 1,
+        duration: .1,
+        ease: 'steps(1)',
+        stagger: { grid: [grid.rows, grid.columns], from: 'start', amount: .58 }
+      })
+    return () => timeline.kill()
+  }, [grid, onComplete, recordId])
+
+  const cells = grid ? Array.from({ length: grid.columns * grid.rows }) : []
+  return (
+    <div
+      ref={overlayRef}
+      className="pickup-pixel-fill"
+      data-pickup-pixel-fill="true"
+      aria-hidden="true"
+      style={grid ? { '--pickup-pixel-size': `${grid.size}px`, '--pickup-pixel-columns': grid.columns } : undefined}
+    >
+      {cells.map((_, index) => <i key={index} data-pickup-pixel />)}
+    </div>
+  )
 }
 
 function SwipeDeleteRecord({ record, disabled, onRemove, children }) {
@@ -213,9 +280,10 @@ export default function RecordLedger({
   records = [], config, closedAt, onAdd, onEdit, onRemove, onHistory,
   onHandoverComplete, onPickup, onResaleListing, onResaleSold,
   onRepairComplete, onPickupNotificationChange, pickupErrors = {},
+  pickupProcessingId = '', pickupPixelFillId = '', onPickupPixelFillComplete,
   heading = 'ACTIVE LEDGER / 在册台账', dark = false, showAdd = true
 }) {
-  const hasSwipeDelete = !closedAt && records.some((record) => !record.pickedUpToday && !record.completedToday)
+  const hasSwipeDelete = !closedAt && records.some((record) => !record.pickedUpToday && !record.completedToday && record.id !== pickupProcessingId)
 
   return (
     <div className="record-ledger" data-reveal-group="records" data-dark={dark ? 'true' : undefined} aria-label={`${config.singular}台账，共 ${records.length} 条`}>
@@ -238,6 +306,8 @@ export default function RecordLedger({
         const deletable = !resolved && !closedAt
         const pickupError = pickupErrors[record.id] || ''
         const pickupRecord = record.scene === 'pickup'
+        const pickupProcessing = pickupProcessingId === record.id
+        const pickupPixelFill = pickupPixelFillId === record.id
         const repairRecord = record.scene === 'repair'
         const pickupSource = pickupRecord ? inferPickupSource(record) : ''
         const repairPickup = pickupSource === 'repair'
@@ -274,7 +344,7 @@ export default function RecordLedger({
               : record.scene === 'poster' && !record.completedOn
                 ? <button type="button" className="record-primary-action" onClick={() => onHandoverComplete(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />完成</button>
                 : record.scene === 'pickup' && !pickedUp
-                  ? <button type="button" className="record-primary-action" onClick={() => onPickup(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />确认取车</button>
+                  ? <button type="button" className="record-primary-action" onClick={() => onPickup(record)} disabled={Boolean(closedAt) || pickupProcessing}><IconCheck width={15} height={15} aria-hidden="true" />{pickupProcessing ? '确认中…' : '确认取车'}</button>
                   : null
         const actionButtons = (
           <>
@@ -284,7 +354,8 @@ export default function RecordLedger({
         )
 
         const row = (
-          <article className="record-row" data-spatial-tilt="true" data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row">
+          <article className="record-row" data-spatial-tilt="true" data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-pickup-pixel-filling={pickupPixelFill ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row">
+            {pickupPixelFill ? <PickupPixelFill recordId={record.id} onComplete={onPickupPixelFillComplete} /> : null}
             <header className="record-row-head">
               <button type="button" className="record-history-mark" onClick={() => onHistory(record)} aria-label={`查看“${record.title}”的操作记录`}><IconJournal width={16} height={16} aria-hidden="true" /></button>
               <div className="record-model-block">
@@ -337,7 +408,7 @@ export default function RecordLedger({
         )
 
         return deletable
-          ? <SwipeDeleteRecord key={record.id} record={record} disabled={Boolean(closedAt)} onRemove={onRemove}>{row}</SwipeDeleteRecord>
+          ? <SwipeDeleteRecord key={record.id} record={record} disabled={Boolean(closedAt) || pickupProcessing} onRemove={onRemove}>{row}</SwipeDeleteRecord>
           : <div key={record.id}>{row}</div>
       }) : <p className="empty-inline">当前没有记录。{showAdd ? `使用“${config.addLabel}”开始录入。` : ''}</p>}
     </div>

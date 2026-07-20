@@ -67,6 +67,10 @@ export default function App() {
   const [mediaRecord, setMediaRecord] = useState(null)
   const [pickupConfirm, setPickupConfirm] = useState(null)
   const [pickupErrors, setPickupErrors] = useState({})
+  const [pickupProcessingId, setPickupProcessingId] = useState('')
+  const [pickupPixelFillId, setPickupPixelFillId] = useState('')
+  const pickupProcessingRef = useRef('')
+  const deferredPickupResultRef = useRef(null)
   const [historyTarget, setHistoryTarget] = useState(null)
   const [toast, setToast] = useState('')
   const [online, setOnline] = useState(() => navigator.onLine)
@@ -256,6 +260,33 @@ export default function App() {
     return result
   }
 
+  const completePickupWithPixelFill = useCallback(async (record, pickupCode = '') => {
+    if (pickupProcessingRef.current) return { ok: false, error: '该取车操作正在确认，请稍候。' }
+    pickupProcessingRef.current = record.id
+    setPickupProcessingId(record.id)
+    const result = await workflow.completePickup(record.id, pickupCode, { apply: false, sync: 'none' })
+    if (!result.ok) {
+      pickupProcessingRef.current = ''
+      setPickupProcessingId('')
+      return result
+    }
+    deferredPickupResultRef.current = { id: record.id, result, title: record.title }
+    setPickupPixelFillId(record.id)
+    return result
+  }, [workflow])
+
+  const completePickupPixelFill = useCallback((recordId) => {
+    const pending = deferredPickupResultRef.current
+    if (!pending || pending.id !== recordId) return
+    deferredPickupResultRef.current = null
+    workflow.commitDeferredResult(pending.result)
+    setPickupPixelFillId('')
+    pickupProcessingRef.current = ''
+    setPickupProcessingId('')
+    setPickupErrors((current) => { const next = { ...current }; delete next[recordId]; return next })
+    setToast(`已确认取车：${pending.title}`)
+  }, [workflow])
+
   const recordProps = (scene) => ({
     records: workflow.recordsByScene[scene] || [],
     closedAt: writeLocked,
@@ -294,15 +325,16 @@ export default function App() {
       setToast(result.ok ? `${record.title}：${notificationStatus === 'notified' ? '已通知' : '等待确认通知'}` : { message: result.error, tone: 'error' })
     },
     pickupErrors,
+    pickupProcessingId,
+    pickupPixelFillId,
+    onPickupPixelFillComplete: completePickupPixelFill,
     onPickup: async (record) => {
       if (inferPickupSource(record) === 'self-pickup') return setPickupConfirm(record)
-      const result = await workflow.completePickup(record.id)
+      const result = await completePickupWithPixelFill(record)
       if (!result.ok) {
         setPickupErrors((current) => ({ ...current, [record.id]: result.error }))
-        return setToast({ message: result.error, tone: 'error' })
+        setToast({ message: result.error, tone: 'error' })
       }
-      setPickupErrors((current) => { const next = { ...current }; delete next[record.id]; return next })
-      setToast(`已确认取车：${record.title}`)
     },
     onRemove: (record) => perform(() => workflow.removeRecord(record.id), `已删除：${record.title}`)
   })
@@ -392,14 +424,11 @@ export default function App() {
         <AttachmentDialog record={mediaRecord} onClose={() => setMediaRecord(null)} locked={writeLocked} onNotify={setToast} />
         <LocalMigrationDialog open={migrationOpen} onClose={() => setMigrationOpen(false)} workflow={workflow} onNotify={setToast} />
         <PickupConfirmDialog record={pickupConfirm} onClose={() => setPickupConfirm(null)} onConfirm={async (record, code) => {
-          const result = await workflow.completePickup(record.id, code)
+          const result = await completePickupWithPixelFill(record, code)
           if (!result.ok) {
             setPickupErrors((current) => ({ ...current, [record.id]: result.error }))
             setToast({ message: result.error, tone: 'error' })
-            return result
           }
-          setPickupErrors((current) => { const next = { ...current }; delete next[record.id]; return next })
-          setToast(`已核对取货码并确认取车：${record.title}`)
           return result
         }} />
         <ConfirmClosingDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={confirmClose} />
