@@ -62,8 +62,8 @@ function SwipeDeleteRecord({ record, disabled, onRemove, children }) {
   }, [])
 
   useEffect(() => {
-    if (disabled || deleting) settle(false, .16)
-  }, [deleting, disabled])
+    if (disabled) settle(false, .16)
+  }, [disabled])
 
   const onPointerDown = (event) => {
     if (disabled || deleting) return
@@ -194,7 +194,9 @@ function SwipeDeleteRecord({ record, disabled, onRemove, children }) {
         type="button"
         className="record-swipe-delete-action"
         onClick={() => void deleteRecord()}
-        disabled={!open || disabled || deleting}
+        disabled={disabled || deleting}
+        tabIndex={open ? 0 : -1}
+        aria-hidden={!open}
         aria-label={`删除：${record.title}`}
       >
         <IconTrash width={18} height={18} aria-hidden="true" />
@@ -263,14 +265,21 @@ export default function RecordLedger({
         const paymentOrType = repairRecord || repairPickup ? record.repairType : ''
         const rowDark = dark || resolved
         const englishState = pickedUp ? 'PICKED UP' : completedToday ? 'COMPLETED' : record.scene === 'resale' && record.resaleStage === 'pending' ? 'PENDING' : 'ACTIVE'
+        const primaryAction = record.scene === 'resale' && record.resaleStage === 'pending'
+          ? <button type="button" className="record-primary-action" onClick={() => onResaleListing(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />维修完毕</button>
+          : record.scene === 'resale' && record.resaleStage === 'listed'
+            ? <button type="button" className="record-primary-action" onClick={() => onResaleSold(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />已售出</button>
+            : record.scene === 'repair' && !record.completedOn
+              ? <button type="button" className="record-primary-action" onClick={() => onRepairComplete(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />维修完毕</button>
+              : record.scene === 'poster' && !record.completedOn
+                ? <button type="button" className="record-primary-action" onClick={() => onHandoverComplete(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />完成</button>
+                : record.scene === 'pickup' && !pickedUp
+                  ? <button type="button" className="record-primary-action" onClick={() => onPickup(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />确认取车</button>
+                  : null
         const actionButtons = (
           <>
-            {record.scene === 'resale' && record.resaleStage === 'pending' ? <button type="button" className="record-primary-action" onClick={() => onResaleListing(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />维修完毕</button> : null}
-            {record.scene === 'resale' && record.resaleStage === 'listed' ? <button type="button" className="record-primary-action" onClick={() => onResaleSold(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />已售出</button> : null}
-            {record.scene === 'repair' && !record.completedOn ? <button type="button" className="record-primary-action" onClick={() => onRepairComplete(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />维修完毕</button> : null}
-            {record.scene === 'poster' && !record.completedOn ? <button type="button" className="record-primary-action" onClick={() => onHandoverComplete(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />完成</button> : null}
-            {record.scene === 'pickup' && !pickedUp ? <button type="button" className="record-primary-action" onClick={() => onPickup(record)} disabled={Boolean(closedAt)}><IconCheck width={15} height={15} aria-hidden="true" />确认取车</button> : null}
-            {!resolved ? <button type="button" onClick={() => onEdit(record)} disabled={Boolean(closedAt)} aria-label={`编辑：${record.title}`}><IconEdit width={15} height={15} aria-hidden="true" />编辑</button> : null}
+            {!resolved ? <button type="button" className="record-edit-action" onClick={() => onEdit(record)} disabled={Boolean(closedAt)} aria-label={`编辑：${record.title}`}><IconEdit width={15} height={15} aria-hidden="true" />编辑</button> : null}
+            {primaryAction}
           </>
         )
 
@@ -322,7 +331,7 @@ export default function RecordLedger({
 
               {pickupError ? <p className="record-inline-error" role="alert">{pickupError}</p> : null}
               {resolved ? <p className="record-resolution-note">{pickedUp ? '本条今日保留，下一业务日自动移除。' : '本条今日保留，下一业务日自动清除。'}</p> : null}
-              <footer className="record-actions">{actionButtons}</footer>
+              <footer className="record-actions" data-has-primary={primaryAction ? 'true' : undefined}>{actionButtons}</footer>
             </div>
           </article>
         )

@@ -393,9 +393,9 @@ button:not(:disabled) { transition-duration: 150ms; }
   justify-content: center;
   gap: .28rem;
   flex: 1 1 calc(50% - .15rem);
-  min-height: 36px !important;
+  min-height: 38px !important;
   min-width: 0;
-  padding: .4rem .55rem !important;
+  padding: .42rem .55rem !important;
   border: 1px solid var(--ink) !important;
   border-radius: 0;
   background: #fff !important;
@@ -405,12 +405,13 @@ button:not(:disabled) { transition-duration: 150ms; }
   line-height: 1.15;
   white-space: nowrap;
 }
+.record-actions button:only-child { flex-basis: 100%; }
+.record-actions .record-edit-action { order: 0; }
 .record-actions .record-primary-action {
-  flex: 1 1 100% !important;
-  order: -1;
+  order: 1;
   border-width: 1.5px !important;
-  background: #fff !important;
-  color: var(--ink) !important;
+  background: var(--ink) !important;
+  color: #fff !important;
   font-weight: 850 !important;
 }
 .record-actions .record-delete {
@@ -857,7 +858,7 @@ button:not(:disabled) { transition-duration: 150ms; }
   [data-motion='photo'] { transform: none !important; opacity: 1 !important; visibility: visible !important; }
 }
 
-/* V5.6.4 swipe delete: the record article keeps GSAP reveal/tilt ownership; only its nested surface moves horizontally. */
+/* V5.6.5 swipe delete: a contained destructive control sits in a quiet tray; the record article keeps GSAP reveal/tilt ownership. */
 .ledger-swipe-hint {
   margin: .18rem 0 0;
   color: var(--muted);
@@ -873,6 +874,7 @@ button:not(:disabled) { transition-duration: 150ms; }
   isolation: isolate;
   overflow: clip;
   touch-action: pan-y;
+  background: color-mix(in srgb, var(--critical) 7%, var(--paper-cool));
 }
 .record-swipe-surface {
   position: relative;
@@ -885,22 +887,27 @@ button:not(:disabled) { transition-duration: 150ms; }
 .record-swipe-delete-action {
   position: absolute;
   z-index: 1;
-  top: 0;
-  right: 0;
-  bottom: 0;
+  top: 50%;
+  right: .55rem;
   display: grid;
   place-content: center;
-  gap: .28rem;
-  width: 5.75rem;
-  padding: .6rem;
-  background: var(--critical);
-  color: #fff;
-  font-size: .68rem;
+  gap: .2rem;
+  width: 4.45rem;
+  min-height: 4.45rem;
+  padding: .48rem;
+  border: 1px solid color-mix(in srgb, var(--critical) 68%, var(--line-strong));
+  border-radius: .7rem;
+  background: color-mix(in srgb, var(--critical) 11%, #fff);
+  color: var(--critical);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .78), 0 5px 12px rgb(181 59 24 / .1);
+  font-size: .66rem;
   font-weight: 850;
   line-height: 1;
   text-align: center;
+  transform: translateY(-50%);
 }
 .record-swipe-delete-action:disabled { pointer-events: none; }
+.record-swipe-frame:not([data-open='true']) .record-swipe-delete-action { pointer-events: none; }
 .record-swipe-delete-action svg { justify-self: center; }
 .record-swipe-frame::after {
   content: '';
@@ -914,13 +921,20 @@ button:not(:disabled) { transition-duration: 150ms; }
     linear-gradient(90deg, rgb(181 59 24 / .08), transparent 42%, rgb(255 255 255 / .42));
   mix-blend-mode: screen;
 }
-.record-swipe-frame[data-open='true'] .record-swipe-surface { box-shadow: 12px 0 24px rgb(11 11 12 / .13); }
+.record-swipe-frame[data-open='true'] .record-swipe-surface { box-shadow: 12px 0 24px rgb(11 11 12 / .09); }
 .record-swipe-frame[data-deleting='true'] { pointer-events: none; }
+.record-actions[data-has-primary='true'] .record-edit-action,
+.record-actions[data-has-primary='true'] .record-primary-action { flex: 1 1 calc(50% - .15rem) !important; }
 .record-row[data-row-dark='true'] .record-swipe-surface,
 .record-ledger[data-dark='true'] .record-swipe-surface { background: var(--ink); }
 .record-row[data-error='true'] .record-swipe-surface { background: rgb(181 59 24 / .055); }
 @media (hover: hover) and (pointer: fine) {
-  .record-swipe-delete-action:not(:disabled):hover { background: color-mix(in srgb, var(--critical) 88%, #000); }
+  .record-swipe-delete-action:not(:disabled):hover {
+    border-color: var(--critical);
+    background: var(--critical);
+    color: #fff;
+    box-shadow: 0 7px 16px rgb(181 59 24 / .2);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .record-swipe-surface { transition: none !important; }

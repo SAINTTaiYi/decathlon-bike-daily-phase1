@@ -29,12 +29,24 @@ test('删除无二次确认，成功走电子退场，失败恢复原卡片与�
   assert.doesNotMatch(app, /window\.confirm/)
   assert.match(ledger, /await playDeleteExit\(\)/)
   assert.match(ledger, /onRemove\(record\)/)
+  assert.doesNotMatch(ledger, /disabled=\{!open/)
   assert.match(ledger, /restoreAfterFailure\(\)/)
   assert.match(ledger, /--swipe-glitch/)
 })
 
 test('左滑表面与空间系统分层，避免与卡片倾斜和批量滚动 reveal 争抢 transform', () => {
   assert.match(ledger, /className="record-swipe-surface"/)
-  assert.match(styles, /only its nested surface moves horizontally/)
+  assert.match(styles, /contained destructive control sits in a quiet tray/)
   assert.match(motion, /\[data-swipe-delete\]/)
+})
+
+
+test('所有主操作与编辑操作在同一行，编辑始终位于左侧、主操作位于右侧', () => {
+  assert.match(ledger, /const primaryAction =/)
+  assert.match(ledger, /className="record-edit-action"/)
+  assert.match(ledger, /\{primaryAction\}/)
+  assert.match(styles, /\.record-actions \.record-edit-action \{ order: 0; \}/)
+  assert.match(styles, /\.record-actions \.record-primary-action \{\s+order: 1;/)
+  assert.match(ledger, /data-has-primary=\{primaryAction \? 'true' : undefined\}/)
+  assert.match(styles, /\.record-actions\[data-has-primary='true'\] \.record-primary-action \{ flex: 1 1 calc\(50% - \.15rem\) !important; \}/)
 })

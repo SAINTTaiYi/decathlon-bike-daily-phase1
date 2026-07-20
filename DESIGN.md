@@ -184,6 +184,7 @@
 - V5.6.2 repair：原生页面壳与滚动内容容器永不在滚动期间被 transform 或 tween；滚动深度只作用于独立固定背景平面、导航变量和局部视觉区块。手机端使用更明显的分层位移与阴影，但保持 `touch-action: pan-y` 和连续原生滑动。
 - V5.6.3 scroll reveal repair：刷新后向下滚动的组件进入由 GSAP 批量空间 reveal 编排，内容保留完整静态布局；禁止对该路径使用 clip-path 或单项 blur，采用 opacity、translateZ、rotateX、scale 和同组 stagger，避免半截裁切与多组件争抢帧。
 - V5.6.4 swipe delete：仅原本具备删除权限且未完成的业务台账记录支持左滑，模块标题持续提示“左滑记录，点按删除”；横向意图确认后才由记录的嵌套视觉表面接管，外层文章仍由滚动 reveal 与空间响应管理，纵向触摸滚动保持 pan-y 原生连续。删除无二次确认，使用 GSAP 电子扫描闪烁退场；服务端失败时恢复卡片，既有操作记录撤回语义不变。
+- V5.6.5 swipe/action refinement：左滑后删除区采用低饱和承托中的独立危险按钮，不再用整块红色栏；删除按钮不依赖异步 open 状态变更，首次点按即执行。所有同时有编辑与主业务操作的记录卡固定为同一行动作，编辑左、主操作右；只有一个动作时才独占整行。保持移动端 `pan-y`、GSAP 电子退场、失败恢复与审计撤回。
 
 ## Architecture
 
@@ -229,7 +230,7 @@ packages/
 
 ## Version governance
 
-- 当前版本：`V5.5.1`。
+- 当前版本：`V5.6.5`。
 - 根 `package.json`、`apps/web/package.json`、`apps/web/src/data/releaseNotes.js` 与 `version-manifest.json` 必须一致。
 - `pnpm version:patch -- ...` 递增 V5 版本并生成当前发布说明。
 - 完成代码与文档后运行 `pnpm version:stamp`；`pnpm build` 先校验版本和源码/部署事实指纹。
