@@ -6,13 +6,13 @@ import { animate } from 'animejs/animation'
 gsap.registerPlugin(ScrollTrigger)
 
 const profiles = {
-  header: { x: 0, y: -12, clipPath: 'inset(0 0 100% 0)', duration: .42 },
-  summary: { x: 0, y: 18, clipPath: 'inset(0 0 16% 0)', duration: .52 },
-  photo: { x: -18, y: 0, clipPath: 'inset(0 100% 0 0)', duration: .68 },
-  title: { x: 0, y: 14, clipPath: 'inset(0 0 12% 0)', duration: .46 },
-  data: { x: 0, y: 16, clipPath: 'inset(0 0 14% 0)', duration: .48 },
-  row: { x: 16, y: 0, clipPath: 'inset(0 0 0 10%)', duration: .42 },
-  dock: { x: 0, y: 24, clipPath: 'inset(100% 0 0 0)', duration: .48 }
+  header: { y: -16, z: -28, rotationX: -2.2, scale: .992, duration: .48 },
+  summary: { y: 26, z: -42, rotationX: 3.6, scale: .986, duration: .58 },
+  photo: { y: 34, z: -58, rotationX: 4.6, scale: .982, duration: .68 },
+  title: { y: 20, z: -32, rotationX: 2.8, scale: .99, duration: .5 },
+  data: { y: 24, z: -38, rotationX: 3.2, scale: .988, duration: .54 },
+  row: { y: 28, z: -46, rotationX: 4.2, scale: .986, duration: .56 },
+  dock: { y: 26, z: -24, rotationX: 2.4, scale: .992, duration: .5 }
 }
 
 const interactiveSelector = 'input, textarea, select, button, [contenteditable="true"], [role="combobox"], [role="menu"]'
@@ -29,35 +29,118 @@ export default function useMotionSystem({ enabled, rootRef, quiet = false }) {
     if (!enabled) return undefined
     const root = rootRef.current || document
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    const elements = [...root.querySelectorAll('[data-motion]')]
+    const revealed = new WeakSet()
+    const observed = new WeakSet()
+    const queued = new Map()
+    const timelines = new Set()
+    let flushFrame = 0
+
+    const visibleMotionElements = () => [...root.querySelectorAll('[data-motion]')]
       .filter((element) => !element.closest('[data-workspace-priority="true"], [data-workspace-module="true"]'))
 
+    const finishStatic = (elements) => {
+      gsap.set(elements, {
+        autoAlpha: 1,
+        x: 0,
+        y: 0,
+        z: 0,
+        rotationX: 0,
+        rotationY: 0,
+        scale: 1,
+        clearProps: 'transform,transformOrigin,opacity,visibility,willChange'
+      })
+    }
+
     if (reduced || !('IntersectionObserver' in window)) {
-      gsap.set(elements, { autoAlpha: 1, x: 0, y: 0, clipPath: 'none', filter: 'none' })
+      finishStatic(visibleMotionElements())
       return undefined
     }
 
-    const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
-      if (!entry.isIntersecting) return
-      const target = entry.target
-      const profile = profiles[target.dataset.motion] || profiles.row
-      const rowDirection = elements.indexOf(target) % 2 && target.dataset.motion === 'row' ? -profile.x : profile.x
-      gsap.fromTo(target,
-        { autoAlpha: .001, x: rowDirection, y: profile.y, clipPath: profile.clipPath, filter: 'blur(6px)' },
-        { autoAlpha: 1, x: 0, y: 0, clipPath: 'inset(0 0 0 0)', filter: 'blur(0px)', duration: profile.duration, ease: 'expo.out', clearProps: 'transform,filter,clipPath,opacity,visibility' }
-      )
-      if (target.dataset.motion === 'photo') {
-        const image = target.querySelector('img')
-        if (image) gsap.fromTo(image, { scale: 1.08 }, { scale: 1.018, duration: .72, ease: 'expo.out', clearProps: 'transform' })
-      }
-      observer.unobserve(target)
-    }), { rootMargin: '0px 0px -8% 0px', threshold: .05 })
+    const flush = () => {
+      flushFrame = 0
+      const groups = new Map()
+      queued.forEach((entry, target) => {
+        if (revealed.has(target)) return
+        const group = target.dataset.motion === 'row'
+          ? target.closest('[data-reveal-group]') || target
+          : target
+        const current = groups.get(group) || []
+        current.push({ target, entry })
+        groups.set(group, current)
+      })
+      queued.clear()
 
-    elements.forEach((element) => observer.observe(element))
+      groups.forEach((items) => {
+        const targets = items.map(({ target }) => target).filter((target) => !revealed.has(target))
+        if (!targets.length) return
+        targets.forEach((target) => revealed.add(target))
+        const motion = targets[0].dataset.motion || 'row'
+        const profile = profiles[motion] || profiles.row
+        const alreadyCentral = items.some(({ entry }) => entry.boundingClientRect.top < window.innerHeight * .46)
+        const stagger = targets.length > 1 ? .065 : 0
+        const duration = alreadyCentral ? Math.min(profile.duration, .42) : profile.duration
+        const timeline = gsap.timeline({
+          defaults: { ease: 'power4.out', overwrite: 'auto' },
+          onComplete: () => {
+            finishStatic(targets)
+            timelines.delete(timeline)
+          }
+        })
+        timelines.add(timeline)
+        timeline
+          .set(targets, {
+            transformPerspective: 1050,
+            transformOrigin: '50% 52%',
+            transformStyle: 'preserve-3d',
+            backfaceVisibility: 'hidden',
+            willChange: 'transform, opacity'
+          })
+          .fromTo(targets,
+            { autoAlpha: .001, y: profile.y, z: profile.z, rotationX: profile.rotationX, scale: profile.scale },
+            { autoAlpha: 1, y: 0, z: 0, rotationX: 0, scale: 1, duration, stagger },
+            0
+          )
+      })
+    }
+
+    const schedule = () => {
+      if (!flushFrame) flushFrame = window.requestAnimationFrame(flush)
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting || revealed.has(entry.target)) return
+        queued.set(entry.target, entry)
+        observer.unobserve(entry.target)
+      })
+      schedule()
+    }, { rootMargin: '12% 0px -4% 0px', threshold: .01 })
+
+    const observe = (elements) => elements.forEach((element) => {
+      if (!observed.has(element) && !revealed.has(element)) {
+        observed.add(element)
+        observer.observe(element)
+      }
+    })
+    observe(visibleMotionElements())
+
+    const mutations = new MutationObserver((records) => {
+      const additions = []
+      records.forEach((record) => record.addedNodes.forEach((node) => {
+        if (node.nodeType !== Node.ELEMENT_NODE) return
+        if (node.matches?.('[data-motion]')) additions.push(node)
+        additions.push(...node.querySelectorAll?.('[data-motion]') || [])
+      }))
+      if (additions.length) observe(additions.filter((element) => !element.closest('[data-workspace-priority="true"], [data-workspace-module="true"]')))
+    })
+    mutations.observe(root, { childList: true, subtree: true })
+
     return () => {
+      window.cancelAnimationFrame(flushFrame)
       observer.disconnect()
-      gsap.killTweensOf(elements)
-      elements.forEach((element) => gsap.killTweensOf(element.querySelectorAll('*')))
+      mutations.disconnect()
+      timelines.forEach((timeline) => timeline.kill())
+      finishStatic(visibleMotionElements())
     }
   }, [enabled, rootRef])
 

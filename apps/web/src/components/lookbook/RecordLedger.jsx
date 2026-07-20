@@ -34,7 +34,7 @@ export default function RecordLedger({
   heading = 'ACTIVE LEDGER / 在册台账', dark = false, showAdd = true
 }) {
   return (
-    <div className="record-ledger" data-dark={dark ? 'true' : undefined} aria-label={`${config.singular}台账，共 ${records.length} 条`}>
+    <div className="record-ledger" data-reveal-group="records" data-dark={dark ? 'true' : undefined} aria-label={`${config.singular}台账，共 ${records.length} 条`}>
       <div className="record-ledger-head">
         <div><span>{heading}</span><small>WORKSHOP LEDGER</small></div>
         <strong>{String(records.length).padStart(2, '0')}</strong>
