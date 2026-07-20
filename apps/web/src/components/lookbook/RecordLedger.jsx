@@ -33,9 +33,7 @@ function Badge({ children }) {
   return <span className="record-badge">{children}</span>
 }
 
-function PickupPixelFill({ recordId, onComplete }) {
-  const overlayRef = useRef(null)
-  const completedRef = useRef(false)
+function usePixelGrid(overlayRef) {
   const [grid, setGrid] = useState(null)
 
   useLayoutEffect(() => {
@@ -55,7 +53,15 @@ function PickupPixelFill({ recordId, onComplete }) {
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
     observer?.observe(overlay)
     return () => observer?.disconnect()
-  }, [])
+  }, [overlayRef])
+
+  return grid
+}
+
+function PickupPixelFill({ recordId, onComplete }) {
+  const overlayRef = useRef(null)
+  const completedRef = useRef(false)
+  const grid = usePixelGrid(overlayRef)
 
   useLayoutEffect(() => {
     const overlay = overlayRef.current
@@ -96,6 +102,56 @@ function PickupPixelFill({ recordId, onComplete }) {
       style={grid ? { '--pickup-pixel-size': `${grid.size}px`, '--pickup-pixel-columns': grid.columns } : undefined}
     >
       {cells.map((_, index) => <i key={index} data-pickup-pixel />)}
+    </div>
+  )
+}
+
+function RepairPixelDissolve({ recordId, onComplete }) {
+  const overlayRef = useRef(null)
+  const completedRef = useRef(false)
+  const grid = usePixelGrid(overlayRef)
+
+  useLayoutEffect(() => {
+    const overlay = overlayRef.current
+    if (!overlay || !grid || completedRef.current) return undefined
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const pixels = [...overlay.querySelectorAll('[data-repair-pixel]')]
+    if (reduced) {
+      completedRef.current = true
+      window.queueMicrotask(() => onComplete(recordId))
+      return undefined
+    }
+    const timeline = gsap.timeline({
+      defaults: { overwrite: 'auto' },
+      onComplete: () => {
+        completedRef.current = true
+        onComplete(recordId)
+      }
+    })
+    timeline
+      .set(pixels, { autoAlpha: 1, x: 0, y: 0, scale: 1, transformOrigin: '50% 50%' })
+      .to(pixels, {
+        x: (index) => -(32 + ((index % grid.columns) / Math.max(1, grid.columns - 1)) * 68),
+        y: (index) => ((Math.floor(index / grid.columns) % 3) - 1) * 5,
+        autoAlpha: 0,
+        scale: .64,
+        duration: 1.05,
+        ease: 'power2.in',
+        stagger: { grid: [grid.rows, grid.columns], from: 'end', amount: .78 }
+      })
+    return () => timeline.kill()
+  }, [grid, onComplete, recordId])
+
+  const cells = grid ? Array.from({ length: grid.columns * grid.rows }) : []
+  return (
+    <div
+      ref={overlayRef}
+      className="repair-pixel-dissolve"
+      data-repair-pixel-dissolve="true"
+      aria-hidden="true"
+      style={grid ? { '--repair-pixel-size': `${grid.size}px`, '--repair-pixel-columns': grid.columns } : undefined}
+    >
+      {cells.map((_, index) => <i key={index} data-repair-pixel />)}
     </div>
   )
 }
@@ -281,6 +337,7 @@ export default function RecordLedger({
   onHandoverComplete, onPickup, onResaleListing, onResaleSold,
   onRepairComplete, onPickupNotificationChange, pickupErrors = {},
   primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete,
+  repairPixelDissolveId = '', onRepairPixelDissolveComplete,
   heading = 'ACTIVE LEDGER / 在册台账', dark = false, showAdd = true
 }) {
   const hasSwipeDelete = !closedAt && records.some((record) => !record.pickedUpToday && !record.completedToday)
@@ -309,6 +366,7 @@ export default function RecordLedger({
         const primaryProcessing = primaryProcessingId === record.id
         const primaryActionLocked = Boolean(closedAt) || primaryActionBusy
         const pickupPixelFill = pickupPixelFillId === record.id
+        const repairPixelDissolve = repairPixelDissolveId === record.id
         const repairRecord = record.scene === 'repair'
         const pickupSource = pickupRecord ? inferPickupSource(record) : ''
         const repairPickup = pickupSource === 'repair'
@@ -369,8 +427,9 @@ export default function RecordLedger({
         )
 
         const row = (
-          <article className="record-row" data-spatial-tilt="true" data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-pickup-pixel-filling={pickupPixelFill ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row">
+          <article className="record-row" data-spatial-tilt="true" data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-pickup-pixel-filling={pickupPixelFill ? 'true' : undefined} data-repair-pixel-dissolving={repairPixelDissolve ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row">
             {pickupPixelFill ? <PickupPixelFill recordId={record.id} onComplete={onPickupPixelFillComplete} /> : null}
+            {repairPixelDissolve ? <RepairPixelDissolve recordId={record.id} onComplete={onRepairPixelDissolveComplete} /> : null}
             <header className="record-row-head">
               <button type="button" className="record-history-mark" onClick={() => onHistory(record)} aria-label={`查看“${record.title}”的操作记录`}><IconJournal width={16} height={16} aria-hidden="true" /></button>
               <div className="record-model-block">

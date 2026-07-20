@@ -187,6 +187,7 @@
 - V5.6.5 swipe/action refinement：左滑后删除区采用低饱和承托中的独立危险按钮，不再用整块红色栏；删除按钮不依赖异步 open 状态变更，首次点按即执行。所有同时有编辑与主业务操作的记录卡固定为同一行动作，编辑左、主操作右；只有一个动作时才独占整行。保持移动端 `pan-y`、GSAP 电子退场、失败恢复与审计撤回。
 - V5.6.6 pickup pixel completion：仅确认取车在服务端校验成功后进入像素填黑。黑色方块按卡片网格由左上向右下逐步覆盖完整卡片，再提交既有当日黑色保留记录；维修、售出和其它完成操作不复用该效果。像素层只覆盖局部视觉面，不改变滚动壳、布局或手势；reduced-motion 直接落入最终黑色状态。
 - V5.6.7 unified primary confirmation：所有提交业务状态变化的主操作在远端确认期间使用统一的勾选图标和“确认中…”状态（浅色票据为黑色确认面，深色票据保持反白对比），包括维修完毕、已售出、完成、确认取车及其自提取货码/闭店确认入口。记录级单次守卫阻止重复或跨记录提交；编辑、左滑删除、筛选、导航和其它通用控件不复用该状态。reduced-motion 不延长等待反馈，仍保留可读 pending 状态。
+- V5.6.8 repair pixel dissolve：仅维修完毕在服务端成功确认后才触发。保留完整票据直到确认结果返回，再以覆盖全卡的白色像素方格从右下层次化分解并缓慢向左消散，完成后才提交既有维修完成/转入待取的本地结果。失败时不播放任何消散，reduced-motion 直接提交最终业务状态。该局部覆盖层不改动滚动壳或原生触摸滚动。
 
 ## Architecture
 
@@ -232,7 +233,7 @@ packages/
 
 ## Version governance
 
-- 当前版本：`V5.6.7`。
+- 当前版本：`V5.6.8`。
 - 根 `package.json`、`apps/web/package.json`、`apps/web/src/data/releaseNotes.js` 与 `version-manifest.json` 必须一致。
 - `pnpm version:patch -- ...` 递增 V5 版本并生成当前发布说明。
 - 完成代码与文档后运行 `pnpm version:stamp`；`pnpm build` 先校验版本和源码/部署事实指纹。
