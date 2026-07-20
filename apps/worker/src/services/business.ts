@@ -14,7 +14,7 @@ export async function ensureDayOpen(db: D1Database, context: AuthContext, busine
   if (day?.closing_status === 'closed') throw new ApiProblem(423, 'DAY_CLOSED', '今日闭店已锁定，请先重新打开。')
 }
 
-export async function writeAudit(db: D1Database, input: {
+export type AuditInput = {
   context: AuthContext
   action: string
   entityType: string
@@ -27,10 +27,12 @@ export async function writeAudit(db: D1Database, input: {
   reversible?: boolean
   revertedEventId?: string | null
   requestId?: string
-}): Promise<string> {
+}
+
+export function prepareAudit(db: D1Database, input: AuditInput): { id: string; statement: D1PreparedStatement } {
   const id = uuid()
   const requestId = input.requestId && /^[0-9a-f-]{36}$/iu.test(input.requestId) ? input.requestId : uuid()
-  await db.prepare(`
+  const statement = db.prepare(`
     INSERT INTO audit_events (
       id, store_id, actor_user_id, actor_name_snapshot, action, entity_type, entity_id, entity_revision,
       business_date, summary, before_state, after_state, reversible, reverted_event_id, request_id, created_at
@@ -52,8 +54,14 @@ export async function writeAudit(db: D1Database, input: {
     input.revertedEventId ?? null,
     requestId,
     nowIso()
-  ).run()
-  return id
+  )
+  return { id, statement }
+}
+
+export async function writeAudit(db: D1Database, input: AuditInput): Promise<string> {
+  const audit = prepareAudit(db, input)
+  await audit.statement.run()
+  return audit.id
 }
 
 export async function cleanupPreviousCompleted(db: D1Database, context: AuthContext, businessDate: string): Promise<number> {
