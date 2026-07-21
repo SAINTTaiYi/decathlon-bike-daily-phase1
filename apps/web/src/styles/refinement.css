@@ -14,6 +14,9 @@
   --page-pad: clamp(.75rem, 2.4vw, 1.25rem);
   --section-air: clamp(2.4rem, 4.5svh, 3.4rem);
   --dock-space: 6.1rem;
+  --visual-viewport-height: 100dvh;
+  --visual-viewport-top: 0px;
+  --visual-viewport-bottom: 0px;
 }
 
 html { background: var(--paper-cool); }
@@ -1019,4 +1022,41 @@ button:not(:disabled) { transition-duration: 150ms; }
 @media (prefers-reduced-motion: reduce) {
   .repair-pixel-dissolve { background: transparent; }
   .repair-pixel-dissolve i { visibility: hidden; }
+}
+
+
+/* Dynamic mobile browser chrome: keep dialogs, dock, toast and final content in the actual visible viewport. */
+.lookbook-shell {
+  padding-bottom: calc(var(--dock-space) + var(--visual-viewport-bottom));
+}
+.look-dock {
+  bottom: calc(max(.6rem, env(safe-area-inset-bottom)) + var(--visual-viewport-bottom));
+}
+.status-toast {
+  bottom: calc(6.4rem + env(safe-area-inset-bottom) + var(--visual-viewport-bottom));
+}
+.app-dialog {
+  position: fixed;
+  inset:
+    max(.375rem, var(--visual-viewport-top))
+    max(.5rem, env(safe-area-inset-right))
+    max(.375rem, calc(var(--visual-viewport-bottom) + .375rem))
+    max(.5rem, env(safe-area-inset-left));
+  max-height: min(calc(var(--visual-viewport-height) - 1rem), 48rem);
+}
+.dialog-panel[data-dialog-panel] {
+  max-height: inherit;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+@media (max-width: 639px) {
+  .app-dialog {
+    width: min(calc(100% - 1rem), 48rem);
+    max-height: calc(var(--visual-viewport-height) - .75rem);
+  }
+  .dialog-panel[data-dialog-panel] {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
 }

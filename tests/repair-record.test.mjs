@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import {
   normalizeRepairValues,
   repairRecordToDraft,
-  STORE_PRODUCT_REPAIR
+  STORE_PRODUCT_REPAIR,
+  COMPLETED_REPAIR_STATUS
 } from '../apps/web/src/data/repairRecord.js'
 
 const valid = {
@@ -56,4 +57,13 @@ test('旧版维修记录映射到新表单且要求补齐新增字段', () => {
   assert.equal(draft.status, '维修中')
   assert.equal(draft.contactValue, '')
   assert.equal(draft.repairType, '')
+})
+
+
+test('待取中的已完成维修保留维修完成状态，编辑映射不会回退为维修中', () => {
+  const draft = repairRecordToDraft({ ...valid, status: COMPLETED_REPAIR_STATUS })
+  assert.equal(draft.status, COMPLETED_REPAIR_STATUS)
+  const result = normalizeRepairValues({ ...valid, status: COMPLETED_REPAIR_STATUS })
+  assert.equal(result.ok, true)
+  assert.equal(result.fields.status, COMPLETED_REPAIR_STATUS)
 })

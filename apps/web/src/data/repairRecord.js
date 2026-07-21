@@ -5,7 +5,9 @@ export const REPAIR_CONTACT_TYPES = [
 
 export const REPAIR_TYPES = ['质保', '付费', '免费', '门店产品维修']
 export const REPAIR_STATUSES = ['维修中', '等待配件', '已开付款单', '已开质保单']
-export const REPAIR_PICKUP_READY_STATUSES = ['已开付款单', '已开质保单']
+export const COMPLETED_REPAIR_STATUS = '维修完成'
+export const REPAIR_RECORD_STATUSES = [...REPAIR_STATUSES, COMPLETED_REPAIR_STATUS]
+export const REPAIR_PICKUP_READY_STATUSES = [COMPLETED_REPAIR_STATUS, '已开付款单', '已开质保单']
 export const FREE_REPAIR = '免费'
 export const STORE_PRODUCT_REPAIR = '门店产品维修'
 
@@ -39,7 +41,7 @@ export function repairRecordToDraft(record) {
     repairType: REPAIR_TYPES.includes(record.repairType) ? record.repairType : '',
     repairProject: record.repairProject || record.detail || '',
     pickupDate: record.pickupDate || '',
-    status: REPAIR_STATUSES.includes(record.status) ? record.status : '维修中'
+    status: REPAIR_RECORD_STATUSES.includes(record.status) ? record.status : '维修中'
   }
 }
 
@@ -72,6 +74,7 @@ export function buildRepairCompletion(record, dateKey, at) {
       kind: 'pickup',
       pickupSource: 'repair',
       notificationStatus: record.notificationStatus || 'pending',
+      status: '维修完成',
       repairCompletedAt: at,
       updatedAt: at
     }
@@ -93,7 +96,7 @@ export function normalizeRepairValues(values) {
   if (!REPAIR_TYPES.includes(repairType)) return { ok: false, error: '请选择维修类型。' }
   if (!repairProject) return { ok: false, error: '请填写维修项目。' }
   if (repairType !== STORE_PRODUCT_REPAIR && !validDate(pickupDate)) return { ok: false, error: '请选择有效的取车日期。' }
-  if (!REPAIR_STATUSES.includes(status)) return { ok: false, error: '请选择当前状态。' }
+  if (!REPAIR_RECORD_STATUSES.includes(status)) return { ok: false, error: '请选择当前状态。' }
 
   const contactLabel = REPAIR_CONTACT_TYPES.find(({ value }) => value === contactType).label
   const metaParts = [`${contactLabel}：${contactValue}`, repairType]
