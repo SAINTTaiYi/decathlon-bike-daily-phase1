@@ -6,7 +6,7 @@ import IconEdit from '@iconoir/EditPencil.mjs'
 import IconJournal from '@iconoir/Journal.mjs'
 import IconPhone from '@iconoir/Phone.mjs'
 import IconPlus from '@iconoir/Plus.mjs'
-import IconTrash from '@iconoir/Trash.mjs'
+import IconWarning from '@iconoir/WarningTriangle.mjs'
 import ProjectSelect from '../ProjectSelect.jsx'
 import {
   decodePickupContact,
@@ -28,9 +28,18 @@ const swipeActionWidth = 92
 const interactiveSelector = 'button, input, textarea, select, [contenteditable="true"], [role="combobox"]'
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 
+function statusTone(value) {
+  const label = String(value || '').trim()
+  if (/^(PICKED UP|COMPLETED)$/iu.test(label) || /^(已取车|已完成|维修完成|已售出|已通知)$/u.test(label)) return 'complete'
+  if (/^(PENDING)$/iu.test(label) || /(等待|待上架|待取)/u.test(label)) return 'pending'
+  if (/^(ACTIVE)$/iu.test(label) || /(维修中|等待配件|已开付款单|已开质保单)/u.test(label)) return 'active'
+  return 'neutral'
+}
+
 function Badge({ children }) {
   if (!children) return null
-  return <span className="record-badge">{children}</span>
+  const tone = statusTone(children)
+  return <span className="record-badge" data-tone={tone}>{tone === 'complete' ? <IconCheck width={12} height={12} aria-hidden="true" /> : null}{children}</span>
 }
 
 function usePixelGrid(overlayRef, density = 'fine') {
@@ -330,7 +339,7 @@ function SwipeDeleteRecord({ record, disabled, onRemove, children }) {
         aria-hidden={!open}
         aria-label={`删除：${record.title}`}
       >
-        <IconTrash width={18} height={18} aria-hidden="true" />
+        <IconWarning width={18} height={18} aria-hidden="true" />
         <span>删除</span>
       </button>
       <div ref={surfaceRef} className="record-swipe-surface">
@@ -450,7 +459,7 @@ export default function RecordLedger({
                 ) : null}
               </div>
               <div className="record-head-meta" aria-label="来源、支付与状态">
-                <span className="record-state">{englishState}</span>
+                <span className="record-state" data-tone={statusTone(englishState)}>{statusTone(englishState) === 'complete' ? <IconCheck width={11} height={11} aria-hidden="true" /> : null}{englishState}</span>
                 <div className="record-badge-row">
                   <Badge>{sourceLabel}</Badge>
                   <Badge>{paymentOrType}</Badge>

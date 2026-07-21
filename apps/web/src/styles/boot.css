@@ -19,12 +19,12 @@
 .boot-login-field input { width: 100%; min-height: 48px; padding: .65rem .1rem; border: 0; border-bottom: 2px solid #fff; border-radius: 0; background: transparent; color: #fff; font-size: 1.1rem; font-weight: 800; outline: 0; }
 .boot-login-field input::placeholder { color: rgb(255 255 255 / .66); }
 .boot-login-field input:focus-visible { border-bottom-color: #fff; box-shadow: 0 4px 0 -2px #fff; }
-.boot-login-field input[aria-invalid='true'] { border-bottom-color: #ff9b78; }
-.boot-login-submit { min-height: 48px; border: 1px solid #fff; background: #fff; color: var(--ink); font-weight: 900; }
+.boot-login-field input[aria-invalid='true'] { border-bottom-color: var(--primary-dark-border); }
+.boot-login-submit { min-height: 48px; border: 1px solid var(--primary-dark-border); background: var(--primary-dark-tint); color: var(--primary-dark-ink); font-weight: 900; }
 .boot-login-submit:disabled { opacity: .62; cursor: wait; }
-.boot-login-submit:active { background: transparent; color: #fff; }
+.boot-login-submit:active { background: var(--falu-red); color: var(--danger-ink); }
 .boot-login > small { color: rgb(255 255 255 / .68); font-size: .68rem; line-height: 1.4; }
-.boot-login-error { color: #ffb298; font-size: .78rem; font-weight: 800; }
+.boot-login-error { color: var(--primary-dark-ink); font-size: .78rem; font-weight: 800; }
 
 @media (max-height: 650px) {
   .boot-title-word { font-size: clamp(2.75rem, 13vw, 6rem); }
@@ -33,7 +33,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .boot-login-submit:hover { background: transparent; color: #fff; }
+  .boot-login-submit:hover { background: var(--falu-red); border-color: var(--primary-dark-border); color: var(--danger-ink); }
 }
 
 @media (forced-colors: active) {
