@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { createUserSchema, loginSchema, passwordSchema, setupAdminSchema } from '@bike-ops/contracts'
-import { usernameKey } from '@bike-ops/domain'
+import { localBusinessDate, usernameKey } from '@bike-ops/domain'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
 import { createAuthMiddleware } from '../auth/middleware.js'
@@ -14,6 +14,7 @@ import {
 import { all, first, nowIso, uuid } from '../db.js'
 import { hashPassword, keyedHash, randomToken, safeEqualHex, sha256, verifyPassword } from '../lib/crypto.js'
 import { ApiProblem } from '../services/problems.js'
+import { prepareAudit } from '../services/business.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
 
@@ -34,6 +35,11 @@ export function authRoutes() {
     const stamp = nowIso()
     const storeId = uuid()
     const userId = uuid()
+    const audit = prepareAudit(c.env.DB, {
+      context: { userId, displayName: input.displayName, mustChangePassword: false, storeId, storeCode: input.storeCode, storeName: input.storeName, storeTimezone: 'Asia/Shanghai', role: 'admin', sessionTokenHash: '', csrfHash: '' },
+      action: 'initial-setup', entityType: 'account', entityId: userId, businessDate: localBusinessDate('Asia/Shanghai'),
+      summary: `初始化管理员：${input.displayName}`, after: { username: input.username, displayName: input.displayName, role: 'admin' }, reversible: false
+    })
     await c.env.DB.batch([
       c.env.DB.prepare(`
         INSERT INTO stores (id, code, name, timezone, status, created_at, updated_at)
@@ -45,7 +51,8 @@ export function authRoutes() {
       `).bind(userId, usernameKey(input.username), input.displayName, passwordHash, stamp, stamp),
       c.env.DB.prepare(`
         INSERT INTO store_members (store_id, user_id, role, created_at) VALUES (?, ?, 'admin', ?)
-      `).bind(storeId, userId, stamp)
+      `).bind(storeId, userId, stamp),
+      audit.statement
     ])
     return c.json({ ok: true, message: '首位管理员已创建，请使用新账号登录。' }, 201)
   })
@@ -96,6 +103,12 @@ export function authRoutes() {
     const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || ''
     const ipHash = ip ? await keyedHash(ip, config.SESSION_SECRET) : null
     const stamp = nowIso()
+    const primaryStore = memberships[0]!
+    const audit = prepareAudit(c.env.DB, {
+      context: { userId: user.id, displayName: user.display_name, mustChangePassword: user.must_change_password === 1, storeId: primaryStore.store_id, storeCode: primaryStore.store_code, storeName: primaryStore.store_name, storeTimezone: primaryStore.timezone, role: primaryStore.role, sessionTokenHash: secrets.tokenHash, csrfHash: secrets.csrfHash },
+      action: 'login', entityType: 'account', entityId: user.id, businessDate: localBusinessDate(primaryStore.timezone),
+      summary: `登录工作台：${user.display_name}`, after: { userId: user.id, storeId: primaryStore.store_id }, reversible: false
+    })
     await c.env.DB.batch([
       c.env.DB.prepare(`
         INSERT INTO auth_sessions (token_hash, csrf_hash, user_id, expires_at, last_seen_at, created_at, ip_hash, user_agent)
@@ -112,7 +125,8 @@ export function authRoutes() {
       ),
       c.env.DB.prepare(`
         UPDATE users SET failed_login_count = 0, locked_until = NULL, last_login_at = ?, updated_at = ? WHERE id = ?
-      `).bind(stamp, stamp, user.id)
+      `).bind(stamp, stamp, user.id),
+      audit.statement
     ])
     setSessionCookie(c, secrets.token, config)
     return c.json({
@@ -174,9 +188,14 @@ export function authRoutes() {
 
   app.post('/api/v1/auth/logout', auth.loadSession, auth.requireCsrf, async (c) => {
     const context = c.get('auth')!
-    await c.env.DB.prepare('UPDATE auth_sessions SET revoked_at = ? WHERE token_hash = ?')
-      .bind(nowIso(), context.sessionTokenHash)
-      .run()
+    const audit = prepareAudit(c.env.DB, {
+      context, action: 'logout', entityType: 'account', entityId: context.userId, businessDate: localBusinessDate(context.storeTimezone),
+      summary: `退出工作台：${context.displayName}`, reversible: false
+    })
+    await c.env.DB.batch([
+      c.env.DB.prepare('UPDATE auth_sessions SET revoked_at = ? WHERE token_hash = ?').bind(nowIso(), context.sessionTokenHash),
+      audit.statement
+    ])
     clearSessionCookie(c, c.get('config'))
     return c.body(null, 204)
   })
@@ -196,6 +215,10 @@ export function authRoutes() {
     const passwordHash = await hashPassword(input.password, config.PASSWORD_PEPPER)
     const stamp = nowIso()
     const userId = uuid()
+    const audit = prepareAudit(c.env.DB, {
+      context, action: 'create-user', entityType: 'account', entityId: userId, businessDate: localBusinessDate(context.storeTimezone),
+      summary: `创建账号：${displayName}`, after: { username, displayName, role }, reversible: false
+    })
     await c.env.DB.batch([
       c.env.DB.prepare(`
         INSERT INTO users (id, username_key, display_name, password_hash, status, must_change_password, failed_login_count, created_at, updated_at)
@@ -203,7 +226,8 @@ export function authRoutes() {
       `).bind(userId, usernameKey(username), displayName, passwordHash, stamp, stamp),
       c.env.DB.prepare(`
         INSERT INTO store_members (store_id, user_id, role, created_at) VALUES (?, ?, ?, ?)
-      `).bind(context.storeId, userId, role, stamp)
+      `).bind(context.storeId, userId, role, stamp),
+      audit.statement
     ])
     return c.json({
       ok: true,
@@ -231,11 +255,16 @@ export function authRoutes() {
     }
     const passwordHash = await hashPassword(nextPassword, config.PASSWORD_PEPPER)
     const stamp = nowIso()
+    const audit = prepareAudit(c.env.DB, {
+      context, action: 'change-password', entityType: 'account', entityId: context.userId, businessDate: localBusinessDate(context.storeTimezone),
+      summary: `修改密码：${context.displayName}`, before: { mustChangePassword: context.mustChangePassword }, after: { mustChangePassword: false }, reversible: false
+    })
     await c.env.DB.batch([
       c.env.DB.prepare('UPDATE users SET password_hash = ?, must_change_password = 0, updated_at = ? WHERE id = ?')
         .bind(passwordHash, stamp, context.userId),
       c.env.DB.prepare('UPDATE auth_sessions SET revoked_at = ? WHERE user_id = ? AND token_hash <> ? AND revoked_at IS NULL')
-        .bind(stamp, context.userId, context.sessionTokenHash)
+        .bind(stamp, context.userId, context.sessionTokenHash),
+      audit.statement
     ])
     return c.json({ ok: true })
   })

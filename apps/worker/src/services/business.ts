@@ -14,6 +14,8 @@ export async function ensureDayOpen(db: D1Database, context: AuthContext, busine
   if (day?.closing_status === 'closed') throw new ApiProblem(423, 'DAY_CLOSED', '今日闭店已锁定，请先重新打开。')
 }
 
+export type AuditModule = 'sales' | 'closing' | 'pickup' | 'repair' | 'resale' | 'handover' | 'account' | 'system'
+
 export type AuditInput = {
   context: AuthContext
   action: string
@@ -27,6 +29,29 @@ export type AuditInput = {
   reversible?: boolean
   revertedEventId?: string | null
   requestId?: string
+  module?: AuditModule
+}
+
+function workItemKind(snapshot: unknown): string {
+  if (!snapshot || typeof snapshot !== 'object') return ''
+  const state = snapshot as { workItem?: { kind?: unknown }; work_item?: { kind?: unknown } }
+  return String(state.workItem?.kind ?? state.work_item?.kind ?? '')
+}
+
+export function auditModuleFor(input: Pick<AuditInput, 'action' | 'entityType' | 'before' | 'after' | 'module'>): AuditModule {
+  if (input.module) return input.module
+  if (input.action === 'save-kpi' || input.action === 'clear-kpi') return 'sales'
+  if (input.action === 'close-day' || input.action === 'reopen-day') return 'closing'
+  if (['create-user', 'change-password', 'login', 'logout', 'initial-setup'].includes(input.action) || input.entityType === 'account') return 'account'
+  if (['complete-pickup', 'update-pickup-notification'].includes(input.action)) return 'pickup'
+  if (input.action === 'complete-repair') return 'repair'
+  if (['complete-resale-listing', 'sell-resale'].includes(input.action)) return 'resale'
+  if (input.action === 'complete-handover') return 'handover'
+  if (input.action === 'auto-cleanup') return 'system'
+  const kind = workItemKind(input.after) || workItemKind(input.before)
+  if (kind === 'pickup' || kind === 'repair' || kind === 'resale') return kind
+  if (kind === 'handover') return 'handover'
+  return 'system'
 }
 
 export function prepareAudit(db: D1Database, input: AuditInput): { id: string; statement: D1PreparedStatement } {
@@ -35,8 +60,8 @@ export function prepareAudit(db: D1Database, input: AuditInput): { id: string; s
   const statement = db.prepare(`
     INSERT INTO audit_events (
       id, store_id, actor_user_id, actor_name_snapshot, action, entity_type, entity_id, entity_revision,
-      business_date, summary, before_state, after_state, reversible, reverted_event_id, request_id, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      business_date, summary, before_state, after_state, reversible, reverted_event_id, request_id, audit_module, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     id,
     input.context.storeId,
@@ -53,6 +78,7 @@ export function prepareAudit(db: D1Database, input: AuditInput): { id: string; s
     input.reversible ? 1 : 0,
     input.revertedEventId ?? null,
     requestId,
+    auditModuleFor(input),
     nowIso()
   )
   return { id, statement }
@@ -86,8 +112,8 @@ export async function cleanupPreviousCompleted(db: D1Database, context: AuthCont
       db.prepare(`
         INSERT INTO audit_events (
           id, store_id, actor_user_id, actor_name_snapshot, action, entity_type, entity_id, entity_revision,
-          business_date, summary, reversible, request_id, created_at
-        ) VALUES (?, ?, NULL, '系统', 'auto-cleanup', 'work-item', ?, ?, ?, ?, 0, ?, ?)
+          business_date, summary, reversible, request_id, audit_module, created_at
+        ) VALUES (?, ?, NULL, '系统', 'auto-cleanup', 'work-item', ?, ?, ?, ?, 0, ?, 'system', ?)
       `).bind(uuid(), context.storeId, row.id, row.revision + 1, businessDate, `自动清理：${row.title}`, uuid(), stamp)
     ])
   }

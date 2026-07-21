@@ -5,9 +5,10 @@ import IconUndo from '@iconoir/UndoAction.mjs'
 import IconLogOut from '@iconoir/LogOut.mjs'
 import IconUpload from '@iconoir/Upload.mjs'
 import IconUserPlus from '@iconoir/UserPlus.mjs'
+import IconJournal from '@iconoir/Journal.mjs'
 import AppDialog from './AppDialog.jsx'
 
-export default function MenuDialog({ open, onClose, onUndo, canUndo, onCopyReport, onReset, locked, currentUser, currentRole, currentStore, onSwitchUser, hasLocalData, onMigrate, canCreateUser, onCreateUser }) {
+export default function MenuDialog({ open, onClose, onUndo, canUndo, onCopyReport, onReset, locked, currentUser, currentRole, currentStore, onSwitchUser, hasLocalData, onMigrate, canCreateUser, onCreateUser, onOpenPermanentHistory }) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [confirmSwitch, setConfirmSwitch] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -45,6 +46,7 @@ export default function MenuDialog({ open, onClose, onUndo, canUndo, onCopyRepor
       </div>
       <button type="button" className="dialog-action" onClick={undo} disabled={!canUndo || busy}><IconUndo width={20} height={20} aria-hidden="true" /><span><strong>{busy ? '正在处理…' : '撤回最近操作'}</strong><small>仅恢复当前仍可安全撤回的最近一次数据库操作。</small></span></button>
       <button type="button" className="dialog-action" onClick={onCopyReport} disabled={busy}><IconNotes width={20} height={20} aria-hidden="true" /><span><strong>复制当日报告</strong><small>复制销售数据、闭店状态和今天发生的台账操作。</small></span></button>
+      <button type="button" className="dialog-action" onClick={() => { close(); onOpenPermanentHistory?.() }} disabled={busy}><IconJournal width={20} height={20} aria-hidden="true" /><span><strong>永久操作历史</strong><small>按日期和模块查询数据库审计记录，跨日清理不会删除。</small></span></button>
       {canCreateUser ? <button type="button" className="dialog-action" onClick={() => { close(); onCreateUser?.() }} disabled={busy}><IconUserPlus width={20} height={20} aria-hidden="true" /><span><strong>添加用户</strong><small>为当前门店创建同事账号，并生成首次登录临时密码。</small></span></button> : null}
       {hasLocalData ? <button type="button" className="dialog-action" onClick={() => { close(); onMigrate() }} disabled={busy}><IconUpload width={20} height={20} aria-hidden="true" /><span><strong>迁移旧本机数据</strong><small>显式检查当前浏览器的 v5 台账，并创建管理员导入审核。</small></span></button> : null}
       {confirmReset ? (

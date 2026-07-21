@@ -1,4 +1,5 @@
 import { formatTicketNumber, splitMaintenanceItems } from '../data/recordPresentation.js'
+import { inferPickupSource, inferSelfPickupPlatform } from '../data/pickupRecord.js'
 
 const WIDTH = 1242
 const PAD = 64
@@ -57,6 +58,16 @@ function isOpenHandover(record) {
   return record?.scene === 'poster' && !record.completedOn && record.lifecycle === 'active'
 }
 
+export function selfPickupReportLabel(record) {
+  if (inferPickupSource(record) !== 'self-pickup') return ''
+  const labels = {
+    tmall: '天猫自提',
+    jd: '京东自提',
+    'mini-program': '小程序自提'
+  }
+  return labels[inferSelfPickupPlatform(record)] || ''
+}
+
 export function buildClosingReportModel({
   businessDate = '',
   storeName = '门店',
@@ -73,16 +84,17 @@ export function buildClosingReportModel({
     closedAt,
     appVersion,
     kpi: {
-      salesVehicles: Number(kpi.salesVehicles || 0),
-      safetyChecks: Number(kpi.safetyChecks || 0),
-      safetyModel: String(kpi.safetyModel || '').trim(),
-      validReviews: Number(kpi.validReviews || 0),
-      usedSold: Number(kpi.usedSold || 0),
-      usedReceived: Number(kpi.usedReceived || 0)
+      salesVehicles: Number(kpi.salesVehicles ?? 0),
+      safetyChecks: Number(kpi.safetyChecks ?? 0),
+      safetyModel: String(kpi.safetyModel ?? '').trim(),
+      validReviews: Number(kpi.validReviews ?? 0),
+      usedSold: Number(kpi.usedSold ?? 0),
+      usedReceived: Number(kpi.usedReceived ?? 0)
     },
-    pickups: records.filter(isOpenPickup),
-    repairs: records.filter(isOpenRepair),
-    handovers: records.filter(isOpenHandover)
+    // The image may be rendered asynchronously after the close request. Clone the values now so later React refreshes cannot replace this report's KPI snapshot.
+    pickups: records.filter(isOpenPickup).map((record) => ({ ...record })),
+    repairs: records.filter(isOpenRepair).map((record) => ({ ...record })),
+    handovers: records.filter(isOpenHandover).map((record) => ({ ...record }))
   }
 }
 
@@ -433,9 +445,11 @@ function drawCard(ctx, item, x, y, width, index) {
   ctx.fillText(pay, midCenterX, my)
   ctx.restore()
 
-  // ——— right date panel content, centered in panel ———
-  const dateLabel = '取车时间'
-  const dateValue = formatDateSlash(item.pickupDate)
+  // ——— right panel: online self-pickup uses its platform label instead of a pickup date ———
+  const selfPickupLabel = selfPickupReportLabel(item)
+  const dateLabel = selfPickupLabel ? '自提标识' : '取车时间'
+  const dateValue = selfPickupLabel || formatDateSlash(item.pickupDate)
+  if (selfPickupLabel) fillRound(ctx, panelX, panelY, panelW, panelH, 16, INK)
   ctx.font = `600 18px ${FONT_MONO}`
   const rightStackH = 22 + 16 + 34
   let ry = panelY + Math.round((panelH - rightStackH) / 2)
@@ -443,12 +457,12 @@ function drawCard(ctx, item, x, y, width, index) {
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
-  ctx.fillStyle = MUTED
+  ctx.fillStyle = selfPickupLabel ? 'rgba(255,255,255,0.68)' : MUTED
   ctx.font = `600 18px ${FONT_MONO}`
   ctx.fillText(dateLabel, rightCenterX, ry)
   ry += 30
-  ctx.fillStyle = INK
-  ctx.font = `800 24px ${FONT_DISPLAY}`
+  ctx.fillStyle = selfPickupLabel ? '#ffffff' : INK
+  ctx.font = `800 ${selfPickupLabel ? 30 : 24}px ${FONT_DISPLAY}`
   ctx.fillText(dateValue, rightCenterX, ry)
 
   ctx.textAlign = 'left'

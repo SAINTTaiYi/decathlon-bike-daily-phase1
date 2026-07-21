@@ -1,13 +1,13 @@
-export const APP_VERSION = "5.7.2"
+export const APP_VERSION = "5.7.3"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.21",
-  title: "兼容 Safari 登录并强制跳转 HTTPS",
-  summary: "为不支持 crypto.randomUUID 的 Safari 提供安全降级，并让 HTTP 访问在 Worker 层永久跳转 HTTPS。",
+  title: "修复闭店日报快照并归档全模块操作历史",
+  summary: "自动闭店日报改用服务器确认的销售快照，自提订单显示平台标识，并提供可筛选的永久数据库审计历史。",
   changes: [
-    "写操作的幂等键在 crypto.randomUUID 缺失时改用 getRandomValues 生成标准 UUID v4，避免旧版或非安全上下文 Safari 登录报错。",
-    "Cloudflare Worker 接管静态页面请求，HTTP URL 以 308 保留路径和查询参数跳转 HTTPS，HTTPS 页面继续由 ASSETS 服务。",
-    "Preview 与 Staging 发布配置均启用 Worker-first 路由，确保 HTTP 重定向逻辑覆盖页面访问。"
+    "自动生成日报图直接使用闭店事务返回的销售数据快照，避免 React 刷新时序导致销售项显示为 0。",
+    "线上自提订单在日报图原取车时间位置显示天猫自提、京东自提或小程序自提。",
+    "销售、闭店、待取、维修、二手车、交接、账号和系统操作永久写入数据库审计，并可按日期和模块查询。"
   ]
 }
