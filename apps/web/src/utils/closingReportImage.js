@@ -1,5 +1,5 @@
 import { formatTicketNumber, splitMaintenanceItems } from '../data/recordPresentation.js'
-import { inferPickupSource, inferSelfPickupPlatform } from '../data/pickupRecord.js'
+import { decodePickupContact, inferPickupSource, inferSelfPickupPlatform, pickupContactLabel } from '../data/pickupRecord.js'
 
 const WIDTH = 1242
 const PAD = 64
@@ -246,12 +246,23 @@ function drawSparkline(ctx, x, y, w, h) {
   ctx.fill()
 }
 
-function itemDetail(item) {
+export function reportItemDetail(item) {
+  // Manual self-pickup stores compatibility contact data in meta. It belongs only in the contact column, never the detail list.
+  if (inferPickupSource(item) === 'self-pickup') return ''
   return String(item.detail || item.repairProject || item.meta || item.repairType || '').trim()
 }
 
+export function reportContact(item) {
+  const manualPickup = item?.scene === 'pickup' && inferPickupSource(item) !== 'repair'
+  if (manualPickup) return decodePickupContact(item)
+  return {
+    contactType: item?.contactType === 'member' ? 'member' : 'phone',
+    contactValue: String(item?.contactValue ?? '').trim()
+  }
+}
+
 function itemContactLabel(item) {
-  return item.contactType === 'member' ? '会员' : '手机'
+  return pickupContactLabel(reportContact(item).contactType) === '会员号' ? '会员' : '手机'
 }
 
 function itemPaymentLabel(item) {
@@ -301,7 +312,7 @@ function formatContactDisplay(value) {
 function measureCard(ctx, item, contentW) {
   const { leftW } = layoutCardColumns(contentW)
   const textW = leftW - CARD_PAD_X * 2
-  const detailItems = splitMaintenanceItems(itemDetail(item))
+  const detailItems = splitMaintenanceItems(reportItemDetail(item))
   ctx.font = `500 24px ${FONT_BODY}`
   const detailLines = detailItems.flatMap((entry) => wrapText(ctx, `• ${entry}`, textW)).slice(0, 4)
   const title = String(item.title || '未命名')
@@ -359,7 +370,7 @@ function drawCard(ctx, item, x, y, width, index) {
   const title = String(item.title || '未命名')
   ctx.font = `800 40px ${FONT_DISPLAY}`
   const titleLines = wrapText(ctx, title, textW).slice(0, 2)
-  const detailItems = splitMaintenanceItems(itemDetail(item))
+  const detailItems = splitMaintenanceItems(reportItemDetail(item))
   ctx.font = `500 24px ${FONT_BODY}`
   const detailLines = detailItems.flatMap((entry) => wrapText(ctx, `• ${entry}`, textW)).slice(0, 4)
 
@@ -411,8 +422,9 @@ function drawCard(ctx, item, x, y, width, index) {
 
   // ——— mid column: phone stack, vertically + horizontally centered in mid band ———
   const midX = leftX + leftW
+  const contact = reportContact(item)
   const contactLabel = itemContactLabel(item)
-  const contactRaw = String(item.contactValue || '0').trim() || '0'
+  const contactRaw = String(contact.contactValue || '0').trim() || '0'
   const contactValue = formatContactDisplay(contactRaw)
   const pay = itemPaymentLabel(item)
   const midInnerPad = 12
