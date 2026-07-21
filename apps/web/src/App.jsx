@@ -464,13 +464,11 @@ export default function App() {
         <div className="workspace-paper-scratches" aria-hidden="true" />
         <main className="lookbook-shell" id="main-content" tabIndex="-1" data-workspace-layer="structure">
           <div className="workspace-pointer-plane" data-workspace-layer="pointer-plane">
-            <section className="workspace-first-screen" data-workspace-cover aria-label="当日闭店概览">
-              <div data-workspace-layer="navigation" data-workspace-priority="true"><LookbookHeader /></div>
-              <div className="active-user-strip" data-workspace-layer="navigation" data-workspace-priority="true" aria-label={`当前登录用户：${currentUser}`}><span>{currentStore?.storeName || 'DATABASE'} · {roleLabels[role]}</span><strong>{currentUser}</strong><button type="button" onClick={() => setMenuOpen(true)}>菜单</button></div>
-              {!online ? <p className="offline-banner" role="status">OFFLINE · 当前离线，仅可查看最近加载的数据；恢复网络后才能修改。</p> : null}
-              <div className="workspace-focus" data-workspace-layer="focus" data-workspace-priority="true" data-depth-card="true" id="closing-summary"><ClosingSummary workflow={workflow} onJumpToRequirement={jumpToRequirement} onCompleteClosing={requestClose} onReopenClosing={() => void reopen()} onExportReport={exportClosingReport} /></div>
-              <ReleaseNotes />
-            </section>
+            <div data-workspace-layer="navigation" data-workspace-priority="true"><LookbookHeader /></div>
+            <div className="active-user-strip" data-workspace-layer="navigation" data-workspace-priority="true" aria-label={`当前登录用户：${currentUser}`}><span>{currentStore?.storeName || 'DATABASE'} · {roleLabels[role]}</span><strong>{currentUser}</strong><button type="button" onClick={() => setMenuOpen(true)}>菜单</button></div>
+            {!online ? <p className="offline-banner" role="status">OFFLINE · 当前离线，仅可查看最近加载的数据；恢复网络后才能修改。</p> : null}
+            <div className="workspace-focus" data-workspace-layer="focus" data-workspace-priority="true" data-depth-card="true" id="closing-summary"><ClosingSummary workflow={workflow} onJumpToRequirement={jumpToRequirement} onCompleteClosing={requestClose} onReopenClosing={() => void reopen()} onExportReport={exportClosingReport} /></div>
+            <ReleaseNotes />
             <MainHeadImage />
             <PulseScene dateKey={workflow.dateKey} kpi={workflow.kpi} kpiReady={workflow.kpiReady} records={workflow.records} closedAt={writeLocked} onJump={jumpTo} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'pulse', record: null })} />
             <PickupScene {...recordProps('pickup')} />
