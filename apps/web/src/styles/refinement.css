@@ -1060,3 +1060,111 @@ button:not(:disabled) { transition-duration: 150ms; }
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 }
+
+/* V5.7.7 authenticated workspace material: the operational canvas becomes a restrained aged-paper surface without touching login, dialogs, forms, or report export. */
+.app-runtime[data-ready='true'] {
+  --workspace-aged-paper: #EFEEEC;
+  background: var(--workspace-aged-paper);
+}
+.app-runtime[data-ready='true'] .workspace-environment {
+  opacity: 1;
+  background: var(--workspace-aged-paper);
+}
+.app-runtime[data-ready='true'] .workspace-depth-plane-far {
+  opacity: .72;
+  background:
+    radial-gradient(ellipse 42% 30% at 12% 15%, rgb(255 255 255 / .54), transparent 72%),
+    radial-gradient(ellipse 38% 28% at 88% 32%, rgb(130 132 130 / .075), transparent 74%),
+    radial-gradient(ellipse 44% 34% at 48% 88%, rgb(255 255 255 / .42), transparent 74%);
+}
+.app-runtime[data-ready='true'] .workspace-depth-plane-near {
+  opacity: .38;
+  background:
+    linear-gradient(112deg, transparent 0 22%, rgb(255 255 255 / .36) 32%, transparent 43%),
+    linear-gradient(292deg, transparent 0 57%, rgb(117 119 117 / .022) 69%, transparent 82%);
+  mix-blend-mode: multiply;
+}
+.workspace-paper-film,
+.workspace-paper-fibre,
+.workspace-paper-scratches {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+.app-runtime[data-ready='true'] .workspace-paper-film {
+  background-image: url('/textures/paper-grain.png');
+  background-repeat: repeat;
+  background-size: 112px 112px;
+  background-blend-mode: multiply;
+  opacity: .045;
+}
+.app-runtime[data-ready='true'] .workspace-paper-fibre {
+  background-image: url('/textures/paper-grain.png');
+  background-repeat: repeat;
+  background-size: 344px 344px;
+  background-position: 37px 61px;
+  background-blend-mode: multiply;
+  opacity: .026;
+}
+.app-runtime[data-ready='true'] .workspace-paper-scratches {
+  background:
+    linear-gradient(106deg, transparent 0 13%, rgb(126 128 126 / .74) 13.08% 13.16%, transparent 13.26% 47%, rgb(126 128 126 / .46) 47.08% 47.14%, transparent 47.24% 100%),
+    linear-gradient(161deg, transparent 0 29%, rgb(126 128 126 / .6) 29.07% 29.13%, transparent 29.22% 72%, rgb(126 128 126 / .38) 72.08% 72.14%, transparent 72.23% 100%),
+    linear-gradient(18deg, transparent 0 61%, rgb(255 255 255 / .7) 61.07% 61.13%, transparent 61.22% 100%);
+  background-size: 643px 487px, 911px 683px, 1187px 829px;
+  background-position: 0 0, 191px 73px, 421px 211px;
+  opacity: .016;
+}
+.app-runtime[data-ready='true'] .lookbook-shell {
+  background-color: transparent;
+  background-image: none;
+  box-shadow: 0 0 0 1px rgb(11 11 12 / .055), 0 45px 140px rgb(11 11 12 / .085);
+}
+
+/* The distressed type is confined to the live workspace's headings. A solid ink fallback preserves contrast when text clipping is unavailable. */
+.app-runtime[data-ready='true'] .lookbook-shell :is(h1, h2, .title-translation, .look-number, .summary-copy > span, .record-model-block strong, .release-notes summary strong, .report-masthead span) {
+  color: var(--ink);
+  text-shadow: .012em .012em 0 rgb(255 255 255 / .19), -.012em -.008em 0 rgb(11 11 12 / .12);
+}
+.app-runtime[data-ready='true'] .head-photo-caption strong {
+  color: #fff;
+  text-shadow: .012em .012em 0 rgb(11 11 12 / .62), -.012em -.008em 0 rgb(255 255 255 / .12);
+}
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .app-runtime[data-ready='true'] .lookbook-shell :is(h1, h2, .title-translation, .look-number, .summary-copy > span, .record-model-block strong, .release-notes summary strong, .report-masthead span) {
+    background:
+      linear-gradient(121deg, transparent 0 8%, rgb(239 238 236 / .28) 8.45% 8.9%, transparent 9.35% 31%, rgb(239 238 236 / .18) 31.4% 31.68%, transparent 32.1% 79%, rgb(239 238 236 / .24) 79.35% 79.78%, transparent 80.2% 100%),
+      linear-gradient(23deg, transparent 0 17%, rgb(239 238 236 / .16) 17.3% 17.58%, transparent 17.9% 54%, rgb(239 238 236 / .3) 54.34% 54.72%, transparent 55.05% 100%),
+      linear-gradient(var(--ink), var(--ink));
+    background-size: 131px 89px, 223px 157px, 100% 100%;
+    background-position: 9px 17px, 41px 63px, 0 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .app-runtime[data-ready='true'] .head-photo-caption strong {
+    background:
+      linear-gradient(121deg, transparent 0 11%, rgb(11 11 12 / .24) 11.35% 11.72%, transparent 12.1% 58%, rgb(11 11 12 / .18) 58.32% 58.62%, transparent 59% 100%),
+      linear-gradient(23deg, transparent 0 39%, rgb(11 11 12 / .22) 39.22% 39.56%, transparent 39.9% 100%),
+      linear-gradient(#fff, #fff);
+    background-size: 151px 101px, 239px 173px, 100% 100%;
+    background-position: 13px 23px, 51px 31px, 0 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+@media (forced-colors: active) {
+  .app-runtime[data-ready='true'] .workspace-paper-film,
+  .app-runtime[data-ready='true'] .workspace-paper-fibre,
+  .app-runtime[data-ready='true'] .workspace-paper-scratches { display: none; }
+  .app-runtime[data-ready='true'] .lookbook-shell :is(h1, h2, .title-translation, .look-number, .summary-copy > span, .record-model-block strong, .release-notes summary strong, .report-masthead span),
+  .app-runtime[data-ready='true'] .head-photo-caption strong {
+    background: none;
+    color: CanvasText;
+    -webkit-text-fill-color: CanvasText;
+    text-shadow: none;
+  }
+}
