@@ -131,7 +131,7 @@ export function normalizePickupNotificationRecord(record) {
         ? '已开质保单'
         : /付款单/u.test(repairText)
           ? '已开付款单'
-          : '维修中'
+          : '维修完成'
       : inferPickupSource(record) === 'self-pickup'
         ? '等待顾客取车'
         : '等待取车'
@@ -216,7 +216,7 @@ export function buildPickupNotificationUpdate(record, notificationStatus, at) {
 export function validatePickup(record, suppliedCode = '') {
   const pickupSource = inferPickupSource(record)
   if (pickupSource === 'repair' && record.repairType !== FREE_REPAIR && !REPAIR_PICKUP_READY_STATUSES.includes(record.status)) {
-    return { ok: false, error: '维修车辆取车失败：非免费维修的当前状态必须为“已开付款单”或“已开质保单”。' }
+    return { ok: false, error: '维修车辆取车失败：非免费维修的当前状态必须为“维修完成”、“已开付款单”或“已开质保单”。' }
   }
   if (pickupSource === 'self-pickup' && !text(suppliedCode, 40)) {
     return { ok: false, error: '请输入顾客提供的取货码后再确认取车。' }

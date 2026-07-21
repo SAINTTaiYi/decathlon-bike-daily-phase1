@@ -7,7 +7,7 @@ export default function RepairScene(props) {
   const scene = sceneById('repair')
   return (
     <section className="look-section" data-depth-section={scene.id} id={scene.id} data-look={scene.id} aria-labelledby={`${scene.id}-title`}>
-      <SceneTitle scene={scene} note="按结构化维修单登记联系方式、维修类型、项目、取车日期与固定状态；付费、质保与免费维修完成后保留同一记录进入待取，免费维修无需先变更状态即可取车。" />
+      <SceneTitle scene={scene} note="按结构化维修单登记联系方式、维修类型、项目、取车日期与固定状态；付费、质保与免费维修完成后保留同一记录进入待取，免费维修完成后系统会自动标为维修完成，可直接取车。" />
       <RecordLedger {...props} config={sceneRecordConfig.repair} />
     </section>
   )

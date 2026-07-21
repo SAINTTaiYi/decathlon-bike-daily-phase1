@@ -323,11 +323,11 @@ export function workItemRoutes() {
     // left by an older undo before reinserting the canonical repair-origin pickup detail.
     const [updated] = await db.batch([
       db.prepare(`
-        UPDATE work_items SET kind = 'pickup', revision = revision + 1, updated_by = ?, updated_at = ?
+        UPDATE work_items SET kind = 'pickup', status = '维修完成', revision = revision + 1, updated_by = ?, updated_at = ?
         WHERE id = ? AND store_id = ? AND revision = ?
       `).bind(context.userId, stamp, id, context.storeId, revision),
       db.prepare(`
-        UPDATE repair_details SET repair_completed_at = ?
+        UPDATE repair_details SET repair_status = '维修完成', repair_completed_at = ?
         WHERE work_item_id = ? AND EXISTS (
           SELECT 1 FROM work_items WHERE id = ? AND store_id = ? AND kind = 'pickup' AND revision = ?
         )

@@ -31,6 +31,7 @@ import useAuth from './hooks/useAuth.js'
 import useRemoteClosingWorkflow from './hooks/useRemoteClosingWorkflow.js'
 import useMotionSystem from './hooks/useMotionSystem.js'
 import useWorkspaceMotion from './hooks/useWorkspaceMotion.js'
+import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
 import { gsap } from 'gsap'
 import OpeningScene from './scenes/OpeningScene.jsx'
 import PickupScene from './scenes/PickupScene.jsx'
@@ -42,6 +43,7 @@ import SalesScene from './scenes/SalesScene.jsx'
 const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员' }
 
 export default function App() {
+  useVisualViewportMetrics()
   const auth = useAuth()
   const [loginAnimationDone, setLoginAnimationDone] = useState(false)
   const [workspaceAssemblyDone, setWorkspaceAssemblyDone] = useState(false)
@@ -82,7 +84,7 @@ export default function App() {
   const currentUser = auth.user?.displayName || ''
   const currentStore = auth.stores.find((store) => store.storeId === auth.currentStoreId) || auth.stores[0] || null
   const role = currentStore?.role || 'operator'
-  const canManageClosing = role === 'manager' || role === 'admin'
+  const canReopenClosing = role === 'manager' || role === 'admin'
   const writeLocked = Boolean(workflow.closedAt) || !online || Boolean(workflow.storageError)
 
   const workspaceLaunching = authenticated && auth.source === 'login' && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone
@@ -191,7 +193,6 @@ export default function App() {
   const requestClose = () => {
     if (!online) return setToast({ message: '当前离线，不能执行闭店。', tone: 'error' })
     if (workflow.storageError) return setToast({ message: '数据库同步尚未恢复，请先重新同步。', tone: 'error' })
-    if (!canManageClosing) return setToast({ message: '只有经理或管理员可以完成闭店。', tone: 'error' })
     if (!workflow.kpiReady) {
       setToast('请先填写今天的销售数据')
       jumpToRequirement()
@@ -265,7 +266,7 @@ export default function App() {
   }
 
   const reopen = async () => {
-    if (!canManageClosing) return setToast({ message: '只有经理或管理员可以重新打开闭店。', tone: 'error' })
+    if (!canReopenClosing) return setToast({ message: '只有经理或管理员可以重新打开闭店。', tone: 'error' })
     const result = await workflow.reopenClosing()
     setToast(result.ok ? '闭店状态已重新打开' : { message: result.error, tone: 'error' })
   }
@@ -367,7 +368,7 @@ export default function App() {
     clearPrimaryConfirmation(recordId)
     setToast(pending.result.route === 'completed'
       ? `门店产品维修已完成：${pending.title}`
-      : `维修完毕，已携带维修单转入待取：${pending.title}`)
+      : `维修完成，已携带维修单转入待取：${pending.title}`)
   }, [clearPrimaryConfirmation, workflow])
 
   const recordProps = (scene) => ({
@@ -476,12 +477,12 @@ export default function App() {
               <div className="footer-identity"><span>{currentStore?.storeName || 'ACTIVE USER'} · {roleLabels[role]}</span><strong>{currentUser}</strong></div>
               <span>LAST SYNC · 最后同步</span>
               <strong>{workflow.lastSyncedAt ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(workflow.lastSyncedAt)) : '尚未同步'}</strong>
-              <button type="button" className="primary-action" onClick={requestClose} disabled={writeLocked || !canManageClosing}>{workflow.closedAt ? '今日已闭店' : workflow.kpiReady ? '完成闭店' : '填写销售数据'}</button>
+              <button type="button" className="primary-action" onClick={requestClose} disabled={writeLocked}>{workflow.closedAt ? '今日已闭店' : workflow.kpiReady ? '完成闭店' : '填写销售数据'}</button>
               <div className="footer-utility-actions" aria-label="日报辅助操作"><button type="button" onClick={() => setMenuOpen(true)}>日报菜单</button><button type="button" onClick={() => setLogOpen(true)}>当日日志</button><button type="button" onClick={() => setPermanentHistoryOpen(true)}>永久历史</button></div>
             </footer>
           </div>
         </main>
-        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} hasLocalData={canManageClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canCreateUser={role === 'admin'} onCreateUser={() => setCreateUserOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} />
+        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canCreateUser={role === 'admin'} onCreateUser={() => setCreateUserOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} />
         <CreateUserDialog open={createUserOpen} onClose={() => setCreateUserOpen(false)} onNotify={setToast} />
         <LogDialog open={logOpen} onClose={() => setLogOpen(false)} events={workflow.events} />
         <PermanentHistoryDialog open={permanentHistoryOpen} onClose={() => setPermanentHistoryOpen(false)} onLoad={workflow.getPermanentHistory} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />

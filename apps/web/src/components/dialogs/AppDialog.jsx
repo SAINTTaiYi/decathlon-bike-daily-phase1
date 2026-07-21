@@ -40,7 +40,7 @@ export default function AppDialog({ open, onClose, title, eyebrow, description, 
       }}
       onClick={(event) => { if (event.target === dialogRef.current) handleClose() }}
     >
-      <div className="dialog-panel">
+      <div className="dialog-panel" data-dialog-panel>
         <header className="dialog-header">
           <div>{eyebrow ? <p>{eyebrow}</p> : null}<h2 id={titleId}>{title}</h2></div>
           <button ref={closeRef} type="button" className="icon-button" onClick={handleClose} aria-label="关闭对话框"><IconClose width={22} height={22} aria-hidden="true" /></button>

@@ -49,7 +49,7 @@ test('付费、质保和免费维修完毕后携带维修字段转入待取', ()
     assert.equal(result.record.pickupSource, 'repair')
     assert.equal(result.record.contactValue, '0')
     assert.equal(result.record.repairType, repairType)
-    assert.equal(result.record.status, status)
+    assert.equal(result.record.status, '维修完成')
     assert.equal(result.record.pickupDate, '2026-07-18')
   }
 })
@@ -58,13 +58,14 @@ test('缺少维修类型时禁止执行维修完毕', () => {
   assert.deepEqual(buildRepairCompletion(baseRepair, '2026-07-12', at), { ok: false, error: '请先编辑并补齐维修类型，再执行维修完毕。' })
 })
 
-test('非免费维修车辆只有已开付款单或已开质保单时允许取车', () => {
+test('非免费维修车辆只有维修完成、已开付款单或已开质保单时允许取车', () => {
   const repairPickup = { scene: 'pickup', pickupSource: 'repair', title: '维修车', repairType: '付费' }
   for (const status of ['维修中', '等待配件']) {
     const result = validatePickup({ ...repairPickup, status })
     assert.equal(result.ok, false)
-    assert.match(result.error, /非免费维修.*已开付款单.*已开质保单/)
+    assert.match(result.error, /非免费维修.*维修完成.*已开付款单.*已开质保单/)
   }
+  assert.deepEqual(validatePickup({ ...repairPickup, status: '维修完成' }), { ok: true, pickupSource: 'repair' })
   assert.deepEqual(validatePickup({ ...repairPickup, status: '已开付款单' }), { ok: true, pickupSource: 'repair' })
   assert.deepEqual(validatePickup({ ...repairPickup, repairType: '质保', status: '已开质保单' }), { ok: true, pickupSource: 'repair' })
 })
