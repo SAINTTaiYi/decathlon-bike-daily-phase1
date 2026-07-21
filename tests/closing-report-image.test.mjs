@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildClosingReportModel, selfPickupReportLabel } from '../apps/web/src/utils/closingReportImage.js'
+import { buildClosingReportModel, reportContact, reportItemDetail, selfPickupReportLabel } from '../apps/web/src/utils/closingReportImage.js'
 
 test('闭店日报图模型只收录未完成的待取/维修/交接，并保留完整销售数据', () => {
   const model = buildClosingReportModel({
@@ -61,4 +61,35 @@ test('自动闭店日报图使用服务器 close 响应的 KPI 快照而不是�
   assert.match(source, /kpi: result\.day\?\.kpi/u)
   assert.match(source, /closedAt: result\.day\?\.closedAt/u)
   assert.match(source, /\}, \{ automatic: true \}\)/u)
+})
+
+
+test('自提车辆手机号只进入日报图手机号槽位，不作为详情内容', () => {
+  const order = {
+    scene: 'pickup',
+    pickupSource: 'self-pickup',
+    selfPickupPlatform: 'tmall',
+    detail: '',
+    meta: '18172049175'
+  }
+  assert.equal(reportItemDetail(order), '')
+  assert.deepEqual(reportContact(order), { contactType: 'phone', contactValue: '18172049175' })
+})
+
+test('日报图测量与绘制都使用同一自提详情过滤规则', async () => {
+  const source = await (await import('node:fs/promises')).readFile(new URL('../apps/web/src/utils/closingReportImage.js', import.meta.url), 'utf8')
+  assert.doesNotMatch(source, /itemDetail\(/u)
+  assert.match(source, /reportItemDetail\(item\)/u)
+})
+
+test('自提车辆会员号也使用日报图联系槽位，详情保持为空', () => {
+  const order = {
+    scene: 'pickup',
+    pickupSource: 'self-pickup',
+    selfPickupPlatform: 'jd',
+    detail: '',
+    meta: '会员号：M-2048'
+  }
+  assert.equal(reportItemDetail(order), '')
+  assert.deepEqual(reportContact(order), { contactType: 'member', contactValue: 'M-2048' })
 })
