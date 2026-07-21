@@ -459,6 +459,9 @@ export default function App() {
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
         <div className="workspace-depth-plane workspace-depth-plane-far" data-workspace-layer="depth-far" aria-hidden="true" />
         <div className="workspace-depth-plane workspace-depth-plane-near" data-workspace-layer="depth-near" aria-hidden="true" />
+        <div className="workspace-paper-film" aria-hidden="true" />
+        <div className="workspace-paper-fibre" aria-hidden="true" />
+        <div className="workspace-paper-scratches" aria-hidden="true" />
         <main className="lookbook-shell" id="main-content" tabIndex="-1" data-workspace-layer="structure">
           <div className="workspace-pointer-plane" data-workspace-layer="pointer-plane">
             <div data-workspace-layer="navigation" data-workspace-priority="true"><LookbookHeader /></div>
