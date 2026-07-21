@@ -156,18 +156,23 @@ export function workItemRoutes() {
       const kind = String(workItem.kind)
       const pickup = before.pickup as Record<string, unknown> | null
       const repairLike = kind === 'repair' || (kind === 'pickup' && pickup?.pickupSource === 'repair')
+      const completedRepairPickup = kind === 'pickup' && pickup?.pickupSource === 'repair' && workItem.status === '维修完成'
       let title = ''
       let detail = ''
       let meta = ''
       let status = ''
       if (repairLike) {
-        const normalized = normalizeRepair(input.values)
+        const repair = before.repair as Record<string, unknown> | null
+        const persistedRepairStatus = String(repair?.repairStatus ?? repair?.repair_status ?? '')
+        const normalized = normalizeRepair(completedRepairPickup
+          ? { ...(input.values as Record<string, unknown>), status: persistedRepairStatus }
+          : input.values)
         if (!normalized.ok) throw new ApiProblem(400, 'INVALID_REPAIR', normalized.error)
         const fields = normalized.fields
         title = fields.title ?? ''
         detail = fields.repairProject ?? ''
         meta = fields.repairType ?? ''
-        status = fields.status ?? ''
+        status = completedRepairPickup ? '维修完成' : fields.status ?? ''
         const key = requireContactKey(config)
         await db.prepare(`
           UPDATE repair_details SET contact_type = ?, contact_ciphertext = ?, contact_fingerprint = ?,
@@ -327,7 +332,7 @@ export function workItemRoutes() {
         WHERE id = ? AND store_id = ? AND revision = ?
       `).bind(context.userId, stamp, id, context.storeId, revision),
       db.prepare(`
-        UPDATE repair_details SET repair_status = '维修完成', repair_completed_at = ?
+        UPDATE repair_details SET repair_completed_at = ?
         WHERE work_item_id = ? AND EXISTS (
           SELECT 1 FROM work_items WHERE id = ? AND store_id = ? AND kind = 'pickup' AND revision = ?
         )
