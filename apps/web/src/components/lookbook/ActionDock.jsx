@@ -2,7 +2,7 @@ import { lookbookScenes } from '../../data/lookbookScenes.js'
 
 export default function ActionDock({ activeScene, onJump, closedAt }) {
   return (
-    <nav className="look-dock" aria-label="全部日报模块" data-motion="dock">
+    <nav className="look-dock" aria-label="全部日报模块">
       <ul>
         {lookbookScenes.map(({ id, cn, dock, NavIcon }) => (
           <li key={id}>

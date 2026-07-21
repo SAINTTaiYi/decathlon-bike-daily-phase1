@@ -1,9 +1,14 @@
-.blur-text { overflow: visible; }
-.blur-text--block { display: block; }
-.blur-text__unit, .blur-text__space { display: inline-block; }
-.blur-text__space { white-space: pre; }
-.blur-text[data-enhanced='true'] .blur-text__unit { opacity: 0; filter: blur(15px); transform: translate3d(0, .32em, 0) scale(.965); will-change: opacity, filter, transform; }
-.blur-text[data-mode='timed'][data-blur-in='true'] .blur-text__unit { opacity: 1; filter: none; transform: none; transition: opacity var(--blur-duration) var(--ease-out) var(--blur-delay), filter var(--blur-duration) var(--ease-out) var(--blur-delay), transform var(--blur-duration) var(--ease-out) var(--blur-delay); }
+.visual-line-text { position: relative; display: block; }
+.visual-line-text__measure { position: absolute; inset: 0 auto auto 0; display: block; width: 100%; visibility: hidden; pointer-events: none; }
+.visual-line-text__render, .visual-line-text__flow { display: block; }
+.visual-line-text__measure > span, .visual-line-text__flow > span, .visual-line-text__content > span { display: inline; }
+.visual-line-text__line { display: block; overflow: hidden; }
+.visual-line-text__content { display: block; transform: translateY(0); }
 .status-toast { position: fixed; left: 50%; bottom: calc(6.4rem + env(safe-area-inset-bottom)); z-index: 220; width: min(calc(100% - 2rem), 30rem); padding: .8rem 1rem; border: 1px solid rgb(255 255 255 / .2); background: var(--ink); color: #fff; text-align: center; opacity: 0; transform: translate(-50%, 1rem); pointer-events: none; transition: opacity .2s var(--ease-out), transform .2s var(--ease-out); }
 .status-toast[data-visible='true'] { opacity: 1; transform: translate(-50%, 0); }
 .status-toast[data-tone='error'] { border-color: rgb(255 255 255 / .5); background: var(--critical); }
+[data-editorial-page][data-editorial-pending='true'] { pointer-events: none; }
+[data-editorial-page][data-editorial-pending='true'] > * { visibility: hidden; }
+.app-runtime[data-editorial-pending='true'] { pointer-events: none; }
+.app-runtime[data-editorial-pending='true'] .workspace-pointer-plane { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .visual-line-text__content { transform: none !important; opacity: 1 !important; } }
