@@ -346,12 +346,12 @@ export default function RecordLedger({
   onRepairComplete, onPickupNotificationChange, pickupErrors = {},
   primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete,
   repairPixelDissolveId = '', onRepairPixelDissolveComplete,
-  heading = 'ACTIVE LEDGER / 在册台账', dark = false, showAdd = true
+  heading = 'ACTIVE LEDGER / 在册台账', dark = false, showAdd = true, variant = ''
 }) {
   const hasSwipeDelete = !closedAt && records.some((record) => !record.pickedUpToday && !record.completedToday)
 
   return (
-    <div className="record-ledger" data-reveal-group="records" data-dark={dark ? 'true' : undefined} aria-label={`${config.singular}台账，共 ${records.length} 条`}>
+    <div className="record-ledger" data-reveal-group="records" data-dark={dark ? 'true' : undefined} data-variant={variant || undefined} aria-label={`${config.singular}台账，共 ${records.length} 条`}>
       <div className="record-ledger-head">
         <div>
           <span>{heading}</span>
