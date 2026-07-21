@@ -30,8 +30,8 @@ import useActiveScene from './hooks/useActiveScene.js'
 import useAuth from './hooks/useAuth.js'
 import useRemoteClosingWorkflow from './hooks/useRemoteClosingWorkflow.js'
 import useMotionSystem from './hooks/useMotionSystem.js'
-import useWorkspaceMotion from './hooks/useWorkspaceMotion.js'
-import { gsap } from 'gsap'
+import usePressFeedback from './hooks/usePressFeedback.js'
+import VisualLineText from './components/VisualLineText.jsx'
 import OpeningScene from './scenes/OpeningScene.jsx'
 import PickupScene from './scenes/PickupScene.jsx'
 import PulseScene from './scenes/PulseScene.jsx'
@@ -44,8 +44,7 @@ const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员
 export default function App() {
   const auth = useAuth()
   const [loginAnimationDone, setLoginAnimationDone] = useState(false)
-  const [workspaceAssemblyDone, setWorkspaceAssemblyDone] = useState(false)
-  const [taskInputFocused, setTaskInputFocused] = useState(false)
+  const [editorialReady, setEditorialReady] = useState(false)
   const workspaceRootRef = useRef(null)
   const [setupToken, setSetupToken] = useState(() => {
     const match = window.location.hash.match(/^#setup=([^&]+)$/u)
@@ -54,7 +53,7 @@ export default function App() {
   const authenticated = auth.status === 'authenticated'
   const introDone = authenticated && (auth.source === 'restore' || loginAnimationDone)
   const mustChangePassword = Boolean(auth.user?.mustChangePassword)
-  const deferUpdatePrompt = auth.source === 'login' && !mustChangePassword && !workspaceAssemblyDone
+  const deferUpdatePrompt = auth.source === 'login' && !mustChangePassword && !editorialReady
   const workflow = useRemoteClosingWorkflow(authenticated && !mustChangePassword)
   const { activeScene, jumpTo } = useActiveScene()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -85,54 +84,20 @@ export default function App() {
   const canManageClosing = role === 'manager' || role === 'admin'
   const writeLocked = Boolean(workflow.closedAt) || !online || Boolean(workflow.storageError)
 
-  const workspaceLaunching = authenticated && auth.source === 'login' && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone
-  const completeWorkspaceAssembly = useCallback(() => {
-    setWorkspaceAssemblyDone(true)
-    window.requestAnimationFrame(() => document.getElementById('main-content')?.focus({ preventScroll: true }))
-  }, [])
-  const { skip: skipWorkspaceAssembly } = useWorkspaceMotion({
-    active: workspaceLaunching,
-    rootRef: workspaceRootRef,
-    onComplete: completeWorkspaceAssembly
-  })
-  const taskFocused = Boolean(taskInputFocused || menuOpen || logOpen || permanentHistoryOpen || confirmOpen || kpiOpen || migrationOpen || createUserOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
+  const completeEditorialReveal = useCallback(() => setEditorialReady(true), [])
 
-  useMotionSystem({ enabled: introDone && workflow.hydrated && !workspaceLaunching, rootRef: workspaceRootRef, quiet: taskFocused })
+  const editorialScope = setupToken && !authenticated ? 'setup'
+    : auth.status === 'restoring' ? 'restoring'
+      : authenticated && mustChangePassword && introDone ? 'password-change'
+        : authenticated && !workflow.hydrated ? 'hydrating'
+          : introDone && workflow.hydrated ? 'workspace' : 'login'
+  useMotionSystem({ enabled: editorialScope !== 'login', rootRef: workspaceRootRef, scope: editorialScope, onInitialComplete: editorialScope === 'workspace' ? completeEditorialReveal : undefined })
+  usePressFeedback({ enabled: editorialScope === 'workspace', rootRef: workspaceRootRef })
 
   useEffect(() => {
-    if (auth.status === 'anonymous') {
-      setLoginAnimationDone(false)
-      setWorkspaceAssemblyDone(false)
-    }
-  }, [auth.status])
-
-  useEffect(() => {
-    if (!workspaceLaunching) return undefined
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        skipWorkspaceAssembly()
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [skipWorkspaceAssembly, workspaceLaunching])
-
-  useEffect(() => {
-    const root = workspaceRootRef.current
-    if (!root) return undefined
-    const syncTaskFocus = () => {
-      const focused = document.activeElement
-      setTaskInputFocused(Boolean(focused && root.contains(focused) && focused.matches('input, textarea, select, [contenteditable="true"], [role="combobox"]')))
-    }
-    const deferTaskFocusSync = () => window.setTimeout(syncTaskFocus, 0)
-    root.addEventListener('focusin', syncTaskFocus)
-    root.addEventListener('focusout', deferTaskFocusSync)
-    return () => {
-      root.removeEventListener('focusin', syncTaskFocus)
-      root.removeEventListener('focusout', deferTaskFocusSync)
-    }
-  }, [introDone, workflow.hydrated])
+    if (auth.status === 'anonymous') setLoginAnimationDone(false)
+    if (!introDone || !workflow.hydrated) setEditorialReady(false)
+  }, [auth.status, introDone, workflow.hydrated])
 
   useEffect(() => {
     if (!toast) return undefined
@@ -408,7 +373,7 @@ export default function App() {
   }
 
   if (auth.status === 'restoring') {
-    return <><main className="hydration-state" role="status" aria-live="polite"><strong>VERIFYING SESSION</strong><span>正在验证数据库账号…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
+    return <><main className="hydration-state" data-editorial-page role="status" aria-live="polite"><VisualLineText as="strong">VERIFYING SESSION</VisualLineText><span data-editorial-description>正在验证数据库账号…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
 
   if (authenticated && mustChangePassword && introDone) {
@@ -423,16 +388,16 @@ export default function App() {
   }
 
   if (authenticated && !workflow.hydrated && (auth.source === 'restore' || loginAnimationDone)) {
-    return <><main className="hydration-state" role="status" aria-live="polite"><strong>SYNCING DATABASE</strong><span>正在读取门店业务台账…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
+    return <><main className="hydration-state" data-editorial-page role="status" aria-live="polite"><VisualLineText as="strong">SYNCING DATABASE</VisualLineText><span data-editorial-description>正在读取门店业务台账…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
 
   if (authenticated && introDone && workflow.hydrated && !workflow.hasSnapshot) {
     return (
       <>
-        <main className="hydration-state sync-failure" role="alert" aria-live="assertive">
-          <strong>DATABASE UNAVAILABLE</strong>
-          <span>{workflow.storageError || '暂时无法读取门店业务台账。'}</span>
-          <p>为避免把空页面误认为真实数据，工作台不会在首次同步成功前开放。</p>
+        <main className="hydration-state sync-failure" data-editorial-page role="alert" aria-live="assertive">
+          <VisualLineText as="strong">DATABASE UNAVAILABLE</VisualLineText>
+          <span data-editorial-description>{workflow.storageError || '暂时无法读取门店业务台账。'}</span>
+          <p data-editorial-description>为避免把空页面误认为真实数据，工作台不会在首次同步成功前开放。</p>
           <div className="hydration-state-actions">
             <button type="button" className="primary-action" onClick={() => void workflow.refresh()} disabled={workflow.syncing}>{workflow.syncing ? '正在重试…' : '重新同步'}</button>
             <button type="button" className="secondary-action" onClick={() => void logout()}>退出登录</button>
@@ -454,16 +419,13 @@ export default function App() {
     <>
       {showBoot ? <BootLoader onLogin={auth.login} onComplete={() => setLoginAnimationDone(true)} /> : null}
       {introDone ? <a className="skip-link" href="#closing-summary">跳到闭店摘要</a> : null}
-      <div ref={workspaceRootRef} className="app-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
-        <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
-        <div className="workspace-depth-plane workspace-depth-plane-far" data-workspace-layer="depth-far" aria-hidden="true" />
-        <div className="workspace-depth-plane workspace-depth-plane-near" data-workspace-layer="depth-near" aria-hidden="true" />
-        <main className="lookbook-shell" id="main-content" tabIndex="-1" data-workspace-layer="structure">
-          <div className="workspace-pointer-plane" data-workspace-layer="pointer-plane">
-            <div data-workspace-layer="navigation" data-workspace-priority="true"><LookbookHeader /></div>
-            <div className="active-user-strip" data-workspace-layer="navigation" data-workspace-priority="true" aria-label={`当前登录用户：${currentUser}`}><span>{currentStore?.storeName || 'DATABASE'} · {roleLabels[role]}</span><strong>{currentUser}</strong><button type="button" onClick={() => setMenuOpen(true)}>菜单</button></div>
+      <div ref={workspaceRootRef} className="app-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-editorial-ready={editorialReady ? 'true' : 'false'} inert={!introDone || !editorialReady ? '' : undefined} aria-hidden={!introDone || !editorialReady ? 'true' : undefined}>
+        <main className="lookbook-shell" id="main-content" tabIndex="-1">
+          <div className="workspace-pointer-plane">
+            <div><LookbookHeader /></div>
+            <div className="active-user-strip" aria-label={`当前登录用户：${currentUser}`}><span>{currentStore?.storeName || 'DATABASE'} · {roleLabels[role]}</span><strong>{currentUser}</strong><button type="button" onClick={() => setMenuOpen(true)}>菜单</button></div>
             {!online ? <p className="offline-banner" role="status">OFFLINE · 当前离线，仅可查看最近加载的数据；恢复网络后才能修改。</p> : null}
-            <div className="workspace-focus" data-workspace-layer="focus" data-workspace-priority="true" data-depth-card="true" id="closing-summary"><ClosingSummary workflow={workflow} onJumpToRequirement={jumpToRequirement} onCompleteClosing={requestClose} onReopenClosing={() => void reopen()} onExportReport={exportClosingReport} /></div>
+            <div className="workspace-focus" id="closing-summary"><ClosingSummary workflow={workflow} onJumpToRequirement={jumpToRequirement} onCompleteClosing={requestClose} onReopenClosing={() => void reopen()} onExportReport={exportClosingReport} /></div>
             <ReleaseNotes />
             <MainHeadImage />
             <PulseScene dateKey={workflow.dateKey} kpi={workflow.kpi} kpiReady={workflow.kpiReady} records={workflow.records} closedAt={writeLocked} onJump={jumpTo} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'pulse', record: null })} />
@@ -499,9 +461,8 @@ export default function App() {
         <ConfirmClosingDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={confirmClose} />
         <KpiDialog open={kpiOpen} onClose={() => setKpiOpen(false)} values={workflow.kpi} savedAt={workflow.kpiSavedAt} onSave={workflow.saveKpi} onClear={workflow.clearKpi} onNotify={setToast} />
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
-        {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={activeScene} onJump={jumpTo} closedAt={workflow.closedAt} /></div> : null}
+        {introDone ? <ActionDock activeScene={activeScene} onJump={jumpTo} closedAt={workflow.closedAt} /> : null}
       </div>
-      {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button></div> : null}
       <ReportImageDialog
         open={Boolean(reportImage?.objectUrl)}
         onClose={closeReportImage}
@@ -509,7 +470,7 @@ export default function App() {
         filename={reportImage?.filename || ''}
         onDownload={redownloadReportImage}
       />
-      {introDone ? <UpdateRefreshDialog enabled={!deferUpdatePrompt && !workspaceLaunching} /> : null}
+      {introDone ? <UpdateRefreshDialog enabled={!deferUpdatePrompt} /> : null}
       <StatusToast notice={toast} />
     </>
   )

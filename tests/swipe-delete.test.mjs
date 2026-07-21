@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs'
 
 const ledger = readFileSync(new URL('../apps/web/src/components/lookbook/RecordLedger.jsx', import.meta.url), 'utf8')
 const app = readFileSync(new URL('../apps/web/src/App.jsx', import.meta.url), 'utf8')
-const motion = readFileSync(new URL('../apps/web/src/hooks/useMotionSystem.js', import.meta.url), 'utf8')
 const styles = readFileSync(new URL('../apps/web/src/styles/refinement.css', import.meta.url), 'utf8')
 
 test('可删除台账仅在未完成且未锁定时采用左滑删除容器，卡片内不保留删除按钮', () => {
@@ -34,10 +33,10 @@ test('删除无二次确认，成功走电子退场，失败恢复原卡片与�
   assert.match(ledger, /--swipe-glitch/)
 })
 
-test('左滑表面与空间系统分层，避免与卡片倾斜和批量滚动 reveal 争抢 transform', () => {
+test('左滑表面独立持有手势与 transform，通用文本 reveal 不会触碰业务卡片', () => {
   assert.match(ledger, /className="record-swipe-surface"/)
+  assert.match(ledger, /data-swipe-delete="true"/)
   assert.match(styles, /contained destructive control sits in a quiet tray/)
-  assert.match(motion, /\[data-swipe-delete\]/)
 })
 
 

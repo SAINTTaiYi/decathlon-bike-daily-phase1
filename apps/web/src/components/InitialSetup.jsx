@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { setupAdminAccount } from '../api/auth.js'
 import { normalizeLoginUsername } from '../data/userSession.js'
+import VisualLineText from './VisualLineText.jsx'
 
 export default function InitialSetup({ token, onComplete }) {
   const [form, setForm] = useState({ username: '', displayName: '', password: '', confirmPassword: '', storeCode: 'BIKE', storeName: '自行车部门' })
@@ -29,9 +30,9 @@ export default function InitialSetup({ token, onComplete }) {
   }
 
   return (
-    <main className="initial-setup-shell">
+    <main className="initial-setup-shell" data-editorial-page>
       <form className="initial-setup-panel" onSubmit={submit} noValidate>
-        <header><span>ONE-TIME SETUP · 一次性初始化</span><h1>创建首位管理员</h1><p>Setup Token 只存在当前地址 Fragment 中。创建完成后，该 Token 无法再创建第二位管理员。</p></header>
+        <header><span data-editorial-logo>ONE-TIME SETUP · 一次性初始化</span><VisualLineText as="h1">创建首位管理员</VisualLineText><p data-editorial-description>Setup Token 只存在当前地址 Fragment 中。创建完成后，该 Token 无法再创建第二位管理员。</p></header>
         <label className="field-row"><span>管理员用户名</span><input autoFocus required maxLength="24" autoComplete="username" value={form.username} onChange={(event) => set('username', event.target.value)} /></label>
         <label className="field-row"><span>界面显示名</span><input maxLength="24" autoComplete="name" value={form.displayName} onChange={(event) => set('displayName', event.target.value)} placeholder="留空时与用户名相同" /></label>
         <label className="field-row"><span>管理员密码</span><input required type="password" minLength="10" maxLength="128" autoComplete="new-password" value={form.password} onChange={(event) => set('password', event.target.value)} /></label>
