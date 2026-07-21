@@ -115,19 +115,26 @@
 
 ## Palette
 
-- Ink `#08080A`
-- Ink soft `#272729`
-- Paper `#F4F5F0`
-- Cool paper `#E7E9DE`
-- Raised `#FFFFFF`
-- Hairline `#C9CBC3`
-- Hairline strong `#8B8D86`
-- Muted `#62625E`
-- Action blue `#075DFF`
-- Critical `#B53B18`
-- Success `#17613C`
+### Background continuity
 
-高对比状态必须同时使用文字、图标或票据反转表达，不能只依赖颜色。
+页面、工作台、纸张材质、Dialog 与报告导出的既有背景色保持不变。此次只重构前景 UI 的字体、图标、按钮、标签、胶囊、组件边界、焦点与状态反馈，不能借由改底色制造新主题。
+
+### Foreground system
+
+- Dark Void `#141616`：主文字、深色票据、完成状态文字与高对比符号。
+- Iridium `#3D3C38`：次级正文、进行中胶囊的实底与深色组件层次。
+- Artillery `#746D67`：弱化文字、常规边界、待处理状态轮廓。
+- Equilibrium `#A49F9D`：完成状态胶囊实底、深色面上的文字与弱层级承托。
+- Falu Red `#7F1D1A`：唯一暖色强调，主业务操作的红描边和低饱和红底，以及删除、错误、不可逆操作的强化危险反馈。
+
+### Action and status rules
+
+- 主要业务按钮不使用实心红：使用低饱和 Falu Red 填充、Falu Red 描边和深红文字；dark ticket 内使用同一语义的低亮度红承托。
+- 删除和不可逆确认使用更强的实心 Falu Red，并必须有明确危险文案或 Warning 图标；不与普通业务主操作混淆。
+- 待处理：Artillery 轮廓配 Iridium 文字和透明底，保证小字号状态文案在不改动纸张背景的前提下达到可读对比度。
+- 进行中：Iridium 实底配 Equilibrium 文字；状态文案保留。
+- 已完成：Equilibrium 实底配 Dark Void 文字和 Check 图标。
+- 旧绿、黄、蓝语义状态全部退役。高对比状态必须同时使用文字、图标、填充或票据反转表达，不能只依赖颜色。
 
 ## Typography
 
@@ -236,7 +243,7 @@ packages/
 
 ## Version governance
 
-- 当前版本：`V5.7.0`。
+- 当前版本：`V5.7.8`。
 - 根 `package.json`、`apps/web/package.json`、`apps/web/src/data/releaseNotes.js` 与 `version-manifest.json` 必须一致。
 - `pnpm version:patch -- ...` 递增 V5 版本并生成当前发布说明。
 - 完成代码与文档后运行 `pnpm version:stamp`；`pnpm build` 先校验版本和源码/部署事实指纹。
