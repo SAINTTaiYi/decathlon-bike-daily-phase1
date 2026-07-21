@@ -36,12 +36,14 @@ test('添加车辆对话框和固定底栏会使用动态可视视口避开浏�
   assert.match(refinement, /padding-bottom: calc\(var\(--dock-space\) \+ var\(--visual-viewport-bottom\)\)/u)
 })
 
-test('非门店产品维修转待取时，服务端与本地回退记录都写入维修完成状态', async () => {
+test('非门店产品维修转待取时，用户可见状态写入工作项而内部维修状态保持 D1 合法值', async () => {
   const [worker, repair] = await Promise.all([
     read('apps/worker/src/routes/work-items.ts'),
     read('apps/web/src/data/repairRecord.js')
   ])
   assert.match(worker, /SET kind = 'pickup', status = '维修完成'/u)
-  assert.match(worker, /SET repair_status = '维修完成', repair_completed_at = \?/u)
+  assert.match(worker, /UPDATE repair_details SET repair_completed_at = \?/u)
+  assert.doesNotMatch(worker, /UPDATE repair_details SET repair_status = '维修完成'/u)
+  assert.match(worker, /completedRepairPickup/u)
   assert.match(repair, /status: '维修完成'/u)
 })
