@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildClosingReportModel } from '../apps/web/src/utils/closingReportImage.js'
+import { buildClosingReportModel, selfPickupReportLabel } from '../apps/web/src/utils/closingReportImage.js'
 
 test('闭店日报图模型只收录未完成的待取/维修/交接，并保留完整销售数据', () => {
   const model = buildClosingReportModel({
@@ -35,4 +35,30 @@ test('闭店日报图模型只收录未完成的待取/维修/交接，并保留
   assert.deepEqual(model.handovers.map((item) => item.id), ['h1'])
   assert.equal(model.storeName, '测试店')
   assert.equal(model.businessDate, '2026-07-18')
+})
+
+
+test('日报图为线上自提订单显示对应平台标识，并保留普通待取的取车日期语义', () => {
+  assert.equal(selfPickupReportLabel({ pickupSource: 'self-pickup', selfPickupPlatform: 'tmall' }), '天猫自提')
+  assert.equal(selfPickupReportLabel({ pickupSource: 'self-pickup', selfPickupPlatform: 'jd' }), '京东自提')
+  assert.equal(selfPickupReportLabel({ pickupSource: 'self-pickup', selfPickupPlatform: 'mini-program' }), '小程序自提')
+  assert.equal(selfPickupReportLabel({ pickupSource: 'customer-storage', selfPickupPlatform: 'tmall' }), '')
+  assert.equal(selfPickupReportLabel({ kind: 'online', meta: '线上自提 京东' }), '京东自提')
+})
+
+test('日报图模型冻结 KPI 与待取记录快照，不受后续页面状态改写影响', () => {
+  const kpi = { salesVehicles: 4, safetyChecks: 2, safetyModel: 'ST100', validReviews: 3, usedSold: 1, usedReceived: 2 }
+  const records = [{ id: 'order-1', scene: 'pickup', title: '订单车', pickupSource: 'self-pickup', selfPickupPlatform: 'tmall', lifecycle: 'active' }]
+  const model = buildClosingReportModel({ kpi, records, closedAt: '2026-07-21T09:00:00.000Z' })
+  kpi.salesVehicles = 0
+  records[0].selfPickupPlatform = 'jd'
+  assert.equal(model.kpi.salesVehicles, 4)
+  assert.equal(model.pickups[0].selfPickupPlatform, 'tmall')
+})
+
+test('自动闭店日报图使用服务器 close 响应的 KPI 快照而不是等待 React 刷新后的状态', async () => {
+  const source = await (await import('node:fs/promises')).readFile(new URL('../apps/web/src/App.jsx', import.meta.url), 'utf8')
+  assert.match(source, /kpi: result\.day\?\.kpi/u)
+  assert.match(source, /closedAt: result\.day\?\.closedAt/u)
+  assert.match(source, /\}, \{ automatic: true \}\)/u)
 })

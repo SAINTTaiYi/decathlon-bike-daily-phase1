@@ -403,3 +403,12 @@ button:not(:disabled) {
 .record-row[data-exiting='true'] {
   pointer-events: none;
 }
+
+.history-filters { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) auto; gap: .6rem; align-items: end; margin-bottom: .8rem; padding-bottom: .8rem; border-bottom: 1px solid var(--line); }
+.history-filters label { display: grid; gap: .3rem; min-width: 0; }
+.history-filters label > span { color: var(--muted); font-family: var(--font-mono); font-size: .7rem; font-weight: 800; }
+.history-filters input, .history-filters select { min-height: 44px; width: 100%; border: 1px solid var(--ink); border-radius: 0; background: var(--surface-raised); color: var(--ink); padding: .5rem; font: inherit; }
+.history-filters .primary-action { white-space: nowrap; }
+.permanent-history time { width: 5.25rem; }
+.history-load-more { width: 100%; margin-top: .8rem; }
+@media (max-width: 620px) { .history-filters { grid-template-columns: 1fr; } .history-filters .primary-action { width: 100%; } }

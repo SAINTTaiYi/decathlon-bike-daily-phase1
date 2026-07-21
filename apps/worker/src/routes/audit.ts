@@ -10,6 +10,8 @@ import { buildRestoreSnapshotStatements } from '../services/restore.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
 type AuditScene = 'pickup' | 'poster' | 'repair' | 'resale'
+type AuditModule = 'sales' | 'closing' | 'pickup' | 'repair' | 'resale' | 'handover' | 'account' | 'system'
+const auditModules = new Set<AuditModule>(['sales', 'closing', 'pickup', 'repair', 'resale', 'handover', 'account', 'system'])
 
 export function auditSceneForKind(kind: string | null | undefined): AuditScene | null {
   if (kind === 'handover') return 'poster'
@@ -26,6 +28,22 @@ function parseJson(value: unknown): any {
 function kindFromState(state: any): string | null {
   if (!state) return null
   return state?.workItem?.kind ?? state?.work_item?.kind ?? null
+}
+
+function auditModuleFromRow(row: any, beforeState: any, afterState: any): AuditModule {
+  if (auditModules.has(row.audit_module as AuditModule)) return row.audit_module as AuditModule
+  if (row.action === 'save-kpi' || row.action === 'clear-kpi') return 'sales'
+  if (row.action === 'close-day' || row.action === 'reopen-day') return 'closing'
+  if (['create-user', 'change-password', 'login', 'logout', 'initial-setup'].includes(row.action) || row.entity_type === 'account') return 'account'
+  if (['complete-pickup', 'update-pickup-notification'].includes(row.action)) return 'pickup'
+  if (row.action === 'complete-repair') return 'repair'
+  if (['complete-resale-listing', 'sell-resale'].includes(row.action)) return 'resale'
+  if (row.action === 'complete-handover') return 'handover'
+  if (row.action === 'auto-cleanup') return 'system'
+  const kind = kindFromState(afterState) ?? kindFromState(beforeState)
+  if (kind === 'pickup' || kind === 'repair' || kind === 'resale') return kind
+  if (kind === 'handover') return 'handover'
+  return 'system'
 }
 
 export function mapAuditEvent(row: any, undoBusinessDate?: string) {
@@ -49,6 +67,7 @@ export function mapAuditEvent(row: any, undoBusinessDate?: string) {
     scene,
     previousScene,
     nextScene,
+    module: auditModuleFromRow(row, beforeState, afterState),
     canUndo: Boolean(row.reversible) && !row.reverted_by && !row.has_later_event && row.business_date === undoBusinessDate
   }
 }
@@ -57,7 +76,7 @@ export async function listAudit(db: D1Database, storeId: string, businessDate?: 
   const rows = businessDate
     ? await all(db.prepare(`
         SELECT e.id, e.action, e.entity_type, e.entity_id, e.actor_name_snapshot, e.business_date, e.summary,
-               e.reversible, e.before_state, e.after_state, e.created_at,
+               e.reversible, e.before_state, e.after_state, e.audit_module, e.created_at,
                rev.id AS reverted_by, rev.created_at AS reverted_at,
                CASE WHEN EXISTS (
                  SELECT 1 FROM audit_events later
@@ -76,7 +95,7 @@ export async function listAudit(db: D1Database, storeId: string, businessDate?: 
       `).bind(storeId, businessDate))
     : await all(db.prepare(`
         SELECT e.id, e.action, e.entity_type, e.entity_id, e.actor_name_snapshot, e.business_date, e.summary,
-               e.reversible, e.before_state, e.after_state, e.created_at,
+               e.reversible, e.before_state, e.after_state, e.audit_module, e.created_at,
                rev.id AS reverted_by, rev.created_at AS reverted_at,
                CASE WHEN EXISTS (
                  SELECT 1 FROM audit_events later
@@ -96,6 +115,55 @@ export async function listAudit(db: D1Database, storeId: string, businessDate?: 
   return rows.map((row) => mapAuditEvent(row, undoBusinessDate))
 }
 
+type HistoryFilters = { date?: string; module?: string; cursor?: string; limit?: number }
+
+function parseHistoryFilters(query: (key: string) => string | undefined): Required<HistoryFilters> {
+  const date = query('date') ?? ''
+  if (date && !/^\d{4}-\d{2}-\d{2}$/u.test(date)) throw new ApiProblem(400, 'INVALID_HISTORY_FILTER', '日期筛选格式无效。')
+  const module = query('module') ?? 'all'
+  if (module !== 'all' && !auditModules.has(module as AuditModule)) throw new ApiProblem(400, 'INVALID_HISTORY_FILTER', '模块筛选无效。')
+  const cursor = query('cursor') ?? ''
+  const limitRaw = Number(query('limit') ?? 80)
+  const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 80
+  return { date, module, cursor, limit }
+}
+
+export async function listPermanentAudit(db: D1Database, storeId: string, filters: HistoryFilters, undoBusinessDate: string) {
+  const { date, module, cursor, limit } = { date: '', module: 'all', cursor: '', limit: 80, ...filters }
+  const clauses = ['e.store_id = ?']
+  const values: Array<string | number> = [storeId]
+  if (date) { clauses.push('e.business_date = ?'); values.push(date) }
+  if (module !== 'all') { clauses.push('e.audit_module = ?'); values.push(module) }
+  if (cursor) {
+    const [createdAt, id] = cursor.split('|')
+    if (!createdAt || !id) throw new ApiProblem(400, 'INVALID_HISTORY_CURSOR', '历史记录翻页标识无效。')
+    clauses.push('(e.created_at < ? OR (e.created_at = ? AND e.id < ?))')
+    values.push(createdAt, createdAt, id)
+  }
+  values.push(limit)
+  const rows = await all(db.prepare(`
+    SELECT e.id, e.action, e.entity_type, e.entity_id, e.actor_name_snapshot, e.business_date, e.summary,
+           e.reversible, e.before_state, e.after_state, e.audit_module, e.created_at,
+           rev.id AS reverted_by, rev.created_at AS reverted_at,
+           CASE WHEN EXISTS (
+             SELECT 1 FROM audit_events later
+             WHERE later.store_id = e.store_id AND later.entity_type = e.entity_type
+               AND ((later.entity_id IS NULL AND e.entity_id IS NULL) OR later.entity_id = e.entity_id)
+               AND later.created_at > e.created_at
+           ) THEN 1 ELSE 0 END AS has_later_event,
+           current_item.kind AS current_kind
+    FROM audit_events e
+    LEFT JOIN audit_events rev ON rev.reverted_event_id = e.id
+    LEFT JOIN work_items current_item ON current_item.id = e.entity_id AND current_item.store_id = e.store_id
+    WHERE ${clauses.join(' AND ')}
+    ORDER BY e.created_at DESC, e.id DESC
+    LIMIT ?
+  `).bind(...values))
+  const events = rows.map((row) => mapAuditEvent(row, undoBusinessDate))
+  const last = rows[rows.length - 1]
+  return { events, nextCursor: rows.length === limit && last ? `${last.created_at}|${last.id}` : null }
+}
+
 export function auditRoutes() {
   const app = new Hono<{ Bindings: WorkerEnv; Variables: Vars }>()
   const auth = createAuthMiddleware()
@@ -107,6 +175,13 @@ export function auditRoutes() {
     return c.json({ events: await listAudit(c.env.DB, context.storeId, date, currentBusinessDate) })
   })
 
+  app.get('/api/v1/audit-events/history', auth.loadSession, auth.requirePasswordChanged, async (c) => {
+    const context = c.get('auth')!
+    const filters = parseHistoryFilters((key) => c.req.query(key))
+    const currentBusinessDate = await businessDateFor(context)
+    return c.json(await listPermanentAudit(c.env.DB, context.storeId, filters, currentBusinessDate))
+  })
+
   app.post('/api/v1/audit-events/:id/undo', auth.loadSession, auth.requirePasswordChanged, auth.requireCsrf, async (c) => {
     const context = c.get('auth')!
     const targetId = c.req.param('id')
@@ -116,7 +191,7 @@ export function auditRoutes() {
       const businessDate = await businessDateFor(context)
       await ensureDayOpen(db, context, businessDate)
       const target = await first<any>(db.prepare(`
-        SELECT id, action, entity_type, entity_id, summary, business_date, before_state, after_state, reversible, created_at
+        SELECT id, action, entity_type, entity_id, summary, business_date, before_state, after_state, audit_module, reversible, created_at
         FROM audit_events WHERE id = ? AND store_id = ?
       `).bind(targetId, context.storeId))
       if (!target || !target.reversible) throw new ApiProblem(409, 'UNDO_NOT_AVAILABLE', '该操作不能撤回。')
@@ -182,7 +257,8 @@ export function auditRoutes() {
         before: afterState,
         after: beforeState,
         reversible: false,
-        revertedEventId: target.id
+        revertedEventId: target.id,
+        module: auditModules.has(target.audit_module as AuditModule) ? target.audit_module as AuditModule : undefined
       })
       await db.batch([...restoreStatements, audit.statement])
       return { status: 200, body: { ok: true, eventId: audit.id, targetEventId: target.id } }

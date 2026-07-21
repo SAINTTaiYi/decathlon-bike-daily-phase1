@@ -15,6 +15,7 @@ import ConfirmClosingDialog from './components/dialogs/ConfirmClosingDialog.jsx'
 import KpiDialog from './components/dialogs/KpiDialog.jsx'
 import LocalMigrationDialog, { hasLocalV5Data } from './components/dialogs/LocalMigrationDialog.jsx'
 import LogDialog from './components/dialogs/LogDialog.jsx'
+import PermanentHistoryDialog from './components/dialogs/PermanentHistoryDialog.jsx'
 import CreateUserDialog from './components/dialogs/CreateUserDialog.jsx'
 import ReportImageDialog from './components/dialogs/ReportImageDialog.jsx'
 import UpdateRefreshDialog from './components/dialogs/UpdateRefreshDialog.jsx'
@@ -58,6 +59,7 @@ export default function App() {
   const { activeScene, jumpTo } = useActiveScene()
   const [menuOpen, setMenuOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
+  const [permanentHistoryOpen, setPermanentHistoryOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [kpiOpen, setKpiOpen] = useState(false)
   const [migrationOpen, setMigrationOpen] = useState(false)
@@ -93,7 +95,7 @@ export default function App() {
     rootRef: workspaceRootRef,
     onComplete: completeWorkspaceAssembly
   })
-  const taskFocused = Boolean(taskInputFocused || menuOpen || logOpen || confirmOpen || kpiOpen || migrationOpen || createUserOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
+  const taskFocused = Boolean(taskInputFocused || menuOpen || logOpen || permanentHistoryOpen || confirmOpen || kpiOpen || migrationOpen || createUserOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
 
   useMotionSystem({ enabled: introDone && workflow.hydrated && !workspaceLaunching, rootRef: workspaceRootRef, quiet: taskFocused })
 
@@ -198,36 +200,52 @@ export default function App() {
     setConfirmOpen(true)
   }
 
-  const confirmClose = async () => {
-    const result = await workflow.completeClosing()
-    if (!result.ok) return setToast({ message: result.error, tone: 'error' })
-    setConfirmOpen(false)
-    setToast('今日闭店已完成并同步至数据库')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  const exportClosingReport = async () => {
-    if (!workflow.closedAt) return setToast({ message: '请先完成闭店，再导出日报图。', tone: 'error' })
+  const generateClosingReport = useCallback(async (snapshot = {}, { automatic = false } = {}) => {
+    const closedAt = snapshot.closedAt ?? workflow.closedAt
+    if (!closedAt) return { ok: false, error: '请先完成闭店，再导出日报图。' }
     try {
+      // Never read KPI values again after canvas work begins. The close response is the server-confirmed snapshot for automatic reports.
       const model = buildClosingReportModel({
-        businessDate: workflow.dateKey,
+        businessDate: snapshot.businessDate ?? workflow.dateKey,
         storeName: currentStore?.storeName || '门店',
         exporterName: currentUser,
-        kpi: workflow.kpi,
-        records: workflow.records,
-        closedAt: workflow.closedAt,
+        kpi: { ...(snapshot.kpi ?? workflow.kpi) },
+        records: (snapshot.records ?? workflow.records).map((record) => ({ ...record })),
+        closedAt,
         appVersion: APP_VERSION
       })
       if (reportImage?.revoke) reportImage.revoke()
-      const result = await exportClosingReportImage(model)
-      setReportImage(result)
-      setToast(result.mode === 'download'
-        ? '已开始下载；也可在预览里长按图片保存到相册'
-        : '请在预览中长按图片保存到相册，或点“再次下载”')
+      const image = await exportClosingReportImage(model)
+      setReportImage(image)
+      setToast(automatic
+        ? '闭店日报图已按服务器确认的销售快照生成'
+        : image.mode === 'download'
+          ? '已开始下载；也可在预览里长按图片保存到相册'
+          : '请在预览中长按图片保存到相册，或点“再次下载”')
+      return { ok: true, image }
     } catch (error) {
-      setToast({ message: error?.message || '导出日报图失败。', tone: 'error' })
+      const message = error?.message || '导出日报图失败。'
+      setToast({ message, tone: 'error' })
+      return { ok: false, error: message }
     }
+  }, [currentStore?.storeName, currentUser, reportImage, workflow.closedAt, workflow.dateKey, workflow.kpi, workflow.records])
+
+  const confirmClose = async () => {
+    // `result.day` is returned by the close transaction itself. It is authoritative even before React's background refresh settles.
+    const result = await workflow.completeClosing()
+    if (!result.ok) return setToast({ message: result.error, tone: 'error' })
+    setConfirmOpen(false)
+    const report = await generateClosingReport({
+      businessDate: workflow.dateKey,
+      kpi: result.day?.kpi,
+      records: workflow.records,
+      closedAt: result.day?.closedAt
+    }, { automatic: true })
+    if (!report.ok) setToast({ message: `闭店已完成，但日报图未生成：${report.error}`, tone: 'error' })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  const exportClosingReport = async () => generateClosingReport()
 
   const closeReportImage = () => {
     if (reportImage?.revoke) reportImage.revoke()
@@ -459,13 +477,14 @@ export default function App() {
               <span>LAST SYNC · 最后同步</span>
               <strong>{workflow.lastSyncedAt ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(workflow.lastSyncedAt)) : '尚未同步'}</strong>
               <button type="button" className="primary-action" onClick={requestClose} disabled={writeLocked || !canManageClosing}>{workflow.closedAt ? '今日已闭店' : workflow.kpiReady ? '完成闭店' : '填写销售数据'}</button>
-              <div className="footer-utility-actions" aria-label="日报辅助操作"><button type="button" onClick={() => setMenuOpen(true)}>日报菜单</button><button type="button" onClick={() => setLogOpen(true)}>当日日志</button></div>
+              <div className="footer-utility-actions" aria-label="日报辅助操作"><button type="button" onClick={() => setMenuOpen(true)}>日报菜单</button><button type="button" onClick={() => setLogOpen(true)}>当日日志</button><button type="button" onClick={() => setPermanentHistoryOpen(true)}>永久历史</button></div>
             </footer>
           </div>
         </main>
-        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} hasLocalData={canManageClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canCreateUser={role === 'admin'} onCreateUser={() => setCreateUserOpen(true)} />
+        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} hasLocalData={canManageClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canCreateUser={role === 'admin'} onCreateUser={() => setCreateUserOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} />
         <CreateUserDialog open={createUserOpen} onClose={() => setCreateUserOpen(false)} onNotify={setToast} />
         <LogDialog open={logOpen} onClose={() => setLogOpen(false)} events={workflow.events} />
+        <PermanentHistoryDialog open={permanentHistoryOpen} onClose={() => setPermanentHistoryOpen(false)} onLoad={workflow.getPermanentHistory} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
         <OperationHistoryDialog open={Boolean(historyTarget)} onClose={() => setHistoryTarget(null)} title={historyTitle} events={historyEvents} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
         <AttachmentDialog record={mediaRecord} onClose={() => setMediaRecord(null)} locked={writeLocked} onNotify={setToast} />
         <LocalMigrationDialog open={migrationOpen} onClose={() => setMigrationOpen(false)} workflow={workflow} onNotify={setToast} />

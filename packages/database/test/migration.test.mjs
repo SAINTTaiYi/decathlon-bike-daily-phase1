@@ -54,3 +54,13 @@ test('D1 一致性迁移仅补回非店修撤回后丢失的完成维修审计�
   assert.match(sql, /'系统修复'/u)
   assert.match(sql, /Wrangler owns the migration transaction/u)
 })
+
+
+test('D1 永久审计迁移为历史记录分类、回填并建立筛选索引', async () => {
+  const sql = await readFile(new URL('../../../migrations/d1/0004_permanent_audit_history.sql', import.meta.url), 'utf8')
+  const executableSql = sql.replace(/^--.*$/gmu, '')
+  assert.doesNotMatch(executableSql, /\b(?:BEGIN|COMMIT|SAVEPOINT)\b/u)
+  assert.match(sql, /ADD COLUMN audit_module/u)
+  assert.match(sql, /UPDATE audit_events[\s\S]*SET audit_module/u)
+  assert.match(sql, /audit_events_store_module_date_created_idx/u)
+})

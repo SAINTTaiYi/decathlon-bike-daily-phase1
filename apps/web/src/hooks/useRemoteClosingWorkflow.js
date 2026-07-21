@@ -3,7 +3,7 @@ import { auditEventBelongsToScene, currentBusinessDayEvents } from '../data/audi
 import { emptyKpi } from '../data/operationsData.js'
 import {
   clearSales, closeDay, createWorkItem, getBootstrap, planLocalV5Import, previewLocalV5,
-  removeWorkItem, reopenDay, saveSales, undoAuditEvent, updateWorkItem, workItemAction
+  removeWorkItem, reopenDay, saveSales, undoAuditEvent, updateWorkItem, workItemAction, getPermanentAuditHistory
 } from '../api/workflow.js'
 import { buildPickupNotificationUpdate } from '../data/pickupRecord.js'
 import { buildRepairCompletion } from '../data/repairRecord.js'
@@ -166,6 +166,15 @@ export default function useRemoteClosingWorkflow(enabled) {
   }, [allEvents])
   const undoHistoryEvent = useCallback((event) => run(() => undoAuditEvent(event)), [run])
   const canUndoHistoryEvent = useCallback((event) => !state.day.closedAt && Boolean(event.canUndo), [state.day.closedAt])
+  const getPermanentHistory = useCallback(async (filters = {}) => {
+    if (!navigator.onLine) return { ok: false, error: '当前离线，无法读取永久操作记录。', events: [], nextCursor: null }
+    try {
+      const result = await getPermanentAuditHistory(filters)
+      return { ok: true, events: result.events || [], nextCursor: result.nextCursor || null }
+    } catch (error) {
+      return { ok: false, error: error.message || '无法读取永久操作记录。', events: [], nextCursor: null }
+    }
+  }, [])
   const latestUndo = allEvents.find((event) => event.canUndo)
 
   return {
@@ -242,6 +251,7 @@ export default function useRemoteClosingWorkflow(enabled) {
     getOperationHistory,
     canUndoHistoryEvent,
     undoHistoryEvent,
+    getPermanentHistory,
     completeClosing: () => run(closeDay, { sync: 'full' }),
     reopenClosing: () => run(reopenDay, { sync: 'full' }),
     resetDay: () => run(() => clearSales(state.day.revision), { sync: 'full' }),
