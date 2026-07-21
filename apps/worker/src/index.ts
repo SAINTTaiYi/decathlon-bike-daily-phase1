@@ -11,6 +11,7 @@ import { closingRoutes } from './routes/closing.js'
 import { healthRoutes } from './routes/health.js'
 import { workItemRoutes } from './routes/work-items.js'
 import { ApiProblem } from './services/problems.js'
+import { routeIncomingRequest } from './request-routing.js'
 
 type Vars = {
   config: AppConfig
@@ -91,4 +92,8 @@ app.onError((error, c) => {
   return c.json({ error: 'INTERNAL_ERROR', message: '服务暂时不可用，请稍后重试。' }, 500)
 })
 
-export default app
+export async function handleRequest(request: Request, env: WorkerEnv, executionCtx: ExecutionContext): Promise<Response> {
+  return routeIncomingRequest(request, env.ASSETS, (apiRequest) => app.fetch(apiRequest, env, executionCtx))
+}
+
+export default { fetch: handleRequest }
