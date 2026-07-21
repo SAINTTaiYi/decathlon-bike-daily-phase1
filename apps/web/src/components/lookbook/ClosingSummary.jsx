@@ -3,7 +3,6 @@ import IconCheckCircle from '@iconoir/CheckCircle.mjs'
 import IconClock from '@iconoir/Clock.mjs'
 import IconWarning from '@iconoir/WarningTriangle.mjs'
 import IconMedia from '@iconoir/MediaImage.mjs'
-import VisualLineText from '../VisualLineText.jsx'
 
 export default function ClosingSummary({ workflow, onJumpToRequirement, onCompleteClosing, onReopenClosing, onExportReport }) {
   const next = workflow.remainingRequirements[0]
@@ -18,13 +17,13 @@ export default function ClosingSummary({ workflow, onJumpToRequirement, onComple
   }
 
   return (
-    <section className="closing-summary" aria-labelledby="closing-summary-title">
+    <section className="closing-summary" aria-labelledby="closing-summary-title" data-motion="summary">
       <div className="summary-topline"><span>{dateLabel} / DATABASE SYNC</span><strong>{closed ? 'CLOSED' : 'OPEN'}</strong></div>
       <div className="summary-grid">
         <div className="summary-copy">
           <span>Daily closing</span>
-          <VisualLineText as="h2" id="closing-summary-title">{closed ? 'CLOSING COMPLETE' : workflow.kpiReady ? 'READY TO CLOSE' : 'CLOSING STATUS'}</VisualLineText>
-          <p data-editorial-description>{closed ? '当日数据已锁定并同步。' : workflow.kpiReady ? '销售数据已保存，可以完成闭店。' : '销售数据是唯一闭店要求。其它台账按实际变化更新。'}</p>
+          <h2 id="closing-summary-title">{closed ? 'CLOSING COMPLETE' : workflow.kpiReady ? 'READY TO CLOSE' : 'CLOSING STATUS'}</h2>
+          <p>{closed ? '当日数据已锁定并同步。' : workflow.kpiReady ? '销售数据已保存，可以完成闭店。' : '销售数据是唯一闭店要求。其它台账按实际变化更新。'}</p>
         </div>
         <div className="summary-score" aria-label={`闭店准备度 ${workflow.readiness}%`}><strong>{workflow.readiness}</strong><span>%</span></div>
       </div>
