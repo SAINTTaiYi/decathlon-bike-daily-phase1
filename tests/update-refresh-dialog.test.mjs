@@ -44,9 +44,9 @@ test('已打开页面通过前台聚焦、定时轮询与交互节流检查服�
 })
 
 
-test('编辑式首屏文本序列期间可延迟版本弹窗，避免抢占首个可操作状态', () => {
+test('工作台入场期间可延迟版本弹窗，避免抢占跳过动画的焦点', () => {
   assert.match(source, /function UpdateRefreshDialog\(\{ enabled = true \}\)/)
   assert.match(source, /if \(!enabled \|\| typeof window === 'undefined'\) return undefined/)
   assert.match(appSource, /deferUpdatePrompt = auth\.source === 'login'/)
-  assert.match(appSource, /<UpdateRefreshDialog enabled=\{!deferUpdatePrompt\} \/>/)
+  assert.match(appSource, /<UpdateRefreshDialog enabled=\{!deferUpdatePrompt && !workspaceLaunching\} \/>/)
 })

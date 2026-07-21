@@ -1,12 +1,11 @@
 import { APP_VERSION } from '../../data/releaseNotes.js'
-import VisualLineText from '../VisualLineText.jsx'
 
 export default function LookbookHeader() {
   return (
-    <header className="report-masthead">
+    <header className="report-masthead" data-motion="header">
       <div>
-        <span data-editorial-logo>WORKSHOP LEDGER</span>
-        <VisualLineText as="h1">WORKSHOP OPS</VisualLineText>
+        <span>WORKSHOP LEDGER</span>
+        <h1>WORKSHOP OPS</h1>
       </div>
       <strong aria-label={`版本 ${APP_VERSION}`}>V{APP_VERSION}</strong>
     </header>

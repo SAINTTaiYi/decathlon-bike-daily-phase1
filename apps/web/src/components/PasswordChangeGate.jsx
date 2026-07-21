@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import VisualLineText from './VisualLineText.jsx'
 
 export default function PasswordChangeGate({ userName, onChangePassword, onLogout, onComplete }) {
   const [form, setForm] = useState({ currentPassword: '', nextPassword: '', confirmPassword: '' })
@@ -22,9 +21,9 @@ export default function PasswordChangeGate({ userName, onChangePassword, onLogou
   }
 
   return (
-    <main className="initial-setup-shell" data-editorial-page>
+    <main className="initial-setup-shell">
       <form className="initial-setup-panel password-change-panel" onSubmit={submit} noValidate>
-        <header><span data-editorial-logo>FIRST SIGN-IN · 安全要求</span><VisualLineText as="h1">修改临时密码</VisualLineText><p data-editorial-description>账号 {userName} 由管理员创建。进入业务台账前，必须把临时密码替换为你自己的密码。</p></header>
+        <header><span>FIRST SIGN-IN · 安全要求</span><h1>修改临时密码</h1><p>账号 {userName} 由管理员创建。进入业务台账前，必须把临时密码替换为你自己的密码。</p></header>
         <label className="field-row"><span>当前临时密码</span><input autoFocus required type="password" maxLength="128" autoComplete="current-password" value={form.currentPassword} onChange={(event) => set('currentPassword', event.target.value)} /></label>
         <label className="field-row"><span>新密码</span><input required type="password" minLength="10" maxLength="128" autoComplete="new-password" value={form.nextPassword} onChange={(event) => set('nextPassword', event.target.value)} /></label>
         <label className="field-row"><span>确认新密码</span><input required type="password" minLength="10" maxLength="128" autoComplete="new-password" value={form.confirmPassword} onChange={(event) => set('confirmPassword', event.target.value)} /></label>
