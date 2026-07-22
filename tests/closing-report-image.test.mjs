@@ -93,3 +93,15 @@ test('自提车辆会员号也使用日报图联系槽位，详情保持为空',
   assert.equal(reportItemDetail(order), '')
   assert.deepEqual(reportContact(order), { contactType: 'member', contactValue: 'M-2048' })
 })
+
+test('日报图导出器使用 Signal Grid 自托管 Sans/Condensed 字体，不引用已删除的 Serif 资源', async () => {
+  const source = await (await import('node:fs/promises')).readFile(new URL('../apps/web/src/utils/closingReportImage.js', import.meta.url), 'utf8')
+  assert.match(source, /Barlow Condensed Local/u)
+  assert.match(source, /Noto Sans SC Variable/u)
+  assert.ok(source.includes(`document.fonts.load('900 48px \"Noto Sans SC Variable\"', sample)`))
+  assert.match(source, /await ensureLatinReportFonts\(\)/u)
+  assert.doesNotMatch(source, /if \(fontsReadyPromise\) return/u)
+  assert.match(source, /await ensureReportFonts\(model\)/u)
+  assert.doesNotMatch(source, /Noto Serif SC Variable|noto-serif-sc/u)
+  assert.doesNotMatch(source, /\/fonts\/albert-sans-variable\.woff2/u)
+})

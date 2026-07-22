@@ -8,7 +8,7 @@
 - **方案状态**：Phase 0 设计事实源已完成；Phase 1 设计基础已获授权并在本地实现/验证中，尚未发布 Preview
 - **文档创建日期**：2026-07-22
 - **文档基线**：`feature/cloudflare-workers-d1` / `a98858c388e3d866412390920d14381ed48008f2` / V5.7.8 Preview source
-- **当前源码登记版本**：V5.7.10（Phase 1 设计基础候选，尚未发布 Preview）
+- **当前源码登记版本**：V5.8.0（Phase 1 字体与设计基础候选，尚未发布 Preview）
 - **Phase 0 内容合并 SHA**：`94cd3f970969749167b286ef76c29c60f6e145a5`
 - **Phase 0 最终行政合并 SHA**：`6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
 - **当前 Preview**：V5.7.8 / `a98858c388e3d866412390920d14381ed48008f2`
@@ -785,15 +785,14 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### 当前已完成
 
-- 设计方向和完整规范已确认
-- 长期记忆已更新
-- 抗中断治理规则已写入长期记忆
-- 本完整规范和 `DESIGN.md` 摘要已合并到正式源码分支
-- V5.7.9 文档版本和 321 文件指纹已登记
-- 本地完整验证通过
-- PR #31 的内容 CI、检查点 CI 和合并后源码头 CI 全部通过
-- Phase 0 合并 SHA：`94cd3f970969749167b286ef76c29c60f6e145a5`
-- 本次没有触发 Preview、Staging 或 Production 部署
+- Phase 0 设计事实源、双文档结构和抗中断治理已进入正式源码分支
+- Phase 0 最终行政合并 SHA：`6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
+- Phase 1 三层 Token、七个模块主题、Iconoir regular/solid 状态规则和运行时主题标记已实现
+- Albert Sans、Barlow Condensed 和 Noto Sans SC 的来源、OFL 许可证、包完整性和逐文件 SHA-256 已核验
+- 已获明确授权删除停用的 Noto Serif SC 资源，避免无效 public build 体积
+- V5.7.10 基础候选已完成一次全量本地验证；字体替换后将按规则进入 V5.8.0 并重新全量验证
+- 远端基线已恢复并精确对齐 `6da7263c…`
+- 尚未触发 Preview、Staging 或 Production 部署
 
 ### 当前未授权
 
@@ -804,11 +803,11 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### 下一步队列
 
-1. 完成 Phase 1 三层 Token、模块主题和图标运行时基础
-2. 恢复官方字体源访问后取得并校验 Barlow Condensed / Noto Sans SC 自托管资源；未验证资源不得进入仓库
-3. 对 Phase 1 完整 diff 运行版本登记、全量测试、typecheck、build、Worker bundle 和静态约束验证
-4. 恢复 GitHub 访问后把本地树对齐最终 Phase 0 行政合并 SHA `6da7263c…`，再创建 PR
-5. CI 全绿后自动正常合并并部署 Preview 供用户验收
+1. 登记 V5.8.0，更新 release notes 和 328+ 文件指纹
+2. 运行字体清单/许可证/引用约束、完整测试、typecheck、production build 和 Worker bundle
+3. 记录字体替换后的体积结果和最终 Phase 1 功能 SHA
+4. 推送对齐分支，创建 PR 并等待完整 CI 与全历史 Gitleaks
+5. CI 全绿后正常合并并部署 Preview 供用户人工验收
 6. Staging 仍需独立明确批准；Production 禁止
 
 ---
@@ -948,4 +947,65 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 阻塞原因：当前 GitHub/VPN 与境外字体源访问仍未确认恢复。
 - 未完成队列：同版本 checkpoint stamp/提交；远端基线对齐；对齐后全量验证；PR/CI/Preview；官方 Barlow/Noto 字体补充。
 - 下一步：生成本地行政检查点提交；其 SHA 只写入长期记忆/session-state，避免自引用。之后仅在网络恢复时尝试远端对齐。
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 04:00
+
+- Phase：Phase 1 - 设计基础
+- 状态：in_progress
+- 基线分支和 SHA：`feat/signal-grid-phase1-foundations` / `1b8d553907897af0120285442c98511870508741`，直接继承远端 Phase 0 最终行政合并 `6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
+- 本阶段完成范围：网络恢复后核验 Fontsource 正式包；加入 Barlow Condensed 400/700/800/900 Latin WOFF2 与 Noto Sans SC Variable 101 个 Unicode-range WOFF2；加入 OFL 许可证、包完整性、逐文件 SHA-256 清单和自托管 CSS；按用户明确授权删除停用的 Noto Serif SC CSS/101 个 WOFF2。
+- 关键决策：英文模块显示字体使用 Barlow Condensed Local；中文 UI/显示回退使用 Noto Sans SC Variable；Albert Sans 继续承担 Latin UI/数字。所有字体本地托管并使用 `font-display: swap`，无第三方运行时请求。字体替换发生在已登记 V5.7.10 之后，因此按版本规则进入 V5.8.0。
+- 修改文件：新增 `barlow-condensed/`、`noto-sans-sc/`、`signal-grid-noto-sans-sc.css` 和各自 SHA 清单；更新字体层、语义字体栈、SOURCES、DESIGN、测试和本规范；删除旧 `noto-serif-sc.css` 与 `public/fonts/noto-serif-sc/`。
+- 数据库或契约变化：N/A
+- 测试与验证结果：字体包/许可证/文件已完成本地来源与 SHA 核验；完整 V5.8.0 验证尚待执行。
+- PR / CI run：N/A
+- 部署环境、Deployment ID、Worker Version：N/A；未触发 Preview、Staging 或 Production
+- 用户验收结果：用户明确允许用 Noto Sans SC 替换并删除旧 Serif 资源。
+- 阻塞原因：N/A
+- 未完成队列：V5.8.0 bump/stamp；聚焦字体测试；全量验证；提交/checkpoint；PR/CI/Preview。
+- 下一步：完成 V5.8.0 登记和全部验证。
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 04:08
+
+- Phase：Phase 1 - 设计基础
+- 状态：in_progress
+- 基线分支和 SHA：`feat/signal-grid-phase1-foundations` / `1b8d553907897af0120285442c98511870508741`；V5.8.0 字体替换尚未提交
+- 本阶段完成范围：production build 后追加运行时审查，发现并修复日报图导出器仍引用已删除 `Noto Serif SC Variable` 的问题；同步修复 Albert Sans 预加载旧路径和 legacy token 字体名。
+- 关键决策：日报图不再枚举并手工加载全部 CSS FontFace URL；改为使用 CSS Font Loading API 按实际报告中文内容触发 Noto Sans SC Unicode 分片，并独立确认 Barlow Condensed 与 Albert Sans 已加载。这样保持稳定自托管输出，同时避免无条件加载整套中文字体。
+- 修改文件：`closingReportImage.js`、`index.html`、`tokens.css`、`DESIGN.md`、`closing-report-image.test.mjs`、`signal-grid-phase1.test.mjs`、本规范。
+- 数据库或契约变化：N/A
+- 测试与验证结果：前一轮全量验证已通过，但因真实运行时字体回归不再作为最终证据；新增回归约束后必须重新 stamp 和全量验证。
+- PR / CI run：N/A
+- 部署环境、Deployment ID、Worker Version：N/A；未触发 Preview、Staging 或 Production
+- 用户验收结果：N/A
+- 阻塞原因：N/A
+- 未完成队列：V5.8.0 restamp；聚焦测试；全量测试/build；编译包旧 Serif 零引用核验；提交/checkpoint；PR/CI/Preview。
+- 下一步：重新 stamp 并完整验证。
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 04:18
+
+- Phase：Phase 1 - 设计基础
+- 状态：verified
+- 基线分支和 SHA：`feat/signal-grid-phase1-foundations` / `1b8d553907897af0120285442c98511870508741`，其功能父级直接继承远端 Phase 0 最终行政合并 `6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
+- 本阶段完成范围：V5.8.0 完成字体基础收尾。正式接入自托管 Barlow Condensed 400/700/800/900（含 900 italic）与 Noto Sans SC Variable Unicode 分片；Albert Sans 更新为 Fontsource 5.3.0 Latin/Latin-ext 分片；删除停用 Noto Serif SC。日报图导出器已同步使用新 Sans/Condensed 字体，并按每次日报实际文字加载中文分片，避免第二次导出新汉字回退系统字体。
+- 关键决策：所有运行时字体均为 OFL-1.1、仓库自托管、`font-display: swap`，无第三方字体请求；Barlow 只承担英文 Display，Albert Sans 承担 Latin UI/数字，Noto Sans SC 承担中文 UI 与标题回退。旧 Serif 只允许在来源/删除记录中作为历史文字出现，不得出现在运行时 HTML/CSS/JS 或构建字体目录。
+- 修改文件：字体二进制/许可证/SHA 清单与 `SOURCES.md`；`signal-grid-fonts.css`、`signal-grid-noto-sans-sc.css`、语义/legacy 字体 Token；`index.html` 字体预加载；日报图字体加载器；DESIGN、本规范、V5.8.0 版本说明与字体/日报回归测试；删除旧 Serif CSS 和 101 个 WOFF2。
+- 数据库或契约变化：N/A；没有业务逻辑、API、D1、权限或流程修改。
+- 测试与验证结果：V5.8.0 / 338 指纹文件；工作流策略 88/88；Domain 4/4；Database 5/5；Web 105/105；API 16/16；Worker 11/11；完整 typecheck、Web/API production build、Worker typecheck/bundle、version、diff 全部通过。Web CSS 194.49 kB（gzip 49.58），JS 455.24 kB（gzip 157.83）；Worker 270.3 kB / 150.1 kB minified。构建运行时审查确认 HTML/CSS/JS 与字体目录零旧 Serif 引用/文件；108 个 WOFF2 文件头全部有效，public/dist 字体资产均为 4,712,220 bytes。
+- 内容提交 SHA：待本检查点随 V5.8.0 功能提交创建后登记。
+- PR / CI run：N/A
+- 部署环境、Deployment ID、Worker Version：N/A；未触发 Preview、Staging 或 Production。
+- 用户验收结果：用户明确授权删除旧 Serif 并换用已验证 Noto Sans SC，同时继续加入 Barlow Condensed；尚待 Preview 人工验收。
+- 阻塞原因：N/A
+- 未完成队列：最终 staged diff/凭据模式审查；创建 V5.8.0 功能提交和非递归行政检查点；PR/CI；正常合并；Preview-only 部署与身份核验。
+- 下一步：完成本地提交，随后按既定自动交付策略执行 PR -> CI -> 正常合并 -> Preview；Staging 仍需用户另行明确批准。
 - Production：forbidden

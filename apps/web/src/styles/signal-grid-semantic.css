@@ -19,9 +19,9 @@
   --sg-color-sync: var(--sg-p-signal-sync);
   --sg-color-focus: var(--sg-p-signal-sync);
 
-  --sg-font-ui: 'Albert Sans Local', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
-  --sg-font-display-latin: 'Albert Sans Local', system-ui, sans-serif;
-  --sg-font-display-cjk: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --sg-font-ui: 'Albert Sans Local', 'Noto Sans SC Variable', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --sg-font-display-latin: 'Barlow Condensed Local', 'Noto Sans SC Variable', 'Albert Sans Local', system-ui, sans-serif;
+  --sg-font-display-cjk: 'Noto Sans SC Variable', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --sg-font-data: 'Albert Sans Local', 'SFMono-Regular', Consolas, 'Liberation Mono', ui-monospace, monospace;
 
   --sg-type-micro-size: var(--sg-p-text-micro);

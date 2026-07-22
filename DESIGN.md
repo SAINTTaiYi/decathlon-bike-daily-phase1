@@ -100,7 +100,7 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 - Module and icon registry: `apps/web/src/design/signalGrid.js`
 - Runtime scene-to-module mapping: `apps/web/src/data/lookbookScenes.js` and `data-signal-module` on the six scenes, closing summary and Dock controls
 - Icon family: Iconoir only. Navigation and ordinary actions use regular outline icons at a standardized 1.75 stroke; active navigation, semantic status and destructive feedback use matching solid Iconoir variants.
-- Typography state: Albert Sans is verified, licensed and self-hosted. Barlow Condensed and Noto Sans SC remain approved target candidates, but they are not active runtime families until official binaries pass source, license and SHA-256 verification. Albert Sans plus platform CJK sans fallbacks preserve a deterministic production-safe runtime meanwhile.
+- Typography state: Albert Sans Variable, Barlow Condensed 400/700/800/900 and Noto Sans SC Variable are verified, OFL-licensed and self-hosted. `SOURCES.md` records package provenance, tarball integrity and per-file SHA-256 manifests. The inactive Noto Serif SC assets were removed with explicit user approval.
 - Other Handover: cool-white neutral structure with Voltage Lime only for numbering and operation signal, never a seventh module color.
 
 ## Product hierarchy
@@ -235,9 +235,10 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 
 ## Typography
 
-- 拉丁、数字与英文 Display：本地 `Albert Sans Local`。
-- 中文字形补全：本地 `Noto Serif SC Variable`。
-- 不使用外链字体；字体文件由 Pages 静态托管。
+- 拉丁 UI 与数字：本地 `Albert Sans Local`。
+- 英文模块标题、刊头与大号代码：本地 `Barlow Condensed Local`。
+- 中文 UI 与标题回退：本地 `Noto Sans SC Variable` Unicode 分片。
+- 不使用外链字体；字体文件由 Worker Static Assets 静态托管，来源、许可证、包完整性和逐文件 SHA-256 记录在 `apps/web/public/fonts/SOURCES.md`。
 - 刊头、KPI 与票据事实可使用 display weight；按钮、表单标签和操作说明保持紧凑、清晰、可扫描。
 - KPI 与目录数字使用 tabular/lining numerals 与固定槽位。
 - 长正文使用 `text-wrap: pretty`，避免窄屏孤行和溢出。
