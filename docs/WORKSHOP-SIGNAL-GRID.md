@@ -928,3 +928,24 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 未完成队列：最终 staged diff/秘密模式审查；创建本地可恢复功能提交；恢复 VPN/GitHub 后对齐 `6da7263c…`、PR/CI/Preview；Barlow/Noto 官方资源作为后续字体补充，未验证前不得进入仓库。
 - 下一步：完成本地提交和抗中断记录；然后停止网络依赖路径，等待 VPN/GitHub 恢复后继续发布。
 - Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 03:52
+
+- Phase：Phase 1 - 设计基础
+- 状态：verified
+- 基线分支和 SHA：本地 `feat/signal-grid-phase1-foundations`，功能提交父级 `adb20ec19f0ca2696437a680a9cf6d8e2a46e1ff`；远端发布前仍须对齐 Phase 0 最终行政合并 `6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
+- 本阶段完成范围：V5.7.10 Phase 1 设计基础功能提交已创建，工作树在提交后干净；完整范围和验证证据见 03:49 检查点。
+- 关键决策：当前提交是抗中断本地恢复锚点，不作为最终 PR SHA；恢复 GitHub 后必须在 `6da7263c…` 上进行普通历史对齐，重新验证并以对齐后的 SHA 发布。
+- 修改文件：30 个文件；623 行新增、85 行删除；包括四层 Signal Grid CSS、模块/图标注册、场景主题钩子、Albert Sans 字体/许可证/来源、测试、设计事实和 V5.7.10 元数据。
+- 数据库或契约变化：N/A
+- 测试与验证结果：继承 03:49 全绿证据；提交前 staged diff whitespace 检查和新增行敏感凭据模式扫描通过；Albert Sans 移动前后 SHA-256 完全一致。
+- 内容提交 SHA：`196d86fd432eeccbbc19bcd218d4e1992d0e3a1e`（本地、待远端基线对齐）
+- PR / CI run：N/A
+- 部署环境、Deployment ID、Worker Version：N/A；未触发 Preview、Staging 或 Production
+- 用户验收结果：尚待 Preview 人工验收
+- 阻塞原因：当前 GitHub/VPN 与境外字体源访问仍未确认恢复。
+- 未完成队列：同版本 checkpoint stamp/提交；远端基线对齐；对齐后全量验证；PR/CI/Preview；官方 Barlow/Noto 字体补充。
+- 下一步：生成本地行政检查点提交；其 SHA 只写入长期记忆/session-state，避免自引用。之后仅在网络恢复时尝试远端对齐。
+- Production：forbidden
