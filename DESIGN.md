@@ -115,6 +115,18 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 - Overview: `PulseScene.jsx` uses one Voltage Lime core sales KPI, four real secondary metrics and a five-module signal map. It does not invent data or change the closing requirement.
 - Motion: `useWorkspaceMotion.js` provides one short post-login hard-cut assembly with Skip/Escape/reduced-motion paths. `useMotionSystem.js` retains only immediate button press feedback. Active scene tracking uses `IntersectionObserver` rather than continuous scroll listeners.
 
+
+### Phase 3 runtime core-module mapping
+
+> **Status: in progress.** Phase 3 replaces the core business-module foreground system without changing workflow handlers, permissions, API calls, D1 schema, audit events or data contracts.
+
+- Shared module title and real metric strip: `LookbookPrimitives.jsx` and `SignalStateMark.jsx`; Repair, Pickup, Resale and Sales use their module field, bilingual title and real record/KPI counts.
+- Shared record grammar: `RecordLedger.jsx` plus `signal-grid-modules.css`; ordinary rows remain cool-white, pending rows expand the module signal, the currently submitting row temporarily becomes the module color, errors use Signal Red, and completed rows use dark structure plus a bright Check.
+- Shared state grammar: text, Iconoir state icon, border/fill and readable tone are always combined. Color is never the only signal.
+- Sales KPI: the existing real `salesVehicles`, `safetyChecks`, `safetyModel`, `validReviews`, `usedSold` and `usedReceived` fields are recomposed into one Plasma Violet primary value and four dense neutral metrics.
+- Closing: `ClosingSummary.jsx` retains the existing close/reopen/export behavior while exposing Blaze Orange status, actual readiness and the existing next-required action.
+- Existing pickup fill and repair dissolve effects retain their business sequencing and reduced-motion behavior.
+
 ## Product hierarchy
 
 1. **首次初始化**：一次性 HTTPS Setup 链接创建首位管理员和门店；完成后链接失效。
@@ -169,7 +181,7 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 
 ### Resale
 
-- 新增记录写入 `pending`，显示在黑底白字待上架区。
+- 新增记录写入 `pending`，在 Hot Magenta 模块中以扩大局部信号色的待上架队列表达。
 - “维修完毕”保留记录 ID，进入 `listed` 浅色在册区。
 - “已售出”退出当前在册，操作历史与可撤回快照保留。
 
@@ -263,7 +275,7 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 - 全页只保留一个黑色 KPI 强视觉，不把每个模块做成独立卡片。
 - 业务对象使用连续票据和 1px 分隔线，不使用同构卡片网格或玻璃拟态。每条票据固定三级层级：车型与工单号为一级；Maintenance 项目列表为二级；联系方式、日期、来源、支付/类型和状态为三级。
 - 每条票据左侧 Journal 标识是审计入口，不代表完成勾选。
-- 二手车在同一 LOOK 内分为黑色待上架区与浅色在册区。
+- 二手车在同一模块内分为 Hot Magenta 待上架信号区与冷白已上架在册区。
 - 已取车、已完成交接和已完成门店维修整条反黑；重复写操作隐藏。
 - 维修与维修来源待取共用服务票据骨架：车型最大，工单号紧随其下；维修项目按换行、加号、分号或顿号拆分；事实组使用约 70% 黑度；动作区独立置底。
 - 通知状态是待取票据内联选择，不添加到维修票据。D1 为每条 work item 分配门店内稳定递增的 `ticketNo`，前端统一显示为六位 `#000031` 格式。
@@ -346,7 +358,7 @@ packages/
 
 ## Version governance
 
-- 当前版本：`V5.7.9`。
+- 当前版本：`V5.8.2`。
 - 根 `package.json`、`apps/web/package.json`、`apps/web/src/data/releaseNotes.js` 与 `version-manifest.json` 必须一致。
 - `pnpm version:patch -- ...` 递增 V5 版本并生成当前发布说明。
 - 完成代码与文档后运行 `pnpm version:stamp`；`pnpm build` 先校验版本和源码/部署事实指纹。

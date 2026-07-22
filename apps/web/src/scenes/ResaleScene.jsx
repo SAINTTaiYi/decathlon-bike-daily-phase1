@@ -12,9 +12,9 @@ export default function ResaleScene(props) {
 
   return (
     <section className="look-section" data-signal-module={scene.signalModule} id={scene.id} data-look={scene.id} aria-labelledby={`${scene.id}-title`}>
-      <SceneTitle scene={scene} note="新增二手车先进入黑色待上架区；维修整备完成后进入已上架在册。已上架车辆售出后从在册移除，历史继续保留。" />
-      <RecordLedger {...props} records={pending} config={sceneRecordConfig.resale} heading="PENDING LISTING · 待上架" dark />
-      <RecordLedger {...props} records={listed} config={listedConfig} heading="LISTED INVENTORY · 已上架在册" showAdd={false} />
+      <SceneTitle scene={scene} signalHeader note="新增二手车先进入待上架队列；整备完成后进入已上架在册。售出后从在册移除，历史继续保留。" metrics={[{ label: 'PENDING / 待上架', value: pending.length }, { label: 'LISTED / 已上架', value: listed.length }]} />
+      <RecordLedger {...props} records={pending} config={sceneRecordConfig.resale} heading="PENDING LISTING / 待上架" emphasis="pending" />
+      <RecordLedger {...props} records={listed} config={listedConfig} heading="LISTED INVENTORY / 已上架在册" showAdd={false} />
     </section>
   )
 }

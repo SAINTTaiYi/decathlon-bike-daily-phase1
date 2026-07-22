@@ -1,14 +1,14 @@
-export const APP_VERSION = "5.8.1"
+export const APP_VERSION = "5.8.2"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.23",
-  title: "Signal Grid 系统外壳",
-  summary: "完成统一 Access 入口、响应式模块导航、平面工作台画布和业务总览地图。",
+  title: "Signal Grid 核心业务模块",
+  summary: "统一维修、待取、销售、二手车、闭店的模块色、真实指标、记录与状态语法。",
   changes: [
-    "登录、初始化和强制改密共享 WORKSHOP SIGNAL GRID Access 外壳。",
-    "桌面使用固定编号模块轨道，移动端保留同序拇指可达底部 Dock。",
-    "工作台切换为明亮冷中性平面画布，并以 Voltage Lime KPI 和模块色地图重构总览。",
-    "移除旧纸张景深和持续 3D 视差，保留短促可跳过入场、按钮反馈与 reduced-motion。"
+    "维修、待取、二手车与销售使用模块专属标题面和真实业务指标。",
+    "记录台账统一为冷白主体、模块操作信号、当前处理强化、错误与完成语义。",
+    "销售 KPI 与闭店准备度重组为真实数据驱动的 Signal Grid 表面。",
+    "保留原业务动作、权限、审计、取车填充、维修消散和 reduced-motion。"
   ]
 }

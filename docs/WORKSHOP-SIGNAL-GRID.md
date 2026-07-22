@@ -5,10 +5,10 @@
 ## 0. 文档状态
 
 - **方案名称**：WORKSHOP SIGNAL GRID
-- **方案状态**：Phase 0-2 已完成并进入正式源码；Phase 3 核心业务模块按剩余路线连续实施中
+- **方案状态**：Phase 0-2 已完成并进入正式源码；Phase 3 V5.8.2 核心业务模块候选正在完整验证
 - **文档创建日期**：2026-07-22
-- **当前实现基线**：Phase 2 正常合并 SHA `df5915489fe0fc548f270c27b1ecc401a6d05b9e` / V5.8.1
-- **当前源码登记版本**：V5.8.1（Phase 2 系统外壳，已合并；中间 Phase 不部署 Preview）
+- **当前实现基线**：Phase 2 最终行政/source SHA `e85d772cd650847e4a121d27f7c8a03735a36ccb` / V5.8.1
+- **当前源码登记版本**：V5.8.2（Phase 3 核心业务模块本地候选；中间 Phase 不部署 Preview）
 - **Phase 0 内容合并 SHA**：`94cd3f970969749167b286ef76c29c60f6e145a5`
 - **Phase 0 最终行政合并 SHA**：`6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
 - **当前 Preview**：V5.8.0 / `1b51a515f3418c0d66d6e169484a233e49e47246`；Phase 2 及中间 Phase 不部署，全部 Phase 完成后统一更新一次
@@ -781,34 +781,38 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### 当前任务
 
-实施 WORKSHOP SIGNAL GRID Phase 1 设计基础：三层 Token、字体授权与自托管策略、模块主题映射、统一 Iconoir 图标规则和 DESIGN.md 运行时代码映射。不得改变业务逻辑。
+完成 WORKSHOP SIGNAL GRID Phase 3 V5.8.2 核心业务模块的完整验证、正常 PR/CI/合并和非递归行政检查点，然后自动进入已授权的 Phase 4。中间 Phase 不部署 Preview。
 
 ### 当前已完成
 
-- Phase 0 设计事实源、双文档结构和抗中断治理已进入正式源码分支
-- Phase 0 最终行政合并 SHA：`6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
-- Phase 1 三层 Token、七个模块主题、Iconoir regular/solid 状态规则和运行时主题标记已实现
-- Albert Sans、Barlow Condensed 和 Noto Sans SC 的来源、OFL 许可证、包完整性和逐文件 SHA-256 已核验
-- 已获明确授权删除停用的 Noto Serif SC 资源，避免无效 public build 体积
-- V5.7.10 基础候选已完成一次全量本地验证；字体替换后将按规则进入 V5.8.0 并重新全量验证
-- 远端基线已恢复并精确对齐 `6da7263c…`
-- 尚未触发 Preview、Staging 或 Production 部署
+- Phase 0 设计事实源、双文档结构和抗中断治理已进入正式源码
+- Phase 1 设计基础最终行政/source SHA：`1b51a515f3418c0d66d6e169484a233e49e47246`
+- Phase 2 系统外壳最终行政/source SHA：`e85d772cd650847e4a121d27f7c8a03735a36ccb`
+- Phase 3 隔离工作树精确继承 `e85d772c…`
+- Repair、Pickup、Resale 与 Sales 已接入模块专属强色标题面和真实指标条
+- 统一状态标记、模块指标、记录优先级、Sales KPI 与 Closing readiness 表面已实现
+- Other Handover 保留中性标题，仅继承统一记录组件
+- 现有业务动作、权限、API、D1、审计、取车填充、维修消散和 reduced-motion 行为未改变
+- V5.8.2 发布说明已登记；完整测试在登记前已通过：Domain 4、Database 5、Web 113、API 16、Worker 11，typecheck 全绿
+- 尚未触发本 Phase 的 Preview、Staging 或 Production 部署
 
-### 当前未授权
+### 当前边界
 
-- Phase 2 及以后系统外壳和业务模块重构
-- 数据库、契约、权限或业务逻辑变化
-- Staging 部署
-- Production 部署
+- Phase 4-6 已获连续实施授权，但必须依序完成本地验证、正常 PR/CI/合并和检查点
+- 数据库、API、权限、审计和业务契约变化不在视觉 Phase 授权范围
+- Preview 只在所有 Phase 完成后统一部署一次
+- Staging 仍需独立明确批准
+- Production 禁止
 
 ### 下一步队列
 
-1. 登记 V5.8.0，更新 release notes 和 328+ 文件指纹
-2. 运行字体清单/许可证/引用约束、完整测试、typecheck、production build 和 Worker bundle
-3. 记录字体替换后的体积结果和最终 Phase 1 功能 SHA
-4. 推送对齐分支，创建 PR 并等待完整 CI 与全历史 Gitleaks
-5. CI 全绿后正常合并并部署 Preview 供用户人工验收
-6. Staging 仍需独立明确批准；Production 禁止
+1. Stamp V5.8.2 精确源码树并运行 version/diff gate
+2. 重新执行完整测试、typecheck、Web/API build、Worker typecheck/bundle 和 Phase 3 专项扫描
+3. 记录体积、文件范围与最终 Phase 3 功能 SHA
+4. 推送隔离分支，创建 PR 并等待完整 CI 与全历史 secrets
+5. CI 全绿后正常合并，并创建/合并非递归行政检查点
+6. 从最终 Phase 3 行政/source SHA 自动进入 Phase 4，不部署 Preview
+7. 所有 Phase 完成后统一部署一次 Preview；Staging 仍需用户另行明确批准；Production 禁止
 
 ---
 
@@ -1110,4 +1114,64 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 阻塞原因：N/A
 - 未完成队列：本行政检查点 PR/CI/正常合并；随后 Phase 3 核心业务模块实施。最终行政合并 SHA 按非递归规则写入 session-state、长期记忆和 Phase 3 首个检查点。
 - 下一步：完成本行政检查点；从其最终合并 SHA 创建 Phase 3 隔离工作树，重构维修、待取、销售、二手车、闭店及统一记录/KPI/状态组件；不部署 Preview。
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 Phase 3 start
+
+- Phase：Phase 3 - 核心业务模块
+- 状态：in_progress
+- 基线分支和 SHA：`feat/signal-grid-phase3-core-modules` / `e85d772cd650847e4a121d27f7c8a03735a36ccb`，精确继承 Phase 2 最终行政/source SHA；其后源码头 CI `29959718848` 通过 `verify` 与完整历史 `secrets`。
+- 本阶段完成范围：创建隔离 Phase 3 工作树并完成核心模块初步源码审查。范围固定为维修、待取、销售、二手车、闭店，以及统一记录、真实 KPI 和状态组件；其它工作交接只继承统一记录组件，不改变业务语义。Phase 4 表单、Dialog、历史、账户与设置不在本阶段重构。
+- 关键决策：模块标题使用完整模块色面和中英文双主标题；普通记录保持冷白高密度主体，工单编号、状态和主操作继承模块信号；pending/active/complete/error 同时使用文字、图标和结构；当前远程操作记录临时强化模块色；危险删除继续使用全局 Signal Red。现有取车/维修像素完成语义保留。
+- 修改文件：当前仅本规范启动检查点；运行时代码尚未修改。计划新增统一状态标记、模块真实指标条和 Phase 3 专用样式，修改 SceneTitle、RecordLedger、ClosingSummary、Repair/Pickup/Resale/Sales Scene 与回归测试。
+- 数据库或契约变化：N/A；不得修改 API、Worker、D1、权限、审计、业务枚举或数据契约。
+- 测试与验证结果：Phase 2 最终远端 SHA 与后续 CI 已核对；Phase 3 源码审查完成，尚未运行实现后测试。
+- PR / CI run：N/A
+- 部署环境、Deployment ID、Worker Version：N/A；中间 Phase 不部署 Preview、Staging 或 Production。
+- 用户验收结果：用户已授权连续完成剩余 Phase，并再次要求继续。
+- 阻塞原因：N/A
+- 未完成队列：统一组件设计与实现；V5.8.2 登记；聚焦/全量验证；功能提交；PR/CI/正常合并；非递归行政检查点；随后 Phase 4。
+- 下一步：先建立状态标记与模块真实指标组件，再重构模块标题、记录卡、销售 KPI 和闭店状态表面；保持移动端密度和既有业务动作不变。
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 06:09
+
+- Phase：Phase 3 - 核心业务模块
+- 状态：in_progress
+- 基线分支和 SHA：`feat/signal-grid-phase3-core-modules` / `e85d772cd650847e4a121d27f7c8a03735a36ccb`，精确继承 Phase 2 最终行政/source SHA。
+- 本阶段完成范围：维修、待取、二手车与销售已接入模块专属强色标题面和真实指标条；新增共享 `SignalStateMark` 与 `SignalModuleMetrics`；记录台账统一为冷白高密度主体、模块色工单编号/主要操作、pending 局部扩大色块、当前远程操作整条模块色、错误 Signal Red、完成深色结构加亮 Check；销售重组真实 KPI；闭店摘要接入 Blaze Orange、真实 readiness 与既有下一要求。其它工作交接保留原有中性标题，只继承共享记录组件。
+- 关键决策：Phase 3 不把总览和其它工作交接的标题强制改为业务模块封面；二手车待上架从旧黑色区迁移为 Hot Magenta 局部强信号，已上架仍为冷白高密度结构；状态必须同时包含文字、Iconoir 图标、边框/填充和可读语义；现有取车填充、维修消散、业务处理器和 reduced-motion 路径保持不变。
+- 修改文件：`SignalStateMark.jsx`、`LookbookPrimitives.jsx`、`RecordLedger.jsx`、`ClosingSummary.jsx`、Repair/Pickup/Resale/Sales Scene、`signal-grid-modules.css`、`index.css`、`tests/signal-grid-phase3.test.mjs`、`tests/foreground-palette.test.mjs`、`DESIGN.md` 与本规范。Opening Scene 仅恢复原说明文案，不扩大 Phase 3 标题范围。
+- 数据库或契约变化：N/A；未修改 API、Worker、D1、packages、migrations、权限、审计或业务数据契约。
+- 测试与验证结果：Phase 1-3 与前景状态聚焦静态回归共 16/16 通过；`git diff --check` 通过。全量 Web/项目验证尚未执行。
+- PR / CI run：N/A
+- 部署环境、Deployment ID、Worker Version：N/A；中间 Phase 不部署 Preview、Staging 或 Production。
+- 用户验收结果：用户要求继续，已按连续实施策略推进。
+- 阻塞原因：N/A
+- 未完成队列：冻结依赖恢复；全量 Web 回归并修复仅由视觉运行时迁移产生的旧断言；V5.8.2 登记；完整测试/typecheck/build/Worker/version/diff；功能提交；PR/CI/正常合并；非递归行政检查点；随后 Phase 4。
+- 下一步：安装冻结依赖并运行完整 Web 套件，先处理所有真实回归或过时静态断言，再进入 V5.8.2 全量发布门。
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 06:17
+
+- Phase：Phase 3 - 核心业务模块
+- 状态：verified
+- 基线分支和 SHA：`feat/signal-grid-phase3-core-modules`，功能父级 `e85d772cd650847e4a121d27f7c8a03735a36ccb`；V5.8.2 功能提交尚待创建。
+- 本阶段完成范围：V5.8.2 核心业务模块已完成实现与本地验证。维修、待取、二手车与销售使用模块专属强色标题面和真实指标；统一状态标记、记录优先级、工单信号和操作色；销售使用 Plasma Violet 核心销售车辆数加四项真实中性指标；闭店使用 Blaze Orange readiness 表面。其它工作交接保持冷白中性标题，仅继承统一记录组件。
+- 关键决策：普通记录始终保持冷白高密度主体；等待类状态只扩大局部模块色；当前远程提交记录临时整条模块色；错误使用 Signal Red；完成使用深色结构和 Voltage Lime Check；状态同时由文字、Iconoir 图标、填充/边框和结构表达。二手待上架由旧黑色区迁移为 Hot Magenta 局部强信号。现有业务完成像素动效、主操作确认态、原生滚动和 reduced-motion 不变。
+- 修改文件：新增 `SignalStateMark.jsx`、`signal-grid-modules.css`、`tests/signal-grid-phase3.test.mjs`；修改 `LookbookPrimitives.jsx`、`RecordLedger.jsx`、`ClosingSummary.jsx`、Pickup/Repair/Resale/Sales Scene、样式入口、前景状态测试、DESIGN、版本/发布说明和本规范。
+- 数据库或契约变化：N/A；变更清单确认无 `apps/api`、`apps/worker`、`packages` 或 `migrations` 修改。
+- 测试与验证结果：V5.8.2 / 343 指纹文件；工作流策略 88/88；Domain 4/4；Database 5/5；Web 113/113；API 16/16；Worker 11/11；完整 typecheck、Web/API production build、Worker typecheck/bundle、version、diff 全绿。Phase 1-3/前景聚焦测试 16/16。Web CSS 220.79 kB（gzip 52.69），JS 408.12 kB（gzip 138.80）；Worker 270.3 kB / 150.1 kB minified。源码/编译产物专项审查确认模块组件已进入 bundle、无 backend/database/package 改动、Phase 3 CSS 无散落 Hex/RGB/渐变、added-line 凭据模式扫描无命中。
+- PR / CI run：N/A；待功能提交与 PR。
+- 部署环境、Deployment ID、Worker Version：N/A；按连续阶段策略，本 Phase 不部署 Preview、Staging 或 Production。当前 Preview 仍为 Phase 1 V5.8.0；Staging 仍为 V5.7.7。
+- 用户验收结果：Phase 3 范围和中间阶段不单独部署/确认的规则已获明确授权。
+- 阻塞原因：N/A
+- 未完成队列：重新 stamp 包含本检查点的精确树；最终完整验证；功能提交；PR/CI/正常合并；非递归行政检查点；随后 Phase 4。
+- 下一步：重新 stamp 并完整验证本检查点树，完成 staged diff/凭据审查后创建 V5.8.2 功能提交和 PR。
 - Production：forbidden

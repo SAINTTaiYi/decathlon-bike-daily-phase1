@@ -3,6 +3,7 @@ import IconCheckCircle from '@iconoir-solid/CheckCircle.mjs'
 import IconClock from '@iconoir/Clock.mjs'
 import IconWarning from '@iconoir-solid/WarningTriangle.mjs'
 import IconMedia from '@iconoir/MediaImage.mjs'
+import SignalStateMark from './SignalStateMark.jsx'
 
 export default function ClosingSummary({ workflow, onJumpToRequirement, onCompleteClosing, onReopenClosing, onExportReport }) {
   const next = workflow.remainingRequirements[0]
@@ -18,7 +19,7 @@ export default function ClosingSummary({ workflow, onJumpToRequirement, onComple
 
   return (
     <section className="closing-summary" data-signal-module="closing" aria-labelledby="closing-summary-title" data-motion="summary">
-      <div className="summary-topline"><span>{dateLabel} / DATABASE SYNC</span><strong>{closed ? 'CLOSED' : 'OPEN'}</strong></div>
+      <div className="summary-topline"><span>{dateLabel} / DATABASE SYNC</span><SignalStateMark tone={closed ? 'complete' : workflow.kpiReady ? 'active' : 'pending'}>{closed ? 'CLOSED' : workflow.kpiReady ? 'READY' : 'OPEN'}</SignalStateMark></div>
       <div className="summary-grid">
         <div className="summary-copy">
           <span>Daily closing</span>
@@ -27,6 +28,7 @@ export default function ClosingSummary({ workflow, onJumpToRequirement, onComple
         </div>
         <div className="summary-score" aria-label={`闭店准备度 ${workflow.readiness}%`}><strong>{workflow.readiness}</strong><span>%</span></div>
       </div>
+      <div className="signal-readiness-track" aria-label={`闭店准备度 ${workflow.readiness}%`}><span style={{ '--signal-readiness': `${workflow.readiness}%` }} /><small>{workflow.readiness}% READY</small></div>
       {workflow.storageError ? <div className="status-alert" role="alert"><IconWarning width={18} height={18} aria-hidden="true" /><span>{workflow.storageError}</span><button type="button" onClick={() => void workflow.refresh()} disabled={workflow.syncing}>{workflow.syncing ? '正在同步…' : '重新同步'}</button></div> : null}
       {closed ? (
         <div className="summary-next summary-next-complete summary-next-closed">
