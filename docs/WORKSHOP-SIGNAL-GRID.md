@@ -1001,7 +1001,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 修改文件：字体二进制/许可证/SHA 清单与 `SOURCES.md`；`signal-grid-fonts.css`、`signal-grid-noto-sans-sc.css`、语义/legacy 字体 Token；`index.html` 字体预加载；日报图字体加载器；DESIGN、本规范、V5.8.0 版本说明与字体/日报回归测试；删除旧 Serif CSS 和 101 个 WOFF2。
 - 数据库或契约变化：N/A；没有业务逻辑、API、D1、权限或流程修改。
 - 测试与验证结果：V5.8.0 / 338 指纹文件；工作流策略 88/88；Domain 4/4；Database 5/5；Web 105/105；API 16/16；Worker 11/11；完整 typecheck、Web/API production build、Worker typecheck/bundle、version、diff 全部通过。Web CSS 194.49 kB（gzip 49.58），JS 455.24 kB（gzip 157.83）；Worker 270.3 kB / 150.1 kB minified。构建运行时审查确认 HTML/CSS/JS 与字体目录零旧 Serif 引用/文件；108 个 WOFF2 文件头全部有效，public/dist 字体资产均为 4,712,220 bytes。
-- 内容提交 SHA：待本检查点随 V5.8.0 功能提交创建后登记。
+- 内容提交 SHA：`aeb6829d93d11176fe231fb4d0d9b4edb2b517c4`。
 - PR / CI run：N/A
 - 部署环境、Deployment ID、Worker Version：N/A；未触发 Preview、Staging 或 Production。
 - 用户验收结果：用户明确授权删除旧 Serif 并换用已验证 Noto Sans SC，同时继续加入 Barlow Condensed；尚待 Preview 人工验收。
