@@ -1,13 +1,13 @@
-export const APP_VERSION = "5.7.8"
+export const APP_VERSION = "5.7.9"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.22",
-  title: "工业灰阶与 Falu Red 前景系统",
-  summary: "保持现有页面背景不变，将登录、工作台、弹窗、按钮、组件边界、符号和状态胶囊统一为 Dark Void、Iridium、Artillery、Equilibrium 与 Falu Red 的前景色彩体系。",
+  title: "WORKSHOP SIGNAL GRID 设计事实源",
+  summary: "将已确认的 Workshop 全系统下一代视觉方向、阶段实施路线和抗中断检查点治理写入项目事实源；当前仅登记设计文档，不改变运行时界面。",
   changes: [
-    "主业务操作改为低饱和 Falu Red 填充与红色描边；删除等不可逆操作保留更明确的实心 Falu Red 危险反馈。",
-    "待处理、进行中、已完成与异常状态胶囊改用灰阶和红色语法，完成状态增加勾选符号，不再使用绿黄蓝状态色。",
-    "登录、深色票据、选择控件、行动作、标签、边界与焦点状态同步收束；页面与工作台背景材质保持原样。"
+    "DESIGN.md 新增 WORKSHOP SIGNAL GRID 目标摘要、色彩架构、字体几何、导航、动效和实施边界索引。",
+    "新增 docs/WORKSHOP-SIGNAL-GRID.md，完整记录页面级规范、组件规则、可访问性、性能、知识产权边界和阶段队列。",
+    "建立强制检查点模板与恢复顺序，后续每个阶段或重要验证步骤同步更新项目 Markdown 和长期记忆。"
   ]
 }
