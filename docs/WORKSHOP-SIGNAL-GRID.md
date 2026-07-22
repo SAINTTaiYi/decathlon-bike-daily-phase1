@@ -1009,3 +1009,25 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 未完成队列：最终 staged diff/凭据模式审查；创建 V5.8.0 功能提交和非递归行政检查点；PR/CI；正常合并；Preview-only 部署与身份核验。
 - 下一步：完成本地提交，随后按既定自动交付策略执行 PR -> CI -> 正常合并 -> Preview；Staging 仍需用户另行明确批准。
 - Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 04:30
+
+- Phase：Phase 1 - 设计基础
+- 状态：preview_released
+- 基线分支和 SHA：`feature/cloudflare-workers-d1` / `cb0403cba2589db5bb44aac1c1a24c3330432da7`，正常合并自 PR #33；直接继承 Phase 0 最终行政合并 `6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
+- 本阶段完成范围：Phase 1 设计基础已完成并进入 Preview。包括 primitive/semantic/component 三层 Token、六个业务模块加中性 Other Handover 的运行时主题映射、Iconoir outline/filled 状态规则、DESIGN.md 运行时代码映射，以及 V5.8.0 自托管字体基础。字体为 Albert Sans Variable Latin/Latin-ext、Barlow Condensed 400/700/800/900 与 900 italic、Noto Sans SC Variable 101 个 Unicode 分片；旧 Noto Serif SC 已删除。日报图导出同步使用新字体，并为每次报告的实际中文内容加载所需分片。
+- 关键决策：Phase 1 只建立可验证基础，不实施 Phase 2 系统外壳/导航/页面构图；Other Handover 保持冷白中性结构，仅用 Voltage Lime 表达编号与操作信号；所有字体均为 OFL-1.1 自托管资源，不含 Marathon/Bungie 专有字体或资产。项目检查点继续采用非递归规则：本检查点后续自身的最终行政合并 SHA 只写入 session-state、长期记忆和下一阶段首个项目检查点。
+- 修改文件：Phase 1 功能提交 `3505263a8fbae882e3f92db3add21523047dc76d` 与字体完成提交 `aeb6829d93d11176fe231fb4d0d9b4edb2b517c4` 所覆盖的 Token、主题注册、场景主题钩子、Iconoir 状态、字体 CSS/二进制/许可证/来源/SHA 清单、日报图字体加载、测试、DESIGN、版本与发布说明；中间非递归检查点为 `1b8d553907897af0120285442c98511870508741` 与 `2ffb95ad29acc25909b90cdf7a1c470bb7ba7530`。
+- 数据库或契约变化：N/A；没有业务逻辑、API、D1、权限、数据契约或操作流程修改。
+- 测试与验证结果：本地最终验证为工作流策略 88/88；Domain 4/4；Database 5/5；Web 105/105；API 16/16；Worker 11/11；完整 typecheck、Web/API build、Worker typecheck/bundle、version、diff 全绿。CI run `29954833457` 的 `verify` 与 `secrets` 全绿；合并后源码头 CI `29955072783` 全绿。108 个 WOFF2 文件签名有效，public/dist 字体资产均为 4,712,220 bytes，构建 HTML/CSS/JS 与字体目录零旧 Serif 运行时文件/引用。
+- PR / CI run：PR #33 正常合并；PR CI `29954833457`；合并后源码头 CI `29955072783`。
+- 部署环境、Deployment ID、Worker Version：Cloudflare Preview workflow `29955143052` 成功；deployment `03d065b9-150c-4cbc-bbd6-3106e0f6eb6a`，Worker version `1ed51a89-80a4-434d-b343-4c6a20089adf`，100% traffic；绑定确认 `APP_ENV=preview`、`APP_VERSION=5.8.0`、`GIT_SHA=cb0403cba2589db5bb44aac1c1a24c3330432da7`、独立 Preview D1 与 ASSETS。
+- 部署后验收：`/health/live`、`/health/ready`、`/api/v1/meta/version`、根 Web shell 均返回 V5.8.0 与精确 SHA；Web shell 使用 JS `index-CP3IgIO7.js`、CSS `index-DE4PRqA5.css`。远端 JS/CSS 及 Albert Sans、Barlow Condensed、Noto Sans SC 抽样字体文件 SHA-256 与本地构建逐字节一致；远端运行时 JS/CSS 零旧 Serif 引用。
+- 用户验收结果：自动技术验收通过；等待用户人工检查 Preview 中英文字体层级、模块标题/数字风格、中文正文清晰度与日报图导出。
+- Staging 状态：未触碰，仍为 V5.7.7 / `8642dd7cd6d97b39215c3b1788de8a1488af238d`；必须后续单独明确批准才可发布。
+- 阻塞原因：N/A
+- 未完成队列：本释放检查点的行政 PR/CI/正常合并；以最终行政合并 SHA 重新执行 Preview-only 身份收敛；用户人工验收；Phase 2 需另行明确授权。
+- 下一步：完成非递归行政检查点合并和最终 Preview 身份核验，然后等待用户人工验收；不得自动进入 Staging 或 Phase 2。
+- Production：forbidden
