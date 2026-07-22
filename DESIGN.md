@@ -6,6 +6,88 @@
 
 界面不是普通 Dashboard。它以瑞士网格、工业档案和编辑式留白组织真实运营任务：外层保留 Workshop Ledger 的黑白品牌语言，内层通过明确的信息层级让车型、工单、维修内容与业务事实快速可扫。不得改成蓝白企业后台，也不得用装饰取代业务密度和移动端可操作性。
 
+
+## Next-generation visual target: WORKSHOP SIGNAL GRID
+
+> **Status: approved design specification, not implemented.** The current V5.7.8 runtime remains governed by the existing palette, visual and motion sections below until an implementation phase is explicitly authorized, built, verified and accepted.
+
+The complete specification and anti-interruption checkpoint ledger live in [`docs/WORKSHOP-SIGNAL-GRID.md`](docs/WORKSHOP-SIGNAL-GRID.md). That file is the canonical source for the future full-system redesign, phase plan, recovery state, validation evidence, blockers and next-action queue.
+
+### Design read
+
+WORKSHOP SIGNAL GRID is a full-system visual overhaul for authenticated, high-frequency store operations. It preserves routes, information architecture, business workflows, fields, permissions, audit semantics and data contracts while replacing the gray plus Falu Red foreground language with an original bright industrial signal system.
+
+The intended balance is:
+
+- Module entry and key-action zones behave like bold product posters.
+- Records, forms, history and detailed reports behave like precise operational tools.
+- Visual energy may borrow from Marathon's high-saturation flat composition and procedural product-design language, but no proprietary logos, fonts, icons, heraldry, characters, screenshots or recognisable compositions may be copied.
+
+### Module color architecture
+
+- Overview: Voltage Lime `#D7FF3F`
+- Repair: Ion Cyan `#18D8FF`
+- Pickup: Solar Yellow `#FFE247`
+- Sales: Plasma Violet `#7657FF`
+- Resale: Hot Magenta `#FF3D96`
+- Closing: Blaze Orange `#FF5A24`
+- History, account and settings: cool-white structure with inherited source-module signals
+- Global danger: Signal Red `#F02D3A`
+- Global success: dark structure plus bright Check
+- Global locked state: graphite structure plus Lock and text
+- Global synchronization: electric-blue border pulse, progress path and readable state text
+
+The base canvas is bright cool-neutral rather than a global dark game HUD. Large vivid color fields are reserved for module headers, core KPI groups, primary action zones and selected priority records. Dense content and form surfaces remain bright and neutral. Color never acts as the sole status signal.
+
+### Typography and geometry
+
+- Ultra-condensed heavy Latin module names, oversized real numbers/codes and forceful heavy Chinese titles form the display layer.
+- Chinese and English titles are dual-primary and compose into one offset, split or stacked graphic unit.
+- Body copy, labels, controls and dense operational data retain a neutral, highly readable UI font.
+- The geometry uses square frames, notches, diagonal cuts, nested outlines and interlocking color fields.
+- Soft card radii, glassmorphism, decorative shadows, gradients and floating SaaS panels are not part of the target language.
+- Visual depth comes from borders, overlap, cropping, scale and offset composition, not elevation shadows.
+
+### Procedural graphics, media and icons
+
+- Industrial coordinates, scales, work-order numbers and registration marks form the structural micrographic backbone.
+- Pixel/dither and data textures appear only at visual peaks.
+- Scan lines, waveforms, directional arrows and progress tracks appear only during real loading, synchronization and state changes.
+- Photography is strongly graphic: high contrast, halftone/dither, duotone separation and hard asymmetric crops. Its duotone follows the active module color.
+- Navigation and ordinary functions use one sharp engineering-outline icon family. Primary actions, semantic states and destructive actions use filled icons. Active controls may switch from outline to filled.
+
+### Density, records and navigation
+
+- Module entry and key-action areas use large titles, vivid fields and deliberate whitespace.
+- Record lists, forms and dense data remain compact; mobile prioritizes completing the primary task within one screen where practical.
+- Ordinary records use cool-white bodies with module signal framing, number zones and action color.
+- Pending, abnormal or newest records receive larger local color fields.
+- The actively operated record may temporarily intensify to its full module color.
+- Desktop uses a numbered left-side module rail.
+- Mobile retains a thumb-reachable segmented bottom Dock with identical ordering and semantics.
+
+### KPI and motion
+
+- Core KPI values use oversized number-led compositions.
+- Trends, completion rates and exceptions use concise industrial scales, bars and progress tracks.
+- Decorative gauges and invented precision are prohibited.
+- Navigation and layout transitions use brief hard cuts and interlocking slide assemblies.
+- Loading, synchronization and state transitions use restrained procedural signals.
+- Existing business-completion pixel effects remain and will be rhythmically unified.
+- Broad continuous ambient motion, scroll hijacking and task-disruptive parallax are prohibited.
+- Native scroll, input stability and `prefers-reduced-motion` are mandatory.
+
+### Coverage and implementation governance
+
+The redesign covers login, setup, forced password change, overview, all business modules, permanent history, account/settings, Dialogs, forms and report exports. It must be delivered in isolated phases, with CI and Preview validation for every phase. Staging requires a later explicit approval; Production remains forbidden.
+
+After every completed phase or important verified step, update both:
+
+1. `docs/WORKSHOP-SIGNAL-GRID.md`, including scope, decisions, files, commit/SHA, tests, deployment identity, blockers and next queue.
+2. Long-term agent memory and the active session checkpoint.
+
+This write-ahead checkpoint rule exists to survive network loss, context compaction and token limits. No runtime implementation may begin until the user explicitly authorizes Phase 1.
+
 ## Product hierarchy
 
 1. **首次初始化**：一次性 HTTPS Setup 链接创建首位管理员和门店；完成后链接失效。
@@ -243,7 +325,7 @@ packages/
 
 ## Version governance
 
-- 当前版本：`V5.7.8`。
+- 当前版本：`V5.7.9`。
 - 根 `package.json`、`apps/web/package.json`、`apps/web/src/data/releaseNotes.js` 与 `version-manifest.json` 必须一致。
 - `pnpm version:patch -- ...` 递增 V5 版本并生成当前发布说明。
 - 完成代码与文档后运行 `pnpm version:stamp`；`pnpm build` 先校验版本和源码/部署事实指纹。
