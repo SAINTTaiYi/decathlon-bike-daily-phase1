@@ -5,10 +5,11 @@
 ## 0. 文档状态
 
 - **方案名称**：WORKSHOP SIGNAL GRID
-- **方案状态**：设计方向已确认，完整规范已固化；V5.7.9 为文档登记版本，尚未授权实施
+- **方案状态**：Phase 0 设计事实源已通过 PR #31 合并并完成合并后 CI；V5.7.9 为文档登记版本，Phase 1 尚未授权实施
 - **文档创建日期**：2026-07-22
 - **文档基线**：`feature/cloudflare-workers-d1` / `a98858c388e3d866412390920d14381ed48008f2` / V5.7.8 Preview source
 - **文档登记版本**：V5.7.9（仅源码文档，不部署）
+- **Phase 0 合并 SHA**：`94cd3f970969749167b286ef76c29c60f6e145a5`
 - **当前 Preview**：V5.7.8 / `a98858c388e3d866412390920d14381ed48008f2`
 - **当前 Staging**：V5.7.7，未因本文档修改
 - **Production**：禁止
@@ -766,23 +767,32 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 禁止用不相干工具绕过专用工具失败
 - 数据删除、历史改写、force push 和 Production 操作需要独立明确授权
 
+### 18.5 检查点提交的非递归规则
+
+- 功能或阶段主提交、准确内容 SHA、PR、CI、测试和部署证据必须写入项目 Markdown。
+- 引入该检查点文件本身的最终行政合并 SHA 不再通过无限追加提交自我引用。
+- 该最终合并 SHA 必须立即写入长期记忆和 `~/session-state.md`，并在下一阶段首个项目 Checkpoint 中继承。
+- 这样既保留项目内可恢复事实，又避免“为记录合并而再次合并”的无限循环。
+
 ---
 
 ## 19. 当前恢复状态
 
 ### 当前任务
 
-将 WORKSHOP SIGNAL GRID 完整方案持久化到长期记忆和项目 Markdown。
+等待用户未来明确授权 WORKSHOP SIGNAL GRID Phase 1。当前没有运行时实现任务。
 
 ### 当前已完成
 
 - 设计方向和完整规范已确认
 - 长期记忆已更新
 - 抗中断治理规则已写入长期记忆
-- 本完整规范已创建
-- `DESIGN.md` 摘要和索引已完成
+- 本完整规范和 `DESIGN.md` 摘要已合并到正式源码分支
 - V5.7.9 文档版本和 321 文件指纹已登记
-- 完整测试、类型检查、构建、Worker bundle、版本与文档完整性验证已通过
+- 本地完整验证通过
+- PR #31 的内容 CI、检查点 CI 和合并后源码头 CI 全部通过
+- Phase 0 合并 SHA：`94cd3f970969749167b286ef76c29c60f6e145a5`
+- 本次没有触发 Preview、Staging 或 Production 部署
 
 ### 当前未授权
 
@@ -795,11 +805,12 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### 下一步队列
 
-1. 完成最终 diff 和敏感信息复核
-2. 创建文档提交和 PR
-3. CI 通过后以正常 Git 历史合并文档
-4. 不触发 Preview 或 Staging 部署
-5. 等待用户未来明确授权 Phase 1
+1. 等待用户明确授权 Phase 1
+2. 授权后从最新 `feature/cloudflare-workers-d1` 精确 SHA 建立隔离分支
+3. Phase 1 仅实现设计 Token、字体授权核对、模块主题映射和图标规则
+4. 每个可验证步骤立即更新本文件、长期记忆和会话状态
+5. CI 全绿后自动合并并部署 Preview 供用户验收
+6. Staging 仍需独立明确批准；Production 禁止
 
 ---
 
@@ -830,10 +841,31 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 数据库或契约变化：N/A
 - 测试与验证结果：工作流策略 88/88；Domain 4/4；Database 5/5；Web 100/100；API 16/16；Worker 11/11；完整 typecheck、Web/API build、Worker typecheck/bundle、version check、diff check 和自定义 Markdown 完整性断言全部通过。Web CSS 186.70 kB（gzip 48.12），JS 442.87 kB（gzip 154.59）；Worker 270.3 kB / 150.1 kB minified。首次 `pnpm check:version` 按治理预期阻止未登记文档，随后已正式登记 V5.7.9。
 - 内容提交 SHA：`7007ccee74059ea2437d884530a60e209766495a`
-- PR / CI run：Draft PR #31；首轮 CI run `29932191032`，`secrets` 与 `verify` 全部通过
-- 部署环境、Deployment ID、Worker Version：N/A，本次禁止部署
+- PR / CI run：PR #31；内容 CI `29932191032`、检查点 CI `29932395912`、合并后源码头 CI `29932642968` 均通过 `secrets` 与 `verify`
+- 部署环境、Deployment ID、Worker Version：N/A；GitHub run inventory 已核对，本次没有触发任何部署工作流
 - 用户验收结果：用户已确认双文档结构和抗中断自动记录要求
 - 阻塞原因：N/A
-- 未完成队列：提交本检查点、最终 CI、正常合并
-- 下一步：提交并推送本检查点；最终 CI 全绿后正常合并 PR #31，不触发部署
+- 未完成队列：N/A，Phase 0 已完成；等待 Phase 1 明确授权
+- 下一步：等待用户未来明确授权 Phase 1
+- Production：forbidden
+
+
+---
+
+## Checkpoint 2026-07-22 23:19
+
+- Phase：Phase 0 - 设计方案与事实源
+- 状态：released
+- 基线分支和 SHA：`feature/cloudflare-workers-d1` / `94cd3f970969749167b286ef76c29c60f6e145a5`
+- 本阶段完成范围：WORKSHOP SIGNAL GRID 完整规范、DESIGN.md 摘要、V5.7.9 文档登记、阶段路线、恢复状态和抗中断治理已进入正式源码分支。
+- 关键决策：当前运行时仍使用 V5.7.8 视觉；WORKSHOP SIGNAL GRID 只是已批准的下一代目标，Phase 1 未授权。采用检查点提交非递归规则，避免为记录最终行政合并而无限追加提交。
+- 修改文件：`DESIGN.md`、`docs/WORKSHOP-SIGNAL-GRID.md`、`package.json`、`apps/web/package.json`、`apps/web/src/data/releaseNotes.js`、`version-manifest.json`。
+- 数据库或契约变化：N/A
+- 测试与验证结果：本地工作流策略 88/88；Domain 4/4；Database 5/5；Web 100/100；API 16/16；Worker 11/11；完整 typecheck、build、Worker bundle、version、diff 和文档完整性验证通过。CI `29932191032`、`29932395912`、`29932642968` 全绿。
+- PR / CI run：PR #31 已正常合并；CI 如上。
+- 部署环境、Deployment ID、Worker Version：N/A；没有触发 Preview、Staging 或 Production。已部署 Preview 仍为 V5.7.8 `a98858c388e3d866412390920d14381ed48008f2`；Staging 仍为 V5.7.7 `8642dd7cd6d97b39215c3b1788de8a1488af238d`。
+- 用户验收结果：用户确认 WORKSHOP SIGNAL GRID 方案、双文档结构和自动检查点治理。
+- 阻塞原因：N/A
+- 未完成队列：等待用户明确授权 Phase 1。
+- 下一步：Phase 1 授权后先读取本文件、长期记忆和最新远端状态，再实施设计基础。
 - Production：forbidden
