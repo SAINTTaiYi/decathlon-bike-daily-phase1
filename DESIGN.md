@@ -9,7 +9,7 @@
 
 ## Next-generation visual target: WORKSHOP SIGNAL GRID
 
-> **Status: approved design specification, not implemented.** The current V5.7.8 runtime remains governed by the existing palette, visual and motion sections below until an implementation phase is explicitly authorized, built, verified and accepted.
+> **Status: implementation in progress.** Phase 1 foundations are complete. Phase 2 now owns the access surfaces, responsive module navigation, flat authenticated canvas and overview map. Later phases continue to preserve business behavior while replacing the remaining legacy visual layers.
 
 The complete specification and anti-interruption checkpoint ledger live in [`docs/WORKSHOP-SIGNAL-GRID.md`](docs/WORKSHOP-SIGNAL-GRID.md). That file is the canonical source for the future full-system redesign, phase plan, recovery state, validation evidence, blockers and next-action queue.
 
@@ -79,7 +79,7 @@ The base canvas is bright cool-neutral rather than a global dark game HUD. Large
 
 ### Coverage and implementation governance
 
-The redesign covers login, setup, forced password change, overview, all business modules, permanent history, account/settings, Dialogs, forms and report exports. It must be delivered in isolated phases, with CI and Preview validation for every phase. Staging requires a later explicit approval; Production remains forbidden.
+The redesign covers login, setup, forced password change, overview, all business modules, permanent history, account/settings, Dialogs, forms and report exports. It is delivered in isolated phases with complete local verification, normal PR/CI and checkpoints. Intermediate phases do not deploy Preview; all phases converge into one final Preview for human acceptance. Staging requires a later explicit approval; Production remains forbidden.
 
 After every completed phase or important verified step, update both:
 
@@ -91,7 +91,7 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 
 ### Phase 1 runtime foundation mapping
 
-> **Status: in progress.** Phase 1 is authorized and remains limited to design foundations. No business rule, API, database contract or workflow is changed.
+> **Status: complete.** Phase 1 established the shared design foundations without changing any business rule, API, database contract or workflow.
 
 - Primitive tokens: `apps/web/src/styles/signal-grid-primitives.css`
 - Semantic tokens and module scopes: `apps/web/src/styles/signal-grid-semantic.css`
@@ -103,19 +103,31 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 - Typography state: Albert Sans Variable, Barlow Condensed 400/700/800/900 and Noto Sans SC Variable are verified, OFL-licensed and self-hosted. `SOURCES.md` records package provenance, tarball integrity and per-file SHA-256 manifests. The inactive Noto Serif SC assets were removed with explicit user approval.
 - Other Handover: cool-white neutral structure with Voltage Lime only for numbering and operation signal, never a seventh module color.
 
+
+### Phase 2 runtime shell mapping
+
+> **Status: in progress.** Phase 2 changes only the visual shell and navigation structure. Business actions, permissions, API calls, audit semantics and data contracts remain unchanged.
+
+- Shared access structure: `apps/web/src/components/SignalAccessFrame.jsx`; login, first setup and forced password change use the same dark structure, Voltage Lime registration field and accessible form grammar.
+- Access implementation: `BootLoader.jsx`, `InitialSetup.jsx` and `PasswordChangeGate.jsx`; labels, autofill, inline errors, busy states and password rules remain intact.
+- Authenticated canvas: `.signal-workspace` and `.signal-workspace-canvas` in `apps/web/src/styles/signal-grid-shell.css`; the active shell is bright cool-neutral, flat and grid-registered, with no paper-fibre layers, elevation shell or continuous parallax.
+- Navigation: the single `ActionDock.jsx` source renders a fixed numbered left module rail from `960px` upward and the same six modules as a thumb-reachable bottom Dock below `960px`.
+- Overview: `PulseScene.jsx` uses one Voltage Lime core sales KPI, four real secondary metrics and a five-module signal map. It does not invent data or change the closing requirement.
+- Motion: `useWorkspaceMotion.js` provides one short post-login hard-cut assembly with Skip/Escape/reduced-motion paths. `useMotionSystem.js` retains only immediate button press feedback. Active scene tracking uses `IntersectionObserver` rather than continuous scroll listeners.
+
 ## Product hierarchy
 
 1. **首次初始化**：一次性 HTTPS Setup 链接创建首位管理员和门店；完成后链接失效。
-2. **安全登录**：黑色品牌开屏内嵌用户名与密码表单；登录成功后由上下分屏动画进入工作台。
+2. **安全登录**：Signal Access 左侧品牌结构与右侧数据库账号表单组成统一入口；登录成功后通过短促硬切进入工作台。
 3. **强制改密**：管理员创建的临时密码账号在改密前不能访问业务数据。
-4. **顶部日报刊头**：以紧凑的 `WORKSHOP LEDGER / WORKSHOP OPS / V5` 组合建立品牌，不承担模块导航。
+4. **顶部系统刊头**：以 `WORKSHOP SIGNAL GRID / WORKSHOP OPS / 门店作业信号系统 / V5` 建立品牌和运行状态，不复制模块导航。
 5. **身份条**：持续显示当前门店、角色和数据库用户，菜单提供退出登录而非任意改名。
 6. **全局闭店摘要**：销售数据是唯一闭店门槛；所有已登录用户可以完成闭店，只有 manager/admin 可以重新打开。
 7. **当前版本说明**：摘要下方只展示当前版本，不做历史版本时间线。
-8. **六个业务模块**：KPI → 待取车辆 → 其它工作交接 → 维修交接 → 二手车台账 → 销售数据；保留顺序编号，但降低海报式装饰权重。
+8. **六个业务模块**：总览 → 待取 → 其它 → 维修 → 二手 → 销售；桌面左侧编号轨道与移动底部 Dock 使用相同顺序和语义。
 9. **操作记录与附件**：模块和记录均可查看审计；业务记录可打开私有图片附件。
 10. **尾部运行状态**：显示当前用户、门店、角色、最后同步时间、闭店操作、日报菜单和当日日志。
-11. **固定 LOOK Dock**：只做场景跳转和闭店状态提示，不复制业务主操作。
+11. **响应式模块导航**：桌面固定左侧轨道，移动固定底部 Dock；只做场景跳转和闭店状态提示，不复制业务主操作。
 
 ## Runtime truth
 
@@ -281,21 +293,14 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 
 ## Motion governance
 
-- GSAP `3.13.0`：品牌开屏进入/退出和一次性页面内容编排。
-- anime.js `4.5.0`：按钮按压反馈。
-- Motion 只承担登录过渡、内容进入与即时反馈，不使用 ambient loop。
-- 不动画布局属性；主要过渡 150–250ms，按钮按压使用克制的 0.98 缩放；品牌开屏可更长但不得阻塞 reduced-motion 用户。
-- `prefers-reduced-motion: reduce` 下跳过编排并立即展示可操作内容。
-- V5.6.3 post-login workspace assembly：仅在真实登录后的首个已水合首页播放一次约 2.4 秒的 GSAP 空间组装；普通刷新和会话恢复不播放，退出后重新登录会重播。
-- 该入场只编排现有刊头、身份条、闭店摘要、版本条、工坊图片与首个 KPI 工作区，不引入自行车图形、额外营销页或主题插画；点击遮罩、跳过按钮或 Escape 可立即收束至可操作页面。
-- 常驻动效采用有限的 GSAP ScrollTrigger 组级视差和 pointer/touch 低幅 3D 响应；输入、筛选、菜单和 Dialog 状态会降至 25% 以下，且不劫持滚动、不使用陀螺仪。
-- V5.6.2 repair：原生页面壳与滚动内容容器永不在滚动期间被 transform 或 tween；滚动深度只作用于独立固定背景平面、导航变量和局部视觉区块。手机端使用更明显的分层位移与阴影，但保持 `touch-action: pan-y` 和连续原生滑动。
-- V5.6.3 scroll reveal repair：刷新后向下滚动的组件进入由 GSAP 批量空间 reveal 编排，内容保留完整静态布局；禁止对该路径使用 clip-path 或单项 blur，采用 opacity、translateZ、rotateX、scale 和同组 stagger，避免半截裁切与多组件争抢帧。
-- V5.6.4 swipe delete：仅原本具备删除权限且未完成的业务台账记录支持左滑，模块标题持续提示“左滑记录，点按删除”；横向意图确认后才由记录的嵌套视觉表面接管，外层文章仍由滚动 reveal 与空间响应管理，纵向触摸滚动保持 pan-y 原生连续。删除无二次确认，使用 GSAP 电子扫描闪烁退场；服务端失败时恢复卡片，既有操作记录撤回语义不变。
-- V5.6.5 swipe/action refinement：左滑后删除区采用低饱和承托中的独立危险按钮，不再用整块红色栏；删除按钮不依赖异步 open 状态变更，首次点按即执行。所有同时有编辑与主业务操作的记录卡固定为同一行动作，编辑左、主操作右；只有一个动作时才独占整行。保持移动端 `pan-y`、GSAP 电子退场、失败恢复与审计撤回。
-- V5.6.6 pickup pixel completion：仅确认取车在服务端校验成功后进入像素填黑。黑色方块按卡片网格由左上向右下逐步覆盖完整卡片，再提交既有当日黑色保留记录；维修、售出和其它完成操作不复用该效果。像素层只覆盖局部视觉面，不改变滚动壳、布局或手势；reduced-motion 直接落入最终黑色状态。
-- V5.6.7 unified primary confirmation：所有提交业务状态变化的主操作在远端确认期间使用统一的勾选图标和“确认中…”状态（浅色票据为黑色确认面，深色票据保持反白对比），包括维修完毕、已售出、完成、确认取车及其自提取货码/闭店确认入口。记录级单次守卫阻止重复或跨记录提交；编辑、左滑删除、筛选、导航和其它通用控件不复用该状态。reduced-motion 不延长等待反馈，仍保留可读 pending 状态。
-- V5.7.0 right-to-left transparent repair pixels：仅维修完毕在服务端成功确认后才触发。用更小的黑色硬边像素完整覆盖卡片；从最右列开始、按明显的右到左进度，单颗黑色方格缓慢变为透明，少量列内随机偏移只用于避免机械齐刷刷消失。卡片底色和边框同时透明，因此整个卡片通过像素孔洞顺畅退场，不保留黑色像素场。最后一颗消失后才提交既有维修完成/转入待取结果。失败时不播放任何消散，reduced-motion 直接提交最终业务状态。该局部覆盖层不改动滚动壳或原生触摸滚动。
+- GSAP `3.13.0` only owns the short access exit and one-time post-login shell assembly.
+- anime.js `4.5.0` owns immediate button press feedback.
+- Product transitions target 80-340ms and communicate navigation, feedback or state. Broad ambient animation is prohibited.
+- The Phase 2 shell contains no ScrollTrigger, scroll listener, pointer tilt, perspective, translateZ, blur reveal or continuous parallax.
+- Active module tracking uses `IntersectionObserver`; native scrolling remains untouched.
+- The post-login assembly runs only after a real login and hydrated data. Session restore opens directly into the workspace. Skip button, backdrop click and Escape complete the sequence immediately and focus the main content.
+- `prefers-reduced-motion: reduce` collapses the assembly to an immediate handoff and retains static, readable content.
+- Existing business completion pixels and swipe-delete feedback remain scoped to their actions until later phases unify their rhythm. They never transform the scroll-bearing shell.
 
 ## Architecture
 

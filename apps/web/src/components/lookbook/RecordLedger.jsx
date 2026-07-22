@@ -444,7 +444,7 @@ export default function RecordLedger({
         )
 
         const row = (
-          <article className="record-row" data-spatial-tilt="true" data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-pickup-pixel-filling={pickupPixelFill ? 'true' : undefined} data-repair-pixel-dissolving={repairPixelDissolve ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row">
+          <article className="record-row" data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-pickup-pixel-filling={pickupPixelFill ? 'true' : undefined} data-repair-pixel-dissolving={repairPixelDissolve ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row">
             {pickupPixelFill ? <PickupPixelFill recordId={record.id} onComplete={onPickupPixelFillComplete} /> : null}
             {repairPixelDissolve ? <RepairPixelDissolve recordId={record.id} onComplete={onRepairPixelDissolveComplete} /> : null}
             <header className="record-row-head">

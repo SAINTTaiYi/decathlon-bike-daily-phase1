@@ -3,10 +3,10 @@
 @import './signal-grid-primitives.css';
 @import './signal-grid-semantic.css';
 @import './base.css';
-@import './boot.css';
 @import './layout.css';
 @import './components.css';
 @import './motion.css';
 @import './responsive.css';
 @import './refinement.css';
 @import './signal-grid-components.css';
+@import './signal-grid-shell.css';
