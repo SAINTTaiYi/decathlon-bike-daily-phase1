@@ -9,7 +9,7 @@
 
 ## Next-generation visual target: WORKSHOP SIGNAL GRID
 
-> **Status: implementation in progress.** Phase 1 foundations are complete. Phase 2 now owns the access surfaces, responsive module navigation, flat authenticated canvas and overview map. Later phases continue to preserve business behavior while replacing the remaining legacy visual layers.
+> **Status: implementation in progress.** Phase 1 foundations and the Phase 2 system shell are complete in the main source branch. Phase 3 now owns the core business modules while later phases preserve business behavior and replace the remaining legacy visual layers.
 
 The complete specification and anti-interruption checkpoint ledger live in [`docs/WORKSHOP-SIGNAL-GRID.md`](docs/WORKSHOP-SIGNAL-GRID.md). That file is the canonical source for the future full-system redesign, phase plan, recovery state, validation evidence, blockers and next-action queue.
 
@@ -106,7 +106,7 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 
 ### Phase 2 runtime shell mapping
 
-> **Status: in progress.** Phase 2 changes only the visual shell and navigation structure. Business actions, permissions, API calls, audit semantics and data contracts remain unchanged.
+> **Status: complete.** Phase 2 changed only the visual shell and navigation structure. Business actions, permissions, API calls, audit semantics and data contracts remain unchanged.
 
 - Shared access structure: `apps/web/src/components/SignalAccessFrame.jsx`; login, first setup and forced password change use the same dark structure, Voltage Lime registration field and accessible form grammar.
 - Access implementation: `BootLoader.jsx`, `InitialSetup.jsx` and `PasswordChangeGate.jsx`; labels, autofill, inline errors, busy states and password rules remain intact.
