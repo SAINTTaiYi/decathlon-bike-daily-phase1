@@ -1,14 +1,15 @@
 import { sceneById } from '../../data/lookbookScenes.js'
+import { SignalModuleMetrics } from './SignalStateMark.jsx'
 
 export function LookNumber({ scene }) {
   return <p className="look-number"><strong>{scene.no}</strong><span>{scene.label}</span></p>
 }
 
-export function SceneTitle({ scene, as = 'h2', note, action }) {
+export function SceneTitle({ scene, as = 'h2', note, action, metrics = [], signalHeader = false }) {
   const Heading = as
   const resolved = sceneById(scene.id)
   return (
-    <header className="scene-title" data-motion="title">
+    <header className={`scene-title${signalHeader ? ' signal-module-header' : ''}`} data-motion="title">
       <div className="scene-title-row">
         <div className="display-heading-group">
           <LookNumber scene={resolved} />
@@ -18,6 +19,7 @@ export function SceneTitle({ scene, as = 'h2', note, action }) {
         {action}
       </div>
       {note ? <p className="scene-note">{note}</p> : null}
+      <SignalModuleMetrics items={metrics} ariaLabel={`${resolved.cn}实时指标`} />
     </header>
   )
 }

@@ -26,16 +26,20 @@ test('primary actions are tonal Falu Red while destructive commitment remains st
   assert.doesNotMatch(styles, /--action-blue/u)
 })
 
-test('status pills use pending, active and complete tonal grammar with a completed checkmark', async () => {
-  const source = await read('../apps/web/src/components/lookbook/RecordLedger.jsx')
-  const styles = await read('../apps/web/src/styles/refinement.css')
-  assert.match(source, /function statusTone\(value\)/u)
-  assert.match(source, /data-tone=\{tone\}/u)
-  assert.match(source, /IconCheck width=\{12\}/u)
-  assert.match(styles, /\.record-state\[data-tone='pending'\],[\s\S]*?--status-pending-border/u)
-  assert.match(styles, /Pending labels are small text[\s\S]*?color: var\(--iridium\);/u)
-  assert.match(styles, /\.record-state\[data-tone='active'\],[\s\S]*?--status-active-fill/u)
-  assert.match(styles, /\.record-state\[data-tone='complete'\],[\s\S]*?--status-complete-fill/u)
+test('core-module state marks use the Signal Grid pending, active, complete and danger grammar', async () => {
+  const [ledger, state, styles] = await Promise.all([
+    read('../apps/web/src/components/lookbook/RecordLedger.jsx'),
+    read('../apps/web/src/components/lookbook/SignalStateMark.jsx'),
+    read('../apps/web/src/styles/signal-grid-modules.css')
+  ])
+  assert.match(ledger, /function statusTone\(value\)/u)
+  assert.match(ledger, /<SignalStateMark tone=\{stateTone\}>/u)
+  assert.match(state, /data-tone=\{tone\}/u)
+  assert.match(state, /@iconoir-solid\/CheckCircle\.mjs/u)
+  assert.match(styles, /\.signal-state-mark\[data-tone='pending'\]/u)
+  assert.match(styles, /\.signal-state-mark\[data-tone='active'\]/u)
+  assert.match(styles, /\.signal-state-mark\[data-tone='complete'\]/u)
+  assert.match(styles, /\.signal-state-mark\[data-tone='danger'\]/u)
 })
 
 test('legacy blue, orange, green and warm error literals are absent from active web styles', async () => {

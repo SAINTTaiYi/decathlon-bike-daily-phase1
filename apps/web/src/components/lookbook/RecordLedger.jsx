@@ -8,6 +8,7 @@ import IconPhone from '@iconoir/Phone.mjs'
 import IconPlus from '@iconoir/Plus.mjs'
 import IconWarning from '@iconoir-solid/WarningTriangle.mjs'
 import ProjectSelect from '../ProjectSelect.jsx'
+import SignalStateMark from './SignalStateMark.jsx'
 import {
   decodePickupContact,
   inferPickupNotificationStatus,
@@ -39,7 +40,8 @@ function statusTone(value) {
 function Badge({ children }) {
   if (!children) return null
   const tone = statusTone(children)
-  return <span className="record-badge" data-tone={tone}>{tone === 'complete' ? <IconCheck width={12} height={12} aria-hidden="true" /> : null}{children}</span>
+  if (tone === 'neutral') return <span className="record-signal-tag">{children}</span>
+  return <SignalStateMark tone={tone} compact>{children}</SignalStateMark>
 }
 
 function usePixelGrid(overlayRef, density = 'fine') {
@@ -355,12 +357,12 @@ export default function RecordLedger({
   onRepairComplete, onPickupNotificationChange, pickupErrors = {},
   primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete,
   repairPixelDissolveId = '', onRepairPixelDissolveComplete,
-  heading = 'ACTIVE LEDGER / 在册台账', dark = false, showAdd = true
+  heading = 'ACTIVE LEDGER / 在册台账', dark = false, emphasis = 'normal', showAdd = true
 }) {
   const hasSwipeDelete = !closedAt && records.some((record) => !record.pickedUpToday && !record.completedToday)
 
   return (
-    <div className="record-ledger" data-reveal-group="records" data-dark={dark ? 'true' : undefined} aria-label={`${config.singular}台账，共 ${records.length} 条`}>
+    <div className="record-ledger signal-record-ledger" data-reveal-group="records" data-dark={dark ? 'true' : undefined} data-emphasis={emphasis !== 'normal' ? emphasis : undefined} aria-label={`${config.singular}台账，共 ${records.length} 条`}>
       <div className="record-ledger-head">
         <div>
           <span>{heading}</span>
@@ -409,8 +411,11 @@ export default function RecordLedger({
           : repairRecord ? '维修登记' : ''
         const stateLabel = pickedUp ? '已取车' : completedToday ? '已完成' : record.status
         const paymentOrType = repairRecord || repairPickup ? record.repairType : ''
-        const rowDark = dark || resolved
+        const rowDark = resolved
         const englishState = pickedUp ? 'PICKED UP' : completedToday ? 'COMPLETED' : record.scene === 'resale' && record.resaleStage === 'pending' ? 'PENDING' : 'ACTIVE'
+        const stateTone = statusTone(englishState)
+        const businessTone = statusTone(stateLabel)
+        const priorityTone = pickupError ? 'danger' : primaryProcessing ? 'current' : businessTone === 'pending' ? 'pending' : undefined
         const primaryButton = (label, onClick) => (
           <button
             type="button"
@@ -444,7 +449,7 @@ export default function RecordLedger({
         )
 
         const row = (
-          <article className="record-row" data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-pickup-pixel-filling={pickupPixelFill ? 'true' : undefined} data-repair-pixel-dissolving={repairPixelDissolve ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row">
+          <article className="record-row signal-record-row" data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-priority={priorityTone} data-pickup-pixel-filling={pickupPixelFill ? 'true' : undefined} data-repair-pixel-dissolving={repairPixelDissolve ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row">
             {pickupPixelFill ? <PickupPixelFill recordId={record.id} onComplete={onPickupPixelFillComplete} /> : null}
             {repairPixelDissolve ? <RepairPixelDissolve recordId={record.id} onComplete={onRepairPixelDissolveComplete} /> : null}
             <header className="record-row-head">
@@ -459,7 +464,7 @@ export default function RecordLedger({
                 ) : null}
               </div>
               <div className="record-head-meta" aria-label="来源、支付与状态">
-                <span className="record-state" data-tone={statusTone(englishState)}>{statusTone(englishState) === 'complete' ? <IconCheck width={11} height={11} aria-hidden="true" /> : null}{englishState}</span>
+                <SignalStateMark tone={stateTone}>{englishState}</SignalStateMark>
                 <div className="record-badge-row">
                   <Badge>{sourceLabel}</Badge>
                   <Badge>{paymentOrType}</Badge>
