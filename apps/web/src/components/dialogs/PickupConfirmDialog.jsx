@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import IconCheck from '@iconoir/Check.mjs'
+import IconCheck from '@iconoir-solid/CheckCircle.mjs'
 import AppDialog from './AppDialog.jsx'
 
 export default function PickupConfirmDialog({ record, onClose, onConfirm }) {

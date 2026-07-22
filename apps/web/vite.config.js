@@ -7,7 +7,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@iconoir': fileURLToPath(new URL('./node_modules/iconoir-react/dist/esm/regular', import.meta.url))
+      '@iconoir': fileURLToPath(new URL('./node_modules/iconoir-react/dist/esm/regular', import.meta.url)),
+      '@iconoir-solid': fileURLToPath(new URL('./node_modules/iconoir-react/dist/esm/solid', import.meta.url))
     }
   },
   build: {

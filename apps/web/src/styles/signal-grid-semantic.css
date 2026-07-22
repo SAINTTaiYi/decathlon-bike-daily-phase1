@@ -1,0 +1,91 @@
+/* WORKSHOP SIGNAL GRID - semantic tokens. Components must consume these names. */
+:root {
+  --sg-color-canvas: var(--sg-p-color-canvas);
+  --sg-color-surface: var(--sg-p-color-surface);
+  --sg-color-text: var(--sg-p-color-ink);
+  --sg-color-text-secondary: var(--sg-p-color-ink-secondary);
+  --sg-color-text-muted: var(--sg-p-color-text-muted);
+  --sg-color-border-strong: var(--sg-p-color-line-strong);
+  --sg-color-border: var(--sg-p-color-line-soft);
+  --sg-color-field-muted: var(--sg-p-color-field-soft);
+
+  --sg-color-danger: var(--sg-p-signal-danger);
+  --sg-color-danger-surface: var(--sg-p-signal-danger-strong);
+  --sg-color-danger-ink: var(--sg-p-color-surface);
+  --sg-color-warning: var(--sg-p-signal-warning);
+  --sg-color-success-surface: var(--sg-p-signal-success);
+  --sg-color-success-mark: var(--sg-p-module-overview);
+  --sg-color-lock-surface: var(--sg-p-signal-lock);
+  --sg-color-sync: var(--sg-p-signal-sync);
+  --sg-color-focus: var(--sg-p-signal-sync);
+
+  --sg-font-ui: 'Albert Sans Local', 'Noto Sans SC Variable', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --sg-font-display-latin: 'Barlow Condensed Local', 'Noto Sans SC Variable', 'Albert Sans Local', system-ui, sans-serif;
+  --sg-font-display-cjk: 'Noto Sans SC Variable', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --sg-font-data: 'Albert Sans Local', 'SFMono-Regular', Consolas, 'Liberation Mono', ui-monospace, monospace;
+
+  --sg-type-micro-size: var(--sg-p-text-micro);
+  --sg-type-label-size: var(--sg-p-text-label);
+  --sg-type-body-size: var(--sg-p-text-body);
+  --sg-type-record-size: var(--sg-p-text-record);
+  --sg-type-section-size: var(--sg-p-text-section);
+  --sg-type-title-cn-size: var(--sg-p-text-title-cn);
+  --sg-type-title-en-size: var(--sg-p-text-title-en);
+  --sg-type-kpi-size: var(--sg-p-text-kpi);
+
+  --sg-space-control-inline: var(--sg-p-size-4);
+  --sg-space-control-block: var(--sg-p-size-3);
+  --sg-space-section: var(--sg-p-size-16);
+  --sg-border-width: var(--sg-p-line-1);
+  --sg-border-width-strong: var(--sg-p-line-2);
+  --sg-corner: var(--sg-p-radius-0);
+  --sg-touch-target: var(--sg-p-touch-min);
+  --sg-transition-ui: var(--sg-p-duration-ui) var(--sg-p-ease-cut);
+  --sg-icon-stroke: 1.75;
+
+  --sg-module-color: var(--sg-p-module-overview);
+  --sg-module-ink: var(--sg-p-color-ink);
+  --sg-module-signal: var(--sg-p-module-overview);
+  --sg-module-surface: var(--sg-p-color-surface);
+
+  /* Typography bridge only. Legacy action/state colors migrate deliberately in later phases. */
+  --font-body: var(--sg-font-ui);
+  --font-display: var(--sg-font-display-latin);
+  --font-mono: var(--sg-font-data);
+}
+
+[data-signal-module='overview'] {
+  --sg-module-color: var(--sg-p-module-overview);
+  --sg-module-signal: var(--sg-p-module-overview);
+  --sg-module-ink: var(--sg-p-color-ink);
+}
+[data-signal-module='pickup'] {
+  --sg-module-color: var(--sg-p-module-pickup);
+  --sg-module-signal: var(--sg-p-module-pickup);
+  --sg-module-ink: var(--sg-p-color-ink);
+}
+[data-signal-module='other'] {
+  --sg-module-color: var(--sg-p-color-surface);
+  --sg-module-signal: var(--sg-p-module-overview);
+  --sg-module-ink: var(--sg-p-color-ink);
+}
+[data-signal-module='repair'] {
+  --sg-module-color: var(--sg-p-module-repair);
+  --sg-module-signal: var(--sg-p-module-repair);
+  --sg-module-ink: var(--sg-p-color-ink);
+}
+[data-signal-module='resale'] {
+  --sg-module-color: var(--sg-p-module-resale);
+  --sg-module-signal: var(--sg-p-module-resale);
+  --sg-module-ink: var(--sg-p-color-ink);
+}
+[data-signal-module='sales'] {
+  --sg-module-color: var(--sg-p-module-sales);
+  --sg-module-signal: var(--sg-p-module-sales);
+  --sg-module-ink: var(--sg-p-color-surface);
+}
+[data-signal-module='closing'] {
+  --sg-module-color: var(--sg-p-module-closing);
+  --sg-module-signal: var(--sg-p-module-closing);
+  --sg-module-ink: var(--sg-p-color-ink);
+}

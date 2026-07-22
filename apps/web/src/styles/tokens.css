@@ -1,11 +1,3 @@
-@font-face {
-  font-family: 'Albert Sans Local';
-  src: url('/fonts/albert-sans-variable.woff2') format('woff2');
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: block;
-}
-
 :root {
   color-scheme: light;
   /* Foreground palette - page and workspace background tokens intentionally stay unchanged. */
@@ -39,9 +31,9 @@
   --status-active-ink: color-mix(in srgb, var(--equilibrium) 76%, var(--surface-raised));
   --status-complete-fill: var(--equilibrium);
   --status-complete-ink: var(--void);
-  --font-body: 'Albert Sans Local', 'Noto Serif SC Variable';
-  --font-display: 'Albert Sans Local', 'Noto Serif SC Variable';
-  --font-mono: 'Albert Sans Local', 'Noto Serif SC Variable';
+  --font-body: 'Albert Sans Local', 'Noto Sans SC Variable', system-ui, sans-serif;
+  --font-display: 'Barlow Condensed Local', 'Noto Sans SC Variable', 'Albert Sans Local', system-ui, sans-serif;
+  --font-mono: 'Albert Sans Local', 'Noto Sans SC Variable', ui-monospace, monospace;
   --shadow-tight: 0 10px 28px rgb(8 8 10 / .055);
   --shadow-panel: 0 28px 72px rgb(8 8 10 / .075);
   --ease-out: cubic-bezier(.16, 1, .3, 1);

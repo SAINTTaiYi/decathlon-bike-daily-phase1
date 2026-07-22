@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import IconCheckCircle from '@iconoir/CheckCircle.mjs'
+import IconCheckCircle from '@iconoir-solid/CheckCircle.mjs'
 import IconClock from '@iconoir/Clock.mjs'
-import IconWarning from '@iconoir/WarningTriangle.mjs'
+import IconWarning from '@iconoir-solid/WarningTriangle.mjs'
 import IconMedia from '@iconoir/MediaImage.mjs'
 
 export default function ClosingSummary({ workflow, onJumpToRequirement, onCompleteClosing, onReopenClosing, onExportReport }) {
@@ -17,7 +17,7 @@ export default function ClosingSummary({ workflow, onJumpToRequirement, onComple
   }
 
   return (
-    <section className="closing-summary" aria-labelledby="closing-summary-title" data-motion="summary">
+    <section className="closing-summary" data-signal-module="closing" aria-labelledby="closing-summary-title" data-motion="summary">
       <div className="summary-topline"><span>{dateLabel} / DATABASE SYNC</span><strong>{closed ? 'CLOSED' : 'OPEN'}</strong></div>
       <div className="summary-grid">
         <div className="summary-copy">
