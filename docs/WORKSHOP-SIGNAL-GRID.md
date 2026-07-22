@@ -5,10 +5,10 @@
 ## 0. 文档状态
 
 - **方案名称**：WORKSHOP SIGNAL GRID
-- **方案状态**：Phase 0 设计事实源已完成；Phase 1 设计基础已获授权并在本地实现/验证中，尚未发布 Preview
+- **方案状态**：Phase 0-2 已完成并进入正式源码；Phase 3 核心业务模块按剩余路线连续实施中
 - **文档创建日期**：2026-07-22
-- **当前实现基线**：Phase 1 最终行政/source SHA `1b51a515f3418c0d66d6e169484a233e49e47246` / V5.8.0
-- **当前源码登记版本**：V5.8.0（Phase 1 字体与设计基础候选，尚未发布 Preview）
+- **当前实现基线**：Phase 2 正常合并 SHA `df5915489fe0fc548f270c27b1ecc401a6d05b9e` / V5.8.1
+- **当前源码登记版本**：V5.8.1（Phase 2 系统外壳，已合并；中间 Phase 不部署 Preview）
 - **Phase 0 内容合并 SHA**：`94cd3f970969749167b286ef76c29c60f6e145a5`
 - **Phase 0 最终行政合并 SHA**：`6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
 - **当前 Preview**：V5.8.0 / `1b51a515f3418c0d66d6e169484a233e49e47246`；Phase 2 及中间 Phase 不部署，全部 Phase 完成后统一更新一次
@@ -621,7 +621,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ## 17. 分阶段实施路线
 
-> Phase 0 与 Phase 1 已完成；Phase 2 已获明确授权并进行中。用户已授权连续完成剩余阶段，中间阶段不部署 Preview；全部 Phase 完成后统一部署一次 Preview。
+> Phase 0-2 已完成；Phase 3 按用户授权连续实施。中间阶段不部署 Preview；全部 Phase 完成后统一部署一次 Preview。
 
 ### Phase 0：设计方案与事实源
 
@@ -647,7 +647,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### Phase 2：系统外壳
 
-**状态：进行中**
+**状态：已完成**
 
 - 登录
 - 初始化和强制改密
@@ -658,7 +658,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### Phase 3：核心业务模块
 
-**状态：未开始**
+**状态：进行中**
 
 - 维修
 - 待取
@@ -1090,4 +1090,24 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 阻塞原因：N/A。Impeccable 仓库内 helper 缺失已使用项目设计事实源替代，不影响验证。
 - 未完成队列：最终 staged diff/凭据模式审查；功能提交；PR/CI/正常合并；非递归行政检查点；随后继续 Phase 3，不部署 Preview。
 - 下一步：重新 stamp 包含本检查点的 V5.8.1 精确树并执行最终完整验证；创建功能提交、PR 和 CI，正常合并后记录最终行政 SHA，再进入 Phase 3。
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 05:29
+
+- Phase：Phase 2 - 系统外壳
+- 状态：released
+- 基线分支和 SHA：`feature/cloudflare-workers-d1` / `df5915489fe0fc548f270c27b1ecc401a6d05b9e`，PR #35 正常合并；功能提交 `af8f818e6cbe83e207c2855b12d9a5be1a891978` 直接继承 Phase 1 最终 SHA `1b51a515f3418c0d66d6e169484a233e49e47246`。
+- 本阶段完成范围：V5.8.1 Signal Access、响应式模块轨道/Dock、平面认证画布、Signal Grid masthead/身份条、Voltage Lime 总览 KPI 与业务地图、IntersectionObserver 场景追踪、短促结构型工作台入场已进入正式源码。
+- 关键决策：Phase 2 不重构记录卡/表单/业务状态内部；移除活动外壳中的纸张纤维/划痕、景深平面、ScrollTrigger、指针倾斜和 3D 视差；桌面与移动导航共享一个组件、顺序和语义。没有更改业务、权限、审计、API、D1 或数据契约。
+- 修改文件：功能提交覆盖 34 个文件，新增 `SignalAccessFrame.jsx`、`signal-grid-shell.css`、`signal-grid-phase2.test.mjs`，删除 `boot.css`，并更新外壳组件、总览、动效 Hook、设计事实、产品事实和 V5.8.1 元数据。
+- 数据库或契约变化：N/A；无 `apps/api`、`apps/worker`、`packages`、`migrations` 变化。
+- 测试与验证结果：本地工作流策略 88/88；Domain 4/4；Database 5/5；Web 109/109；API 16/16；Worker 11/11；typecheck、Web/API build、Worker typecheck/bundle、version、diff 和退役外壳专项扫描全绿。PR CI `29959084931` 与合并后源码头 CI `29959234296` 均通过 `verify` 和完整历史 `secrets`。
+- PR / CI run：PR #35 正常合并；CI 如上。
+- 部署环境、Deployment ID、Worker Version：N/A；按连续阶段策略未触发 Preview、Staging 或 Production。当前 Preview 仍为 Phase 1 V5.8.0 / `1b51a515f3418c0d66d6e169484a233e49e47246`；Staging 仍为 V5.7.7。
+- 用户验收结果：Phase 2 和中间阶段不单独部署/确认的规则已获明确授权。
+- 阻塞原因：N/A
+- 未完成队列：本行政检查点 PR/CI/正常合并；随后 Phase 3 核心业务模块实施。最终行政合并 SHA 按非递归规则写入 session-state、长期记忆和 Phase 3 首个检查点。
+- 下一步：完成本行政检查点；从其最终合并 SHA 创建 Phase 3 隔离工作树，重构维修、待取、销售、二手车、闭店及统一记录/KPI/状态组件；不部署 Preview。
 - Production：forbidden
