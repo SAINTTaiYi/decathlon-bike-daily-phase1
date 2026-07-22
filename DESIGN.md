@@ -88,6 +88,21 @@ After every completed phase or important verified step, update both:
 
 This write-ahead checkpoint rule exists to survive network loss, context compaction and token limits. No runtime implementation may begin until the user explicitly authorizes Phase 1.
 
+
+### Phase 1 runtime foundation mapping
+
+> **Status: in progress.** Phase 1 is authorized and remains limited to design foundations. No business rule, API, database contract or workflow is changed.
+
+- Primitive tokens: `apps/web/src/styles/signal-grid-primitives.css`
+- Semantic tokens and module scopes: `apps/web/src/styles/signal-grid-semantic.css`
+- Component tokens and runtime theme hooks: `apps/web/src/styles/signal-grid-components.css`
+- Font faces and safe fallback policy: `apps/web/src/styles/signal-grid-fonts.css` plus `apps/web/public/fonts/SOURCES.md`
+- Module and icon registry: `apps/web/src/design/signalGrid.js`
+- Runtime scene-to-module mapping: `apps/web/src/data/lookbookScenes.js` and `data-signal-module` on the six scenes, closing summary and Dock controls
+- Icon family: Iconoir only. Navigation and ordinary actions use regular outline icons at a standardized 1.75 stroke; active navigation, semantic status and destructive feedback use matching solid Iconoir variants.
+- Typography state: Albert Sans is verified, licensed and self-hosted. Barlow Condensed and Noto Sans SC remain approved target candidates, but they are not active runtime families until official binaries pass source, license and SHA-256 verification. Albert Sans plus platform CJK sans fallbacks preserve a deterministic production-safe runtime meanwhile.
+- Other Handover: cool-white neutral structure with Voltage Lime only for numbering and operation signal, never a seventh module color.
+
 ## Product hierarchy
 
 1. **首次初始化**：一次性 HTTPS Setup 链接创建首位管理员和门店；完成后链接失效。

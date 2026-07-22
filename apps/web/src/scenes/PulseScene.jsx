@@ -22,7 +22,7 @@ export default function PulseScene({ dateKey, kpi, kpiReady, records, closedAt, 
   const titleAction = <div className="scene-actions"><button type="button" className="text-action" onClick={onHistory}><IconJournal width={18} height={18} aria-hidden="true" />操作记录</button><button type="button" className="text-action" onClick={onEditKpi} disabled={Boolean(closedAt)}>{kpiReady ? '修改数据' : '填写数据'}</button></div>
 
   return (
-    <section className="look-section kpi-look" data-workspace-module="true" data-depth-section={scene.id} id={scene.id} data-look={scene.id} aria-labelledby={`${scene.id}-title`}>
+    <section className="look-section kpi-look" data-signal-module={scene.signalModule} data-workspace-module="true" data-depth-section={scene.id} id={scene.id} data-look={scene.id} aria-labelledby={`${scene.id}-title`}>
       <SceneTitle scene={scene} note="销售数据是唯一闭店要求。维修、待取、二手车和其它交接只在实际变化时编辑，未操作事项会跨日延续。" action={titleAction} />
       <div className="kpi-sheet" data-motion="data" data-spatial-tilt="true" aria-label="当日 workshop KPI">
         <button type="button" className="kpi-primary" onClick={onEditKpi} disabled={Boolean(closedAt)} aria-label="填写或修改当日销售数据">

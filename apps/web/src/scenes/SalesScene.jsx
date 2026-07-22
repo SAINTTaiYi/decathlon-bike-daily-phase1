@@ -7,7 +7,7 @@ export default function SalesScene({ kpi, kpiReady, savedAt, closedAt, onEditKpi
   const scene = sceneById('sales')
   const titleAction = <div className="scene-actions"><button type="button" className="text-action" onClick={onHistory}><IconJournal width={18} height={18} aria-hidden="true" />操作记录</button><button type="button" className="text-action" onClick={onEditKpi} disabled={Boolean(closedAt)}>{kpiReady ? '修改数据' : '填写数据'}</button></div>
   return (
-    <section className="look-section closing-look" data-depth-section={scene.id} id={scene.id} data-look={scene.id} aria-labelledby={`${scene.id}-title`}>
+    <section className="look-section closing-look" data-signal-module={scene.signalModule} data-depth-section={scene.id} id={scene.id} data-look={scene.id} aria-labelledby={`${scene.id}-title`}>
       <SceneTitle scene={scene} note="每天由同事人工填写销售车辆、安全检查、评价、二手售出与收车数据；保存后即可完成闭店。" action={titleAction} />
       <div className="sales-input-summary" data-ready={kpiReady ? 'true' : 'false'} data-motion="data">
         <div><span>SALES · 销售车辆</span><strong><FixedDigits value={kpi.salesVehicles} /></strong></div>

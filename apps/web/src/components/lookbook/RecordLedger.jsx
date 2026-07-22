@@ -1,12 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import IconCalendar from '@iconoir/Calendar.mjs'
-import IconCheck from '@iconoir/Check.mjs'
+import IconCheck from '@iconoir-solid/CheckCircle.mjs'
 import IconEdit from '@iconoir/EditPencil.mjs'
 import IconJournal from '@iconoir/Journal.mjs'
 import IconPhone from '@iconoir/Phone.mjs'
 import IconPlus from '@iconoir/Plus.mjs'
-import IconWarning from '@iconoir/WarningTriangle.mjs'
+import IconWarning from '@iconoir-solid/WarningTriangle.mjs'
 import ProjectSelect from '../ProjectSelect.jsx'
 import {
   decodePickupContact,

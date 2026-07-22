@@ -1,0 +1,12 @@
+/* WORKSHOP SIGNAL GRID font foundation.
+ * Albert Sans is the verified self-hosted OFL Latin/UI face already bundled by the project.
+ * Barlow Condensed and Noto Sans SC remain first-choice family names; their verified
+ * self-hosted binaries are added only after official source retrieval succeeds.
+ */
+@font-face {
+  font-family: 'Albert Sans Local';
+  src: url('/fonts/albert-sans/albert-sans-variable.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}

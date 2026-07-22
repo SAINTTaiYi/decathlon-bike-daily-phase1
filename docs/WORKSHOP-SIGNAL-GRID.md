@@ -5,11 +5,12 @@
 ## 0. 文档状态
 
 - **方案名称**：WORKSHOP SIGNAL GRID
-- **方案状态**：Phase 0 设计事实源已通过 PR #31 合并并完成合并后 CI；V5.7.9 为文档登记版本，Phase 1 尚未授权实施
+- **方案状态**：Phase 0 设计事实源已完成；Phase 1 设计基础已获授权并在本地实现/验证中，尚未发布 Preview
 - **文档创建日期**：2026-07-22
 - **文档基线**：`feature/cloudflare-workers-d1` / `a98858c388e3d866412390920d14381ed48008f2` / V5.7.8 Preview source
-- **文档登记版本**：V5.7.9（仅源码文档，不部署）
-- **Phase 0 合并 SHA**：`94cd3f970969749167b286ef76c29c60f6e145a5`
+- **当前源码登记版本**：V5.7.10（Phase 1 设计基础候选，尚未发布 Preview）
+- **Phase 0 内容合并 SHA**：`94cd3f970969749167b286ef76c29c60f6e145a5`
+- **Phase 0 最终行政合并 SHA**：`6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
 - **当前 Preview**：V5.7.8 / `a98858c388e3d866412390920d14381ed48008f2`
 - **当前 Staging**：V5.7.7，未因本文档修改
 - **Production**：禁止
@@ -620,7 +621,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ## 17. 分阶段实施路线
 
-> 当前仅 Phase 0 完成。Phase 1 及以后必须得到用户明确实施授权后才能开始。
+> Phase 0 已完成；Phase 1 已获用户明确授权并进行中。Phase 2 及以后仍须另获明确授权。
 
 ### Phase 0：设计方案与事实源
 
@@ -635,7 +636,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### Phase 1：设计基础
 
-**状态：未开始**
+**状态：进行中**
 
 - 建立 primitive、semantic、component 三层 Token
 - 确认字体授权和自托管资源
@@ -780,7 +781,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### 当前任务
 
-等待用户未来明确授权 WORKSHOP SIGNAL GRID Phase 1。当前没有运行时实现任务。
+实施 WORKSHOP SIGNAL GRID Phase 1 设计基础：三层 Token、字体授权与自托管策略、模块主题映射、统一 Iconoir 图标规则和 DESIGN.md 运行时代码映射。不得改变业务逻辑。
 
 ### 当前已完成
 
@@ -796,20 +797,18 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### 当前未授权
 
-- 任何 UI 代码重构
-- Token 实现
-- 字体或图片资源引入
-- Preview 部署
+- Phase 2 及以后系统外壳和业务模块重构
+- 数据库、契约、权限或业务逻辑变化
 - Staging 部署
 - Production 部署
 
 ### 下一步队列
 
-1. 等待用户明确授权 Phase 1
-2. 授权后从最新 `feature/cloudflare-workers-d1` 精确 SHA 建立隔离分支
-3. Phase 1 仅实现设计 Token、字体授权核对、模块主题映射和图标规则
-4. 每个可验证步骤立即更新本文件、长期记忆和会话状态
-5. CI 全绿后自动合并并部署 Preview 供用户验收
+1. 完成 Phase 1 三层 Token、模块主题和图标运行时基础
+2. 恢复官方字体源访问后取得并校验 Barlow Condensed / Noto Sans SC 自托管资源；未验证资源不得进入仓库
+3. 对 Phase 1 完整 diff 运行版本登记、全量测试、typecheck、build、Worker bundle 和静态约束验证
+4. 恢复 GitHub 访问后把本地树对齐最终 Phase 0 行政合并 SHA `6da7263c…`，再创建 PR
+5. CI 全绿后自动正常合并并部署 Preview 供用户验收
 6. Staging 仍需独立明确批准；Production 禁止
 
 ---
@@ -868,4 +867,64 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 阻塞原因：N/A
 - 未完成队列：等待用户明确授权 Phase 1。
 - 下一步：Phase 1 授权后先读取本文件、长期记忆和最新远端状态，再实施设计基础。
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 03:27
+
+- Phase：Phase 1 - 设计基础
+- 状态：in_progress
+- 基线分支和 SHA：本地 `feat/signal-grid-phase1-foundations` / `adb20ec19f0ca2696437a680a9cf6d8e2a46e1ff`；继承远端 Phase 0 最终行政合并 `6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`，发布前必须对齐
+- 本阶段完成范围：建立 primitive、semantic、component 三层 CSS Token；建立七个运行时主题作用域（六个业务模块加中性 Other Handover）；Iconoir 导航 outline/active filled 和语义 filled 规则已进入运行时；Albert Sans 已迁入独立自托管目录并记录许可证、来源和 SHA-256；DESIGN.md 已增加运行时代码映射。
+- 关键决策：Phase 1 只接入设计基础和少量可验证主题钩子，不实施 Phase 2 系统外壳；其它工作交接使用冷白结构加 Voltage Lime 信号；唯一图标家族保持现有 Iconoir，不引入新依赖；未验证的 Barlow Condensed / Noto Sans SC 文件不进入仓库。
+- 修改文件：`apps/web/src/styles/signal-grid-{fonts,primitives,semantic,components}.css`、`apps/web/src/design/signalGrid.js`、`apps/web/src/data/lookbookScenes.js`、`ActionDock.jsx`、六个 Scene、`ClosingSummary.jsx`、状态/确认图标引用、`vite.config.js`、字体资源与来源文档、`tests/signal-grid-phase1.test.mjs`、`DESIGN.md`、本文件。
+- 数据库或契约变化：N/A
+- 测试与验证结果：Phase 1 聚焦静态契约 4/4 通过；`git diff --check` 通过。全量验证和版本登记尚未执行。
+- PR / CI run：N/A
+- 部署环境、Deployment ID、Worker Version：N/A；未触发 Preview、Staging 或 Production
+- 用户验收结果：Phase 1、开源字体自托管政策和 Other Handover 中性主题已明确授权
+- 阻塞原因：GitHub/npm/jsDelivr 境外网络仍不可达；官方 Barlow Condensed / Noto Sans SC 二进制与最终远端基线暂时不能校验
+- 未完成队列：字体二进制校验；全量测试/构建；V5.7.10 登记（5.7.9 的下一补丁；后续补丁才进入 V5.8.0）；远端基线对齐；PR/CI/Preview
+- 下一步：先使用本地缓存完成依赖恢复和全量源码验证；网络恢复后补齐字体与远端对齐，不对相同失败网络路径盲目重试
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 03:42
+
+- Phase：Phase 1 - 设计基础
+- 状态：in_progress
+- 基线分支和 SHA：本地 `feat/signal-grid-phase1-foundations` / `adb20ec19f0ca2696437a680a9cf6d8e2a46e1ff`；发布前仍须对齐远端最终 Phase 0 行政合并 `6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
+- 本阶段完成范围：初始 Phase 1 代码审查完成；未验证的 Barlow Condensed / Noto Sans SC 已从活动运行时字体栈移除，确保只有已入库并校验的 Albert Sans 与平台中文黑体参与渲染；新增 AA 合规的深色危险操作面 Token，保留亮红作为危险信号/边框。
+- 关键决策：字体候选只有在官方二进制、许可证、来源和 SHA-256 全部验证后才能成为活动运行时字体；危险语义同时保留高能量信号红与可承载小号浅色文字的深红面，不假设 `#F02D3A` 与白字自动满足 AA。
+- 修改文件：前一检查点所列 Phase 1 文件，加上危险层级/字体回退约束及对应静态测试；没有业务、API、数据库、权限或契约修改。
+- 数据库或契约变化：N/A
+- 测试与验证结果：工作流策略 88/88；Domain 4/4；Database 5/5；Web 104/104；API 16/16；Worker 11/11；完整 typecheck 通过；Phase 1 聚焦静态契约 4/4 通过；`git diff --check` 通过。首次 production build 按治理预期停在版本登记门：登记文件 321，当前 328。
+- PR / CI run：N/A
+- 部署环境、Deployment ID、Worker Version：N/A；未触发 Preview、Staging 或 Production
+- 用户验收结果：Phase 1、开源字体政策和 Other Handover 中性主题已明确授权
+- 阻塞原因：官方 Barlow Condensed / Noto Sans SC 与最终远端基线仍受当前境外网络/GitHub 访问阻塞；本地实现与验证可继续。
+- 未完成队列：V5.7.10 正式登记与 stamp；production build/Worker bundle；最终 diff/秘密审查；远端基线对齐；PR/CI/Preview。
+- 下一步：使用官方版本脚本登记 V5.7.10，重新运行 version/build/Worker 验证；不重复当前不可达的字体或 GitHub 网络路径。
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 03:49
+
+- Phase：Phase 1 - 设计基础
+- 状态：verified
+- 基线分支和 SHA：本地 `feat/signal-grid-phase1-foundations` / `adb20ec19f0ca2696437a680a9cf6d8e2a46e1ff`；发布前仍须把功能提交对齐到远端最终 Phase 0 行政合并 `6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
+- 本阶段完成范围：V5.7.10 本地候选已完成三层 Token、模块主题映射、Iconoir regular/solid 状态规则、Albert Sans OFL 自托管迁移与来源/许可证/哈希登记、运行时主题标记和 DESIGN.md 代码映射；只加入基础主题钩子，不实施 Phase 2 外壳重构。
+- 关键决策：当前活动字体只使用已验证 Albert Sans 与平台中文黑体回退；Barlow Condensed / Noto Sans SC 仍是批准候选，但在官方文件完成来源、许可证与 SHA-256 校验前不参与运行时。危险语义使用亮红信号/边框加深红操作面，确保小号浅色文字达到 AA。
+- 修改文件：`apps/web/src/styles/signal-grid-{fonts,primitives,semantic,components}.css`、`apps/web/src/design/signalGrid.js`、场景/导航/闭店主题钩子、Iconoir regular/solid alias 与语义图标、Albert Sans 资源与 OFL/来源文档、`tests/signal-grid-phase1.test.mjs`、`DESIGN.md`、版本与发布说明、本文件。
+- 数据库或契约变化：N/A
+- 测试与验证结果：V5.7.10 / 328 指纹文件；工作流策略 88/88；Domain 4/4；Database 5/5；Web 104/104；API 16/16；Worker 11/11；完整 typecheck、Web/API production build、Worker typecheck/bundle、version check、diff check 全部通过。Web CSS 96.67 kB（gzip 18.12），JS 455.83 kB（gzip 158.07）；Worker 270.3 kB / 150.1 kB minified。Phase 1 静态契约含模块色、主题作用域、图标状态、字体来源和危险对比度验证。
+- PR / CI run：N/A
+- 部署环境、Deployment ID、Worker Version：N/A；未触发 Preview、Staging 或 Production
+- 用户验收结果：Phase 1 范围、开源字体政策与 Other Handover 中性主题已明确授权；尚待 Preview 人工验收
+- 阻塞原因：当前境外网络/GitHub 认证仍不可用，无法取得官方 Barlow/Noto 二进制，也无法将本地提交对齐/发布到远端最终基线。
+- 未完成队列：最终 staged diff/秘密模式审查；创建本地可恢复功能提交；恢复 VPN/GitHub 后对齐 `6da7263c…`、PR/CI/Preview；Barlow/Noto 官方资源作为后续字体补充，未验证前不得进入仓库。
+- 下一步：完成本地提交和抗中断记录；然后停止网络依赖路径，等待 VPN/GitHub 恢复后继续发布。
 - Production：forbidden
