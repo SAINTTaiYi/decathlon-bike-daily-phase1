@@ -7,11 +7,11 @@
 - **方案名称**：WORKSHOP SIGNAL GRID
 - **方案状态**：Phase 0 设计事实源已完成；Phase 1 设计基础已获授权并在本地实现/验证中，尚未发布 Preview
 - **文档创建日期**：2026-07-22
-- **文档基线**：`feature/cloudflare-workers-d1` / `a98858c388e3d866412390920d14381ed48008f2` / V5.7.8 Preview source
+- **当前实现基线**：Phase 1 最终行政/source SHA `1b51a515f3418c0d66d6e169484a233e49e47246` / V5.8.0
 - **当前源码登记版本**：V5.8.0（Phase 1 字体与设计基础候选，尚未发布 Preview）
 - **Phase 0 内容合并 SHA**：`94cd3f970969749167b286ef76c29c60f6e145a5`
 - **Phase 0 最终行政合并 SHA**：`6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
-- **当前 Preview**：V5.7.8 / `a98858c388e3d866412390920d14381ed48008f2`
+- **当前 Preview**：V5.8.0 / `1b51a515f3418c0d66d6e169484a233e49e47246`；Phase 2 及中间 Phase 不部署，全部 Phase 完成后统一更新一次
 - **当前 Staging**：V5.7.7，未因本文档修改
 - **Production**：禁止
 - **业务边界**：保留现有业务流程、信息架构、字段、权限和数据契约
@@ -621,7 +621,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ## 17. 分阶段实施路线
 
-> Phase 0 已完成；Phase 1 已获用户明确授权并进行中。Phase 2 及以后仍须另获明确授权。
+> Phase 0 与 Phase 1 已完成；Phase 2 已获明确授权并进行中。用户已授权连续完成剩余阶段，中间阶段不部署 Preview；全部 Phase 完成后统一部署一次 Preview。
 
 ### Phase 0：设计方案与事实源
 
@@ -636,7 +636,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### Phase 1：设计基础
 
-**状态：进行中**
+**状态：已完成**
 
 - 建立 primitive、semantic、component 三层 Token
 - 确认字体授权和自托管资源
@@ -647,7 +647,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### Phase 2：系统外壳
 
-**状态：未开始**
+**状态：进行中**
 
 - 登录
 - 初始化和强制改密
@@ -1030,4 +1030,64 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 阻塞原因：N/A
 - 未完成队列：本释放检查点的行政 PR/CI/正常合并；以最终行政合并 SHA 重新执行 Preview-only 身份收敛；用户人工验收；Phase 2 需另行明确授权。
 - 下一步：完成非递归行政检查点合并和最终 Preview 身份核验，然后等待用户人工验收；不得自动进入 Staging 或 Phase 2。
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 Phase 2 start
+
+- Phase：Phase 2 - 系统外壳
+- 状态：in_progress
+- 基线分支和 SHA：`feat/signal-grid-phase2-shell` / `1b51a515f3418c0d66d6e169484a233e49e47246`；精确继承 Phase 1 最终行政/source SHA
+- 本阶段完成范围：Phase 2 已获用户明确授权并创建隔离工作树。范围固定为登录、初始化、强制改密、桌面左侧模块轨道、移动底部 Dock、页面基础画布和总览业务地图；不进入 Phase 3 业务模块卡片/KPI/状态统一重构。
+- 关键决策：中间 Phase 不再部署 Preview 或等待人工确认；每阶段继续执行完整本地验证、正常 PR/CI/合并和抗中断检查点。所有 Phase 完成后再统一部署一次 Preview。桌面轨道与移动 Dock 共享顺序/语义；桌面不叠加第二套顶部导航；现有业务逻辑、数据、权限、审计和流程保持不变。
+- 修改文件：当前仅本规范的 Phase 2 启动检查点；运行时代码尚未修改。
+- 数据库或契约变化：N/A
+- 测试与验证结果：远端 `feature/cloudflare-workers-d1` 已核对为精确基线 SHA；隔离分支/工作树创建成功，工作树仅含本检查点修改。
+- PR / CI run：N/A
+- 部署环境、Deployment ID、Worker Version：N/A；按新策略本 Phase 不部署 Preview、Staging 或 Production。
+- 用户验收结果：用户明确授权 Phase 2，并要求所有 Phase 完成前不部署确认。
+- 阻塞原因：N/A
+- 未完成队列：现有外壳源码审查；确定 Shell/导航/登录与总览结构；实现；版本登记；完整验证；提交/PR/CI/正常合并；非递归行政检查点。
+- 下一步：审查当前 App、登录/初始化/改密组件、LookbookHeader、ActionDock、总览 Scene、响应式/VisualViewport 和现有 Signal Grid Token，形成最小业务风险的外壳重构边界。
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 05:05
+
+- Phase：Phase 2 - 系统外壳
+- 状态：in_progress
+- 基线分支和 SHA：`feat/signal-grid-phase2-shell` / `1b51a515f3418c0d66d6e169484a233e49e47246`，精确继承 Phase 1 最终行政/source SHA。
+- 本阶段完成范围：现有登录、初始化、强制改密、App 外壳、LookbookHeader、ActionDock、Pulse 总览、VisualViewport、响应式样式和旧空间动效源码审查完成；尚未修改运行时代码。
+- 关键决策：登录/初始化/改密共享同一 Signal Access 品牌结构；桌面使用固定左侧编号模块轨道，移动端使用同序底部 Dock，单一组件/语义源；主工作台移除旧纸张纤维、景深平面和持续指针/滚动 3D 视差，改为冷白平面画布、硬边注册标和短促状态型切入；总览重构为 Voltage Lime 核心 KPI 加五个业务模块信号地图；Phase 3 的记录卡、状态胶囊和业务表单内部视觉不在本阶段重构。
+- 修改文件：当前仍只有本规范检查点；计划新增共享 Access 品牌组件与 Phase 2 专用样式，修改 App、BootLoader、InitialSetup、PasswordChangeGate、LookbookHeader、ActionDock、PulseScene、useActiveScene、useMotionSystem、useWorkspaceMotion 和静态回归测试。
+- 数据库或契约变化：N/A；不得修改 API、D1、权限、业务枚举、审计或操作流程。
+- 测试与验证结果：源码与样式审查完成；尚未运行实现后测试。
+- PR / CI run：N/A
+- 部署环境、Deployment ID、Worker Version：N/A；本 Phase 按新策略不部署 Preview、Staging 或 Production。
+- 用户验收结果：Phase 2 与连续完成所有 Phase 后统一 Preview 的交付策略已获明确授权。
+- 阻塞原因：Impeccable 仓库内 context helper 缺失；已按既有错误记录使用 PRODUCT.md、DESIGN.md、完整 Signal Grid 规范、Token 和代表性源码直接审查，不阻塞实施。
+- 未完成队列：运行时实现；V5.8.1 登记；聚焦与全量验证；功能提交；PR/CI/正常合并；非递归行政检查点；随后自动进入已授权的 Phase 3，不部署 Preview。
+- 下一步：先建立共享 Access shell、响应式模块导航和专用 Phase 2 样式，再替换 App 画布与总览结构，最后收敛动效和回归测试。
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 05:20
+
+- Phase：Phase 2 - 系统外壳
+- 状态：verified
+- 基线分支和 SHA：`feat/signal-grid-phase2-shell` / `1b51a515f3418c0d66d6e169484a233e49e47246`，精确继承 Phase 1 最终行政/source SHA。
+- 本阶段完成范围：V5.8.1 系统外壳已完成本地实现与验证。登录、初始化和强制改密统一为 Signal Access 结构；桌面改为固定编号模块轨道，移动端保留同序分段 Dock；认证后工作台改为明亮冷中性平面画布；总览加入 Voltage Lime 核心状态与六个业务入口的业务地图。Phase 3 记录卡、表单、状态胶囊和业务操作内部结构未在本阶段重构。
+- 关键决策：导航只有一个语义源，桌面轨道与移动 Dock 仅做响应式重排；活动外壳不再渲染旧纸张纤维/划痕、空间景深层、指针倾斜或滚动 3D 视差；动效仅保留短促的结构/状态切入并提供 reduced-motion 立即完成路径。现有业务流程、权限、API、D1、审计和数据契约保持不变。
+- 修改文件：新增 `SignalAccessFrame.jsx`、`signal-grid-shell.css` 与 `signal-grid-phase2.test.mjs`；修改 App、登录/初始化/改密、LookbookHeader、ActionDock、PulseScene、活动场景追踪和两套旧动效 Hook；删除已退休的 `boot.css`；更新设计/产品事实、V5.8.1 发布说明、版本指纹及外壳回归测试。其它 Scene 仅增加外壳导航所需的场景标识，不改变业务动作。
+- 数据库或契约变化：N/A；没有修改 `apps/api`、`apps/worker`、`packages` 或 `migrations`。
+- 测试与验证结果：工作流策略 88/88；Domain 4/4；Database 5/5；Web 109/109；API 16/16；Worker 11/11；完整 typecheck、Web/API production build、Worker typecheck/bundle、version、diff 全部通过。Web CSS 200.94 kB（gzip 50.33），JS 403.77 kB（gzip 137.67）；Worker 270.3 kB / 150.1 kB minified。源码与编译产物专项扫描确认活动外壳无旧 depth/paper/spatial DOM 标记；Phase 2 运行时 JS/JSX 无 ScrollTrigger 注册、3D perspective/translateZ 或 pointer tilt。
+- PR / CI run：N/A；待创建功能提交和 PR。
+- 部署环境、Deployment ID、Worker Version：N/A；按剩余阶段连续交付策略，本阶段不部署 Preview、Staging 或 Production。当前 Preview 仍为 Phase 1 V5.8.0 / `1b51a515f3418c0d66d6e169484a233e49e47246`。
+- 用户验收结果：Phase 2 范围和所有 Phase 完成后统一 Preview 的策略已获明确授权；本阶段不单独请求人工验收。
+- 阻塞原因：N/A。Impeccable 仓库内 helper 缺失已使用项目设计事实源替代，不影响验证。
+- 未完成队列：最终 staged diff/凭据模式审查；功能提交；PR/CI/正常合并；非递归行政检查点；随后继续 Phase 3，不部署 Preview。
+- 下一步：重新 stamp 包含本检查点的 V5.8.1 精确树并执行最终完整验证；创建功能提交、PR 和 CI，正常合并后记录最终行政 SHA，再进入 Phase 3。
 - Production：forbidden

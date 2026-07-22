@@ -34,10 +34,11 @@ test('删除无二次确认，成功走电子退场，失败恢复原卡片与�
   assert.match(ledger, /--swipe-glitch/)
 })
 
-test('左滑表面与空间系统分层，避免与卡片倾斜和批量滚动 reveal 争抢 transform', () => {
+test('左滑表面独立拥有 transform，通用反馈系统不接管删除容器', () => {
   assert.match(ledger, /className="record-swipe-surface"/)
-  assert.match(styles, /contained destructive control sits in a quiet tray/)
-  assert.match(motion, /\[data-swipe-delete\]/)
+  assert.match(styles, /record-swipe-surface[\s\S]*?--swipe-offset/)
+  assert.match(styles, /transform: translate3d\(var\(--swipe-offset\), 0, 0\)/)
+  assert.doesNotMatch(motion, /\[data-swipe-delete\]/)
 })
 
 

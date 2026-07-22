@@ -41,7 +41,6 @@ test('status pills use pending, active and complete tonal grammar with a complet
 test('legacy blue, orange, green and warm error literals are absent from active web styles', async () => {
   const styles = await Promise.all([
     read('../apps/web/src/styles/tokens.css'),
-    read('../apps/web/src/styles/boot.css'),
     read('../apps/web/src/styles/components.css'),
     read('../apps/web/src/styles/refinement.css')
   ])

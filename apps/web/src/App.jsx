@@ -32,7 +32,6 @@ import useRemoteClosingWorkflow from './hooks/useRemoteClosingWorkflow.js'
 import useMotionSystem from './hooks/useMotionSystem.js'
 import useWorkspaceMotion from './hooks/useWorkspaceMotion.js'
 import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
-import { gsap } from 'gsap'
 import OpeningScene from './scenes/OpeningScene.jsx'
 import PickupScene from './scenes/PickupScene.jsx'
 import PulseScene from './scenes/PulseScene.jsx'
@@ -47,7 +46,6 @@ export default function App() {
   const auth = useAuth()
   const [loginAnimationDone, setLoginAnimationDone] = useState(false)
   const [workspaceAssemblyDone, setWorkspaceAssemblyDone] = useState(false)
-  const [taskInputFocused, setTaskInputFocused] = useState(false)
   const workspaceRootRef = useRef(null)
   const [setupToken, setSetupToken] = useState(() => {
     const match = window.location.hash.match(/^#setup=([^&]+)$/u)
@@ -97,9 +95,7 @@ export default function App() {
     rootRef: workspaceRootRef,
     onComplete: completeWorkspaceAssembly
   })
-  const taskFocused = Boolean(taskInputFocused || menuOpen || logOpen || permanentHistoryOpen || confirmOpen || kpiOpen || migrationOpen || createUserOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
-
-  useMotionSystem({ enabled: introDone && workflow.hydrated && !workspaceLaunching, rootRef: workspaceRootRef, quiet: taskFocused })
+  useMotionSystem({ enabled: introDone && workflow.hydrated && !workspaceLaunching, rootRef: workspaceRootRef })
 
   useEffect(() => {
     if (auth.status === 'anonymous') {
@@ -119,22 +115,6 @@ export default function App() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [skipWorkspaceAssembly, workspaceLaunching])
-
-  useEffect(() => {
-    const root = workspaceRootRef.current
-    if (!root) return undefined
-    const syncTaskFocus = () => {
-      const focused = document.activeElement
-      setTaskInputFocused(Boolean(focused && root.contains(focused) && focused.matches('input, textarea, select, [contenteditable="true"], [role="combobox"]')))
-    }
-    const deferTaskFocusSync = () => window.setTimeout(syncTaskFocus, 0)
-    root.addEventListener('focusin', syncTaskFocus)
-    root.addEventListener('focusout', deferTaskFocusSync)
-    return () => {
-      root.removeEventListener('focusin', syncTaskFocus)
-      root.removeEventListener('focusout', deferTaskFocusSync)
-    }
-  }, [introDone, workflow.hydrated])
 
   useEffect(() => {
     if (!toast) return undefined
@@ -455,19 +435,14 @@ export default function App() {
     <>
       {showBoot ? <BootLoader onLogin={auth.login} onComplete={() => setLoginAnimationDone(true)} /> : null}
       {introDone ? <a className="skip-link" href="#closing-summary">跳到闭店摘要</a> : null}
-      <div ref={workspaceRootRef} className="app-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
+      <div ref={workspaceRootRef} className="app-runtime signal-workspace" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
-        <div className="workspace-depth-plane workspace-depth-plane-far" data-workspace-layer="depth-far" aria-hidden="true" />
-        <div className="workspace-depth-plane workspace-depth-plane-near" data-workspace-layer="depth-near" aria-hidden="true" />
-        <div className="workspace-paper-film" aria-hidden="true" />
-        <div className="workspace-paper-fibre" aria-hidden="true" />
-        <div className="workspace-paper-scratches" aria-hidden="true" />
-        <main className="lookbook-shell" id="main-content" tabIndex="-1" data-workspace-layer="structure">
-          <div className="workspace-pointer-plane" data-workspace-layer="pointer-plane">
-            <div data-workspace-layer="navigation" data-workspace-priority="true"><LookbookHeader /></div>
-            <div className="active-user-strip" data-workspace-layer="navigation" data-workspace-priority="true" aria-label={`当前登录用户：${currentUser}`}><span>{currentStore?.storeName || 'DATABASE'} · {roleLabels[role]}</span><strong>{currentUser}</strong><button type="button" onClick={() => setMenuOpen(true)}>菜单</button></div>
+        <main className="lookbook-shell signal-workspace-canvas" id="main-content" tabIndex="-1" data-workspace-layer="structure">
+          <div className="workspace-pointer-plane signal-workspace-content">
+            <LookbookHeader />
+            <div className="active-user-strip signal-user-strip" data-workspace-priority="true" aria-label={`当前登录用户：${currentUser}`}><span>{currentStore?.storeName || 'DATABASE'} / {roleLabels[role]}</span><strong>{currentUser}</strong><button type="button" onClick={() => setMenuOpen(true)}>菜单</button></div>
             {!online ? <p className="offline-banner" role="status">OFFLINE · 当前离线，仅可查看最近加载的数据；恢复网络后才能修改。</p> : null}
-            <div className="workspace-focus" data-workspace-layer="focus" data-workspace-priority="true" data-depth-card="true" id="closing-summary"><ClosingSummary workflow={workflow} onJumpToRequirement={jumpToRequirement} onCompleteClosing={requestClose} onReopenClosing={() => void reopen()} onExportReport={exportClosingReport} /></div>
+            <div className="workspace-focus" data-workspace-layer="focus" data-workspace-priority="true" id="closing-summary"><ClosingSummary workflow={workflow} onJumpToRequirement={jumpToRequirement} onCompleteClosing={requestClose} onReopenClosing={() => void reopen()} onExportReport={exportClosingReport} /></div>
             <ReleaseNotes />
             <MainHeadImage />
             <PulseScene dateKey={workflow.dateKey} kpi={workflow.kpi} kpiReady={workflow.kpiReady} records={workflow.records} closedAt={writeLocked} onJump={jumpTo} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'pulse', record: null })} />
@@ -503,9 +478,9 @@ export default function App() {
         <ConfirmClosingDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={confirmClose} />
         <KpiDialog open={kpiOpen} onClose={() => setKpiOpen(false)} values={workflow.kpi} savedAt={workflow.kpiSavedAt} onSave={workflow.saveKpi} onClear={workflow.clearKpi} onNotify={setToast} />
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
-        {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={activeScene} onJump={jumpTo} closedAt={workflow.closedAt} /></div> : null}
+        {introDone ? <div className="signal-navigation-slot" data-workspace-layer="navigation" data-workspace-priority="true"><ActionDock activeScene={activeScene} onJump={jumpTo} closedAt={workflow.closedAt} /></div> : null}
       </div>
-      {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button></div> : null}
+      {workspaceLaunching ? <div className="workspace-launch-overlay signal-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><span aria-hidden="true">SIGNAL GRID / ASSEMBLING WORKSPACE</span><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过 <small>ESC</small></button></div> : null}
       <ReportImageDialog
         open={Boolean(reportImage?.objectUrl)}
         onClose={closeReportImage}
