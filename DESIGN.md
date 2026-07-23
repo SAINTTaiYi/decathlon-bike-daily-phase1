@@ -9,7 +9,7 @@
 
 ## Next-generation visual target: WORKSHOP SIGNAL GRID
 
-> **Status: all six implementation phases are complete in the main source.** The remaining release work is the final administrative checkpoint, one consolidated Preview deployment, independent browser-harness validation and user acceptance.
+> **Status: all six implementation phases are complete.** The consolidated Preview audit found and repaired two final quality regressions in V5.8.6; CI, replacement Preview, independent browser-harness re-audit and user acceptance remain.
 
 The complete specification and anti-interruption checkpoint ledger live in [`docs/WORKSHOP-SIGNAL-GRID.md`](docs/WORKSHOP-SIGNAL-GRID.md). That file is the canonical source for the future full-system redesign, phase plan, recovery state, validation evidence, blockers and next-action queue.
 
@@ -154,14 +154,14 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 
 ### Phase 6 runtime quality mapping
 
-> **Status: complete in the main source branch; final administrative checkpoint and consolidated Preview remain.** Phase 6 changes only quality guardrails, audit automation and one skip-link target. Business behavior, API, D1, permissions and audit semantics remain unchanged.
+> **Status: complete, with a V5.8.6 Preview-audit correction in progress.** Phase 6 and the correction change only quality guardrails, audit automation, contrast and interaction sizing. Business behavior, API, D1, permissions and audit semantics remain unchanged.
 
 - Quality stylesheet: `apps/web/src/styles/signal-grid-quality.css`; normalizes `100dvh`, preserves a 3px Electric Blue focus indicator, adds `prefers-contrast: more` strong-light treatment, print/grayscale structure and static fallbacks.
 - Skip navigation: `App.jsx`; the first workspace focus target now correctly links to the programmatically focusable `#main-content` landmark.
 - Viewport metadata: `apps/web/index.html`; remains zoom-safe and now matches the cool-neutral Signal Grid canvas theme color.
 - Automated source audit: `tests/signal-grid-phase6.test.mjs`; checks native landmarks/controls, image alternatives, 320px and VisualViewport contracts, 44px targets, reduced motion, forced colors, higher contrast, print and non-color state cues.
 - Compiled quality budget: `scripts/ops/validate-frontend-quality.mjs`; every production build verifies JS/CSS gzip budgets, generated media byte/SHA integrity and essential frontend accessibility contracts.
-- Browser validation: independent browser-harness is available through Browser Use cloud auth. Local Chrome/CDP is not connected, so real mobile/desktop interaction checks are intentionally deferred until the consolidated Preview is deployed. No in-app browser or Android accessibility fallback is permitted.
+- Browser validation: the V5.8.5 consolidated Preview was tested through independent browser-harness cloud at desktop and 390px mobile widths. Login, Skip Link, navigation, fonts, AVIF media and overflow passed; the audit exposed Sales KPI contrast and legacy sub-44px control overrides, now corrected in V5.8.6. No in-app browser or Android accessibility fallback is permitted.
 
 
 ## Product hierarchy

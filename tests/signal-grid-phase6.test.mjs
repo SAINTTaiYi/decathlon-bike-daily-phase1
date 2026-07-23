@@ -77,3 +77,11 @@ test('Phase 6 statuses and active navigation pair color with text, icon and stru
   assert.match(moduleCss, /border-style: dashed/u)
   assert.match(moduleCss, /signal-state-mark\[data-tone='complete'\] svg/u)
 })
+
+test('Preview browser audit preserves Sales contrast and 44px production targets', async () => {
+  const quality = await read('apps/web/src/styles/signal-grid-quality.css')
+  assert.match(quality, /\.signal-sales-primary > span,[\s\S]*color: var\(--sg-p-color-surface\)/u)
+  assert.match(quality, /\.signal-sales-primary \.signal-state-mark\[data-tone='pending'\][\s\S]*background: var\(--sg-p-color-surface\)[\s\S]*color: var\(--sg-p-color-ink\)/u)
+  assert.match(quality, /\.active-user-strip button,[\s\S]*\.summary-next button,[\s\S]*\.text-action,[\s\S]*\.record-history-mark,[\s\S]*min-height: var\(--sg-touch-target\)/u)
+  assert.match(quality, /\.record-history-mark \{[\s\S]*min-width: var\(--sg-touch-target\)[\s\S]*width: var\(--sg-touch-target\) !important[\s\S]*height: var\(--sg-touch-target\) !important/u)
+})
