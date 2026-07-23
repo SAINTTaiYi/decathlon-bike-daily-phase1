@@ -1393,3 +1393,22 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 未完成队列：最终 staged diff/credential-pattern 审查；功能提交；正常 PR/CI/合并；非递归行政检查点；Preview-only 部署及云端身份验证；独立桌面/移动功能审查；用户人工艺术方向验收。
 - 下一步：stamp 本精确验证树并复验版本/构建；创建 V5.8.7 功能提交，持续自动完成 PR/CI/正常合并和 Preview-only 交付。
 - Production：forbidden
+
+
+---
+
+## Checkpoint 2026-07-24 01:03
+
+- Phase：Corrected art-direction prototype - functional release
+- 状态：released
+- 基线分支和 SHA：`feature/cloudflare-workers-d1` / `742715c65458faa43be29c3e58b87862e0345eb6`，PR #47 正常合并；功能提交 `ec4ec3668dba608e0acb29f656d7a3a6d2761eaa` 直接继承被视觉拒绝的 V5.8.6 最终 SHA `4359e40abcbfae14fd83b3a1f02725daf5fef651`。
+- 本阶段完成范围：V5.8.7 Overview + Repair 故障信号原型已进入正式源码。总览依据真实业务量动态排序并分配非对称模块面积；纯抽象六色信号场替代具象主图；维修采用 Ion Cyan 连续档案台账、文字主导操作和受保护白色任务层；导航由编号、缩写与双语文字主导。
+- 关键边界：Pickup、Other、Resale、Sales、登录、历史/设置和报告未扩展完整新视觉；业务 handler、API、Worker、D1、migration、权限与审计均未改变。十个旧自行车/双色衍生公开图与旧 manifest 已删除，production quality gate 会拒绝它们回流；用户私有附件不变。
+- 测试与验证结果：本地工作流 88/88；Domain 4/4；Database 5/5；Web 137/137；API 16/16；Worker 11/11；typecheck、Web/API build、Worker typecheck/bundle、V5.8.7 version、diff 与前端质量预算全绿。PR CI `30027538042` 的 `verify` 与完整历史 `secrets` 均成功。
+- PR / CI run：PR #47 正常合并；CI `30027538042`。
+- 部署环境、Deployment ID、Worker Version：尚未部署 V5.8.7。当前 Preview 仍为 V5.8.6；Staging 仍为 V5.7.7；Production 禁止。
+- 用户验收结果：prototype-first 范围已获授权；V5.8.7 Preview 人工艺术方向验收待执行。
+- 阻塞原因：N/A
+- 未完成队列：本行政检查点 PR/CI/正常合并；从最终 admin/source SHA 部署 Preview-only；Cloudflare/公共身份验证；独立桌面/移动功能审查；用户人工艺术方向确认。
+- 下一步：完成本非递归行政检查点，然后发布 Preview-only。最终行政合并 SHA 按非递归规则写入 session-state 和长期记忆，不再产生自引用提交。
+- Production：forbidden
