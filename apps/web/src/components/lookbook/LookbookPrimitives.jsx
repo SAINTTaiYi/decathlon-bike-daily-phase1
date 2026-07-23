@@ -8,13 +8,16 @@ export function LookNumber({ scene }) {
 export function SceneTitle({ scene, as = 'h2', note, action, metrics = [], signalHeader = false }) {
   const Heading = as
   const resolved = sceneById(scene.id)
+  const glitchPrototype = scene.id === 'pulse' || scene.id === 'repair'
   return (
     <header className={`scene-title${signalHeader ? ' signal-module-header' : ''}`} data-motion="title">
       <div className="scene-title-row">
         <div className="display-heading-group">
           <LookNumber scene={resolved} />
-          <Heading id={`${scene.id}-title`}>{scene.title}</Heading>
-          <p className="title-translation" lang="zh-CN">{scene.cn}</p>
+          <div className="glitch-title-stack" data-glitch-motion={glitchPrototype ? '' : undefined}>
+            <Heading id={`${scene.id}-title`} data-glitch-scan={glitchPrototype ? '' : undefined}>{scene.title}</Heading>
+            <p className="title-translation" lang="zh-CN" data-glitch-scan={glitchPrototype ? '' : undefined}>{scene.cn}</p>
+          </div>
         </div>
         {action}
       </div>

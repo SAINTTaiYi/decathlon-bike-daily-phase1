@@ -1,51 +1,33 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFile, stat } from 'node:fs/promises'
-import { createHash } from 'node:crypto'
+import { readFile, readdir } from 'node:fs/promises'
 import { REPORT_OUTPUT_PROFILE, reportContrastRatio, reportScaledPixelSize } from '../apps/web/src/utils/closingReportImage.js'
 
 const root = new URL('../', import.meta.url)
 const read = (path) => readFile(new URL(path, root), 'utf8')
 
-test('Phase 5 hero uses build-time AVIF/WebP Signal Grid media with explicit dimensions', async () => {
+test('Corrected prototype retires the Phase 5 hero image from runtime presentation', async () => {
   const source = await read('apps/web/src/components/lookbook/MainHeadImage.jsx')
-  assert.match(source, /type="image\/avif"/u)
-  assert.match(source, /workshop-head-signal-480\.avif 480w/u)
-  assert.match(source, /workshop-head-signal-1200\.webp 1200w/u)
-  assert.match(source, /width="1200" height="864"/u)
-
-  for (const width of [480, 800, 1200]) {
-    for (const extension of ['avif', 'webp']) {
-      const file = new URL(`apps/web/public/images/workshop-head-signal-${width}.${extension}`, root)
-      const info = await stat(file)
-      const bytes = await readFile(file)
-      assert.ok(info.size > 8_000, `${file.pathname} should contain a real image payload`)
-      if (extension === 'webp') assert.equal(bytes.subarray(0, 4).toString('ascii'), 'RIFF')
-      if (extension === 'avif') assert.equal(bytes.subarray(4, 12).toString('ascii'), 'ftypavif')
-    }
-  }
+  assert.match(source, /signal-glitch-field/u)
+  assert.match(source, /ABSTRACT SIGNAL FIELD/u)
+  assert.doesNotMatch(source, /<picture|<img|workshop-head-signal/u)
 })
 
 
-test('Phase 5 media manifest locks dimensions, byte size and SHA-256 for every generated derivative', async () => {
-  const manifest = JSON.parse(await read('apps/web/public/images/signal-media-manifest.json'))
-  assert.equal(manifest.schema, 1)
-  assert.equal(manifest.assets.length, 6)
-  for (const asset of manifest.assets) {
-    const payload = await readFile(new URL(`apps/web/public/images/${asset.file}`, root))
-    assert.equal(payload.length, asset.bytes)
-    assert.equal(createHash('sha256').update(payload).digest('hex'), asset.sha256)
-    assert.ok([480, 800, 1200].includes(asset.width))
-    assert.equal(asset.height, Math.round(asset.width * 864 / 1200))
-  }
+test('Corrected prototype removes legacy figurative Overview media from the public deployment package', async () => {
+  const names = await readdir(new URL('apps/web/public/images/', root))
+  assert.equal(names.some((name) => /^workshop-head-/u.test(name)), false)
+  assert.equal(names.includes('signal-media-manifest.json'), false)
+  const sources = await read('apps/web/public/images/SOURCES.md')
+  assert.match(sources, /does not ship or render figurative hero photography/u)
 })
 
-test('Phase 5 media CSS removes runtime hero filtering and scopes dynamic thumbnails to the active module', async () => {
+test('Phase 5 media CSS scopes dynamic thumbnails to the active module without a legacy hero layer', async () => {
   const css = await read('apps/web/src/styles/signal-grid-media.css')
   const styles = await read('apps/web/src/styles/index.css')
   const dialog = await read('apps/web/src/components/dialogs/AttachmentDialog.jsx')
   assert.match(styles, /signal-grid-media\.css/u)
-  assert.match(css, /\.signal-overview-media img\s*\{[^}]*filter:\s*none !important/u)
+  assert.doesNotMatch(css, /signal-overview-media/u)
   assert.match(css, /radial-gradient\(circle/u)
   assert.match(css, /var\(--sg-module-color\)/u)
   assert.match(dialog, /sceneRecordConfig\[record\?\.scene\]\?\.signalModule/u)

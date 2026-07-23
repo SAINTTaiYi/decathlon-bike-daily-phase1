@@ -1,0 +1,880 @@
+/* Corrected WORKSHOP SIGNAL GRID art-direction prototype.
+   Scope: authenticated first screen/Overview + Repair module only. */
+
+:root {
+  --sg-glitch-ink: var(--sg-p-color-ink);
+  --sg-glitch-paper: #fbfcfa;
+  --sg-glitch-line: rgb(20 22 22 / .26);
+  --sg-glitch-faint: rgb(20 22 22 / .075);
+}
+
+/* The first screen remains light and archival. Material comes from layered
+   overprint, raster and registration drift, never figurative imagery. */
+.signal-workspace .signal-grid-masthead,
+.signal-workspace .closing-summary,
+.signal-glitch-field,
+.signal-overview-prototype,
+.signal-repair-prototype {
+  isolation: isolate;
+}
+
+.signal-workspace .signal-grid-masthead {
+  position: relative;
+  overflow: hidden;
+  border-width: 1px;
+  background: var(--sg-glitch-paper);
+  color: var(--sg-glitch-ink);
+}
+
+.signal-workspace .signal-grid-masthead::before,
+.signal-workspace .signal-grid-masthead::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+
+.signal-workspace .signal-grid-masthead::before {
+  z-index: -1;
+  inset: -18% 27% 12% 44%;
+  background:
+    linear-gradient(90deg, transparent 0 11%, rgb(118 87 255 / .78) 11% 19%, transparent 19% 32%, rgb(215 255 63 / .82) 32% 42%, transparent 42% 100%),
+    repeating-linear-gradient(0deg, rgb(20 22 22 / .22) 0 1px, transparent 1px 5px);
+  clip-path: polygon(0 9%, 93% 0, 100% 31%, 76% 39%, 96% 58%, 57% 71%, 82% 100%, 13% 91%, 24% 63%, 0 51%);
+  opacity: .58;
+  transform: translateX(4%);
+}
+
+.signal-workspace .signal-grid-masthead::after {
+  inset: auto 0 .48rem 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--sg-p-module-overview) 0 15%, transparent 15% 24%, var(--sg-p-module-sales) 24% 37%, transparent 37% 53%, var(--sg-p-module-repair) 53% 68%, transparent 68% 79%, var(--sg-p-module-resale) 79% 100%);
+  opacity: .78;
+}
+
+.signal-workspace .signal-grid-masthead-title,
+.signal-workspace .signal-grid-masthead-meta {
+  position: relative;
+  z-index: 1;
+}
+
+.signal-workspace .signal-grid-masthead-title h1 strong {
+  background: var(--sg-glitch-ink);
+  color: var(--sg-p-color-surface);
+}
+
+.signal-workspace .closing-summary {
+  position: relative;
+  overflow: hidden;
+  border-width: 1px;
+  background: var(--sg-glitch-paper);
+  color: var(--sg-glitch-ink);
+}
+
+.signal-workspace .closing-summary::before,
+.signal-workspace .closing-summary::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+
+.signal-workspace .closing-summary::before {
+  z-index: -1;
+  top: -2.4rem;
+  right: -1rem;
+  width: min(45%, 24rem);
+  height: 9rem;
+  background:
+    repeating-linear-gradient(90deg, var(--sg-p-module-closing) 0 8px, transparent 8px 15px),
+    repeating-linear-gradient(0deg, rgb(20 22 22 / .18) 0 1px, transparent 1px 6px);
+  clip-path: polygon(12% 7%, 100% 0, 88% 31%, 100% 47%, 56% 58%, 91% 77%, 17% 100%, 0 68%, 31% 47%, 0 24%);
+  opacity: .58;
+}
+
+.signal-workspace .closing-summary::after {
+  inset: auto 0 0 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--sg-p-module-closing) 0 30%, transparent 30% 42%, var(--sg-p-module-overview) 42% 48%, transparent 48% 100%);
+}
+
+.signal-workspace .closing-summary :is(.summary-topline, .summary-copy p, .summary-next small, .summary-next em) {
+  color: var(--sg-color-text-secondary);
+}
+
+.signal-workspace .closing-summary .summary-next {
+  border-width: 1px;
+  background: rgb(255 255 255 / .94);
+}
+
+.signal-workspace .closing-summary .primary-action {
+  border-color: var(--sg-glitch-ink) !important;
+  background: var(--sg-glitch-ink) !important;
+  color: var(--sg-p-color-surface) !important;
+}
+
+.signal-glitch-field {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(14rem, .55fr);
+  min-height: clamp(15rem, 42vw, 25rem);
+  margin: 1rem 0 0;
+  overflow: hidden;
+  border: 1px solid var(--sg-glitch-ink);
+  background: var(--sg-glitch-paper);
+  color: var(--sg-glitch-ink);
+}
+
+.signal-glitch-canvas {
+  position: relative;
+  min-height: inherit;
+  overflow: hidden;
+  background:
+    linear-gradient(var(--sg-glitch-faint) 1px, transparent 1px),
+    linear-gradient(90deg, var(--sg-glitch-faint) 1px, transparent 1px),
+    var(--sg-glitch-paper);
+  background-size: 28px 28px;
+}
+
+.signal-glitch-canvas::before,
+.signal-glitch-canvas::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+
+.signal-glitch-canvas::before {
+  inset: 8% 5% 12% 4%;
+  background:
+    linear-gradient(90deg, transparent 0 4%, rgb(215 255 63 / .82) 4% 13%, transparent 13% 19%, rgb(118 87 255 / .8) 19% 28%, transparent 28% 47%, rgb(24 216 255 / .64) 47% 52%, transparent 52% 72%, rgb(255 61 150 / .68) 72% 81%, transparent 81%),
+    repeating-linear-gradient(0deg, rgb(20 22 22 / .2) 0 1px, transparent 1px 6px);
+  clip-path: polygon(0 5%, 72% 0, 72% 12%, 96% 15%, 82% 31%, 100% 39%, 57% 48%, 83% 59%, 36% 67%, 69% 76%, 31% 89%, 0 83%, 12% 61%, 0 49%, 18% 32%, 0 19%);
+  mix-blend-mode: multiply;
+}
+
+.signal-glitch-canvas::after {
+  right: -4%;
+  bottom: -12%;
+  width: 58%;
+  height: 58%;
+  background:
+    repeating-radial-gradient(circle at 50% 50%, rgb(20 22 22 / .35) 0 1px, transparent 1px 5px),
+    linear-gradient(135deg, transparent 12%, rgb(118 87 255 / .52) 12% 34%, transparent 34% 48%, rgb(215 255 63 / .58) 48% 55%, transparent 55%);
+  clip-path: polygon(12% 0, 100% 3%, 86% 39%, 100% 61%, 62% 67%, 71% 100%, 18% 88%, 0 54%);
+  opacity: .65;
+}
+
+.signal-glitch-raster,
+.signal-glitch-scanline,
+.signal-glitch-fragment,
+.signal-glitch-cross,
+.signal-glitch-code,
+.signal-glitch-coordinate {
+  position: absolute;
+  z-index: 2;
+}
+
+.signal-glitch-raster {
+  top: 13%;
+  left: 7%;
+  width: 39%;
+  height: 64%;
+  background: repeating-linear-gradient(90deg, var(--sg-glitch-ink) 0 1px, transparent 1px 5px);
+  clip-path: polygon(0 0, 100% 8%, 74% 19%, 100% 28%, 62% 41%, 93% 53%, 54% 68%, 78% 84%, 14% 100%, 0 76%, 19% 54%, 0 31%);
+  opacity: .16;
+}
+
+.signal-glitch-scanline {
+  inset: 51% 5% auto 2%;
+  height: 5px;
+  background: var(--sg-glitch-ink);
+  box-shadow: 1.5rem -3.1rem 0 -1px var(--sg-p-module-repair), 7rem 3.8rem 0 -1px var(--sg-p-module-overview);
+  opacity: .75;
+}
+
+.signal-glitch-fragment {
+  display: grid;
+  place-items: center;
+  width: clamp(3.2rem, 9vw, 5rem);
+  height: clamp(1.35rem, 4vw, 2.1rem);
+  overflow: hidden;
+  border: 1px solid currentColor;
+  color: var(--sg-glitch-ink);
+  font: 850 .65rem/1 var(--sg-font-data);
+  letter-spacing: .08em;
+  mix-blend-mode: multiply;
+}
+.signal-glitch-fragment-overview { top: 9%; left: 4%; background: var(--sg-p-module-overview); }
+.signal-glitch-fragment-pickup { top: 22%; left: 31%; background: var(--sg-p-module-pickup); transform: translateX(8px); }
+.signal-glitch-fragment-repair { top: 38%; left: 12%; background: var(--sg-p-module-repair); transform: translateX(-6px); }
+.signal-glitch-fragment-resale { top: 57%; left: 45%; background: var(--sg-p-module-resale); transform: translateX(12px); }
+.signal-glitch-fragment-sales { top: 71%; left: 23%; background: var(--sg-p-module-sales); color: var(--sg-p-color-surface); transform: translateX(-8px); }
+.signal-glitch-fragment-closing { top: 17%; right: 7%; background: var(--sg-p-module-closing); }
+.signal-glitch-cross { font: 500 2rem/1 var(--sg-font-data); }
+.signal-glitch-cross-a { top: 5%; left: 55%; color: var(--sg-p-module-sales); }
+.signal-glitch-cross-b { right: 8%; bottom: 9%; color: var(--sg-p-module-overview); }
+.signal-glitch-code { left: 5%; bottom: 4%; font: 800 .62rem/1 var(--sg-font-data); letter-spacing: .08em; }
+.signal-glitch-coordinate { right: 3%; top: 4%; font: 750 .58rem/1 var(--sg-font-data); }
+
+.signal-glitch-caption {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  align-content: end;
+  gap: .55rem;
+  padding: 1rem;
+  border-left: 1px solid var(--sg-glitch-ink);
+  background: rgb(255 255 255 / .92);
+}
+.signal-glitch-caption::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 74%;
+  height: 5px;
+  background: linear-gradient(90deg, var(--sg-p-module-repair), var(--sg-p-module-sales) 48%, var(--sg-p-module-overview));
+}
+.signal-glitch-caption span,
+.signal-glitch-caption em {
+  font: 800 .64rem/1.35 var(--sg-font-data);
+  letter-spacing: .065em;
+}
+.signal-glitch-caption strong {
+  max-width: 7ch;
+  font-family: var(--sg-font-display-cjk);
+  font-size: clamp(1.8rem, 5vw, 3.4rem);
+  font-weight: 900;
+  line-height: .92;
+  letter-spacing: -.04em;
+}
+.signal-glitch-caption em { color: var(--sg-color-text-secondary); font-style: normal; }
+
+/* Overview: black/white editorial hierarchy with all six hues compressed into
+   traces. No clean multi-color card wall. */
+.signal-overview-prototype {
+  position: relative;
+  padding-top: .5rem;
+}
+.signal-overview-prototype::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 38%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--sg-p-module-pickup) 0 16%, transparent 16% 22%, var(--sg-p-module-repair) 22% 38%, transparent 38% 44%, var(--sg-p-module-resale) 44% 60%, transparent 60% 68%, var(--sg-p-module-sales) 68% 84%, var(--sg-p-module-closing) 84% 100%);
+}
+
+.signal-overview-prototype .scene-title {
+  position: relative;
+  overflow: hidden;
+  padding: 1rem 0 .8rem;
+  border-top: 1px solid var(--sg-glitch-ink);
+  border-bottom: 1px solid var(--sg-glitch-ink);
+}
+.signal-overview-prototype .scene-title::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  right: 4%;
+  bottom: -.35rem;
+  width: 49%;
+  height: 4.6rem;
+  background:
+    repeating-linear-gradient(90deg, rgb(118 87 255 / .46) 0 5px, transparent 5px 11px),
+    linear-gradient(90deg, transparent 0 42%, rgb(215 255 63 / .72) 42% 60%, transparent 60%);
+  clip-path: polygon(0 13%, 100% 0, 83% 39%, 100% 54%, 54% 63%, 75% 100%, 9% 91%);
+  opacity: .62;
+}
+.signal-overview-prototype .scene-title h2 {
+  font-size: clamp(3.4rem, 10vw, 6rem);
+  line-height: .76;
+}
+
+.signal-overview-prototype .signal-overview-grid {
+  grid-template-columns: minmax(0, 1.35fr) minmax(17rem, .65fr);
+  border-width: 1px;
+  background: var(--sg-glitch-paper);
+}
+.signal-overview-prototype .signal-overview-primary {
+  position: relative;
+  overflow: hidden;
+  min-height: 19rem;
+  border-right-width: 1px;
+  background: var(--sg-glitch-paper);
+  color: var(--sg-glitch-ink);
+}
+.signal-overview-prototype .signal-overview-primary::before,
+.signal-overview-prototype .signal-overview-primary::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+.signal-overview-prototype .signal-overview-primary::before {
+  z-index: 0;
+  inset: 5% -3% 16% 42%;
+  background:
+    repeating-linear-gradient(0deg, rgb(20 22 22 / .18) 0 1px, transparent 1px 5px),
+    linear-gradient(90deg, rgb(215 255 63 / .76), transparent 69%);
+  clip-path: polygon(7% 0, 100% 8%, 76% 29%, 100% 43%, 61% 56%, 86% 75%, 31% 100%, 0 79%, 24% 52%, 0 27%);
+  opacity: .7;
+}
+.signal-overview-prototype .signal-overview-primary::after {
+  right: 6%;
+  bottom: 8%;
+  width: 37%;
+  height: 4px;
+  background: var(--sg-p-module-sales);
+  box-shadow: -3rem -2.4rem 0 -1px var(--sg-p-module-repair), 1.5rem -5.2rem 0 -1px var(--sg-p-module-resale);
+}
+.signal-overview-prototype .signal-overview-primary > * { position: relative; z-index: 1; }
+.signal-overview-prototype .signal-overview-primary strong {
+  width: max-content;
+  font-size: clamp(6.8rem, 20vw, 10.4rem);
+  text-shadow: .065em 0 0 rgb(118 87 255 / .33), -.035em 0 0 rgb(215 255 63 / .5);
+}
+.signal-overview-prototype .signal-overview-primary p { width: fit-content; padding-right: clamp(1rem, 8vw, 7rem); }
+.signal-overview-prototype .signal-overview-metrics {
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  background: var(--sg-glitch-paper);
+}
+.signal-overview-prototype .signal-overview-metrics > div {
+  position: relative;
+  overflow: hidden;
+  border-color: var(--sg-glitch-line);
+  background: rgb(255 255 255 / .9);
+}
+.signal-overview-prototype .signal-overview-metrics > div::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 26%;
+  height: 3px;
+  background: var(--sg-p-module-sales);
+  transform: translateX(16%);
+}
+.signal-overview-prototype .signal-overview-metrics > div:nth-child(2)::after { background: var(--sg-p-module-repair); }
+.signal-overview-prototype .signal-overview-metrics > div:nth-child(3)::after { background: var(--sg-p-module-resale); }
+.signal-overview-prototype .signal-overview-metrics > div:nth-child(4)::after { background: var(--sg-p-module-overview); }
+.signal-overview-prototype .signal-overview-metrics dd { text-shadow: .06em 0 0 rgb(118 87 255 / .25); }
+
+.signal-overview-prototype .signal-business-map-head {
+  border-width: 1px;
+  background: var(--sg-glitch-ink);
+}
+.signal-overview-prototype .signal-business-map ol {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-flow: dense;
+  grid-auto-rows: 6rem;
+  gap: 1px;
+  margin-top: 1px;
+  background: var(--sg-glitch-ink);
+}
+.signal-overview-prototype .signal-business-map li { min-width: 0; background: var(--sg-glitch-paper); }
+.signal-overview-prototype .signal-business-map li[data-business-rank='1'] { grid-column: span 7; grid-row: span 2; }
+.signal-overview-prototype .signal-business-map li[data-business-rank='2'],
+.signal-overview-prototype .signal-business-map li[data-business-rank='3'] { grid-column: span 5; }
+.signal-overview-prototype .signal-business-map li[data-business-rank='4'],
+.signal-overview-prototype .signal-business-map li[data-business-rank='5'] { grid-column: span 6; }
+.signal-overview-prototype .signal-business-map button {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto 1fr auto;
+  gap: .32rem .7rem;
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  padding: .68rem;
+  background: var(--sg-glitch-paper);
+  color: var(--sg-glitch-ink);
+  text-align: left;
+}
+.signal-overview-prototype .signal-business-map button::before {
+  content: '';
+  position: absolute;
+  inset: auto -8% 0 42%;
+  height: 38%;
+  background:
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--sg-module-signal) 76%, transparent) 0 5px, transparent 5px 11px),
+    linear-gradient(90deg, var(--sg-module-signal), transparent);
+  clip-path: polygon(13% 0, 100% 12%, 82% 44%, 100% 68%, 31% 100%, 0 63%);
+  opacity: .48;
+}
+.signal-overview-prototype .signal-business-map button > * { position: relative; z-index: 1; }
+.signal-business-map-code {
+  align-self: start;
+  font: 850 .62rem/1 var(--sg-font-data);
+  letter-spacing: .08em;
+}
+.signal-overview-prototype .signal-business-map-copy {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  display: grid;
+  align-content: center;
+  min-width: 0;
+}
+.signal-overview-prototype .signal-business-map-copy strong { font-size: clamp(1.55rem, 4vw, 2.65rem); }
+.signal-overview-prototype .signal-business-map li[data-business-rank='1'] .signal-business-map-copy strong { font-size: clamp(2.2rem, 6vw, 4.4rem); }
+.signal-overview-prototype .signal-business-map-copy small { font-size: .78rem; }
+.signal-overview-prototype .signal-business-map em { grid-column: 3; grid-row: 1; }
+.signal-business-map-trace {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  align-self: end;
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--sg-module-signal) 0 36%, transparent 36% 49%, var(--sg-module-signal) 49% 65%, transparent 65%);
+  opacity: .78;
+}
+
+/* Repair prototype: current module cyan appears as distressed registration
+   material, while the record content becomes a continuous archival stream. */
+.signal-repair-prototype {
+  position: relative;
+  margin-top: clamp(2.7rem, 8vw, 5rem);
+}
+.signal-repair-prototype .signal-module-header {
+  position: relative;
+  overflow: hidden;
+  clip-path: none;
+  border-width: 1px;
+  background: var(--sg-glitch-paper);
+  color: var(--sg-glitch-ink);
+}
+.signal-repair-prototype .signal-module-header::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 3% 2% 9% 45%;
+  background:
+    repeating-linear-gradient(0deg, rgb(20 22 22 / .2) 0 1px, transparent 1px 6px),
+    linear-gradient(90deg, rgb(24 216 255 / .86), transparent 79%);
+  clip-path: polygon(5% 0, 100% 11%, 81% 34%, 100% 49%, 67% 58%, 88% 78%, 18% 100%, 0 72%, 24% 51%, 0 27%);
+  opacity: .73;
+}
+.signal-repair-prototype .signal-module-header::after {
+  width: 41%;
+  height: 5px;
+  top: auto;
+  right: 0;
+  bottom: 0;
+  border: 0;
+  background: linear-gradient(90deg, var(--sg-p-module-repair) 0 62%, transparent 62% 74%, var(--sg-glitch-ink) 74% 100%);
+}
+.signal-repair-prototype .signal-module-header h2 {
+  max-width: 8.5ch;
+  font-size: clamp(4rem, 12vw, 7rem);
+  text-shadow: .055em 0 0 rgb(24 216 255 / .48), -.025em 0 0 rgb(118 87 255 / .25);
+}
+.signal-repair-prototype .signal-module-header .title-translation { font-size: clamp(1.9rem, 5vw, 3rem); }
+.signal-repair-prototype .signal-module-header .scene-note { max-width: 52ch; color: var(--sg-color-text-secondary); }
+.signal-repair-prototype .signal-module-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-width: 1px;
+  background: var(--sg-glitch-ink);
+}
+.signal-repair-prototype .signal-module-metrics > div {
+  position: relative;
+  overflow: hidden;
+  min-height: 4.35rem;
+  background: rgb(255 255 255 / .94);
+  color: var(--sg-glitch-ink);
+}
+.signal-repair-prototype .signal-module-metrics > div::after {
+  content: '';
+  position: absolute;
+  right: -12%;
+  bottom: 0;
+  width: 45%;
+  height: 3px;
+  background: var(--sg-p-module-repair);
+}
+
+.signal-repair-prototype .signal-record-ledger[data-ledger-variant='glitch-archive'] {
+  border-width: 1px 0 0;
+  background: transparent;
+}
+.signal-repair-prototype .signal-record-ledger[data-ledger-variant='glitch-archive'] .record-ledger-head {
+  position: relative;
+  overflow: hidden;
+  min-height: 5rem;
+  padding: .65rem 0;
+  border-bottom-width: 1px;
+  background: transparent;
+  color: var(--sg-glitch-ink);
+}
+.signal-repair-prototype .signal-record-ledger[data-ledger-variant='glitch-archive'] .record-ledger-head::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 38%;
+  height: 3px;
+  background: repeating-linear-gradient(90deg, var(--sg-p-module-repair) 0 8px, transparent 8px 14px);
+}
+.signal-repair-prototype .signal-record-ledger[data-ledger-variant='glitch-archive'] .record-swipe-frame,
+.signal-repair-prototype .signal-record-ledger[data-ledger-variant='glitch-archive'] > div {
+  border-top: 0;
+  border-bottom: 1px solid var(--sg-glitch-ink);
+}
+.signal-repair-prototype .signal-record-ledger[data-ledger-variant='glitch-archive'] .record-swipe-surface { background: transparent; }
+.signal-repair-prototype .signal-record-row {
+  position: relative;
+  overflow: hidden;
+  padding: 1rem 0 .85rem !important;
+  background: transparent;
+}
+.signal-repair-prototype .signal-record-row::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  width: clamp(6rem, 24%, 11rem);
+  height: 2.4rem;
+  background:
+    repeating-linear-gradient(90deg, rgb(24 216 255 / .46) 0 4px, transparent 4px 9px),
+    linear-gradient(90deg, var(--sg-p-module-repair), transparent);
+  clip-path: polygon(17% 0, 100% 9%, 79% 43%, 100% 61%, 28% 100%, 0 65%);
+  opacity: .65;
+}
+.signal-repair-prototype .signal-record-row::after {
+  top: auto;
+  right: 0;
+  bottom: 0;
+  width: 31%;
+  height: 2px;
+  background: var(--sg-p-module-repair);
+}
+.signal-repair-prototype .signal-record-row > * { position: relative; z-index: 1; }
+.signal-repair-prototype .record-row-head {
+  grid-template-columns: minmax(6.7rem, .34fr) minmax(0, 1fr) minmax(8rem, .42fr) !important;
+  gap: .8rem 1rem;
+}
+.signal-repair-prototype .record-history-mark {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .35rem;
+  width: auto !important;
+  min-width: var(--sg-touch-target);
+  height: var(--sg-touch-target) !important;
+  padding: 0 .55rem;
+  border-width: 1px;
+  background: transparent;
+  font-size: .72rem;
+  font-weight: 800;
+}
+.record-history-label { display: none; }
+.signal-repair-prototype .record-history-label { display: inline; }
+.signal-repair-prototype .record-model-block strong {
+  font-family: var(--sg-font-display-latin);
+  font-size: clamp(1.9rem, 6vw, 3.1rem);
+  line-height: .82;
+  letter-spacing: -.035em;
+}
+.signal-repair-prototype .record-model-block > span {
+  width: fit-content;
+  padding: .22rem .35rem;
+  background: var(--sg-glitch-ink);
+  color: var(--sg-p-color-surface);
+}
+.signal-repair-prototype .record-body { padding-left: calc(6.7rem + 1rem); }
+.signal-repair-prototype .record-detail-line {
+  max-width: 68ch;
+  color: var(--sg-glitch-ink);
+  font-size: .9rem;
+}
+.signal-repair-prototype .record-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  padding-top: 0;
+  border: 1px solid var(--sg-glitch-ink);
+}
+.signal-repair-prototype .record-actions button {
+  min-height: var(--sg-touch-target) !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--sg-glitch-ink) !important;
+}
+.signal-repair-prototype .record-actions button + button { border-left: 1px solid var(--sg-glitch-ink) !important; }
+.signal-repair-prototype .record-actions .record-primary-action {
+  position: relative;
+  overflow: hidden;
+  background: transparent !important;
+  color: var(--sg-glitch-ink) !important;
+}
+.signal-repair-prototype .record-actions .record-primary-action::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: auto 0 0 0;
+  height: 5px;
+  background: repeating-linear-gradient(90deg, var(--sg-p-module-repair) 0 12px, transparent 12px 17px);
+}
+.signal-repair-prototype .record-actions .record-primary-action > * { position: relative; z-index: 1; }
+
+.signal-repair-prototype .signal-record-row[data-priority='pending'] { background: rgb(24 216 255 / .055); }
+.signal-repair-prototype .signal-record-row[data-priority='current'] {
+  background: rgb(24 216 255 / .14);
+  color: var(--sg-glitch-ink);
+}
+.signal-repair-prototype .signal-record-row[data-resolved='true'] { background: var(--sg-glitch-ink); }
+
+/* The repair create/edit task layer proves that glitch material may cross the
+   display header but never labels, controls, helper/error copy or entered data. */
+.app-dialog.data-dialog[data-signal-module='repair'] .dialog-panel {
+  position: relative;
+  overflow: hidden;
+  border-width: 1px;
+  background: var(--sg-glitch-paper);
+}
+.app-dialog.data-dialog[data-signal-module='repair'] .dialog-header {
+  position: relative;
+  overflow: hidden;
+  min-height: 8rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--sg-glitch-ink);
+}
+.app-dialog.data-dialog[data-signal-module='repair'] .dialog-header::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: 4% -5% 13% 43%;
+  background:
+    repeating-linear-gradient(0deg, rgb(20 22 22 / .2) 0 1px, transparent 1px 6px),
+    linear-gradient(90deg, rgb(24 216 255 / .82), transparent 74%);
+  clip-path: polygon(0 5%, 100% 0, 82% 35%, 100% 53%, 54% 65%, 77% 100%, 12% 88%);
+  opacity: .68;
+}
+.app-dialog.data-dialog[data-signal-module='repair'] .dialog-header > * { position: relative; z-index: 1; }
+.app-dialog.data-dialog[data-signal-module='repair'] .dialog-title-block h2 {
+  max-width: 9ch;
+  font-family: var(--sg-font-display-cjk);
+  font-size: clamp(2.4rem, 9vw, 4.9rem);
+  font-weight: 900;
+  line-height: .9;
+  letter-spacing: -.04em;
+  text-shadow: .05em 0 0 rgb(24 216 255 / .46);
+}
+.app-dialog.data-dialog[data-signal-module='repair'] .dialog-description,
+.app-dialog.data-dialog[data-signal-module='repair'] .dialog-content,
+.app-dialog.data-dialog[data-signal-module='repair'] .data-form,
+.app-dialog.data-dialog[data-signal-module='repair'] :is(.field-row, .field-group, .field-help, input, textarea, .project-select-trigger) {
+  position: relative;
+  z-index: 2;
+}
+.app-dialog.data-dialog[data-signal-module='repair'] .data-form {
+  background: var(--sg-glitch-paper);
+}
+.app-dialog.data-dialog[data-signal-module='repair'] :is(.field-row > span, .field-group legend, .field-help, .form-error, .conditional-field-note, input, textarea, select, .project-select-trigger) {
+  color: var(--sg-color-text);
+  text-shadow: none;
+  filter: none;
+}
+.app-dialog.data-dialog[data-signal-module='repair'] :is(input, textarea, select, .project-select-trigger) {
+  background: var(--sg-p-color-surface);
+}
+
+/* Type-led navigation. Inactive modules are neutral; color is compressed into
+   a tiny registration trace. */
+.signal-type-navigation button {
+  position: relative;
+  overflow: hidden;
+  background: var(--sg-p-color-surface);
+  color: var(--sg-color-text-secondary);
+}
+.signal-type-navigation button b {
+  font-family: var(--sg-font-display-latin);
+  font-size: .78rem;
+  font-weight: 900;
+  line-height: .9;
+  letter-spacing: -.02em;
+}
+.signal-type-navigation button i {
+  position: absolute;
+  inset: auto .2rem .16rem .2rem;
+  height: 2px;
+  background: var(--sg-module-signal);
+  opacity: .3;
+}
+.signal-type-navigation button[data-active='true'] {
+  background: var(--sg-glitch-ink);
+  color: var(--sg-p-color-surface);
+}
+.signal-type-navigation button[data-active='true'] i {
+  height: 4px;
+  opacity: 1;
+  background: repeating-linear-gradient(90deg, var(--sg-module-signal) 0 8px, transparent 8px 12px);
+}
+
+@media (min-width: 960px) {
+  .signal-type-navigation button {
+    grid-template-columns: 1.45rem 1fr !important;
+    grid-template-rows: auto auto auto !important;
+  }
+  .signal-type-navigation button small { grid-column: 1 !important; grid-row: 1 !important; }
+  .signal-type-navigation button b { grid-column: 2; grid-row: 1; }
+  .signal-type-navigation button span { grid-column: 1 / -1 !important; grid-row: 2 !important; }
+}
+
+@media (max-width: 959px) {
+  .signal-type-navigation button {
+    display: grid;
+    grid-template-rows: auto auto;
+    align-content: center;
+    gap: .08rem;
+    padding: .3rem .12rem .45rem;
+  }
+  .signal-type-navigation button b { display: block; font-size: .72rem; }
+  .signal-type-navigation button span { font-size: .62rem; }
+}
+
+@media (max-width: 720px) {
+  .signal-glitch-field { grid-template-columns: 1fr; min-height: 21rem; }
+  .signal-glitch-canvas { min-height: 14rem; }
+  .signal-glitch-caption { border-top: 1px solid var(--sg-glitch-ink); border-left: 0; }
+  .signal-glitch-caption strong { max-width: none; font-size: 2rem; }
+
+  .signal-overview-prototype .signal-overview-grid { grid-template-columns: 1fr; }
+  .signal-overview-prototype .signal-overview-primary { border-right: 0; border-bottom: 1px solid var(--sg-glitch-ink); }
+  .signal-overview-prototype .signal-business-map ol { grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: 6.5rem; }
+  .signal-overview-prototype .signal-business-map li[data-business-rank='1'] { grid-column: span 4; grid-row: span 2; }
+  .signal-overview-prototype .signal-business-map li[data-business-rank='2'],
+  .signal-overview-prototype .signal-business-map li[data-business-rank='3'] { grid-column: span 3; }
+  .signal-overview-prototype .signal-business-map li[data-business-rank='4'] { grid-column: span 4; }
+  .signal-overview-prototype .signal-business-map li[data-business-rank='5'] { grid-column: span 3; }
+  .signal-overview-prototype .signal-business-map-copy strong { font-size: clamp(1.45rem, 8vw, 2.35rem); }
+
+  .signal-repair-prototype .signal-module-header h2 { font-size: clamp(3.8rem, 20vw, 5.6rem); }
+  .signal-repair-prototype .signal-module-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .signal-repair-prototype .signal-module-metrics dt { font-size: .62rem; }
+  .signal-repair-prototype .signal-module-metrics dd { font-size: 1.9rem; }
+  .signal-repair-prototype .record-row-head {
+    grid-template-columns: minmax(5.7rem, .36fr) minmax(0, 1fr) !important;
+  }
+  .signal-repair-prototype .record-head-meta { grid-column: 2; justify-items: start; max-width: none; }
+  .signal-repair-prototype .record-body { padding-left: 0; }
+  .signal-repair-prototype .record-history-mark { min-width: 5.7rem; padding-inline: .35rem; }
+}
+
+@media (max-width: 430px) {
+  .signal-overview-prototype .signal-business-map ol { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-auto-rows: 6.4rem; }
+  .signal-overview-prototype .signal-business-map li[data-business-rank='1'] { grid-column: span 3; grid-row: span 2; }
+  .signal-overview-prototype .signal-business-map li[data-business-rank='2'],
+  .signal-overview-prototype .signal-business-map li[data-business-rank='3'] { grid-column: span 2; }
+  .signal-overview-prototype .signal-business-map li[data-business-rank='4'] { grid-column: span 3; }
+  .signal-overview-prototype .signal-business-map li[data-business-rank='5'] { grid-column: span 2; }
+  .signal-overview-prototype .signal-business-map-copy { gap: .12rem; }
+  .signal-overview-prototype .signal-business-map-copy strong { font-size: 1.55rem; }
+  .signal-overview-prototype .signal-business-map-copy small { font-size: .68rem; }
+  .signal-business-map-code { display: none; }
+  .signal-repair-prototype .signal-module-metrics { grid-template-columns: 1fr; }
+  .signal-repair-prototype .signal-module-metrics > div { min-height: 3.6rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-glitch-motion],
+  [data-glitch-scan] { animation: none !important; transform: none !important; }
+}
+
+@media (forced-colors: active) {
+  .signal-workspace .signal-grid-masthead::before,
+  .signal-workspace .signal-grid-masthead::after,
+  .signal-workspace .closing-summary::before,
+  .signal-workspace .closing-summary::after,
+  .signal-glitch-canvas::before,
+  .signal-glitch-canvas::after,
+  .signal-glitch-raster,
+  .signal-glitch-scanline,
+  .signal-glitch-fragment,
+  .signal-glitch-cross,
+  .signal-overview-prototype .scene-title::after,
+  .signal-overview-prototype .signal-overview-primary::before,
+  .signal-overview-prototype .signal-overview-primary::after,
+  .signal-overview-prototype .signal-business-map button::before,
+  .signal-repair-prototype .signal-module-header::before,
+  .signal-repair-prototype .signal-record-row::before,
+  .app-dialog.data-dialog[data-signal-module='repair'] .dialog-header::before,
+  .signal-type-navigation button i { display: none; }
+  .signal-glitch-field,
+  .signal-glitch-caption,
+  .signal-overview-prototype .signal-overview-primary,
+  .signal-overview-prototype .signal-business-map button,
+  .signal-repair-prototype .signal-module-header,
+  .signal-repair-prototype .signal-record-row { border-color: CanvasText; background: Canvas; color: CanvasText; }
+}
+
+/* Cohesive first-screen data composition: KPI + abstract field on the first
+   row, compact real metrics below. */
+.signal-overview-prototype .signal-overview-grid {
+  grid-template-columns: minmax(0, 1.36fr) minmax(14rem, .64fr);
+}
+.signal-overview-prototype .signal-overview-grid > .signal-glitch-field {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 19rem;
+  margin: 0;
+  border: 0;
+  border-left: 1px solid var(--sg-glitch-ink);
+}
+.signal-overview-prototype .signal-overview-grid > .signal-glitch-field .signal-glitch-caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: .55rem;
+  border: 0;
+  border-top: 1px solid var(--sg-glitch-ink);
+  background: rgb(255 255 255 / .86);
+}
+.signal-overview-prototype .signal-overview-grid > .signal-glitch-field .signal-glitch-caption strong { max-width: none; font-size: 1.15rem; }
+.signal-overview-prototype .signal-overview-grid > .signal-glitch-field .signal-glitch-caption em { display: none; }
+.signal-overview-prototype .signal-overview-metrics {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: auto;
+  border-top: 1px solid var(--sg-glitch-ink);
+}
+.signal-overview-prototype .signal-overview-metrics > div {
+  min-height: 6.4rem;
+  border-right: 1px solid var(--sg-glitch-line);
+  border-bottom: 0;
+}
+.signal-overview-prototype .signal-overview-metrics > div:last-child { border-right: 0; }
+.glitch-title-stack { display: grid; min-width: 0; }
+
+@media (max-width: 720px) {
+  .signal-overview-prototype .signal-overview-grid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(7.3rem, .65fr);
+  }
+  .signal-overview-prototype .signal-overview-primary {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 17rem;
+    border-bottom: 0;
+    border-right: 0;
+  }
+  .signal-overview-prototype .signal-overview-grid > .signal-glitch-field {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 17rem;
+    border-left: 1px solid var(--sg-glitch-ink);
+  }
+  .signal-overview-prototype .signal-overview-grid > .signal-glitch-field .signal-glitch-canvas { min-height: 17rem; }
+  .signal-overview-prototype .signal-overview-grid > .signal-glitch-field .signal-glitch-caption { padding: .42rem; }
+  .signal-overview-prototype .signal-overview-grid > .signal-glitch-field .signal-glitch-caption span,
+  .signal-overview-prototype .signal-overview-grid > .signal-glitch-field .signal-glitch-caption em { display: none; }
+  .signal-overview-prototype .signal-overview-grid > .signal-glitch-field .signal-glitch-caption strong { font-size: .82rem; line-height: 1.1; }
+  .signal-overview-prototype .signal-overview-metrics {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .signal-overview-prototype .signal-overview-metrics > div { min-height: 5.7rem; border-bottom: 1px solid var(--sg-glitch-line); }
+  .signal-overview-prototype .signal-overview-metrics > div:nth-child(2n) { border-right: 0; }
+  .signal-overview-prototype .signal-overview-metrics > div:nth-last-child(-n+2) { border-bottom: 0; }
+}

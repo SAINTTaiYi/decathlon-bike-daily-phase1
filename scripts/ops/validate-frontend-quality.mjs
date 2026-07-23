@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { readFile, readdir, stat } from 'node:fs/promises'
 import { gzipSync } from 'node:zlib'
 import path from 'node:path'
@@ -24,17 +23,11 @@ const css = await measure('.css')
 if (js.gzip > 145 * 1024) fail(`largest JS gzip ${js.gzip} exceeds 145 KiB`)
 if (css.gzip > 60 * 1024) fail(`largest CSS gzip ${css.gzip} exceeds 60 KiB`)
 
-const manifestPath = path.join(root, 'apps/web/dist/images/signal-media-manifest.json')
-const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
-let mediaBytes = 0
-for (const asset of manifest.assets) {
-  const assetPath = path.join(root, 'apps/web/dist/images', asset.file)
-  const payload = await readFile(assetPath)
-  mediaBytes += payload.length
-  if (payload.length !== asset.bytes) fail(`${asset.file} byte size drifted`)
-  if (createHash('sha256').update(payload).digest('hex') !== asset.sha256) fail(`${asset.file} SHA-256 drifted`)
-}
-if (mediaBytes > 700 * 1024) fail(`generated signal media ${mediaBytes} exceeds 700 KiB`)
+const distImages = path.join(root, 'apps/web/dist/images')
+const imageNames = await readdir(distImages)
+const forbiddenOverviewMedia = imageNames.filter((name) => /^workshop-head-/u.test(name) || name === 'signal-media-manifest.json')
+if (forbiddenOverviewMedia.length) fail(`legacy figurative Overview media remains in build: ${forbiddenOverviewMedia.join(', ')}`)
+const mediaBytes = 0
 
 const html = await read('apps/web/index.html')
 const app = await read('apps/web/src/App.jsx')

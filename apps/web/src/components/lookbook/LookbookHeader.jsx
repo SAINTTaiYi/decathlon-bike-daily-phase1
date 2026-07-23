@@ -5,7 +5,7 @@ export default function LookbookHeader() {
     <header className="report-masthead signal-grid-masthead" data-motion="header">
       <div className="signal-grid-masthead-title">
         <span>WORKSHOP SIGNAL GRID</span>
-        <h1><b>WORKSHOP</b><strong>OPS</strong></h1>
+        <h1 data-glitch-motion><b data-glitch-scan>WORKSHOP</b><strong data-glitch-scan>OPS</strong></h1>
         <p>门店作业信号系统</p>
       </div>
       <div className="signal-grid-masthead-meta">

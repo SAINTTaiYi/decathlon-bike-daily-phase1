@@ -10,7 +10,6 @@ import { buildClosingReportModel, exportClosingReportImage } from './utils/closi
 import ActionDock from './components/lookbook/ActionDock.jsx'
 import ClosingSummary from './components/lookbook/ClosingSummary.jsx'
 import LookbookHeader from './components/lookbook/LookbookHeader.jsx'
-import MainHeadImage from './components/lookbook/MainHeadImage.jsx'
 import AttachmentDialog from './components/dialogs/AttachmentDialog.jsx'
 import ConfirmClosingDialog from './components/dialogs/ConfirmClosingDialog.jsx'
 import KpiDialog from './components/dialogs/KpiDialog.jsx'
@@ -31,6 +30,7 @@ import useActiveScene from './hooks/useActiveScene.js'
 import useAuth from './hooks/useAuth.js'
 import useRemoteClosingWorkflow from './hooks/useRemoteClosingWorkflow.js'
 import useMotionSystem from './hooks/useMotionSystem.js'
+import useGlitchPrototypeMotion from './hooks/useGlitchPrototypeMotion.js'
 import useWorkspaceMotion from './hooks/useWorkspaceMotion.js'
 import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
 import OpeningScene from './scenes/OpeningScene.jsx'
@@ -97,6 +97,7 @@ export default function App() {
     onComplete: completeWorkspaceAssembly
   })
   useMotionSystem({ enabled: introDone && workflow.hydrated && !workspaceLaunching, rootRef: workspaceRootRef })
+  useGlitchPrototypeMotion({ enabled: introDone && workflow.hydrated && !workspaceLaunching, rootRef: workspaceRootRef })
 
   useEffect(() => {
     if (auth.status === 'anonymous') {
@@ -444,7 +445,6 @@ export default function App() {
             {!online ? <p className="offline-banner" role="status">OFFLINE · 当前离线，仅可查看最近加载的数据；恢复网络后才能修改。</p> : null}
             <div className="workspace-focus" data-workspace-layer="focus" data-workspace-priority="true" id="closing-summary"><ClosingSummary workflow={workflow} onJumpToRequirement={jumpToRequirement} onCompleteClosing={requestClose} onReopenClosing={() => void reopen()} onExportReport={exportClosingReport} /></div>
             <ReleaseNotes />
-            <MainHeadImage />
             <PulseScene dateKey={workflow.dateKey} kpi={workflow.kpi} kpiReady={workflow.kpiReady} records={workflow.records} closedAt={writeLocked} onJump={jumpTo} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'pulse', record: null })} />
             <PickupScene {...recordProps('pickup')} />
             <OpeningScene {...recordProps('poster')} />

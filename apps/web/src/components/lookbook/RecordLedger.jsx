@@ -358,12 +358,12 @@ export default function RecordLedger({
   onRepairComplete, onPickupNotificationChange, pickupErrors = {},
   primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete,
   repairPixelDissolveId = '', onRepairPixelDissolveComplete,
-  heading = 'ACTIVE LEDGER / 在册台账', dark = false, emphasis = 'normal', showAdd = true
+  heading = 'ACTIVE LEDGER / 在册台账', dark = false, emphasis = 'normal', showAdd = true, variant = ''
 }) {
   const hasSwipeDelete = !closedAt && records.some((record) => !record.pickedUpToday && !record.completedToday)
 
   return (
-    <div className="record-ledger signal-record-ledger" data-reveal-group="records" data-dark={dark ? 'true' : undefined} data-emphasis={emphasis !== 'normal' ? emphasis : undefined} aria-label={`${config.singular}台账，共 ${records.length} 条`}>
+    <div className="record-ledger signal-record-ledger" data-reveal-group="records" data-dark={dark ? 'true' : undefined} data-emphasis={emphasis !== 'normal' ? emphasis : undefined} data-ledger-variant={variant || undefined} aria-label={`${config.singular}台账，共 ${records.length} 条`}>
       <div className="record-ledger-head">
         <div>
           <span>{heading}</span>
@@ -454,7 +454,7 @@ export default function RecordLedger({
             {pickupPixelFill ? <PickupPixelFill recordId={record.id} onComplete={onPickupPixelFillComplete} /> : null}
             {repairPixelDissolve ? <RepairPixelDissolve recordId={record.id} onComplete={onRepairPixelDissolveComplete} /> : null}
             <header className="record-row-head">
-              <button type="button" className="record-history-mark" onClick={() => onHistory(record)} aria-label={`查看“${record.title}”的操作记录`}><IconJournal width={16} height={16} aria-hidden="true" /></button>
+              <button type="button" className="record-history-mark" onClick={() => onHistory(record)} aria-label={`查看“${record.title}”的操作记录`}><IconJournal width={16} height={16} aria-hidden="true" /><span className="record-history-label">查看历史</span></button>
               <div className="record-model-block">
                 <strong>{record.title}</strong>
                 <span>{ticketNumber}</span>
