@@ -5,10 +5,10 @@
 ## 0. 文档状态
 
 - **方案名称**：WORKSHOP SIGNAL GRID
-- **方案状态**：Phase 0-4 已完成并进入正式源码；Phase 4 行政检查点收尾后连续实施 Phase 5
+- **方案状态**：Phase 0-5 已完成本地验证；Phase 5 正常 PR/CI/合并与行政检查点后连续实施 Phase 6
 - **文档创建日期**：2026-07-22
-- **当前实现基线**：Phase 4 正常合并/source SHA `49942a10b27538c005391d1d9529499b41690236` / V5.8.3
-- **当前源码登记版本**：V5.8.3（Phase 4 操作与管理体系已完成最终本地验证；中间 Phase 不部署 Preview）
+- **当前实现基线**：Phase 4 最终行政/source SHA `66cabb82b539cfcbc748ba9f18ef85febf76143f`；Phase 5 V5.8.4 候选直接继承该 SHA
+- **当前源码登记版本**：V5.8.4（Phase 5 媒体与报告已完成最终本地验证；待正常 PR/CI/合并，中间 Phase 不部署 Preview）
 - **Phase 0 内容合并 SHA**：`94cd3f970969749167b286ef76c29c60f6e145a5`
 - **Phase 0 最终行政合并 SHA**：`6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
 - **当前 Preview**：V5.8.0 / `1b51a515f3418c0d66d6e169484a233e49e47246`；Phase 2 及中间 Phase 不部署，全部 Phase 完成后统一更新一次
@@ -679,7 +679,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### Phase 5：媒体与报告
 
-**状态：未开始**
+**状态：本地验证完成，待正常 PR/CI/合并与行政检查点**
 
 - 模块化双色摄影
 - 网点和抖动媒体资源
@@ -1255,4 +1255,25 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 阻塞原因：N/A
 - 未完成队列：本行政检查点 PR/CI/正常合并；随后 Phase 5 媒体与报告实施。最终行政合并 SHA 按非递归规则写入 session-state、长期记忆和 Phase 5 首个检查点。
 - 下一步：完成本行政检查点；从其最终合并 SHA 创建 Phase 5 隔离工作树，实施模块化双色摄影、网点/抖动媒体、报告汇总/明细及聊天压缩/灰度输出测试；不部署 Preview。
+- Production：forbidden
+
+
+---
+
+## Checkpoint 2026-07-23 14:52
+
+- Phase：Phase 5 - 媒体与报告
+- 状态：in_progress
+- 基线分支和 SHA：`feat/signal-grid-phase5-media`，直接继承 Phase 4 最终行政/source SHA `66cabb82b539cfcbc748ba9f18ef85febf76143f`；V5.8.4 已登记并锁定 355 个指纹文件。
+- 本阶段完成范围：Overview 主图新增 480/800/1200 三档 AVIF/WebP 预处理资源，采用四级有序抖动、Dark Void + Voltage Lime 双色分色与硬边裁切；私有附件缩略图继承记录模块色与静态网点预览，原始签名大图不改变。闭店日报重构为 Blaze Orange 闭店刊头、Plasma Violet 真实销售核心 KPI、三项真实辅助指标，以及 Pickup/Repair/Handover 模块注册的冷白高对比明细票据。日报预览说明同步更新。
+- 关键决策：昂贵双色/抖动处理在构建阶段完成，运行时主图零滤镜；动态用户媒体只处理 72px 级缩略图，不破坏原始附件；报告颜色始终叠加文字、编号、边界和模块名，不能单独承载语义；报告最小源字号 20px、结构线 2px，并以 1242 -> 1080 聊天缩放为明确测试基线。
+- 修改文件：新增六个 `workshop-head-signal-*` 媒体文件、`signal-media-manifest.json`、`signal-grid-media.css`、`tests/signal-grid-phase5.test.mjs`；修改 MainHeadImage、AttachmentDialog、ReportImageDialog、closingReportImage、样式入口、图片来源、DESIGN 和本规范。
+- 数据库或契约变化：N/A；无 API、Worker、D1、migration、权限、审计或业务流程修改。报告继续使用服务器 close 响应 KPI 快照、自提平台标识和专用联系槽。
+- 测试与验证结果：首轮聚焦 15/15 通过，覆盖媒体格式/尺寸/字节/SHA、AVIF 优先与 WebP fallback、模块缩略图、报告颜色对比、聊天缩放、平面结构和代表性 Canvas 完整渲染。最终本地门通过：工作流策略 88/88；Domain 4/4；Database 5/5；Web 125/125；API 16/16；Worker 11/11；完整 typecheck、Web/API production build、Worker typecheck/bundle、V5.8.4 version 与 diff 全绿。Phase 5 聚焦测试 15/15；Web CSS 240.76 kB（gzip 55.28），JS 410.00 kB（gzip 139.40）；Worker 270.3 kB / 150.1 kB minified。
+- PR / CI run：N/A
+- 部署环境、Deployment ID、Worker Version：N/A；中间 Phase 不部署。Preview 仍为 V5.8.0，Staging 仍为 V5.7.7，Production 禁止。
+- 用户验收结果：Phase 5-6 连续实施及最终统一 Preview 已获授权。
+- 阻塞原因：N/A
+- 未完成队列：重新 stamp 本精确检查点树并复验；功能提交、PR/CI/正常合并；非递归行政检查点；随后 Phase 6。
+- 下一步：stamp 本精确检查点树并复验后创建 V5.8.4 功能提交，正常 PR/CI/合并；不部署 Preview。
 - Production：forbidden

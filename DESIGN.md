@@ -9,7 +9,7 @@
 
 ## Next-generation visual target: WORKSHOP SIGNAL GRID
 
-> **Status: implementation in progress.** Phase 1 foundations and the Phase 2 system shell are complete in the main source branch. Phase 3 now owns the core business modules while later phases preserve business behavior and replace the remaining legacy visual layers.
+> **Status: implementation in progress.** Phases 1-5 are complete in the working source. Phase 6 now owns full-system quality validation before the single consolidated Preview review.
 
 The complete specification and anti-interruption checkpoint ledger live in [`docs/WORKSHOP-SIGNAL-GRID.md`](docs/WORKSHOP-SIGNAL-GRID.md). That file is the canonical source for the future full-system redesign, phase plan, recovery state, validation evidence, blockers and next-action queue.
 
@@ -139,6 +139,18 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 - Account and settings: `MenuDialog.jsx`, `CreateUserDialog.jsx`, `LocalMigrationDialog.jsx` and `UpdateRefreshDialog.jsx`; current identity, role selection, migration review, update prompt, confirmation and generated-credential display use the same operational surface language.
 - Attachments: `AttachmentDialog.jsx`; native `window.confirm` was replaced by an inline task-layer destructive confirmation while upload, private-media limits, API calls and permission locks remain unchanged.
 - App-level gates: `App.jsx` and `AppErrorBoundary.jsx`; authentication verification, database synchronization, initial snapshot failure and fatal UI states use the same accessible loading/error grammar.
+
+### Phase 5 runtime media and report mapping
+
+> **Status: locally verified; normal PR/CI and administrative checkpoint remain.** Phase 5 changes only media presentation, report composition and output-quality gates. Business data, report values, API calls, permissions, D1 and audit semantics remain unchanged.
+
+- Preprocessed Overview media: `apps/web/public/images/workshop-head-signal-*.(avif|webp)`; six 480/800/1200 derivatives use build-time four-level ordered dither plus Dark Void and Voltage Lime duotone. `signal-media-manifest.json` locks dimensions, byte size and SHA-256.
+- Responsive source: `MainHeadImage.jsx`; AVIF is preferred with WebP fallback, explicit intrinsic dimensions and no runtime hero grayscale/filter cost.
+- Module-scoped private thumbnails: `AttachmentDialog.jsx` plus `signal-grid-media.css`; small previews inherit the record module color and static halftone treatment, while opening the signed original preserves the source image.
+- Report renderer: `closingReportImage.js`; the summary uses Blaze Orange closing identity and Plasma Violet real sales KPI, while Pickup, Repair and Handover details return to flat cool-white tickets with module registration, explicit labels and high-contrast borders.
+- Report resilience: `REPORT_OUTPUT_PROFILE` plus `tests/signal-grid-phase5.test.mjs` enforce color contrast, minimum post-compression text/rule size, AVIF/WebP integrity, representative Canvas rendering and structural grayscale readability. Server-confirmed close snapshots, self-pickup platform labels and dedicated contact slots remain unchanged.
+- Report preview: `ReportImageDialog.jsx`; the task layer explains that color is reinforced by labels and structure and keeps the existing long-press/download paths.
+
 
 ## Product hierarchy
 

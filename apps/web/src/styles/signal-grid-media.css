@@ -1,0 +1,114 @@
+/* WORKSHOP SIGNAL GRID Phase 5 - preprocessed media and report surfaces. */
+.signal-overview-media {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 1.1rem), calc(100% - 1.1rem) 100%, 0 100%);
+}
+
+.signal-overview-media img {
+  filter: none !important;
+  transform: none !important;
+}
+
+.signal-overview-media::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background-image: radial-gradient(circle, rgb(215 255 63 / .52) 0 1px, transparent 1.4px);
+  background-size: 9px 9px;
+  mix-blend-mode: hard-light;
+  opacity: .22;
+  pointer-events: none;
+}
+
+.signal-overview-media::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 auto;
+  z-index: 1;
+  width: 20%;
+  height: 24%;
+  background: var(--sg-p-color-ink);
+  mix-blend-mode: normal;
+  pointer-events: none;
+}
+
+.signal-overview-media .head-photo-caption {
+  z-index: 2;
+}
+
+.app-dialog[data-signal-module] .attachment-list a[data-signal-media='thumbnail'] {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--sg-p-color-ink);
+}
+
+.app-dialog[data-signal-module] .attachment-list a[data-signal-media='thumbnail'] img {
+  filter: grayscale(1) contrast(1.55) brightness(.78);
+  transform: scale(1.025);
+}
+
+.app-dialog[data-signal-module] .attachment-list a[data-signal-media='thumbnail']::before,
+.app-dialog[data-signal-module] .attachment-list a[data-signal-media='thumbnail']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.app-dialog[data-signal-module] .attachment-list a[data-signal-media='thumbnail']::before {
+  z-index: 1;
+  background: var(--sg-module-color);
+  mix-blend-mode: multiply;
+  opacity: .72;
+}
+
+.app-dialog[data-signal-module] .attachment-list a[data-signal-media='thumbnail']::after {
+  z-index: 2;
+  background-image: radial-gradient(circle, var(--sg-module-ink) 0 1px, transparent 1.4px);
+  background-size: 7px 7px;
+  mix-blend-mode: soft-light;
+  opacity: .34;
+}
+
+.app-dialog[data-signal-module='other'] .attachment-list a[data-signal-media='thumbnail']::before {
+  background: var(--sg-module-signal);
+}
+
+.report-image-preview {
+  gap: .65rem;
+  padding: .65rem;
+  border: var(--sg-border-width-strong) solid var(--sg-color-border-strong);
+  background: var(--sg-color-field-muted);
+}
+
+.report-image-preview-img {
+  border: var(--sg-border-width) solid var(--sg-color-border-strong);
+  background: var(--sg-color-canvas);
+}
+
+.report-image-preview-tip {
+  padding: 0;
+  color: var(--sg-color-text-secondary);
+  font-family: var(--sg-font-data);
+  font-size: .75rem;
+  letter-spacing: .02em;
+}
+
+@media (forced-colors: active) {
+  .signal-overview-media,
+  .app-dialog[data-signal-module] .attachment-list a[data-signal-media='thumbnail'],
+  .report-image-preview,
+  .report-image-preview-img {
+    border-color: CanvasText;
+    background: Canvas;
+    clip-path: none;
+  }
+
+  .signal-overview-media::before,
+  .signal-overview-media::after,
+  .app-dialog[data-signal-module] .attachment-list a[data-signal-media='thumbnail']::before,
+  .app-dialog[data-signal-module] .attachment-list a[data-signal-media='thumbnail']::after {
+    display: none;
+  }
+}
