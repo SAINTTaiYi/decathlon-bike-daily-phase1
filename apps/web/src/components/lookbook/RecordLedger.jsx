@@ -326,6 +326,7 @@ function SwipeDeleteRecord({ record, disabled, onRemove, children }) {
       tabIndex={0}
       role="group"
       aria-label={`${record.title}，左滑或按左方向键显示删除操作`}
+      aria-keyshortcuts="ArrowLeft ArrowRight Escape"
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -442,6 +443,8 @@ export default function RecordLedger({
                 : record.scene === 'pickup' && !pickedUp
                   ? primaryButton('确认取车', () => onPickup(record))
                   : null
+        const recordTitleId = `record-title-${record.id}`
+        const showRecordActions = variant !== 'glitch-archive' || !resolved
         const actionButtons = (
           <>
             {!resolved ? <button type="button" className="record-edit-action" onClick={() => onEdit(record)} disabled={Boolean(closedAt) || primaryProcessing} aria-label={`编辑：${record.title}`}><IconEdit width={15} height={15} aria-hidden="true" />编辑</button> : null}
@@ -450,13 +453,13 @@ export default function RecordLedger({
         )
 
         const row = (
-          <article className="record-row signal-record-row" data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-priority={priorityTone} data-pickup-pixel-filling={pickupPixelFill ? 'true' : undefined} data-repair-pixel-dissolving={repairPixelDissolve ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row">
+          <article className="record-row signal-record-row" data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-priority={priorityTone} data-pickup-pixel-filling={pickupPixelFill ? 'true' : undefined} data-repair-pixel-dissolving={repairPixelDissolve ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row" aria-labelledby={recordTitleId}>
             {pickupPixelFill ? <PickupPixelFill recordId={record.id} onComplete={onPickupPixelFillComplete} /> : null}
             {repairPixelDissolve ? <RepairPixelDissolve recordId={record.id} onComplete={onRepairPixelDissolveComplete} /> : null}
             <header className="record-row-head">
               <button type="button" className="record-history-mark" onClick={() => onHistory(record)} aria-label={`查看“${record.title}”的操作记录`}><IconJournal width={16} height={16} aria-hidden="true" /><span className="record-history-label">查看历史</span></button>
               <div className="record-model-block">
-                <strong>{record.title}</strong>
+                <strong id={recordTitleId}>{record.title}</strong>
                 <span>{ticketNumber}</span>
                 {pickupRecord && !pickedUp ? (
                   <div className="record-notify-line">
@@ -499,7 +502,7 @@ export default function RecordLedger({
 
               {pickupError ? <p className="record-inline-error" role="alert">{pickupError}</p> : null}
               {resolved ? <p className="record-resolution-note">{pickedUp ? '本条今日保留，下一业务日自动移除。' : '本条今日保留，下一业务日自动清除。'}</p> : null}
-              <footer className="record-actions" data-has-primary={primaryAction ? 'true' : undefined}>{actionButtons}</footer>
+              {showRecordActions ? <footer className="record-actions" data-has-primary={primaryAction ? 'true' : undefined} aria-label={`${record.title}的操作`}>{actionButtons}</footer> : null}
             </div>
           </article>
         )
