@@ -27,7 +27,21 @@ const distImages = path.join(root, 'apps/web/dist/images')
 const imageNames = await readdir(distImages)
 const forbiddenOverviewMedia = imageNames.filter((name) => /^workshop-head-/u.test(name) || name === 'signal-media-manifest.json')
 if (forbiddenOverviewMedia.length) fail(`legacy figurative Overview media remains in build: ${forbiddenOverviewMedia.join(', ')}`)
-const mediaBytes = 0
+const materialDir = path.join(root, 'apps/web/dist/materials')
+const materialEntries = await readdir(materialDir)
+const requiredMaterialFiles = [
+  'wsg-ledger-press-320.webp', 'wsg-ledger-press-480.webp',
+  'wsg-overview-engineering-480.webp', 'wsg-overview-engineering-800.webp',
+  'wsg-paper-fibre-480.webp', 'wsg-paper-fibre-960.webp',
+  'wsg-repair-valve-480.webp', 'wsg-repair-valve-800.webp',
+  'wsg-toner-breakup-480.webp', 'wsg-toner-breakup-960.webp',
+  'wsg-torn-edge-320.webp', 'wsg-torn-edge-640.webp'
+]
+const absentMaterialFiles = requiredMaterialFiles.filter((name) => !materialEntries.includes(name))
+if (absentMaterialFiles.length) fail(`missing external material derivative: ${absentMaterialFiles.join(', ')}`)
+const materialRows = await Promise.all(requiredMaterialFiles.map(async (name) => ({ name, bytes: (await stat(path.join(materialDir, name))).size })))
+const mediaBytes = materialRows.reduce((total, row) => total + row.bytes, 0)
+if (mediaBytes > 400 * 1024) fail(`external material payload ${mediaBytes} exceeds 400 KiB`)
 
 const html = await read('apps/web/index.html')
 const app = await read('apps/web/src/App.jsx')

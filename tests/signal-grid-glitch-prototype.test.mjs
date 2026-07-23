@@ -94,3 +94,28 @@ test('glitch motion is brief, observer-driven and reduced-motion safe', async ()
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/u)
   assert.doesNotMatch(css, /prefers-reduced-motion:[\s\S]*clip-path: none/u)
 })
+
+test('V5.8.8 external material derivatives are self-hosted, documented and confined to display layers', async () => {
+  const [css, provenance] = await Promise.all([
+    read('../apps/web/src/styles/signal-grid-glitch-prototype.css'),
+    read('../apps/web/public/materials/SOURCES.md')
+  ])
+  const required = [
+    'wsg-overview-engineering-480.webp', 'wsg-overview-engineering-800.webp',
+    'wsg-repair-valve-480.webp', 'wsg-repair-valve-800.webp',
+    'wsg-ledger-press-320.webp', 'wsg-ledger-press-480.webp',
+    'wsg-toner-breakup-480.webp', 'wsg-toner-breakup-960.webp',
+    'wsg-torn-edge-320.webp', 'wsg-torn-edge-640.webp',
+    'wsg-paper-fibre-480.webp', 'wsg-paper-fibre-960.webp'
+  ]
+  for (const asset of required) {
+    assert.match(css, new RegExp(`/materials/${asset.replace('.', '\\.')}`, 'u'))
+    assert.match(provenance, new RegExp(asset.replace('.', '\\.'), 'u'))
+  }
+  assert.match(provenance, /Public Domain Mark/u)
+  assert.match(provenance, /CC0 1\.0/u)
+  assert.match(provenance, /No bicycle, person, logo, brand mark, proprietary Marathon\/Bungie asset/u)
+  assert.match(css, /record-ledger-head::before[\s\S]*wsg-ledger-press/u)
+  assert.match(css, /dialog-header::before[\s\S]*wsg-repair-valve/u)
+  assert.doesNotMatch(css, /:is\(input, textarea, select, \.project-select-trigger\)[\s\S]{0,400}\/materials\//u)
+})
