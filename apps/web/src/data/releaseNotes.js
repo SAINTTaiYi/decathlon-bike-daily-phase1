@@ -1,14 +1,14 @@
-export const APP_VERSION = "5.8.2"
+export const APP_VERSION = "5.8.3"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.23",
-  title: "Signal Grid 核心业务模块",
-  summary: "统一维修、待取、销售、二手车、闭店的模块色、真实指标、记录与状态语法。",
+  title: "Signal Grid 操作与管理体系",
+  summary: "统一表单、Dialog、筛选、任务状态、永久历史、账户与设置的模块化操作语法。",
   changes: [
-    "维修、待取、二手车与销售使用模块专属标题面和真实业务指标。",
-    "记录台账统一为冷白主体、模块操作信号、当前处理强化、错误与完成语义。",
-    "销售 KPI 与闭店准备度重组为真实数据驱动的 Signal Grid 表面。",
-    "保留原业务动作、权限、审计、取车填充、维修消散和 reduced-motion。"
+    "所有原生 Dialog 接入模块信号注册条与平面任务层。",
+    "加载、错误、成功和空状态统一为可访问的 SignalTaskState。",
+    "永久历史筛选、账户创建、迁移和附件管理采用一致组件与状态反馈。",
+    "保留现有业务动作、权限、API、D1、审计和完成动效。"
   ]
 }

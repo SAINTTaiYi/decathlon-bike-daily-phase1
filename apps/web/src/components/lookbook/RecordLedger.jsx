@@ -9,6 +9,7 @@ import IconPlus from '@iconoir/Plus.mjs'
 import IconWarning from '@iconoir-solid/WarningTriangle.mjs'
 import ProjectSelect from '../ProjectSelect.jsx'
 import SignalStateMark from './SignalStateMark.jsx'
+import SignalTaskState from '../SignalTaskState.jsx'
 import {
   decodePickupContact,
   inferPickupNotificationStatus,
@@ -506,7 +507,7 @@ export default function RecordLedger({
         return deletable
           ? <SwipeDeleteRecord key={record.id} record={record} disabled={Boolean(closedAt) || primaryProcessing} onRemove={onRemove}>{row}</SwipeDeleteRecord>
           : <div key={record.id}>{row}</div>
-      }) : <p className="empty-inline">当前没有记录。{showAdd ? `使用“${config.addLabel}”开始录入。` : ''}</p>}
+      }) : <SignalTaskState compact title="当前没有记录" description={showAdd ? `使用“${config.addLabel}”开始录入。` : '当前模块没有需要处理的业务记录。'} />}
     </div>
   )
 }

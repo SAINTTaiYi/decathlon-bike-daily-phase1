@@ -27,7 +27,7 @@ export default function PickupConfirmDialog({ record, onClose, onConfirm }) {
   }
 
   return (
-    <AppDialog open={open} onClose={onClose} title="核对自提取货码" eyebrow="PICKUP CHECK · 自提订单" description={`请输入“${record?.title || '当前车辆'}”的顾客取货码。取货码只用于本次确认，不会保存到台账或操作记录。`} className="data-dialog">
+    <AppDialog open={open} onClose={onClose} title="核对自提取货码" eyebrow="PICKUP CHECK · 自提订单" description={`请输入“${record?.title || '当前车辆'}”的顾客取货码。取货码只用于本次确认，不会保存到台账或操作记录。`} className="data-dialog" signalModule="pickup" registration="PICKUP / VERIFY">
       <form className="data-form" onSubmit={submit}>
         <label className="field-row">
           <span>顾客提供的取货码</span>

@@ -1,5 +1,6 @@
 import IconUndo from '@iconoir/UndoAction.mjs'
 import EventAuditMeta from '../EventAuditMeta.jsx'
+import SignalTaskState from '../SignalTaskState.jsx'
 import AppDialog from './AppDialog.jsx'
 
 function formatTime(value) {
@@ -11,7 +12,7 @@ function formatTime(value) {
   }).format(new Date(value))
 }
 
-export default function OperationHistoryDialog({ open, onClose, title, events = [], canUndo, onUndo, onNotify }) {
+export default function OperationHistoryDialog({ open, onClose, title, events = [], canUndo, onUndo, onNotify, signalModule = 'other' }) {
   const undo = async (event) => {
     const result = await onUndo(event)
     if (!result?.ok) return onNotify?.({ message: result?.error || '撤回失败。', tone: 'error' })
@@ -19,7 +20,7 @@ export default function OperationHistoryDialog({ open, onClose, title, events = 
   }
 
   return (
-    <AppDialog open={open} onClose={onClose} title={title || '操作记录'} eyebrow="HISTORY · 操作记录" description="按时间查看操作用户、具体动作和状态变化。只有当前仍可安全恢复的最近操作会显示撤回按钮。">
+    <AppDialog open={open} onClose={onClose} title={title || '操作记录'} eyebrow="HISTORY · 操作记录" description="按时间查看操作用户、具体动作和状态变化。只有当前仍可安全恢复的最近操作会显示撤回按钮。" signalModule={signalModule} registration="HISTORY / TRACE">
       {events.length ? (
         <ol className="event-log operation-history">
           {events.map((event) => (
@@ -31,7 +32,7 @@ export default function OperationHistoryDialog({ open, onClose, title, events = 
           ))}
         </ol>
       ) : (
-        <div className="dialog-empty"><strong>还没有操作记录</strong><p>新增、编辑、删除、维修完毕、上架、售出或取车后，记录会显示在这里。</p></div>
+        <SignalTaskState title="还没有操作记录" description="新增、编辑、删除、维修完毕、上架、售出或取车后，记录会显示在这里。" />
       )}
     </AppDialog>
   )

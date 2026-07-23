@@ -118,7 +118,7 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 
 ### Phase 3 runtime core-module mapping
 
-> **Status: in progress.** Phase 3 replaces the core business-module foreground system without changing workflow handlers, permissions, API calls, D1 schema, audit events or data contracts.
+> **Status: complete.** Phase 3 replaces the core business-module foreground system without changing workflow handlers, permissions, API calls, D1 schema, audit events or data contracts.
 
 - Shared module title and real metric strip: `LookbookPrimitives.jsx` and `SignalStateMark.jsx`; Repair, Pickup, Resale and Sales use their module field, bilingual title and real record/KPI counts.
 - Shared record grammar: `RecordLedger.jsx` plus `signal-grid-modules.css`; ordinary rows remain cool-white, pending rows expand the module signal, the currently submitting row temporarily becomes the module color, errors use Signal Red, and completed rows use dark structure plus a bright Check.
@@ -126,6 +126,19 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 - Sales KPI: the existing real `salesVehicles`, `safetyChecks`, `safetyModel`, `validReviews`, `usedSold` and `usedReceived` fields are recomposed into one Plasma Violet primary value and four dense neutral metrics.
 - Closing: `ClosingSummary.jsx` retains the existing close/reopen/export behavior while exposing Blaze Orange status, actual readiness and the existing next-required action.
 - Existing pickup fill and repair dissolve effects retain their business sequencing and reduced-motion behavior.
+
+### Phase 4 runtime operations mapping
+
+> **Status: complete.** Phase 4 unifies task-layer foregrounds and interaction states without changing any business rule, permission, API, D1 schema, audit contract or workflow handler.
+
+- Native Dialog foundation: `apps/web/src/components/dialogs/AppDialog.jsx`; stable `useId()` labelling, Escape/backdrop close, focus restore and VisualViewport scrolling remain intact. Every task layer now declares a `data-signal-module` scope and a flat registration strip.
+- Shared task state: `apps/web/src/components/SignalTaskState.jsx`; loading, error, success and empty states combine code, Iconoir icon, text, structure and `aria-live`. Loading motion collapses under `prefers-reduced-motion`.
+- Task-layer styling: `apps/web/src/styles/signal-grid-operations.css`; module signal strips, square form controls, flat selectors, dense history rows, account management and destructive commitments consume the existing Phase 1 semantic/component tokens. No gradients, elevation shadows or new color tokens are introduced.
+- Forms and selectors: `RecordEditorDialog.jsx`, `KpiDialog.jsx`, `PickupConfirmDialog.jsx`, `CreateUserDialog.jsx` and `ProjectSelect.jsx`; labels remain above controls, touch targets stay at least 44px, errors remain inline, and business field validation/wiring is unchanged.
+- Permanent history: `PermanentHistoryDialog.jsx`; the module filter now uses the shared accessible ProjectSelect, queries clear stale results, and loading/error/empty/result-count states use the common task grammar.
+- Account and settings: `MenuDialog.jsx`, `CreateUserDialog.jsx`, `LocalMigrationDialog.jsx` and `UpdateRefreshDialog.jsx`; current identity, role selection, migration review, update prompt, confirmation and generated-credential display use the same operational surface language.
+- Attachments: `AttachmentDialog.jsx`; native `window.confirm` was replaced by an inline task-layer destructive confirmation while upload, private-media limits, API calls and permission locks remain unchanged.
+- App-level gates: `App.jsx` and `AppErrorBoundary.jsx`; authentication verification, database synchronization, initial snapshot failure and fatal UI states use the same accessible loading/error grammar.
 
 ## Product hierarchy
 
