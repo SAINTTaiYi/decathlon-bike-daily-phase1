@@ -142,7 +142,7 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 
 ### Phase 5 runtime media and report mapping
 
-> **Status: locally verified; normal PR/CI and administrative checkpoint remain.** Phase 5 changes only media presentation, report composition and output-quality gates. Business data, report values, API calls, permissions, D1 and audit semantics remain unchanged.
+> **Status: complete in the main source branch; final administrative checkpoint remains.** Phase 5 changes only media presentation, report composition and output-quality gates. Business data, report values, API calls, permissions, D1 and audit semantics remain unchanged.
 
 - Preprocessed Overview media: `apps/web/public/images/workshop-head-signal-*.(avif|webp)`; six 480/800/1200 derivatives use build-time four-level ordered dither plus Dark Void and Voltage Lime duotone. `signal-media-manifest.json` locks dimensions, byte size and SHA-256.
 - Responsive source: `MainHeadImage.jsx`; AVIF is preferred with WebP fallback, explicit intrinsic dimensions and no runtime hero grayscale/filter cost.

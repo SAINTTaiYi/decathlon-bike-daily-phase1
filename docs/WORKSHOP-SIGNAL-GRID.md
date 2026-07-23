@@ -5,10 +5,10 @@
 ## 0. 文档状态
 
 - **方案名称**：WORKSHOP SIGNAL GRID
-- **方案状态**：Phase 0-5 已完成本地验证；Phase 5 正常 PR/CI/合并与行政检查点后连续实施 Phase 6
+- **方案状态**：Phase 0-5 已完成并进入正式源码；Phase 5 行政检查点后连续实施 Phase 6
 - **文档创建日期**：2026-07-22
-- **当前实现基线**：Phase 4 最终行政/source SHA `66cabb82b539cfcbc748ba9f18ef85febf76143f`；Phase 5 V5.8.4 候选直接继承该 SHA
-- **当前源码登记版本**：V5.8.4（Phase 5 媒体与报告已完成最终本地验证；待正常 PR/CI/合并，中间 Phase 不部署 Preview）
+- **当前实现基线**：Phase 5 正常合并/source SHA `7a50bf57b118d25face1a5e3330903d335a859c4` / V5.8.4
+- **当前源码登记版本**：V5.8.4（Phase 5 媒体与报告已进入正式源码；中间 Phase 不部署 Preview）
 - **Phase 0 内容合并 SHA**：`94cd3f970969749167b286ef76c29c60f6e145a5`
 - **Phase 0 最终行政合并 SHA**：`6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
 - **当前 Preview**：V5.8.0 / `1b51a515f3418c0d66d6e169484a233e49e47246`；Phase 2 及中间 Phase 不部署，全部 Phase 完成后统一更新一次
@@ -679,7 +679,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### Phase 5：媒体与报告
 
-**状态：本地验证完成，待正常 PR/CI/合并与行政检查点**
+**状态：已完成并正常合并；行政检查点收尾中**
 
 - 模块化双色摄影
 - 网点和抖动媒体资源
@@ -1276,4 +1276,25 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 阻塞原因：N/A
 - 未完成队列：重新 stamp 本精确检查点树并复验；功能提交、PR/CI/正常合并；非递归行政检查点；随后 Phase 6。
 - 下一步：stamp 本精确检查点树并复验后创建 V5.8.4 功能提交，正常 PR/CI/合并；不部署 Preview。
+- Production：forbidden
+
+
+---
+
+## Checkpoint 2026-07-23 14:58
+
+- Phase：Phase 5 - 媒体与报告
+- 状态：released
+- 基线分支和 SHA：`feature/cloudflare-workers-d1` / `7a50bf57b118d25face1a5e3330903d335a859c4`，PR #41 正常合并；功能提交 `d9759d1852895c4d7fa671daa176876ce1726cf8` 直接继承 Phase 4 最终行政/source SHA `66cabb82b539cfcbc748ba9f18ef85febf76143f`。
+- 本阶段完成范围：V5.8.4 WORKSHOP SIGNAL GRID 媒体与报告体系已进入正式源码。Overview 使用 480/800/1200 三档 AVIF/WebP 预生成 Dark Void + Voltage Lime 双色抖动媒体；私有附件缩略图按来源记录继承模块信号但原始签名大图不改变；闭店日报使用 Blaze Orange 闭店刊头、Plasma Violet 真实销售核心 KPI、真实辅助指标和模块注册的冷白高对比明细票据。
+- 关键决策：昂贵双色/抖动在构建阶段完成，主图运行时零滤镜；动态附件仅对缩略图做静态表现；报告颜色始终叠加模块名、编号、文字和结构边界；1242 -> 1080 聊天压缩后最小文字与结构线仍达到既定门；服务器 close 快照、自提平台标识、联系方式和保存路径保持不变。
+- 修改文件：功能提交覆盖 21 个文件，新增六个媒体资源、`signal-media-manifest.json`、`signal-grid-media.css` 和 `signal-grid-phase5.test.mjs`；更新 MainHeadImage、AttachmentDialog、ReportImageDialog、closingReportImage、图片来源、DESIGN、发布说明与 V5.8.4 元数据。
+- 数据库或契约变化：N/A；无 API、Worker、D1、migration、权限、审计或业务流程修改。
+- 测试与验证结果：本地最终门为工作流 88/88；Domain 4/4；Database 5/5；Web 125/125；API 16/16；Worker 11/11；typecheck、Web/API build、Worker typecheck/bundle、version、diff、媒体 manifest 和编译产物审查全绿。PR CI `29986562987` 与合并后源码头 CI `29986677258` 均通过 `verify` 和完整历史 `secrets`。
+- PR / CI run：PR #41 正常合并；CI 如上。
+- 部署环境、Deployment ID、Worker Version：N/A；按连续阶段策略未触发 Preview、Staging 或 Production。当前 Preview 仍为 Phase 1 V5.8.0；Staging 仍为 V5.7.7。
+- 用户验收结果：Phase 5-6 连续实施及全部 Phase 完成后统一 Preview 已获明确授权。
+- 阻塞原因：N/A
+- 未完成队列：本行政检查点 PR/CI/正常合并；随后 Phase 6 全系统质量验证。最终行政合并 SHA 按非递归规则写入 session-state、长期记忆和 Phase 6 首个项目 Checkpoint。
+- 下一步：完成本行政检查点；从其最终合并 SHA进入 Phase 6，执行移动/强光/键盘与屏幕阅读器/色觉/reduced-motion/性能和最终 Preview 验收准备。
 - Production：forbidden
