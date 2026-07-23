@@ -1455,3 +1455,21 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 未完成队列：本行政 checkpoint 的正常 PR/CI/合并；以最终行政/source SHA Preview-only 部署；公共身份验证；用户人工验收。最终行政 SHA 按非递归规则仅写入 session-state、长期记忆和后续阶段首个 checkpoint。
 - 下一步：提交并合并本非递归行政 checkpoint，然后部署 Preview-only。
 - Production：forbidden
+
+---
+
+## Checkpoint 2026-07-24 05:27
+
+- Phase：V5.8.9 UI/UX Pro Max targeted optimization - Overview + Repair
+- 状态：locally_verified
+- 基线分支和 SHA：`feat/workshop-uiux-pro-max-optimization`，从已部署 V5.8.8 最终行政/source SHA `2234a5535ccfb0cff8ea7388f38e0202e3a0715f` 创建隔离工作树。
+- 本阶段完成范围：以审查后的离线 UI/UX Pro Max v2.11.0 本地模式库为决策支持，收敛 Overview 与 Repair 的真实任务密度、操作可读性与辅助技术语义。Overview 只计当前未完成/未取走事项以决定业务地图的数量与排序；移除重复闭店说明；销售核心 KPI、辅助指标和地图数量具备状态上下文。Repair 将取车指标明确为“已填日期”并排除当日完成记录；已完成档案行不再保留空操作条；每条记录有稳定标题关联，左滑删除声明 ArrowLeft/ArrowRight/Escape 快捷键。
+- 关键决策：接受模式库中有关高密度运营扫描、可见焦点、触摸尺寸、提交反馈和 reduced-motion 的建议；拒绝其通用蓝橙配色、Fira/Google Fonts、默认仪表盘卡片与广泛页面转场建议。保持既有白/黑编辑工业结构、Overview 压缩六色信号、Repair Ion Cyan、现有自托管字体/材质、44px 触摸目标与短促 level-2 动效。
+- 数据库或契约变化：N/A；无 API、Worker、D1、migration、权限、审计、业务 handler 或流程变化。
+- 修改文件：`PulseScene.jsx`、`RepairScene.jsx`、`RecordLedger.jsx`、focused prototype regression test、版本/发布说明/指纹、`DESIGN.md` 与本检查点。
+- 测试与验证结果：focused prototype/Phase 3/Phase 6/swipe 24/24；完整 Web 139/139；完整 TypeScript typecheck 通过；Web production build 通过（JS 412.64 kB / gzip 140.08 kB，CSS 277.03 kB / gzip 60.43 kB）；Worker typecheck 通过；先构建本地 `@bike-ops/contracts` 后 Worker bundle 通过（270.3 kB / minified 150.1 kB）；版本/指纹已重新登记。Worker bundle 初次仅因新隔离工作树缺少未构建的本地 contracts `dist/index.js` 而停止，非源码错误，按仓库常规 prerequisite 构建后恢复。
+- Browser 验收：Browser Harness CLI 不可用，未进行或声称完成真实浏览器视觉验收。
+- 部署环境、Deployment ID、Worker Version：未部署 V5.8.9；Preview 仍为 V5.8.8 `2234a553...`，仅供当前 Overview + Repair 人工艺术方向验收。Staging 仍为 V5.7.7；Production 禁止。
+- 用户验收结果：待定。
+- 未完成队列：重新 stamp/check 本精确代码+文档树；最终 `test:web`、typecheck、Web/Worker build、差异/凭据扫描；功能提交、正常 PR/CI/合并。不得因本地优化自动覆盖 Preview 或推进 Staging。
+- Production：forbidden

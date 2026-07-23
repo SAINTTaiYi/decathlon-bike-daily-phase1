@@ -413,9 +413,19 @@ packages/
 - 任何材质只能位于非交互 display/header/ledger-frame 区；不能进入标签、字段名、helper/error、控件内部、输入值、按钮或触摸目标。forced-colors 隐藏材质；reduced-motion 不增加持续动画。
 - 禁止任何自行车、人物、商标、Marathon/Bungie 专有资产以及可辨认的完整原始作品构图。
 
+## V5.8.9 UI/UX Pro Max optimization - Overview + Repair
+
+- 本次只收敛已授权的 authenticated Overview + Repair 原型，不扩大到其它业务模块；不改变工作流、权限、API、D1、审计或记录生命周期。
+- Overview 的业务地图仅以当前未完成、未取走的事项参与计数和优先排序，避免当天已解决记录继续放大待办入口；销售仍以已保存/待填写状态保持唯一闭店门槛语义。
+- 销售核心 KPI、辅助指标和业务地图补足可读的区域/动作/数量语义；视觉仍保持白黑编辑工业结构、压缩的六色信号与既有自托管材质，不采用通用蓝橙仪表盘、Fira/Google Fonts 或标准卡片墙。
+- Repair 的取车日期指标排除当日已完成档案并明确为“已填日期”；已完成的连续档案行不再渲染空白操作条，减少无效焦点停靠点。
+- Repair 每条档案提供稳定的标题关联；左滑删除容器声明 ArrowLeft、ArrowRight、Escape 快捷键。44px 触摸目标、原生滚动、Dialog 焦点恢复、forced-colors 和 reduced-motion 路径保持不变。
+- 本地验证：Web 139/139、完整 TypeScript typecheck、Web production build、Worker typecheck 及 Worker bundle 均通过。Browser Harness 不可用，因此真实浏览器视觉验收尚未执行，不得将其标记为通过。
+- V5.8.9 尚未部署；Preview 仍是 V5.8.8，继续等待 Overview + Repair 的人工视觉验收。Staging 仍需单独明确授权，Production 禁止。
+
 ## Version governance
 
-- 当前版本：`V5.8.8`。
+- 当前版本：`V5.8.9`。
 - 根 `package.json`、`apps/web/package.json`、`apps/web/src/data/releaseNotes.js` 与 `version-manifest.json` 必须一致。
 - `pnpm version:patch -- ...` 递增 V5 版本并生成当前发布说明。
 - 完成代码与文档后运行 `pnpm version:stamp`；`pnpm build` 先校验版本和源码/部署事实指纹。

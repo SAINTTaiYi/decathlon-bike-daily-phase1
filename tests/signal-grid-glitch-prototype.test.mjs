@@ -29,6 +29,7 @@ test('Overview is an asymmetric neutral editorial map with compressed module tra
   ])
   assert.match(pulse, /signal-overview-prototype/u)
   assert.match(pulse, /overviewEntries[\s\S]*priorityScore/u)
+  assert.match(pulse, /!record\.completedToday && !record\.pickedUpToday/u)
   assert.match(pulse, /data-business-scene=\{sceneId\} data-business-rank=\{index \+ 1\}/u)
   assert.match(pulse, /signal-business-map-trace/u)
   assert.doesNotMatch(pulse, /ModuleIcon|SIGNAL_ICON_STROKE/u)
@@ -47,6 +48,7 @@ test('Repair prototype uses continuous archive records and text-led actions', as
   ])
   assert.match(repair, /signal-repair-prototype/u)
   assert.match(repair, /variant="glitch-archive"/u)
+  assert.match(repair, /PICKUP \/ 已填日期/u)
   assert.match(ledger, /data-ledger-variant=\{variant \|\| undefined\}/u)
   assert.match(ledger, /record-history-label">查看历史/u)
   assert.match(css, /data-ledger-variant='glitch-archive'/u)
@@ -118,4 +120,20 @@ test('V5.8.8 external material derivatives are self-hosted, documented and confi
   assert.match(css, /record-ledger-head::before[\s\S]*wsg-ledger-press/u)
   assert.match(css, /dialog-header::before[\s\S]*wsg-repair-valve/u)
   assert.doesNotMatch(css, /:is\(input, textarea, select, \.project-select-trigger\)[\s\S]{0,400}\/materials\//u)
+})
+
+test('Overview exposes current sales context and Repair archive rows retain only actionable controls', async () => {
+  const [pulse, ledger] = await Promise.all([
+    read('../apps/web/src/scenes/PulseScene.jsx'),
+    read('../apps/web/src/components/lookbook/RecordLedger.jsx')
+  ])
+  assert.match(pulse, /const salesActionLabel =/u)
+  assert.match(pulse, /aria-label=\{salesActionLabel\}/u)
+  assert.match(pulse, /role="region" aria-label="当日业务总览"/u)
+  assert.match(pulse, /aria-label=\{sceneId === 'sales'/u)
+  assert.match(ledger, /aria-keyshortcuts="ArrowLeft ArrowRight Escape"/u)
+  assert.match(ledger, /const showRecordActions = variant !== 'glitch-archive' \|\| !resolved/u)
+  assert.match(ledger, /aria-labelledby=\{recordTitleId\}/u)
+  assert.match(ledger, /<strong id=\{recordTitleId\}>\{record.title\}<\/strong>/u)
+  assert.match(ledger, /showRecordActions \? <footer className="record-actions"/u)
 })
