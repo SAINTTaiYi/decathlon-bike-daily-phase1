@@ -1434,3 +1434,24 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 未完成队列：将本检查点纳入版本指纹并复验；创建 V5.8.8 功能提交；正常 PR/CI/合并；非递归行政检查点；Preview-only 部署、公共身份核验与用户人工验收。
 - 下一步：stamp 精确树并执行版本/差异核验；提交功能变更。
 - Production：forbidden
+
+
+---
+
+## Checkpoint 2026-07-24 04:29
+
+- Phase：Corrected art-direction prototype - external raster material pass
+- 状态：released
+- 基线分支和 SHA：`feature/cloudflare-workers-d1` / `8934cac4b5b95fb481d7ff0bba5484ffe2c90b90`，PR #49 正常合并；功能提交 `3f7760179967faef938657043c25fcef92e0d3e6` 直接继承 V5.8.7 已验收 source SHA `fff81037a8358c057f9b926e25e3521ef96a3ab8`。
+- 本阶段完成范围：V5.8.8 将经核验的外部物理印刷材质接入 authenticated Overview + Repair 原型的非交互展示层：纸纤维、碳粉断裂、破洞纸边、工程线稿及印刷机档案片段均以裁切、低透明度、灰阶/双色 WebP 派生资源形式自托管。代码仍负责白色编辑工业架构、模块色、mask、响应式、内容层和动效；原始下载不进入 Git 或部署。
+- 来源与许可：Wellcome Collection `V0024387`、`V0024661`、`V0024667` 均逐条核验 Public Domain Mark；Openverse/Flickr `45970b3d-d3ee-4fd8-8045-ba3ce515f304` 与 `669982d9-354e-4639-a693-7256c3802ce3` 均逐条核验 CC0 1.0；ambientCG `Paper006` 为 CC0。所有来源 URL、许可、原件/派生件 SHA-256 和精确用途已永久记录于 `apps/web/public/materials/SOURCES.md`。
+- 关键边界：没有自行车、人物、商标、Marathon/Bungie 专有资产或完整可辨认原作构图；材质不进入标签、字段名、helper/error、控件、输入值、按钮或触摸区域。forced-colors 隐藏材质；reduced-motion 不增加持续动画。无 API、Worker、D1、migration、权限、审计、契约或业务流程变化。
+- 修改文件：功能提交为 23 个文件，新增 12 个优化 WebP 资源及 provenance manifest；修改 Overview/Repair display CSS、质量门、focused test、版本、DESIGN 与本规范。外部材质部署总负载 365660 bytes，生产质量门上限 400 KiB。
+- 测试与验证结果：功能提交前本地最终门为策略 88/88；Domain 4/4；Database 5/5；Web 138/138；API 16/16；Worker 11/11；完整 typecheck、Web/API production build、Worker typecheck/bundle、version、diff 与材质产物审查全绿。PR #49 CI run `30042008063` 的 `verify` 与完整历史 `secrets` 均成功。
+- PR / CI run：PR #49 正常合并；CI `30042008063` 全绿。
+- 部署环境、Deployment ID、Worker Version：尚未部署 V5.8.8。下一步仅以本行政 checkpoint 的最终 source SHA 发布 Cloudflare **Preview**，随后核验 live/ready/meta/root 与静态资源。Staging 保持 V5.7.7，仍需单独明确批准；Production 禁止。
+- 用户验收结果：用户已授权本素材版本直接进入 Preview 人工艺术方向验收；范围仍严格限于 Overview + Repair。
+- 阻塞原因：N/A
+- 未完成队列：本行政 checkpoint 的正常 PR/CI/合并；以最终行政/source SHA Preview-only 部署；公共身份验证；用户人工验收。最终行政 SHA 按非递归规则仅写入 session-state、长期记忆和后续阶段首个 checkpoint。
+- 下一步：提交并合并本非递归行政 checkpoint，然后部署 Preview-only。
+- Production：forbidden
