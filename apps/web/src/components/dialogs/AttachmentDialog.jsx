@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { deleteAttachment, listAttachments, uploadAttachment } from '../../api/media.js'
 import AppDialog from './AppDialog.jsx'
 import SignalTaskState from '../SignalTaskState.jsx'
+import { sceneRecordConfig } from '../../data/operationsData.js'
 
 const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
 
@@ -12,6 +13,7 @@ export default function AttachmentDialog({ record, onClose, locked, onNotify }) 
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(false)
   const [pendingDelete, setPendingDelete] = useState(null)
+  const signalModule = sceneRecordConfig[record?.scene]?.signalModule || 'other'
 
   const load = async () => {
     if (!record) return
@@ -70,7 +72,7 @@ export default function AttachmentDialog({ record, onClose, locked, onNotify }) 
   }
 
   return (
-    <AppDialog open={open} onClose={onClose} title={`${record?.title || '业务记录'} · 图片`} eyebrow="PRIVATE MEDIA · 私有附件" description="图片保存在 Supabase 私有存储；上传签名最长 2 小时，查看链接 5 分钟。每条记录最多 6 张，单张最大 10 MB。" className="data-dialog" signalModule="other" registration="MEDIA / PRIVATE">
+    <AppDialog open={open} onClose={onClose} title={`${record?.title || '业务记录'} · 图片`} eyebrow="PRIVATE MEDIA · 私有附件" description="图片保存在 Supabase 私有存储；上传签名最长 2 小时，查看链接 5 分钟。每条记录最多 6 张，单张最大 10 MB。" className="data-dialog" signalModule={signalModule} registration="MEDIA / PRIVATE">
       <label className="attachment-upload" aria-disabled={locked || busy || attachments.length >= 6 ? 'true' : undefined}>
         <span>{busy ? '正在处理…' : attachments.length >= 6 ? '已达到 6 张上限' : '上传 JPEG / PNG / WebP'}</span>
         <input type="file" accept="image/jpeg,image/png,image/webp" onChange={upload} disabled={locked || busy || attachments.length >= 6} />
@@ -80,7 +82,7 @@ export default function AttachmentDialog({ record, onClose, locked, onNotify }) 
         <ul className="attachment-list">
           {attachments.map((attachment) => (
             <li key={attachment.id}>
-              <a href={attachment.url} target="_blank" rel="noreferrer"><img src={attachment.url} alt={attachment.originalName} loading="lazy" /></a>
+              <a href={attachment.url} target="_blank" rel="noreferrer" data-signal-media="thumbnail"><img src={attachment.url} alt={attachment.originalName} loading="lazy" /></a>
               <span><strong>{attachment.originalName}</strong><small>{attachment.width} × {attachment.height} · {Math.ceil(attachment.byteSize / 1024)} KB</small></span>
               <button type="button" onClick={() => setPendingDelete(attachment)} disabled={locked || busy}>删除</button>
             </li>
