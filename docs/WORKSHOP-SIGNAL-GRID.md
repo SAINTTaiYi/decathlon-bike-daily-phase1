@@ -5,10 +5,10 @@
 ## 0. 文档状态
 
 - **方案名称**：WORKSHOP SIGNAL GRID
-- **方案状态**：Phase 0-6 已完成；V5.8.5 统一 Preview 的独立 browser-harness 验收发现两项质量回归，V5.8.6 修复已完成本地验证，待 CI、替换 Preview、复验与用户确认
+- **方案状态**：Phase 0-6 与 V5.8.6 Preview 验收修复均已完成；独立 browser-harness 桌面/390px/键盘/对比度/44px/滚动复验全绿，待用户人工确认；Staging 另行批准
 - **文档创建日期**：2026-07-22
-- **当前实现基线**：最终 Phase 0-6 行政/source SHA `1cfa1398b8d04a8f95d7ab24dab9195d24dab013`；V5.8.6 Preview 验收修复候选直接继承该 SHA
-- **当前源码登记版本**：V5.8.6（Preview browser-harness 验收修复已完成最终本地验证；待正常 PR/CI、替换 Preview 与复验）
+- **当前实现基线**：V5.8.6 正常合并/source SHA `5617055481cac99942add7d7537e643a1b627b23`；最终行政检查点直接继承该 SHA
+- **当前源码登记版本**：V5.8.6（Preview browser-harness 验收修复、CI、部署与独立复验已完成）
 - **Phase 0 内容合并 SHA**：`94cd3f970969749167b286ef76c29c60f6e145a5`
 - **Phase 0 最终行政合并 SHA**：`6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
 - **当前 Preview**：V5.8.0 / `1b51a515f3418c0d66d6e169484a233e49e47246`；Phase 2 及中间 Phase 不部署，全部 Phase 完成后统一更新一次
@@ -1356,4 +1356,20 @@ Workshop 的视觉素材必须来自自身业务事实：
 - PR / CI run：待创建。
 - 部署环境、Deployment ID、Worker Version：V5.8.6 尚未部署；当前 Preview 仍为上述 V5.8.5。Staging 仍为 V5.7.7；Production 禁止。
 - 未完成队列：提交并推送 V5.8.6；正常 PR/CI/合并；替换 Preview；Cloudflare/公共身份验证；browser-harness 桌面/390px/键盘/对比度/44px 复验；用户最终确认。Staging 另行明确批准。
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 16:14
+
+- Phase：Phase 6 - Consolidated Preview final acceptance
+- 状态：released
+- 基线分支和 SHA：`feature/cloudflare-workers-d1` / `5617055481cac99942add7d7537e643a1b627b23`，PR #45 正常合并；V5.8.6 功能提交 `ecdd4ee8fa45b8da6389adad0f6ac0ed9073710c` 直接继承最终 Phase 0-6 行政/source SHA `1cfa1398b8d04a8f95d7ab24dab9195d24dab013`。
+- CI / 部署：PR CI `29989714494` 的 `verify` 与完整历史 `secrets` 全绿。替换 Preview workflow `29990014359` 成功；Cloudflare deployment `53f55b8b-53df-4ddd-bbb1-1b9d8b4f7f6a`，Worker version `19a599a8-86ff-407c-97da-ff7066509ead`，100% traffic。公开 live/ready/meta/root 独立验证 V5.8.6 / `5617055...` / preview / Cloudflare Workers D1；Web shell 资产 `index-CJoDIk8E.js` / `index-LwdH45jU.css`。
+- browser-harness 最终验收：独立 Browser Use cloud 浏览器以 Preview 管理员登录。桌面 1512px 与移动 390px 均无横向溢出、无已启用交互控件小于 44px；桌面左侧模块轨道和移动底部 Dock 形态/顺序/当前页语义正确；Skip Link 首次 Tab 可见并 Enter 聚焦 `#main-content`；移动 Dialog 完整位于 viewport、内部可滚动、Escape 关闭且焦点回到菜单；移动连续 wheel/scroll 递增并可由 Dock 跳转到 Sales；Albert Sans、Barlow Condensed、Noto Sans SC 全部已加载；AVIF hero 加载完成。
+- 对比度实测：Sales Plasma Violet `#7657FF` 上白色标签为 4.59:1；待填状态 Dark Void `#141616` / 白底为 18.16:1；修复前 1.11:1 的灰字已不存在。
+- 本地最终门：工作流 88/88；Domain 4/4；Database 5/5；Web 131/131；API 16/16；Worker 11/11；typecheck、Web/API build、Worker typecheck/bundle、V5.8.6 version、diff 与前端质量预算全绿。JS 421760 bytes / gzip 139383；CSS 242905 / gzip 55691；Signal 媒体 620346 bytes。
+- 关键边界：无业务、API、Worker、D1、migration、权限或审计变化；无应用内浏览器或 Android 无障碍回退。当前 Preview 为 V5.8.6；Staging 仍 V5.7.7；Production 禁止。
+- 用户验收结果：独立自动验收完成；待用户人工 Preview 视觉/业务确认。
+- 未完成队列：本非递归最终行政检查点 PR/CI/正常合并；以最终 admin/source SHA 重新部署一次相同 V5.8.6 到 Preview 使环境身份与源码最终头一致；公开身份复核；向用户交付 Preview。Staging 仅在用户后续明确批准后执行。
 - Production：forbidden
