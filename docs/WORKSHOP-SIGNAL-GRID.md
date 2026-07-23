@@ -5,10 +5,10 @@
 ## 0. 文档状态
 
 - **方案名称**：WORKSHOP SIGNAL GRID
-- **方案状态**：Phase 0-5 已完成并进入正式源码；Phase 5 行政检查点后连续实施 Phase 6
+- **方案状态**：Phase 0-5 已完成并进入正式源码；Phase 6 已完成最终本地验证，待正常 PR/CI、行政检查点与统一 Preview
 - **文档创建日期**：2026-07-22
-- **当前实现基线**：Phase 5 正常合并/source SHA `7a50bf57b118d25face1a5e3330903d335a859c4` / V5.8.4
-- **当前源码登记版本**：V5.8.4（Phase 5 媒体与报告已进入正式源码；中间 Phase 不部署 Preview）
+- **当前实现基线**：Phase 5 最终行政/source SHA `a0f0ff31c0e15236f5c570b0922b52178f53c347`；Phase 6 V5.8.5 候选直接继承该 SHA
+- **当前源码登记版本**：V5.8.5（Phase 6 全系统质量门已完成最终本地验证；待正常 PR/CI 与统一 Preview）
 - **Phase 0 内容合并 SHA**：`94cd3f970969749167b286ef76c29c60f6e145a5`
 - **Phase 0 最终行政合并 SHA**：`6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
 - **当前 Preview**：V5.8.0 / `1b51a515f3418c0d66d6e169484a233e49e47246`；Phase 2 及中间 Phase 不部署，全部 Phase 完成后统一更新一次
@@ -688,7 +688,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### Phase 6：全系统质量验证
 
-**状态：未开始**
+**状态：最终本地验证完成，待正常 PR/CI/合并、行政检查点与统一 Preview**
 
 - 真机移动端
 - 强光门店环境
@@ -1297,4 +1297,25 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 阻塞原因：N/A
 - 未完成队列：本行政检查点 PR/CI/正常合并；随后 Phase 6 全系统质量验证。最终行政合并 SHA 按非递归规则写入 session-state、长期记忆和 Phase 6 首个项目 Checkpoint。
 - 下一步：完成本行政检查点；从其最终合并 SHA进入 Phase 6，执行移动/强光/键盘与屏幕阅读器/色觉/reduced-motion/性能和最终 Preview 验收准备。
+- Production：forbidden
+
+
+---
+
+## Checkpoint 2026-07-23 15:13
+
+- Phase：Phase 6 - 全系统质量验证
+- 状态：in_progress
+- 基线分支和 SHA：`test/signal-grid-phase6-quality`，直接继承 Phase 5 最终行政/source SHA `a0f0ff31c0e15236f5c570b0922b52178f53c347`；V5.8.5 已登记并锁定 358 个指纹文件。
+- 本阶段完成范围：新增全局质量样式，统一 100dvh、Electric Blue 3px 可见焦点、`prefers-contrast: more` 强光模式和打印/灰度结构；Skip Link 改为指向可编程聚焦的 `#main-content`；主题色对齐冷中性画布。新增 Phase 6 源码质量测试和生产构建后校验器，检查 zoom、landmark、原生交互、图像 alt、正 tabindex、320px/VisualViewport、44px 触控、reduced-motion、forced-colors、强对比、非颜色状态表达、JS/CSS gzip 与媒体 SHA/大小预算。
+- 关键决策：不在 Phase 6 重做视觉或业务；强光采用更深文字/边框并移除背景网格，不创建第二套主题；色觉韧性依靠已有文字、图标、编号、虚实边框和结构，不改变模块身份色；浏览器真实验收只在统一 Preview 发布后通过独立 browser-harness 云浏览器执行，不回退到应用内浏览器或 Android 无障碍。
+- 修改文件：新增 `signal-grid-quality.css`、`validate-frontend-quality.mjs`、`signal-grid-phase6.test.mjs`；修改 App Skip Link、HTML theme-color、样式入口、根 build 流程、DESIGN 和本规范。
+- 数据库或契约变化：N/A；无 API、Worker、D1、migration、权限、审计或业务流程修改。
+- 测试与验证结果：Phase 6 聚焦 5/5 通过。源码审查确认无正 tabindex、无 div/span 伪按钮、抽查图片均有 alt；现有 11 个 reduced-motion、7 个 forced-colors 源覆盖及 VisualViewport/safe-area/touch-action 路径继续存在。最终本地门通过：工作流 88/88；Domain 4/4；Database 5/5；Web 130/130；API 16/16；Worker 11/11；完整 typecheck、Web/API production build、Worker typecheck/bundle、V5.8.5 version、diff 与前端质量预算全绿。构建预算：JS 421743 bytes / gzip 139429（低于 145 KiB）；CSS 242066 / gzip 55565（低于 60 KiB）；生成 Signal 媒体 620346 bytes（低于 700 KiB）并逐文件验证字节与 SHA-256。
+- PR / CI run：N/A
+- 部署环境、Deployment ID、Worker Version：N/A；Preview 尚未部署。Staging 仍为 V5.7.7；Production 禁止。
+- 用户验收结果：全部 Phase 完成后统一 Preview 的策略已获明确授权。
+- 阻塞原因：本地 browser-harness 无 Chrome/CDP；Browser Use cloud auth 可用。真实页面验收延后到统一 Preview，不阻塞源码/构建质量门。
+- 未完成队列：重新 stamp 本精确检查点树并复验；功能提交、PR/CI/正常合并；非递归最终行政检查点；统一 Preview 部署及 Cloudflare/公共身份验证；独立 browser-harness 云浏览器移动/桌面人工验收；用户最终验收。
+- 下一步：stamp 本精确检查点树并复验，创建 V5.8.5 功能提交和正常 PR。
 - Production：forbidden

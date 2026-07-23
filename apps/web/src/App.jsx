@@ -434,7 +434,7 @@ export default function App() {
   return (
     <>
       {showBoot ? <BootLoader onLogin={auth.login} onComplete={() => setLoginAnimationDone(true)} /> : null}
-      {introDone ? <a className="skip-link" href="#closing-summary">跳到闭店摘要</a> : null}
+      {introDone ? <a className="skip-link" href="#main-content">跳到主内容</a> : null}
       <div ref={workspaceRootRef} className="app-runtime signal-workspace" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
         <main className="lookbook-shell signal-workspace-canvas" id="main-content" tabIndex="-1" data-workspace-layer="structure">

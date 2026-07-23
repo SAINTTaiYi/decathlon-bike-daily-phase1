@@ -1,6 +1,6 @@
 {
   "name": "decathlon-bike-daily-phase1",
-  "version": "5.8.4",
+  "version": "5.8.5",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.15.9",
@@ -25,7 +25,7 @@
     "version:patch": "node scripts/bump-version.mjs",
     "version:stamp": "node scripts/stamp-version.mjs",
     "check:version": "node scripts/check-version.mjs",
-    "build": "pnpm run check:version && pnpm -r --if-present build",
+    "build": "pnpm run check:version && pnpm -r --if-present build && pnpm run check:frontend-quality",
     "build:web": "pnpm run check:version && pnpm --filter @bike-ops/web build",
     "build:api": "pnpm --filter @bike-ops/api build",
     "build:edgeone": "pnpm run check:version && pnpm --filter @bike-ops/api build && pnpm --filter @bike-ops/web build",
@@ -35,7 +35,8 @@
     "cf:typecheck": "pnpm --filter @bike-ops/worker typecheck",
     "build:worker-bundle": "node scripts/build-worker-bundle.mjs",
     "typecheck:worker": "pnpm --filter @bike-ops/worker typecheck",
-    "test:worker": "pnpm --filter @bike-ops/worker test"
+    "test:worker": "pnpm --filter @bike-ops/worker test",
+    "check:frontend-quality": "node scripts/ops/validate-frontend-quality.mjs"
   },
   "devDependencies": {
     "esbuild": "0.25.5"
