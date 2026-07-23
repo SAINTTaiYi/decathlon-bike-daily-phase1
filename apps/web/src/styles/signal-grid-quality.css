@@ -14,6 +14,44 @@ body,
   outline-offset: 3px;
 }
 
+
+/* Preview audit: preserve AA contrast on the violet Sales field after legacy
+   summary selectors, and keep every frequently-used control at the shared
+   44px interaction minimum on desktop and touch layouts. */
+.signal-sales-primary > span,
+.signal-sales-primary > strong,
+.signal-sales-primary > strong .fixed-digits,
+.signal-sales-primary > strong .fixed-digit {
+  color: var(--sg-p-color-surface);
+}
+
+.signal-sales-primary .signal-state-mark[data-tone='pending'] {
+  border-color: var(--sg-p-color-surface);
+  background: var(--sg-p-color-surface);
+  color: var(--sg-p-color-ink);
+}
+
+.signal-sales-primary .signal-state-mark[data-tone='pending'] > span,
+.signal-sales-primary .signal-state-mark[data-tone='pending'] svg {
+  color: currentColor;
+}
+
+.active-user-strip button,
+.summary-next button,
+.text-action,
+.record-history-mark,
+.ledger-history,
+.ledger-add,
+.signal-record-row .project-select[data-compact='true'] .project-select-trigger {
+  min-height: var(--sg-touch-target);
+}
+
+.record-history-mark {
+  min-width: var(--sg-touch-target);
+  width: var(--sg-touch-target) !important;
+  height: var(--sg-touch-target) !important;
+}
+
 @media (prefers-contrast: more) {
   :root {
     --sg-color-text-muted: var(--sg-p-color-ink-secondary);

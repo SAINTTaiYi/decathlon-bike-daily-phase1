@@ -5,10 +5,10 @@
 ## 0. 文档状态
 
 - **方案名称**：WORKSHOP SIGNAL GRID
-- **方案状态**：Phase 0-6 已完成并进入正式源码；待最终行政检查点、统一 Preview、独立 browser-harness 验收与用户确认
+- **方案状态**：Phase 0-6 已完成；V5.8.5 统一 Preview 的独立 browser-harness 验收发现两项质量回归，V5.8.6 修复已完成本地验证，待 CI、替换 Preview、复验与用户确认
 - **文档创建日期**：2026-07-22
-- **当前实现基线**：Phase 6 正常合并/source SHA `077751621581ec7b555d0dd6975c5a720235cb52` / V5.8.5
-- **当前源码登记版本**：V5.8.5（Phase 6 全系统质量门已完成最终本地验证；待正常 PR/CI 与统一 Preview）
+- **当前实现基线**：最终 Phase 0-6 行政/source SHA `1cfa1398b8d04a8f95d7ab24dab9195d24dab013`；V5.8.6 Preview 验收修复候选直接继承该 SHA
+- **当前源码登记版本**：V5.8.6（Preview browser-harness 验收修复已完成最终本地验证；待正常 PR/CI、替换 Preview 与复验）
 - **Phase 0 内容合并 SHA**：`94cd3f970969749167b286ef76c29c60f6e145a5`
 - **Phase 0 最终行政合并 SHA**：`6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
 - **当前 Preview**：V5.8.0 / `1b51a515f3418c0d66d6e169484a233e49e47246`；Phase 2 及中间 Phase 不部署，全部 Phase 完成后统一更新一次
@@ -1339,4 +1339,21 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 阻塞原因：本地 browser-harness 无 Chrome/CDP；Browser Use cloud auth 可用，不阻塞 Preview 后的独立云浏览器验收。
 - 未完成队列：最终行政检查点 PR/CI/正常合并；以最终 admin/source SHA 统一部署 Preview；Cloudflare/公共身份验证；browser-harness 云端移动/桌面/键盘/高对比/reduced-motion 验收；用户人工确认。Staging 另行明确批准。
 - 下一步：完成最终行政检查点，再部署统一 Preview。
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 15:44
+
+- Phase：Phase 6 - Consolidated Preview acceptance repair
+- 状态：in_progress
+- 基线分支和 SHA：`fix/signal-grid-preview-audit-v586`，直接继承最终 Phase 0-6 行政/source SHA `1cfa1398b8d04a8f95d7ab24dab9195d24dab013`；V5.8.6 已登记并锁定 358 个指纹文件。
+- 已完成部署证据：V5.8.5 统一 Preview workflow `29988214091` 成功；Cloudflare deployment `89404c63-2eee-4983-aaa4-2416fcbb0ee1`，Worker version `1893e48d-1dce-4073-b48f-dce775d1c0ef`，100% traffic。公共 live/ready/meta/root 独立验证 V5.8.5 / `1cfa1398...`；Web shell 资产 `index-DGxXpvlW.js` / `index-BQCxYutd.css`。
+- browser-harness 验收结果：使用独立 Browser Use cloud 浏览器完成管理员登录、桌面和 390px 移动宽度、Skip Link 键盘聚焦、导航形态、横向溢出、自托管字体和 AVIF 主图检查。通过项包括无横向溢出、桌面左轨/移动底部 Dock、Skip Link 聚焦 `#main-content`、三套字体可用和主图成功加载。
+- 发现的阻断缺陷：旧 `refinement.css` 紧凑覆盖把菜单、摘要/标题操作、记录历史和紧凑状态选择缩小到 28.8-42px；Sales Plasma Violet 主 KPI 的旧 `.sales-input-summary span` 规则覆盖模块 ink，标签和数字最低实测对比度 1.11:1。
+- 本修复范围：最终导入的 `signal-grid-quality.css` 强制 Sales 标签/数字为白色，待填状态为白底 Dark Void，并把常用操作、历史入口、ledger 操作和紧凑状态选择恢复至共享 44px token；新增 browser-harness 验收静态回归测试。无业务/API/Worker/D1/权限/审计变化。
+- 测试与验证结果：工作流 88/88；Domain 4/4；Database 5/5；Web 131/131；API 16/16；Worker 11/11；typecheck、Web/API build、Worker typecheck/bundle、V5.8.6 version、diff 与前端质量预算全绿。JS 421760 bytes / gzip 139383；CSS 242905 / gzip 55691；Signal 媒体 620346 bytes。
+- PR / CI run：待创建。
+- 部署环境、Deployment ID、Worker Version：V5.8.6 尚未部署；当前 Preview 仍为上述 V5.8.5。Staging 仍为 V5.7.7；Production 禁止。
+- 未完成队列：提交并推送 V5.8.6；正常 PR/CI/合并；替换 Preview；Cloudflare/公共身份验证；browser-harness 桌面/390px/键盘/对比度/44px 复验；用户最终确认。Staging 另行明确批准。
 - Production：forbidden
