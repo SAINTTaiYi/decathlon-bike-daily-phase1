@@ -3,6 +3,7 @@ import BootLoader from './components/BootLoader.jsx'
 import InitialSetup from './components/InitialSetup.jsx'
 import PasswordChangeGate from './components/PasswordChangeGate.jsx'
 import StatusToast from './components/StatusToast.jsx'
+import SignalTaskState from './components/SignalTaskState.jsx'
 import ReleaseNotes from './components/lookbook/ReleaseNotes.jsx'
 import { APP_VERSION } from './data/releaseNotes.js'
 import { buildClosingReportModel, exportClosingReportImage } from './utils/closingReportImage.js'
@@ -389,7 +390,7 @@ export default function App() {
   }
 
   if (auth.status === 'restoring') {
-    return <><main className="hydration-state" role="status" aria-live="polite"><strong>VERIFYING SESSION</strong><span>正在验证数据库账号…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
+    return <><main className="hydration-state"><SignalTaskState tone="loading" code="AUTH / VERIFY" title="正在验证数据库账号" description="确认当前 HttpOnly Session 与门店成员身份。" /></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
 
   if (authenticated && mustChangePassword && introDone) {
@@ -404,20 +405,19 @@ export default function App() {
   }
 
   if (authenticated && !workflow.hydrated && (auth.source === 'restore' || loginAnimationDone)) {
-    return <><main className="hydration-state" role="status" aria-live="polite"><strong>SYNCING DATABASE</strong><span>正在读取门店业务台账…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
+    return <><main className="hydration-state"><SignalTaskState tone="loading" code="DATABASE / SYNC" title="正在读取门店业务台账" description="同步当前业务日、销售数据、长期台账与审计快照。" /></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
 
   if (authenticated && introDone && workflow.hydrated && !workflow.hasSnapshot) {
     return (
       <>
-        <main className="hydration-state sync-failure" role="alert" aria-live="assertive">
-          <strong>DATABASE UNAVAILABLE</strong>
-          <span>{workflow.storageError || '暂时无法读取门店业务台账。'}</span>
-          <p>为避免把空页面误认为真实数据，工作台不会在首次同步成功前开放。</p>
-          <div className="hydration-state-actions">
-            <button type="button" className="primary-action" onClick={() => void workflow.refresh()} disabled={workflow.syncing}>{workflow.syncing ? '正在重试…' : '重新同步'}</button>
-            <button type="button" className="secondary-action" onClick={() => void logout()}>退出登录</button>
-          </div>
+        <main className="hydration-state sync-failure">
+          <SignalTaskState tone="error" code="DATABASE / UNAVAILABLE" title="暂时无法读取门店业务台账" description={`${workflow.storageError || '数据库同步未完成。'} 为避免把空页面误认为真实数据，工作台不会在首次同步成功前开放。`}>
+            <div className="hydration-state-actions">
+              <button type="button" className="primary-action" onClick={() => void workflow.refresh()} disabled={workflow.syncing}>{workflow.syncing ? '正在重试…' : '重新同步'}</button>
+              <button type="button" className="secondary-action" onClick={() => void logout()}>退出登录</button>
+            </div>
+          </SignalTaskState>
         </main>
         <UpdateRefreshDialog enabled={!deferUpdatePrompt} />
       </>
@@ -464,7 +464,7 @@ export default function App() {
         <CreateUserDialog open={createUserOpen} onClose={() => setCreateUserOpen(false)} onNotify={setToast} />
         <LogDialog open={logOpen} onClose={() => setLogOpen(false)} events={workflow.events} />
         <PermanentHistoryDialog open={permanentHistoryOpen} onClose={() => setPermanentHistoryOpen(false)} onLoad={workflow.getPermanentHistory} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
-        <OperationHistoryDialog open={Boolean(historyTarget)} onClose={() => setHistoryTarget(null)} title={historyTitle} events={historyEvents} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
+        <OperationHistoryDialog open={Boolean(historyTarget)} onClose={() => setHistoryTarget(null)} title={historyTitle} events={historyEvents} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} signalModule={historyTarget ? sceneById(historyTarget.scene).signalModule : 'other'} />
         <AttachmentDialog record={mediaRecord} onClose={() => setMediaRecord(null)} locked={writeLocked} onNotify={setToast} />
         <LocalMigrationDialog open={migrationOpen} onClose={() => setMigrationOpen(false)} workflow={workflow} onNotify={setToast} />
         <PickupConfirmDialog record={pickupConfirm} onClose={() => setPickupConfirm(null)} onConfirm={async (record, code) => {

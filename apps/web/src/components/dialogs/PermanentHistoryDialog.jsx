@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import IconJournal from '@iconoir/Journal.mjs'
 import EventAuditMeta from '../EventAuditMeta.jsx'
+import SignalTaskState from '../SignalTaskState.jsx'
 import AppDialog from './AppDialog.jsx'
+import ProjectSelect from '../ProjectSelect.jsx'
 
 const moduleOptions = [
   { value: 'all', label: '全部模块' },
@@ -30,6 +31,10 @@ export default function PermanentHistoryDialog({ open, onClose, onLoad, onUndo, 
   const load = async ({ append = false, cursor = '' } = {}) => {
     setBusy(true)
     setError('')
+    if (!append) {
+      setEvents([])
+      setNextCursor(null)
+    }
     const result = await onLoad({ date, module, cursor })
     if (!result?.ok) {
       setError(result?.error || '无法读取永久操作记录。')
@@ -60,20 +65,22 @@ export default function PermanentHistoryDialog({ open, onClose, onLoad, onUndo, 
   }
 
   return (
-    <AppDialog open={open} onClose={onClose} title="永久操作历史" eyebrow="ARCHIVE · 永久审计" description="所有模块的正式操作永久保存在数据库中。跨日后主界面会清理已完成业务，但这里的审计记录不会被删除。" className="history-archive-dialog">
-      <form className="history-filters" onSubmit={submit}>
+    <AppDialog open={open} onClose={onClose} title="永久操作历史" eyebrow="ARCHIVE · 永久审计" description="所有模块的正式操作永久保存在数据库中。跨日后主界面会清理已完成业务，但这里的审计记录不会被删除。" className="history-archive-dialog" signalModule="other" registration="ARCHIVE / QUERY">
+      <form className="history-filters signal-history-filters" onSubmit={submit}>
         <label><span>日期</span><input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
-        <label><span>模块</span><select value={module} onChange={(event) => setModule(event.target.value)}>{moduleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+        <div className="history-filter-field"><span>模块</span><ProjectSelect value={module} options={moduleOptions} onChange={setModule} ariaLabel="筛选永久历史模块" /></div>
         <button type="submit" className="primary-action" disabled={busy}>{busy ? '查询中…' : '筛选记录'}</button>
+        <p className="history-filter-result" role="status">{busy ? 'QUERY ACTIVE / 正在读取数据库审计' : `RESULT / ${events.length} 条记录`}</p>
       </form>
-      {error ? <p className="form-error" role="alert">{error}</p> : null}
+      {error ? <SignalTaskState tone="error" title="无法读取永久历史" description={error} compact /> : null}
+      {busy && !events.length && !error ? <SignalTaskState tone="loading" title="正在查询永久历史" description="按当前日期与模块条件读取数据库审计记录。" compact /> : null}
       {events.length ? <ol className="event-log operation-history permanent-history">
         {events.map((event) => <li key={event.id} data-undone={event.undoneAt ? 'true' : undefined}>
           <time dateTime={event.at}>{formatTime(event.at)}</time>
           <span><EventAuditMeta event={event} /><strong>{event.label}</strong><small>{event.undoneAt ? '该操作已撤回' : event.message}</small></span>
           {canUndo(event) ? <button type="button" className="history-undo" onClick={() => void undo(event)}>撤回</button> : null}
         </li>)}
-      </ol> : !busy && !error ? <div className="dialog-empty"><IconJournal width={28} aria-hidden="true" /><strong>没有匹配的操作记录</strong><p>调整日期或模块后重新查询。新产生的销售、闭店、台账和账号操作都会永久归档。</p></div> : null}
+      </ol> : !busy && !error ? <SignalTaskState title="没有匹配的操作记录" description="调整日期或模块后重新查询。新产生的销售、闭店、台账和账号操作都会永久归档。" /> : null}
       {nextCursor ? <button type="button" className="secondary-action history-load-more" disabled={busy} onClick={() => void load({ append: true, cursor: nextCursor })}>{busy ? '正在加载…' : '加载更早记录'}</button> : null}
     </AppDialog>
   )

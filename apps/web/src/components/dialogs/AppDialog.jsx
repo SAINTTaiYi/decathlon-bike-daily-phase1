@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import IconClose from '@iconoir/Xmark.mjs'
 
-export default function AppDialog({ open, onClose, title, eyebrow, description, children, className = '' }) {
+export default function AppDialog({ open, onClose, title, eyebrow, description, children, className = '', signalModule = 'other', registration = 'TASK LAYER / ACTIVE' }) {
   const dialogRef = useRef(null)
   const closeRef = useRef(null)
   const restoreFocusRef = useRef(null)
-  const titleId = `dialog-${String(title).toLowerCase().replace(/[^a-z0-9\u3400-\u9fff]+/g, '-').replace(/(^-|-$)/g, '')}`
+  const titleId = useId()
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -31,6 +31,7 @@ export default function AppDialog({ open, onClose, title, eyebrow, description, 
     <dialog
       ref={dialogRef}
       className={`app-dialog ${className}`.trim()}
+      data-signal-module={signalModule}
       aria-labelledby={titleId}
       aria-describedby={description ? `${titleId}-description` : undefined}
       onCancel={(event) => { event.preventDefault(); handleClose() }}
@@ -42,7 +43,7 @@ export default function AppDialog({ open, onClose, title, eyebrow, description, 
     >
       <div className="dialog-panel" data-dialog-panel>
         <header className="dialog-header">
-          <div>{eyebrow ? <p>{eyebrow}</p> : null}<h2 id={titleId}>{title}</h2></div>
+          <div className="dialog-title-block"><div className="dialog-registration"><span>{registration}</span>{eyebrow ? <p>{eyebrow}</p> : null}</div><h2 id={titleId}>{title}</h2></div>
           <button ref={closeRef} type="button" className="icon-button" onClick={handleClose} aria-label="关闭对话框"><IconClose width={22} height={22} aria-hidden="true" /></button>
         </header>
         {description ? <p id={`${titleId}-description`} className="dialog-description">{description}</p> : null}

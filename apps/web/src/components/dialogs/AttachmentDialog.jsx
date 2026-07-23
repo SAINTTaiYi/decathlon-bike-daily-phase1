@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { deleteAttachment, listAttachments, uploadAttachment } from '../../api/media.js'
 import AppDialog from './AppDialog.jsx'
+import SignalTaskState from '../SignalTaskState.jsx'
 
 const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
 
@@ -9,19 +10,31 @@ export default function AttachmentDialog({ record, onClose, locked, onNotify }) 
   const [attachments, setAttachments] = useState([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState(null)
 
   const load = async () => {
     if (!record) return
+    setLoading(true)
     try {
       const payload = await listAttachments(record.id)
       setAttachments(payload.attachments)
       setError('')
     } catch (requestError) {
       setError(requestError.message)
+    } finally {
+      setLoading(false)
     }
   }
 
-  useEffect(() => { if (open) void load() }, [open, record?.id])
+  useEffect(() => {
+    if (open) {
+      setAttachments([])
+      setPendingDelete(null)
+      setError('')
+      void load()
+    }
+  }, [open, record?.id])
 
   const upload = async (event) => {
     const file = event.target.files?.[0]
@@ -43,11 +56,11 @@ export default function AttachmentDialog({ record, onClose, locked, onNotify }) 
   }
 
   const remove = async (attachment) => {
-    if (!window.confirm(`确认删除图片“${attachment.originalName}”？`)) return
     setBusy(true)
     try {
       await deleteAttachment(attachment.id)
       await load()
+      setPendingDelete(null)
       onNotify?.('业务图片已删除')
     } catch (requestError) {
       setError(requestError.message)
@@ -57,23 +70,24 @@ export default function AttachmentDialog({ record, onClose, locked, onNotify }) 
   }
 
   return (
-    <AppDialog open={open} onClose={onClose} title={`${record?.title || '业务记录'} · 图片`} eyebrow="PRIVATE MEDIA · 私有附件" description="图片保存在 Supabase 私有存储；上传签名最长 2 小时，查看链接 5 分钟。每条记录最多 6 张，单张最大 10 MB。" className="data-dialog">
+    <AppDialog open={open} onClose={onClose} title={`${record?.title || '业务记录'} · 图片`} eyebrow="PRIVATE MEDIA · 私有附件" description="图片保存在 Supabase 私有存储；上传签名最长 2 小时，查看链接 5 分钟。每条记录最多 6 张，单张最大 10 MB。" className="data-dialog" signalModule="other" registration="MEDIA / PRIVATE">
       <label className="attachment-upload" aria-disabled={locked || busy || attachments.length >= 6 ? 'true' : undefined}>
         <span>{busy ? '正在处理…' : attachments.length >= 6 ? '已达到 6 张上限' : '上传 JPEG / PNG / WebP'}</span>
         <input type="file" accept="image/jpeg,image/png,image/webp" onChange={upload} disabled={locked || busy || attachments.length >= 6} />
       </label>
-      {error ? <p className="form-error" role="alert">{error}</p> : null}
+      {error ? <SignalTaskState tone="error" title="附件操作未完成" description={error} compact /> : null}
       {attachments.length ? (
         <ul className="attachment-list">
           {attachments.map((attachment) => (
             <li key={attachment.id}>
               <a href={attachment.url} target="_blank" rel="noreferrer"><img src={attachment.url} alt={attachment.originalName} loading="lazy" /></a>
               <span><strong>{attachment.originalName}</strong><small>{attachment.width} × {attachment.height} · {Math.ceil(attachment.byteSize / 1024)} KB</small></span>
-              <button type="button" onClick={() => remove(attachment)} disabled={locked || busy}>删除</button>
+              <button type="button" onClick={() => setPendingDelete(attachment)} disabled={locked || busy}>删除</button>
             </li>
           ))}
         </ul>
-      ) : <div className="dialog-empty"><strong>还没有业务图片</strong><p>选择图片后会使用对象级签名直接上传至 Supabase 私有存储，不经过应用服务器转存。</p></div>}
+      ) : loading ? <SignalTaskState tone="loading" title="正在读取业务图片" description="校验私有附件并生成短期查看链接。" /> : <SignalTaskState title="还没有业务图片" description="选择图片后会使用对象级签名直接上传至 Supabase 私有存储，不经过应用服务器转存。" />}
+      {pendingDelete ? <div className="danger-confirm attachment-delete-confirm" role="alert"><strong>确认删除“{pendingDelete.originalName}”？</strong><p>删除后会从当前记录的私有附件中移除。</p><div><button type="button" className="secondary-action" onClick={() => setPendingDelete(null)} disabled={busy}>保留图片</button><button type="button" className="danger-action" onClick={() => void remove(pendingDelete)} disabled={busy}>{busy ? '正在删除…' : '确认删除'}</button></div></div> : null}
     </AppDialog>
   )
 }

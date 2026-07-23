@@ -39,7 +39,7 @@ export default function MenuDialog({ open, onClose, onUndo, canUndo, onCopyRepor
   }
 
   return (
-    <AppDialog open={open} onClose={close} title="日报菜单" eyebrow={`SIGNED IN · ${currentUser}`} description="复制当日报告、撤回最近操作、迁移旧数据，或重置今天的销售数据。所有正式修改由服务器写入数据库。">
+    <AppDialog open={open} onClose={close} title="日报菜单" eyebrow={`SIGNED IN · ${currentUser}`} description="复制当日报告、撤回最近操作、迁移旧数据，或重置今天的销售数据。所有正式修改由服务器写入数据库。" signalModule="overview" registration="SYSTEM / MENU">
       <div className="signed-in-user" aria-label={`当前登录用户：${currentUser}`}>
         <span>{currentStore} · {currentRole}</span>
         <strong>{currentUser}</strong>

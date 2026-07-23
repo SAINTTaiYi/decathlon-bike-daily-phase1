@@ -8,6 +8,8 @@ export default function ReportImageDialog({ open, onClose, imageUrl, filename, o
       title="闭店日报图"
       eyebrow="SAVE IMAGE · 保存到相册"
       description="已优先尝试直接下载。若未出现下载项，请长按下方大图选择“保存图片/添加到相册”。"
+      signalModule="closing"
+      registration="REPORT / EXPORT"
     >
       {imageUrl ? (
         <div className="report-image-preview">

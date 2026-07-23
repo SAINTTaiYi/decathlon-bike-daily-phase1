@@ -12,6 +12,7 @@
   --sg-c-record-background: var(--sg-color-surface);
   --sg-c-dialog-border: var(--sg-color-border-strong);
   --sg-c-dialog-background: var(--sg-color-surface);
+  --sg-c-dialog-scrim: color-mix(in srgb, var(--sg-p-color-ink) 72%, transparent);
   --sg-c-action-danger-background: var(--sg-color-danger-surface);
   --sg-c-action-danger-foreground: var(--sg-color-danger-ink);
   --sg-c-action-danger-border: var(--sg-color-danger);

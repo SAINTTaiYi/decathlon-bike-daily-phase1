@@ -214,7 +214,7 @@ export default function RecordEditorDialog({ open, onClose, config, record, onSa
       : '这条记录会跨日期保留；当天没有编辑时会原样延续到下一日期。新增、编辑和删除都会写入操作记录。'
 
   return (
-    <AppDialog open={open} onClose={onClose} title={editing ? `编辑${config.singular}` : config.addLabel} eyebrow="LEDGER · 长期台账" description={description} className="data-dialog">
+    <AppDialog open={open} onClose={onClose} title={editing ? `编辑${config.singular}` : config.addLabel} eyebrow="LEDGER · 长期台账" description={description} className="data-dialog" signalModule={config.signalModule || 'other'} registration={editing ? 'EDIT / RECORD' : 'CREATE / RECORD'}>
       <form className="data-form" onSubmit={submit}>
         {repairForm ? <RepairFields draft={draft} setDraft={setDraft} /> : pickupForm ? <PickupFields draft={draft} setDraft={setDraft} /> : (
           <>

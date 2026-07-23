@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { OPERATIONS_DAY_PREFIX, OPERATIONS_LEDGER_KEY } from '../../data/operationsData.js'
 import AppDialog from './AppDialog.jsx'
+import SignalTaskState from '../SignalTaskState.jsx'
 
 function stripPickupCodes(value) {
   if (Array.isArray(value)) return value.map(stripPickupCodes)
@@ -35,6 +36,9 @@ export default function LocalMigrationDialog({ open, onClose, workflow, onNotify
 
   useEffect(() => {
     if (!open) return
+    setPlan(null)
+    setPayload(null)
+    setError('')
     setBusy(true)
     sourcePayload().then(async (nextPayload) => {
       if (!nextPayload) throw new Error('当前浏览器没有找到 v5 本机数据。')
@@ -59,10 +63,10 @@ export default function LocalMigrationDialog({ open, onClose, workflow, onNotify
   }
 
   return (
-    <AppDialog open={open} onClose={onClose} title="迁移旧本机数据" eyebrow="LOCAL V5 · 显式迁移" description="只有你确认后，当前浏览器中的 v5 数据才会提交至服务器。取货码字段会在本机剥离；原数据不会自动删除。">
-      {busy && !plan ? <p className="form-meta" role="status">正在检查本机数据…</p> : null}
+    <AppDialog open={open} onClose={onClose} title="迁移旧本机数据" eyebrow="LOCAL V5 · 显式迁移" description="只有你确认后，当前浏览器中的 v5 数据才会提交至服务器。取货码字段会在本机剥离；原数据不会自动删除。" signalModule="other" registration="MIGRATION / REVIEW">
+      {busy && !plan ? <SignalTaskState tone="loading" title="正在检查本机数据" description="剥离取货码并生成可导入、需修复与日报日期摘要。" /> : null}
       {plan ? <><dl className="migration-summary"><div><dt>可导入记录</dt><dd>{plan.acceptedCount}</dd></div><div><dt>需修复记录</dt><dd>{plan.rejectedCount}</dd></div><div><dt>日报日期</dt><dd>{plan.dayCount}</dd></div></dl>{plan.rejectedCount ? <p className="form-error" role="status">{plan.rejectedCount} 条记录缺少新数据库要求的结构化字段，本次不会导入。</p> : null}</> : null}
-      {error ? <p className="form-error" role="alert">{error}</p> : null}
+      {error ? <SignalTaskState tone="error" title="本机数据检查未完成" description={error} compact /> : null}
       <p className="conditional-field-note"><strong>敏感数据提醒</strong><span>旧台账可能包含手机号或会员号。提交后先进入管理员审核和字段修复，不会静默覆盖现有数据库记录。</span></p>
       <div className="dialog-footer"><button type="button" className="secondary-action" onClick={onClose} disabled={busy}>暂不迁移</button><button type="button" className="primary-action" onClick={submit} disabled={busy || !plan}>{busy ? '正在提交…' : '确认并导入合法记录'}</button></div>
     </AppDialog>
