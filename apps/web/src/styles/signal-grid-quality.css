@@ -1,0 +1,71 @@
+/* WORKSHOP SIGNAL GRID Phase 6 - cross-system accessibility and harsh-environment guardrails. */
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+.lookbook-shell {
+  min-height: 100dvh;
+}
+
+:focus-visible {
+  outline: 3px solid var(--sg-color-focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --sg-color-text-muted: var(--sg-p-color-ink-secondary);
+    --sg-color-border: var(--sg-p-color-ink);
+    --sg-border-width: var(--sg-p-line-2);
+  }
+
+  body,
+  .lookbook-shell,
+  .app-runtime.signal-workspace[data-ready='true'] .workspace-environment {
+    background-image: none;
+  }
+
+  .signal-module-header,
+  .signal-record-ledger,
+  .signal-record-row,
+  .signal-workspace .closing-summary,
+  .signal-overview-grid,
+  .signal-business-map,
+  .app-dialog[data-signal-module] .dialog-panel,
+  .signal-task-state {
+    border-color: var(--sg-p-color-ink);
+  }
+
+  .signal-module-header .scene-note,
+  .signal-record-row :is(.record-detail-line, .record-scan-item),
+  .app-dialog[data-signal-module] :is(.dialog-description, .field-help, .form-meta) {
+    color: var(--sg-p-color-ink-secondary);
+  }
+}
+
+@media print {
+  * {
+    animation: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  body,
+  .lookbook-shell,
+  .app-runtime.signal-workspace[data-ready='true'] .workspace-environment,
+  .signal-module-header,
+  .signal-record-ledger,
+  .signal-record-row,
+  .signal-workspace .closing-summary {
+    background: #ffffff !important;
+    color: #141616 !important;
+  }
+
+  .signal-navigation-slot,
+  .status-toast,
+  .workspace-launch-overlay {
+    display: none !important;
+  }
+}

@@ -9,7 +9,7 @@
 
 ## Next-generation visual target: WORKSHOP SIGNAL GRID
 
-> **Status: implementation in progress.** Phases 1-5 are complete in the working source. Phase 6 now owns full-system quality validation before the single consolidated Preview review.
+> **Status: final quality implementation in progress.** Phases 1-5 are complete in the main source. Phase 6 owns cross-system accessibility, responsive, contrast, motion and performance gates before the single consolidated Preview review.
 
 The complete specification and anti-interruption checkpoint ledger live in [`docs/WORKSHOP-SIGNAL-GRID.md`](docs/WORKSHOP-SIGNAL-GRID.md). That file is the canonical source for the future full-system redesign, phase plan, recovery state, validation evidence, blockers and next-action queue.
 
@@ -150,6 +150,18 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 - Report renderer: `closingReportImage.js`; the summary uses Blaze Orange closing identity and Plasma Violet real sales KPI, while Pickup, Repair and Handover details return to flat cool-white tickets with module registration, explicit labels and high-contrast borders.
 - Report resilience: `REPORT_OUTPUT_PROFILE` plus `tests/signal-grid-phase5.test.mjs` enforce color contrast, minimum post-compression text/rule size, AVIF/WebP integrity, representative Canvas rendering and structural grayscale readability. Server-confirmed close snapshots, self-pickup platform labels and dedicated contact slots remain unchanged.
 - Report preview: `ReportImageDialog.jsx`; the task layer explains that color is reinforced by labels and structure and keeps the existing long-press/download paths.
+
+
+### Phase 6 runtime quality mapping
+
+> **Status: locally verified; normal PR/CI, final administrative checkpoint and consolidated Preview remain.** Phase 6 changes only quality guardrails, audit automation and one skip-link target. Business behavior, API, D1, permissions and audit semantics remain unchanged.
+
+- Quality stylesheet: `apps/web/src/styles/signal-grid-quality.css`; normalizes `100dvh`, preserves a 3px Electric Blue focus indicator, adds `prefers-contrast: more` strong-light treatment, print/grayscale structure and static fallbacks.
+- Skip navigation: `App.jsx`; the first workspace focus target now correctly links to the programmatically focusable `#main-content` landmark.
+- Viewport metadata: `apps/web/index.html`; remains zoom-safe and now matches the cool-neutral Signal Grid canvas theme color.
+- Automated source audit: `tests/signal-grid-phase6.test.mjs`; checks native landmarks/controls, image alternatives, 320px and VisualViewport contracts, 44px targets, reduced motion, forced colors, higher contrast, print and non-color state cues.
+- Compiled quality budget: `scripts/ops/validate-frontend-quality.mjs`; every production build verifies JS/CSS gzip budgets, generated media byte/SHA integrity and essential frontend accessibility contracts.
+- Browser validation: independent browser-harness is available through Browser Use cloud auth. Local Chrome/CDP is not connected, so real mobile/desktop interaction checks are intentionally deferred until the consolidated Preview is deployed. No in-app browser or Android accessibility fallback is permitted.
 
 
 ## Product hierarchy
