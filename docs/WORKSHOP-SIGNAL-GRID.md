@@ -5,9 +5,9 @@
 ## 0. 文档状态
 
 - **方案名称**：WORKSHOP SIGNAL GRID
-- **方案状态**：Phase 0-3 已完成并进入正式源码；Phase 4 V5.8.3 已完成最终本地验证，待功能提交、PR/CI/正常合并
+- **方案状态**：Phase 0-4 已完成并进入正式源码；Phase 4 行政检查点收尾后连续实施 Phase 5
 - **文档创建日期**：2026-07-22
-- **当前实现基线**：Phase 3 最终行政/source SHA `f723c5ed0b2b505ed7cb0599d428a92d3ea0cfdc` / V5.8.2；Phase 4 隔离分支基于该精确 SHA
+- **当前实现基线**：Phase 4 正常合并/source SHA `49942a10b27538c005391d1d9529499b41690236` / V5.8.3
 - **当前源码登记版本**：V5.8.3（Phase 4 操作与管理体系已完成最终本地验证；中间 Phase 不部署 Preview）
 - **Phase 0 内容合并 SHA**：`94cd3f970969749167b286ef76c29c60f6e145a5`
 - **Phase 0 最终行政合并 SHA**：`6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
@@ -669,7 +669,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### Phase 4：操作与管理体系
 
-**状态：V5.8.3 最终本地验证已通过；待功能提交、PR/CI/正常合并**
+**状态：已完成并正常合并；行政检查点收尾中**
 
 - 表单
 - Dialog 和任务层
@@ -781,7 +781,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### 当前任务
 
-完成 WORKSHOP SIGNAL GRID Phase 4 操作与管理体系的 V5.8.3 登记、最终完整验证、正常 PR/CI/合并和非递归行政检查点，然后自动进入 Phase 5。中间 Phase 不部署 Preview。
+完成 WORKSHOP SIGNAL GRID Phase 4 V5.8.3 非递归行政检查点的精确文档树、完整验证、正常 PR/CI/合并，然后从最终行政/source SHA 自动创建 Phase 5 隔离工作树。中间 Phase 不部署 Preview。
 
 ### 当前已完成
 
@@ -789,16 +789,17 @@ Workshop 的视觉素材必须来自自身业务事实：
 - Phase 1 设计基础最终行政/source SHA：`1b51a515f3418c0d66d6e169484a233e49e47246`
 - Phase 2 系统外壳最终行政/source SHA：`e85d772cd650847e4a121d27f7c8a03735a36ccb`
 - Phase 3 核心业务模块最终行政/source SHA：`f723c5ed0b2b505ed7cb0599d428a92d3ea0cfdc`
-- Phase 4 隔离分支 `feat/signal-grid-phase4-operations` 精确继承 `f723c5ed...`
-- 原生 Dialog、模块注册条、表单/ProjectSelect、加载/错误/成功/空状态、永久历史、账户/菜单/迁移、附件与 App 级同步门已统一为 Signal Grid 操作语法
-- 附件删除改为任务层内联确认，不再调用浏览器原生 `window.confirm`
-- 工作流策略 88/88、Domain 4/4、Database 5/5、Web 118/118、API 16/16、Worker 11/11 和完整 typecheck 已通过预版本验证
+- Phase 4 V5.8.3 功能提交：`087661c6338f3e6ee36d5c79bd0e7dec3c3c89fb`
+- Phase 4 PR #39 CI `29984524999` 通过 `verify` 与完整历史 `secrets`
+- Phase 4 PR #39 正常合并/source SHA：`49942a10b27538c005391d1d9529499b41690236`
+- 合并后源码头 CI `29984651570` 通过 `verify` 与完整历史 `secrets`
+- Dialog、表单、筛选、任务状态、永久历史、账户/设置和附件已统一为 Signal Grid 操作语法
 - 业务动作、权限、API、D1、审计、取车填充、维修消散和 reduced-motion 行为未改变
 - Phase 4 没有触发 Preview、Staging 或 Production 部署
 
 ### 当前边界
 
-- Phase 4-6 已获连续实施授权，但必须依序完成本地验证、正常 PR/CI/合并和检查点
+- Phase 5-6 已获连续实施授权，但必须依序完成本地验证、正常 PR/CI/合并和检查点
 - 数据库、API、权限、审计和业务契约变化不在视觉 Phase 授权范围
 - Preview 只在所有 Phase 完成后统一部署一次
 - Staging 仍需独立明确批准
@@ -806,12 +807,12 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### 下一步队列
 
-1. 将 Phase 4 登记为 V5.8.3 并 stamp 精确源码树
-2. 重新执行完整测试、typecheck、Web/API build、Worker typecheck/bundle、version、diff 和 Phase 4 平面/契约专项门
-3. 创建功能提交和 PR，等待完整 CI 与全历史 secrets
-4. CI 全绿后正常合并，并创建非递归行政检查点 PR
-5. 最终 Phase 4 行政 SHA 写入 session-state、长期记忆和 Phase 5 首个项目 Checkpoint
-6. 自动进入 Phase 5 媒体与报告，不部署 Preview；所有 Phase 完成后统一部署一次 Preview
+1. Stamp Phase 4 行政检查点的 V5.8.3 精确文档树
+2. 重新执行完整测试、typecheck、Web/API build、Worker typecheck/bundle、version 和 diff gate
+3. 创建行政检查点提交和 PR，等待完整 CI 与全历史 secrets
+4. CI 全绿后正常合并；最终行政 SHA 只写入 session-state、长期记忆和 Phase 5 首个项目 Checkpoint
+5. 从最终 Phase 4 行政/source SHA 自动进入 Phase 5，不部署 Preview
+6. 所有 Phase 完成后统一部署一次 Preview；Staging 仍需用户另行明确批准；Production 禁止
 
 ---
 
@@ -1234,4 +1235,24 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 阻塞原因：N/A
 - 未完成队列：重新 stamp 包含本检查点的精确树；最后一次完整验证；功能提交；PR/CI/正常合并；非递归行政检查点；随后 Phase 5。
 - 下一步：stamp 精确文档树并重新执行最终门；创建 V5.8.3 功能提交和正常 PR。
+- Production：forbidden
+
+---
+
+## Checkpoint 2026-07-23 14:43
+
+- Phase：Phase 4 - 操作与管理体系
+- 状态：released
+- 基线分支和 SHA：`feature/cloudflare-workers-d1` / `49942a10b27538c005391d1d9529499b41690236`，PR #39 正常合并；功能提交 `087661c6338f3e6ee36d5c79bd0e7dec3c3c89fb` 直接继承 Phase 3 最终行政/source SHA `f723c5ed0b2b505ed7cb0599d428a92d3ea0cfdc`。
+- 本阶段完成范围：V5.8.3 WORKSHOP SIGNAL GRID 操作与管理体系已进入正式源码。所有原生 Dialog、表单、ProjectSelect、永久历史、账户/菜单/迁移、附件、更新提示、闭店/销售任务层及 App 级认证/同步/错误门使用统一模块信号、任务注册和 loading/error/success/empty 语法；附件删除改为任务层内联危险确认。
+- 关键决策：操作层保持原生标准控件、44px 触摸目标、可见焦点、Escape、焦点恢复和 VisualViewport 滚动；模块强色仅用于注册、选择、主要动作和真实状态；历史/账户/设置为冷白结构加 Voltage Lime；所有新增表面直角、纯平面、无渐变和 elevation shadow；加载信号支持 reduced-motion。现有业务、权限、审计、API、D1 和完成动效不变。
+- 修改文件：功能提交覆盖 29 个文件，新增 `SignalTaskState.jsx`、`signal-grid-operations.css` 和 `signal-grid-phase4.test.mjs`；更新 App、AppErrorBoundary、AppDialog、全部任务 Dialog、RecordLedger、operationsData、Phase 1 component token、样式入口、DESIGN、发布说明与 V5.8.3 元数据。
+- 数据库或契约变化：N/A；无 `apps/api` 业务源码、`apps/worker`、`packages` 或 `migrations` 修改。
+- 测试与验证结果：本地最终门为工作流策略 88/88；Domain 4/4；Database 5/5；Web 118/118；API 16/16；Worker 11/11；typecheck、Web/API build、Worker typecheck/bundle、version、diff、平面 CSS 和编译产物审查全绿。PR CI `29984524999` 与合并后源码头 CI `29984651570` 均通过 `verify` 和完整历史 `secrets`。
+- PR / CI run：PR #39 正常合并；CI 如上。
+- 部署环境、Deployment ID、Worker Version：N/A；按连续阶段策略未触发 Preview、Staging 或 Production。当前 Preview 仍为 Phase 1 V5.8.0；Staging 仍为 V5.7.7。
+- 用户验收结果：Phase 4 和中间阶段不单独部署/确认的规则已获明确授权。
+- 阻塞原因：N/A
+- 未完成队列：本行政检查点 PR/CI/正常合并；随后 Phase 5 媒体与报告实施。最终行政合并 SHA 按非递归规则写入 session-state、长期记忆和 Phase 5 首个检查点。
+- 下一步：完成本行政检查点；从其最终合并 SHA 创建 Phase 5 隔离工作树，实施模块化双色摄影、网点/抖动媒体、报告汇总/明细及聊天压缩/灰度输出测试；不部署 Preview。
 - Production：forbidden
