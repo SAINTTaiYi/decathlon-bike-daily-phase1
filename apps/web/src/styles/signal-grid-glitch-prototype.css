@@ -878,3 +878,165 @@
   .signal-overview-prototype .signal-overview-metrics > div:nth-child(2n) { border-right: 0; }
   .signal-overview-prototype .signal-overview-metrics > div:nth-last-child(-n+2) { border-bottom: 0; }
 }
+
+/* V5.8.8 — external raster material pass. Source rasters are clipped to the
+   established display architecture. They supply irregular toner, paper and
+   scan character; CSS still owns geometry, colour, accessible content layers
+   and the responsive composition. */
+.signal-glitch-canvas {
+  background-image:
+    linear-gradient(rgb(251 252 250 / .79), rgb(251 252 250 / .79)),
+    url('/materials/wsg-paper-fibre-480.webp'),
+    linear-gradient(var(--sg-glitch-faint) 1px, transparent 1px),
+    linear-gradient(90deg, var(--sg-glitch-faint) 1px, transparent 1px);
+  background-position: center, center, 0 0, 0 0;
+  background-repeat: no-repeat, repeat, repeat, repeat;
+  background-size: cover, 31rem auto, 28px 28px, 28px 28px;
+  background-blend-mode: normal, multiply, normal, normal;
+}
+
+.signal-glitch-canvas::before {
+  background:
+    linear-gradient(90deg, transparent 0 4%, rgb(215 255 63 / .82) 4% 13%, transparent 13% 19%, rgb(118 87 255 / .8) 19% 28%, transparent 28% 47%, rgb(24 216 255 / .64) 47% 52%, transparent 52% 72%, rgb(255 61 150 / .68) 72% 81%, transparent 81%),
+    url('/materials/wsg-toner-breakup-480.webp'),
+    repeating-linear-gradient(0deg, rgb(20 22 22 / .2) 0 1px, transparent 1px 6px);
+  background-position: center, center, 0 0;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-size: 100% 100%, cover, auto;
+  background-blend-mode: multiply, multiply, normal;
+}
+
+.signal-glitch-canvas::after {
+  background:
+    linear-gradient(135deg, transparent 12%, rgb(118 87 255 / .52) 12% 34%, transparent 34% 48%, rgb(215 255 63 / .58) 48% 55%, transparent 55%),
+    url('/materials/wsg-torn-edge-320.webp'),
+    repeating-radial-gradient(circle at 50% 50%, rgb(20 22 22 / .35) 0 1px, transparent 1px 5px);
+  background-position: center, center, center;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-size: 100% 100%, cover, auto;
+  background-blend-mode: multiply, multiply, normal;
+}
+
+.signal-overview-prototype .signal-overview-primary::before {
+  background:
+    repeating-linear-gradient(0deg, rgb(20 22 22 / .18) 0 1px, transparent 1px 5px),
+    linear-gradient(90deg, rgb(215 255 63 / .76), transparent 69%),
+    url('/materials/wsg-overview-engineering-480.webp');
+  background-position: 0 0, center, center;
+  background-repeat: repeat, no-repeat, no-repeat;
+  background-size: auto, 100% 100%, cover;
+  background-blend-mode: multiply, multiply, multiply;
+  filter: grayscale(1) contrast(1.18);
+}
+
+.signal-repair-prototype .signal-module-header::before {
+  background:
+    repeating-linear-gradient(0deg, rgb(20 22 22 / .2) 0 1px, transparent 1px 6px),
+    linear-gradient(90deg, rgb(24 216 255 / .86), transparent 79%),
+    url('/materials/wsg-repair-valve-480.webp');
+  background-position: 0 0, center, center;
+  background-repeat: repeat, no-repeat, no-repeat;
+  background-size: auto, 100% 100%, cover;
+  background-blend-mode: multiply, multiply, multiply;
+  filter: grayscale(1) contrast(1.22);
+}
+
+.signal-repair-prototype .signal-record-ledger[data-ledger-variant='glitch-archive'] .record-ledger-head {
+  isolation: isolate;
+}
+.signal-repair-prototype .signal-record-ledger[data-ledger-variant='glitch-archive'] .record-ledger-head::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  top: -1.25rem;
+  right: 7%;
+  width: min(28%, 12rem);
+  height: 7rem;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgb(251 252 250 / .64), rgb(24 216 255 / .18)),
+    url('/materials/wsg-ledger-press-320.webp');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-blend-mode: screen, multiply;
+  clip-path: polygon(8% 0, 100% 8%, 79% 42%, 100% 65%, 31% 100%, 0 70%, 24% 38%);
+  filter: grayscale(1) contrast(1.35);
+  opacity: .43;
+}
+.signal-repair-prototype .signal-record-ledger[data-ledger-variant='glitch-archive'] .record-ledger-head > * {
+  position: relative;
+  z-index: 1;
+}
+
+.signal-repair-prototype .signal-record-row::before {
+  background:
+    repeating-linear-gradient(90deg, rgb(24 216 255 / .46) 0 4px, transparent 4px 9px),
+    linear-gradient(90deg, var(--sg-p-module-repair), transparent),
+    url('/materials/wsg-torn-edge-320.webp');
+  background-position: 0 0, center, center;
+  background-repeat: repeat, no-repeat, no-repeat;
+  background-size: auto, 100% 100%, cover;
+  background-blend-mode: multiply, multiply, multiply;
+  filter: grayscale(1) contrast(1.2);
+}
+
+.app-dialog.data-dialog[data-signal-module='repair'] .dialog-header::before {
+  background:
+    repeating-linear-gradient(0deg, rgb(20 22 22 / .2) 0 1px, transparent 1px 6px),
+    linear-gradient(90deg, rgb(24 216 255 / .82), transparent 74%),
+    url('/materials/wsg-repair-valve-480.webp');
+  background-position: 0 0, center, center;
+  background-repeat: repeat, no-repeat, no-repeat;
+  background-size: auto, 100% 100%, cover;
+  background-blend-mode: multiply, multiply, multiply;
+  filter: grayscale(1) contrast(1.2);
+}
+
+@media (min-resolution: 1.5dppx), (min-width: 960px) {
+  .signal-glitch-canvas {
+    background-image:
+      linear-gradient(rgb(251 252 250 / .79), rgb(251 252 250 / .79)),
+      url('/materials/wsg-paper-fibre-960.webp'),
+      linear-gradient(var(--sg-glitch-faint) 1px, transparent 1px),
+      linear-gradient(90deg, var(--sg-glitch-faint) 1px, transparent 1px);
+  }
+  .signal-glitch-canvas::before {
+    background-image:
+      linear-gradient(90deg, transparent 0 4%, rgb(215 255 63 / .82) 4% 13%, transparent 13% 19%, rgb(118 87 255 / .8) 19% 28%, transparent 28% 47%, rgb(24 216 255 / .64) 47% 52%, transparent 52% 72%, rgb(255 61 150 / .68) 72% 81%, transparent 81%),
+      url('/materials/wsg-toner-breakup-960.webp'),
+      repeating-linear-gradient(0deg, rgb(20 22 22 / .2) 0 1px, transparent 1px 6px);
+  }
+  .signal-overview-prototype .signal-overview-primary::before {
+    background-image:
+      repeating-linear-gradient(0deg, rgb(20 22 22 / .18) 0 1px, transparent 1px 5px),
+      linear-gradient(90deg, rgb(215 255 63 / .76), transparent 69%),
+      url('/materials/wsg-overview-engineering-800.webp');
+  }
+  .signal-repair-prototype .signal-module-header::before,
+  .app-dialog.data-dialog[data-signal-module='repair'] .dialog-header::before {
+    background-image:
+      repeating-linear-gradient(0deg, rgb(20 22 22 / .2) 0 1px, transparent 1px 6px),
+      linear-gradient(90deg, rgb(24 216 255 / .86), transparent 79%),
+      url('/materials/wsg-repair-valve-800.webp');
+  }
+  .signal-repair-prototype .signal-record-ledger[data-ledger-variant='glitch-archive'] .record-ledger-head::before {
+    background-image:
+      linear-gradient(90deg, rgb(251 252 250 / .64), rgb(24 216 255 / .18)),
+      url('/materials/wsg-ledger-press-480.webp');
+  }
+  .signal-repair-prototype .signal-record-row::before {
+    background-image:
+      repeating-linear-gradient(90deg, rgb(24 216 255 / .46) 0 4px, transparent 4px 9px),
+      linear-gradient(90deg, var(--sg-p-module-repair), transparent),
+      url('/materials/wsg-torn-edge-640.webp');
+  }
+}
+
+@media (forced-colors: active) {
+  .signal-glitch-canvas,
+  .signal-repair-prototype .signal-record-ledger[data-ledger-variant='glitch-archive'] .record-ledger-head::before {
+    background: Canvas !important;
+    filter: none;
+  }
+}

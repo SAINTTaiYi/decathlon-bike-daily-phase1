@@ -25,3 +25,7 @@ data/mock-data.json
 dist/worker/
 apps/web/dist/
 
+
+# Local source originals for the V5.8.8 material pass; only reduced WebP
+# derivatives under apps/web/public/materials/ are versioned and deployed.
+.material-sources-20260724/

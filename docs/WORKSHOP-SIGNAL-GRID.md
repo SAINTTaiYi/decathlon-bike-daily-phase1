@@ -1412,3 +1412,25 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 未完成队列：本行政检查点 PR/CI/正常合并；从最终 admin/source SHA 部署 Preview-only；Cloudflare/公共身份验证；独立桌面/移动功能审查；用户人工艺术方向确认。
 - 下一步：完成本非递归行政检查点，然后发布 Preview-only。最终行政合并 SHA 按非递归规则写入 session-state 和长期记忆，不再产生自引用提交。
 - Production：forbidden
+
+
+---
+
+## Checkpoint 2026-07-24 04:21
+
+- Phase：Corrected art-direction prototype - external raster material pass
+- 状态：verified
+- 基线分支和 SHA：`feat/signal-grid-external-material-preview`，直接继承已验收 V5.8.7 最终 source SHA `fff81037a8358c057f9b926e25e3521ef96a3ab8`。
+- 本阶段完成范围：V5.8.8 只扩展 authenticated Overview + Repair 原型的**非交互展示材质层**。自托管、优化的 WebP 派生文件为纸纤维、复印碳粉断裂、破洞纸边、泰晤士工程线稿、阀门工程线稿和印刷机档案片段；它们分别进入总览信号场/大号 KPI 边缘、维修标题注册区、维修台账刊头和行项目的局部裁切区。代码继续负责布局、模块色、mask、响应式和 reduced-motion，不将原始作品当作背景或界面内容。
+- 来源与许可：使用 Wellcome Collection `V0024387`、`V0024661`、`V0024667`（逐条 API 核验 **Public Domain Mark**），Openverse/Flickr `45970b3d-d3ee-4fd8-8045-ba3ce515f304` 与 `669982d9-354e-4639-a693-7256c3802ce3`（逐条 API 核验 **CC0 1.0**），及 ambientCG `Paper006`（**CC0**）。完整源 URL、许可证、检索日期、原件 SHA-256、派生件 SHA-256 和精确 UI 用途记录在 `apps/web/public/materials/SOURCES.md`。只提交 12 个缩放/裁切后的 WebP 派生文件；原始下载目录被 `.gitignore` 排除，未进入 Git 或部署包。
+- 关键边界：没有自行车、人物、品牌标记、Marathon/Bungie 专有资产或可辨认的完整原始作品构图。材质仅作为低透明度/灰阶/双色的裁切展示层出现；标签、字段名、helper/error、input/textarea/select 内部、用户输入值、按钮和触摸热区均处于干净不透明内容层。forced-colors 下材质隐藏，reduced-motion 不新增持续运动。
+- 修改文件：新增 `apps/web/public/materials/` 的 12 个 WebP 派生资源与 `SOURCES.md`；更新 prototype CSS、前端生产质量门、focused prototype test、版本说明、版本指纹和忽略规则。
+- 数据库或契约变化：N/A；无 API、Worker、D1、migration、权限、审计、业务 handler 或流程变化。
+- 测试与验证结果：V5.8.8 / 364 指纹文件；工作流策略 88/88；Domain 4/4；Database 5/5；Web 138/138；API 16/16；Worker 11/11；完整 typecheck、Web/API production build、Worker typecheck/bundle、version 与 diff 全绿。focused material/prototype 7/7。构建预算：JS 424047 bytes / gzip 139985（<145 KiB）；CSS 277030 bytes / gzip 60426（<60 KiB）；外部材质 365660 bytes（<400 KiB）。生产质量门会校验所需的 12 个派生文件和总负载上限；旧具象 `workshop-head-*` 仍被拒绝。
+- PR / CI run：N/A；待功能提交、PR、CI 和正常合并。
+- 部署环境、Deployment ID、Worker Version：N/A；当前 Preview 仍为 V5.8.7 `fff81037...`。此版本完成后仅部署新的 Cloudflare **Preview** 供人工艺术方向验收；Staging 仍为 V5.7.7，必须获得新的明确授权；Production 禁止。
+- 用户验收结果：用户已明确授权直接接入选定素材并尽快给出 Preview；范围仍限 Overview + Repair。
+- 阻塞原因：N/A
+- 未完成队列：将本检查点纳入版本指纹并复验；创建 V5.8.8 功能提交；正常 PR/CI/合并；非递归行政检查点；Preview-only 部署、公共身份核验与用户人工验收。
+- 下一步：stamp 精确树并执行版本/差异核验；提交功能变更。
+- Production：forbidden

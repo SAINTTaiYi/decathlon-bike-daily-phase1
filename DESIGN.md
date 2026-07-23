@@ -404,9 +404,18 @@ packages/
 - Staging 与 Production 使用不同 Supabase Project 和 EdgeOne Project；不得复制 Production 数据到 Staging。
 - 境外 npm、GitHub、EdgeOne 或 Supabase 不可达时停止并提示开启 VPN，不盲目重试。
 
+## Material provenance (V5.8.8 prototype scope)
+
+- 已验收的 V5.8.7 Overview + Repair 原型可使用**外部、可追溯的物理印刷材质**补足 CSS 几何无法提供的真实不规则性：纸纤维、碳粉断裂、扫描损伤、工程线稿和局部印刷机结构。
+- 代码仍负责结构、状态、模块色、裁切/mask、响应式、层级和动效；外部栅格只提供受控局部材质，不得变成完整图像、主体插画或大面积可辨认背景。
+- 使用前必须逐条核验许可；资源自托管、优化、记录源 URL/许可/检索日期/原件 SHA/派生 SHA/精确用途。原件不进入部署；禁止热链。
+- 当前 V5.8.8 only：Wellcome PDM 工程/印刷扫描、Openverse CC0 复印/破洞纸纹理及 ambientCG Paper006 CC0。正式清单见 `apps/web/public/materials/SOURCES.md`；12 个 WebP 派生文件总负载不超过 400 KiB，并由生产质量门验证。
+- 任何材质只能位于非交互 display/header/ledger-frame 区；不能进入标签、字段名、helper/error、控件内部、输入值、按钮或触摸目标。forced-colors 隐藏材质；reduced-motion 不增加持续动画。
+- 禁止任何自行车、人物、商标、Marathon/Bungie 专有资产以及可辨认的完整原始作品构图。
+
 ## Version governance
 
-- 当前版本：`V5.8.2`。
+- 当前版本：`V5.8.8`。
 - 根 `package.json`、`apps/web/package.json`、`apps/web/src/data/releaseNotes.js` 与 `version-manifest.json` 必须一致。
 - `pnpm version:patch -- ...` 递增 V5 版本并生成当前发布说明。
 - 完成代码与文档后运行 `pnpm version:stamp`；`pnpm build` 先校验版本和源码/部署事实指纹。
