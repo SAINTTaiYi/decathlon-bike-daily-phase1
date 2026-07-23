@@ -43,7 +43,7 @@ export default function AppDialog({ open, onClose, title, eyebrow, description, 
     >
       <div className="dialog-panel" data-dialog-panel>
         <header className="dialog-header">
-          <div className="dialog-title-block"><div className="dialog-registration"><span>{registration}</span>{eyebrow ? <p>{eyebrow}</p> : null}</div><h2 id={titleId}>{title}</h2></div>
+          <div className="dialog-title-block"><div className="dialog-registration"><span>{registration}</span>{eyebrow ? <p>{eyebrow}</p> : null}</div><h2 id={titleId} data-glitch-motion={signalModule === 'repair' ? '' : undefined} data-glitch-scan={signalModule === 'repair' ? '' : undefined}>{title}</h2></div>
           <button ref={closeRef} type="button" className="icon-button" onClick={handleClose} aria-label="关闭对话框"><IconClose width={22} height={22} aria-hidden="true" /></button>
         </header>
         {description ? <p id={`${titleId}-description`} className="dialog-description">{description}</p> : null}

@@ -1,15 +1,30 @@
+const glitchFragments = [
+  ['overview', 'OVR'],
+  ['pickup', 'PUP'],
+  ['repair', 'RPR'],
+  ['resale', 'USD'],
+  ['sales', 'SAL'],
+  ['closing', 'CLS']
+]
+
 export default function MainHeadImage() {
   return (
-    <figure className="main-head-image signal-overview-media" data-signal-module="overview" data-motion="photo" data-workspace-module="true" aria-labelledby="main-head-title">
-      <picture>
-        <source type="image/avif" srcSet="/images/workshop-head-signal-480.avif 480w, /images/workshop-head-signal-800.avif 800w, /images/workshop-head-signal-1200.avif 1200w" sizes="(min-width: 860px) 760px, 100vw" />
-        <source type="image/webp" srcSet="/images/workshop-head-signal-480.webp 480w, /images/workshop-head-signal-800.webp 800w, /images/workshop-head-signal-1200.webp 1200w" sizes="(min-width: 860px) 760px, 100vw" />
-        <img src="/images/workshop-head-signal-800.webp" srcSet="/images/workshop-head-signal-480.webp 480w, /images/workshop-head-signal-800.webp 800w, /images/workshop-head-signal-1200.webp 1200w" sizes="(min-width: 860px) 760px, 100vw" width="1200" height="864" alt="自行车技师在工坊内检修悬挂的自行车，周围是工具和维修设备。" loading="eager" decoding="async" fetchPriority="high" />
-      </picture>
-      <figcaption className="head-photo-caption">
-        <span>WORKSHOP OPERATIONS</span>
-        <strong id="main-head-title">维修与闭店工作台</strong>
-        <em>Workshop Ledger</em>
+    <figure className="signal-glitch-field" data-signal-module="overview" data-glitch-motion data-workspace-module="true" aria-labelledby="signal-field-title">
+      <div className="signal-glitch-canvas" aria-hidden="true">
+        <span className="signal-glitch-raster" data-glitch-scan />
+        <span className="signal-glitch-scanline" data-glitch-scan />
+        {glitchFragments.map(([module, code], index) => (
+          <span key={module} className={`signal-glitch-fragment signal-glitch-fragment-${module}`} data-glitch-scan style={{ '--glitch-index': index }}>{code}</span>
+        ))}
+        <span className="signal-glitch-cross signal-glitch-cross-a" data-glitch-scan>+</span>
+        <span className="signal-glitch-cross signal-glitch-cross-b" data-glitch-scan>+</span>
+        <span className="signal-glitch-code" data-glitch-scan>SG/00:OPERATIONS-SIGNAL</span>
+        <span className="signal-glitch-coordinate" data-glitch-scan>X 031.7 / Y 086.2</span>
+      </div>
+      <figcaption className="signal-glitch-caption">
+        <span>ABSTRACT SIGNAL FIELD / 00</span>
+        <strong id="signal-field-title">当日业务信号场</strong>
+        <em>LIVE OPERATIONS / CURRENT BUSINESS DAY</em>
       </figcaption>
     </figure>
   )

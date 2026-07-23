@@ -1373,3 +1373,23 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 用户验收结果：独立自动验收完成；待用户人工 Preview 视觉/业务确认。
 - 未完成队列：本非递归最终行政检查点 PR/CI/正常合并；以最终 admin/source SHA 重新部署一次相同 V5.8.6 到 Preview 使环境身份与源码最终头一致；公开身份复核；向用户交付 Preview。Staging 仅在用户后续明确批准后执行。
 - Production：forbidden
+
+---
+
+## Checkpoint 2026-07-24 00:24
+
+- Phase：Corrected art-direction prototype - Overview + Repair
+- 状态：verified
+- 基线分支和 SHA：`feat/signal-grid-glitch-prototype`，直接继承被人工视觉拒绝的 V5.8.6 最终行政/source SHA `4359e40abcbfae14fd83b3a1f02725daf5fef651`。
+- 本阶段完成范围：已重构 authenticated first screen/Overview 与 Repair 原型。Overview 使用白/黑编辑工业结构、六色破碎套印信号、纯抽象业务信号场和真实业务量驱动的非对称模块排序/面积；Repair 使用 Ion Cyan 主导的标题注册材料、连续档案台账、文字主导的历史/编辑/完成操作及白色档案 Dialog。
+- 关键决策：不渲染自行车图片、轮组、零件、剪影或具象骑行图形；六色只作为窄条、网点、扫描残片、错版和小面积信号存在；仅 Overview 可并置六色，Repair 只允许 Ion Cyan 主导；普通标签、helper/error、条件提示、input/textarea/select/ProjectSelect 内部和用户输入值完全受保护。模块导航改为编号/缩写/双语文字主导，图标仅保留在实际操作和语义状态。
+- 动效：新增 `useGlitchPrototypeMotion.js`，只对授权原型的大标题、KPI 和抽象信号场执行 210ms 起的短促扫描/套印重组；使用 IntersectionObserver，不监听滚动；仅在离开并重新进入视口后重播；reduced-motion 保留完整静态材质，不移除设计用 clip-path。
+- 修改文件：App、AppDialog、ActionDock、ClosingSummary、LookbookHeader、LookbookPrimitives、MainHeadImage、RecordLedger、PulseScene、RepairScene、样式入口；新增 glitch motion hook、专用 prototype CSS 与 focused test；同步修正 Phase 1/5 静态契约；删除十个旧自行车/双色衍生图与 `signal-media-manifest.json`，更新公开图片来源说明和 production quality gate，禁止旧具象主图回流。
+- 数据库或契约变化：N/A；无 API、Worker、D1、migration、权限、审计、字段、业务 handler 或业务流程修改。
+- 测试与验证结果：V5.8.7 / 361 指纹文件；工作流策略 88/88；Domain 4/4；Database 5/5；Web 137/137；API 16/16；Worker 11/11；完整 typecheck、Web/API production build、Worker typecheck/bundle、version 与 diff 全绿。Prototype/Phase 1/5/6 聚焦测试 23/23。Web CSS 270.97 kB（gzip 59.89 kB），JS 412.26 kB（gzip 139.89 kB）；Worker 270.3 kB / 150.1 kB minified；运行时具象 Overview 媒体为 0 bytes；production quality gate 会拒绝任何 `workshop-head-*` 或旧 manifest 回流。
+- 部署环境、Deployment ID、Worker Version：N/A；当前 Preview 仍是被人工视觉拒绝的 V5.8.6 / `4359e40a...`。Staging 仍为 V5.7.7；Production 禁止。
+- 用户验收结果：用户已授权 Overview + Repair prototype-first 实施；Preview 人工艺术方向验收尚待。
+- 阻塞原因：N/A
+- 未完成队列：最终 staged diff/credential-pattern 审查；功能提交；正常 PR/CI/合并；非递归行政检查点；Preview-only 部署及云端身份验证；独立桌面/移动功能审查；用户人工艺术方向验收。
+- 下一步：stamp 本精确验证树并复验版本/构建；创建 V5.8.7 功能提交，持续自动完成 PR/CI/正常合并和 Preview-only 交付。
+- Production：forbidden

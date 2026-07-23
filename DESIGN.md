@@ -9,7 +9,7 @@
 
 ## Next-generation visual target: WORKSHOP SIGNAL GRID
 
-> **Status: all six implementation phases and the V5.8.6 consolidated Preview correction are complete.** Independent browser-harness desktop/mobile/keyboard/contrast/target-size acceptance is green. User Preview acceptance remains; Staging requires separate approval.
+> **Status: V5.8.6 was technically complete but manually rejected for art direction. A corrected V5.8.7 prototype is in progress for authenticated Overview + Repair only.** The prototype uses a restrained white editorial-industrial base, abstract glitch signal material and no bicycle imagery. Expansion to the remaining system is blocked until manual Preview acceptance; Staging requires separate approval.
 
 The complete specification and anti-interruption checkpoint ledger live in [`docs/WORKSHOP-SIGNAL-GRID.md`](docs/WORKSHOP-SIGNAL-GRID.md). That file is the canonical source for the future full-system redesign, phase plan, recovery state, validation evidence, blockers and next-action queue.
 
@@ -116,6 +116,18 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 - Motion: `useWorkspaceMotion.js` provides one short post-login hard-cut assembly with Skip/Escape/reduced-motion paths. `useMotionSystem.js` retains only immediate button press feedback. Active scene tracking uses `IntersectionObserver` rather than continuous scroll listeners.
 
 
+### V5.8.7 corrected art-direction prototype mapping
+
+> **Scope: authenticated Overview + Repair only.** This prototype supersedes V5.8.6's clean multicolor tile direction without changing routes, workflows, permissions, API, D1 or audit contracts.
+
+- Overview composition: `PulseScene.jsx` and `signal-grid-glitch-prototype.css`; the sales KPI remains real, the abstract signal field replaces the figurative hero, and the business map is ordered and sized from current operational counts rather than fixed equal cards.
+- Signal material: `MainHeadImage.jsx`; six module hues appear only as broken overprint fragments, raster fields, registration offsets and small codes on a dominant white/black structure. No bicycle photo, silhouette, wheel, component or figurative cycling asset renders.
+- Repair prototype: `RepairScene.jsx` and `RecordLedger.jsx`; Repair alone uses dominant Ion Cyan registration material, a continuous editorial ledger, explicit text-led history/edit/complete actions and preserved swipe-delete/business completion behavior.
+- Repair task layer: `AppDialog.jsx`; glitch may cross the large Repair title, while labels, helper/error copy, conditions, native controls and entered values remain clean and unobstructed.
+- Navigation: `ActionDock.jsx`; module identity is number/abbreviation/type-led, with icons removed from module navigation and color compressed to thin registration traces. Action and semantic icons remain Iconoir.
+- Motion: `useGlitchPrototypeMotion.js`; brief observer-driven scan/registration recomposition replays only after viewport exit/re-entry, cleans up every animation and collapses to the intact static composition under reduced motion.
+- Deliberate boundary: Pickup, Other Handover, Resale, Sales, login, settings/history and reports keep their V5.8.6 runtime structure until this prototype passes manual Preview art-direction review.
+
 ### Phase 3 runtime core-module mapping
 
 > **Status: complete.** Phase 3 replaces the core business-module foreground system without changing workflow handlers, permissions, API calls, D1 schema, audit events or data contracts.
@@ -144,8 +156,7 @@ This write-ahead checkpoint rule exists to survive network loss, context compact
 
 > **Status: complete in the main source branch; final administrative checkpoint remains.** Phase 5 changes only media presentation, report composition and output-quality gates. Business data, report values, API calls, permissions, D1 and audit semantics remain unchanged.
 
-- Preprocessed Overview media: `apps/web/public/images/workshop-head-signal-*.(avif|webp)`; six 480/800/1200 derivatives use build-time four-level ordered dither plus Dark Void and Voltage Lime duotone. `signal-media-manifest.json` locks dimensions, byte size and SHA-256.
-- Responsive source: `MainHeadImage.jsx`; AVIF is preferred with WebP fallback, explicit intrinsic dimensions and no runtime hero grayscale/filter cost.
+- Overview media correction: V5.8.7 removes all bundled `workshop-head-*` bicycle derivatives and `signal-media-manifest.json` from public assets. `MainHeadImage.jsx` now renders the original abstract six-signal field with no `<img>` or `<picture>`.
 - Module-scoped private thumbnails: `AttachmentDialog.jsx` plus `signal-grid-media.css`; small previews inherit the record module color and static halftone treatment, while opening the signed original preserves the source image.
 - Report renderer: `closingReportImage.js`; the summary uses Blaze Orange closing identity and Plasma Violet real sales KPI, while Pickup, Repair and Handover details return to flat cool-white tickets with module registration, explicit labels and high-contrast borders.
 - Report resilience: `REPORT_OUTPUT_PROFILE` plus `tests/signal-grid-phase5.test.mjs` enforce color contrast, minimum post-compression text/rule size, AVIF/WebP integrity, representative Canvas rendering and structural grayscale readability. Server-confirmed close snapshots, self-pickup platform labels and dedicated contact slots remain unchanged.
