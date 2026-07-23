@@ -421,7 +421,7 @@ packages/
 - Repair 的取车日期指标排除当日已完成档案并明确为“已填日期”；已完成的连续档案行不再渲染空白操作条，减少无效焦点停靠点。
 - Repair 每条档案提供稳定的标题关联；左滑删除容器声明 ArrowLeft、ArrowRight、Escape 快捷键。44px 触摸目标、原生滚动、Dialog 焦点恢复、forced-colors 和 reduced-motion 路径保持不变。
 - 本地验证：Web 139/139、完整 TypeScript typecheck、Web production build、Worker typecheck 及 Worker bundle 均通过。Browser Harness 不可用，因此真实浏览器视觉验收尚未执行，不得将其标记为通过。
-- V5.8.9 尚未部署；Preview 仍是 V5.8.8，继续等待 Overview + Repair 的人工视觉验收。Staging 仍需单独明确授权，Production 禁止。
+- V5.8.9 已部署到 Cloudflare Preview，已验证 live/ready/meta/root 与抽样材质身份；Browser Harness 不可用，真实浏览器视觉验收仍待用户在 Preview 手工完成。Staging 仍需单独明确授权，Production 禁止。
 
 ## Version governance
 

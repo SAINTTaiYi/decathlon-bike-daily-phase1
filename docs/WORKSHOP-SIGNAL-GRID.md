@@ -1473,3 +1473,19 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 用户验收结果：待定。
 - 未完成队列：重新 stamp/check 本精确代码+文档树；最终 `test:web`、typecheck、Web/Worker build、差异/凭据扫描；功能提交、正常 PR/CI/合并。不得因本地优化自动覆盖 Preview 或推进 Staging。
 - Production：forbidden
+
+---
+
+## Checkpoint 2026-07-24 05:45
+
+- Phase：V5.8.9 UI/UX Pro Max targeted optimization - Preview release
+- 状态：released
+- 基线分支和 SHA：`feature/cloudflare-workers-d1` / `801e89a644c7f4b3979117598326b5e236a8fb9f`，PR #51 正常合并；功能提交 `3a3f2a7203db79ecd93f825895bfd667c26370db` 直接继承已部署 V5.8.8 Preview 行政/source SHA `2234a5535ccfb0cff8ea7388f38e0202e3a0715f`。
+- 本阶段完成范围：V5.8.9 使用已审查的离线 UI/UX Pro Max 模式库，仅收敛 authenticated Overview + Repair 的真实任务密度、操作可读性和辅助技术语义。Overview 只以当前未完成/未取走事项决定业务地图数量与排序；销售核心操作、辅助指标和地图数量补齐状态上下文。Repair 取车指标排除当日完成记录并明确为“已填日期”；完成档案不再渲染空操作条；记录拥有稳定标题关联，左滑删除声明 ArrowLeft/ArrowRight/Escape。
+- 关键决策：采用模式库对高密度运营扫描、焦点、触摸尺寸、提交反馈和 reduced-motion 的建议；拒绝通用蓝橙配色、Fira/Google Fonts、默认 dashboard 卡片和宽泛页面转场。保留 V5.8.8 白黑编辑工业基底、Overview 压缩六色信号、Repair Ion Cyan、自托管字体和可追溯物理材质。无 API、Worker、D1、migration、权限、审计或业务流程变化。
+- 测试与验证结果：本地 focused 24/24；完整 Web 139/139；完整 TypeScript typecheck；Web build（JS 412.64 kB / gzip 140.08 kB，CSS 277.03 kB / gzip 60.43 kB）；Worker typecheck、contracts build 和 Worker bundle（270.3 kB / minified 150.1 kB）；版本/指纹、差异及高置信度凭据扫描均通过。PR #51 CI workflow `30046661620` 的 `verify` 与完整历史 `secrets` 都成功。
+- Preview 部署：Cloudflare Preview workflow `30047032663` 已成功，Worker version `bf374c8d-8eac-4f56-875e-46be37b7626d`，100% traffic。工作流及独立公开读取均验证 `https://bike-ops-preview.geeklightonefish.workers.dev` 的 live/ready/meta 返回 V5.8.9 / `801e89a644c7f4b3979117598326b5e236a8fb9f` / preview / cloudflare-workers-d1；根页面 HTTP 200，Web shell 为 JS `index-CAl5falS.js`、CSS `index-Cf5wyeFY.css`；抽样 Repair valve 物理材质为 HTTP 200 `image/webp`、7,318 bytes。
+- Browser 验收：Browser Harness CLI 不可用，未进行或宣称完成真实浏览器视觉验收。用户仍需在 Preview 上人工验收 Overview + Repair。
+- 部署边界：当前 Preview 已更新至 V5.8.9。Staging 保持 V5.7.7，必须获得新的明确批准；Production 禁止。
+- 本文档行政检查点：仅记录上述发布与核验证据；合并后按非递归规则仅将最终 admin/source SHA 写入长期状态，并以该 SHA 再部署 Preview 使环境身份收敛。
+- Production：forbidden
