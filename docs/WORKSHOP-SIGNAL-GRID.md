@@ -5,9 +5,9 @@
 ## 0. 文档状态
 
 - **方案名称**：WORKSHOP SIGNAL GRID
-- **方案状态**：Phase 0-5 已完成并进入正式源码；Phase 6 已完成最终本地验证，待正常 PR/CI、行政检查点与统一 Preview
+- **方案状态**：Phase 0-6 已完成并进入正式源码；待最终行政检查点、统一 Preview、独立 browser-harness 验收与用户确认
 - **文档创建日期**：2026-07-22
-- **当前实现基线**：Phase 5 最终行政/source SHA `a0f0ff31c0e15236f5c570b0922b52178f53c347`；Phase 6 V5.8.5 候选直接继承该 SHA
+- **当前实现基线**：Phase 6 正常合并/source SHA `077751621581ec7b555d0dd6975c5a720235cb52` / V5.8.5
 - **当前源码登记版本**：V5.8.5（Phase 6 全系统质量门已完成最终本地验证；待正常 PR/CI 与统一 Preview）
 - **Phase 0 内容合并 SHA**：`94cd3f970969749167b286ef76c29c60f6e145a5`
 - **Phase 0 最终行政合并 SHA**：`6da7263ca03bf6f15b9656d8d0cc27d7ae1b97b0`
@@ -688,7 +688,7 @@ Workshop 的视觉素材必须来自自身业务事实：
 
 ### Phase 6：全系统质量验证
 
-**状态：最终本地验证完成，待正常 PR/CI/合并、行政检查点与统一 Preview**
+**状态：已完成并正常合并；行政检查点与统一 Preview 收尾中**
 
 - 真机移动端
 - 强光门店环境
@@ -1318,4 +1318,25 @@ Workshop 的视觉素材必须来自自身业务事实：
 - 阻塞原因：本地 browser-harness 无 Chrome/CDP；Browser Use cloud auth 可用。真实页面验收延后到统一 Preview，不阻塞源码/构建质量门。
 - 未完成队列：重新 stamp 本精确检查点树并复验；功能提交、PR/CI/正常合并；非递归最终行政检查点；统一 Preview 部署及 Cloudflare/公共身份验证；独立 browser-harness 云浏览器移动/桌面人工验收；用户最终验收。
 - 下一步：stamp 本精确检查点树并复验，创建 V5.8.5 功能提交和正常 PR。
+- Production：forbidden
+
+
+---
+
+## Checkpoint 2026-07-23 15:19
+
+- Phase：Phase 6 - 全系统质量验证
+- 状态：released
+- 基线分支和 SHA：`feature/cloudflare-workers-d1` / `077751621581ec7b555d0dd6975c5a720235cb52`，PR #43 正常合并；功能提交 `8ae5c449bf519ba8872ab6eeb01c87ef8dc176bc` 直接继承 Phase 5 最终行政/source SHA `a0f0ff31c0e15236f5c570b0922b52178f53c347`。
+- 本阶段完成范围：V5.8.5 全系统质量门已进入正式源码。Skip Link 正确指向可编程聚焦的主内容；全局 100dvh、Electric Blue 3px 焦点、`prefers-contrast: more` 强光层和打印/灰度结构生效；源码质量测试覆盖 zoom、landmark、原生控件、alt、正 tabindex、320px/VisualViewport/44px、reduced-motion、forced-colors、非颜色状态；生产 build 自动校验 JS/CSS gzip、Signal 媒体 byte/SHA 与关键无障碍契约。
+- 关键决策：Phase 6 只固化质量，不重构业务或视觉方向；强光通过移除背景网格和增强文字/边界处理，不创建第二套主题；色觉依靠文字、图标、编号、虚实边框和结构冗余；真实浏览器测试遵循用户要求，只使用独立 browser-harness 云浏览器，在统一 Preview 发布后执行。
+- 修改文件：功能提交覆盖 12 个文件，新增 `signal-grid-quality.css`、`validate-frontend-quality.mjs`、`signal-grid-phase6.test.mjs`；更新 App Skip Link、HTML theme-color、样式入口、根 build、DESIGN、发布说明与 V5.8.5 元数据。
+- 数据库或契约变化：N/A；无 API、Worker、D1、migration、权限、审计或业务流程修改。
+- 测试与验证结果：本地最终门为工作流 88/88；Domain 4/4；Database 5/5；Web 130/130；API 16/16；Worker 11/11；typecheck、Web/API build、Worker typecheck/bundle、version、diff 与前端质量预算全绿。JS 421743 bytes / gzip 139429；CSS 242066 / gzip 55565；生成媒体 620346 bytes。PR CI `29987654541` 与合并后源码头 CI `29987773185` 均通过 `verify` 和完整历史 `secrets`。
+- PR / CI run：PR #43 正常合并；CI 如上。
+- 部署环境、Deployment ID、Worker Version：N/A；统一 Preview 尚未触发。Staging 仍为 V5.7.7；Production 禁止。
+- 用户验收结果：六阶段连续实施完成；统一 Preview 与最终人工验收待执行。
+- 阻塞原因：本地 browser-harness 无 Chrome/CDP；Browser Use cloud auth 可用，不阻塞 Preview 后的独立云浏览器验收。
+- 未完成队列：最终行政检查点 PR/CI/正常合并；以最终 admin/source SHA 统一部署 Preview；Cloudflare/公共身份验证；browser-harness 云端移动/桌面/键盘/高对比/reduced-motion 验收；用户人工确认。Staging 另行明确批准。
+- 下一步：完成最终行政检查点，再部署统一 Preview。
 - Production：forbidden
