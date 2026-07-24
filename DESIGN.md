@@ -423,9 +423,18 @@ packages/
 - 本地验证：Web 139/139、完整 TypeScript typecheck、Web production build、Worker typecheck 及 Worker bundle 均通过。Browser Harness 不可用，因此真实浏览器视觉验收尚未执行，不得将其标记为通过。
 - V5.8.9 已部署到 Cloudflare Preview，已验证 live/ready/meta/root 与抽样材质身份；Browser Harness 不可用，真实浏览器视觉验收仍待用户在 Preview 手工完成。Staging 仍需单独明确授权，Production 禁止。
 
+## Ark Endfield scope: Overview + Pickup
+
+- Scope: authenticated Overview and Pickup only. The shared React/Vite structure, scene ownership, routes, data contracts, API calls, D1 schema, permissions, audit semantics, field order and operation handlers remain unchanged.
+- Visual contract: original Endfield-family Level 2 treatment uses cold-white work surfaces, charcoal operational structure, Solar Yellow signal planes, clipped display geometry and short input-safe feedback. It does not use protected game assets, fonts, logos, screenshots, bicycle imagery, fake telemetry or continuous motion.
+- Overview preserves real unresolved-work ordering and business-map areas. Its sales KPI becomes a charcoal decision plane with Solar Yellow action feedback while the existing abstract, self-hosted signal field remains the only visual material source.
+- Pickup preserves source, notification, pickup-date, payment or warranty validation, one-time pickup-code confirmation, completion and current-day archive semantics. Its header, queue folio, ledger, primary action and pickup-code dialog receive the scoped Endfield presentation.
+- Existing focus indicators, 44px controls, dialog focus restoration, forced-colors, reduced-motion, native scrolling and clear entered-value layers remain mandatory.
+- V5.9.2 is the Preview-only candidate after normal PR and CI. It consolidates scoped Endfield CSS to preserve quality-budget margin without changing the visual contract or any operation. Browser Harness is unavailable in this environment, so no browser visual acceptance is claimed. Staging requires separate explicit approval. Production is forbidden.
+
 ## Version governance
 
-- 当前版本：`V5.8.9`。
+- 当前版本：`V5.9.2`。
 - 根 `package.json`、`apps/web/package.json`、`apps/web/src/data/releaseNotes.js` 与 `version-manifest.json` 必须一致。
 - `pnpm version:patch -- ...` 递增 V5 版本并生成当前发布说明。
 - 完成代码与文档后运行 `pnpm version:stamp`；`pnpm build` 先校验版本和源码/部署事实指纹。

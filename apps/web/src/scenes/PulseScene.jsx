@@ -23,7 +23,7 @@ export default function PulseScene({ dateKey, kpi, kpiReady, records, closedAt, 
   const titleAction = <div className="scene-actions"><button type="button" className="text-action" onClick={onHistory}><IconJournal width={16} height={16} aria-hidden="true" />操作记录</button><button type="button" className="text-action" onClick={onEditKpi} disabled={Boolean(closedAt)}>{kpiReady ? '修改数据' : '填写数据'}</button></div>
 
   return (
-    <section className="look-section kpi-look signal-overview signal-overview-prototype" data-signal-module={scene.signalModule} data-workspace-module="true" id={scene.id} data-look={scene.id} aria-labelledby={`${scene.id}-title`}>
+    <section className="look-section kpi-look signal-overview signal-overview-prototype ark-endfield-overview" data-signal-module={scene.signalModule} data-ark-theme="endfield" data-ark-depth="moderate" data-workspace-module="true" id={scene.id} data-look={scene.id} aria-labelledby={`${scene.id}-title`}>
       <SceneTitle scene={scene} note="销售数据是唯一闭店要求。模块面积与顺序按当日待处理业务量动态组织。" action={titleAction} />
       <div className="signal-overview-grid" data-motion="data" role="region" aria-label="当日业务总览">
         <button type="button" className="signal-overview-primary" onClick={onEditKpi} disabled={Boolean(closedAt)} aria-label={salesActionLabel}>
