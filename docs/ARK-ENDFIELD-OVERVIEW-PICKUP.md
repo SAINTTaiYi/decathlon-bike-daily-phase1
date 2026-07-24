@@ -32,3 +32,17 @@
 ## Release boundary
 
 This is a Preview-only visual candidate after local validation, normal PR and CI. Staging requires separate explicit user approval. Production is forbidden.
+
+## Checkpoint 2026-07-24
+
+- Status: implementation verified at Web-test level; release validation in progress.
+- Base: final V5.8.9 source `e262d45502f2ec15a2ff75a2b9dc46f8cc296395`.
+- Branch: `feat/ark-endfield-overview-pickup`.
+- Functional source: `9d2a121f616df88b3864698537eaf60e773a4c3e`.
+- Changed files: `PulseScene.jsx`, `PickupScene.jsx`, scoped Endfield CSS import and stylesheet, focused regression test, and this contract.
+- Invariants: no API, Worker, D1, migration, package, permission, audit, workflow handler, route, field or data-contract changes.
+- Verification: focused Ark regression 4/4 and full Web suite 143/143 passed after using lockfile-identical local dependencies in this isolated worktree.
+- Visual validation: Browser Harness is not available in this environment. No browser visual or interaction acceptance is claimed.
+- Next: run typecheck, Web build, Worker typecheck and bundle, update the final version fingerprint, then create a normal PR. Preview only follows successful CI.
+- Staging: requires separate explicit approval.
+- Production: forbidden.
