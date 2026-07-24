@@ -1,35 +1,14 @@
 /* Workshop Ledger V5.5.1: restrained Swiss product register */
 :root {
-  --void: #141616;
-  --iridium: #3d3c38;
-  --artillery: #746d67;
-  --equilibrium: #a49f9d;
-  --falu-red: #7f1d1a;
-  --ink: var(--void);
-  --ink-soft: var(--iridium);
+  --ink: #0b0b0c;
+  --ink-soft: #303033;
   --paper: #f3f3f0;
   --paper-cool: #dedfd9;
   --surface: #f8f8f6;
   --surface-raised: #ffffff;
-  --line: var(--equilibrium);
-  --line-strong: var(--artillery);
-  --muted: var(--artillery);
-  --accent: var(--falu-red);
-  --critical: var(--falu-red);
-  --success: var(--void);
-  --primary-tint: color-mix(in srgb, var(--falu-red) 11%, var(--surface-raised));
-  --primary-tint-hover: color-mix(in srgb, var(--falu-red) 17%, var(--surface-raised));
-  --primary-border: var(--falu-red);
-  --primary-dark-tint: color-mix(in srgb, var(--falu-red) 48%, var(--void));
-  --primary-dark-border: color-mix(in srgb, var(--falu-red) 42%, var(--equilibrium));
-  --primary-dark-ink: color-mix(in srgb, var(--equilibrium) 78%, var(--surface-raised));
-  --danger-ink: var(--paper);
-  --status-pending-ink: var(--artillery);
-  --status-pending-border: var(--artillery);
-  --status-active-fill: var(--iridium);
-  --status-active-ink: color-mix(in srgb, var(--equilibrium) 76%, var(--surface-raised));
-  --status-complete-fill: var(--equilibrium);
-  --status-complete-ink: var(--void);
+  --line: #d0d1cb;
+  --line-strong: #92938d;
+  --muted: #686862;
   --shadow-tight: 0 8px 22px rgb(11 11 12 / .045);
   --shadow-panel: 0 28px 80px rgb(11 11 12 / .11);
   --page-pad: clamp(.75rem, 2.4vw, 1.25rem);
@@ -480,8 +459,8 @@ button:not(:disabled) { transition-duration: 150ms; }
 }
 .record-ledger[data-dark='true'] .record-actions .record-delete,
 .record-row[data-row-dark='true'] .record-actions .record-delete {
-  border-color: color-mix(in srgb, var(--falu-red) 44%, var(--equilibrium)) !important;
-  color: var(--equilibrium) !important;
+  border-color: color-mix(in srgb, #ffb4a2 55%, #fff) !important;
+  color: #ffb4a2 !important;
 }
 .record-row[data-resolved='true'],
 .record-row[data-error='true'] { margin-inline: 0; padding-inline: .85rem; }
@@ -552,6 +531,9 @@ button:not(:disabled) { transition-duration: 150ms; }
 .footer-identity { min-height: 42px; }
 .footer-utility-actions button { font-size: .72rem; }
 
+.boot-title-half::before { opacity: .2; background-size: 64px 64px; }
+.boot-title-word { font-style: normal; letter-spacing: -.055em; transform: none; }
+.boot-title-seam { box-shadow: none; }
 .boot-login { border-color: rgb(255 255 255 / .65); box-shadow: none; }
 .boot-login-heading > span { letter-spacing: .08em; }
 .boot-login-heading > strong { font-size: 1.65rem; }
@@ -686,7 +668,214 @@ button:not(:disabled) { transition-duration: 150ms; }
   .update-refresh-actions { grid-template-columns: 1fr; }
 }
 
-/* Swipe delete: a contained destructive control owns only its nested horizontal surface; the record article keeps business-state ownership. */
+/* Post-login workspace assembly: depth comes from the existing operational UI, not new theme imagery. */
+.app-runtime { position: relative; min-height: 100dvh; isolation: isolate; }
+.workspace-environment {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 42% at 50% -8%, rgb(255 255 255 / .96), transparent 72%),
+    radial-gradient(ellipse 56% 32% at 100% 42%, rgb(180 187 205 / .14), transparent 78%),
+    var(--paper-cool);
+  will-change: transform, opacity, filter;
+}
+.lookbook-shell { position: relative; z-index: 1; perspective: 1180px; transform-style: preserve-3d; }
+.workspace-pointer-plane { position: relative; transform-style: preserve-3d; }
+.workspace-focus,
+.main-head-image,
+.kpi-sheet,
+.record-row { transform-style: preserve-3d; }
+.workspace-focus {
+  position: relative;
+  z-index: 2;
+  margin-top: 1.4rem;
+  transform-origin: center top;
+  isolation: isolate;
+}
+.workspace-focus .closing-summary { margin-top: 0; }
+.workspace-focus::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border: 1px solid rgb(255 255 255 / .72);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .7), 0 18px 48px rgb(11 11 12 / .045);
+  opacity: .62;
+}
+.main-head-image,
+.kpi-sheet,
+.record-row { transform-origin: center center; }
+.main-head-image::before,
+.kpi-sheet::before,
+.record-row::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border: 1px solid rgb(255 255 255 / .38);
+  opacity: 0;
+  transition: opacity 220ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .main-head-image:hover::before,
+  .kpi-sheet:hover::before,
+  .record-row:hover::before { opacity: 1; }
+  .main-head-image:hover,
+  .kpi-sheet:hover,
+  .record-row:hover { box-shadow: 0 16px 40px rgb(11 11 12 / .08); }
+}
+.workspace-launch-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 145;
+  display: grid;
+  align-content: end;
+  justify-items: end;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  pointer-events: auto;
+  background: linear-gradient(180deg, rgb(243 243 240 / .08), rgb(243 243 240 / .2));
+  will-change: opacity;
+}
+.workspace-launch-overlay button {
+  min-height: 44px;
+  padding: .68rem .82rem;
+  border: 1px solid rgb(11 11 12 / .7);
+  background: rgb(248 248 246 / .9);
+  color: var(--ink);
+  box-shadow: 0 10px 26px rgb(11 11 12 / .1);
+  font-size: .72rem;
+  font-weight: 850;
+}
+.workspace-launch-overlay button small {
+  margin-left: .5rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: .62rem;
+}
+.workspace-launch-overlay button:focus-visible { outline: 3px solid var(--action-blue); outline-offset: 3px; }
+.app-runtime[data-workspace-launching='true'] .lookbook-shell { box-shadow: 0 0 0 1px rgb(11 11 12 / .055), 0 55px 150px rgb(11 11 12 / .1); }
+
+@media (max-width: 639px) {
+  .lookbook-shell { perspective: 760px; }
+  .workspace-focus::after { box-shadow: inset 0 1px 0 rgb(255 255 255 / .62), 0 12px 30px rgb(11 11 12 / .035); }
+  .workspace-launch-overlay { padding: 1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-environment { transform: none !important; filter: none !important; }
+  .workspace-focus::after,
+  .main-head-image::before,
+  .kpi-sheet::before,
+  .record-row::before { transition: none; }
+  .workspace-launch-overlay { background: rgb(243 243 240 / .92); }
+}
+
+
+/* V5.6.2 mobile depth repair: visual layers move, the native scroll surface never does. */
+.app-runtime {
+  overflow-x: clip;
+  touch-action: pan-y;
+}
+.workspace-environment { opacity: .84; }
+.workspace-depth-plane {
+  position: fixed;
+  inset: -18svh -20vw;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+.workspace-depth-plane-far {
+  opacity: .9;
+  background:
+    radial-gradient(ellipse 42% 30% at 12% 15%, rgb(255 255 255 / .95), transparent 72%),
+    radial-gradient(ellipse 38% 28% at 88% 32%, rgb(126 137 158 / .22), transparent 74%),
+    radial-gradient(ellipse 44% 34% at 48% 88%, rgb(255 255 255 / .78), transparent 74%);
+  filter: blur(1px);
+}
+.workspace-depth-plane-near {
+  inset: -8svh -12vw;
+  opacity: .72;
+  background:
+    linear-gradient(112deg, transparent 0 22%, rgb(255 255 255 / .66) 32%, transparent 43%),
+    linear-gradient(292deg, transparent 0 57%, rgb(11 11 12 / .045) 69%, transparent 82%),
+    radial-gradient(ellipse 30% 22% at 68% 64%, rgb(255 255 255 / .9), transparent 78%);
+  mix-blend-mode: screen;
+}
+[data-workspace-layer='navigation'] {
+  transform: translate3d(0, var(--nav-depth-shift, 0px), 0);
+  will-change: transform;
+}
+.look-section[data-depth-section] {
+  position: relative;
+  transform: translate3d(0, var(--depth-shift, 0px), 0);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.workspace-focus[data-depth-card],
+.main-head-image[data-depth-card],
+.kpi-notes[data-depth-card] {
+  transform: translate3d(0, var(--depth-card-shift, 0px), 0);
+  will-change: transform;
+}
+.workspace-focus[data-depth-card]::after {
+  border-color: rgb(255 255 255 / .86);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .82), 0 28px 66px rgb(11 11 12 / .09);
+  opacity: .82;
+}
+.main-head-image[data-depth-card] {
+  box-shadow: 0 24px 62px rgb(11 11 12 / .13);
+}
+.kpi-notes[data-depth-card] {
+  box-shadow: 0 18px 44px rgb(11 11 12 / .08);
+}
+@media (max-width: 639px) {
+  .workspace-environment { opacity: .72; }
+  .workspace-depth-plane-far {
+    inset: -22svh -34vw;
+    opacity: 1;
+    filter: none;
+  }
+  .workspace-depth-plane-near {
+    inset: -12svh -28vw;
+    opacity: .88;
+  }
+  .look-section[data-depth-section] { will-change: transform; }
+  .workspace-focus[data-depth-card]::after { box-shadow: inset 0 1px 0 rgb(255 255 255 / .9), 0 24px 58px rgb(11 11 12 / .1); }
+  .main-head-image[data-depth-card] { box-shadow: 0 22px 56px rgb(11 11 12 / .14); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-depth-plane,
+  [data-workspace-layer='navigation'],
+  .look-section[data-depth-section],
+  .workspace-focus[data-depth-card],
+  .main-head-image[data-depth-card],
+  .kpi-notes[data-depth-card] {
+    transform: none !important;
+    will-change: auto;
+  }
+}
+
+
+/* V5.6.3 premium scroll reveals: complete layout stays present; GSAP owns only compositor-safe depth. */
+.record-ledger[data-reveal-group] { perspective: 1050px; transform-style: preserve-3d; }
+[data-motion='row'],
+[data-motion='data'],
+[data-motion='title'],
+[data-motion='photo'] {
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-motion='row'],
+  [data-motion='data'],
+  [data-motion='title'],
+  [data-motion='photo'] { transform: none !important; opacity: 1 !important; visibility: visible !important; }
+}
+
+/* V5.6.5 swipe delete: a contained destructive control sits in a quiet tray; the record article keeps GSAP reveal/tilt ownership. */
 .ledger-swipe-hint {
   margin: .18rem 0 0;
   color: var(--muted);
@@ -727,7 +916,7 @@ button:not(:disabled) { transition-duration: 150ms; }
   border-radius: .7rem;
   background: color-mix(in srgb, var(--critical) 11%, #fff);
   color: var(--critical);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / .78), 0 5px 12px color-mix(in srgb, var(--falu-red) 10%, transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .78), 0 5px 12px rgb(181 59 24 / .1);
   font-size: .66rem;
   font-weight: 850;
   line-height: 1;
@@ -746,7 +935,7 @@ button:not(:disabled) { transition-duration: 150ms; }
   opacity: var(--swipe-glitch);
   background:
     repeating-linear-gradient(0deg, transparent 0 5px, rgb(255 255 255 / .48) 5px 6px),
-    linear-gradient(90deg, color-mix(in srgb, var(--falu-red) 8%, transparent), transparent 42%, rgb(255 255 255 / .42));
+    linear-gradient(90deg, rgb(181 59 24 / .08), transparent 42%, rgb(255 255 255 / .42));
   mix-blend-mode: screen;
 }
 .record-swipe-frame[data-open='true'] .record-swipe-surface { box-shadow: 12px 0 24px rgb(11 11 12 / .09); }
@@ -755,13 +944,13 @@ button:not(:disabled) { transition-duration: 150ms; }
 .record-actions[data-has-primary='true'] .record-primary-action { flex: 1 1 calc(50% - .15rem) !important; }
 .record-row[data-row-dark='true'] .record-swipe-surface,
 .record-ledger[data-dark='true'] .record-swipe-surface { background: var(--ink); }
-.record-row[data-error='true'] .record-swipe-surface { background: color-mix(in srgb, var(--falu-red) 5.5%, transparent); }
+.record-row[data-error='true'] .record-swipe-surface { background: rgb(181 59 24 / .055); }
 @media (hover: hover) and (pointer: fine) {
   .record-swipe-delete-action:not(:disabled):hover {
     border-color: var(--critical);
     background: var(--critical);
     color: #fff;
-    box-shadow: 0 7px 16px color-mix(in srgb, var(--falu-red) 20%, transparent);
+    box-shadow: 0 7px 16px rgb(181 59 24 / .2);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -872,264 +1061,110 @@ button:not(:disabled) { transition-duration: 150ms; }
   }
 }
 
-/* V5.7.8 foreground palette: existing page and workspace backgrounds are deliberately untouched. */
-.primary-action,
-.ledger-add,
-.identity-switch-action,
-.record-actions .record-primary-action {
-  border: 1px solid var(--primary-border) !important;
-  background: var(--primary-tint) !important;
-  color: var(--falu-red) !important;
+/* V5.7.7 authenticated workspace material: the operational canvas becomes a restrained aged-paper surface without touching login, dialogs, forms, or report export. */
+.app-runtime[data-ready='true'] {
+  --workspace-aged-paper: #EFEEEC;
+  background: var(--workspace-aged-paper);
 }
-.primary-action[data-processing='true'],
-.record-actions .record-primary-action[data-processing='true'] {
-  background: var(--primary-tint-hover) !important;
-  color: var(--falu-red) !important;
+.app-runtime[data-ready='true'] .workspace-environment {
+  opacity: 1;
+  background: var(--workspace-aged-paper);
 }
-.primary-action:disabled,
-.ledger-add:disabled,
-.identity-switch-action:disabled,
-.record-actions .record-primary-action:disabled { opacity: .52; }
-
-/* Business CTAs are tonal red. The only solid red surface is an intentional destructive commitment. */
-.danger-action,
-.record-swipe-delete-action:not(:disabled):hover,
-.record-actions .record-delete:not(:disabled):hover {
-  border-color: var(--falu-red) !important;
-  background: var(--falu-red) !important;
-  color: var(--danger-ink) !important;
+.app-runtime[data-ready='true'] .workspace-depth-plane-far {
+  opacity: .72;
+  background:
+    radial-gradient(ellipse 42% 30% at 12% 15%, rgb(255 255 255 / .54), transparent 72%),
+    radial-gradient(ellipse 38% 28% at 88% 32%, rgb(130 132 130 / .075), transparent 74%),
+    radial-gradient(ellipse 44% 34% at 48% 88%, rgb(255 255 255 / .42), transparent 74%);
 }
-.danger-action { color: var(--danger-ink); }
-.record-actions .record-delete,
-.text-danger-action,
-.attachment-list button { color: var(--falu-red) !important; }
-.record-actions .record-delete { border-color: color-mix(in srgb, var(--falu-red) 58%, var(--artillery)) !important; }
-
-/* Status is communicated by label, fill, outline and an explicit completed checkmark, not hue alone. */
-.record-state,
-.record-badge {
-  border-color: var(--line-strong);
-  color: var(--ink-soft);
-  background: transparent;
+.app-runtime[data-ready='true'] .workspace-depth-plane-near {
+  opacity: .38;
+  background:
+    linear-gradient(112deg, transparent 0 22%, rgb(255 255 255 / .36) 32%, transparent 43%),
+    linear-gradient(292deg, transparent 0 57%, rgb(117 119 117 / .022) 69%, transparent 82%);
+  mix-blend-mode: multiply;
 }
-.record-state[data-tone='pending'],
-.record-badge[data-tone='pending'] {
-  border-color: var(--status-pending-border);
-  color: var(--status-pending-ink);
-  background: transparent;
+.workspace-paper-film,
+.workspace-paper-fibre,
+.workspace-paper-scratches {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
 }
-.record-state[data-tone='active'],
-.record-badge[data-tone='active'] {
-  border-color: var(--status-active-fill);
-  background: var(--status-active-fill);
-  color: var(--status-active-ink);
+.app-runtime[data-ready='true'] .workspace-paper-film {
+  background-image: url('/textures/paper-grain.png');
+  background-repeat: repeat;
+  background-size: 112px 112px;
+  background-blend-mode: multiply;
+  opacity: .045;
 }
-.record-state[data-tone='complete'],
-.record-badge[data-tone='complete'] {
-  border-color: var(--status-complete-fill);
-  background: var(--status-complete-fill);
-  color: var(--status-complete-ink);
+.app-runtime[data-ready='true'] .workspace-paper-fibre {
+  background-image: url('/textures/paper-grain.png');
+  background-repeat: repeat;
+  background-size: 344px 344px;
+  background-position: 37px 61px;
+  background-blend-mode: multiply;
+  opacity: .026;
 }
-.record-state[data-tone='complete'],
-.record-badge[data-tone='complete'] { gap: .24rem; font-weight: 800; }
-.record-state[data-tone='complete'] { display: inline-flex; align-items: center; }
-.record-badge[data-tone='complete'] { display: inline-flex; align-items: center; }
-.record-badge[data-tone='complete'] svg { flex: 0 0 auto; }
-.project-select[data-compact='true'][data-value='pending'] .project-select-trigger {
-  padding: .26rem .42rem;
-  border: 1px solid var(--status-pending-border);
-  border-radius: 999px;
-  color: var(--status-pending-ink);
+.app-runtime[data-ready='true'] .workspace-paper-scratches {
+  background:
+    linear-gradient(106deg, transparent 0 13%, rgb(126 128 126 / .74) 13.08% 13.16%, transparent 13.26% 47%, rgb(126 128 126 / .46) 47.08% 47.14%, transparent 47.24% 100%),
+    linear-gradient(161deg, transparent 0 29%, rgb(126 128 126 / .6) 29.07% 29.13%, transparent 29.22% 72%, rgb(126 128 126 / .38) 72.08% 72.14%, transparent 72.23% 100%),
+    linear-gradient(18deg, transparent 0 61%, rgb(255 255 255 / .7) 61.07% 61.13%, transparent 61.22% 100%);
+  background-size: 643px 487px, 911px 683px, 1187px 829px;
+  background-position: 0 0, 191px 73px, 421px 211px;
+  opacity: .016;
 }
-.project-select[data-compact='true'][data-value='notified'] .project-select-trigger {
-  padding: .26rem .42rem;
-  border: 1px solid var(--status-complete-fill);
-  border-radius: 999px;
-  background: var(--status-complete-fill);
-  color: var(--status-complete-ink);
-}
-.handover-index button[data-complete='true'],
-.dock-status[data-closed='true'] {
-  color: var(--status-complete-ink);
-  background: var(--status-complete-fill);
-}
-.dock-status { border: 1px solid var(--status-pending-border); color: var(--status-pending-ink); }
-.sales-input-summary[data-ready='true'] { border-top-color: var(--status-complete-ink); }
-.closing-confirm-mark { border-color: var(--status-complete-ink); color: var(--status-complete-ink); background: color-mix(in srgb, var(--status-complete-fill) 34%, transparent); }
-.summary-next-complete { color: var(--status-complete-ink); }
-
-/* Dark rows retain a readable tonal-red primary action, never the former white-filled CTA. */
-.record-ledger[data-dark='true'] .ledger-add,
-.record-row[data-row-dark='true'] .record-actions .record-primary-action,
-.record-ledger[data-dark='true'] .record-actions .record-primary-action {
-  border-color: var(--primary-dark-border) !important;
-  background: var(--primary-dark-tint) !important;
-  color: var(--primary-dark-ink) !important;
-}
-.record-row[data-row-dark='true'] .record-actions .record-delete,
-.record-ledger[data-dark='true'] .record-actions .record-delete {
-  border-color: var(--primary-dark-border) !important;
-  color: var(--primary-dark-ink) !important;
-}
-.record-row[data-row-dark='true'] .record-state[data-tone='complete'],
-.record-ledger[data-dark='true'] .record-state[data-tone='complete'],
-.record-row[data-row-dark='true'] .record-badge[data-tone='complete'],
-.record-ledger[data-dark='true'] .record-badge[data-tone='complete'] {
-  border-color: var(--status-complete-fill);
-  background: var(--status-complete-fill);
-  color: var(--status-complete-ink);
+.app-runtime[data-ready='true'] .lookbook-shell {
+  background-color: transparent;
+  background-image: none;
+  box-shadow: 0 0 0 1px rgb(11 11 12 / .055), 0 45px 140px rgb(11 11 12 / .085);
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .primary-action:not(:disabled):hover,
-  .ledger-add:not(:disabled):hover,
-  .identity-switch-action:not(:disabled):hover,
-  .record-actions .record-primary-action:not(:disabled):hover {
-    border-color: var(--falu-red) !important;
-    background: var(--primary-tint-hover) !important;
-    color: var(--falu-red) !important;
-  }
-  .record-row[data-row-dark='true'] .record-actions .record-primary-action:not(:disabled):hover,
-  .record-ledger[data-dark='true'] .record-actions .record-primary-action:not(:disabled):hover,
-  .record-ledger[data-dark='true'] .ledger-add:not(:disabled):hover {
-    border-color: var(--primary-dark-border) !important;
-    background: var(--falu-red) !important;
-    color: var(--danger-ink) !important;
-  }
+/* The distressed type is confined to the live workspace's headings. A solid ink fallback preserves contrast when text clipping is unavailable. */
+.app-runtime[data-ready='true'] .lookbook-shell :is(h1, h2, .title-translation, .look-number, .summary-copy > span, .record-model-block strong, .release-notes summary strong, .report-masthead span) {
+  color: var(--ink);
+  text-shadow: .012em .012em 0 rgb(255 255 255 / .19), -.012em -.008em 0 rgb(11 11 12 / .12);
 }
-
-@media (forced-colors: active) {
-  .record-state,
-  .record-badge,
-  .project-select[data-compact='true'] .project-select-trigger,
-  .primary-action,
-  .ledger-add,
-  .identity-switch-action,
-  .record-actions .record-primary-action,
-  .danger-action,
-  .record-swipe-delete-action {
-    border-color: CanvasText !important;
-    background: Canvas !important;
-    color: CanvasText !important;
-  }
+.app-runtime[data-ready='true'] .head-photo-caption strong {
+  color: #fff;
+  text-shadow: .012em .012em 0 rgb(11 11 12 / .62), -.012em -.008em 0 rgb(255 255 255 / .12);
 }
-
-/* Dark product surfaces use Equilibrium for typography, border lines and inherited symbols. */
-:where(
-  .report-masthead > strong,
-  .release-version-mark,
-  .kpi-primary,
-  .signed-in-user,
-  .footer-identity,
-  .look-dock button[data-active='true'],
-  .record-ledger[data-dark='true'],
-  .record-row[data-row-dark='true']
-) { color: var(--equilibrium); }
-:where(
-  .report-masthead > strong,
-  .release-version-mark,
-  .kpi-primary,
-  .signed-in-user,
-  .footer-identity,
-  .record-ledger[data-dark='true'],
-  .record-row[data-row-dark='true']
-) :is(.record-detail-line, .record-scan-item, .record-copy small, .record-state, .record-badge) { color: var(--equilibrium); }
-
-.record-state[data-tone='pending'],
-.record-badge[data-tone='pending'] {
-  background: color-mix(in srgb, var(--equilibrium) 28%, transparent);
-}
-.record-swipe-delete-action {
-  color: var(--falu-red);
-}
-.record-swipe-delete-action svg { flex: 0 0 auto; }
-
-/* Deep surfaces keep their existing fills but exchange legacy white foregrounds for Equilibrium. */
-.skip-link,
-.boot-sequence,
-.boot-login,
-.report-masthead > strong,
-.release-version-mark,
-.head-photo-caption,
-.project-select-option[data-selected='true'],
-.record-ledger[data-dark='true'],
-.record-row[data-row-dark='true'],
-.kpi-primary,
-.look-dock button[data-active='true'],
-.signed-in-user,
-.footer-identity,
-.status-toast { color: var(--equilibrium); }
-.boot-login-field input { border-bottom-color: var(--equilibrium); color: var(--equilibrium); }
-.boot-login-field input:focus-visible { border-bottom-color: var(--equilibrium); box-shadow: 0 4px 0 -2px var(--equilibrium); }
-.boot-login-field input::placeholder,
-.boot-login-heading > span,
-.boot-login-heading > p,
-.boot-login > small,
-.head-photo-caption > span,
-.head-photo-caption strong small,
-.head-photo-caption em,
-.kpi-primary time,
-.kpi-primary > span,
-.signed-in-user span,
-.footer-identity span { color: color-mix(in srgb, var(--equilibrium) 78%, transparent); }
-.record-ledger[data-dark='true'] .ledger-history,
-.record-row[data-row-dark='true'] .pickup-service-status,
-.record-row[data-row-dark='true'] .pickup-date-callout,
-.record-row[data-row-dark='true'] .project-select[data-compact='true'] .project-select-trigger,
-.record-row[data-row-dark='true'] .record-history-mark,
-.record-row[data-row-dark='true'] .record-actions button,
-.record-row[data-row-dark='true'] .record-actions .record-delete,
-.record-ledger[data-dark='true'] .empty-inline,
-.record-row[data-row-dark='true'] .record-detail-line,
-.record-row[data-row-dark='true'] .record-scan-item,
-.record-row[data-row-dark='true'] .record-copy small,
-.record-row[data-row-dark='true'] .record-state,
-.record-row[data-row-dark='true'] .record-badge { color: var(--equilibrium) !important; }
-.record-ledger[data-dark='true'] .ledger-history,
-.record-row[data-row-dark='true'] .pickup-date-callout,
-.record-row[data-row-dark='true'] .record-history-mark,
-.record-row[data-row-dark='true'] .record-actions button { border-color: color-mix(in srgb, var(--equilibrium) 68%, var(--iridium)) !important; }
-.status-toast[data-tone='error'] { color: var(--danger-ink); }
-
-/* Specificity-safe foreground overrides for established dark modules. */
-.report-masthead > strong,
-.release-version-mark,
-.kpi-primary,
-.signed-in-user,
-.footer-identity,
-.look-dock button[data-active='true'],
-.record-ledger[data-dark='true'],
-.record-row[data-row-dark='true'] { color: var(--equilibrium); }
-.head-photo-caption strong { color: var(--equilibrium); }
-.project-select-option[data-selected='true'],
-.project-select-option[data-selected='true'] strong { color: var(--equilibrium); }
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .app-runtime[data-ready='true'] .lookbook-shell :is(h1, h2, .title-translation, .look-number, .summary-copy > span, .record-model-block strong, .release-notes summary strong, .report-masthead span) {
+    background:
+      linear-gradient(121deg, transparent 0 8%, rgb(239 238 236 / .28) 8.45% 8.9%, transparent 9.35% 31%, rgb(239 238 236 / .18) 31.4% 31.68%, transparent 32.1% 79%, rgb(239 238 236 / .24) 79.35% 79.78%, transparent 80.2% 100%),
+      linear-gradient(23deg, transparent 0 17%, rgb(239 238 236 / .16) 17.3% 17.58%, transparent 17.9% 54%, rgb(239 238 236 / .3) 54.34% 54.72%, transparent 55.05% 100%),
+      linear-gradient(var(--ink), var(--ink));
+    background-size: 131px 89px, 223px 157px, 100% 100%;
+    background-position: 9px 17px, 41px 63px, 0 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
   .app-runtime[data-ready='true'] .head-photo-caption strong {
     background:
-      linear-gradient(121deg, transparent 0 11%, color-mix(in srgb, var(--void) 24%, transparent) 11.35% 11.72%, transparent 12.1% 58%, color-mix(in srgb, var(--void) 18%, transparent) 58.32% 58.62%, transparent 59% 100%),
-      linear-gradient(23deg, transparent 0 39%, color-mix(in srgb, var(--void) 22%, transparent) 39.22% 39.56%, transparent 39.9% 100%),
-      linear-gradient(var(--equilibrium), var(--equilibrium));
+      linear-gradient(121deg, transparent 0 11%, rgb(11 11 12 / .24) 11.35% 11.72%, transparent 12.1% 58%, rgb(11 11 12 / .18) 58.32% 58.62%, transparent 59% 100%),
+      linear-gradient(23deg, transparent 0 39%, rgb(11 11 12 / .22) 39.22% 39.56%, transparent 39.9% 100%),
+      linear-gradient(#fff, #fff);
+    background-size: 151px 101px, 239px 173px, 100% 100%;
+    background-position: 13px 23px, 51px 31px, 0 0;
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 }
-
-/* The contained swipe-delete affordance is intentionally stronger than the tonal-red business CTA. */
-.record-swipe-delete-action {
-  border-color: var(--falu-red);
-  background: var(--falu-red);
-  color: var(--danger-ink);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--equilibrium) 18%, transparent), 0 5px 12px color-mix(in srgb, var(--falu-red) 20%, transparent);
-}
-
-/* Pending labels are small text. Keep the approved Artillery outline, but use Iridium ink to retain WCAG AA on the unchanged aged-paper workspace. */
-.record-state[data-tone='pending'],
-.record-badge[data-tone='pending'] {
-  color: var(--iridium);
-  background: transparent;
-}
-.project-select[data-compact='true'][data-value='pending'] .project-select-trigger {
-  color: var(--iridium);
-  background: transparent;
+@media (forced-colors: active) {
+  .app-runtime[data-ready='true'] .workspace-paper-film,
+  .app-runtime[data-ready='true'] .workspace-paper-fibre,
+  .app-runtime[data-ready='true'] .workspace-paper-scratches { display: none; }
+  .app-runtime[data-ready='true'] .lookbook-shell :is(h1, h2, .title-translation, .look-number, .summary-copy > span, .record-model-block strong, .release-notes summary strong, .report-masthead span),
+  .app-runtime[data-ready='true'] .head-photo-caption strong {
+    background: none;
+    color: CanvasText;
+    -webkit-text-fill-color: CanvasText;
+    text-shadow: none;
+  }
 }

@@ -1,15 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import IconCalendar from '@iconoir/Calendar.mjs'
-import IconCheck from '@iconoir-solid/CheckCircle.mjs'
+import IconCheck from '@iconoir/Check.mjs'
 import IconEdit from '@iconoir/EditPencil.mjs'
 import IconJournal from '@iconoir/Journal.mjs'
 import IconPhone from '@iconoir/Phone.mjs'
 import IconPlus from '@iconoir/Plus.mjs'
-import IconWarning from '@iconoir-solid/WarningTriangle.mjs'
+import IconTrash from '@iconoir/Trash.mjs'
 import ProjectSelect from '../ProjectSelect.jsx'
-import SignalStateMark from './SignalStateMark.jsx'
-import SignalTaskState from '../SignalTaskState.jsx'
 import {
   decodePickupContact,
   inferPickupNotificationStatus,
@@ -30,19 +28,9 @@ const swipeActionWidth = 92
 const interactiveSelector = 'button, input, textarea, select, [contenteditable="true"], [role="combobox"]'
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 
-function statusTone(value) {
-  const label = String(value || '').trim()
-  if (/^(PICKED UP|COMPLETED)$/iu.test(label) || /^(已取车|已完成|维修完成|已售出|已通知)$/u.test(label)) return 'complete'
-  if (/^(PENDING)$/iu.test(label) || /(等待|待上架|待取)/u.test(label)) return 'pending'
-  if (/^(ACTIVE)$/iu.test(label) || /(维修中|等待配件|已开付款单|已开质保单)/u.test(label)) return 'active'
-  return 'neutral'
-}
-
 function Badge({ children }) {
   if (!children) return null
-  const tone = statusTone(children)
-  if (tone === 'neutral') return <span className="record-signal-tag">{children}</span>
-  return <SignalStateMark tone={tone} compact>{children}</SignalStateMark>
+  return <span className="record-badge">{children}</span>
 }
 
 function usePixelGrid(overlayRef, density = 'fine') {
@@ -326,7 +314,6 @@ function SwipeDeleteRecord({ record, disabled, onRemove, children }) {
       tabIndex={0}
       role="group"
       aria-label={`${record.title}，左滑或按左方向键显示删除操作`}
-      aria-keyshortcuts="ArrowLeft ArrowRight Escape"
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -343,7 +330,7 @@ function SwipeDeleteRecord({ record, disabled, onRemove, children }) {
         aria-hidden={!open}
         aria-label={`删除：${record.title}`}
       >
-        <IconWarning width={18} height={18} aria-hidden="true" />
+        <IconTrash width={18} height={18} aria-hidden="true" />
         <span>删除</span>
       </button>
       <div ref={surfaceRef} className="record-swipe-surface">
@@ -359,12 +346,12 @@ export default function RecordLedger({
   onRepairComplete, onPickupNotificationChange, pickupErrors = {},
   primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete,
   repairPixelDissolveId = '', onRepairPixelDissolveComplete,
-  heading = 'ACTIVE LEDGER / 在册台账', dark = false, emphasis = 'normal', showAdd = true, variant = ''
+  heading = 'ACTIVE LEDGER / 在册台账', dark = false, showAdd = true
 }) {
   const hasSwipeDelete = !closedAt && records.some((record) => !record.pickedUpToday && !record.completedToday)
 
   return (
-    <div className="record-ledger signal-record-ledger" data-reveal-group="records" data-dark={dark ? 'true' : undefined} data-emphasis={emphasis !== 'normal' ? emphasis : undefined} data-ledger-variant={variant || undefined} aria-label={`${config.singular}台账，共 ${records.length} 条`}>
+    <div className="record-ledger" data-reveal-group="records" data-dark={dark ? 'true' : undefined} aria-label={`${config.singular}台账，共 ${records.length} 条`}>
       <div className="record-ledger-head">
         <div>
           <span>{heading}</span>
@@ -413,11 +400,8 @@ export default function RecordLedger({
           : repairRecord ? '维修登记' : ''
         const stateLabel = pickedUp ? '已取车' : completedToday ? '已完成' : record.status
         const paymentOrType = repairRecord || repairPickup ? record.repairType : ''
-        const rowDark = resolved
+        const rowDark = dark || resolved
         const englishState = pickedUp ? 'PICKED UP' : completedToday ? 'COMPLETED' : record.scene === 'resale' && record.resaleStage === 'pending' ? 'PENDING' : 'ACTIVE'
-        const stateTone = statusTone(englishState)
-        const businessTone = statusTone(stateLabel)
-        const priorityTone = pickupError ? 'danger' : primaryProcessing ? 'current' : businessTone === 'pending' ? 'pending' : undefined
         const primaryButton = (label, onClick) => (
           <button
             type="button"
@@ -443,8 +427,6 @@ export default function RecordLedger({
                 : record.scene === 'pickup' && !pickedUp
                   ? primaryButton('确认取车', () => onPickup(record))
                   : null
-        const recordTitleId = `record-title-${record.id}`
-        const showRecordActions = variant !== 'glitch-archive' || !resolved
         const actionButtons = (
           <>
             {!resolved ? <button type="button" className="record-edit-action" onClick={() => onEdit(record)} disabled={Boolean(closedAt) || primaryProcessing} aria-label={`编辑：${record.title}`}><IconEdit width={15} height={15} aria-hidden="true" />编辑</button> : null}
@@ -453,13 +435,13 @@ export default function RecordLedger({
         )
 
         const row = (
-          <article className="record-row signal-record-row" data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-priority={priorityTone} data-pickup-pixel-filling={pickupPixelFill ? 'true' : undefined} data-repair-pixel-dissolving={repairPixelDissolve ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row" aria-labelledby={recordTitleId}>
+          <article className="record-row" data-spatial-tilt="true" data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-pickup-pixel-filling={pickupPixelFill ? 'true' : undefined} data-repair-pixel-dissolving={repairPixelDissolve ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row">
             {pickupPixelFill ? <PickupPixelFill recordId={record.id} onComplete={onPickupPixelFillComplete} /> : null}
             {repairPixelDissolve ? <RepairPixelDissolve recordId={record.id} onComplete={onRepairPixelDissolveComplete} /> : null}
             <header className="record-row-head">
-              <button type="button" className="record-history-mark" onClick={() => onHistory(record)} aria-label={`查看“${record.title}”的操作记录`}><IconJournal width={16} height={16} aria-hidden="true" /><span className="record-history-label">查看历史</span></button>
+              <button type="button" className="record-history-mark" onClick={() => onHistory(record)} aria-label={`查看“${record.title}”的操作记录`}><IconJournal width={16} height={16} aria-hidden="true" /></button>
               <div className="record-model-block">
-                <strong id={recordTitleId}>{record.title}</strong>
+                <strong>{record.title}</strong>
                 <span>{ticketNumber}</span>
                 {pickupRecord && !pickedUp ? (
                   <div className="record-notify-line">
@@ -468,7 +450,7 @@ export default function RecordLedger({
                 ) : null}
               </div>
               <div className="record-head-meta" aria-label="来源、支付与状态">
-                <SignalStateMark tone={stateTone}>{englishState}</SignalStateMark>
+                <span className="record-state">{englishState}</span>
                 <div className="record-badge-row">
                   <Badge>{sourceLabel}</Badge>
                   <Badge>{paymentOrType}</Badge>
@@ -502,7 +484,7 @@ export default function RecordLedger({
 
               {pickupError ? <p className="record-inline-error" role="alert">{pickupError}</p> : null}
               {resolved ? <p className="record-resolution-note">{pickedUp ? '本条今日保留，下一业务日自动移除。' : '本条今日保留，下一业务日自动清除。'}</p> : null}
-              {showRecordActions ? <footer className="record-actions" data-has-primary={primaryAction ? 'true' : undefined} aria-label={`${record.title}的操作`}>{actionButtons}</footer> : null}
+              <footer className="record-actions" data-has-primary={primaryAction ? 'true' : undefined}>{actionButtons}</footer>
             </div>
           </article>
         )
@@ -510,7 +492,7 @@ export default function RecordLedger({
         return deletable
           ? <SwipeDeleteRecord key={record.id} record={record} disabled={Boolean(closedAt) || primaryProcessing} onRemove={onRemove}>{row}</SwipeDeleteRecord>
           : <div key={record.id}>{row}</div>
-      }) : <SignalTaskState compact title="当前没有记录" description={showAdd ? `使用“${config.addLabel}”开始录入。` : '当前模块没有需要处理的业务记录。'} />}
+      }) : <p className="empty-inline">当前没有记录。{showAdd ? `使用“${config.addLabel}”开始录入。` : ''}</p>}
     </div>
   )
 }

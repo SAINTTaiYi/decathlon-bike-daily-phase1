@@ -1,39 +1,28 @@
+@font-face {
+  font-family: 'Albert Sans Local';
+  src: url('/fonts/albert-sans-variable.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+}
+
 :root {
   color-scheme: light;
-  /* Foreground palette - page and workspace background tokens intentionally stay unchanged. */
-  --void: #141616;
-  --iridium: #3d3c38;
-  --artillery: #746d67;
-  --equilibrium: #a49f9d;
-  --falu-red: #7f1d1a;
-  --ink: var(--void);
-  --ink-soft: var(--iridium);
+  --ink: #08080a;
+  --ink-soft: #272729;
   --paper: #f4f5f0;
   --paper-cool: #e7e9de;
   --surface: #fbfbfa;
   --surface-raised: #ffffff;
-  --line: var(--equilibrium);
-  --line-strong: var(--artillery);
-  --muted: var(--artillery);
-  --accent: var(--falu-red);
-  --critical: var(--falu-red);
-  --success: var(--void);
-  --primary-tint: color-mix(in srgb, var(--falu-red) 11%, var(--surface-raised));
-  --primary-tint-hover: color-mix(in srgb, var(--falu-red) 17%, var(--surface-raised));
-  --primary-border: var(--falu-red);
-  --primary-dark-tint: color-mix(in srgb, var(--falu-red) 48%, var(--void));
-  --primary-dark-border: color-mix(in srgb, var(--falu-red) 42%, var(--equilibrium));
-  --primary-dark-ink: color-mix(in srgb, var(--equilibrium) 78%, var(--surface-raised));
-  --danger-ink: var(--paper);
-  --status-pending-ink: var(--artillery);
-  --status-pending-border: var(--artillery);
-  --status-active-fill: var(--iridium);
-  --status-active-ink: color-mix(in srgb, var(--equilibrium) 76%, var(--surface-raised));
-  --status-complete-fill: var(--equilibrium);
-  --status-complete-ink: var(--void);
-  --font-body: 'Albert Sans Local', 'Noto Sans SC Variable', system-ui, sans-serif;
-  --font-display: 'Barlow Condensed Local', 'Noto Sans SC Variable', 'Albert Sans Local', system-ui, sans-serif;
-  --font-mono: 'Albert Sans Local', 'Noto Sans SC Variable', ui-monospace, monospace;
+  --line: #c9cbc3;
+  --line-strong: #8b8d86;
+  --muted: #62625e;
+  --accent: #075dff;
+  --critical: #b53b18;
+  --success: #17613c;
+  --font-body: 'Albert Sans Local', 'Noto Serif SC Variable';
+  --font-display: 'Albert Sans Local', 'Noto Serif SC Variable';
+  --font-mono: 'Albert Sans Local', 'Noto Serif SC Variable';
   --shadow-tight: 0 10px 28px rgb(8 8 10 / .055);
   --shadow-panel: 0 28px 72px rgb(8 8 10 / .075);
   --ease-out: cubic-bezier(.16, 1, .3, 1);

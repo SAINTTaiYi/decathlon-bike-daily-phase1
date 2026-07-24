@@ -1,59 +1,57 @@
 import IconJournal from '@iconoir/Journal.mjs'
 import { sceneById } from '../data/lookbookScenes.js'
 import FixedDigits from '../components/lookbook/FixedDigits.jsx'
-import MainHeadImage from '../components/lookbook/MainHeadImage.jsx'
 import { SceneTitle } from '../components/lookbook/LookbookPrimitives.jsx'
 
-const overviewModules = ['pickup', 'poster', 'repair', 'resale', 'sales']
+const indexConfig = [
+  ['pickup', 'PICKUP', '待取车辆'],
+  ['poster', 'OTHER', '其它交接'],
+  ['repair', 'REPAIR', '维修交接'],
+  ['resale', 'USED', '二手车台账'],
+  ['sales', 'SALES', '销售数据']
+]
 
 export default function PulseScene({ dateKey, kpi, kpiReady, records, closedAt, onJump, onEditKpi, onHistory }) {
   const scene = sceneById('pulse')
-  const overviewEntries = overviewModules
-    .map((sceneId, sourceIndex) => {
-      const module = sceneById(sceneId)
-      const count = sceneId === 'sales'
-        ? Number(kpiReady)
-        : records.filter((record) => record.scene === sceneId && !record.completedToday && !record.pickedUpToday).length
-      const priorityScore = sceneId === 'sales' && !kpiReady ? 10000 : (count * 100) - sourceIndex
-      return { sceneId, module, count, priorityScore }
-    })
-    .sort((left, right) => right.priorityScore - left.priorityScore)
-  const salesStatus = kpiReady ? '销售数据已保存，可以闭店' : '等待填写销售数据'
-  const salesActionLabel = `${kpiReady ? '修改' : '填写'}当日销售数据。销售车辆 ${kpi.salesVehicles}。${salesStatus}`
-  const titleAction = <div className="scene-actions"><button type="button" className="text-action" onClick={onHistory}><IconJournal width={16} height={16} aria-hidden="true" />操作记录</button><button type="button" className="text-action" onClick={onEditKpi} disabled={Boolean(closedAt)}>{kpiReady ? '修改数据' : '填写数据'}</button></div>
+  const kpiRows = [
+    ['安全检查开单', kpi.safetyChecks, kpi.safetyModel ? `MODEL · ${kpi.safetyModel}` : 'MODEL · 未填写'],
+    ['顾客有效评价', kpi.validReviews, 'VALID REVIEWS'],
+    ['销售二手车', kpi.usedSold, 'USED SOLD'],
+    ['收二手车', kpi.usedReceived, 'USED RECEIVED']
+  ]
+  const titleAction = <div className="scene-actions"><button type="button" className="text-action" onClick={onHistory}><IconJournal width={18} height={18} aria-hidden="true" />操作记录</button><button type="button" className="text-action" onClick={onEditKpi} disabled={Boolean(closedAt)}>{kpiReady ? '修改数据' : '填写数据'}</button></div>
 
   return (
-    <section className="look-section kpi-look signal-overview signal-overview-prototype ark-endfield-overview" data-signal-module={scene.signalModule} data-ark-theme="endfield" data-ark-depth="moderate" data-workspace-module="true" id={scene.id} data-look={scene.id} aria-labelledby={`${scene.id}-title`}>
-      <SceneTitle scene={scene} note="销售数据是唯一闭店要求。模块面积与顺序按当日待处理业务量动态组织。" action={titleAction} />
-      <div className="signal-overview-grid" data-motion="data" role="region" aria-label="当日业务总览">
-        <button type="button" className="signal-overview-primary" onClick={onEditKpi} disabled={Boolean(closedAt)} aria-label={salesActionLabel}>
-          <span>CORE KPI / SALES VEHICLES</span>
+    <section className="look-section kpi-look" data-workspace-module="true" data-depth-section={scene.id} id={scene.id} data-look={scene.id} aria-labelledby={`${scene.id}-title`}>
+      <SceneTitle scene={scene} note="销售数据是唯一闭店要求。维修、待取、二手车和其它交接只在实际变化时编辑，未操作事项会跨日延续。" action={titleAction} />
+      <div className="kpi-sheet" data-motion="data" data-spatial-tilt="true" aria-label="当日 workshop KPI">
+        <button type="button" className="kpi-primary" onClick={onEditKpi} disabled={Boolean(closedAt)} aria-label="填写或修改当日销售数据">
           <time dateTime={dateKey}>{dateKey.replaceAll('-', ' / ')}</time>
-          <strong data-glitch-motion data-glitch-scan><FixedDigits value={kpi.salesVehicles} /></strong>
-          <p>{salesStatus}</p>
+          <span>SALES VEHICLES</span>
+          <strong><FixedDigits value={kpi.salesVehicles} /></strong>
+          <p>销售车辆 · {kpiReady ? '今日已保存' : '等待人工填写'}</p>
         </button>
-        <MainHeadImage />
-        <dl className="signal-overview-metrics" aria-label="当日业务辅助指标">
-          <div><dt>安全检查</dt><dd><FixedDigits value={kpi.safetyChecks} /></dd><small>{kpi.safetyModel || 'MODEL 未填写'}</small></div>
-          <div><dt>有效评价</dt><dd><FixedDigits value={kpi.validReviews} /></dd><small>VALID REVIEWS</small></div>
-          <div><dt>二手售出</dt><dd><FixedDigits value={kpi.usedSold} /></dd><small>USED SOLD</small></div>
-          <div><dt>收二手车</dt><dd><FixedDigits value={kpi.usedReceived} /></dd><small>USED RECEIVED</small></div>
+        <dl className="kpi-notes" data-depth-card="true">
+          {kpiRows.map(([label, value, meta], index) => (
+            <div key={label}><span><FixedDigits value={index + 1} /></span><dt>{label}</dt><dd><FixedDigits value={value} /></dd><small>{meta}</small></div>
+          ))}
         </dl>
       </div>
-      <nav className="signal-business-map" aria-label="业务模块地图" data-motion="data">
-        <div className="signal-business-map-head"><span>BUSINESS MAP / 业务地图</span><strong>{kpiReady ? 'CLOSE READY' : 'SALES DUE'}</strong></div>
+      <nav className="handover-index" aria-label="业务台账模块" data-motion="data">
+        <div className="handover-index-head"><span>OPERATIONS INDEX · 业务台账</span><strong>{kpiReady ? '可闭店' : '销售数据待填写'}</strong></div>
         <ol>
-          {overviewEntries.map(({ sceneId, module, count }, index) => (
-            <li key={sceneId} data-business-scene={sceneId} data-business-rank={index + 1}>
-              <button type="button" data-signal-module={module.signalModule} data-business-module={module.signalModule} data-ready={sceneId === 'sales' && kpiReady ? 'true' : undefined} onClick={() => onJump(sceneId)}>
-                <span className="signal-business-map-no">{module.no}</span>
-                <span className="signal-business-map-code">{module.label}</span>
-                <span className="signal-business-map-copy"><strong>{module.title}</strong><small>{module.cn}</small></span>
-                <em aria-label={sceneId === 'sales' ? (kpiReady ? '销售数据已保存，可以闭店' : '需要填写销售数据') : `${module.cn}当前 ${count} 条记录`}>{sceneId === 'sales' ? (kpiReady ? 'READY' : 'DUE') : `${count} 条`}</em>
-                <i className="signal-business-map-trace" aria-hidden="true" />
-              </button>
-            </li>
-          ))}
+          {indexConfig.map(([sceneId, en, cn], index) => {
+            const count = sceneId === 'sales' ? Number(kpiReady) : records.filter((record) => record.scene === sceneId).length
+            return (
+              <li key={sceneId}>
+                <button type="button" data-complete={sceneId === 'sales' && kpiReady ? 'true' : undefined} onClick={() => onJump(sceneId)}>
+                  <span className="handover-index-no"><FixedDigits value={index + 2} /></span>
+                  <span className="handover-index-copy"><strong>{en}</strong><small>{cn}{sceneId === 'sales' ? ' · 唯一闭店要求' : ' · 跨日保留'}</small></span>
+                  <em>{sceneId === 'sales' ? (kpiReady ? 'READY' : 'DUE') : `${count} 条`}</em>
+                </button>
+              </li>
+            )
+          })}
         </ol>
       </nav>
     </section>

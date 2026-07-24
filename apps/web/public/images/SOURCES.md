@@ -1,5 +1,11 @@
 # Image Sources
 
-The authenticated Overview does not ship or render figurative hero photography. V5.8.7 replaced the previous bicycle-derived responsive image set with an original CSS/HTML abstract signal field and removed the legacy public derivatives from the deployment package.
+## `workshop-head-*.webp`
 
-User-uploaded business attachments remain private source media. Their small dialog thumbnails receive a module-scoped, static duotone/halftone preview only; the full signed image opens without destructive transformation.
+- Source: Unsplash photo “A man working on a bicycle in a bike shop” by Anton Savinov.
+- URL: https://unsplash.com/photos/a-man-working-on-a-bicycle-in-a-bike-shop-O0rn0jsMJ6c
+- Downloaded derivative: `https://images.unsplash.com/photo-1673870861514-8c72efb696f3?...`
+- Local variants: 480w, 800w, 1200w WebP crops for the Decathlon Bike Ops head image.
+- Treatment: grayscale / high-contrast editorial crop in CSS; source photo content is not used as Decathlon-owned photography.
+
+Repair and resale modules intentionally use continuous handover tickets and do not ship vehicle image assets.

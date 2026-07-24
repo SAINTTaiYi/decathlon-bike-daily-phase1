@@ -16,13 +16,11 @@ export const initialRecords = []
 
 export const sceneRecordConfig = {
   pickup: {
-    signalModule: 'pickup',
     singular: '待取车辆',
     addLabel: '增加待取车辆',
     formKind: 'pickup'
   },
   poster: {
-    signalModule: 'other',
     singular: '交接事项',
     addLabel: '增加交接事项',
     titleLabel: '事项名称',
@@ -32,13 +30,11 @@ export const sceneRecordConfig = {
     statusPlaceholder: '例如：继续跟进 / 等待顾客 / 已处理'
   },
   repair: {
-    signalModule: 'repair',
     singular: '维修车辆',
     addLabel: '增加维修车辆',
     formKind: 'repair'
   },
   resale: {
-    signalModule: 'resale',
     singular: '待上架二手车',
     addLabel: '增加待上架二手车',
     titleLabel: '车辆型号',

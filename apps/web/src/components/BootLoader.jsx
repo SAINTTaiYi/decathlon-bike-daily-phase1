@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { normalizeLoginUsername, USERNAME_MAX_LENGTH } from '../data/userSession.js'
-import { SignalAccessBrand, SignalAccessHeading } from './SignalAccessFrame.jsx'
 
 export default function BootLoader({ onLogin, onComplete }) {
   const [username, setUsername] = useState('')
@@ -10,7 +9,11 @@ export default function BootLoader({ onLogin, onComplete }) {
   const [submitting, setSubmitting] = useState(false)
   const [hidden, setHidden] = useState(false)
   const rootRef = useRef(null)
-  const brandRef = useRef(null)
+  const topHalfRef = useRef(null)
+  const bottomHalfRef = useRef(null)
+  const decathlonRef = useRef(null)
+  const bikeOpsRef = useRef(null)
+  const seamRef = useRef(null)
   const loginRef = useRef(null)
   const inputRef = useRef(null)
   const introTlRef = useRef(null)
@@ -43,21 +46,26 @@ export default function BootLoader({ onLogin, onComplete }) {
     introTlRef.current?.kill()
     exitTlRef.current?.kill()
 
-    const nodes = [rootRef.current, brandRef.current, loginRef.current]
+    const nodes = [rootRef.current, topHalfRef.current, bottomHalfRef.current, decathlonRef.current, bikeOpsRef.current, seamRef.current, loginRef.current]
     if (reduceMotionRef.current || nodes.some((node) => !node)) {
-      completeLogin()
+      completeLogin(actorName)
       return
     }
 
     exitTlRef.current = gsap.timeline({
-      defaults: { ease: 'power4.inOut' },
-      onComplete: completeLogin
+      defaults: { ease: 'expo.inOut' },
+      onComplete: () => completeLogin(actorName)
     })
     exitTlRef.current
       .set(rootRef.current, { pointerEvents: 'none' }, 0)
-      .to(brandRef.current, { autoAlpha: 0, x: -36, duration: 0.32 }, 0)
-      .to(loginRef.current, { autoAlpha: 0, x: 36, duration: 0.32 }, 0)
-      .to(rootRef.current, { autoAlpha: 0, duration: 0.14, ease: 'power2.out' }, 0.26)
+      .to(loginRef.current, { autoAlpha: 0, y: 18, filter: 'blur(8px)', duration: 0.36, ease: 'power3.out' }, 0)
+      .to(seamRef.current, { autoAlpha: 1, scaleY: 1, duration: 0.18, ease: 'power3.out' }, 0.05)
+      .to(decathlonRef.current, { yPercent: -118, filter: 'blur(6px)', duration: 0.68 }, 0.08)
+      .to(bikeOpsRef.current, { yPercent: 118, filter: 'blur(6px)', duration: 0.68 }, 0.08)
+      .to(topHalfRef.current, { yPercent: -104, duration: 0.74 }, 0.1)
+      .to(bottomHalfRef.current, { yPercent: 104, duration: 0.74 }, 0.1)
+      .to(seamRef.current, { autoAlpha: 0, scaleY: 2.4, duration: 0.32, ease: 'power4.out' }, 0.34)
+      .to(rootRef.current, { autoAlpha: 0, duration: 0.16, ease: 'power2.out' }, 0.72)
   }
 
   useEffect(() => {
@@ -68,13 +76,15 @@ export default function BootLoader({ onLogin, onComplete }) {
 
     const ctx = gsap.context(() => {
       if (reduceMotionRef.current) return
-      introTlRef.current = gsap.timeline({ defaults: { ease: 'power4.out' } })
+      introTlRef.current = gsap.timeline({ defaults: { ease: 'expo.out' } })
       introTlRef.current
-        .fromTo(brandRef.current, { autoAlpha: 0, x: -28 }, { autoAlpha: 1, x: 0, duration: 0.42 }, 0.06)
-        .fromTo(loginRef.current, { autoAlpha: 0, x: 28 }, { autoAlpha: 1, x: 0, duration: 0.42 }, 0.12)
+        .fromTo(decathlonRef.current, { autoAlpha: 0, yPercent: 20, filter: 'blur(20px)' }, { autoAlpha: 1, yPercent: 0, filter: 'blur(0px)', duration: 0.86 }, 0)
+        .fromTo(bikeOpsRef.current, { autoAlpha: 0, yPercent: -20, filter: 'blur(20px)' }, { autoAlpha: 1, yPercent: 0, filter: 'blur(0px)', duration: 0.86 }, 0.08)
+        .fromTo(seamRef.current, { autoAlpha: 0, scaleX: 0.12 }, { autoAlpha: 0.3, scaleX: 1, duration: 0.64, ease: 'power4.out' }, 0.42)
+        .fromTo(loginRef.current, { autoAlpha: 0, y: 18, filter: 'blur(10px)' }, { autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: 0.65 }, 0.48)
     }, rootRef)
 
-    const focusTimer = window.setTimeout(() => inputRef.current?.focus(), reduceMotionRef.current ? 0 : 480)
+    const focusTimer = window.setTimeout(() => inputRef.current?.focus(), reduceMotionRef.current ? 0 : 750)
     return () => {
       window.clearTimeout(focusTimer)
       introTlRef.current?.kill()
@@ -93,22 +103,28 @@ export default function BootLoader({ onLogin, onComplete }) {
   return (
     <section
       ref={rootRef}
-      className="signal-access-shell signal-access-login"
+      className="boot-sequence boot-title-split"
       role="dialog"
       aria-modal="true"
       aria-labelledby="login-title"
       aria-describedby="login-description"
     >
-      <div ref={brandRef} className="signal-access-brand-slot"><SignalAccessBrand mode="access" /></div>
-      <form ref={loginRef} className="signal-access-panel signal-access-form" onSubmit={submitLogin} noValidate>
-        <SignalAccessHeading
-          eyebrow="SECURE ACCOUNT / 数据库账号"
-          title="登录工作台"
-          description="使用管理员创建的账号登录。后续修改同步到数据库，并以当前账号写入审计记录。"
-          titleId="login-title"
-          descriptionId="login-description"
-        />
-        <label className="signal-access-field">
+      <div ref={topHalfRef} className="boot-title-half boot-title-half-top" aria-hidden="true" />
+      <div ref={bottomHalfRef} className="boot-title-half boot-title-half-bottom" aria-hidden="true" />
+      <div ref={seamRef} className="boot-title-seam" aria-hidden="true" />
+
+      <div className="boot-title-lockup" aria-hidden="true">
+        <strong ref={decathlonRef} className="boot-title-word boot-title-word-decathlon">DECATHLON</strong>
+        <strong ref={bikeOpsRef} className="boot-title-word boot-title-word-bikeops">BIKE OPS</strong>
+      </div>
+
+      <form ref={loginRef} className="boot-login" onSubmit={submitLogin} noValidate>
+        <div className="boot-login-heading">
+          <span>SECURE ACCOUNT · 数据库账号</span>
+          <strong id="login-title">登录工作台</strong>
+          <p id="login-description">使用管理员创建的账号登录。后续修改会同步到数据库，并以当前账号写入审计记录。</p>
+        </div>
+        <label className="boot-login-field">
           <span>用户名</span>
           <input
             ref={inputRef}
@@ -127,7 +143,7 @@ export default function BootLoader({ onLogin, onComplete }) {
             placeholder="例如：小王"
           />
         </label>
-        <label className="signal-access-field">
+        <label className="boot-login-field">
           <span>密码</span>
           <input
             type="password"
@@ -144,9 +160,9 @@ export default function BootLoader({ onLogin, onComplete }) {
             aria-invalid={Boolean(error)}
           />
         </label>
-        {error ? <p className="signal-access-error" id="login-error" role="alert">{error}</p> : null}
-        <button type="submit" className="signal-access-submit" disabled={submitting}>{submitting ? '正在验证…' : '登录并进入'}</button>
-        <small id="login-privacy">账号由管理员创建。密码不会写入浏览器存储或操作日志。</small>
+        {error ? <p className="boot-login-error" id="login-error" role="alert">{error}</p> : null}
+        <button type="submit" className="boot-login-submit" disabled={submitting}>{submitting ? '正在验证…' : '登录并进入'}</button>
+        <small id="login-privacy">账号由管理员创建；密码不会写入浏览器存储或操作日志。</small>
       </form>
     </section>
   )

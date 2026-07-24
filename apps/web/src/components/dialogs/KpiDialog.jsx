@@ -46,7 +46,7 @@ export default function KpiDialog({ open, onClose, values, savedAt, onSave, onCl
   }
 
   return (
-    <AppDialog open={open} onClose={onClose} title="填写当日销售数据" eyebrow="DAILY INPUT · 人工录入" description="请按当天实际情况填写；数字可以为 0。保存成功后同步至数据库，并满足唯一闭店要求。" className="data-dialog" signalModule="sales" registration="SALES / INPUT">
+    <AppDialog open={open} onClose={onClose} title="填写当日销售数据" eyebrow="DAILY INPUT · 人工录入" description="请按当天实际情况填写；数字可以为 0。保存成功后同步至数据库，并满足唯一闭店要求。" className="data-dialog">
       <form className="data-form" onSubmit={submit}>
         <div className="metric-input-grid">
           {fields.map(([name, label, unit]) => (
