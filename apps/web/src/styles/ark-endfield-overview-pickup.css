@@ -64,15 +64,6 @@
 .app-dialog.data-dialog[data-signal-module='pickup'] .dialog-panel { border: 2px solid var(--ark-ink); background: var(--ark-field); }
 .app-dialog.data-dialog[data-signal-module='pickup'] .dialog-header { position: relative; overflow: hidden; border-bottom: 2px solid var(--ark-ink); background: var(--ark-charcoal); color: var(--ark-field); }
 .app-dialog.data-dialog[data-signal-module='pickup'] .dialog-header::after { content: ''; position: absolute; right: 0; bottom: 0; width: 42%; height: .45rem; background: var(--ark-signal); }
-.app-dialog.data-dialog[data-signal-module='pickup'] :is(.dialog-description, .dialog-content, .data-form, .field-row, .field-help, .form-error, input, textarea, select, .project-select-trigger) { color: var(--ark-ink); text-shadow: none; }
 
 @media (max-width: 720px) { .ark-endfield-pickup .pickup-folio { grid-template-columns: 1fr; } .ark-endfield-pickup .pickup-folio strong { text-align: left; } }
-@media (prefers-reduced-motion: reduce) { .ark-endfield-overview *, .ark-endfield-pickup * { transition-duration: 0ms !important; } }
-@media (forced-colors: active) {
-  .ark-endfield-overview :is(.scene-title, .signal-overview-grid, .signal-overview-primary, .signal-business-map button),
-  .ark-endfield-pickup :is(.signal-module-header, .signal-record-ledger, .signal-record-row),
-  .app-dialog.data-dialog[data-signal-module='pickup'] :is(.dialog-panel, .dialog-header) { border-color: CanvasText; background: Canvas; color: CanvasText; }
-  .ark-endfield-overview :is(.scene-title::before, .signal-overview-primary::before, .signal-business-map button::before),
-  .ark-endfield-pickup .signal-module-header::before,
-  .app-dialog.data-dialog[data-signal-module='pickup'] .dialog-header::after { display: none; }
-}
+@media (forced-colors: active) { .ark-endfield-pickup .pickup-folio { background: Canvas !important; color: CanvasText; } }
