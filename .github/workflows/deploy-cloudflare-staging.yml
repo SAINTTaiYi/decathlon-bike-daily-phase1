@@ -92,6 +92,8 @@ jobs:
         run: node scripts/ops/network-guard.mjs npm/pnpm corepack prepare pnpm@9.15.9 --activate
       - name: Install frozen dependencies
         run: node scripts/ops/network-guard.mjs npm/pnpm pnpm install --frozen-lockfile
+      - name: Record Preview source fingerprint without changing public version
+        run: pnpm version:preview
       - name: Validate, test, typecheck, and build before Cloudflare deployment
         run: pnpm check:workflows && pnpm test && pnpm typecheck && pnpm build
       - name: Generate minified Worker bundle from the validated source
