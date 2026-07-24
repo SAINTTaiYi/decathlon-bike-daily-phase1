@@ -1,15 +1,12 @@
-/* Original Endfield Level 2 layer: authenticated Overview and Pickup only. */
+/* Original Endfield Level 2: authenticated Overview and Pickup only. */
 
 [data-ark-theme='endfield'][data-ark-depth='moderate'] {
   --ark-field: #f7faf8;
   --ark-ink: #18201e;
   --ark-charcoal: #2c3431;
-  --ark-endfield-signal: var(--sg-p-module-pickup);
+  --ark-signal: var(--sg-p-module-pickup);
   --ark-quiet: color-mix(in srgb, var(--sg-p-module-pickup) 18%, var(--ark-field));
 }
-
-.ark-endfield-overview,
-.ark-endfield-pickup { isolation: isolate; }
 
 .ark-endfield-overview .scene-title,
 .ark-endfield-pickup .signal-module-header {
@@ -29,57 +26,48 @@
   right: .65rem;
   width: min(28%, 13rem);
   height: .8rem;
-  background: var(--ark-endfield-signal);
+  background: var(--ark-signal);
   clip-path: polygon(0 0, 100% 0, calc(100% - .8rem) 100%, 0 100%);
 }
 
 .ark-endfield-overview :is(.scene-title h2, .title-translation, .scene-note),
 .ark-endfield-pickup .signal-module-header :is(h2, .title-translation, .scene-note, .look-number span) { color: var(--ark-ink); text-shadow: none; }
-
 .ark-endfield-overview .look-number strong,
-.ark-endfield-pickup .look-number strong { border-color: var(--ark-ink); background: var(--ark-charcoal); color: var(--ark-endfield-signal); }
+.ark-endfield-pickup .look-number strong { border-color: var(--ark-ink); background: var(--ark-charcoal); color: var(--ark-signal); }
 
 .ark-endfield-overview .scene-actions .text-action { border-color: var(--ark-ink); background: var(--ark-field); color: var(--ark-ink); }
 .ark-endfield-overview .scene-actions .text-action:last-child,
-.ark-endfield-pickup :is(.ledger-add, .record-primary-action) { background: var(--ark-endfield-signal) !important; color: var(--ark-ink) !important; }
+.ark-endfield-pickup :is(.ledger-add, .record-primary-action),
+.app-dialog.data-dialog[data-signal-module='pickup'] .primary-action { background: var(--ark-signal) !important; color: var(--ark-ink) !important; }
 
 .ark-endfield-overview .signal-overview-grid { border: 2px solid var(--ark-ink); background: var(--ark-ink); }
 .ark-endfield-overview .signal-overview-primary { min-height: 19rem; background: var(--ark-charcoal); color: var(--ark-field); }
-.ark-endfield-overview .signal-overview-primary::before { inset: auto 0 0; height: 34%; background: var(--ark-endfield-signal); clip-path: polygon(0 38%, 68% 0, 100% 31%, 100% 100%, 0 100%); filter: none; opacity: 1; }
+.ark-endfield-overview .signal-overview-primary::before { inset: auto 0 0; height: 34%; background: var(--ark-signal); clip-path: polygon(0 38%, 68% 0, 100% 31%, 100% 100%, 0 100%); filter: none; opacity: 1; }
 .ark-endfield-overview .signal-overview-primary :is(strong, p) { color: var(--ark-field); text-shadow: none; }
-.ark-endfield-overview .signal-overview-primary p { padding: .2rem .45rem; background: var(--ark-endfield-signal); color: var(--ark-ink); }
-
-.ark-endfield-overview :is(.signal-glitch-field, .signal-glitch-caption, .signal-glitch-canvas, .signal-overview-metrics, .signal-overview-metrics > div, .signal-business-map li, .signal-business-map button) { background-color: var(--ark-field); color: var(--ark-ink); }
-.ark-endfield-overview :is(.signal-glitch-fragment, .signal-glitch-cross, .signal-glitch-scanline, .signal-glitch-caption::before, .signal-overview-metrics > div::after, .signal-business-map-trace) { background: var(--ark-endfield-signal); color: var(--ark-ink); box-shadow: none; }
+.ark-endfield-overview .signal-overview-primary p { padding: .2rem .45rem; background: var(--ark-signal); color: var(--ark-ink); }
 .ark-endfield-overview .signal-business-map-head,
 .ark-endfield-overview .signal-business-map li[data-business-rank='1'] button { background: var(--ark-charcoal); color: var(--ark-field); }
-.ark-endfield-overview .signal-business-map-head strong { background: var(--ark-endfield-signal); color: var(--ark-ink); }
+.ark-endfield-overview .signal-business-map-head strong,
+.ark-endfield-overview .signal-business-map-trace { background: var(--ark-signal); color: var(--ark-ink); }
 .ark-endfield-overview .signal-business-map ol { background: var(--ark-ink); }
 .ark-endfield-overview .signal-business-map button::before { background: var(--ark-quiet); clip-path: polygon(23% 0, 100% 0, 100% 100%, 0 100%, 0 54%); opacity: 1; }
 
 .ark-endfield-pickup { margin-top: clamp(2.5rem, 7vw, 4.5rem); }
 .ark-endfield-pickup .signal-module-header { clip-path: polygon(0 0, calc(100% - 1.4rem) 0, 100% 1.4rem, 100% 100%, 0 100%); }
-.ark-endfield-pickup .signal-module-metrics,
-.ark-endfield-pickup .pickup-folio,
-.ark-endfield-pickup .record-ledger-head { background: var(--ark-charcoal) !important; color: var(--ark-field); }
-.ark-endfield-pickup .signal-module-metrics > div,
-.ark-endfield-pickup .signal-record-row { background: var(--ark-field); color: var(--ark-ink); }
+.ark-endfield-pickup :is(.signal-module-metrics, .pickup-folio, .record-ledger-head) { background: var(--ark-charcoal) !important; color: var(--ark-field); }
 .ark-endfield-pickup .pickup-folio { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; padding: .7rem .8rem; border: 2px solid var(--ark-ink); border-top: 0; }
-.ark-endfield-pickup .pickup-folio span,
-.ark-endfield-pickup .record-ledger-head > strong,
-.ark-endfield-pickup .record-model-block span { color: var(--ark-endfield-signal); }
+.ark-endfield-pickup :is(.pickup-folio span, .record-ledger-head > strong, .record-model-block span) { color: var(--ark-signal); }
 .ark-endfield-pickup .pickup-folio strong { text-align: right; }
 .ark-endfield-pickup .signal-record-ledger { border: 2px solid var(--ark-ink); background: var(--ark-field); }
 .ark-endfield-pickup .signal-record-row[data-priority='pending'] { background: var(--ark-quiet); }
-.ark-endfield-pickup .signal-record-row[data-priority='current'] { background: var(--ark-endfield-signal); color: var(--ark-ink); }
+.ark-endfield-pickup .signal-record-row[data-priority='current'] { background: var(--ark-signal); color: var(--ark-ink); }
 .ark-endfield-pickup .signal-record-row[data-resolved='true'] { background: var(--ark-charcoal); color: var(--ark-field); }
 
 .app-dialog.data-dialog[data-signal-module='pickup'] .dialog-panel { border: 2px solid var(--ark-ink); background: var(--ark-field); }
 .app-dialog.data-dialog[data-signal-module='pickup'] .dialog-header { position: relative; overflow: hidden; border-bottom: 2px solid var(--ark-ink); background: var(--ark-charcoal); color: var(--ark-field); }
-.app-dialog.data-dialog[data-signal-module='pickup'] .dialog-header::after { content: ''; position: absolute; right: 0; bottom: 0; width: 42%; height: .45rem; background: var(--ark-endfield-signal); }
+.app-dialog.data-dialog[data-signal-module='pickup'] .dialog-header::after { content: ''; position: absolute; right: 0; bottom: 0; width: 42%; height: .45rem; background: var(--ark-signal); }
 .app-dialog.data-dialog[data-signal-module='pickup'] :is(.dialog-description, .dialog-content, .data-form, .field-row, .field-help, .form-error, input, textarea, select, .project-select-trigger) { color: var(--ark-ink); text-shadow: none; }
 .app-dialog.data-dialog[data-signal-module='pickup'] :is(input, textarea, select, .project-select-trigger) { border-color: var(--ark-ink); background: var(--sg-p-color-surface); }
-.app-dialog.data-dialog[data-signal-module='pickup'] .primary-action { background: var(--ark-endfield-signal) !important; color: var(--ark-ink) !important; }
 
 @media (max-width: 720px) {
   .ark-endfield-overview .scene-title,
@@ -88,12 +76,7 @@
   .ark-endfield-pickup .pickup-folio strong { text-align: left; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .ark-endfield-overview *,
-  .ark-endfield-pickup *,
-  .app-dialog.data-dialog[data-signal-module='pickup'] * { transition-duration: 0ms !important; }
-}
-
+@media (prefers-reduced-motion: reduce) { .ark-endfield-overview *, .ark-endfield-pickup * { transition-duration: 0ms !important; } }
 @media (forced-colors: active) {
   .ark-endfield-overview :is(.scene-title, .signal-overview-grid, .signal-overview-primary, .signal-business-map button),
   .ark-endfield-pickup :is(.signal-module-header, .signal-record-ledger, .signal-record-row),
