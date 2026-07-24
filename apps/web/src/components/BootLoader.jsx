@@ -104,6 +104,8 @@ export default function BootLoader({ onLogin, onComplete }) {
     <section
       ref={rootRef}
       className="boot-sequence boot-title-split"
+      data-ark-theme="endfield"
+      data-ark-depth="maximal"
       role="dialog"
       aria-modal="true"
       aria-labelledby="login-title"

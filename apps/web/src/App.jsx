@@ -455,7 +455,7 @@ export default function App() {
     <>
       {showBoot ? <BootLoader onLogin={auth.login} onComplete={() => setLoginAnimationDone(true)} /> : null}
       {introDone ? <a className="skip-link" href="#closing-summary">跳到闭店摘要</a> : null}
-      <div ref={workspaceRootRef} className="app-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
+      <div ref={workspaceRootRef} className="app-runtime endfield-runtime" data-ark-theme="endfield" data-ark-depth="maximal" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
         <div className="workspace-depth-plane workspace-depth-plane-far" data-workspace-layer="depth-far" aria-hidden="true" />
         <div className="workspace-depth-plane workspace-depth-plane-near" data-workspace-layer="depth-near" aria-hidden="true" />
