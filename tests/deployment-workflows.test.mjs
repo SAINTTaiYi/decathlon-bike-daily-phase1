@@ -47,6 +47,8 @@ test('Cloudflare Staging 仅手动部署固定 SHA 到 Worker Static Assets 和 
   assert.match(source, /directory": "apps\/web\/dist"/u)
   assert.match(source, /run_worker_first/u)
   assert.match(source, /wrangler@4\.112\.0/u)
+  assert.match(source, /Record Preview source fingerprint without changing public version/u)
+  assert.match(source, /pnpm version:preview/u)
   assert.match(source, /pnpm check:workflows && pnpm test && pnpm typecheck && pnpm build/u)
   assert.match(source, /pnpm build:worker-bundle/u)
   assert.match(source, /dist\/worker\/index\.min\.js/u)
