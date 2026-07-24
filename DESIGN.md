@@ -430,11 +430,11 @@ packages/
 - Overview preserves real unresolved-work ordering and business-map areas. Its sales KPI becomes a charcoal decision plane with Solar Yellow action feedback while the existing abstract, self-hosted signal field remains the only visual material source.
 - Pickup preserves source, notification, pickup-date, payment or warranty validation, one-time pickup-code confirmation, completion and current-day archive semantics. Its header, queue folio, ledger, primary action and pickup-code dialog receive the scoped Endfield presentation.
 - Existing focus indicators, 44px controls, dialog focus restoration, forced-colors, reduced-motion, native scrolling and clear entered-value layers remain mandatory.
-- V5.9.1 is the Preview-only candidate after normal PR and CI. It includes a scoped Ark regression-test repair only; Browser Harness is unavailable in this environment, so no browser visual acceptance is claimed. Staging requires separate explicit approval. Production is forbidden.
+- V5.9.2 is the Preview-only candidate after normal PR and CI. It consolidates scoped Endfield CSS to preserve quality-budget margin without changing the visual contract or any operation. Browser Harness is unavailable in this environment, so no browser visual acceptance is claimed. Staging requires separate explicit approval. Production is forbidden.
 
 ## Version governance
 
-- 当前版本：`V5.9.1`。
+- 当前版本：`V5.9.2`。
 - 根 `package.json`、`apps/web/package.json`、`apps/web/src/data/releaseNotes.js` 与 `version-manifest.json` 必须一致。
 - `pnpm version:patch -- ...` 递增 V5 版本并生成当前发布说明。
 - 完成代码与文档后运行 `pnpm version:stamp`；`pnpm build` 先校验版本和源码/部署事实指纹。

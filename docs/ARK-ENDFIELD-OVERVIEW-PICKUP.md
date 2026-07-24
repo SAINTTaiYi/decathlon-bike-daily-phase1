@@ -45,6 +45,21 @@
 - Browser Harness is unavailable in this environment; no browser visual or interaction acceptance is claimed.
 - Next: stage only the tracked V5.9.1 repair files, run pre-commit diff and credential scans, commit, open a normal PR, wait for CI, merge normally, then deploy Preview only.
 
+## V5.9.2 CI-margin consolidation — 2026-07-24
+
+- PR #53 CI run 30087496334 failed only because Node 22 measured the stylesheet at 61,676 B gzip, 236 B over the fixed 60 KiB quality limit; secrets passed and no functional, data, permission or workflow check failed.
+- V5.9.2 removes only scoped Ark overrides that were already supplied by shared Signal Grid layers. It preserves the original Endfield Level 2 Overview decision plane, Pickup clipped module head, Solar Yellow primary action, Pickup ledger and dialog structural anchors, responsive composition and forced-colors fallback.
+- Current local Node 24 pre-final measurement: CSS gzip 60,758 B, JavaScript gzip 140,044 B, signal material 365,660 B; all remain inside the local quality gate. Node 22 CI is the release authority for the cross-runtime margin.
+- No React/Vite architecture, scene ownership, route, data contract, API, Worker, D1, migration, business action, permission, audit or deployment workflow changed.
+- Next: run the complete V5.9.2 local gate, then push the normal PR update and wait for CI before merge or Preview deployment.
+
+## V5.9.2 final local verification — 2026-07-24
+
+- Final local gate passed: focused Ark 4/4; Domain 4/4; Database 5/5; Web 143/143; API 16/16; Worker 11/11; full TypeScript typecheck; Worker typecheck; contracts build; Worker bundle; version/diff checks; workflow policy validator 88/88.
+- Final production Web build: JavaScript 424,497 bytes / gzip 140,044 bytes; CSS 278,735 bytes / gzip 60,758 bytes, within the 61,440-byte local quality limit. Signal material remains 365,660 bytes.
+- Frontend-quality audit passed: zoom, skip-link, tabindex, native controls, image alt, reduced motion, high contrast, forced colors, touch targets and VisualViewport.
+- Node 22 CI remains the final cross-runtime acceptance authority; Browser Harness remains unavailable, so no browser visual or interaction acceptance is claimed.
+
 ## Release boundary
 
 This is a Preview-only visual candidate after local validation, normal PR and CI. Staging requires separate explicit user approval. Production is forbidden.
