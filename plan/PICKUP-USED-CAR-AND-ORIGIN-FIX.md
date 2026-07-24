@@ -1,6 +1,6 @@
 # Pickup used-car identity and production origin fix
 
-**Status:** implemented and locally validated
+**Status:** functional change merged; Preview checkpoint pending
 **Base:** `9093190055b667f951ba4874762c34f6d765c169`
 **Scope confirmed:** 2026-07-25
 
@@ -35,3 +35,11 @@
 - `pnpm typecheck`, `pnpm check:workflows` (88 policies), `git diff --check`, package compilation, and `pnpm build:worker-bundle` all passed.
 - The root `pnpm build` wrapper intentionally remains blocked until this clean source checkpoint receives its Preview-source registration; it was not bypassed by a public version change.
 - No Preview, Staging, or Production mutation has been performed.
+
+## Integration checkpoint — 2026-07-25
+
+- Functional PR [#58](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/58) merged normally into `feature/cloudflare-workers-d1` as `56bebc8f96cb8f2f7dd76f19ad91b3e0bfbd03a3`.
+- PR CI `30123853176` passed both `verify` and complete-history `secrets` checks.
+- Post-merge CI `30123980435` passed both `verify` and complete-history `secrets` checks on the exact merged SHA.
+- Public version remains V5.7.8: this is Preview-only work and does not alter a formal-release version.
+- User authorized Cloudflare **Preview only** after this administrative checkpoint merges. Staging and Production remain excluded; Preview still requires independent endpoint verification and user visual acceptance.
