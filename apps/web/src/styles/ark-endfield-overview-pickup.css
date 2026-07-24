@@ -34,8 +34,6 @@
 .ark-endfield-pickup .signal-module-header :is(h2, .title-translation, .scene-note, .look-number span) { color: var(--ark-ink); text-shadow: none; }
 .ark-endfield-overview .look-number strong,
 .ark-endfield-pickup .look-number strong { border-color: var(--ark-ink); background: var(--ark-charcoal); color: var(--ark-signal); }
-
-.ark-endfield-overview .scene-actions .text-action { border-color: var(--ark-ink); background: var(--ark-field); color: var(--ark-ink); }
 .ark-endfield-overview .scene-actions .text-action:last-child,
 .ark-endfield-pickup :is(.ledger-add, .record-primary-action),
 .app-dialog.data-dialog[data-signal-module='pickup'] .primary-action { background: var(--ark-signal) !important; color: var(--ark-ink) !important; }
@@ -56,7 +54,7 @@
 .ark-endfield-pickup .signal-module-header { clip-path: polygon(0 0, calc(100% - 1.4rem) 0, 100% 1.4rem, 100% 100%, 0 100%); }
 .ark-endfield-pickup :is(.signal-module-metrics, .pickup-folio, .record-ledger-head) { background: var(--ark-charcoal) !important; color: var(--ark-field); }
 .ark-endfield-pickup .pickup-folio { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; padding: .7rem .8rem; border: 2px solid var(--ark-ink); border-top: 0; }
-.ark-endfield-pickup :is(.pickup-folio span, .record-ledger-head > strong, .record-model-block span) { color: var(--ark-signal); }
+.ark-endfield-pickup :is(.pickup-folio span, .record-ledger-head > strong) { color: var(--ark-signal); }
 .ark-endfield-pickup .pickup-folio strong { text-align: right; }
 .ark-endfield-pickup .signal-record-ledger { border: 2px solid var(--ark-ink); background: var(--ark-field); }
 .ark-endfield-pickup .signal-record-row[data-priority='pending'] { background: var(--ark-quiet); }
@@ -67,15 +65,8 @@
 .app-dialog.data-dialog[data-signal-module='pickup'] .dialog-header { position: relative; overflow: hidden; border-bottom: 2px solid var(--ark-ink); background: var(--ark-charcoal); color: var(--ark-field); }
 .app-dialog.data-dialog[data-signal-module='pickup'] .dialog-header::after { content: ''; position: absolute; right: 0; bottom: 0; width: 42%; height: .45rem; background: var(--ark-signal); }
 .app-dialog.data-dialog[data-signal-module='pickup'] :is(.dialog-description, .dialog-content, .data-form, .field-row, .field-help, .form-error, input, textarea, select, .project-select-trigger) { color: var(--ark-ink); text-shadow: none; }
-.app-dialog.data-dialog[data-signal-module='pickup'] :is(input, textarea, select, .project-select-trigger) { border-color: var(--ark-ink); background: var(--sg-p-color-surface); }
 
-@media (max-width: 720px) {
-  .ark-endfield-overview .scene-title,
-  .ark-endfield-pickup .signal-module-header { padding: .75rem; }
-  .ark-endfield-pickup .pickup-folio { grid-template-columns: 1fr; }
-  .ark-endfield-pickup .pickup-folio strong { text-align: left; }
-}
-
+@media (max-width: 720px) { .ark-endfield-pickup .pickup-folio { grid-template-columns: 1fr; } .ark-endfield-pickup .pickup-folio strong { text-align: left; } }
 @media (prefers-reduced-motion: reduce) { .ark-endfield-overview *, .ark-endfield-pickup * { transition-duration: 0ms !important; } }
 @media (forced-colors: active) {
   .ark-endfield-overview :is(.scene-title, .signal-overview-grid, .signal-overview-primary, .signal-business-map button),
