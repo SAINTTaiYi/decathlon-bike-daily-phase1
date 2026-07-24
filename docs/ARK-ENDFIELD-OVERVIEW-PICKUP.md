@@ -35,14 +35,15 @@ This is a Preview-only visual candidate after local validation, normal PR and CI
 
 ## Checkpoint 2026-07-24
 
-- Status: implementation verified at Web-test level; release validation in progress.
+- Status: locally verified, ready for normal PR and CI.
 - Base: final V5.8.9 source `e262d45502f2ec15a2ff75a2b9dc46f8cc296395`.
 - Branch: `feat/ark-endfield-overview-pickup`.
-- Functional source: `9d2a121f616df88b3864698537eaf60e773a4c3e`.
-- Changed files: `PulseScene.jsx`, `PickupScene.jsx`, scoped Endfield CSS import and stylesheet, focused regression test, and this contract.
-- Invariants: no API, Worker, D1, migration, package, permission, audit, workflow handler, route, field or data-contract changes.
-- Verification: focused Ark regression 4/4 and full Web suite 143/143 passed after using lockfile-identical local dependencies in this isolated worktree.
+- Pre-version functional sources: `9d2a121f616df88b3864698537eaf60e773a4c3e`, `d9dfbee6ecee7f94a43d84601b1c5e9ef8b1a329`, `bebb99b9773f0ad44f228c76ef877aee21da8944`.
+- Candidate version: V5.9.0. The version advanced from V5.8.9 through V5.8.10 to V5.9.0 because the project policy advances to the next minor once the patch position reaches 10.
+- Changed files: `PulseScene.jsx`, `PickupScene.jsx`, scoped Endfield CSS import and stylesheet, focused regression test, version metadata and this contract.
+- Invariants: no API, Worker, D1, migration, package dependency, permission, audit, workflow handler, route, field or data-contract changes.
+- Final verification: Domain 4/4, Database 5/5, Web 143/143, API 16/16 and Worker 11/11 passed; full TypeScript typecheck, Worker typecheck, contracts build and Worker bundle passed; workflow policies 88/88 passed.
+- Production Web build: JavaScript 424,708 bytes, gzip 140,172 bytes; CSS 283,651 bytes, gzip 61,313 bytes, below the 61,440-byte quality budget. Signal material payload remains 365,660 bytes. The frontend quality gate passed zoom, skip-link, tabindex, native-controls, image-alt, reduced-motion, high-contrast, forced-colors, touch-target and VisualViewport audits.
 - Visual validation: Browser Harness is not available in this environment. No browser visual or interaction acceptance is claimed.
-- Next: run typecheck, Web build, Worker typecheck and bundle, update the final version fingerprint, then create a normal PR. Preview only follows successful CI.
-- Staging: requires separate explicit approval.
+- Next: commit the final V5.9.0 metadata normally, open a PR, wait for CI and then follow the user's Preview-only release policy. Staging still requires separate explicit approval.
 - Production: forbidden.
