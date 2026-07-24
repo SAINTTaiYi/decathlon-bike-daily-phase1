@@ -192,6 +192,10 @@ export function workItemRoutes() {
         const normalized = validatePickup(input.values)
         if (!normalized.ok) throw new ApiProblem(400, 'INVALID_PICKUP', normalized.error)
         const fields = normalized.fields
+        const resaleOriginUsedCar = pickup?.pickupSource === 'used-car' && String((before.resale as Record<string, unknown> | null)?.resaleStage ?? '') === 'sold'
+        if (resaleOriginUsedCar && fields.pickupSource !== 'used-car') {
+          throw new ApiProblem(400, 'USED_CAR_SOURCE_LOCKED', '二手车售出后转入待取，来源不能改为其它类型。')
+        }
         title = fields.title ?? ''
         detail = fields.detail ?? ''
         meta = fields.meta ?? ''
@@ -287,19 +291,35 @@ export function workItemRoutes() {
 
   actionRoute('/api/v1/work-items/:id/sell-resale', 'sell-resale', async (db, context, id, revision) => {
     const stamp = nowIso()
-    const row = await first<{ title: string }>(db.prepare(`
-      SELECT w.title FROM work_items w
-      JOIN resale_details r ON r.work_item_id = w.id
-      WHERE w.id = ? AND w.store_id = ? AND w.revision = ? AND w.lifecycle = 'active' AND r.resale_stage = 'listed'
-    `).bind(id, context.storeId, revision))
-    if (!row) throw new ApiProblem(409, 'INVALID_STATE', '只有已上架二手车可以标记售出。')
-    const updated = await db.prepare(`
-      UPDATE work_items SET lifecycle = 'sold', revision = revision + 1, updated_by = ?, updated_at = ?
-      WHERE id = ? AND store_id = ? AND revision = ?
-    `).bind(context.userId, stamp, id, context.storeId, revision).run()
-    if (!updated.meta.changes) throw new ApiProblem(409, 'INVALID_STATE', '只有已上架二手车可以标记售出。')
-    await db.prepare(`UPDATE resale_details SET resale_stage = 'sold', sold_at = ? WHERE work_item_id = ?`).bind(stamp, id).run()
-    return { summary: `已售出：${row.title}` }
+    const [updated] = await db.batch([
+      db.prepare(`
+        UPDATE work_items SET kind = 'pickup', status = '等待取车', lifecycle = 'active', revision = revision + 1, updated_by = ?, updated_at = ?
+        WHERE id = ? AND store_id = ? AND revision = ? AND lifecycle = 'active'
+          AND EXISTS (SELECT 1 FROM resale_details WHERE work_item_id = ? AND resale_stage = 'listed')
+      `).bind(context.userId, stamp, id, context.storeId, revision, id),
+      db.prepare(`
+        UPDATE resale_details SET resale_stage = 'sold', sold_at = ?
+        WHERE work_item_id = ? AND EXISTS (
+          SELECT 1 FROM work_items WHERE id = ? AND store_id = ? AND kind = 'pickup' AND revision = ?
+        )
+      `).bind(stamp, id, id, context.storeId, revision + 1),
+      db.prepare(`
+        DELETE FROM pickup_details
+        WHERE work_item_id = ? AND EXISTS (
+          SELECT 1 FROM work_items WHERE id = ? AND store_id = ? AND kind = 'pickup' AND revision = ?
+        )
+      `).bind(id, id, context.storeId, revision + 1),
+      db.prepare(`
+        INSERT INTO pickup_details (work_item_id, pickup_source, self_pickup_platform, notification_status)
+        SELECT ?, 'used-car', NULL, 'pending'
+        WHERE EXISTS (
+          SELECT 1 FROM work_items WHERE id = ? AND store_id = ? AND kind = 'pickup' AND revision = ?
+        )
+      `).bind(id, id, context.storeId, revision + 1)
+    ])
+    if (!updated?.meta.changes) throw new ApiProblem(409, 'INVALID_STATE', '只有已上架二手车可以标记售出。')
+    const row = await first<{ title: string }>(db.prepare('SELECT title FROM work_items WHERE id = ? AND store_id = ?').bind(id, context.storeId))
+    return { summary: `已售出并转入待取（二手车）：${row?.title ?? ''}`, extra: { route: 'pickup' } }
   })
 
   actionRoute('/api/v1/work-items/:id/complete-repair', 'complete-repair', async (db, context, id, revision, businessDate) => {

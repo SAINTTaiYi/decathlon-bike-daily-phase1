@@ -3,7 +3,8 @@ import { FREE_REPAIR, REPAIR_PICKUP_READY_STATUSES } from './repairRecord.js'
 export const PICKUP_SOURCES = [
   { value: 'self-pickup', label: '自提订单车辆' },
   { value: 'repair', label: '维修车辆' },
-  { value: 'customer-storage', label: '顾客暂存' }
+  { value: 'customer-storage', label: '顾客暂存' },
+  { value: 'used-car', label: '二手车' }
 ]
 
 export const MANUAL_PICKUP_SOURCES = PICKUP_SOURCES.filter(({ value }) => value !== 'repair')
@@ -86,6 +87,7 @@ export function inferPickupSource(record) {
   if (PICKUP_SOURCES.some(({ value }) => value === record?.pickupSource)) return record.pickupSource
   if (record?.repairType || record?.repairCompletedAt || REPAIR_PICKUP_READY_STATUSES.includes(record?.status) || /维修单|维修完成|保养完成|调试完成/.test(`${record?.meta || ''} ${record?.detail || ''}`)) return 'repair'
   if (record?.kind === 'online' || /线上自提|自提订单/.test(`${record?.meta || ''} ${record?.detail || ''}`)) return 'self-pickup'
+  if (record?.scene === 'pickup' && record?.resaleStage === 'sold') return 'used-car'
   return 'customer-storage'
 }
 
@@ -169,7 +171,7 @@ export function normalizePickupValues(values) {
   // Prefer structured contactValue; fall back to meta for older callers / V5.5.8 payloads.
   const contactValue = text(values.contactValue ?? values.meta, 80)
 
-  if (!MANUAL_PICKUP_SOURCES.some(({ value }) => value === pickupSource)) return { ok: false, error: '手动增加待取车辆时，请选择自提订单车辆或顾客暂存。' }
+  if (!MANUAL_PICKUP_SOURCES.some(({ value }) => value === pickupSource)) return { ok: false, error: '手动增加待取车辆时，请选择自提订单车辆、顾客暂存或二手车。' }
   if (!title || !status) return { ok: false, error: '请填写车辆标识和当前状态。' }
   if (!PICKUP_CONTACT_TYPES.some(({ value }) => value === contactType)) return { ok: false, error: '请选择手机号或会员号。' }
   // contactValue is optional; empty is allowed and surfaces as「无」on cards.

@@ -500,16 +500,29 @@ export default function useClosingWorkflow(actorName) {
     if (day.closedAt) return false
     const previous = ledger.records.find((record) => record.id === recordId && record.scene === 'resale' && record.resaleStage === 'listed')
     if (!previous) return false
-    commitLedger(ledger.records.filter((record) => record.id !== recordId), {
+    const at = nowIso()
+    const nextRecord = {
+      ...previous,
+      scene: 'pickup',
+      kind: 'pickup',
+      status: '等待取车',
+      pickupSource: 'used-car',
+      notificationStatus: 'pending',
+      resaleStage: 'sold',
+      soldAt: at,
+      updatedAt: at
+    }
+    commitLedger(ledger.records.map((record) => record.id === recordId ? nextRecord : record), {
       type: 'sell-resale',
       scene: 'resale',
+      nextScene: 'pickup',
       recordId,
       recordTitle: previous.title,
       before: previous,
-      label: `已售出：${previous.title}`,
-      message: '已从已上架二手车在册移除，操作记录继续保留。'
+      label: `已售出并转入待取：${previous.title}`,
+      message: '二手车已售出，并以二手车标识转入待取车辆。'
     })
-    return true
+    return { ok: true, route: 'pickup', record: nextRecord }
   }, [commitLedger, day.closedAt, ledger.records])
 
   const completeRepair = useCallback((recordId) => {

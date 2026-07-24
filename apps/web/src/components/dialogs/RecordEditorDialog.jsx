@@ -30,8 +30,11 @@ function genericRecordToDraft(record) {
   } : { ...emptyDraft }
 }
 
-function PickupFields({ draft, setDraft }) {
+function PickupFields({ draft, setDraft, record }) {
   const selfPickup = draft.pickupSource === 'self-pickup'
+  const usedCar = draft.pickupSource === 'used-car'
+  const resaleOriginUsedCar = usedCar && record?.resaleStage === 'sold'
+  const customerStorage = draft.pickupSource === 'customer-storage'
   const set = (field, value) => setDraft((current) => ({ ...current, [field]: value }))
 
   return (
@@ -44,10 +47,11 @@ function PickupFields({ draft, setDraft }) {
           onChange={(value) => setDraft((current) => ({
             ...current,
             pickupSource: value,
-            detail: value === 'self-pickup' ? '' : current.detail,
+            detail: value === 'customer-storage' ? current.detail : '',
             selfPickupPlatform: value === 'self-pickup' ? current.selfPickupPlatform : ''
           }))}
           ariaLabel="选择待取来源"
+          disabled={resaleOriginUsedCar}
         />
       </div>
       {selfPickup ? (
@@ -63,7 +67,7 @@ function PickupFields({ draft, setDraft }) {
         </div>
       ) : null}
       <label className="field-row"><span>车辆或顾客标识</span><input required maxLength="80" value={draft.title} onChange={(event) => set('title', event.target.value)} /></label>
-      {!selfPickup ? <label className="field-row"><span>顾客暂存说明</span><textarea required rows="4" maxLength="240" value={draft.detail} onChange={(event) => set('detail', event.target.value)} /></label> : null}
+      {customerStorage ? <label className="field-row"><span>顾客暂存说明</span><textarea required rows="4" maxLength="240" value={draft.detail} onChange={(event) => set('detail', event.target.value)} /></label> : null}
       <fieldset className="field-group">
         <legend>联系方式</legend>
         <div className="contact-field-grid">
@@ -93,7 +97,9 @@ function PickupFields({ draft, setDraft }) {
       </fieldset>
       {selfPickup
         ? <p className="conditional-field-note"><strong>取车时输入取货码</strong><span>取货码在点击“确认取车”后输入，不保存在台账、票据或操作记录中。</span></p>
-        : <p className="conditional-field-note"><strong>顾客暂存无需附加校验</strong><span>确认顾客身份后可直接点按“确认取车”。</span></p>}
+        : usedCar
+          ? <p className="conditional-field-note"><strong>二手车待取无需附加校验</strong><span>二手车来源会保留在待取台账和闭店日报中，确认身份后可直接点按“确认取车”。</span></p>
+          : <p className="conditional-field-note"><strong>顾客暂存无需附加校验</strong><span>确认顾客身份后可直接点按“确认取车”。</span></p>}
       <label className="field-row"><span>当前状态</span><input required maxLength="80" value={draft.status} onChange={(event) => set('status', event.target.value)} /></label>
     </>
   )
@@ -216,7 +222,7 @@ export default function RecordEditorDialog({ open, onClose, config, record, onSa
   return (
     <AppDialog open={open} onClose={onClose} title={editing ? `编辑${config.singular}` : config.addLabel} eyebrow="LEDGER · 长期台账" description={description} className="data-dialog">
       <form className="data-form" onSubmit={submit}>
-        {repairForm ? <RepairFields draft={draft} setDraft={setDraft} /> : pickupForm ? <PickupFields draft={draft} setDraft={setDraft} /> : (
+        {repairForm ? <RepairFields draft={draft} setDraft={setDraft} /> : pickupForm ? <PickupFields draft={draft} setDraft={setDraft} record={record} /> : (
           <>
             <label className="field-row"><span>{config.titleLabel}</span><input required maxLength="80" value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label>
             <label className="field-row"><span>{config.detailLabel}</span><textarea required rows="4" maxLength="240" value={draft.detail} onChange={(event) => setDraft((current) => ({ ...current, detail: event.target.value }))} /></label>

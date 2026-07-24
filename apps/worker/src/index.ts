@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { ZodError } from 'zod'
 import type { AppConfig, WorkerEnv } from './env.js'
-import { loadConfig } from './env.js'
+import { isAllowedOrigin, loadConfig } from './env.js'
 import type { AuthContext } from './auth/types.js'
 import { authRoutes } from './routes/auth.js'
 import { auditRoutes } from './routes/audit.js'
@@ -52,7 +52,7 @@ app.use('*', async (c, next) => {
     }
     const origin = c.req.header('origin')
     if (origin && needsSecrets(path)) {
-      if (!c.get('config').allowedOrigins.includes(origin)) {
+      if (!isAllowedOrigin(origin, c.get('config').allowedOrigins)) {
         throw new ApiProblem(403, 'ORIGIN_NOT_ALLOWED', '请求来源不受允许。')
       }
       c.header('Access-Control-Allow-Origin', origin)

@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const appRoles = ['operator', 'manager', 'admin'] as const
 export const workItemKinds = ['pickup', 'handover', 'repair', 'resale'] as const
-export const pickupSources = ['self-pickup', 'repair', 'customer-storage'] as const
+export const pickupSources = ['self-pickup', 'repair', 'customer-storage', 'used-car'] as const
 export const selfPickupPlatforms = ['tmall', 'jd', 'mini-program'] as const
 export const notificationStatuses = ['pending', 'notified'] as const
 export const repairTypes = ['质保', '付费', '免费', '门店产品维修'] as const
@@ -64,7 +64,7 @@ export const repairInputSchema = z.object({
 }).strict()
 
 export const pickupInputSchema = z.object({
-  pickupSource: z.enum(['self-pickup', 'customer-storage']),
+  pickupSource: z.enum(['self-pickup', 'customer-storage', 'used-car']),
   selfPickupPlatform: z.enum(selfPickupPlatforms).or(z.literal('')).default(''),
   title: z.string().trim().min(1).max(120),
   detail: z.string().trim().max(500).default(''),

@@ -379,7 +379,7 @@ export default function App() {
     onHistory: (record = null) => setHistoryTarget({ scene, record }),
     onMedia: (record) => setMediaRecord(record),
     onResaleListing: (record) => void performPrimaryAction(record, () => workflow.completeResaleListing(record.id), `维修完毕，已进入二手车在册：${record.title}`),
-    onResaleSold: (record) => void performPrimaryAction(record, () => workflow.sellResale(record.id), `已售出：${record.title}`),
+    onResaleSold: (record) => void performPrimaryAction(record, () => workflow.sellResale(record.id), `已售出，已转入待取（二手车）：${record.title}`),
     onRepairComplete: (record) => void completeRepairWithConfirmation(record),
     onHandoverComplete: (record) => void performPrimaryAction(record, () => workflow.completeHandover(record.id), `已完成交接：${record.title}`),
     onPickupNotificationChange: async (record, notificationStatus) => {

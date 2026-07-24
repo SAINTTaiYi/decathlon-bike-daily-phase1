@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildClosingReportModel, reportContact, reportItemDetail, selfPickupReportLabel } from '../apps/web/src/utils/closingReportImage.js'
+import { buildClosingReportModel, reportContact, reportItemDetail, selfPickupReportLabel, usedCarReportLabel } from '../apps/web/src/utils/closingReportImage.js'
 
 test('闭店日报图模型只收录未完成的待取/维修/交接，并保留完整销售数据', () => {
   const model = buildClosingReportModel({
@@ -44,6 +44,12 @@ test('日报图为线上自提订单显示对应平台标识，并保留普通�
   assert.equal(selfPickupReportLabel({ pickupSource: 'self-pickup', selfPickupPlatform: 'mini-program' }), '小程序自提')
   assert.equal(selfPickupReportLabel({ pickupSource: 'customer-storage', selfPickupPlatform: 'tmall' }), '')
   assert.equal(selfPickupReportLabel({ kind: 'online', meta: '线上自提 京东' }), '京东自提')
+})
+
+test('日报图将手动与售出转入的待取二手车明确标识为二手车', () => {
+  assert.equal(usedCarReportLabel({ pickupSource: 'used-car' }), '二手车')
+  assert.equal(usedCarReportLabel({ scene: 'pickup', resaleStage: 'sold' }), '二手车')
+  assert.equal(usedCarReportLabel({ pickupSource: 'customer-storage' }), '')
 })
 
 test('日报图模型冻结 KPI 与待取记录快照，不受后续页面状态改写影响', () => {

@@ -57,5 +57,6 @@ export function serviceSectionLabel(record) {
   if (record?.scene === 'repair' || record?.repairProject || record?.pickupSource === 'repair') return 'Maintenance'
   if (record?.pickupSource === 'self-pickup') return 'Order'
   if (record?.pickupSource === 'customer-storage') return 'Storage note'
+  if (record?.pickupSource === 'used-car') return 'Used bike'
   return 'Details'
 }

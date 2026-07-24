@@ -40,6 +40,8 @@ test('Cloudflare Staging 仅手动部署固定 SHA 到 Worker Static Assets 和 
   assert.match(source, /CLOUDFLARE_ACCOUNT_ID: \$\{\{ vars\.CLOUDFLARE_ACCOUNT_ID \}\}/u)
   assert.match(source, /STAGING_BASE_URL: \$\{\{ vars\.STAGING_BASE_URL \}\}/u)
   assert.match(source, /STAGING_BASE_URL/u)
+  assert.match(source, /'https:\/\/workshop\.skin'/u)
+  assert.match(source, /'https:\/\/www\.workshop\.skin'/u)
 
   assert.match(source, /database_id": "91e78387-9b24-4126-a5a1-27f9c1792975"/u)
   assert.match(source, /directory": "apps\/web\/dist"/u)

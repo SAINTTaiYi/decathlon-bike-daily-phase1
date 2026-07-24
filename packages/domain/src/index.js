@@ -65,7 +65,7 @@ export function validatePickup(values) {
     contactType: contactType || 'phone',
     contactValue: contactValueRaw
   }
-  if (!['self-pickup', 'customer-storage'].includes(fields.pickupSource)) return { ok: false, error: '请选择自提订单车辆或顾客暂存。' }
+  if (!['self-pickup', 'customer-storage', 'used-car'].includes(fields.pickupSource)) return { ok: false, error: '请选择自提订单车辆、顾客暂存或二手车。' }
   if (!fields.title) return { ok: false, error: '请填写车辆或顾客标识。' }
   if (!fields.status) return { ok: false, error: '请填写当前状态。' }
   if (!['phone', 'member'].includes(fields.contactType)) return { ok: false, error: '请选择手机号或会员号。' }
@@ -73,9 +73,11 @@ export function validatePickup(values) {
   if (fields.pickupSource === 'self-pickup') {
     if (!SELF_PICKUP_PLATFORMS.includes(fields.selfPickupPlatform)) return { ok: false, error: '请选择天猫、京东或小程序。' }
     fields.detail = ''
-  } else {
+  } else if (fields.pickupSource === 'customer-storage') {
     fields.selfPickupPlatform = ''
     if (!fields.detail) return { ok: false, error: '请填写顾客暂存说明。' }
+  } else {
+    fields.selfPickupPlatform = ''
   }
   return { ok: true, fields }
 }

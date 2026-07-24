@@ -80,7 +80,7 @@ assert(actionReferences.length > 0 && actionReferences.every((reference) => /^[0
 
 assert((ci.match(/pnpm --filter @bike-ops\/database migrate/gu) || []).length >= 2, 'ci: checksum migration runner must execute twice')
 assert(/count\(\*\).*bike_ops_schema_migrations/u.test(ci), 'ci: migration history count must be verified')
-assert(/= "3"/u.test(ci), 'ci: all committed migrations must be recorded')
+assert(/= "4"/u.test(ci), 'ci: all committed migrations must be recorded')
 assert(/GITLEAKS_VERSION: 8\.30\.1/u.test(ci), 'ci: Gitleaks version must be pinned')
 assert(/551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb/u.test(ci), 'ci: Gitleaks archive checksum must be pinned')
 assert(/--log-opts="--all --full-history --no-merges"/u.test(ci), 'ci: Gitleaks must scan complete Git history')
@@ -95,6 +95,7 @@ assert(/CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/u.test(c
 assert(/CLOUDFLARE_ACCOUNT_ID: \$\{\{ vars\.CLOUDFLARE_ACCOUNT_ID \}\}/u.test(cloudflareStaging), 'cloudflare staging: account ID must come from the staging Environment variable')
 assert(/STAGING_BASE_URL: \$\{\{ vars\.STAGING_BASE_URL \}\}/u.test(cloudflareStaging), 'cloudflare staging: site URL must come from the staging Environment variable')
 assert(/STAGING_BASE_URL/u.test(cloudflareStaging) && /CORS_ALLOWED_ORIGINS/u.test(cloudflareStaging), 'cloudflare staging: deploy config must use STAGING_BASE_URL for CORS and verification')
+assert(/'https:\/\/workshop\.skin'/u.test(cloudflareStaging) && /'https:\/\/www\.workshop\.skin'/u.test(cloudflareStaging), 'cloudflare staging: exact apex and www production origins must be allowed')
 assert(/\^\[0-9a-f\]\{40\}\$/u.test(cloudflareStaging), 'cloudflare staging: release SHA must be a full lowercase commit SHA')
 assert(/git rev-parse "origin\/\$BRANCH"/u.test(cloudflareStaging), 'cloudflare staging: release SHA must equal the selected remote branch head')
 assert(/database_id": "91e78387-9b24-4126-a5a1-27f9c1792975"/u.test(cloudflareStaging), 'cloudflare staging: the Staging D1 database must remain pinned')

@@ -123,7 +123,14 @@ test('顾客暂存无需附加校验，可直接取车', () => {
   assert.equal(pickupSourceLabel(storage), '顾客暂存')
 })
 
-test('手动新增待取仅允许自提订单或顾客暂存；联系方式可空并写入台账', () => {
+test('二手车待取无需取货码或暂存说明，并显示二手车来源', () => {
+  const usedCar = { scene: 'pickup', pickupSource: 'used-car', resaleStage: 'sold' }
+  assert.deepEqual(validatePickup(usedCar), { ok: true, pickupSource: 'used-car' })
+  assert.equal(pickupSourceLabel(usedCar), '二手车')
+  assert.equal(inferPickupSource({ scene: 'pickup', resaleStage: 'sold' }), 'used-car')
+})
+
+test('手动新增待取仅允许自提订单、顾客暂存或二手车；联系方式可空并写入台账', () => {
   const base = { title: '订单车辆', detail: '顾客今日到店', contactType: 'phone', contactValue: '18172049175', status: '等待取车' }
   assert.equal(normalizePickupValues({ ...base, pickupSource: 'repair' }).ok, false)
   // 联系方式可空
@@ -146,6 +153,11 @@ test('手动新增待取仅允许自提订单或顾客暂存；联系方式可�
   assert.equal(member.ok, true)
   assert.equal(member.fields.meta, '会员号：M-9')
   assert.equal(member.fields.contactType, 'member')
+  const usedCar = normalizePickupValues({ ...base, pickupSource: 'used-car', detail: '', contactValue: '' })
+  assert.equal(usedCar.ok, true)
+  assert.equal(usedCar.fields.pickupSource, 'used-car')
+  assert.equal(usedCar.fields.detail, '')
+  assert.equal(usedCar.fields.selfPickupPlatform, '')
 })
 
 test('自提订单必须选择天猫、京东或小程序；联系方式可空且不保存取车说明', () => {

@@ -56,6 +56,19 @@ test('D1 一致性迁移仅补回非店修撤回后丢失的完成维修审计�
 })
 
 
+test('二手车待取迁移扩展 D1 与 Supabase 的来源约束且不放宽其它约束', async () => {
+  const [d1, supabase] = await Promise.all([
+    readFile(new URL('../../../migrations/d1/0005_pickup_used_car_source.sql', import.meta.url), 'utf8'),
+    readFile(new URL('../../../supabase/migrations/202607250001_pickup_used_car_source.sql', import.meta.url), 'utf8')
+  ])
+  assert.match(d1, /ALTER TABLE pickup_details RENAME TO/u)
+  assert.match(d1, /'self-pickup', 'repair', 'customer-storage', 'used-car'/u)
+  assert.match(d1, /pickup_source = 'self-pickup' AND self_pickup_platform IS NOT NULL/u)
+  assert.match(d1, /DROP TABLE pickup_details_before_used_car_source/u)
+  assert.match(supabase, /DROP CONSTRAINT IF EXISTS pickup_details_pickup_source_check/u)
+  assert.match(supabase, /'self-pickup', 'repair', 'customer-storage', 'used-car'/u)
+})
+
 test('D1 永久审计迁移为历史记录分类、回填并建立筛选索引', async () => {
   const sql = await readFile(new URL('../../../migrations/d1/0004_permanent_audit_history.sql', import.meta.url), 'utf8')
   const executableSql = sql.replace(/^--.*$/gmu, '')
