@@ -59,3 +59,9 @@ Do not change routes, screen order, page/section IDs, navigation targets, form f
 - **Static Endfield audit:** 4 theme roots; zero added thick left status stripes; reduced-motion, forced-colors, 320-374px, and 1080px+ rules present; no external style resources; no protected product references.
 - **Visual acceptance caveat:** Browser Harness/browser automation is prohibited by user policy, so automated visual screenshot acceptance is intentionally not claimed. Preview remains untouched until a normal review/release phase is explicitly requested.
 - **Release boundary:** Preview-only is the only future deployment candidate. Staging and Production remain forbidden and untouched.
+
+## Local Git checkpoint
+
+- **Functional commit:** `a6a608c31448c4524b6d1413650f976af059cb8d` (`feat(web): apply Endfield visual system`).
+- **Commit scope:** V5.7.8 visual-only system, four Endfield root markers, version/release metadata, and this implementation/validation plan.
+- **Administrative follow-up:** the next local documentation checkpoint records this functional SHA only; its own final SHA is maintained in agent session and long-term state to avoid a documentation-commit loop.
