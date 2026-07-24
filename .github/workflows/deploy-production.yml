@@ -45,6 +45,11 @@ on:
         required: true
         type: boolean
         default: false
+      confirm_aggregated_preview_announcement:
+        description: Confirm the accepted Preview cycle was aggregated into the formal public update announcement and version bump
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -68,6 +73,7 @@ jobs:
           CONFIRM_RESTORE_DRILL: ${{ inputs.confirm_restore_drill }}
           CONFIRM_FREE_PLAN: ${{ inputs.confirm_free_plan }}
           CONFIRM_NO_BILLING: ${{ inputs.confirm_no_billing }}
+          CONFIRM_AGGREGATED_PREVIEW_ANNOUNCEMENT: ${{ inputs.confirm_aggregated_preview_announcement }}
         run: |
           test "$GITHUB_REF" = refs/heads/main || {
             echo "::error::Production deployment must be dispatched from main."
@@ -78,6 +84,7 @@ jobs:
           test "$CONFIRM_RESTORE_DRILL" = true || { echo "::error::confirm_restore_drill=true is required."; exit 1; }
           test "$CONFIRM_FREE_PLAN" = true || { echo "::error::confirm_free_plan=true is required."; exit 1; }
           test "$CONFIRM_NO_BILLING" = true || { echo "::error::confirm_no_billing=true is required."; exit 1; }
+          test "$CONFIRM_AGGREGATED_PREVIEW_ANNOUNCEMENT" = true || { echo "::error::confirm_aggregated_preview_announcement=true is required."; exit 1; }
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ github.sha }}
@@ -108,6 +115,8 @@ jobs:
         run: node scripts/ops/network-guard.mjs npm/pnpm corepack prepare pnpm@9.15.9 --activate
       - name: Install dependencies
         run: node scripts/ops/network-guard.mjs npm/pnpm pnpm install --frozen-lockfile
+      - name: Verify formal Preview-cycle announcement and public version
+        run: pnpm check:version -- --mode production
       - name: Validate, test, typecheck, and build before database mutation
         run: pnpm check:workflows && pnpm test && pnpm typecheck && pnpm build
       - name: Validate Production migration credential and deployment URL

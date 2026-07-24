@@ -112,6 +112,7 @@ Decathlon Bike Ops 是自行车部门的移动端优先闭店与跨日业务工�
 - EdgeOne 不直接监听 `develop` 或 `main`；GitHub 先完成测试与 checksum migration，再普通快进 `edgeone-staging` / `edgeone-production`。
 - 禁止付费套餐、按量计费、自动升级和 force push。
 - Production 只有在 Staging 源码验收、main SHA/version 固定、环境审批、显式批准、加密导出和恢复演练确认后才允许发布。
+- Preview 仅供人工验收，不递增公开版本号。只有用户人工接受 Preview 后明确要求 Production，才汇总该 Preview 周期的变更写入更新公告、递增公开版本并进入现有 Staging/Production 门禁。
 
 ## Brand personality
 
