@@ -21,7 +21,7 @@ export default function PasswordChangeGate({ userName, onChangePassword, onLogou
   }
 
   return (
-    <main className="initial-setup-shell">
+    <main className="initial-setup-shell" data-ark-theme="endfield" data-ark-depth="maximal">
       <form className="initial-setup-panel password-change-panel" onSubmit={submit} noValidate>
         <header><span>FIRST SIGN-IN · 安全要求</span><h1>修改临时密码</h1><p>账号 {userName} 由管理员创建。进入业务台账前，必须把临时密码替换为你自己的密码。</p></header>
         <label className="field-row"><span>当前临时密码</span><input autoFocus required type="password" maxLength="128" autoComplete="current-password" value={form.currentPassword} onChange={(event) => set('currentPassword', event.target.value)} /></label>

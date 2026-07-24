@@ -29,7 +29,7 @@ export default function InitialSetup({ token, onComplete }) {
   }
 
   return (
-    <main className="initial-setup-shell">
+    <main className="initial-setup-shell" data-ark-theme="endfield" data-ark-depth="maximal">
       <form className="initial-setup-panel" onSubmit={submit} noValidate>
         <header><span>ONE-TIME SETUP · 一次性初始化</span><h1>创建首位管理员</h1><p>Setup Token 只存在当前地址 Fragment 中。创建完成后，该 Token 无法再创建第二位管理员。</p></header>
         <label className="field-row"><span>管理员用户名</span><input autoFocus required maxLength="24" autoComplete="username" value={form.username} onChange={(event) => set('username', event.target.value)} /></label>
