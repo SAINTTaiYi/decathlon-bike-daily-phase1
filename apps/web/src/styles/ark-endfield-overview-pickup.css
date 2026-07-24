@@ -1,199 +1,85 @@
-/* Original Endfield-family treatment for the scoped Overview and Pickup surfaces. */
+/* Original Endfield Level 2 layer: Overview and Pickup only. */
 
 [data-ark-theme='endfield'][data-ark-depth='moderate'] {
-  --ark-endfield-field: #f7faf8;
-  --ark-endfield-ink: #18201e;
-  --ark-endfield-charcoal: #2c3431;
-  --ark-endfield-line: #87908b;
+  --ark-field: #f7faf8;
+  --ark-ink: #18201e;
+  --ark-charcoal: #2c3431;
   --ark-endfield-signal: var(--sg-p-module-pickup);
-  --ark-endfield-signal-quiet: color-mix(in srgb, var(--sg-p-module-pickup) 18%, var(--ark-endfield-field));
+  --ark-quiet: color-mix(in srgb, var(--sg-p-module-pickup) 18%, var(--ark-field));
 }
 
 .ark-endfield-overview,
 .ark-endfield-pickup { isolation: isolate; }
-
-.ark-endfield-overview {
-  position: relative;
-  padding-top: 1rem;
-}
-
-.ark-endfield-overview::before,
-.ark-endfield-overview .scene-title::before,
-.ark-endfield-pickup .signal-module-header::before,
-.app-dialog.data-dialog[data-signal-module='pickup'] .dialog-header::after {
-  content: '';
-  position: absolute;
-  right: .7rem;
-  width: min(28%, 13rem);
-  height: .8rem;
-  background: var(--ark-endfield-signal);
-  clip-path: polygon(0 0, 100% 0, calc(100% - .8rem) 100%, 0 100%);
-  pointer-events: none;
-}
-
-.ark-endfield-overview::before {
-  top: 0;
-  right: 0;
-  width: min(19rem, 42%);
-  height: .42rem;
-}
 
 .ark-endfield-overview .scene-title,
 .ark-endfield-pickup .signal-module-header {
   position: relative;
   overflow: hidden;
   padding: clamp(.9rem, 2.4vw, 1.45rem);
-  border: 2px solid var(--ark-endfield-ink);
-  background: var(--ark-endfield-field);
-  color: var(--ark-endfield-ink);
+  border: 2px solid var(--ark-ink);
+  background: var(--ark-field);
+  color: var(--ark-ink);
 }
 
 .ark-endfield-overview .scene-title::before,
-.ark-endfield-pickup .signal-module-header::before { top: .65rem; }
-
-.ark-endfield-overview .scene-title::after,
-.ark-endfield-pickup .signal-module-header::after {
+.ark-endfield-pickup .signal-module-header::before {
+  content: '';
+  position: absolute;
+  top: .65rem;
   right: .65rem;
-  bottom: .65rem;
-  width: min(34%, 15rem);
-  height: 2px;
-  border: 0;
-  background: var(--ark-endfield-charcoal);
-  clip-path: none;
-  opacity: 1;
-}
-
-.ark-endfield-overview :is(.scene-title-row, .scene-note, .signal-module-metrics),
-.ark-endfield-pickup .signal-module-header :is(.scene-title-row, .scene-note, .signal-module-metrics) {
-  position: relative;
-  z-index: 1;
+  width: min(28%, 13rem);
+  height: .8rem;
+  background: var(--ark-endfield-signal);
+  clip-path: polygon(0 0, 100% 0, calc(100% - .8rem) 100%, 0 100%);
 }
 
 .ark-endfield-overview :is(.scene-title h2, .title-translation, .scene-note),
-.ark-endfield-pickup .signal-module-header :is(h2, .title-translation, .scene-note, .look-number span) {
-  color: var(--ark-endfield-ink);
-  text-shadow: none;
-}
+.ark-endfield-pickup .signal-module-header :is(h2, .title-translation, .scene-note, .look-number span) { color: var(--ark-ink); text-shadow: none; }
 
 .ark-endfield-overview .look-number strong,
-.ark-endfield-pickup .signal-module-header .look-number strong {
-  border-color: var(--ark-endfield-ink);
-  background: var(--ark-endfield-charcoal);
-  color: var(--ark-endfield-signal);
-}
+.ark-endfield-pickup .look-number strong { border-color: var(--ark-ink); background: var(--ark-charcoal); color: var(--ark-endfield-signal); }
 
-.ark-endfield-overview .scene-actions .text-action {
-  border-color: var(--ark-endfield-ink);
-  background: var(--ark-endfield-field);
-  color: var(--ark-endfield-ink);
-}
-
+.ark-endfield-overview .scene-actions .text-action { border-color: var(--ark-ink); background: var(--ark-field); color: var(--ark-ink); }
 .ark-endfield-overview .scene-actions .text-action:last-child,
-.ark-endfield-pickup .signal-record-ledger .ledger-add,
-.ark-endfield-pickup .record-actions .record-primary-action,
-.app-dialog.data-dialog[data-signal-module='pickup'] .primary-action {
-  background: var(--ark-endfield-signal) !important;
-  color: var(--ark-endfield-ink) !important;
-}
+.ark-endfield-pickup :is(.ledger-add, .record-primary-action) { background: var(--ark-endfield-signal) !important; color: var(--ark-ink) !important; }
 
-.ark-endfield-overview .signal-overview-grid {
-  border: 2px solid var(--ark-endfield-ink);
-  background: var(--ark-endfield-ink);
-}
+.ark-endfield-overview .signal-overview-grid { border: 2px solid var(--ark-ink); background: var(--ark-ink); }
+.ark-endfield-overview .signal-overview-primary { min-height: 19rem; background: var(--ark-charcoal); color: var(--ark-field); }
+.ark-endfield-overview .signal-overview-primary::before { inset: auto 0 0; height: 34%; background: var(--ark-endfield-signal); clip-path: polygon(0 38%, 68% 0, 100% 31%, 100% 100%, 0 100%); filter: none; opacity: 1; }
+.ark-endfield-overview .signal-overview-primary :is(strong, p) { color: var(--ark-field); text-shadow: none; }
+.ark-endfield-overview .signal-overview-primary p { padding: .2rem .45rem; background: var(--ark-endfield-signal); color: var(--ark-ink); }
 
-.ark-endfield-overview .signal-overview-primary {
-  min-height: 19rem;
-  background: var(--ark-endfield-charcoal);
-  color: var(--ark-endfield-field);
-}
-
-.ark-endfield-overview .signal-overview-primary::before {
-  inset: auto 0 0;
-  height: 34%;
-  background: var(--ark-endfield-signal);
-  clip-path: polygon(0 38%, 68% 0, 100% 31%, 100% 100%, 0 100%);
-  filter: none;
-  opacity: 1;
-}
-
-.ark-endfield-overview .signal-overview-primary :is(strong, p) { color: var(--ark-endfield-field); text-shadow: none; }
-.ark-endfield-overview .signal-overview-primary p { padding: .2rem .45rem; background: var(--ark-endfield-signal); color: var(--ark-endfield-ink); }
-
-.ark-endfield-overview :is(.signal-glitch-field, .signal-glitch-caption, .signal-glitch-canvas, .signal-overview-metrics, .signal-overview-metrics > div, .signal-business-map li, .signal-business-map button) {
-  border-color: var(--ark-endfield-ink);
-  background-color: var(--ark-endfield-field);
-  color: var(--ark-endfield-ink);
-}
-
-.ark-endfield-overview :is(.signal-glitch-fragment, .signal-glitch-cross, .signal-glitch-scanline, .signal-glitch-caption::before, .signal-overview-metrics > div::after, .signal-business-map-trace) {
-  background: var(--ark-endfield-signal);
-  color: var(--ark-endfield-ink);
-  box-shadow: none;
-}
-
-.ark-endfield-overview .signal-glitch-raster { background: var(--ark-endfield-charcoal); opacity: .13; }
-.ark-endfield-overview .signal-overview-metrics > div { border-color: var(--ark-endfield-line); }
+.ark-endfield-overview :is(.signal-glitch-field, .signal-glitch-caption, .signal-glitch-canvas, .signal-overview-metrics, .signal-overview-metrics > div, .signal-business-map li, .signal-business-map button) { background-color: var(--ark-field); color: var(--ark-ink); }
+.ark-endfield-overview :is(.signal-glitch-fragment, .signal-glitch-cross, .signal-glitch-scanline, .signal-glitch-caption::before, .signal-overview-metrics > div::after, .signal-business-map-trace) { background: var(--ark-endfield-signal); color: var(--ark-ink); box-shadow: none; }
 .ark-endfield-overview .signal-business-map-head,
-.ark-endfield-overview .signal-business-map li[data-business-rank='1'] button { background: var(--ark-endfield-charcoal); color: var(--ark-endfield-field); }
-.ark-endfield-overview .signal-business-map-head strong { background: var(--ark-endfield-signal); color: var(--ark-endfield-ink); }
-.ark-endfield-overview .signal-business-map ol { background: var(--ark-endfield-ink); }
-.ark-endfield-overview .signal-business-map button::before { background: var(--ark-endfield-signal-quiet); clip-path: polygon(23% 0, 100% 0, 100% 100%, 0 100%, 0 54%); opacity: 1; }
+.ark-endfield-overview .signal-business-map li[data-business-rank='1'] button { background: var(--ark-charcoal); color: var(--ark-field); }
+.ark-endfield-overview .signal-business-map-head strong { background: var(--ark-endfield-signal); color: var(--ark-ink); }
+.ark-endfield-overview .signal-business-map ol { background: var(--ark-ink); }
+.ark-endfield-overview .signal-business-map button::before { background: var(--ark-quiet); clip-path: polygon(23% 0, 100% 0, 100% 100%, 0 100%, 0 54%); opacity: 1; }
 
 .ark-endfield-pickup { margin-top: clamp(2.5rem, 7vw, 4.5rem); }
 .ark-endfield-pickup .signal-module-header { clip-path: polygon(0 0, calc(100% - 1.4rem) 0, 100% 1.4rem, 100% 100%, 0 100%); }
-.ark-endfield-pickup .signal-module-metrics { border-color: var(--ark-endfield-ink); background: var(--ark-endfield-ink); }
-.ark-endfield-pickup .signal-module-metrics > div { background: var(--ark-endfield-field); color: var(--ark-endfield-ink); }
-
-.ark-endfield-pickup .pickup-folio {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: .75rem;
-  align-items: center;
-  padding: .7rem .8rem;
-  border: 2px solid var(--ark-endfield-ink);
-  border-top: 0;
-  background: var(--ark-endfield-charcoal);
-}
-
-.ark-endfield-pickup .pickup-folio span { color: var(--ark-endfield-signal); }
-.ark-endfield-pickup .pickup-folio strong { color: var(--ark-endfield-field); text-align: right; }
-
-.ark-endfield-pickup .signal-record-ledger {
-  border: 2px solid var(--ark-endfield-ink);
-  background: var(--ark-endfield-field);
-}
-
-.ark-endfield-pickup .record-ledger-head {
-  border-bottom: 2px solid var(--ark-endfield-ink) !important;
-  background: var(--ark-endfield-charcoal) !important;
-  color: var(--ark-endfield-field);
-}
-
+.ark-endfield-pickup .signal-module-metrics,
+.ark-endfield-pickup .pickup-folio,
+.ark-endfield-pickup .record-ledger-head { background: var(--ark-charcoal) !important; color: var(--ark-field); }
+.ark-endfield-pickup .signal-module-metrics > div,
+.ark-endfield-pickup .signal-record-row { background: var(--ark-field); color: var(--ark-ink); }
+.ark-endfield-pickup .pickup-folio { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; padding: .7rem .8rem; border: 2px solid var(--ark-ink); border-top: 0; }
+.ark-endfield-pickup .pickup-folio span,
 .ark-endfield-pickup .record-ledger-head > strong,
-.ark-endfield-pickup .record-model-block span { background: var(--ark-endfield-charcoal); color: var(--ark-endfield-signal); }
-.ark-endfield-pickup .ledger-history { border-color: var(--ark-endfield-field); color: var(--ark-endfield-field); }
-.ark-endfield-pickup .signal-record-row { background: var(--ark-endfield-field); color: var(--ark-endfield-ink); }
-.ark-endfield-pickup .signal-record-row::after { width: 23%; height: .32rem; background: var(--ark-endfield-signal); }
-.ark-endfield-pickup .signal-record-row[data-priority='pending'] { background: var(--ark-endfield-signal-quiet); }
-.ark-endfield-pickup .signal-record-row[data-priority='current'] { background: var(--ark-endfield-signal); color: var(--ark-endfield-ink); }
-.ark-endfield-pickup .signal-record-row[data-resolved='true'] { background: var(--ark-endfield-charcoal); color: var(--ark-endfield-field); }
-.ark-endfield-pickup .project-select[data-compact='true'][data-value='pending'] .project-select-trigger { background: var(--ark-endfield-signal-quiet); border-color: var(--ark-endfield-ink); }
+.ark-endfield-pickup .record-model-block span { color: var(--ark-endfield-signal); }
+.ark-endfield-pickup .pickup-folio strong { text-align: right; }
+.ark-endfield-pickup .signal-record-ledger { border: 2px solid var(--ark-ink); background: var(--ark-field); }
+.ark-endfield-pickup .signal-record-row[data-priority='pending'] { background: var(--ark-quiet); }
+.ark-endfield-pickup .signal-record-row[data-priority='current'] { background: var(--ark-endfield-signal); color: var(--ark-ink); }
+.ark-endfield-pickup .signal-record-row[data-resolved='true'] { background: var(--ark-charcoal); color: var(--ark-field); }
 
-.app-dialog.data-dialog[data-signal-module='pickup'] .dialog-panel { border: 2px solid var(--ark-endfield-ink); background: var(--ark-endfield-field); }
-.app-dialog.data-dialog[data-signal-module='pickup'] .dialog-header { position: relative; overflow: hidden; border-bottom: 2px solid var(--ark-endfield-ink); background: var(--ark-endfield-charcoal); color: var(--ark-endfield-field); }
-.app-dialog.data-dialog[data-signal-module='pickup'] .dialog-header::after { right: 0; bottom: 0; width: 42%; height: .45rem; }
-.app-dialog.data-dialog[data-signal-module='pickup'] .dialog-header :is(.dialog-registration, h2, .icon-button) { color: var(--ark-endfield-field); }
-.app-dialog.data-dialog[data-signal-module='pickup'] :is(.dialog-description, .dialog-content, .data-form, .field-row, .field-help, .form-error, input, textarea, select, .project-select-trigger) { color: var(--ark-endfield-ink); text-shadow: none; }
-.app-dialog.data-dialog[data-signal-module='pickup'] :is(input, textarea, select, .project-select-trigger) { border-color: var(--ark-endfield-ink); background: var(--sg-p-color-surface); }
-
-@media (hover: hover) and (pointer: fine) {
-  .ark-endfield-overview :is(.text-action, .signal-overview-primary, .signal-business-map button),
-  .ark-endfield-pickup :is(.ledger-add, .record-primary-action, .signal-module-header .text-action),
-  .app-dialog.data-dialog[data-signal-module='pickup'] .primary-action { transition: transform var(--sg-p-duration-fast) var(--sg-p-ease-cut), filter var(--sg-p-duration-fast) var(--sg-p-ease-cut); }
-  .ark-endfield-overview :is(.text-action, .signal-overview-primary, .signal-business-map button):not(:disabled):hover,
-  .ark-endfield-pickup :is(.ledger-add, .record-primary-action, .signal-module-header .text-action):not(:disabled):hover,
-  .app-dialog.data-dialog[data-signal-module='pickup'] .primary-action:not(:disabled):hover { filter: brightness(.96); transform: translateY(-1px); }
-}
+.app-dialog.data-dialog[data-signal-module='pickup'] .dialog-panel { border: 2px solid var(--ark-ink); background: var(--ark-field); }
+.app-dialog.data-dialog[data-signal-module='pickup'] .dialog-header { position: relative; overflow: hidden; border-bottom: 2px solid var(--ark-ink); background: var(--ark-charcoal); color: var(--ark-field); }
+.app-dialog.data-dialog[data-signal-module='pickup'] .dialog-header::after { content: ''; position: absolute; right: 0; bottom: 0; width: 42%; height: .45rem; background: var(--ark-endfield-signal); }
+.app-dialog.data-dialog[data-signal-module='pickup'] :is(.dialog-description, .dialog-content, .data-form, .field-row, .field-help, .form-error, input, textarea, select, .project-select-trigger) { color: var(--ark-ink); text-shadow: none; }
+.app-dialog.data-dialog[data-signal-module='pickup'] :is(input, textarea, select, .project-select-trigger) { border-color: var(--ark-ink); background: var(--sg-p-color-surface); }
+.app-dialog.data-dialog[data-signal-module='pickup'] .primary-action { background: var(--ark-endfield-signal) !important; color: var(--ark-ink) !important; }
 
 @media (max-width: 720px) {
   .ark-endfield-overview .scene-title,
@@ -212,7 +98,7 @@
   .ark-endfield-overview :is(.scene-title, .signal-overview-grid, .signal-overview-primary, .signal-business-map button),
   .ark-endfield-pickup :is(.signal-module-header, .signal-record-ledger, .signal-record-row),
   .app-dialog.data-dialog[data-signal-module='pickup'] :is(.dialog-panel, .dialog-header) { border-color: CanvasText; background: Canvas; color: CanvasText; }
-  .ark-endfield-overview :is(.scene-title::before, .scene-title::after, .signal-overview-primary::before, .signal-business-map button::before),
-  .ark-endfield-pickup :is(.signal-module-header::before, .signal-module-header::after, .signal-record-row::after),
+  .ark-endfield-overview :is(.scene-title::before, .signal-overview-primary::before, .signal-business-map button::before),
+  .ark-endfield-pickup .signal-module-header::before,
   .app-dialog.data-dialog[data-signal-module='pickup'] .dialog-header::after { display: none; }
 }
