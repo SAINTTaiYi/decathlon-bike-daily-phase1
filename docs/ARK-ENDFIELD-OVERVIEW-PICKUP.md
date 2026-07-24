@@ -60,6 +60,14 @@
 - Frontend-quality audit passed: zoom, skip-link, tabindex, native controls, image alt, reduced motion, high contrast, forced colors, touch targets and VisualViewport.
 - Node 22 CI remains the final cross-runtime acceptance authority; Browser Harness remains unavailable, so no browser visual or interaction acceptance is claimed.
 
+## V5.9.2 Preview release — 2026-07-24
+
+- PR #53 merged normally as source SHA 6c5f7e99699b5fa41ebe6eb11ffc79156d7132d3 after GitHub Actions Node 22 CI run 30088463953 passed both verify and full-history secrets.
+- Cloudflare Preview workflow 30088627535 deployed that exact SHA with the Free, no-billing and Preview-only guards enabled.
+- Independent public verification at https://bike-ops-preview.geeklightonefish.workers.dev confirmed live, ready and meta as V5.9.2 / exact SHA / preview / cloudflare-workers-d1. Root returned HTTP 200 with index-CLYez4K1.js and index-Xx-N1fQq.css; sampled self-hosted Repair valve material returned HTTP 200 image/webp, 7,318 bytes.
+- Browser Harness remains unavailable, so no browser visual or interaction acceptance is claimed. User manual Preview acceptance remains required for the authenticated Overview + Pickup visual scope.
+- This documentation-only administrative checkpoint records the completed release. After its normal PR/CI/merge, redeploy Preview from the final documentation SHA for source-identity convergence; do not create a further checkpoint after that deployment.
+
 ## Release boundary
 
 This is a Preview-only visual candidate after local validation, normal PR and CI. Staging requires separate explicit user approval. Production is forbidden.
