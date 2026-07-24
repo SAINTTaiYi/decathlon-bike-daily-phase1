@@ -1,12 +1,13 @@
-export const APP_VERSION = "5.9.2"
+export const APP_VERSION = "5.7.7"
 
 export const currentRelease = {
   version: APP_VERSION,
-  date: "2026.07.24",
-  title: "Endfield 预算收敛",
-  summary: "收敛总览与待取车的 Endfield 覆盖层重复样式，为跨 Node 构建环境保留 CSS 质量预算余量。",
+  date: "2026.07.22",
+  title: "主工作台旧纸材质",
+  summary: "登录后的主工作台改为克制的旧纸背景与印刷磨损标题，业务内容、操作流程和其他页面保持不变。",
   changes: [
-    "保留总览与待取车的原创 Endfield Level 2 结构、Solar Yellow 信号面、确认任务层和无障碍降级。",
-    "不变更框架、路由、数据契约、业务操作、权限、审计或部署目标。"
+    "主工作台以 #EFEEEC 为底，固定叠加 4.5% 胶片颗粒、2.6% 纸纤维和 1.6% 极浅灰做旧划痕。",
+    "刊头、模块标题、摘要标题、票据车型标题和图片标题增加低对比、不规则的印刷磨损纹理。",
+    "纸张与文字材质仅在已登录且工作台就绪时生效，登录、Dialog、表单、日报图和 Forced Colors 保持清晰回退。"
   ]
 }

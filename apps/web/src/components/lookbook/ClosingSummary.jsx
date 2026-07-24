@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import IconCheckCircle from '@iconoir-solid/CheckCircle.mjs'
+import IconCheckCircle from '@iconoir/CheckCircle.mjs'
 import IconClock from '@iconoir/Clock.mjs'
-import IconWarning from '@iconoir-solid/WarningTriangle.mjs'
+import IconWarning from '@iconoir/WarningTriangle.mjs'
 import IconMedia from '@iconoir/MediaImage.mjs'
-import SignalStateMark from './SignalStateMark.jsx'
 
 export default function ClosingSummary({ workflow, onJumpToRequirement, onCompleteClosing, onReopenClosing, onExportReport }) {
   const next = workflow.remainingRequirements[0]
@@ -18,17 +17,16 @@ export default function ClosingSummary({ workflow, onJumpToRequirement, onComple
   }
 
   return (
-    <section className="closing-summary" data-signal-module="closing" aria-labelledby="closing-summary-title" data-motion="summary">
-      <div className="summary-topline"><span>{dateLabel} / DATABASE SYNC</span><SignalStateMark tone={closed ? 'complete' : workflow.kpiReady ? 'active' : 'pending'}>{closed ? 'CLOSED' : workflow.kpiReady ? 'READY' : 'OPEN'}</SignalStateMark></div>
+    <section className="closing-summary" aria-labelledby="closing-summary-title" data-motion="summary">
+      <div className="summary-topline"><span>{dateLabel} / DATABASE SYNC</span><strong>{closed ? 'CLOSED' : 'OPEN'}</strong></div>
       <div className="summary-grid">
         <div className="summary-copy">
           <span>Daily closing</span>
-          <h2 id="closing-summary-title" data-glitch-motion data-glitch-scan>{closed ? 'CLOSING COMPLETE' : workflow.kpiReady ? 'READY TO CLOSE' : 'CLOSING STATUS'}</h2>
+          <h2 id="closing-summary-title">{closed ? 'CLOSING COMPLETE' : workflow.kpiReady ? 'READY TO CLOSE' : 'CLOSING STATUS'}</h2>
           <p>{closed ? '当日数据已锁定并同步。' : workflow.kpiReady ? '销售数据已保存，可以完成闭店。' : '销售数据是唯一闭店要求。其它台账按实际变化更新。'}</p>
         </div>
-        <div className="summary-score" aria-label={`闭店准备度 ${workflow.readiness}%`}><strong data-glitch-motion data-glitch-scan>{workflow.readiness}</strong><span>%</span></div>
+        <div className="summary-score" aria-label={`闭店准备度 ${workflow.readiness}%`}><strong>{workflow.readiness}</strong><span>%</span></div>
       </div>
-      <div className="signal-readiness-track" aria-label={`闭店准备度 ${workflow.readiness}%`}><span style={{ '--signal-readiness': `${workflow.readiness}%` }} /><small>{workflow.readiness}% READY</small></div>
       {workflow.storageError ? <div className="status-alert" role="alert"><IconWarning width={18} height={18} aria-hidden="true" /><span>{workflow.storageError}</span><button type="button" onClick={() => void workflow.refresh()} disabled={workflow.syncing}>{workflow.syncing ? '正在同步…' : '重新同步'}</button></div> : null}
       {closed ? (
         <div className="summary-next summary-next-complete summary-next-closed">

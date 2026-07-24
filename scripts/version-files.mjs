@@ -25,7 +25,6 @@ const roots = [
   'tsconfig.base.json',
   'AUTOMATED-DEPLOYMENT.md',
   'PRODUCT.md',
-  'DESIGN.md',
   'README.md',
   'deploy-summary.md'
 ]

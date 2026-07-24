@@ -6,9 +6,9 @@ import { SceneTitle } from '../components/lookbook/LookbookPrimitives.jsx'
 export default function RepairScene(props) {
   const scene = sceneById('repair')
   return (
-    <section className="look-section signal-repair-prototype" data-signal-module={scene.signalModule} id={scene.id} data-look={scene.id} aria-labelledby={`${scene.id}-title`}>
-      <SceneTitle scene={scene} signalHeader note="按结构化维修单登记联系方式、维修类型、项目、取车日期与固定状态；维修完成后沿用同一记录进入待取。" metrics={[{ label: 'ACTIVE / 在修', value: props.records.filter((record) => !record.completedToday).length }, { label: 'PARTS / 等待配件', value: props.records.filter((record) => record.status === '等待配件').length }, { label: 'PICKUP / 已填日期', value: props.records.filter((record) => !record.completedToday && record.pickupDate).length }]} />
-      <RecordLedger {...props} config={sceneRecordConfig.repair} variant="glitch-archive" />
+    <section className="look-section" data-depth-section={scene.id} id={scene.id} data-look={scene.id} aria-labelledby={`${scene.id}-title`}>
+      <SceneTitle scene={scene} note="按结构化维修单登记联系方式、维修类型、项目、取车日期与固定状态；付费、质保与免费维修完成后保留同一记录进入待取，免费维修完成后系统会自动标为维修完成，可直接取车。" />
+      <RecordLedger {...props} config={sceneRecordConfig.repair} />
     </section>
   )
 }

@@ -84,7 +84,6 @@ export default function ProjectSelect({
       className="project-select"
       data-open={open ? 'true' : undefined}
       data-compact={compact ? 'true' : undefined}
-      data-value={value || undefined}
     >
       <button
         ref={triggerRef}

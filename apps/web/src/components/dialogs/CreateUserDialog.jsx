@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import AppDialog from './AppDialog.jsx'
-import SignalTaskState from '../SignalTaskState.jsx'
 import { createUserAccount } from '../../api/auth.js'
 
 const roleOptions = [
@@ -77,15 +76,15 @@ export default function CreateUserDialog({ open, onClose, onNotify }) {
   }
 
   return (
-    <AppDialog open={open} onClose={close} title="添加用户" eyebrow="ADMIN · 账号管理" description="为当前门店创建同事账号。同事首次登录时必须修改临时密码。" signalModule="other" registration="ACCOUNT / CREATE">
+    <AppDialog open={open} onClose={close} title="添加用户" eyebrow="ADMIN · 账号管理" description="为当前门店创建同事账号。同事首次登录时必须修改临时密码。">
       {created ? (
-        <div className="identity-confirm account-created" role="status">
-          <SignalTaskState tone="success" title="账号已创建" description="请立即私下交付临时密码。首次登录后必须修改密码。" compact />
+        <div className="identity-confirm" role="status">
+          <strong>账号已创建</strong>
           <p>用户名：{created.username}</p>
           <p>显示名：{created.displayName}</p>
           <p>角色：{roleOptions.find((item) => item.value === created.role)?.label || created.role}</p>
           <p>临时密码：{created.password}</p>
-          <small>临时密码只在当前任务层显示一次，关闭后不会再次显示。</small>
+          <small>请立即把临时密码私下发给同事。密码不会再次显示。</small>
           <div>
             <button type="button" onClick={() => void copyCredentials()}>复制账号信息</button>
             <button type="button" className="primary-action" onClick={close}>完成</button>
@@ -99,7 +98,7 @@ export default function CreateUserDialog({ open, onClose, onNotify }) {
             <legend>角色</legend>
             <div className="role-option-list">
               {roleOptions.map((option) => (
-                <label key={option.value} className="role-option" data-selected={form.role === option.value ? 'true' : undefined}>
+                <label key={option.value} className="role-option">
                   <input type="radio" name="role" value={option.value} checked={form.role === option.value} onChange={(event) => set('role', event.target.value)} />
                   <span>{option.label}</span>
                 </label>

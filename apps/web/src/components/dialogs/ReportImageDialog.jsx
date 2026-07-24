@@ -6,15 +6,13 @@ export default function ReportImageDialog({ open, onClose, imageUrl, filename, o
       open={open}
       onClose={onClose}
       title="闭店日报图"
-      eyebrow="SIGNAL REPORT · 保存到相册"
-      description="报告已按模块信号、冷白明细和高对比结构输出，并针对聊天压缩与灰度阅读保留文字标签和边界。若未出现下载项，请长按下方大图保存。"
-      signalModule="closing"
-      registration="REPORT / EXPORT"
+      eyebrow="SAVE IMAGE · 保存到相册"
+      description="已优先尝试直接下载。若未出现下载项，请长按下方大图选择“保存图片/添加到相册”。"
     >
       {imageUrl ? (
         <div className="report-image-preview">
           <img src={imageUrl} alt={filename || '闭店日报图'} className="report-image-preview-img" />
-          <p className="report-image-preview-tip">长按可保存到相册 / 也可使用下方按钮再次下载</p>
+          <p className="report-image-preview-tip">长按图片可保存到相册 · 也可点下方按钮再次下载</p>
         </div>
       ) : null}
       <div className="dialog-footer">
