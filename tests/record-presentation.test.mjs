@@ -41,4 +41,5 @@ test('服务票据区标题按维修、订单和暂存语义输出', () => {
   assert.equal(serviceSectionLabel({ pickupSource: 'repair' }), 'Maintenance')
   assert.equal(serviceSectionLabel({ pickupSource: 'self-pickup' }), 'Order')
   assert.equal(serviceSectionLabel({ pickupSource: 'customer-storage' }), 'Storage note')
+  assert.equal(serviceSectionLabel({ pickupSource: 'used-car' }), 'Used bike')
 })

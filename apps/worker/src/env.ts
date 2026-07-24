@@ -28,6 +28,10 @@ export interface AppConfig {
   ADMIN_SETUP_TOKEN_HASH?: string
 }
 
+export function isAllowedOrigin(origin: string | undefined, allowedOrigins: readonly string[]): boolean {
+  return Boolean(origin && allowedOrigins.includes(origin))
+}
+
 export function loadConfig(env: WorkerEnv): AppConfig {
   const required = ['SESSION_SECRET', 'CSRF_SECRET', 'PASSWORD_PEPPER'] as const
   for (const key of required) {

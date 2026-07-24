@@ -71,3 +71,25 @@ test('非店修二次完成会替换遗留待取明细，且撤回与审计记�
   assert.match(audit, /prepareAudit\(db/u)
   assert.match(audit, /await db\.batch\(\[\.\.\.restoreStatements, audit\.statement\]\)/u)
 })
+
+
+test('二手车售出转换在 Worker 与 API 中保留售出明细，并原子重建二手车待取明细', async () => {
+  const [worker, api] = await Promise.all([
+    readFile(new URL('../src/routes/work-items.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../../api/src/routes/work-items.ts', import.meta.url), 'utf8')
+  ])
+
+  assert.match(worker, /actionRoute\('\/api\/v1\/work-items\/:id\/sell-resale', 'sell-resale'/u)
+  assert.match(worker, /UPDATE work_items SET kind = 'pickup', status = '等待取车', lifecycle = 'active'/u)
+  assert.match(worker, /UPDATE resale_details SET resale_stage = 'sold', sold_at = \?/u)
+  assert.match(worker, /DELETE FROM pickup_details/u)
+  assert.match(worker, /INSERT INTO pickup_details[\s\S]*SELECT \?, 'used-car', NULL, 'pending'/u)
+  assert.match(worker, /store_id = \? AND kind = 'pickup' AND revision = \?/u)
+  assert.match(worker, /extra: \{ route: 'pickup' \}/u)
+  assert.match(worker, /USED_CAR_SOURCE_LOCKED/u)
+
+  assert.match(api, /set kind = 'pickup', status = '等待取车', lifecycle = 'active'/u)
+  assert.match(api, /update bike_ops\.resale_details set resale_stage = 'sold'/u)
+  assert.match(api, /insert into bike_ops\.pickup_details[\s\S]*'used-car', null, 'pending'/u)
+  assert.match(api, /USED_CAR_SOURCE_LOCKED/u)
+})

@@ -143,6 +143,8 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
         const normalized = validatePickup(input.values)
         if (!normalized.ok) throw new ApiProblem(400, 'INVALID_PICKUP', normalized.error)
         const fields = normalized.fields
+        const resaleOriginUsedCar = pickup?.pickupSource === 'used-car' && String((before.resale as Record<string, unknown> | null)?.resaleStage ?? '') === 'sold'
+        if (resaleOriginUsedCar && fields.pickupSource !== 'used-car') throw new ApiProblem(400, 'USED_CAR_SOURCE_LOCKED', '二手车售出后转入待取，来源不能改为其它类型。')
         title = fields.title ?? ''
         detail = fields.detail ?? ''
         meta = fields.meta ?? ''
@@ -208,7 +210,7 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
 
   await actionRoute('/api/v1/work-items/:id/sell-resale', 'sell-resale', async (tx, context, id, revision) => {
     const rows = await tx<{ title: string }[]>`
-      update bike_ops.work_items w set lifecycle = 'sold', revision = revision + 1, updated_by = ${context.userId}, updated_at = now()
+      update bike_ops.work_items w set kind = 'pickup', status = '等待取车', lifecycle = 'active', revision = revision + 1, updated_by = ${context.userId}, updated_at = now()
       from bike_ops.resale_details r
       where w.id = ${id} and w.store_id = ${context.storeId} and w.revision = ${revision}
         and w.lifecycle = 'active' and r.work_item_id = w.id and r.resale_stage = 'listed'
@@ -216,7 +218,8 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
     `
     if (!rows[0]) throw new ApiProblem(409, 'INVALID_STATE', '只有已上架二手车可以标记售出。')
     await tx`update bike_ops.resale_details set resale_stage = 'sold', sold_at = now() where work_item_id = ${id}`
-    return { summary: `已售出：${rows[0].title}` }
+    await tx`insert into bike_ops.pickup_details (work_item_id, pickup_source, self_pickup_platform, notification_status) values (${id}, 'used-car', null, 'pending')`
+    return { summary: `已售出并转入待取（二手车）：${rows[0].title}`, extra: { route: 'pickup' } }
   })
 
   await actionRoute('/api/v1/work-items/:id/complete-repair', 'complete-repair', async (tx, context, id, revision, businessDate) => {

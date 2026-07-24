@@ -21,7 +21,7 @@ export interface LegacyRecordPlan {
     completedAt: string | null
   }
   pickup: null | {
-    pickupSource: 'self-pickup' | 'repair' | 'customer-storage'
+    pickupSource: 'self-pickup' | 'repair' | 'customer-storage' | 'used-car'
     selfPickupPlatform: 'tmall' | 'jd' | 'mini-program' | null
     notificationStatus: 'pending' | 'notified'
     pickedUpOn: string | null
@@ -41,8 +41,8 @@ function text(value: unknown, max: number): string {
   return String(value ?? '').trim().slice(0, max)
 }
 
-function pickupSource(record: Record<string, unknown>): 'self-pickup' | 'repair' | 'customer-storage' {
-  if (record.pickupSource === 'self-pickup' || record.pickupSource === 'repair' || record.pickupSource === 'customer-storage') return record.pickupSource
+function pickupSource(record: Record<string, unknown>): 'self-pickup' | 'repair' | 'customer-storage' | 'used-car' {
+  if (record.pickupSource === 'self-pickup' || record.pickupSource === 'repair' || record.pickupSource === 'customer-storage' || record.pickupSource === 'used-car') return record.pickupSource
   const legacyText = `${text(record.meta, 240)} ${text(record.detail, 500)}`
   if (record.repairType || record.repairCompletedAt || /维修单|维修完成|付款单|质保单/u.test(legacyText)) return 'repair'
   if (record.kind === 'online' || /线上自提|自提订单/u.test(legacyText)) return 'self-pickup'

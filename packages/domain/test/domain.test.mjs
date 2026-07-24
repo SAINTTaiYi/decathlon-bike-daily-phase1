@@ -39,6 +39,15 @@ test('自提平台、顾客暂存和取车校验由服务端共享规则约束',
   assert.equal(validatePickupCompletion({ pickupSource: 'repair', repairType: '免费', status: '维修中' }).ok, true)
 })
 
+test('二手车待取不要求平台或暂存说明，并保留可选联系方式', () => {
+  const result = validatePickup({ pickupSource: 'used-car', title: '二手 Rockrider', status: '等待取车', contactValue: '' })
+  assert.equal(result.ok, true)
+  assert.equal(result.fields.pickupSource, 'used-car')
+  assert.equal(result.fields.selfPickupPlatform, '')
+  assert.equal(result.fields.detail, '')
+  assert.equal(result.fields.contactValue, '')
+})
+
 test('业务日期由门店时区决定', () => {
   assert.equal(localBusinessDate('Asia/Shanghai', new Date('2026-07-14T16:30:00.000Z')), '2026-07-15')
 })

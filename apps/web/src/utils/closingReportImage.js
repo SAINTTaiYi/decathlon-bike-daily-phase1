@@ -68,6 +68,10 @@ export function selfPickupReportLabel(record) {
   return labels[inferSelfPickupPlatform(record)] || ''
 }
 
+export function usedCarReportLabel(record) {
+  return inferPickupSource(record) === 'used-car' ? '二手车' : ''
+}
+
 export function buildClosingReportModel({
   businessDate = '',
   storeName = '门店',
@@ -457,11 +461,13 @@ function drawCard(ctx, item, x, y, width, index) {
   ctx.fillText(pay, midCenterX, my)
   ctx.restore()
 
-  // ——— right panel: online self-pickup uses its platform label instead of a pickup date ———
+  // ——— right panel: source identities replace the ordinary pickup-date display ———
   const selfPickupLabel = selfPickupReportLabel(item)
-  const dateLabel = selfPickupLabel ? '自提标识' : '取车时间'
-  const dateValue = selfPickupLabel || formatDateSlash(item.pickupDate)
-  if (selfPickupLabel) fillRound(ctx, panelX, panelY, panelW, panelH, 16, INK)
+  const usedCarLabel = usedCarReportLabel(item)
+  const sourceIdentity = selfPickupLabel || usedCarLabel
+  const dateLabel = selfPickupLabel ? '自提标识' : usedCarLabel ? '二手车标识' : '取车时间'
+  const dateValue = sourceIdentity || formatDateSlash(item.pickupDate)
+  if (sourceIdentity) fillRound(ctx, panelX, panelY, panelW, panelH, 16, INK)
   ctx.font = `600 18px ${FONT_MONO}`
   const rightStackH = 22 + 16 + 34
   let ry = panelY + Math.round((panelH - rightStackH) / 2)
@@ -469,12 +475,12 @@ function drawCard(ctx, item, x, y, width, index) {
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
-  ctx.fillStyle = selfPickupLabel ? 'rgba(255,255,255,0.68)' : MUTED
+  ctx.fillStyle = sourceIdentity ? 'rgba(255,255,255,0.68)' : MUTED
   ctx.font = `600 18px ${FONT_MONO}`
   ctx.fillText(dateLabel, rightCenterX, ry)
   ry += 30
-  ctx.fillStyle = selfPickupLabel ? '#ffffff' : INK
-  ctx.font = `800 ${selfPickupLabel ? 30 : 24}px ${FONT_DISPLAY}`
+  ctx.fillStyle = sourceIdentity ? '#ffffff' : INK
+  ctx.font = `800 ${sourceIdentity ? 30 : 24}px ${FONT_DISPLAY}`
   ctx.fillText(dateValue, rightCenterX, ry)
 
   ctx.textAlign = 'left'

@@ -144,6 +144,7 @@ jobs:
             const cors = Array.from(new Set([
               base,
               'https://workshop.skin',
+              'https://www.workshop.skin',
               'https://bike-ops-staging.geeklightonefish.workers.dev'
             ].filter(Boolean))).join(',');
             t=t
