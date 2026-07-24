@@ -20,5 +20,5 @@ test('版本脚本接受 pnpm 传入的独立参数分隔符', () => {
   const result = spawnSync(process.execPath, ['scripts/bump-version.mjs', '--'], { cwd: process.cwd(), encoding: 'utf8' })
   assert.notEqual(result.status, 0)
   assert.doesNotMatch(result.stderr, /-- 缺少内容/u)
-  assert.match(result.stderr, /用法/u)
+  assert.match(result.stderr, /正式 Production 发布准备/u)
 })

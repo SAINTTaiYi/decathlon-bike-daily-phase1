@@ -22,8 +22,6 @@
     "test:api": "pnpm --filter @bike-ops/api test",
     "typecheck": "pnpm -r --if-present typecheck",
     "check:workflows": "node scripts/ops/validate-workflows.mjs",
-    "version:patch": "node scripts/bump-version.mjs",
-    "version:stamp": "node scripts/stamp-version.mjs",
     "check:version": "node scripts/check-version.mjs",
     "build": "pnpm run check:version && pnpm -r --if-present build",
     "build:web": "pnpm run check:version && pnpm --filter @bike-ops/web build",
@@ -35,7 +33,10 @@
     "cf:typecheck": "pnpm --filter @bike-ops/worker typecheck",
     "build:worker-bundle": "node scripts/build-worker-bundle.mjs",
     "typecheck:worker": "pnpm --filter @bike-ops/worker typecheck",
-    "test:worker": "pnpm --filter @bike-ops/worker test"
+    "test:worker": "pnpm --filter @bike-ops/worker test",
+    "version:preview": "node scripts/preview-version.mjs",
+    "version:release": "node scripts/bump-version.mjs",
+    "version:release:stamp": "node scripts/stamp-version.mjs -- --formal-release true"
   },
   "devDependencies": {
     "esbuild": "0.25.5"

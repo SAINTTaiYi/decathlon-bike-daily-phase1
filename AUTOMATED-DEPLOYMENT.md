@@ -199,12 +199,15 @@ confirm_encrypted_backup=true
 confirm_restore_drill=true
 confirm_free_plan=true
 confirm_no_billing=true
+confirm_aggregated_preview_announcement=true
 ```
 
 Gates:
 
 - dispatch from `main` only;
 - `release_sha` equals current remote `main`;
+- the user has manually accepted the Preview, its complete accepted range is recorded in `formal-release.json`, and the release announcement aggregates that Preview cycle before the public version increment;
+- Production-only version validation rejects a Preview fingerprint or missing aggregated-announcement confirmation;
 - package version equals the requested version;
 - `staging_accepted_sha` equals current `origin/edgeone-staging`;
 - accepted Staging SHA is an ancestor of the Production SHA;

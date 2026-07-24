@@ -190,29 +190,41 @@ Staging bootstrap checklist: [`docs/STAGING-ACCOUNT-SETUP.md`](./docs/STAGING-AC
 
 ## Version governance
 
-Current registered interface version: **V5.3.1**.
+Current registered interface version: **V5.7.8**.
 
-Version truth must match across:
+Preview is a review environment, not a public release. Preview-only changes **must not** increment `package.json`, `apps/web/package.json`, `APP_VERSION`, or the public update announcement.
 
-- root `package.json`
-- `apps/web/package.json`
-- `apps/web/src/data/releaseNotes.js`
-- `version-manifest.json`
+### Preview cycle
 
-For the next product/deployment change:
+After any Preview-only source change, keep the public version unchanged and record the reviewed source fingerprint:
 
 ```bash
-pnpm version:patch -- \
-  --title "Update title" \
-  --summary "Update summary" \
-  --change "Change one" \
-  --change "Change two"
-
-pnpm version:stamp
+pnpm version:preview
 pnpm build
 ```
 
-The fingerprint includes source, tests, migrations, EdgeOne configuration, workflows, and product/deployment documentation; generated build metadata, dependencies, build output, execution receipts, and real secrets are excluded.
+### Formal Production release only
+
+After the user has manually accepted the Preview and explicitly asks for Production, aggregate the complete accepted Preview cycle into one announcement, then prepare the only permitted public version increment. The first governed cycle starts after the existing V5.7.8 Preview baseline `dabe0ed8d1ba662840460837c88bf288fb3ffaaa`; every later cycle starts at the previous formal-release commit.
+
+```bash
+pnpm version:release -- \
+  --formal-release true \
+  --preview-from "<first: V5.7.8 baseline; later: previous formal-release SHA>" \
+  --preview-to "<accepted-preview-sha>" \
+  --title "Formal release title" \
+  --summary "Aggregated accepted Preview changes" \
+  --change "Preview change one" \
+  --change "Preview change two"
+
+pnpm version:release:stamp
+pnpm check:version -- --mode production
+pnpm build
+```
+
+The formal release marker records the accepted Preview range, a deterministic ordered commit list (full SHA plus subject), and the announcement. Production recomputes the Git range, rejects an altered/missing list, and permits only the five formal-version files after the accepted Preview SHA—no feature, UI, workflow, or documentation change can be smuggled into the release commit. The workflow also rejects a missing aggregated-announcement confirmation, a stale public version fingerprint, or a source that has only a Preview fingerprint. Patch rollover stays unchanged: `5.4.10` becomes `5.5.0`.
+
+The fingerprint includes source, tests, migrations, EdgeOne configuration, workflows, and product/deployment documentation; generated build metadata, dependencies, build output, execution receipts, real secrets, and the Preview fingerprint itself are excluded.
 
 ## Security notes
 

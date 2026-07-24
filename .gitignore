@@ -24,3 +24,5 @@ data/mock-data.json
 # Local Cloudflare build artifacts
 dist/worker/
 apps/web/dist/
+# Preview-only source fingerprint; public version remains unchanged.
+preview-manifest.json
