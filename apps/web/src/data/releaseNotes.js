@@ -1,13 +1,12 @@
-export const APP_VERSION = "5.9.0"
+export const APP_VERSION = "5.9.1"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.07.24",
-  title: "总览与待取 Endfield 重构",
-  summary: "以原创 Endfield Level 2 视觉重构总览与待取车界面，保留全部现有框架结构和操作逻辑。",
+  title: "Endfield 验证修正",
+  summary: "修正总览与待取车 Endfield 覆盖层的回归断言，使其对应共享无障碍保障与实际选择器。",
   changes: [
-    "总览保留真实待办排序与抽象信号场，将销售 KPI、业务地图和主要操作重组为冷白、炭黑与 Solar Yellow 的技术型工作面。",
-    "待取车保留来源、通知、日期、校验和取货码确认逻辑，重构模块头、队列摘要、台账、主操作与确认任务层。",
-    "补充 Endfield 范围、forced-colors、reduced-motion、输入保护与业务边界静态回归测试。"
+    "更新 Ark Endfield 范围测试，验证原始本地样式、待取确认任务层及 forced-colors 与 reduced-motion 降级链路。",
+    "不变更框架、路由、数据契约、业务操作、权限、审计或部署目标。"
   ]
 }

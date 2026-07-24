@@ -29,6 +29,22 @@
 4. Run the existing frontend quality gate.
 5. Use Browser Harness for desktop and portrait visual and interaction verification when available. Do not claim that verification if the Harness remains unavailable.
 
+## V5.9.1 validation repair
+
+- Scope remains the same authenticated Overview + Pickup-only visual refactor; no framework, route, API, Worker, D1, permission, audit, field or business-flow change was made.
+- The focused Ark regression test now matches the final CSS responsibility boundary: the Ark layer owns its Pickup forced-colors fallback, while the shared Signal Grid glitch layer owns reduced-motion fallback.
+- The repair has passed focused Ark tests 4/4, the full suite (Domain 4/4, Database 5/5, Web 143/143, API 16/16, Worker 11/11), and full TypeScript typecheck. Final build, Worker bundle, workflow and frontend-quality verification are rerun after this checkpoint is stamped.
+- Candidate version: V5.9.1. Browser Harness remains unavailable, so no browser visual or interaction acceptance is claimed.
+
+## V5.9.1 final verification — 2026-07-24
+
+- V5.9.1 supersedes V5.9.0 as the PR candidate only to register the post-CSS-consolidation Ark regression-test repair and its release notes/manifest; it does not change the Endfield visual scope or any operational implementation.
+- Final local evidence: focused Ark test 4/4; Domain 4/4; Database 5/5; Web 143/143; API 16/16; Worker 11/11; recursive TypeScript typecheck; Worker typecheck; contracts build; Worker bundle; version/diff checks; workflow policy validator 88/88.
+- Production Web build: JavaScript 424,509 bytes / gzip 140,053 bytes; CSS 281,409 bytes / gzip 61,098 bytes, within the 61,440-byte CSS budget. Self-hosted signal material remains 365,660 bytes.
+- Frontend-quality audit passed: zoom, skip-link, tabindex, native controls, image alt, reduced motion, high contrast, forced colors, touch targets and VisualViewport.
+- Browser Harness is unavailable in this environment; no browser visual or interaction acceptance is claimed.
+- Next: stage only the tracked V5.9.1 repair files, run pre-commit diff and credential scans, commit, open a normal PR, wait for CI, merge normally, then deploy Preview only.
+
 ## Release boundary
 
 This is a Preview-only visual candidate after local validation, normal PR and CI. Staging requires separate explicit user approval. Production is forbidden.

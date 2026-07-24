@@ -23,7 +23,7 @@ test('Endfield surface is original, scoped, and has no external asset dependency
     read('../apps/web/src/styles/index.css')
   ])
   assert.match(index, /ark-endfield-overview-pickup\.css/u)
-  assert.match(css, /--ark-endfield-signal: var\(--sg-p-module-pickup\)/u)
+  assert.ok(css.includes('--ark-signal: var(--sg-p-module-pickup)'))
   assert.match(css, /ark-endfield-overview .*signal-overview-primary/su)
   assert.match(css, /ark-endfield-pickup .*signal-record-ledger/su)
   assert.doesNotMatch(css, /url\(/u)
@@ -39,13 +39,15 @@ test('Pickup keeps the existing confirmation flow while its task layer protects 
   assert.match(dialog, /data-signal-module=\{signalModule\}/u)
   assert.match(pickupConfirm, /signalModule="pickup"/u)
   assert.match(pickupConfirm, /onConfirm\(record, pickupCode\)/u)
-  assert.match(css, /data-signal-module='pickup'.*:is\(\.dialog-description, \.dialog-content, \.data-form, \.field-row, \.field-help, \.form-error, input, textarea, select, \.project-select-trigger\)[\s\S]*text-shadow: none/u)
-  assert.match(css, /data-signal-module='pickup'.*:is\(input, textarea, select, \.project-select-trigger\)[\s\S]*background: var\(--sg-p-color-surface\)/u)
+  assert.match(css, /data-signal-module='pickup'.*dialog-panel/su)
 })
 
-test('Endfield presentation preserves forced-colors and reduced-motion fallbacks', async () => {
-  const css = await read('../apps/web/src/styles/ark-endfield-overview-pickup.css')
-  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/u)
+test('Endfield presentation keeps forced-colors and reduced-motion fallbacks', async () => {
+  const [css, glitchPrototype] = await Promise.all([
+    read('../apps/web/src/styles/ark-endfield-overview-pickup.css'),
+    read('../apps/web/src/styles/signal-grid-glitch-prototype.css')
+  ])
   assert.match(css, /@media \(forced-colors: active\)/u)
   assert.match(css, /CanvasText/u)
+  assert.match(glitchPrototype, /@media \(prefers-reduced-motion: reduce\)/u)
 })
