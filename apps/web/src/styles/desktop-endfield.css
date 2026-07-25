@@ -1,0 +1,264 @@
+/* Desktop-only Endfield workbench: preserve the mobile-first composition below the existing 1080px breakpoint. */
+@media (min-width: 1080px) {
+  :root {
+    --page-pad: clamp(2rem, 4vw, 4.5rem);
+    --section-air: clamp(4.75rem, 9svh, 7.5rem);
+    --dock-space: 7.35rem;
+  }
+
+  .app-runtime[data-ready='true'].endfield-runtime .lookbook-shell {
+    width: min(100%, 1400px);
+    padding-top: clamp(1.25rem, 2vw, 2rem);
+    padding-inline: var(--page-pad);
+  }
+
+  .workspace-pointer-plane {
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(25rem, .92fr);
+    column-gap: clamp(1.5rem, 3.5vw, 4rem);
+    row-gap: 1.15rem;
+    align-items: start;
+  }
+
+  .workspace-pointer-plane > [data-workspace-layer='navigation'],
+  .workspace-pointer-plane > .active-user-strip,
+  .workspace-pointer-plane > .offline-banner,
+  .workspace-pointer-plane > .look-section,
+  .workspace-pointer-plane > .closing-footer {
+    grid-column: 1 / -1;
+  }
+
+  .report-masthead {
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 6.25rem;
+    padding: 1.45rem 0 1.1rem;
+  }
+
+  .report-masthead h1 {
+    max-width: none;
+    font-size: clamp(3.15rem, 5vw, 5.55rem);
+    letter-spacing: -.06em;
+  }
+
+  .report-masthead > strong {
+    align-self: stretch;
+    display: grid;
+    place-items: end;
+    min-width: 5.75rem;
+    padding: .75rem;
+    font-size: 1rem;
+  }
+
+  .active-user-strip {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: auto;
+    min-height: 3.75rem;
+    margin-top: 0;
+    padding: 0 .8rem;
+    border-top-width: 4px;
+  }
+
+  .active-user-strip span,
+  .active-user-strip strong {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .active-user-strip strong {
+    max-width: 18rem;
+    padding-inline: 1rem;
+    border-left: 1px solid var(--line);
+    font-size: .92rem;
+  }
+
+  .active-user-strip button {
+    grid-column: auto;
+    grid-row: auto;
+    min-width: 6.25rem;
+    min-height: 3.2rem;
+  }
+
+  .offline-banner { margin-top: 0; }
+
+  .workspace-focus {
+    grid-column: 1;
+    grid-row: span 2;
+    align-self: stretch;
+    min-height: 100%;
+    margin-top: 0;
+  }
+
+  .workspace-focus .closing-summary {
+    min-height: 100%;
+    padding: clamp(1.5rem, 2.4vw, 2.35rem);
+  }
+
+  .summary-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(10rem, 13rem);
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .summary-copy h2 { font-size: clamp(3.15rem, 4.65vw, 5.35rem); }
+  .summary-copy p { max-width: 44ch; font-size: .96rem; }
+  .summary-score { align-self: stretch; display: grid; align-content: end; padding-left: 1.1rem; }
+  .summary-score strong { font-size: clamp(5.25rem, 7.8vw, 8.5rem); }
+
+  .summary-next {
+    grid-template-columns: 1.65rem minmax(0, 1fr) minmax(9.75rem, auto);
+    gap: .85rem;
+    margin-top: 1.5rem;
+    padding-top: 1.1rem;
+  }
+
+  .summary-next strong { font-size: 1.05rem; }
+  .summary-next button { min-width: 9.75rem; }
+  .summary-closed-actions { justify-content: end; }
+
+  .release-notes {
+    grid-column: 2;
+    width: auto;
+    min-height: 0;
+    margin: 0;
+    align-self: start;
+  }
+
+  .release-notes summary { min-height: 4.25rem; }
+  .release-notes summary strong { font-size: .86rem; }
+  .release-notes-body { padding: 1rem 0 1.25rem; }
+  .release-notes-body p { font-size: .84rem; }
+  .release-notes-body ul { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1.35rem; }
+  .release-notes-body li { font-size: .78rem; }
+
+  .main-head-image {
+    grid-column: 2;
+    width: auto;
+    min-height: 18rem;
+    margin: 0;
+    aspect-ratio: auto;
+  }
+
+  .main-head-image img { object-position: center 42%; }
+  .head-photo-caption { width: min(78%, 30rem); padding: 1.35rem 1.5rem; }
+  .head-photo-caption strong { font-size: clamp(1.75rem, 2.6vw, 2.7rem); }
+
+  .look-section {
+    grid-template-columns: minmax(17rem, 22rem) minmax(0, 1fr);
+    column-gap: clamp(2.5rem, 5vw, 6.5rem);
+    padding-top: var(--section-air);
+  }
+
+  .look-section + .look-section { margin-top: clamp(5.5rem, 9vw, 8.5rem); }
+
+  .look-section > .scene-title {
+    top: 1.35rem;
+    max-width: 22rem;
+    padding-top: .2rem;
+  }
+
+  .scene-title::before { width: 4rem; }
+  .scene-title h2 { font-size: clamp(2.9rem, 4vw, 4.9rem); }
+  .scene-note { max-width: 34ch; font-size: .92rem; }
+  .scene-actions { max-width: 19rem; }
+
+  .look-section > .kpi-sheet,
+  .look-section > .handover-index,
+  .look-section > .record-ledger,
+  .look-section > .sales-input-summary { min-width: 0; }
+
+  .kpi-sheet { grid-template-columns: minmax(20rem, 1.04fr) minmax(18rem, .96fr); }
+  .kpi-primary { min-height: 28rem; padding: clamp(1.4rem, 2.5vw, 2.25rem); }
+  .kpi-primary strong { font-size: clamp(7rem, 10vw, 10.5rem); }
+  .kpi-notes > div { min-height: 6.8rem; padding-inline: 1.15rem; }
+  .kpi-notes dd { font-size: 2.7rem; }
+  .handover-index { margin-top: 1.5rem; }
+  .handover-index button { min-height: 4.6rem; }
+  .pickup-folio { padding: 1rem 1.15rem; }
+
+  .record-ledger { margin-top: 1.4rem; }
+  .record-ledger-head { min-height: 4.5rem; padding: .8rem 0; }
+  .record-ledger-head > strong { font-size: 1.7rem; }
+  .ledger-head-actions { gap: .5rem; }
+  .ledger-history, .ledger-add { min-width: 7.25rem; min-height: 40px; }
+
+  .record-row { gap: .85rem !important; padding: 1.1rem 0; }
+
+  .record-row-head {
+    grid-template-columns: 2.25rem minmax(0, 1fr) minmax(13rem, 16rem) !important;
+    gap: .75rem 1rem;
+  }
+
+  .record-history-mark { width: 36px !important; height: 36px !important; }
+  .record-model-block strong { font-size: clamp(1.6rem, 2vw, 2.25rem); }
+  .record-head-meta { max-width: 16rem; gap: .45rem; }
+  .record-state { font-size: .6rem; }
+  .record-badge-row { gap: .35rem; }
+  .record-badge { min-height: 1.65rem; font-size: .66rem; }
+
+  .record-body {
+    grid-template-columns: minmax(0, 1fr) minmax(10.5rem, 12.5rem);
+    column-gap: 1.2rem;
+    row-gap: .5rem;
+    padding-left: 3.25rem;
+  }
+
+  .record-detail-line,
+  .record-scan-line,
+  .record-inline-error,
+  .record-resolution-note { grid-column: 1; }
+
+  .record-actions {
+    grid-column: 2 !important;
+    grid-row: 1 / span 4;
+    align-self: center;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: .4rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0 0 0 1.2rem;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+
+  .record-actions button,
+  .record-actions button:only-child { flex: 0 0 auto; width: 100%; min-height: 40px !important; }
+  .record-detail-line { font-size: .9rem; }
+  .record-scan-item { font-size: .75rem; }
+
+  .record-ledger[data-dark='true'],
+  .record-row[data-resolved='true'],
+  .record-row[data-error='true'] { padding-inline: 1rem; }
+
+  .look-dock {
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: min(calc(100% - 3rem), 980px);
+    padding: .45rem;
+  }
+
+  .look-dock button { min-height: 3.75rem; grid-template-columns: auto 1fr; gap: .45rem; padding-inline: .65rem; }
+  .look-dock button span { font-size: .67rem; }
+  .dock-status { min-width: 4.5rem; text-align: center; }
+
+  .closing-footer {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 2rem;
+    margin-top: var(--section-air);
+    padding-bottom: calc(1.5rem + var(--dock-space));
+  }
+
+  .footer-identity { min-height: 3.9rem; padding-inline: 1rem; }
+  .footer-utility-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .closing-footer .primary-action { min-width: 13rem; min-height: 5.2rem; }
+
+  .boot-login { right: clamp(2rem, 7vw, 10rem); bottom: clamp(2rem, 6vh, 5rem); width: min(28rem, calc(100% - 4rem)); padding: 1.5rem; }
+  .boot-login-heading > strong { font-size: 2.25rem; }
+  .initial-setup-panel { width: min(100%, 60rem); padding: 2rem; }
+  .initial-setup-grid { gap: 1.25rem; }
+  .hydration-state, .fatal-state { padding: 3rem; }
+  .hydration-state > *, .fatal-state > * { max-width: 46rem; }
+  .status-toast { bottom: calc(7.75rem + env(safe-area-inset-bottom)); width: min(calc(100% - 3rem), 38rem); padding: 1rem 1.25rem; }
+  .app-dialog { width: min(calc(100% - 3rem), 62rem); }
+  .dialog-panel { max-height: min(84dvh, 54rem); padding: clamp(1.5rem, 3vw, 2.5rem); }
+  .dialog-header h2, .data-dialog .dialog-header h2 { font-size: clamp(2.4rem, 3.4vw, 3.65rem); }
+}
