@@ -1,11 +1,11 @@
 # 门店目录与自助注册 — 实施检查点
 
-**记录时间：** 2026-07-26 02:51 +08:00  
+**记录时间：** 2026-07-26 03:15 +08:00
 **功能分支：** `feat/store-directory-self-registration`  
 **开始基线：** `8c03ac9b6dc1637e21a4afb8f7e27c15f1fe1072`  
 **功能合并 SHA：** `a9c5f9036ee18249477ee495eefeb905e8b2c085`  
 **公开版本：** V5.7.8（Preview-only 变更不递增版本）  
-**部署状态：** 未部署；仅允许后续 Preview 人工验收，Staging/Production 未授权。
+**部署状态：** Preview 已部署并完成服务端验收；仍等待用户的完整交互验收。Staging/Production 未授权。
 
 ## 完成范围
 
@@ -30,16 +30,22 @@
 | `git diff --check` | 通过 |
 | 功能 PR | #64，`verify` + `secrets` 通过（run `30170421228`） |
 | 合并后 CI | SHA `a9c5f903…`，run `30170517906` 成功 |
+| 管理检查点 PR | #65，CI `30170749738` 通过；合并 SHA `90c16c8a188f4db416a7436a7cecf00aee58122b` |
+| 管理检查点后 CI | SHA `90c16c8…`，run `30170845072` 成功 |
+| Preview 部署 | workflow `30171022977` 成功；Worker Version ID `a4f789da-8e59-4feb-a1c2-f5ab3e645242` |
+| Preview 身份复核 | live / ready / meta / root / directory 均 HTTP 200，当前均为 V5.7.8 / SHA `90c16c8…` |
+| CHU13 | 已手动初始化；D1 只读核验唯一 active platform-admin，角色 admin，所属 1299 五象店 |
+| OTP 投递 | 受权测试 Profile `SAINT13` / 1299 的请求获 challenge；用户确认公司邮箱收到 OTP；未提交验证码，因此未创建测试账号/成员关系 |
 
 ## 安全与运行边界
 
-- 无 Resend API key，未写入仓库、日志或环境；不发送真实 OTP。
-- `work2die.asia` 已验证为发送域；真实 key 仅在 Preview 即将部署时创建并作为 Preview Worker secret 配置。
+- Preview 已配置最小权限、仅限 verified `work2die.asia` 的 Resend sending key、注册 HMAC secret、sender identity 与 CHU13 setup-token hash；原始值不写入仓库、项目文档、日志或检查点。
+- `work2die.asia` 已验证为发送域；Preview OTP 投递已收到。
 - 不执行 Staging 或 Production 迁移/部署。
 
 ## 下一步
 
-1. 合并本管理检查点 PR；
-2. 仅按既有授权配置 Preview 所需 server-only secrets，并部署 Preview；
-3. 用户人工验收注册、CHU13 提权、目标门店审批调店和审计；
+1. 合并本 Preview 验收检查点 PR；
+2. 用户以 CHU13 完成登录、目录维护、提权与调店审批的完整交互验收；
+3. 另选尚未注册的真实公司邮箱时，才验证 OTP → completion → operator 建号完整链路；
 4. 未获新的明确授权，不进入 Staging 或 Production。
