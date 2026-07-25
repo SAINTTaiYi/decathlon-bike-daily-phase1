@@ -55,3 +55,12 @@
 - `pnpm typecheck` passed for all typed workspaces.
 - The first local `pnpm build` stopped at the expected Preview-source registration gate before asset compilation. CI performs `pnpm version:preview` before its build. The local post-commit build will use the same Preview registration without changing the public V5.7.8 version.
 - Ark UI heuristic audit is unavailable because the local skill bundle does not expose its referenced script. Browser Harness visual screenshots are unavailable/prohibited, so no visual screenshot acceptance is claimed.
+
+## Final local acceptance checkpoint
+
+- Functional commit: `13e01afd809fd84cfa7a086bff9dd93d6771d680` (`feat(web): refine desktop Endfield layout`).
+- Final CodeGraph gate: `sync` and `status` are up to date at 168 files, 1,868 nodes, and 5,683 edges. `affected` identifies only `tests/desktop-endfield-layout.test.mjs`; CSS/Markdown remain explicitly documented as non-parser-covered files.
+- Final local checks passed: workflow policy 88/88, Domain 5, Database 6, Web 104, API 16, Worker 13 tests, TypeScript typecheck, `git diff --check`, Preview-version check, and production asset build.
+- `pnpm version:preview` recorded the source fingerprint at commit `13e01af` and retained public V5.7.8; `pnpm build` then completed with web assets `index-DGkny4Ib.css` and `index-f8utbqia.js`.
+- Browser Harness screenshot/manual interaction evidence is still unavailable/prohibited. This checkpoint confirms static, test, type, version, and build evidence only.
+- Next: normal PR CI. No Preview, Staging, or Production deployment is authorized by this layout task.
