@@ -43,3 +43,12 @@
 - Post-merge CI `30123980435` passed both `verify` and complete-history `secrets` checks on the exact merged SHA.
 - Public version remains V5.7.8: this is Preview-only work and does not alter a formal-release version.
 - User authorized Cloudflare **Preview only** after this administrative checkpoint merges. Staging and Production remain excluded; Preview still requires independent endpoint verification and user visual acceptance.
+
+## Staging release-note completeness correction — 2026-07-25
+
+- User identified that the rendered V5.7.8 Staging announcement described only the Endfield visual system and omitted the accepted used-car workflow and formal-domain login-origin fix.
+- Authorized correction: amend the existing **V5.7.8** announcement only; **no public version bump** and no Production action.
+- `apps/web/src/data/releaseNotes.js` now states that: (1) a sold used car moves into Pending Pickup with the used-car identity retained; manual used-car Pending Pickup records plus card/report source labeling are supported; (2) both exact formal origins, `https://workshop.skin` and `https://www.workshop.skin`, pass login-origin validation while unknown/wildcard origins remain blocked.
+- Local source assertions passed: V5.7.8 was retained, required used-car and both formal-origin phrases were present, and `git diff --check` was clean.
+- Local targeted release/version tests passed (10/10). Full `pnpm test:web` could not complete in this isolated worktree because `node_modules`/React is absent; 80/83 tests passed before the three React-import suites failed at module resolution. Pull-request CI is required for clean-install complete validation.
+- Next: commit, open normal PR, obtain green CI, merge to `feature/cloudflare-workers-d1`, then use the existing user-authorized Staging-only manual deployment workflow and verify the rendered announcement. Production remains forbidden.
