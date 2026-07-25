@@ -64,3 +64,11 @@
 - `pnpm version:preview` recorded the source fingerprint at commit `13e01af` and retained public V5.7.8; `pnpm build` then completed with web assets `index-DGkny4Ib.css` and `index-f8utbqia.js`.
 - Browser Harness screenshot/manual interaction evidence is still unavailable/prohibited. This checkpoint confirms static, test, type, version, and build evidence only.
 - Next: normal PR CI. No Preview, Staging, or Production deployment is authorized by this layout task.
+
+## Integrated merge evidence — 2026-07-25
+
+- PR [#62](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/62), `feat(web): refine desktop Endfield layout`, merged normally into `feature/cloudflare-workers-d1` as `7fcefeb3364cc884e3ff39dda6118176f8e89653`.
+- PR CI `30149114857` passed both `verify` and `secrets`; post-merge CI `30149165649` passed on the exact merged SHA.
+- The merged scope remains CSS-only desktop presentation at the existing 1080px breakpoint. Public version remains V5.7.8; mobile behavior and layout, runtime business contracts, Preview, Staging, and Production remain unchanged.
+- The local CodeGraph administrative gate ran again on the merged baseline before this checkpoint: 168 files, 1,868 nodes, 5,683 edges, index up to date. This documentation-only edit requires no additional runtime test surface; CSS/Markdown parser coverage limitations remain recorded above.
+- Browser Harness visual acceptance remains unavailable/prohibited. This records source, CI, and governance evidence only.
