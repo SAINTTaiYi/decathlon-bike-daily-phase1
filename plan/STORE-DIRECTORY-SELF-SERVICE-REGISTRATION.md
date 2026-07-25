@@ -1,6 +1,6 @@
 # 全国门店目录、自助注册与权限流转落地方案
 
-**状态：** 已确认的实施方案；尚未开始代码或数据库改动  
+**状态：** 实施中；本地质量门禁进行中，尚未部署
 **编写时间：** 2026-07-26 00:24 +08:00  
 **实施基线：** `feature/cloudflare-workers-d1` / `678e80a27e4123bd00980cb36cbbec762ed42d9e` / 公共界面版本 **V5.7.8**  
 **范围：** D1 Worker、Supabase 兼容迁移、Web 注册与治理界面、审计与测试；不包含 Preview、Staging、Production 部署。
@@ -261,3 +261,26 @@
 - 本机 Termux 环境未发现 `codegraph` / `code-graph` 可执行命令；该前置门禁缺失已记录为 `ERR-20260726-002`。仓库内旧 `code/` 派生索引的 `gitSha` 为 `4c4dffb…`，不能替代当前基线的实时 CodeGraph 结果。
 - 因此本次不宣称 CodeGraph 门禁通过；真正实施前与所有实施后必须在具备本地 CodeGraph 的工作区重跑并将结果写入 `plan/CHECKPOINT.md`、`plan/CONTEXT.md` 和对应 receipt。
 - 本方案不构成任何邮件、Secret、Preview、Staging、Production、数据库迁移或外部服务操作授权。
+
+
+## 11. 实施检查点（2026-07-26 02:38 +08:00）
+
+### 已完成的实现范围
+
+- D1 `0006_store_directory_self_registration.sql` 与语义等价的 Supabase `202607260001_store_directory_self_registration.sql`：区域/城市/门店目录、邮箱键、唯一 platform-admin、单一 active membership、OTP challenge、角色提权请求、调店请求；首批 `南区 → 广西 → 1299/1670/994/1249` 已纳入迁移种子。
+- 旧多门店成员关系迁移为一条确定的 current membership 与可追溯 inactive 历史；已有相同门店代码保留原稳定 id，只补齐受控城市归属。
+- Worker：公开目录读取、公司邮箱 OTP、短生命周期 completion grant、原子注册、一次性 CHU13 初始化、目录维护、CHU13 提权审批、目标门店 admin 调店审批；审批/调店/注册与审计均绑定到条件化原子批次。
+- Web：登录页注册入口、区域→城市→门店三步注册、CHU13 初始化页、门店与权限治理页；旧直接建号入口已关闭为 410。
+- 事实源和配置：`PRODUCT.md`、`README.md`、`.env.example`、Worker route map、CI migration count 与 Preview fingerprint 范围已同步；D1 migrations 现在被 Preview/正式指纹覆盖。
+
+### 已验证证据
+
+- CodeGraph 前置门禁：168 files / 1,868 nodes / 5,683 edges；后置门禁：176 files / 2,031 nodes / 6,237 edges，索引已同步。
+- 内存 SQLite 已按真实历史顺序执行 D1 `0001` 至 `0006`，验证多门店旧成员收敛和已有 `1299` 代码复用归属。
+- 已通过：数据库 migration tests、Worker tests、完整 `pnpm test`、完整 `pnpm typecheck`、workflow policy validation（88 policies）、`git diff --check`。Web build 已在新增治理组件后通过。
+
+### 未完成 / 运行边界
+
+- 尚未创建 Resend API key、未配置任何 Preview Worker secret、未发送真实邮件；`work2die.asia` 仅已验证发信域。
+- 尚未提交、创建 PR、触发 GitHub CI 或部署 Preview；Staging 与 Production 仍未获授权。
+- 下一步固定为：功能提交 → Preview-only source fingerprint → 完整 build/Worker bundle → PR/CI → 用户已授权的 Preview-only 部署与人工验收。版本继续保持公开 V5.7.8。

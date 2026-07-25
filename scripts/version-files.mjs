@@ -12,6 +12,7 @@ const roots = [
   'apps',
   'packages',
   'supabase',
+  'migrations',
   'cloud-functions',
   'edgeone.json',
   'scripts',

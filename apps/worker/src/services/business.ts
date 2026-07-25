@@ -54,33 +54,57 @@ export function auditModuleFor(input: Pick<AuditInput, 'action' | 'entityType' |
   return 'system'
 }
 
-export function prepareAudit(db: D1Database, input: AuditInput): { id: string; statement: D1PreparedStatement } {
+type AuditSqlValue = string | number | null
+
+function auditStatementParts(input: AuditInput): { id: string; values: AuditSqlValue[] } {
   const id = uuid()
   const requestId = input.requestId && /^[0-9a-f-]{36}$/iu.test(input.requestId) ? input.requestId : uuid()
-  const statement = db.prepare(`
-    INSERT INTO audit_events (
-      id, store_id, actor_user_id, actor_name_snapshot, action, entity_type, entity_id, entity_revision,
-      business_date, summary, before_state, after_state, reversible, reverted_event_id, request_id, audit_module, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
+  return {
     id,
-    input.context.storeId,
-    input.context.userId,
-    input.context.displayName,
-    input.action,
-    input.entityType,
-    input.entityId ?? null,
-    input.entityRevision ?? null,
-    input.businessDate,
-    input.summary,
-    input.before === undefined ? null : JSON.stringify(input.before),
-    input.after === undefined ? null : JSON.stringify(input.after),
-    input.reversible ? 1 : 0,
-    input.revertedEventId ?? null,
-    requestId,
-    auditModuleFor(input),
-    nowIso()
-  )
+    values: [
+      id,
+      input.context.storeId,
+      input.context.userId,
+      input.context.displayName,
+      input.action,
+      input.entityType,
+      input.entityId ?? null,
+      input.entityRevision ?? null,
+      input.businessDate,
+      input.summary,
+      input.before === undefined ? null : JSON.stringify(input.before),
+      input.after === undefined ? null : JSON.stringify(input.after),
+      input.reversible ? 1 : 0,
+      input.revertedEventId ?? null,
+      requestId,
+      auditModuleFor(input),
+      nowIso()
+    ]
+  }
+}
+
+const AUDIT_COLUMNS = `
+  id, store_id, actor_user_id, actor_name_snapshot, action, entity_type, entity_id, entity_revision,
+  business_date, summary, before_state, after_state, reversible, reverted_event_id, request_id, audit_module, created_at
+`
+
+export function prepareAudit(db: D1Database, input: AuditInput): { id: string; statement: D1PreparedStatement } {
+  const { id, values } = auditStatementParts(input)
+  const statement = db.prepare(`INSERT INTO audit_events (${AUDIT_COLUMNS}) VALUES (${values.map(() => '?').join(', ')})`).bind(...values)
+  return { id, statement }
+}
+
+// Use this whenever an earlier statement in the same D1 batch must succeed before it
+// earns an audit event. The predicate is internal, fixed SQL; caller values stay bound.
+export function prepareConditionalAudit(
+  db: D1Database,
+  input: AuditInput,
+  predicateSql: string,
+  predicateValues: AuditSqlValue[]
+): { id: string; statement: D1PreparedStatement } {
+  const { id, values } = auditStatementParts(input)
+  const statement = db.prepare(`INSERT INTO audit_events (${AUDIT_COLUMNS}) SELECT ${values.map(() => '?').join(', ')} WHERE ${predicateSql}`)
+    .bind(...values, ...predicateValues)
   return { id, statement }
 }
 

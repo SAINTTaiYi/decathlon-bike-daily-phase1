@@ -36,6 +36,54 @@ export const createUserSchema = z.object({
   role: z.enum(appRoles).default('operator')
 }).strict()
 
+
+const corporateEmailSchema = z.string().trim().toLowerCase().email().max(320).refine(
+  (value) => value.endsWith('@decathlon.com'),
+  '仅支持 @decathlon.com 邮箱。'
+)
+export const directoryStatusSchema = z.enum(['active', 'disabled'])
+export const otpCodeSchema = z.string().trim().regex(/^\d{6}$/u)
+export const registrationOtpSchema = z.object({
+  username: usernameSchema,
+  displayName: usernameSchema.optional(),
+  email: corporateEmailSchema,
+  storeId: uuidSchema
+}).strict()
+export const registrationVerifyOtpSchema = z.object({
+  challengeId: uuidSchema,
+  otp: otpCodeSchema
+}).strict()
+export const registrationCompleteSchema = z.object({
+  challengeId: uuidSchema,
+  completionToken: z.string().min(32).max(512),
+  password: passwordSchema
+}).strict()
+export const platformAdminSetupSchema = z.object({
+  token: z.string().min(32).max(512),
+  password: passwordSchema,
+  storeId: uuidSchema
+}).strict()
+export const roleChangeRequestSchema = z.object({
+  userId: uuidSchema.optional(),
+  targetRole: z.enum(['manager', 'admin']),
+  reason: z.string().trim().min(2).max(500)
+}).strict()
+export const decisionSchema = z.object({
+  approve: z.boolean(),
+  reason: z.string().trim().min(2).max(500),
+  expectedRevision: revisionSchema
+}).strict()
+export const storeTransferRequestSchema = z.object({
+  targetStoreId: uuidSchema,
+  reason: z.string().trim().min(2).max(500)
+}).strict()
+export const directoryEntitySchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  parentId: uuidSchema.optional(),
+  code: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/u).optional(),
+  status: directoryStatusSchema.optional()
+}).strict()
+
 export const kpiSchema = z.object({
   salesVehicles: z.coerce.number().int().min(0).max(9999),
   safetyChecks: z.coerce.number().int().min(0).max(9999),
@@ -117,3 +165,5 @@ export type LoginInput = z.infer<typeof loginSchema>
 export type KpiInput = z.infer<typeof kpiSchema>
 export type WorkItemCreateInput = z.infer<typeof workItemCreateSchema>
 export type CreateUserInput = z.infer<typeof createUserSchema>
+export type RegistrationOtpInput = z.infer<typeof registrationOtpSchema>
+export type RegistrationCompleteInput = z.infer<typeof registrationCompleteSchema>

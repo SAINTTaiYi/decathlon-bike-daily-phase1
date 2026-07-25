@@ -6,11 +6,28 @@
 - GET `/api/v1/meta/version`
 
 ## Auth
-- POST `/api/v1/auth/setup`
+- POST `/api/v1/auth/setup` → 410 legacy setup disabled
 - POST `/api/v1/auth/login`
 - GET `/api/v1/auth/me`
 - POST `/api/v1/auth/logout`
 - POST `/api/v1/auth/change-password`
+
+
+## Registration
+- GET `/api/v1/registration/directory` (active directory only)
+- POST `/api/v1/registration/otp`
+- POST `/api/v1/registration/verify-otp`
+- POST `/api/v1/registration/complete`
+- POST `/api/v1/registration/platform-admin` (one-time CHU13 bootstrap)
+
+## Governance
+- GET `/api/v1/governance/overview`
+- POST `/api/v1/governance/role-requests`
+- POST `/api/v1/governance/role-requests/:id/decision` (CHU13 only)
+- POST `/api/v1/governance/transfer-requests`
+- POST `/api/v1/governance/transfer-requests/:id/decision` (target-store admin only)
+- POST `/api/v1/governance/directory/:kind` (CHU13 only)
+- PATCH `/api/v1/governance/directory/:kind/:id` (CHU13 only)
 
 ## Closing
 - GET `/api/v1/daily-closing/current`

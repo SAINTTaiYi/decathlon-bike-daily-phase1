@@ -9,7 +9,7 @@ A database-backed bike-department closing and cross-day operations workspace. Th
 Completed in code and local verification:
 
 - pnpm monorepo: Web, API, Domain, Contracts, Database.
-- Username/password authentication, Argon2id, HttpOnly session, CSRF, login throttling, and forced password change.
+- Directory-governed `@decathlon.com` OTP registration, one-time CHU13 platform bootstrap, PBKDF2-HMAC-SHA-256 passwords, HttpOnly session, CSRF, and login throttling.
 - `operator / manager / admin` roles; closing/reopen and legacy import require manager/admin.
 - Server business date, revision conflicts, Idempotency-Key, transactional audit, and safe undo.
 - Sales, closing, repair, pickup, resale, and handover APIs.
@@ -118,13 +118,13 @@ pnpm dev:web
 - API: `http://127.0.0.1:8787`
 - Local Supabase PostgreSQL default: `127.0.0.1:54322`
 
-For local first-run, set `ADMIN_SETUP_TOKEN_HASH` to the SHA-256 of a temporary token and open:
+For local platform bootstrap, set `PLATFORM_ADMIN_SETUP_TOKEN_HASH` to the SHA-256 of a temporary token and open:
 
 ```text
-http://127.0.0.1:5173/#setup=<temporary-token>
+http://127.0.0.1:5173/#platform-admin=<temporary-token>
 ```
 
-After creating the first administrator, rotate or remove the setup digest through a controlled configuration change. The database user count independently prevents a second initialization.
+The legacy `#setup` bootstrap is retired. This one-time flow initializes the fixed CHU13 platform administrator; rotate or remove the platform setup digest through a controlled configuration change. The database platform-admin uniqueness constraint independently prevents a second initialization.
 
 ## Environment variables
 

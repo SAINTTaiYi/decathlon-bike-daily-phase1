@@ -26,3 +26,6 @@ dist/worker/
 apps/web/dist/
 # Preview-only source fingerprint; public version remains unchanged.
 preview-manifest.json
+
+# Local CodeGraph index (rebuildable; never commit).
+.codegraph/

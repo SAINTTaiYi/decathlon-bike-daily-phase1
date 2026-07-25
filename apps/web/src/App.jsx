@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BootLoader from './components/BootLoader.jsx'
 import InitialSetup from './components/InitialSetup.jsx'
+import PlatformAdminSetup from './components/PlatformAdminSetup.jsx'
+import RegistrationWizard from './components/RegistrationWizard.jsx'
 import PasswordChangeGate from './components/PasswordChangeGate.jsx'
 import StatusToast from './components/StatusToast.jsx'
 import ReleaseNotes from './components/lookbook/ReleaseNotes.jsx'
@@ -16,7 +18,7 @@ import KpiDialog from './components/dialogs/KpiDialog.jsx'
 import LocalMigrationDialog, { hasLocalV5Data } from './components/dialogs/LocalMigrationDialog.jsx'
 import LogDialog from './components/dialogs/LogDialog.jsx'
 import PermanentHistoryDialog from './components/dialogs/PermanentHistoryDialog.jsx'
-import CreateUserDialog from './components/dialogs/CreateUserDialog.jsx'
+import GovernanceDialog from './components/dialogs/GovernanceDialog.jsx'
 import ReportImageDialog from './components/dialogs/ReportImageDialog.jsx'
 import UpdateRefreshDialog from './components/dialogs/UpdateRefreshDialog.jsx'
 import MenuDialog from './components/dialogs/MenuDialog.jsx'
@@ -46,6 +48,7 @@ export default function App() {
   useVisualViewportMetrics()
   const auth = useAuth()
   const [loginAnimationDone, setLoginAnimationDone] = useState(false)
+  const [authMode, setAuthMode] = useState('login')
   const [workspaceAssemblyDone, setWorkspaceAssemblyDone] = useState(false)
   const [taskInputFocused, setTaskInputFocused] = useState(false)
   const workspaceRootRef = useRef(null)
@@ -53,8 +56,12 @@ export default function App() {
     const match = window.location.hash.match(/^#setup=([^&]+)$/u)
     return match ? decodeURIComponent(match[1]) : ''
   })
+  const [platformAdminToken, setPlatformAdminToken] = useState(() => {
+    const match = window.location.hash.match(/^#platform-admin=([^&]+)$/u)
+    return match ? decodeURIComponent(match[1]) : ''
+  })
   const authenticated = auth.status === 'authenticated'
-  const introDone = authenticated && (auth.source === 'restore' || loginAnimationDone)
+  const introDone = authenticated && (auth.source === 'restore' || auth.source === 'registration' || loginAnimationDone)
   const mustChangePassword = Boolean(auth.user?.mustChangePassword)
   const deferUpdatePrompt = auth.source === 'login' && !mustChangePassword && !workspaceAssemblyDone
   const workflow = useRemoteClosingWorkflow(authenticated && !mustChangePassword)
@@ -65,7 +72,7 @@ export default function App() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [kpiOpen, setKpiOpen] = useState(false)
   const [migrationOpen, setMigrationOpen] = useState(false)
-  const [createUserOpen, setCreateUserOpen] = useState(false)
+  const [governanceOpen, setGovernanceOpen] = useState(false)
   const [reportImage, setReportImage] = useState(null)
   const [recordEditor, setRecordEditor] = useState(null)
   const [mediaRecord, setMediaRecord] = useState(null)
@@ -97,7 +104,7 @@ export default function App() {
     rootRef: workspaceRootRef,
     onComplete: completeWorkspaceAssembly
   })
-  const taskFocused = Boolean(taskInputFocused || menuOpen || logOpen || permanentHistoryOpen || confirmOpen || kpiOpen || migrationOpen || createUserOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
+  const taskFocused = Boolean(taskInputFocused || menuOpen || logOpen || permanentHistoryOpen || confirmOpen || kpiOpen || migrationOpen || governanceOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
 
   useMotionSystem({ enabled: introDone && workflow.hydrated && !workspaceLaunching, rootRef: workspaceRootRef, quiet: taskFocused })
 
@@ -105,6 +112,7 @@ export default function App() {
     if (auth.status === 'anonymous') {
       setLoginAnimationDone(false)
       setWorkspaceAssemblyDone(false)
+      setAuthMode('login')
     }
   }, [auth.status])
 
@@ -408,6 +416,14 @@ export default function App() {
     return <><InitialSetup token={setupToken} onComplete={() => { setSetupToken(''); setToast('首位管理员已创建，请使用新账号登录。') }} /><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
 
+  if (platformAdminToken && !authenticated) {
+    return <><PlatformAdminSetup token={platformAdminToken} onComplete={() => { setPlatformAdminToken(''); setToast('CHU13 已创建，请使用 CHU13 登录。') }} /><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
+  }
+
+  if (!authenticated && authMode === 'register') {
+    return <><RegistrationWizard onBack={() => setAuthMode('login')} onComplete={(payload) => { auth.acceptRegistration(payload); setToast('注册完成，已加入所选门店。') }} /><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
+  }
+
   if (auth.status === 'restoring') {
     return <><main className="hydration-state" role="status" aria-live="polite"><strong>VERIFYING SESSION</strong><span>正在验证数据库账号…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
@@ -449,11 +465,11 @@ export default function App() {
       ? sceneRecordConfig.repair
       : sceneRecordConfig[recordEditor.scene]
     : sceneRecordConfig.poster
-  const showBoot = !introDone
+  const showBoot = !introDone && authMode === 'login'
 
   return (
     <>
-      {showBoot ? <BootLoader onLogin={auth.login} onComplete={() => setLoginAnimationDone(true)} /> : null}
+      {showBoot ? <BootLoader onLogin={auth.login} onComplete={() => setLoginAnimationDone(true)} onRegister={() => setAuthMode('register')} /> : null}
       {introDone ? <a className="skip-link" href="#closing-summary">跳到闭店摘要</a> : null}
       <div ref={workspaceRootRef} className="app-runtime endfield-runtime" data-ark-theme="endfield" data-ark-depth="maximal" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
@@ -485,8 +501,8 @@ export default function App() {
             </footer>
           </div>
         </main>
-        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canCreateUser={role === 'admin'} onCreateUser={() => setCreateUserOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} />
-        <CreateUserDialog open={createUserOpen} onClose={() => setCreateUserOpen(false)} onNotify={setToast} />
+        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} />
+        <GovernanceDialog open={governanceOpen} onClose={() => setGovernanceOpen(false)} currentStoreId={currentStore?.storeId || auth.currentStoreId} onNotify={setToast} />
         <LogDialog open={logOpen} onClose={() => setLogOpen(false)} events={workflow.events} />
         <PermanentHistoryDialog open={permanentHistoryOpen} onClose={() => setPermanentHistoryOpen(false)} onLoad={workflow.getPermanentHistory} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
         <OperationHistoryDialog open={Boolean(historyTarget)} onClose={() => setHistoryTarget(null)} title={historyTitle} events={historyEvents} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />

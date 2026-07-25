@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { normalizeLoginUsername, USERNAME_MAX_LENGTH } from '../data/userSession.js'
 
-export default function BootLoader({ onLogin, onComplete }) {
+export default function BootLoader({ onLogin, onComplete, onRegister }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -124,7 +124,7 @@ export default function BootLoader({ onLogin, onComplete }) {
         <div className="boot-login-heading">
           <span>SECURE ACCOUNT · 数据库账号</span>
           <strong id="login-title">登录工作台</strong>
-          <p id="login-description">使用管理员创建的账号登录。后续修改会同步到数据库，并以当前账号写入审计记录。</p>
+          <p id="login-description">使用现有账号登录。新同事可使用已登记门店和公司邮箱完成自助注册。</p>
         </div>
         <label className="boot-login-field">
           <span>用户名</span>
@@ -163,8 +163,7 @@ export default function BootLoader({ onLogin, onComplete }) {
           />
         </label>
         {error ? <p className="boot-login-error" id="login-error" role="alert">{error}</p> : null}
-        <button type="submit" className="boot-login-submit" disabled={submitting}>{submitting ? '正在验证…' : '登录并进入'}</button>
-        <small id="login-privacy">账号由管理员创建；密码不会写入浏览器存储或操作日志。</small>
+        <div className="boot-login-actions"><button type="submit" className="boot-login-submit" disabled={submitting}>{submitting ? '正在验证…' : '登录并进入'}</button><button type="button" className="boot-register-link" onClick={onRegister} disabled={submitting}>使用公司邮箱注册</button></div><small id="login-privacy">账号使用公司邮箱验证码注册；密码不会写入浏览器存储或操作日志。</small>
       </form>
     </section>
   )

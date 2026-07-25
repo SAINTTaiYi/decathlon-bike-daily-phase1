@@ -16,6 +16,7 @@ export function createAuthMiddleware(): {
   requirePasswordChanged: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }>
   requireCsrf: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }>
   requireRole: (...roles: Array<'operator' | 'manager' | 'admin'>) => MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }>
+  requirePlatformAdmin: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }>
 } {
   const loadSession: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }> = async (c, next) => {
     c.set('auth', null)
@@ -25,17 +26,17 @@ export function createAuthMiddleware(): {
     const tokenHash = await sessionTokenHash(token, config)
     const selectedStore = c.req.header('x-store-id') ?? null
     const row = await first(c.env.DB.prepare(`
-      SELECT s.token_hash, s.csrf_hash, u.id AS user_id, u.display_name, u.must_change_password,
+      SELECT s.token_hash, s.csrf_hash, u.id AS user_id, u.display_name, u.must_change_password, u.is_platform_admin,
              st.id AS store_id, st.code AS store_code, st.name AS store_name, st.timezone AS store_timezone, sm.role
       FROM auth_sessions s
       JOIN users u ON u.id = s.user_id AND u.status = 'active'
-      JOIN store_members sm ON sm.user_id = u.id
+      JOIN store_members sm ON sm.user_id = u.id AND sm.status = 'active'
       JOIN stores st ON st.id = sm.store_id AND st.status = 'active'
       WHERE s.token_hash = ?
         AND s.revoked_at IS NULL
         AND s.expires_at > ?
         AND (? IS NULL OR st.id = ?)
-      ORDER BY sm.created_at ASC
+      ORDER BY sm.effective_from ASC, sm.created_at ASC
       LIMIT 1
     `).bind(tokenHash, nowIso(), selectedStore, selectedStore))
     if (!row) throw new ApiProblem(401, 'UNAUTHENTICATED', '登录状态已失效，请重新登录。')
@@ -49,6 +50,7 @@ export function createAuthMiddleware(): {
       storeName: mapped.storeName,
       storeTimezone: mapped.storeTimezone ?? mapped.timezone,
       role: mapped.role,
+      isPlatformAdmin: mapped.isPlatformAdmin === 1 || mapped.isPlatformAdmin === true,
       sessionTokenHash: mapped.tokenHash,
       csrfHash: mapped.csrfHash
     } satisfies AuthContext)
@@ -85,5 +87,11 @@ export function createAuthMiddleware(): {
     }
   }
 
-  return { loadSession, requirePasswordChanged, requireCsrf, requireRole }
+  const requirePlatformAdmin: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }> = async (c, next) => {
+    const auth = c.get('auth')
+    if (!auth?.isPlatformAdmin) throw new ApiProblem(403, 'PLATFORM_ADMIN_REQUIRED', '仅平台管理员可以执行该操作。')
+    return next()
+  }
+
+  return { loadSession, requirePasswordChanged, requireCsrf, requireRole, requirePlatformAdmin }
 }
