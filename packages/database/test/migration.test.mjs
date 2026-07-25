@@ -77,3 +77,27 @@ test('D1 永久审计迁移为历史记录分类、回填并建立筛选索引',
   assert.match(sql, /UPDATE audit_events[\s\S]*SET audit_module/u)
   assert.match(sql, /audit_events_store_module_date_created_idx/u)
 })
+
+
+test('全国门店目录与自助注册迁移保留单活跃成员、OTP 状态机和平台管理员唯一约束', async () => {
+  const [d1, supabase] = await Promise.all([
+    readFile(new URL('../../../migrations/d1/0006_store_directory_self_registration.sql', import.meta.url), 'utf8'),
+    readFile(new URL('../../../supabase/migrations/202607260001_store_directory_self_registration.sql', import.meta.url), 'utf8')
+  ])
+  for (const sql of [d1, supabase]) {
+    for (const table of ['regions', 'cities', 'registration_challenges', 'role_change_requests', 'store_transfer_requests']) {
+      assert.match(sql, new RegExp(`create table(?: if not exists)? (?:bike_ops\.)?${table}`, 'iu'))
+    }
+    assert.match(sql, /store_members_one_active_user_idx/u)
+    assert.match(sql, /users_one_platform_admin_idx/u)
+    assert.match(sql, /status.*'pending'.*'verified'.*'completed'.*'expired'/isu)
+    assert.match(sql, /'operator'.*'manager'.*'admin'/isu)
+    assert.match(sql, /'pending'.*'approved'.*'rejected'.*'cancelled'/isu)
+    assert.match(sql, /'南区'/u)
+    assert.match(sql, /'广西'/u)
+  }
+  assert.match(d1, /ALTER TABLE store_members RENAME TO store_members_legacy/u)
+  assert.match(d1, /ON CONFLICT\(code\) DO UPDATE SET city_id/u)
+  assert.match(supabase, /alter table bike_ops\.store_members drop constraint store_members_pkey/u)
+  assert.match(supabase, /on conflict \(code\) do update set city_id/u)
+})

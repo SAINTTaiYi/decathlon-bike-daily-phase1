@@ -12,6 +12,10 @@ export interface WorkerEnv {
   PASSWORD_PEPPER: string
   CONTACT_ENCRYPTION_KEY?: string
   ADMIN_SETUP_TOKEN_HASH?: string
+  PLATFORM_ADMIN_SETUP_TOKEN_HASH?: string
+  REGISTRATION_SECRET?: string
+  RESEND_API_KEY?: string
+  RESEND_FROM?: string
 }
 
 export interface AppConfig {
@@ -26,6 +30,10 @@ export interface AppConfig {
   PASSWORD_PEPPER: string
   CONTACT_ENCRYPTION_KEY?: string
   ADMIN_SETUP_TOKEN_HASH?: string
+  PLATFORM_ADMIN_SETUP_TOKEN_HASH?: string
+  REGISTRATION_SECRET?: string
+  RESEND_API_KEY?: string
+  RESEND_FROM?: string
 }
 
 export function isAllowedOrigin(origin: string | undefined, allowedOrigins: readonly string[]): boolean {
@@ -53,6 +61,10 @@ export function loadConfig(env: WorkerEnv): AppConfig {
     CSRF_SECRET: env.CSRF_SECRET,
     PASSWORD_PEPPER: env.PASSWORD_PEPPER,
     CONTACT_ENCRYPTION_KEY: env.CONTACT_ENCRYPTION_KEY,
-    ADMIN_SETUP_TOKEN_HASH: env.ADMIN_SETUP_TOKEN_HASH
+    ADMIN_SETUP_TOKEN_HASH: env.ADMIN_SETUP_TOKEN_HASH,
+    PLATFORM_ADMIN_SETUP_TOKEN_HASH: env.PLATFORM_ADMIN_SETUP_TOKEN_HASH,
+    REGISTRATION_SECRET: env.REGISTRATION_SECRET,
+    RESEND_API_KEY: env.RESEND_API_KEY,
+    RESEND_FROM: env.RESEND_FROM
   }
 }

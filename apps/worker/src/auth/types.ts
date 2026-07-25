@@ -7,6 +7,7 @@ export interface AuthContext {
   storeName: string
   storeTimezone: string
   role: 'operator' | 'manager' | 'admin'
+  isPlatformAdmin: boolean
   sessionTokenHash: string
   csrfHash: string
 }

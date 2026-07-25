@@ -24,10 +24,14 @@ test('永久历史路由在服务端过滤日期和模块，并限制每次读�
   assert.match(source, /ORDER BY e\.created_at DESC, e\.id DESC/u)
 })
 
-test('账号创建、登录、退出和改密均写入永久账号审计，且不写入密码', async () => {
+test('自助注册、平台初始化、登录、退出和改密均写入永久账号审计，且不写入密码', async () => {
   const source = await readFile(new URL('../src/routes/auth.ts', import.meta.url), 'utf8')
-  for (const action of ['initial-setup', 'login', 'logout', 'create-user', 'change-password']) {
+  for (const action of ['login', 'logout', 'change-password']) {
     assert.match(source, new RegExp(`action: '${action}'`, 'u'))
   }
-  assert.doesNotMatch(source, /after:\s*\{[^}]*password/u)
+  const registrationSource = await readFile(new URL('../src/routes/registration.ts', import.meta.url), 'utf8')
+  for (const action of ['self-register', 'platform-admin-setup']) {
+    assert.match(registrationSource, new RegExp(`action: '${action}'`, 'u'))
+  }
+  assert.doesNotMatch(source + registrationSource, /after:\s*\{[^}]*password/u)
 })

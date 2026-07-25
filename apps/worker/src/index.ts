@@ -10,6 +10,8 @@ import { bootstrapRoutes } from './routes/bootstrap.js'
 import { closingRoutes } from './routes/closing.js'
 import { healthRoutes } from './routes/health.js'
 import { workItemRoutes } from './routes/work-items.js'
+import { registrationRoutes } from './routes/registration.js'
+import { governanceRoutes } from './routes/governance.js'
 import { ApiProblem } from './services/problems.js'
 import { routeIncomingRequest } from './request-routing.js'
 
@@ -68,6 +70,8 @@ app.use('*', async (c, next) => {
 
 app.route('/', healthRoutes())
 app.route('/', authRoutes())
+app.route('/', registrationRoutes())
+app.route('/', governanceRoutes())
 app.route('/', closingRoutes())
 app.route('/', workItemRoutes())
 app.route('/', auditRoutes())

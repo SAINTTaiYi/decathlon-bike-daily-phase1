@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { clearApiSession, setApiSession } from '../api/client.js'
-import { changePasswordAccount, loginAccount, logoutAccount, restoreSession } from '../api/auth.js'
+import { changePasswordAccount, completeRegistration, loginAccount, logoutAccount, restoreSession } from '../api/auth.js'
 
 export default function useAuth() {
   const [state, setState] = useState({ status: 'restoring', source: 'restore', user: null, stores: [], currentStoreId: '', error: '' })
@@ -35,6 +35,20 @@ export default function useAuth() {
     }
   }, [apply])
 
+  const acceptRegistration = useCallback((payload) => {
+    apply(payload, 'registration')
+  }, [apply])
+
+  const finishRegistration = useCallback(async (body) => {
+    try {
+      const payload = await completeRegistration(body)
+      apply(payload, 'registration')
+      return { ok: true }
+    } catch (error) {
+      return { ok: false, error: error.message }
+    }
+  }, [apply])
+
   const changePassword = useCallback(async (currentPassword, nextPassword) => {
     try {
       await changePasswordAccount(currentPassword, nextPassword)
@@ -50,5 +64,5 @@ export default function useAuth() {
     clear('')
   }, [clear])
 
-  return { ...state, login, changePassword, logout }
+  return { ...state, login, changePassword, logout, acceptRegistration, finishRegistration }
 }
