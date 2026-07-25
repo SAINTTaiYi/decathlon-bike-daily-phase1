@@ -37,6 +37,44 @@
 | CHU13 | 已手动初始化；D1 只读核验唯一 active platform-admin，角色 admin，所属 1299 五象店 |
 | OTP 投递 | 受权测试 Profile `SAINT13` / 1299 的请求获 challenge；用户确认公司邮箱收到 OTP；未提交验证码，因此未创建测试账号/成员关系 |
 
+
+## Profile 真实身份提示修正 — PR #67（待合并）
+
+**记录时间：** 2026-07-26 04:00 +08:00
+**分支：** `fix/registration-profile-guidance`
+**功能提交：** `1a7949eb656789c3d4d976efbce38e9dddbd6818`
+**Pull Request：** [#67](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/67)，目标分支 `feature/cloudflare-workers-d1`
+**公开版本：** V5.7.8（Preview-only 文案修正不递增版本）
+**部署状态：** 未请求、未执行 Preview/Staging/Production 部署。
+
+### 完成范围
+
+- Profile 输入框 placeholder 改为 `请输入真实 Profile`，移除昵称式示例 `例如：小王`。
+- 增加持续可见的说明：Profile 必须与公司系统实际使用的身份一致；昵称或临时名称可能导致后续提权、门店转移等权限流程无法正常处理。
+- 输入框通过 `aria-describedby` 关联说明；说明沿用现有 Endfield 注册表单可读文本样式。
+- 新增 `tests/registration-profile-guidance.test.mjs`，锁定文案、可访问性关联、旧提示移除与样式约束。
+
+### 验证证据
+
+| 门禁 | 结果 |
+| --- | --- |
+| CodeGraph 前置 | 176 files / 2,032 nodes / 6,276 edges |
+| CodeGraph 后置 | 177 files / 2,038 nodes / 6,281 edges；影响仅 `RegistrationWizard` 与其 `App` 调用点 |
+| 新增回归测试 | 2/2 通过 |
+| 全量 `pnpm test` | 150/150 通过：domain 5、database 8、web 106、API 16、Worker 15 |
+| `pnpm check:workflows` | 88 policies 通过 |
+| 全量 `pnpm typecheck` | 通过 |
+| `pnpm build` | 通过；Preview source 已登记，公开版本仍为 V5.7.8 |
+| `git diff --check` | 通过 |
+| CodeGraph 覆盖例外 | CSS 与 Markdown 无结构化节点；CSS 由新增源码回归测试覆盖，Markdown 检查点只记录已验证证据 |
+
+### 后续
+
+1. 等待 PR #67 的 GitHub CI 与人工审阅；
+2. 未获明确授权，不合并、不部署；
+3. 若用户授权 Preview 验收，必须以 PR 合并后的精确 SHA 单独触发 Preview，并记录端点、版本、Worker 身份与人工验收证据；
+4. Staging/Production 继续禁止。
+
 ## 安全与运行边界
 
 - Preview 已配置最小权限、仅限 verified `work2die.asia` 的 Resend sending key、注册 HMAC secret、sender identity 与 CHU13 setup-token hash；原始值不写入仓库、项目文档、日志或检查点。
