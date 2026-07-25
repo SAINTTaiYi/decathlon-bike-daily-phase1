@@ -38,14 +38,15 @@
 | OTP 投递 | 受权测试 Profile `SAINT13` / 1299 的请求获 challenge；用户确认公司邮箱收到 OTP；未提交验证码，因此未创建测试账号/成员关系 |
 
 
-## Profile 真实身份提示修正 — PR #67（待合并）
+## Profile 真实身份提示修正 — PR #67 与 Preview 证据
 
-**记录时间：** 2026-07-26 04:00 +08:00
-**分支：** `fix/registration-profile-guidance`
+**记录时间：** 2026-07-26 04:16 +08:00
+**功能分支：** `fix/registration-profile-guidance`
 **功能提交：** `1a7949eb656789c3d4d976efbce38e9dddbd6818`
-**Pull Request：** [#67](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/67)，目标分支 `feature/cloudflare-workers-d1`
+**检查点提交：** `d59c57244db3a2da1fea40866459170c6a8b3f87`
+**PR / 合并 SHA：** [#67](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/67) 已合并为 `9cf88c1555bd3a7e055ef8842926d778dcb18123`
 **公开版本：** V5.7.8（Preview-only 文案修正不递增版本）
-**部署状态：** 未请求、未执行 Preview/Staging/Production 部署。
+**部署状态：** Preview 已部署并完成独立服务端身份复核；Staging/Production 未授权、未执行。
 
 ### 完成范围
 
@@ -54,7 +55,7 @@
 - 输入框通过 `aria-describedby` 关联说明；说明沿用现有 Endfield 注册表单可读文本样式。
 - 新增 `tests/registration-profile-guidance.test.mjs`，锁定文案、可访问性关联、旧提示移除与样式约束。
 
-### 验证证据
+### 验证与部署证据
 
 | 门禁 | 结果 |
 | --- | --- |
@@ -65,15 +66,18 @@
 | `pnpm check:workflows` | 88 policies 通过 |
 | 全量 `pnpm typecheck` | 通过 |
 | `pnpm build` | 通过；Preview source 已登记，公开版本仍为 V5.7.8 |
+| PR #67 CI | `verify`、`secrets` 均通过，workflow `30173034704` |
+| Preview 部署 | workflow `30173143885` 成功；精确 release SHA `9cf88c…` |
+| Cloudflare Worker | `bike-ops-preview` Worker Version `0cd1c215-15b9-43c1-9e4f-84e17d32c4b8`，Deployment `e2fd3337-c7dc-4e9c-9cb3-78a8f67f2118`，100% |
+| 独立端点复核 | live、ready、meta/version、Web Shell、registration directory 均 HTTP 200；live / ready / meta 均为 V5.7.8 / SHA `9cf88c…`，meta environment `preview` |
 | `git diff --check` | 通过 |
 | CodeGraph 覆盖例外 | CSS 与 Markdown 无结构化节点；CSS 由新增源码回归测试覆盖，Markdown 检查点只记录已验证证据 |
 
-### 后续
+### 人工验收与边界
 
-1. 等待 PR #67 的 GitHub CI 与人工审阅；
-2. 未获明确授权，不合并、不部署；
-3. 若用户授权 Preview 验收，必须以 PR 合并后的精确 SHA 单独触发 Preview，并记录端点、版本、Worker 身份与人工验收证据；
-4. Staging/Production 继续禁止。
+- Browser Harness 当前不可用/禁止，未使用任何回退浏览器或无障碍自动化，因此不声称已完成页面视觉验收。
+- 下一步仅为用户在 Preview 中确认 Profile 提示与说明在真实设备上的可见性和可理解性。
+- 未获新的明确授权，不进入 Staging 或 Production。
 
 ## 安全与运行边界
 
