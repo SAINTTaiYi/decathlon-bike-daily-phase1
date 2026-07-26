@@ -245,3 +245,20 @@
 - Worker 19/19、Worker typecheck、关键跨店/目录/闭店/路径隔离回归 4/4、HTTP/Assets/CORS/path 契约 4/4、Worker bundle 均通过。
 - 完整隔离安全套件 24 项：17 通过 / 7 个未授权风险保持预期失败；失败项仅为 SEC-06、SEC-07、SEC-08、SEC-09、SEC-11、SEC-12、SEC-15。
 - CodeGraph 后置门禁：180 files / 2,127 nodes / 7,245 edges，索引最新；同步覆盖 6 个 TS 文件。`pnpm-lock.yaml` 被索引为 YAML（0 symbols）；`apps/worker/package.json` 不属于 CodeGraph 当前解析类型，已记录例外，并用 lockfile、实际安装包、依赖审计和 Worker bundle 四重验证。
+
+## SEC-01–05 本地修复最终验收（完成，未推送/未部署）
+
+- 修复链：启动检查点 `63c4e669a7200a53f6052407c015766004d4d392`；SEC-01/04 `b7276a76015af5c731d57ebf200a350f93a786dc`；SEC-02 `1300f813aba05f291af955657e42ad48caff78c4`；SEC-05 `2936b3292b97687211dcec6f08e5d388d4607611`；SEC-03 `ca94673ac4ba0d87cd516ee7d0b88175af7d5dfd`。
+- SEC-01/04：普通账号并发失败计数使用数据库原子增量并保留 5 次失败锁定；唯一平台管理员不再受匿名账号级硬锁，错误仍计数，Fastify 来源 IP rate-limit 继续保留。
+- SEC-02：错误 OTP 条件原子增量，五次并发最终 attempts=5、status=expired。
+- SEC-05：D1 合法重放返回缓存结果；预期业务错误可重放；未知异常清除未完成 reservation。Postgres 原有单事务回滚语义保留。
+- SEC-03：Hono 4.8.5 → 4.12.32，Hono 公告 37 → 0；路径解析与 WHATWG 对已知畸形 absolute-form 输入一致。
+- 完整隔离安全套件：24 项，17 通过 / 7 个已知未授权风险保持预期失败；失败仅为 SEC-06、SEC-07、SEC-08、SEC-09、SEC-11、SEC-12、SEC-15。
+- 全仓回归：157/157 通过（Domain 5、Database 8、Web 106、API 19、Worker 19）。
+- 全仓 typecheck 通过；`check:workflows` 88 policies 通过；`git diff --check` 通过。
+- 直接 API build、Web build、Worker bundle 通过；`pnpm install --frozen-lockfile --offline` 通过。
+- `pnpm check:version` 按设计拒绝未登记 Preview 源码的本地修复分支；未运行 `version:preview`，root/Web 仍为 V5.7.8。
+- 最终 `pnpm audit --prod` 为 9 条（7 high / 1 moderate / 1 low），全部来自 Fastify / fast-uri / find-my-way；Hono 为 0。剩余依赖公告不在本次授权范围，留待后续独立修复。
+- 最终 CodeGraph：180 files / 2,127 nodes / 7,245 edges，索引最新；lockfile YAML 已覆盖，package.json 解析例外已记录并由冻结安装、实际包身份、审计与 bundle 验证。
+- 相对 SEC-13/14 文档基线共变更 15 个文件、160 insertions / 36 deletions；无 migration、工作流、Web 源码、部署配置或公开版本改动。
+- 未 push、未创建 PR、未部署 Preview/Staging/Production、未写任何远端 D1；公开 Preview 继续保持 V5.7.8 / `9cf88c155…`，Staging/Production 继续禁止。
