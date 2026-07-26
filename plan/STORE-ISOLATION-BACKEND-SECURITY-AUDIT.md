@@ -300,3 +300,11 @@
 - `pnpm audit --prod` 仍为 9 项（7 high / 1 moderate / 1 low），全部来自 Fastify / fast-uri / find-my-way；Hono 公告为 0。该依赖族升级不在本轮授权范围。
 - `pnpm check:version` 按设计以“缺少 Preview 源码登记”拒绝本地分支；未运行 `version:preview`，root/Web 均保持 V5.7.8。CI 与 Preview workflow 会在临时检出中登记源码指纹而不递增公开版本。
 - 当前分支不包含 SEC-11/12/15 提交 `b75bba9307e32963335ca8d2dd38df32af860210`；下一步为 CodeGraph 后置门禁、远端目标分支单次刷新、普通 push、PR/CI/合并及 Preview-only 部署。
+
+## SEC-06–09 PR 交付检查点（2026-07-27 03:07 +08:00）
+
+- 远端目标分支 `origin/feature/cloudflare-workers-d1` 已单次刷新并确认仍为 `8e9daff8d7b6ba340989a96b2042dc514923d0f3`；本分支为其线性后继，0 个目标分支独有提交、15 个本地提交，无需 merge/rebase。
+- 独立分支已普通 push 到 `origin/fix/sec06-sec09-preview`；远端与本地均为 `7f7802f6dfa288444a79729de477c0a99a14e8b9`，未 force push。
+- 已创建可审阅 PR [#69](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/69)，base=`feature/cloudflare-workers-d1`、head=`fix/sec06-sec09-preview`，GitHub 判定 `MERGEABLE`。
+- PR 正文明确 SEC-10/11/12/15 不在本轮范围，尤其不包含 `b75bba9307e32963335ca8d2dd38df32af860210`；部署边界仅允许 Preview，Staging/Production 禁止。
+- 当前等待 PR CI；CI 通过后执行普通 PR 合并，再通过目标分支手动触发既有 Cloudflare Preview workflow。
