@@ -204,3 +204,11 @@
 - 未推送、未部署、未写 Preview/Staging/Production D1；公开 Preview 仍为 V5.7.8 / `9cf88c155…`。
 - CodeGraph 修复后门禁：179 files / 2,123 nodes / 7,236 edges，索引最新；影响测试集中于 API/Worker 的 auth、audit、repair 与本隔离安全套件。
 - SEC-13 / SEC-14 修复主提交：`4cf2d066377c36b19ceaca4d446e48e792ae8fb5`（仅本地，未推送）。
+
+## SEC-01–05 本地修复（进行中）
+
+- 用户于 2026-07-26 22:58 +08:00 授权本地修复 SEC-01/04、SEC-02、SEC-05、SEC-03；不推送、不部署、不改公开版本。
+- 分支：`fix/sec01-sec05-auth-idempotency-preview`；基线：`3f044f6833780530a974dd0d604c46e7dac50931`。
+- CodeGraph 前置门禁：179 files / 2,123 nodes / 7,236 edges，索引最新。
+- 2026-07-26 23:02–23:13 +08:00 从中断恢复：目标工作树、分支、基线与未提交启动检查点一致，尚无运行时代码改动；CodeGraph `status` 再确认 179 files / 2,123 nodes / 7,236 edges，索引最新。
+- 本阶段执行顺序保持：先 SEC-01/04 登录可用性与并发计数，再 SEC-02 OTP 原子尝试，再 SEC-05 幂等重放/失败清理，最后 SEC-03 Hono 升级与路径回归。
