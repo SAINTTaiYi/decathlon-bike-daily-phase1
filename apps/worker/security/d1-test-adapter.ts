@@ -17,6 +17,24 @@ class ReadBarrier {
 
 type BarrierRule = { pattern: RegExp; barrier: ReadBarrier }
 
+class ManualGate {
+  private signalEntered!: () => void
+  private signalRelease!: () => void
+  readonly entered = new Promise<void>((resolve) => { this.signalEntered = resolve })
+  private readonly released = new Promise<void>((resolve) => { this.signalRelease = resolve })
+
+  async hit(): Promise<void> {
+    this.signalEntered()
+    await this.released
+  }
+
+  release(): void {
+    this.signalRelease()
+  }
+}
+
+type ManualGateRule = { pattern: RegExp; occurrence: number; seen: number; gate: ManualGate }
+
 class TestPreparedStatement {
   private params: unknown[] = []
 
@@ -45,7 +63,9 @@ class TestPreparedStatement {
   }
 
   async run(): Promise<{ success: true; results: []; meta: { changes: number; last_row_id: number } }> {
-    return this.executeRun()
+    const result = this.executeRun()
+    await this.owner.afterRun(this.sql)
+    return result
   }
 
   executeRun(): { success: true; results: []; meta: { changes: number; last_row_id: number } } {
@@ -64,6 +84,8 @@ class TestPreparedStatement {
 export class TestD1Database {
   readonly sqlite = new DatabaseSync(':memory:')
   private barriers: BarrierRule[] = []
+  private runBarriers: BarrierRule[] = []
+  private readGates: ManualGateRule[] = []
 
   constructor() {
     this.sqlite.exec('PRAGMA foreign_keys = ON')
@@ -89,8 +111,29 @@ export class TestD1Database {
     this.barriers.push({ pattern, barrier: new ReadBarrier(participants) })
   }
 
+  runBarrier(pattern: RegExp, participants: number): void {
+    this.runBarriers.push({ pattern, barrier: new ReadBarrier(participants) })
+  }
+
+  readGate(pattern: RegExp, occurrence = 1): { entered: Promise<void>; release: () => void } {
+    const gate = new ManualGate()
+    this.readGates.push({ pattern, occurrence, seen: 0, gate })
+    return { entered: gate.entered, release: () => gate.release() }
+  }
+
   async afterRead(sql: string): Promise<void> {
+    const manual = this.readGates.find((candidate) => {
+      if (!candidate.pattern.test(sql)) return false
+      candidate.seen += 1
+      return candidate.seen === candidate.occurrence
+    })
+    if (manual) await manual.gate.hit()
     const rule = this.barriers.find((candidate) => candidate.pattern.test(sql))
+    if (rule) await rule.barrier.hit()
+  }
+
+  async afterRun(sql: string): Promise<void> {
+    const rule = this.runBarriers.find((candidate) => candidate.pattern.test(sql))
     if (rule) await rule.barrier.hit()
   }
 

@@ -1,6 +1,6 @@
 # Workshop Preview 门店隔离与后端安全审计
 
-**审计时间：** 2026-07-26 19:52–20:35 +08:00
+**审计时间：** 2026-07-26 19:52–20:35、21:48–22:08 +08:00
 **审计分支：** `audit/store-isolation-backend-security-preview`
 **审计基线：** `8e9daff8d7b6ba340989a96b2042dc514923d0f3`
 **Preview 身份：** V5.7.8 / `9cf88c1555bd3a7e055ef8842926d778dcb18123` / Worker Version `0cd1c215-15b9-43c1-9e4f-84e17d32c4b8`
@@ -110,6 +110,76 @@
 ## 后续顺序
 
 1. 先提交本审计测试与报告，不改运行时代码。
-2. 用户确认修复范围后，按 SEC-01/02/03/04/05 优先级实施；每项先写回归测试，再改代码。
-3. 修复后执行 CodeGraph、12 项安全测试、既有 150 项测试、typecheck、workflow、build、Worker bundle、依赖审计和 Preview 只读完整性复核。
+2. 用户确认修复范围后，优先处理高风险原子性边界：SEC-13（维修并发脏写）、SEC-14（闭店 TOCTOU），随后处理 SEC-01/02/03/04/05；每项先保留/细化失败回归测试，再改代码。
+3. 修复后执行 CodeGraph、23 项安全测试、既有 150 项测试、typecheck、workflow、build、Worker bundle、依赖审计和 Preview 只读完整性复核。
 4. 只有用户另行明确授权后才重新部署 Preview；Staging/Production 继续禁止。
+
+## 第二阶段扩展（2026-07-26 21:48–22:08 +08:00）
+
+- 用户确认继续“只测试、不修复”，新增覆盖：Session/CSRF、审计敏感数据、业务并发、平台管理员初始化竞争、Hono 路径解析实际触达面。
+- 边界保持：仅本地隔离测试和证据文档；不修改运行时代码、不推送、不部署、不写 Preview D1。
+- CodeGraph v1.5.0 已从本地源码重新构建；Termux 下 `npm run build` 未解析本地 `tsc`，改用同一源码树的本地 TypeScript 编译器直接构建成功，未修改 CodeGraph 源码。
+- 第二阶段前置门禁：179 files / 2,095 nodes / 7,052 edges，索引最新。
+- 扩展后的隔离红队套件共 23 项：9 通过、14 失败。相对第一阶段新增 11 项，其中 6 通过、5 失败；失败均为安全要求未满足，不是测试夹具异常。
+
+### 第二阶段新验证通过的控制
+
+1. CSRF 令牌不能跨 Session 复用；登出会写入 `revoked_at`，旧 Session 随即返回 401。
+2. 维修联系方式进入业务表和审计快照时保持 AES-GCM 密文；明文未出现在 `before_state` / `after_state`。
+3. 审计历史 API 映射不会直接返回 `before_state` / `after_state`，人工植入的邮箱、手机号快照未出现在响应正文。
+4. 普通交接记录的同 revision 并发编辑只有一个 200，另一个受控 409；最终 revision=2 且仅生成一条编辑审计。
+5. 同门店 5 个并发新增请求分配唯一连续工单号 1–5，无重复。
+6. 可构造 Hono 4.8.5 `getPath()` 与 WHATWG `URL.pathname` 分歧；但 Worker 外层 `routeIncomingRequest()` 使用 WHATWG URL，已测试阻止非 API 外层路径被误送进敏感 API，敏感畸形路径落为 404，未复现鉴权绕过。
+
+### 第二阶段新增发现
+
+#### SEC-11 · 中低 · 单槽 CSRF 轮换导致多标签页互相失效
+
+- **证据：** 同一 Session 连续两次调用 `/api/v1/auth/me` 会生成两个令牌，但第二次直接覆盖数据库唯一 `csrf_hash`；第一标签页随后携带其合法令牌写请求返回 403，第二标签页返回预期业务响应。
+- **影响：** 不会放宽 CSRF 校验，但刷新、恢复、多标签页或并发启动会造成已打开页面自我拒绝服务，可能导致用户在关键业务写入时误判 Session 已失效。
+- **建议：** 每个 Session 使用稳定 CSRF 令牌，或保存当前/前一令牌并设置短暂重叠窗口；明确令牌轮换语义并增加多标签页回归。
+
+#### SEC-12 · 中 · 自助注册审计永久保存完整公司邮箱明文
+
+- **证据：** `self-register` 审计的 `after_state` 直接保存 `email: sensitive.registration@decathlon.com`；完整邮箱长期保留于永久审计表。
+- **边界：** 审计历史 API 当前不返回原始快照，维修联系方式也保持密文；问题是数据库内重复、长期的身份明文留存，而非当前前端直接泄漏。
+- **影响：** 扩大公司身份数据的保留范围、备份暴露面和内部查询可见面，不符合最小化原则。
+- **建议：** 审计只保留掩码邮箱、不可逆 HMAC 标识或用户 ID；定义敏感字段清单、审计保留期和仅限安全调查的受控访问。
+
+#### SEC-13 · 高 · 维修并发编辑的失败请求会留下子表脏写
+
+- **证据：** 两个请求均读取 revision=1；获胜请求把主记录和维修项目更新为“第二请求”，滞后请求先更新 `repair_details` 为“第一请求”，随后主表条件 UPDATE 因 revision 冲突返回 409。最终主表 `title/detail` 属于第二请求，而 `repair_details.repair_project` 属于第一请求。
+- **原因：** PATCH 路径在执行主表 revision 条件更新前先无条件更新维修/待取子表；整个业务修改未置于同一原子事务或同一条件标记下。
+- **影响：** 客户端收到冲突失败，但失败请求仍污染联系方式、维修项目、状态等关键字段，产生不可见的数据撕裂与错误交付信息。
+- **建议：** 将主表 revision 抢占和全部子表更新绑定为同一原子提交；子表 UPDATE 必须以成功的主表 revision/请求标记为条件，失败时不得留下任何状态变化。
+
+#### SEC-14 · 高 · 闭店与业务写入存在 TOCTOU，闭店后仍可成功落账
+
+- **证据：** 编辑请求通过 `ensureDayOpen()` 后暂停；并发闭店成功并把 `closing_status` 设为 `closed`；恢复编辑后仍返回 200，并把台账标题改成“闭店后不应写入”。
+- **原因：** “今日是否开放”只在业务写入前独立 SELECT 一次，实际 UPDATE 未同时绑定当天仍为 open 的数据库条件。
+- **影响：** 闭店快照之后仍可产生业务变更，破坏日结边界、审计解释和报表一致性。
+- **建议：** 在同一事务/条件 UPDATE 中同时校验业务日状态或 closing revision；闭店需要与所有当天写操作争用同一个数据库锁/版本守卫。
+
+#### SEC-15 · 中 · 并发平台管理员初始化把唯一约束冲突暴露为 500
+
+- **证据：** 两个合法初始化请求同时通过“管理员数量为 0”检查；唯一索引最终保证只有一个 platform-admin 和一个 active admin membership，但响应为 201 + 500，而不是 201 + 受控 409。
+- **影响：** 不会创建第二平台管理员，但会向初始化操作者呈现内部错误、产生不明确的重试语义，并污染服务错误率与告警。
+- **建议：** 用条件 INSERT/受控冲突语义完成初始化；捕获唯一约束并统一返回 `PLATFORM_ADMIN_ALREADY_EXISTS` 409，同时保持审计与成员关系原子性。
+
+### Hono 路径解析实际触达结论
+
+- `hono@4.8.5` 的 `getPath()` 对畸形 absolute-form URL（例如 authority 后的空端口形式）可与 WHATWG URL 解析产生不同路径，符合 GHSA-9hp6-4448-45g2 的问题类型。
+- 标准 `Request` 构造会先规范化该 URL；隔离测试使用保留原始 `request.url` 的代理对象验证最坏输入。
+- 当前 Worker 在进入 Hono 前由 `routeIncomingRequest()` 使用 `new URL(request.url).pathname` 判定 API/静态资源边界。所测非 API 外层路径被送到 Assets，未进入 Hono；所测 API 外层路径虽然 Hono 解析分歧，但只落到 404，未命中敏感路由。
+- 因此当前测试未复现 Hono 路径混淆导致的鉴权绕过；依赖版本仍处于已知漏洞范围，升级要求不变。
+
+### 第二阶段完成验证
+
+- 隔离安全套件：23 项，9 通过 / 14 预期失败。新增 11 项中 6 通过 / 5 失败；失败对应 SEC-11–15。
+- 既有仓库测试：150/150 通过（domain 5、database 8、web 106、API 16、Worker 15）。
+- 全仓 `pnpm typecheck`：通过。
+- `pnpm check:workflows`：88 policies 通过。
+- `git diff --check`：通过。
+- CodeGraph 后置门禁：179 files / 2,118 nodes / 7,218 edges，索引最新；影响测试包含本安全套件及 auth/audit/ticket/repair/closing 相关测试。
+- 变更仅限 `apps/worker/security/d1-test-adapter.ts`、`apps/worker/security/security-audit.test.ts` 和本报告；没有运行时代码、依赖、迁移、工作流或部署配置改动。
+- 未执行 push 或任何 Preview/Staging/Production 部署；未写远端 D1。
