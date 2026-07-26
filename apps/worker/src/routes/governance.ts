@@ -45,6 +45,50 @@ async function activeParentExists(db: D1Database, table: 'regions' | 'cities', i
   return Boolean(await first<{ id: string }>(db.prepare(`SELECT id FROM ${table} WHERE id = ? AND status = 'active'`).bind(id)))
 }
 
+
+function platformAdminPathGuard(kind: 'regions' | 'cities' | 'stores'): string {
+  if (kind === 'stores') {
+    return `NOT (? = 'disabled' AND EXISTS (
+      SELECT 1 FROM store_members sm
+      JOIN users u ON u.id = sm.user_id AND u.is_platform_admin = 1 AND u.status = 'active'
+      WHERE sm.status = 'active' AND sm.role = 'admin' AND sm.store_id = stores.id
+    ))`
+  }
+  if (kind === 'cities') {
+    return `NOT (? = 'disabled' AND EXISTS (
+      SELECT 1 FROM store_members sm
+      JOIN users u ON u.id = sm.user_id AND u.is_platform_admin = 1 AND u.status = 'active'
+      JOIN stores platform_store ON platform_store.id = sm.store_id
+      WHERE sm.status = 'active' AND sm.role = 'admin' AND platform_store.city_id = cities.id
+    ))`
+  }
+  return `NOT (? = 'disabled' AND EXISTS (
+    SELECT 1 FROM store_members sm
+    JOIN users u ON u.id = sm.user_id AND u.is_platform_admin = 1 AND u.status = 'active'
+    JOIN stores platform_store ON platform_store.id = sm.store_id
+    JOIN cities platform_city ON platform_city.id = platform_store.city_id
+    WHERE sm.status = 'active' AND sm.role = 'admin' AND platform_city.region_id = regions.id
+  ))`
+}
+
+async function platformAdminUsesDirectoryEntry(db: D1Database, kind: 'regions' | 'cities' | 'stores', id: string): Promise<boolean> {
+  const predicate = kind === 'stores'
+    ? 'st.id = ?'
+    : kind === 'cities'
+      ? 'ct.id = ?'
+      : 'rg.id = ?'
+  return Boolean(await first<{ id: string }>(db.prepare(`
+    SELECT u.id
+    FROM users u
+    JOIN store_members sm ON sm.user_id = u.id AND sm.status = 'active' AND sm.role = 'admin'
+    JOIN stores st ON st.id = sm.store_id
+    JOIN cities ct ON ct.id = st.city_id
+    JOIN regions rg ON rg.id = ct.region_id
+    WHERE u.is_platform_admin = 1 AND u.status = 'active' AND ${predicate}
+    LIMIT 1
+  `).bind(id)))
+}
+
 async function directoryPayload(db: D1Database, includeDisabled: boolean) {
   // CHU13 must see newly created empty regions/cities to continue building the directory.
   // The public registration endpoint stays separately restricted to active full store paths.
@@ -78,8 +122,8 @@ async function directoryPayload(db: D1Database, includeDisabled: boolean) {
 export function governanceRoutes() {
   const app = new Hono<{ Bindings: WorkerEnv; Variables: Vars }>()
   const auth = createAuthMiddleware()
-  const protectedRead = [auth.loadSession, auth.requirePasswordChanged]
-  const protectedWrite = [auth.loadSession, auth.requirePasswordChanged, auth.requireCsrf]
+  const protectedRead = [auth.loadSession, auth.requirePasswordChanged] as const
+  const protectedWrite = [auth.loadSession, auth.requirePasswordChanged, auth.requireCsrf] as const
 
   app.get('/api/v1/governance/overview', ...protectedRead, async (c) => {
     const context = requireContext(c)
@@ -149,11 +193,12 @@ export function governanceRoutes() {
 
   app.post('/api/v1/governance/role-requests/:id/decision', ...protectedWrite, auth.requirePlatformAdmin, async (c) => {
     const context = requireContext(c)
+    const id = String(c.req.param('id') ?? '')
     const input = decisionSchema.parse(await c.req.json())
     const request = await first<{ id: string; user_id: string; store_id: string; from_role: Role; target_role: 'manager' | 'admin'; status: string; revision: number; expires_at: string; store_code: string; store_name: string; timezone: string }>(c.env.DB.prepare(`
       SELECT rr.*, st.code AS store_code, st.name AS store_name, st.timezone
       FROM role_change_requests rr JOIN stores st ON st.id = rr.store_id WHERE rr.id = ?
-    `).bind(c.req.param('id')))
+    `).bind(id))
     if (!request || request.status !== 'pending' || request.revision !== input.expectedRevision || Date.parse(request.expires_at) <= Date.now()) throw new ApiProblem(409, 'ROLE_REQUEST_NOT_ACTIONABLE', '该角色申请已过期、已处理或已更新。')
     const membership = await first<{ id: string; role: Role }>(c.env.DB.prepare(`SELECT id, role FROM store_members WHERE user_id = ? AND store_id = ? AND status = 'active'`).bind(request.user_id, request.store_id))
     if (!membership || membership.role !== request.from_role || ROLE_RANK[request.target_role] <= ROLE_RANK[membership.role]) throw new ApiProblem(409, 'ROLE_REQUEST_MEMBERSHIP_CHANGED', '目标账号的门店关系或角色已变化，不能继续审批。')
@@ -222,11 +267,12 @@ export function governanceRoutes() {
 
   app.post('/api/v1/governance/transfer-requests/:id/decision', ...protectedWrite, async (c) => {
     const context = requireContext(c)
+    const id = String(c.req.param('id') ?? '')
     const input = decisionSchema.parse(await c.req.json())
     const request = await first<{ id: string; user_id: string; source_store_id: string; target_store_id: string; status: string; revision: number; expires_at: string; target_code: string; target_name: string; target_timezone: string }>(c.env.DB.prepare(`
       SELECT tr.*, target.code AS target_code, target.name AS target_name, target.timezone AS target_timezone
       FROM store_transfer_requests tr JOIN stores target ON target.id = tr.target_store_id AND target.status = 'active' WHERE tr.id = ?
-    `).bind(c.req.param('id')))
+    `).bind(id))
     if (!request || request.status !== 'pending' || request.revision !== input.expectedRevision || Date.parse(request.expires_at) <= Date.now()) throw new ApiProblem(409, 'TRANSFER_NOT_ACTIONABLE', '该调店申请已过期、已处理或已更新。')
     const approver = await first<{ id: string }>(c.env.DB.prepare(`SELECT id FROM store_members WHERE user_id = ? AND store_id = ? AND status = 'active' AND role = 'admin' LIMIT 1`).bind(context.userId, request.target_store_id))
     if (!approver) throw new ApiProblem(403, 'TARGET_STORE_ADMIN_REQUIRED', '只有目标门店的有效管理员可以审批调店。')
@@ -326,26 +372,34 @@ export function governanceRoutes() {
   app.patch('/api/v1/governance/directory/:kind/:id', ...protectedWrite, auth.requirePlatformAdmin, async (c) => {
     const context = requireContext(c)
     const input = directoryEntitySchema.parse(await c.req.json())
-    const kind = c.req.param('kind')
+    const kind = String(c.req.param('kind') ?? '')
+    const id = String(c.req.param('id') ?? '')
     const table = kind === 'regions' ? 'regions' : kind === 'cities' ? 'cities' : kind === 'stores' ? 'stores' : null
     if (!table || !input.status) throw new ApiProblem(400, 'DIRECTORY_STATUS_REQUIRED', '请提供有效目录状态。')
+    const typedKind = kind as 'regions' | 'cities' | 'stores'
     if (input.status === 'active') {
       if (kind === 'cities') {
-        const city = await first<{ region_id: string }>(c.env.DB.prepare('SELECT region_id FROM cities WHERE id = ?').bind(c.req.param('id')))
+        const city = await first<{ region_id: string }>(c.env.DB.prepare('SELECT region_id FROM cities WHERE id = ?').bind(id))
         if (!city || !await activeParentExists(c.env.DB, 'regions', city.region_id)) throw new ApiProblem(409, 'PARENT_DIRECTORY_NOT_ACTIVE', '所属区域未启用，不能启用城市。')
       }
       if (kind === 'stores') {
-        const store = await first<{ city_id: string | null }>(c.env.DB.prepare('SELECT city_id FROM stores WHERE id = ?').bind(c.req.param('id')))
+        const store = await first<{ city_id: string | null }>(c.env.DB.prepare('SELECT city_id FROM stores WHERE id = ?').bind(id))
         if (!store?.city_id || !await activeParentExists(c.env.DB, 'cities', store.city_id)) throw new ApiProblem(409, 'PARENT_DIRECTORY_NOT_ACTIVE', '所属城市未启用，不能启用门店。')
       }
     }
     const stamp = nowIso()
-    const audit = prepareConditionalAudit(c.env.DB, { context, action: 'update-directory-status', entityType: kind.slice(0, -1), entityId: c.req.param('id'), businessDate: localBusinessDate(context.storeTimezone), summary: `更新目录状态：${kind}`, after: { status: input.status }, reversible: false }, `EXISTS (SELECT 1 FROM ${table} WHERE id = ? AND status = ? AND updated_at = ?)`, [c.req.param('id'), input.status, stamp])
+    const audit = prepareConditionalAudit(c.env.DB, { context, action: 'update-directory-status', entityType: kind.slice(0, -1), entityId: id, businessDate: localBusinessDate(context.storeTimezone), summary: `更新目录状态：${kind}`, after: { status: input.status }, reversible: false }, `EXISTS (SELECT 1 FROM ${table} WHERE id = ? AND status = ? AND updated_at = ?)`, [id, input.status, stamp])
     const result = await c.env.DB.batch([
-      c.env.DB.prepare(`UPDATE ${table} SET status = ?, updated_at = ? WHERE id = ?`).bind(input.status, stamp, c.req.param('id')),
+      c.env.DB.prepare(`UPDATE ${table} SET status = ?, updated_at = ? WHERE id = ? AND ${platformAdminPathGuard(typedKind)}`)
+        .bind(input.status, stamp, id, input.status),
       audit.statement
     ])
-    if (result[0]?.meta?.changes !== 1) throw new ApiProblem(404, 'DIRECTORY_ENTRY_NOT_FOUND', '目录项不存在。')
+    if (result[0]?.meta?.changes !== 1) {
+      if (input.status === 'disabled' && await platformAdminUsesDirectoryEntry(c.env.DB, typedKind, id)) {
+        throw new ApiProblem(409, 'PLATFORM_ADMIN_DIRECTORY_LOCKOUT', '不能停用平台管理员当前唯一有效的管理路径，请先完成安全迁移。')
+      }
+      throw new ApiProblem(404, 'DIRECTORY_ENTRY_NOT_FOUND', '目录项不存在。')
+    }
     return c.json({ ok: true })
   })
 

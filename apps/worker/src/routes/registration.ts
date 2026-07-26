@@ -41,6 +41,10 @@ function genericRegistrationMessage() {
   return '如邮箱与门店信息有效，验证码会发送到公司邮箱。请检查收件箱后继续。'
 }
 
+function registrationOtpResponse(challengeId: string, retryAfterSeconds = 60) {
+  return { ok: true, challengeId, message: genericRegistrationMessage(), retryAfterSeconds }
+}
+
 function requireRegistrationConfig(config: AppConfig): asserts config is AppConfig & { REGISTRATION_SECRET: string; RESEND_API_KEY: string; RESEND_FROM: string } {
   if (!config.REGISTRATION_SECRET || config.REGISTRATION_SECRET.length < 32 || !config.RESEND_API_KEY || !config.RESEND_FROM) {
     throw new ApiProblem(503, 'REGISTRATION_UNAVAILABLE', '注册邮件服务暂未配置，请联系平台管理员。')
@@ -106,20 +110,24 @@ export function registrationRoutes() {
     const clientHash = await requestClientHash(c.req.raw, config.REGISTRATION_SECRET)
     const now = Date.now()
     const stamp = nowIso()
+    const syntheticChallengeId = uuid()
 
-    const recentByEmail = await first<{ created_at: string; resend_count: number }>(c.env.DB.prepare(`
-      SELECT created_at, resend_count FROM registration_challenges
+    const recentByEmail = await first<{ id: string; created_at: string; resend_count: number; status: string; expires_at: string }>(c.env.DB.prepare(`
+      SELECT id, created_at, resend_count, status, expires_at FROM registration_challenges
       WHERE email_key = ? AND created_at > ?
       ORDER BY created_at DESC LIMIT 1
     `).bind(emailKey, new Date(now - HOUR_MS).toISOString()))
     const recentByClient = clientHash ? await first<{ count: number }>(c.env.DB.prepare(`
       SELECT COUNT(*) AS count FROM registration_challenges WHERE client_hash = ? AND created_at > ?
     `).bind(clientHash, new Date(now - HOUR_MS).toISOString())) : null
+    const reusableChallengeId = recentByEmail?.status === 'pending' && Date.parse(recentByEmail.expires_at) > now
+      ? recentByEmail.id
+      : syntheticChallengeId
     if ((recentByEmail?.resend_count ?? 0) >= 5 || (recentByClient?.count ?? 0) >= 12) {
-      return c.json({ ok: true, message: genericRegistrationMessage(), retryAfterSeconds: 60 })
+      return c.json(registrationOtpResponse(reusableChallengeId))
     }
     if (recentByEmail && now - Date.parse(recentByEmail.created_at) < RESEND_COOLDOWN_MS) {
-      return c.json({ ok: true, message: genericRegistrationMessage(), retryAfterSeconds: Math.ceil((RESEND_COOLDOWN_MS - (now - Date.parse(recentByEmail.created_at))) / 1000) })
+      return c.json(registrationOtpResponse(reusableChallengeId, Math.ceil((RESEND_COOLDOWN_MS - (now - Date.parse(recentByEmail.created_at))) / 1000)))
     }
 
     const [existingEmail, existingUsername, store] = await Promise.all([
@@ -127,7 +135,7 @@ export function registrationRoutes() {
       first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE username_key = ? LIMIT 1').bind(userKey)),
       activeDirectoryStore(c.env.DB, input.storeId)
     ])
-    if (existingEmail || existingUsername || !store) return c.json({ ok: true, message: genericRegistrationMessage(), retryAfterSeconds: 60 })
+    if (existingEmail || existingUsername || !store) return c.json(registrationOtpResponse(syntheticChallengeId))
 
     const otp = randomOtp()
     const id = uuid()
@@ -147,7 +155,7 @@ export function registrationRoutes() {
       console.error('registration email delivery failed', error instanceof Error ? error.message : 'unknown')
       throw new ApiProblem(503, 'REGISTRATION_DELIVERY_FAILED', '验证码暂时无法发送，请稍后重试。')
     }
-    return c.json({ ok: true, challengeId: id, message: genericRegistrationMessage(), retryAfterSeconds: 60 })
+    return c.json(registrationOtpResponse(id))
   })
 
   app.post('/api/v1/registration/verify-otp', async (c) => {
@@ -164,10 +172,14 @@ export function registrationRoutes() {
     }
     const expected = await keyedHash(`${challenge.id}:${input.otp}`, config.REGISTRATION_SECRET)
     if (!safeEqualHex(expected, challenge.otp_hash)) {
-      const attempts = challenge.attempts + 1
-      await c.env.DB.prepare(`UPDATE registration_challenges SET attempts = ?, status = ?, updated_at = ? WHERE id = ?`)
-        .bind(attempts, attempts >= 5 ? 'expired' : 'pending', nowIso(), challenge.id)
-        .run()
+      const stamp = nowIso()
+      await c.env.DB.prepare(`
+        UPDATE registration_challenges
+        SET attempts = attempts + 1,
+            status = CASE WHEN attempts + 1 >= 5 THEN 'expired' ELSE 'pending' END,
+            updated_at = ?
+        WHERE id = ? AND status = 'pending' AND attempts < 5 AND expires_at > ?
+      `).bind(stamp, challenge.id, stamp).run()
       throw new ApiProblem(400, 'OTP_INVALID_OR_EXPIRED', '验证码无效或已过期，请重新获取。')
     }
     const completionToken = randomToken()

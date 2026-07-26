@@ -21,8 +21,8 @@ const dayReturning = `
 export function closingRoutes() {
   const app = new Hono<{ Bindings: WorkerEnv; Variables: Vars }>()
   const auth = createAuthMiddleware()
-  const read = [auth.loadSession, auth.requirePasswordChanged]
-  const write = [auth.loadSession, auth.requirePasswordChanged, auth.requireCsrf]
+  const read = [auth.loadSession, auth.requirePasswordChanged] as const
+  const write = [auth.loadSession, auth.requirePasswordChanged, auth.requireCsrf] as const
 
   app.get('/api/v1/daily-closing/current', ...read, async (c) => {
     const context = c.get('auth')!

@@ -3,7 +3,7 @@ import type { AppConfig, WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
 import { createAuthMiddleware } from '../auth/middleware.js'
 import { all, first, nowIso } from '../db.js'
-import { businessDateFor, ensureDayOpen, prepareAudit } from '../services/business.js'
+import { batchWhileDayOpen, businessDateFor, ensureDayOpen, prepareAudit } from '../services/business.js'
 import { idempotent } from '../services/idempotency.js'
 import { ApiProblem } from '../services/problems.js'
 import { buildRestoreSnapshotStatements } from '../services/restore.js'
@@ -260,7 +260,7 @@ export function auditRoutes() {
         revertedEventId: target.id,
         module: auditModules.has(target.audit_module as AuditModule) ? target.audit_module as AuditModule : undefined
       })
-      await db.batch([...restoreStatements, audit.statement])
+      await batchWhileDayOpen(db, context, businessDate, [...restoreStatements, audit.statement])
       return { status: 200, body: { ok: true, eventId: audit.id, targetEventId: target.id } }
     })
     return c.json(result.body, result.status as any)

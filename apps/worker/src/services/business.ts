@@ -14,6 +14,49 @@ export async function ensureDayOpen(db: D1Database, context: AuthContext, busine
   if (day?.closing_status === 'closed') throw new ApiProblem(423, 'DAY_CLOSED', '今日闭店已锁定，请先重新打开。')
 }
 
+function dayClosedGuard(db: D1Database, context: AuthContext, businessDate: string): D1PreparedStatement {
+  // D1 batch() is transactional. Duplicating the already-closed day deliberately trips
+  // its primary/unique constraint before any business statement can run. If the day is
+  // open (or has not been materialized yet), this statement is a no-op.
+  return db.prepare(`
+    INSERT INTO daily_closings (id, store_id, business_date, created_at, updated_at)
+    SELECT id, store_id, business_date, created_at, updated_at
+    FROM daily_closings
+    WHERE store_id = ? AND business_date = ? AND closing_status = 'closed'
+  `).bind(context.storeId, businessDate)
+}
+
+function isDayClosedGuardConflict(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  return /(?:unique|constraint).*daily_closings|daily_closings.*(?:unique|constraint)/iu.test(message)
+}
+
+export async function batchWhileDayOpen(
+  db: D1Database,
+  context: AuthContext,
+  businessDate: string,
+  statements: D1PreparedStatement[]
+): Promise<D1Result[]> {
+  try {
+    const [, ...results] = await db.batch([dayClosedGuard(db, context, businessDate), ...statements])
+    return results
+  } catch (error) {
+    if (isDayClosedGuardConflict(error)) await ensureDayOpen(db, context, businessDate)
+    throw error
+  }
+}
+
+export async function runWhileDayOpen(
+  db: D1Database,
+  context: AuthContext,
+  businessDate: string,
+  statement: D1PreparedStatement
+): Promise<D1Result> {
+  const [result] = await batchWhileDayOpen(db, context, businessDate, [statement])
+  if (!result) throw new Error('DAY_GUARDED_STATEMENT_MISSING_RESULT')
+  return result
+}
+
 export type AuditModule = 'sales' | 'closing' | 'pickup' | 'repair' | 'resale' | 'handover' | 'account' | 'system'
 
 export type AuditInput = {

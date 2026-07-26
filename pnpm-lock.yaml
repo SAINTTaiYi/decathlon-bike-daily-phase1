@@ -89,8 +89,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/domain
       hono:
-        specifier: 4.8.5
-        version: 4.8.5
+        specifier: 4.12.32
+        version: 4.12.32
       zod:
         specifier: 3.24.2
         version: 3.24.2
@@ -974,8 +974,8 @@ packages:
     resolution: {integrity: sha512-ZRiwvN089JfMXokizgqEPXsl2Guk094yExfoDXR0cBYWxtBbaSww/w+vT4WEJsBW2iTUi1GgZ6swmoug3Oy4Xw==}
     engines: {node: '>=16.0.0'}
 
-  hono@4.8.5:
-    resolution: {integrity: sha512-Up2cQbtNz1s111qpnnECdTGqSIUIhZJMLikdKkshebQSEBcoUKq6XJayLGqSZWidiH0zfHRCJqFu062Mz5UuRA==}
+  hono@4.12.32:
+    resolution: {integrity: sha512-XcuyW9qE2kJn07PkecMOBd5Vq/hMy7mmGw+idz1yblbg9N17ijJODrvPkn7/dwL3Kulj8LcRJ69DLOWf91dRUg==}
     engines: {node: '>=16.9.0'}
 
   iceberg-js@0.8.1:
@@ -1823,7 +1823,7 @@ snapshots:
 
   helmet@7.2.0: {}
 
-  hono@4.8.5: {}
+  hono@4.12.32: {}
 
   iceberg-js@0.8.1: {}
 

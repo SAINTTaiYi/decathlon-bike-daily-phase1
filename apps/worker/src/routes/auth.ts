@@ -43,11 +43,22 @@ export function authRoutes() {
       SELECT id, display_name, password_hash, must_change_password, failed_login_count, locked_until, is_platform_admin
       FROM users WHERE username_key = ? AND status = 'active' LIMIT 1
     `).bind(usernameKey(input.username)))
-    if (!user || (user.locked_until && Date.parse(user.locked_until) > Date.now())) return c.json(genericFailure, 401)
+    const accountLockActive = user?.is_platform_admin !== 1 && Boolean(user?.locked_until && Date.parse(user.locked_until) > Date.now())
+    if (!user || accountLockActive) return c.json(genericFailure, 401)
     if (!(await verifyPassword(user.password_hash, input.password, config.PASSWORD_PEPPER))) {
-      const nextCount = user.failed_login_count + 1
-      const lockedUntil = nextCount >= 5 ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : user.locked_until
-      await c.env.DB.prepare('UPDATE users SET failed_login_count = ?, locked_until = ?, updated_at = ? WHERE id = ?').bind(nextCount, lockedUntil, nowIso(), user.id).run()
+      const stamp = nowIso()
+      const lockUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+      await c.env.DB.prepare(`
+        UPDATE users
+        SET failed_login_count = failed_login_count + 1,
+            locked_until = CASE
+              WHEN is_platform_admin = 1 THEN NULL
+              WHEN failed_login_count + 1 >= 5 THEN ?
+              ELSE locked_until
+            END,
+            updated_at = ?
+        WHERE id = ?
+      `).bind(lockUntil, stamp, user.id).run()
       return c.json(genericFailure, 401)
     }
     const memberships = await all<MembershipRow>(c.env.DB.prepare(`

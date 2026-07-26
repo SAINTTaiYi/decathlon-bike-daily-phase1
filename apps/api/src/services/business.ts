@@ -9,8 +9,17 @@ export async function businessDateFor(context: AuthContext): Promise<string> {
 }
 
 export async function ensureDayOpen(sql: Database, context: AuthContext, businessDate: string): Promise<void> {
+  // Every caller runs inside idempotent()'s transaction. Materializing the day first
+  // closes the absent-row race; FOR UPDATE then serializes business writes with close/reopen.
+  await sql`
+    insert into bike_ops.daily_closings (store_id, business_date)
+    values (${context.storeId}, ${businessDate})
+    on conflict (store_id, business_date) do nothing
+  `
   const [day] = await sql<{ closingStatus: string }[]>`
-    select closing_status from bike_ops.daily_closings where store_id = ${context.storeId} and business_date = ${businessDate}
+    select closing_status from bike_ops.daily_closings
+    where store_id = ${context.storeId} and business_date = ${businessDate}
+    for update
   `
   if (day?.closingStatus === 'closed') throw new ApiProblem(423, 'DAY_CLOSED', '今日闭店已锁定，请先重新打开。')
 }

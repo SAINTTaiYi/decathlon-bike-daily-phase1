@@ -15,6 +15,7 @@ interface LoginUserRow {
   mustChangePassword: boolean
   failedLoginCount: number
   lockedUntil: Date | null
+  isPlatformAdmin: boolean
 }
 
 export async function registerAuthRoutes(app: FastifyInstance, sql: Database, config: AppConfig): Promise<void> {
@@ -47,16 +48,21 @@ export async function registerAuthRoutes(app: FastifyInstance, sql: Database, co
   app.post('/api/v1/auth/login', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (request, reply) => {
     const input = loginSchema.parse(request.body)
     const [user] = await sql<LoginUserRow[]>`
-      select id, display_name, password_hash, must_change_password, failed_login_count, locked_until
+      select id, display_name, password_hash, must_change_password, failed_login_count, locked_until, is_platform_admin
       from bike_ops.users where username_key = ${usernameKey(input.username)} and status = 'active' limit 1
     `
     const genericFailure = { error: 'INVALID_CREDENTIALS', message: '用户名或密码不正确。' }
-    if (!user || (user.lockedUntil && user.lockedUntil.getTime() > Date.now())) return reply.code(401).send(genericFailure)
+    const accountLockActive = user && !user.isPlatformAdmin && user.lockedUntil && user.lockedUntil.getTime() > Date.now()
+    if (!user || accountLockActive) return reply.code(401).send(genericFailure)
     const valid = await verifyPassword(user.passwordHash, input.password, config.PASSWORD_PEPPER)
     if (!valid) {
       await sql`
         update bike_ops.users set failed_login_count = failed_login_count + 1,
-          locked_until = case when failed_login_count + 1 >= 5 then now() + interval '15 minutes' else locked_until end,
+          locked_until = case
+            when is_platform_admin then null
+            when failed_login_count + 1 >= 5 then now() + interval '15 minutes'
+            else locked_until
+          end,
           updated_at = now()
         where id = ${user.id}
       `
