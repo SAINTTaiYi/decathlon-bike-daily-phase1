@@ -203,3 +203,4 @@
 - SEC-14 修复：Worker 使用事务首语句闭店冲突守卫覆盖新增、编辑、复合动作、通知、取车、删除和审计撤回；Fastify/Postgres 在幂等事务内物化并 `FOR UPDATE` 锁定业务日，串行化业务写与闭店。
 - 未推送、未部署、未写 Preview/Staging/Production D1；公开 Preview 仍为 V5.7.8 / `9cf88c155…`。
 - CodeGraph 修复后门禁：179 files / 2,123 nodes / 7,236 edges，索引最新；影响测试集中于 API/Worker 的 auth、audit、repair 与本隔离安全套件。
+- SEC-13 / SEC-14 修复主提交：`4cf2d066377c36b19ceaca4d446e48e792ae8fb5`（仅本地，未推送）。
