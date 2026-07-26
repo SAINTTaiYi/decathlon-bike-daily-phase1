@@ -24,3 +24,12 @@ test('错误 OTP 使用条件原子增量并在第五次尝试时收敛为过期
   assert.match(source, /CASE WHEN attempts \+ 1 >= 5 THEN 'expired'/u)
   assert.match(source, /WHERE id = \? AND status = 'pending' AND attempts < 5 AND expires_at > \?/u)
 })
+
+
+test('OTP 请求对有效、已注册、限速与不可用门店统一返回 challengeId 形态', async () => {
+  const source = await (await import('node:fs/promises')).readFile(new URL('../src/routes/registration.ts', import.meta.url), 'utf8')
+  assert.match(source, /function registrationOtpResponse\(challengeId: string/u)
+  assert.match(source, /registrationOtpResponse\(reusableChallengeId/u)
+  assert.match(source, /registrationOtpResponse\(syntheticChallengeId\)/u)
+  assert.match(source, /registrationOtpResponse\(id\)/u)
+})

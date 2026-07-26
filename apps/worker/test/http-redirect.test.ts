@@ -43,3 +43,24 @@ test('Hono patched parser 与 WHATWG URL 对畸形 absolute-form 路径保持一
     assert.equal(getPath({ url: rawUrl } as Request), new URL(rawUrl).pathname)
   }
 })
+
+
+test('API 响应禁止缓存并带防嗅探头，HTML 响应禁止嵌套并带 CSP', async () => {
+  const api = await routeIncomingRequest(
+    new Request('https://workshop.skin/api/v1/meta/version'),
+    assets,
+    async () => Response.json({ ok: true })
+  )
+  assert.match(api.headers.get('cache-control') ?? '', /no-store/u)
+  assert.equal(api.headers.get('x-content-type-options'), 'nosniff')
+  assert.equal(api.headers.get('x-frame-options'), 'DENY')
+
+  const html = await routeIncomingRequest(
+    new Request('https://workshop.skin/'),
+    { fetch: async () => new Response('<!doctype html>', { headers: { 'content-type': 'text/html; charset=utf-8' } }) },
+    apiFetch
+  )
+  assert.match(html.headers.get('content-security-policy') ?? '', /frame-ancestors 'none'/u)
+  assert.equal(html.headers.get('x-frame-options'), 'DENY')
+  assert.equal(html.headers.get('strict-transport-security'), 'max-age=31536000')
+})

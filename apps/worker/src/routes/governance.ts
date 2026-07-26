@@ -45,6 +45,50 @@ async function activeParentExists(db: D1Database, table: 'regions' | 'cities', i
   return Boolean(await first<{ id: string }>(db.prepare(`SELECT id FROM ${table} WHERE id = ? AND status = 'active'`).bind(id)))
 }
 
+
+function platformAdminPathGuard(kind: 'regions' | 'cities' | 'stores'): string {
+  if (kind === 'stores') {
+    return `NOT (? = 'disabled' AND EXISTS (
+      SELECT 1 FROM store_members sm
+      JOIN users u ON u.id = sm.user_id AND u.is_platform_admin = 1 AND u.status = 'active'
+      WHERE sm.status = 'active' AND sm.role = 'admin' AND sm.store_id = stores.id
+    ))`
+  }
+  if (kind === 'cities') {
+    return `NOT (? = 'disabled' AND EXISTS (
+      SELECT 1 FROM store_members sm
+      JOIN users u ON u.id = sm.user_id AND u.is_platform_admin = 1 AND u.status = 'active'
+      JOIN stores platform_store ON platform_store.id = sm.store_id
+      WHERE sm.status = 'active' AND sm.role = 'admin' AND platform_store.city_id = cities.id
+    ))`
+  }
+  return `NOT (? = 'disabled' AND EXISTS (
+    SELECT 1 FROM store_members sm
+    JOIN users u ON u.id = sm.user_id AND u.is_platform_admin = 1 AND u.status = 'active'
+    JOIN stores platform_store ON platform_store.id = sm.store_id
+    JOIN cities platform_city ON platform_city.id = platform_store.city_id
+    WHERE sm.status = 'active' AND sm.role = 'admin' AND platform_city.region_id = regions.id
+  ))`
+}
+
+async function platformAdminUsesDirectoryEntry(db: D1Database, kind: 'regions' | 'cities' | 'stores', id: string): Promise<boolean> {
+  const predicate = kind === 'stores'
+    ? 'st.id = ?'
+    : kind === 'cities'
+      ? 'ct.id = ?'
+      : 'rg.id = ?'
+  return Boolean(await first<{ id: string }>(db.prepare(`
+    SELECT u.id
+    FROM users u
+    JOIN store_members sm ON sm.user_id = u.id AND sm.status = 'active' AND sm.role = 'admin'
+    JOIN stores st ON st.id = sm.store_id
+    JOIN cities ct ON ct.id = st.city_id
+    JOIN regions rg ON rg.id = ct.region_id
+    WHERE u.is_platform_admin = 1 AND u.status = 'active' AND ${predicate}
+    LIMIT 1
+  `).bind(id)))
+}
+
 async function directoryPayload(db: D1Database, includeDisabled: boolean) {
   // CHU13 must see newly created empty regions/cities to continue building the directory.
   // The public registration endpoint stays separately restricted to active full store paths.
@@ -332,6 +376,7 @@ export function governanceRoutes() {
     const id = String(c.req.param('id') ?? '')
     const table = kind === 'regions' ? 'regions' : kind === 'cities' ? 'cities' : kind === 'stores' ? 'stores' : null
     if (!table || !input.status) throw new ApiProblem(400, 'DIRECTORY_STATUS_REQUIRED', '请提供有效目录状态。')
+    const typedKind = kind as 'regions' | 'cities' | 'stores'
     if (input.status === 'active') {
       if (kind === 'cities') {
         const city = await first<{ region_id: string }>(c.env.DB.prepare('SELECT region_id FROM cities WHERE id = ?').bind(id))
@@ -345,10 +390,16 @@ export function governanceRoutes() {
     const stamp = nowIso()
     const audit = prepareConditionalAudit(c.env.DB, { context, action: 'update-directory-status', entityType: kind.slice(0, -1), entityId: id, businessDate: localBusinessDate(context.storeTimezone), summary: `更新目录状态：${kind}`, after: { status: input.status }, reversible: false }, `EXISTS (SELECT 1 FROM ${table} WHERE id = ? AND status = ? AND updated_at = ?)`, [id, input.status, stamp])
     const result = await c.env.DB.batch([
-      c.env.DB.prepare(`UPDATE ${table} SET status = ?, updated_at = ? WHERE id = ?`).bind(input.status, stamp, id),
+      c.env.DB.prepare(`UPDATE ${table} SET status = ?, updated_at = ? WHERE id = ? AND ${platformAdminPathGuard(typedKind)}`)
+        .bind(input.status, stamp, id, input.status),
       audit.statement
     ])
-    if (result[0]?.meta?.changes !== 1) throw new ApiProblem(404, 'DIRECTORY_ENTRY_NOT_FOUND', '目录项不存在。')
+    if (result[0]?.meta?.changes !== 1) {
+      if (input.status === 'disabled' && await platformAdminUsesDirectoryEntry(c.env.DB, typedKind, id)) {
+        throw new ApiProblem(409, 'PLATFORM_ADMIN_DIRECTORY_LOCKOUT', '不能停用平台管理员当前唯一有效的管理路径，请先完成安全迁移。')
+      }
+      throw new ApiProblem(404, 'DIRECTORY_ENTRY_NOT_FOUND', '目录项不存在。')
+    }
     return c.json({ ok: true })
   })
 

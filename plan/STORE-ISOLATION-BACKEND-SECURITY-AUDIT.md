@@ -271,3 +271,13 @@
 - GitHub 目标分支第一次 fetch 成功但未建立 tracking ref；后续显式 fetch 遇 TLS 连接失败，已按网络治理停止重试。推送/PR 前必须重新核对目标分支最新 SHA。
 - 本轮顺序：SEC-06/07/08/09 → SEC-11/12/15 → 全量验证 → 普通 push → 可审阅 PR；任何阶段均不触发部署。
 - CodeGraph 前置门禁沿用并重新确认：180 files / 2,127 nodes / 7,245 edges，索引最新。
+
+### SEC-06 / SEC-07 / SEC-08 / SEC-09 修复检查点
+
+- SEC-06：有效、已注册、限速、用户名冲突与不可用门店的 OTP 请求统一返回 `{ok, challengeId, message, retryAfterSeconds}`；有效的冷却中 challenge 复用真实 ID，其余不可注册路径返回不可区分的合成 UUID。
+- SEC-07：区域、城市、门店停用 UPDATE 增加数据库条件守卫；若该目录项承载唯一平台管理员的 active admin membership，则原子拒绝并返回 `PLATFORM_ADMIN_DIRECTORY_LOCKOUT` 409，不产生审计脏写。
+- SEC-08：Worker `/api/*` 启用 Hono 1 MiB body limit，超限在完整业务解析前返回 413 `REQUEST_BODY_TOO_LARGE`；Fastify 原有 1 MiB 限制保持。
+- SEC-09：Worker API/health 响应统一 `Cache-Control: no-store, private`、`Pragma: no-cache`、`nosniff`、Referrer/Permissions/X-Frame/HSTS/CSP；HTML Assets 响应获得 frame-ancestors CSP 与防嵌套/安全头。Fastify API/health 同步 no-store/no-cache，其他头由 Helmet 保持。
+- 原 4 条隔离红测全部转绿；完整安全套件 24 项现为 21 通过 / 3 失败，剩余仅 SEC-11、SEC-12、SEC-15。
+- Worker 标准测试 23/23、API 20/20、两端 typecheck、路由回归和 `git diff --check` 通过。
+- CodeGraph 后置门禁：181 files / 2,138 nodes / 7,268 edges，索引最新；新增安全控制测试文件已纳入图。

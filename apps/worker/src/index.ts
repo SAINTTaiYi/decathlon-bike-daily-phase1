@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
+import { bodyLimit } from 'hono/body-limit'
 import { ZodError } from 'zod'
 import type { AppConfig, WorkerEnv } from './env.js'
 import { isAllowedOrigin, loadConfig } from './env.js'
@@ -21,6 +22,12 @@ type Vars = {
 }
 
 const app = new Hono<{ Bindings: WorkerEnv; Variables: Vars }>()
+
+
+app.use('/api/*', bodyLimit({
+  maxSize: 1024 * 1024,
+  onError: (c) => c.json({ error: 'REQUEST_BODY_TOO_LARGE', message: '请求内容超过允许大小。' }, 413)
+}))
 
 function needsSecrets(path: string): boolean {
   // Public identity/health endpoints must read plain env vars (APP_VERSION/GIT_SHA)

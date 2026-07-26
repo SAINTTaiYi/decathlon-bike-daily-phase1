@@ -72,3 +72,11 @@ test('Postgres 幂等 reservation 与业务处理共享事务，失败会整体�
   assert.match(source, /on conflict do nothing returning idempotency_key/u)
   assert.match(source, /const result = await handler\(tx\)/u)
 })
+
+
+test('Fastify API 与健康响应显式禁止缓存', async () => {
+  const source = await readFile(new URL('../src/server.ts', import.meta.url), 'utf8')
+  assert.match(source, /request\.url\.startsWith\('\/api\/'\)/u)
+  assert.match(source, /Cache-Control', 'no-store, private'/u)
+  assert.match(source, /Pragma', 'no-cache'/u)
+})
