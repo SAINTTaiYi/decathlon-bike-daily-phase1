@@ -183,3 +183,4 @@
 - CodeGraph 后置门禁：179 files / 2,118 nodes / 7,218 edges，索引最新；影响测试包含本安全套件及 auth/audit/ticket/repair/closing 相关测试。
 - 变更仅限 `apps/worker/security/d1-test-adapter.ts`、`apps/worker/security/security-audit.test.ts` 和本报告；没有运行时代码、依赖、迁移、工作流或部署配置改动。
 - 未执行 push 或任何 Preview/Staging/Production 部署；未写远端 D1。
+- 第二阶段测试/报告主提交：`3b4361cffd79f2e1f86aee84483b7b56f6f929d7`（仅本地，未推送）。
