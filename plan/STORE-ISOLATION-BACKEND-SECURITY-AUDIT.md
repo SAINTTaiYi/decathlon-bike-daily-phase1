@@ -308,3 +308,15 @@
 - 已创建可审阅 PR [#69](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/69)，base=`feature/cloudflare-workers-d1`、head=`fix/sec06-sec09-preview`，GitHub 判定 `MERGEABLE`。
 - PR 正文明确 SEC-10/11/12/15 不在本轮范围，尤其不包含 `b75bba9307e32963335ca8d2dd38df32af860210`；部署边界仅允许 Preview，Staging/Production 禁止。
 - 当前等待 PR CI；CI 通过后执行普通 PR 合并，再通过目标分支手动触发既有 Cloudflare Preview workflow。
+
+## SEC-06–09 Preview 最终部署证据（2026-07-27 03:19 +08:00）
+
+- 功能 PR [#69](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/69) 在 CI 全绿后以普通 merge commit 合入 `feature/cloudflare-workers-d1`；merge SHA `51879aeed8641907fd33a316f025bbf37d8dc12c`。PR CI run `30216381031`：`verify` 1m26s、`secrets` 10s，均 success。
+- 手动 Preview-only workflow run [30216491310](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/actions/runs/30216491310) 在精确 merge SHA 上 success，总耗时 1m25s；Free、no-billing、Preview-only、远端分支 head 一致性门禁均通过。
+- workflow 在临时检出中执行 `version:preview`，公开版本未递增；随后完整测试、typecheck、build、Worker bundle 均通过。Preview D1 返回 `No migrations to apply`，未引入 schema 变更。
+- Cloudflare Worker `bike-ops-preview` 当前 Deployment ID `6034c219-1081-4624-a858-d09283236c7a`；Version ID `5e3e5349-734d-4851-9329-4ab0606805f4`；100% 流量；端点 `https://bike-ops-preview.geeklightonefish.workers.dev`。
+- workflow 的边缘收敛轮询在前两次短暂观察到新旧 isolate 混合，第三次通过。部署完成后的独立只读复核确认 `/health/live`、`/health/ready`、`/api/v1/meta/version` 与 Web Shell 均 HTTP 200；三个身份端点均为 V5.7.8 / `51879aeed8641907fd33a316f025bbf37d8dc12c`，meta environment=`preview`、platform=`cloudflare-workers-d1`。
+- SEC-09 线上证据：API 响应包含 `Cache-Control: no-store, private`、`Pragma: no-cache`、HSTS、CSP、`X-Content-Type-Options: nosniff`、Referrer-Policy、Permissions-Policy 与 `X-Frame-Options: DENY`；HTML Shell 包含 frame-ancestors CSP、防嵌套与通用安全头。
+- 本轮交付只覆盖 SEC-06/07/08/09，并继承此前同一修复链中的 SEC-01–05、13、14；SEC-10、SEC-11、SEC-12、SEC-15 仍明确未修复。meta 的 `schemaVersion=0002_work_item_ticket_numbers`（OPS-01）与 9 项 Fastify/fast-uri/find-my-way 依赖公告继续作为独立后续任务；Hono 公告为 0。
+- Staging 与 Production 未触发、未修改；公开版本继续为 V5.7.8。实现分支 CodeGraph 后置门禁为 181 files / 2,138 nodes / 7,267 edges，索引最新。
+- 本证据分支仅修改 Markdown。CodeGraph 当前不解析 Markdown 符号，因此前后状态保持 181 / 2,138 / 7,267；该格式例外已显式记录，并由 Git diff、GitHub PR/CI、workflow 日志、Cloudflare deployment API 与独立 HTTP 响应交叉验证。
