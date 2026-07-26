@@ -164,10 +164,14 @@ export function registrationRoutes() {
     }
     const expected = await keyedHash(`${challenge.id}:${input.otp}`, config.REGISTRATION_SECRET)
     if (!safeEqualHex(expected, challenge.otp_hash)) {
-      const attempts = challenge.attempts + 1
-      await c.env.DB.prepare(`UPDATE registration_challenges SET attempts = ?, status = ?, updated_at = ? WHERE id = ?`)
-        .bind(attempts, attempts >= 5 ? 'expired' : 'pending', nowIso(), challenge.id)
-        .run()
+      const stamp = nowIso()
+      await c.env.DB.prepare(`
+        UPDATE registration_challenges
+        SET attempts = attempts + 1,
+            status = CASE WHEN attempts + 1 >= 5 THEN 'expired' ELSE 'pending' END,
+            updated_at = ?
+        WHERE id = ? AND status = 'pending' AND attempts < 5 AND expires_at > ?
+      `).bind(stamp, challenge.id, stamp).run()
       throw new ApiProblem(400, 'OTP_INVALID_OR_EXPIRED', '验证码无效或已过期，请重新获取。')
     }
     const completionToken = randomToken()

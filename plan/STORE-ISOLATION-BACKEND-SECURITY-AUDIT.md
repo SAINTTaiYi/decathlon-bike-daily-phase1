@@ -220,3 +220,10 @@
 - Fastify/Postgres 同步相同平台管理员账号锁语义；原有来源 IP 级 Fastify rate-limit 保持不变。
 - 定向验证：Worker SEC-01/04 两条隔离测试 2/2 通过；API 测试 18/18 通过；Worker 与 API typecheck 通过；`git diff --check` 通过。
 - CodeGraph 后置门禁：同步 3 个文件，179 files / 2,123 nodes / 7,236 edges，索引最新；受影响测试为 API audit/auth 与 Worker 安全套件。
+
+### SEC-02 修复检查点
+
+- 错误 OTP 改为单条条件 UPDATE：`attempts = attempts + 1`，仅允许 `status='pending' AND attempts < 5 AND expires_at > now` 的 challenge 消耗尝试。
+- 第五次错误尝试在同一 SQL 中原子把状态收敛为 `expired`；并发请求不再覆盖彼此计数，也不会把 attempts 推过数据库上限。
+- 定向隔离回归 1/1 通过；Worker 全量 17/17、Worker typecheck、`git diff --check` 通过。
+- CodeGraph 后置门禁：同步 2 个文件，179 files / 2,123 nodes / 7,236 edges，索引最新。

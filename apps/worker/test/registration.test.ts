@@ -16,3 +16,11 @@ test('注册实现先条件化消费 OTP grant，再创建账号、成员关系�
   assert.match(source, /REGISTRATION_GRANT_INVALID/u)
   assert.doesNotMatch(source, /after:\s*\{[^}]*password/u)
 })
+
+
+test('错误 OTP 使用条件原子增量并在第五次尝试时收敛为过期', async () => {
+  const source = await (await import('node:fs/promises')).readFile(new URL('../src/routes/registration.ts', import.meta.url), 'utf8')
+  assert.match(source, /SET attempts = attempts \+ 1,/u)
+  assert.match(source, /CASE WHEN attempts \+ 1 >= 5 THEN 'expired'/u)
+  assert.match(source, /WHERE id = \? AND status = 'pending' AND attempts < 5 AND expires_at > \?/u)
+})
