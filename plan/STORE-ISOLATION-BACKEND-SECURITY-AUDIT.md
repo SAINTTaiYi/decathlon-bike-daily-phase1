@@ -290,3 +290,13 @@
 - 本分支继承此前已验证但尚未远端集成的 SEC-13/14 与 SEC-01–05 修复祖先；不包含 `b75bba9307e32963335ca8d2dd38df32af860210` 及其 SEC-11/12/15 改动。
 - CodeGraph 前置门禁已在隔离 worktree 重新初始化：181 files / 2,138 nodes / 7,267 edges，索引最新。
 - 当前运行时代码无需再次修改；下一步为冻结离线安装、完整安全与仓库回归、typecheck、workflow、构建、依赖审计、版本规则、最终 CodeGraph、远端目标分支核对、PR/CI/合并与 Preview 部署。
+
+## SEC-06–09 独立分支本地验收（2026-07-27 03:08 +08:00）
+
+- 隔离安全套件：24 项中 21 通过、3 个预期失败；失败严格限定为本轮明确排除的 SEC-11（多标签页 CSRF）、SEC-12（注册审计邮箱最小化）、SEC-15（并发平台管理员初始化）。SEC-06、SEC-07、SEC-08、SEC-09 全部通过。
+- 标准全仓回归：162/162 通过（Domain 5、Database 8、Web 106、API 20、Worker 23）。
+- 全仓 typecheck 通过；`check:workflows` 88 policies 通过；`git diff --check` 通过。
+- 直接 API build、Web build、Worker bundle 通过；`pnpm install --frozen-lockfile --offline` 通过。
+- `pnpm audit --prod` 仍为 9 项（7 high / 1 moderate / 1 low），全部来自 Fastify / fast-uri / find-my-way；Hono 公告为 0。该依赖族升级不在本轮授权范围。
+- `pnpm check:version` 按设计以“缺少 Preview 源码登记”拒绝本地分支；未运行 `version:preview`，root/Web 均保持 V5.7.8。CI 与 Preview workflow 会在临时检出中登记源码指纹而不递增公开版本。
+- 当前分支不包含 SEC-11/12/15 提交 `b75bba9307e32963335ca8d2dd38df32af860210`；下一步为 CodeGraph 后置门禁、远端目标分支单次刷新、普通 push、PR/CI/合并及 Preview-only 部署。
