@@ -281,3 +281,12 @@
 - 原 4 条隔离红测全部转绿；完整安全套件 24 项现为 21 通过 / 3 失败，剩余仅 SEC-11、SEC-12、SEC-15。
 - Worker 标准测试 23/23、API 20/20、两端 typecheck、路由回归和 `git diff --check` 通过。
 - CodeGraph 后置门禁：181 files / 2,138 nodes / 7,268 edges，索引最新；新增安全控制测试文件已纳入图。
+
+## SEC-06–09 独立交付恢复检查点（2026-07-27 02:58 +08:00）
+
+- 用户重新确认本轮仅处理并交付 SEC-06、SEC-07、SEC-08、SEC-09；SEC-11、SEC-12、SEC-15 明确排除，不得夹带进入本轮分支、PR 或 Preview。
+- 授权终点：全量验证、普通 push、创建并合并 PR、部署 Preview 验收；Staging 与 Production 继续禁止，禁止远端 D1 写入和公开版本号变更。
+- 为消除原统一分支中的越权后续提交，已从仅完成 SEC-06–09 的提交 `7fbf30382912edaf0493bcb4017a68a9e37d5c98` 创建隔离分支 `fix/sec06-sec09-preview` 与独立 worktree。
+- 本分支继承此前已验证但尚未远端集成的 SEC-13/14 与 SEC-01–05 修复祖先；不包含 `b75bba9307e32963335ca8d2dd38df32af860210` 及其 SEC-11/12/15 改动。
+- CodeGraph 前置门禁已在隔离 worktree 重新初始化：181 files / 2,138 nodes / 7,267 edges，索引最新。
+- 当前运行时代码无需再次修改；下一步为冻结离线安装、完整安全与仓库回归、typecheck、workflow、构建、依赖审计、版本规则、最终 CodeGraph、远端目标分支核对、PR/CI/合并与 Preview 部署。
