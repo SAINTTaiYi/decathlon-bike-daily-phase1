@@ -91,3 +91,18 @@
 2. 用户以 CHU13 完成登录、目录维护、提权与调店审批的完整交互验收；
 3. 另选尚未注册的真实公司邮箱时，才验证 OTP → completion → operator 建号完整链路；
 4. 未获新的明确授权，不进入 Staging 或 Production。
+
+## Preview 提权与调店测试账号（2026-07-27 03:44 +08:00）
+
+- 用户明确授权仅在 Preview D1 创建两个已激活 operator 测试账号，用于角色提权与门店转移验收；Staging/Production 未触碰。
+- 创建方式严格复用已部署的正式 OTP → verify → complete 注册链路，由 Worker 使用 Preview Secret 生成 PBKDF2-SHA256（100,000 iterations）密码哈希并原子写入用户、门店成员关系、Session 与永久账号审计；未读取或暴露 `PASSWORD_PEPPER`，未临时替换 Worker，未直接写入明文密码。
+- 测试身份：
+  - Profile `preview1670test`，显示名 `Preview 1670 测试员`，user id `b1f9749e-193c-43fd-a819-a09bd45757ef`，归属 1670 民族东店，角色 operator。
+  - Profile `preview0994test`，显示名 `Preview 994 测试员`，user id `481f5566-fa61-41c0-a845-f0dcb0eea84a`，归属 994 穿山店，角色 operator。
+- 两个合成 `@decathlon.com` 测试邮箱均不存在，因此 Resend 最终状态为 bounced；只用于生成注册 challenge，不对应真实员工邮箱。OTP、completion token 与 Session token 均未写入本检查点。
+- 两次注册均返回 HTTP 201；两次使用用户指定密码的真实登录均返回 HTTP 200，并确认 `mustChangePassword=false`、`isPlatformAdmin=false`、正确门店与 operator 角色。
+- Preview D1 独立只读复核：两个用户均 `status=active`、成员关系 `status=active`、密码方案 `pbkdf2-sha256-100000`、各 1 条 `self-register` 永久审计；待处理角色申请与调店申请均为 0。
+- 创建与登录验收产生的 4 个测试 Session 已按两个 Profile 精确撤销；最终两个账号的有效 Session 均为 0，用户首次手工登录会获得全新 Session。
+- 账号密码仅在当前对话中返回给用户，不写入仓库、检查点、session-state、日记或长期记忆。
+- 建议验收顺序：先由 `preview0994test` 申请 admin 并由 CHU13 批准；重新登录后作为 994 目标门店 admin。再由 `preview1670test` 申请从 1670 调往 994，由 994 admin 批准；验收调店后角色重置为 operator。也可交换两账号方向重复验证。
+- 本检查点仅修改 Markdown。CodeGraph 当前不解析 Markdown 符号，前后图统计应保持不变；格式例外由 Git diff、Preview API 登录结果和 D1 查询交叉验证。
