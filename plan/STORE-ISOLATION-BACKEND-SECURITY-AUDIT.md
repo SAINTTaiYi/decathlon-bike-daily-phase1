@@ -262,3 +262,12 @@
 - 最终 CodeGraph：180 files / 2,127 nodes / 7,245 edges，索引最新；lockfile YAML 已覆盖，package.json 解析例外已记录并由冻结安装、实际包身份、审计与 bundle 验证。
 - 相对 SEC-13/14 文档基线共变更 15 个文件、160 insertions / 36 deletions；无 migration、工作流、Web 源码、部署配置或公开版本改动。
 - 未 push、未创建 PR、未部署 Preview/Staging/Production、未写任何远端 D1；公开 Preview 继续保持 V5.7.8 / `9cf88c155…`，Staging/Production 继续禁止。
+
+## 剩余七项修复与统一 PR（进行中）
+
+- 用户于 2026-07-27 授权继续修复 SEC-06、SEC-07、SEC-08、SEC-09、SEC-11、SEC-12、SEC-15，并允许修复完成后推送、创建一个汇总 SEC-01–15 的可审阅 PR，目标分支 `feature/cloudflare-workers-d1`。
+- 部署边界保持：不部署 Preview/Staging/Production，不写远端 D1，不修改公开 V5.7.8。
+- 统一本地分支：`fix/security-audit-findings-preview`；继承已验证的 SEC-13/14 与 SEC-01–05 修复链，集成基线 `8e9daff8d7b6ba340989a96b2042dc514923d0f3`。
+- GitHub 目标分支第一次 fetch 成功但未建立 tracking ref；后续显式 fetch 遇 TLS 连接失败，已按网络治理停止重试。推送/PR 前必须重新核对目标分支最新 SHA。
+- 本轮顺序：SEC-06/07/08/09 → SEC-11/12/15 → 全量验证 → 普通 push → 可审阅 PR；任何阶段均不触发部署。
+- CodeGraph 前置门禁沿用并重新确认：180 files / 2,127 nodes / 7,245 edges，索引最新。
