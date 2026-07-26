@@ -212,3 +212,11 @@
 - CodeGraph 前置门禁：179 files / 2,123 nodes / 7,236 edges，索引最新。
 - 2026-07-26 23:02–23:13 +08:00 从中断恢复：目标工作树、分支、基线与未提交启动检查点一致，尚无运行时代码改动；CodeGraph `status` 再确认 179 files / 2,123 nodes / 7,236 edges，索引最新。
 - 本阶段执行顺序保持：先 SEC-01/04 登录可用性与并发计数，再 SEC-02 OTP 原子尝试，再 SEC-05 幂等重放/失败清理，最后 SEC-03 Hono 升级与路径回归。
+
+### SEC-01 / SEC-04 修复检查点
+
+- Worker 登录失败改为数据库内 `failed_login_count = failed_login_count + 1` 原子增量；5 个并发错误登录最终稳定累计到 5 并锁定普通账号。
+- 唯一平台管理员不再使用可被匿名请求持续维持的账号级硬锁：错误密码仍原子记录失败次数，但 `locked_until` 保持空；正确密码可恢复登录。普通账号保留 5 次失败后 15 分钟锁定。
+- Fastify/Postgres 同步相同平台管理员账号锁语义；原有来源 IP 级 Fastify rate-limit 保持不变。
+- 定向验证：Worker SEC-01/04 两条隔离测试 2/2 通过；API 测试 18/18 通过；Worker 与 API typecheck 通过；`git diff --check` 通过。
+- CodeGraph 后置门禁：同步 3 个文件，179 files / 2,123 nodes / 7,236 edges，索引最新；受影响测试为 API audit/auth 与 Worker 安全套件。

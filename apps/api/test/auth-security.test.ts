@@ -56,3 +56,11 @@ test('Postgres 业务写在幂等事务中物化并锁定业务日，串行化�
   assert.match(source, /for update/u)
   assert.match(source, /DAY_CLOSED/u)
 })
+
+
+test('登录失败计数保持数据库原子增量，唯一平台管理员不受匿名账号硬锁', async () => {
+  const source = await readFile(new URL('../src/auth/routes.ts', import.meta.url), 'utf8')
+  assert.match(source, /failed_login_count = failed_login_count \+ 1/u)
+  assert.match(source, /when is_platform_admin then null/u)
+  assert.match(source, /!user\.isPlatformAdmin/u)
+})
