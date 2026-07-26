@@ -10,7 +10,7 @@
   "dependencies": {
     "@bike-ops/contracts": "workspace:*",
     "@bike-ops/domain": "workspace:*",
-    "hono": "4.8.5",
+    "hono": "4.12.32",
     "zod": "3.24.2"
   },
   "devDependencies": {

@@ -37,8 +37,8 @@ function kindForScene(scene: string): 'pickup' | 'handover' | 'repair' | 'resale
 export function workItemRoutes() {
   const app = new Hono<{ Bindings: WorkerEnv; Variables: Vars }>()
   const auth = createAuthMiddleware()
-  const read = [auth.loadSession, auth.requirePasswordChanged]
-  const write = [auth.loadSession, auth.requirePasswordChanged, auth.requireCsrf]
+  const read = [auth.loadSession, auth.requirePasswordChanged] as const
+  const write = [auth.loadSession, auth.requirePasswordChanged, auth.requireCsrf] as const
 
   app.get('/api/v1/work-items', ...read, async (c) => {
     const context = c.get('auth')!

@@ -36,3 +36,10 @@ test('生产域名仅允许精确 apex 与 www 来源，不放宽到通配来源
   assert.equal(isAllowedOrigin('http://workshop.skin', origins), false)
   assert.equal(isAllowedOrigin(undefined, origins), false)
 })
+
+test('Hono patched parser 与 WHATWG URL 对畸形 absolute-form 路径保持一致', async () => {
+  const { getPath } = await import('hono/utils/url')
+  for (const rawUrl of ['https://a:/foo/api/v1/work-items', 'https://a:/api/v1/work-items']) {
+    assert.equal(getPath({ url: rawUrl } as Request), new URL(rawUrl).pathname)
+  }
+})

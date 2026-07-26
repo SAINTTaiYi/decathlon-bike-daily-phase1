@@ -847,7 +847,7 @@ test('安全要求：并发平台管理员初始化必须返回一个成功与�
   }
 })
 
-test('Hono 路径解析触达面：畸形 absolute-form 会产生路径分歧，但外层 WHATWG 路由门禁阻止敏感 API 绕过', async () => {
+test('Hono 路径解析安全回归：补丁版本与 WHATWG 对畸形 absolute-form 保持一致，外层路由继续守住 API 边界', async () => {
   const db = await migratedTestDatabase()
   try {
     const makeRawRequest = (rawUrl: string, canonicalPath: string): Request => {
@@ -868,7 +868,7 @@ test('Hono 路径解析触达面：畸形 absolute-form 会产生路径分歧，
 
     const benignOuterPath = 'https://a:/foo/api/v1/work-items'
     assert.equal(new URL(benignOuterPath).pathname, '/foo/api/v1/work-items')
-    assert.equal(getPath({ url: benignOuterPath } as Request), '/api/v1/work-items')
+    assert.equal(getPath({ url: benignOuterPath } as Request), new URL(benignOuterPath).pathname)
     const outerGate = await handleRequest(
       makeRawRequest(benignOuterPath, '/foo/api/v1/work-items'),
       environment(db, { ASSETS: assets }),
@@ -879,13 +879,13 @@ test('Hono 路径解析触达面：畸形 absolute-form 会产生路径分歧，
 
     const sensitiveOuterPath = 'https://a:/api/v1/work-items'
     assert.equal(new URL(sensitiveOuterPath).pathname, '/api/v1/work-items')
-    assert.equal(getPath({ url: sensitiveOuterPath } as Request), '/v1/work-items')
+    assert.equal(getPath({ url: sensitiveOuterPath } as Request), new URL(sensitiveOuterPath).pathname)
     const routedApi = await handleRequest(
       makeRawRequest(sensitiveOuterPath, '/api/v1/work-items'),
       environment(db, { ASSETS: assets }),
       executionContext()
     )
-    assert.equal(routedApi.status, 404)
+    assert.equal(routedApi.status, 401)
     assert.notEqual(await routedApi.text(), 'asset-sentinel')
   } finally {
     db.close()

@@ -235,3 +235,13 @@
 - Fastify/Postgres 原有 reservation、业务处理和结果写入继续共享同一事务；业务异常自动整体回滚，不留下失败占位。
 - 定向隔离回归 2/2 通过；Worker 18/18、API 19/19、两端 typecheck、`git diff --check` 通过。
 - CodeGraph 后置门禁：索引同步并保持最新；受影响测试覆盖 API audit/auth/storage 与 Worker 安全套件。
+
+### SEC-03 修复检查点
+
+- Worker 直接依赖从 `hono@4.8.5` 精确升级到 `hono@4.12.32`，高于审计要求的 `>=4.12.27`；package 与 lockfile 均锁定同一版本，实际安装包身份为 4.12.32。
+- 路径安全契约从“解析存在分歧但外层门禁兜底”升级为“Hono `getPath()` 与 WHATWG `URL.pathname` 对已知畸形 absolute-form 输入一致”；非 API 外层路径继续交由 Assets，真实 `/api/*` 路径进入 API 并执行认证。
+- 为适配 Hono 新版收紧的类型，路由中间件数组保持只读 tuple，路由参数在入口规范化为 string；权限顺序、路由路径和运行时业务语义不变。
+- `pnpm audit --prod`：升级前 46 条（13 high / 30 moderate / 3 low），其中 Hono 37 条；升级后 9 条（7 high / 1 moderate / 1 low），Hono 0 条。剩余 9 条属于其它依赖，不在本次 SEC-03 范围。
+- Worker 19/19、Worker typecheck、关键跨店/目录/闭店/路径隔离回归 4/4、HTTP/Assets/CORS/path 契约 4/4、Worker bundle 均通过。
+- 完整隔离安全套件 24 项：17 通过 / 7 个未授权风险保持预期失败；失败项仅为 SEC-06、SEC-07、SEC-08、SEC-09、SEC-11、SEC-12、SEC-15。
+- CodeGraph 后置门禁：180 files / 2,127 nodes / 7,245 edges，索引最新；同步覆盖 6 个 TS 文件。`pnpm-lock.yaml` 被索引为 YAML（0 symbols）；`apps/worker/package.json` 不属于 CodeGraph 当前解析类型，已记录例外，并用 lockfile、实际安装包、依赖审计和 Worker bundle 四重验证。
