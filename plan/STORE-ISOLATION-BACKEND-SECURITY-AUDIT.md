@@ -184,3 +184,22 @@
 - 变更仅限 `apps/worker/security/d1-test-adapter.ts`、`apps/worker/security/security-audit.test.ts` 和本报告；没有运行时代码、依赖、迁移、工作流或部署配置改动。
 - 未执行 push 或任何 Preview/Staging/Production 部署；未写远端 D1。
 - 第二阶段测试/报告主提交：`3b4361cffd79f2e1f86aee84483b7b56f6f929d7`（仅本地，未推送）。
+
+## SEC-13 / SEC-14 本地修复（完成，未推送/未部署）
+
+- 用户于 2026-07-26 22:23 +08:00 授权开始修复，仅限 SEC-13 与 SEC-14；保持本地、不推送、不部署。
+- 修复基线：`23761cfedafce12ce3afede66c213b97fe749065`。
+- CodeGraph 修复前门禁：179 files / 2,118 nodes / 7,218 edges，索引最新。
+- 调用面：Worker `ensureDayOpen` 共有 7 个运行时调用位置，覆盖工单新增、编辑、动作、通知、取车、删除与审计撤回；SEC-14 采用共享原子写守卫设计，不只覆盖单一复现路径。
+- 中间结果：SEC-13 / SEC-14 两个隔离复现均已转绿；完整安全套件从 9 通过 / 14 失败改善为 11 通过 / 12 失败，其余失败均为本次未授权修复的既有风险。
+- Worker 使用 D1 事务化 `batchWhileDayOpen` 覆盖新增、编辑、业务动作、通知、取车、删除和审计撤回；主表与详情表写入合入同一 batch。
+- Fastify/Postgres 在幂等事务内先物化 `daily_closings` 行，再 `FOR UPDATE` 锁定，关闭 absent-row 与闭店并发窗口。
+- 中间验证：Worker 16/16、API 17/17，双方 typecheck 通过。
+- 最终安全套件：24 项，12 通过 / 12 个其余已知风险保持预期失败；SEC-13、SEC-14 及新增的七类闭店写路径覆盖均通过。
+- 最终既有回归：152/152 通过（domain 5、database 8、web 106、API 17、Worker 16）；全仓 typecheck、88 workflow policies、`git diff --check` 均通过。
+- 构建：API、Web、Worker bundle 直接构建通过。`pnpm check:version` 按设计拒绝未登记 Preview 的本地修复分支；遵循 Preview-only 不变更公开版本规则，未运行 `version:preview`、未修改 V5.7.8。
+- 分支：`fix/sec13-sec14-atomicity-preview`，仅本地；未修改 migration、依赖、工作流、前端或部署配置。
+- SEC-13 修复：Worker 主表 revision 更新与维修/待取详情更新进入同一 D1 batch；详情语句仅在前序主表成功时执行，失败请求整体不留脏写。复合业务动作同样使用原子 parent/child batch。
+- SEC-14 修复：Worker 使用事务首语句闭店冲突守卫覆盖新增、编辑、复合动作、通知、取车、删除和审计撤回；Fastify/Postgres 在幂等事务内物化并 `FOR UPDATE` 锁定业务日，串行化业务写与闭店。
+- 未推送、未部署、未写 Preview/Staging/Production D1；公开 Preview 仍为 V5.7.8 / `9cf88c155…`。
+- CodeGraph 修复后门禁：179 files / 2,123 nodes / 7,236 edges，索引最新；影响测试集中于 API/Worker 的 auth、audit、repair 与本隔离安全套件。

@@ -55,8 +55,8 @@ test('非店修二次完成会替换遗留待取明细，且撤回与审计记�
   const workItems = await readFile(new URL('../src/routes/work-items.ts', import.meta.url), 'utf8')
   const audit = await readFile(new URL('../src/routes/audit.ts', import.meta.url), 'utf8')
 
-  assert.match(workItems, /const \[updated\] = await db\.batch\(\[/u)
-  assert.match(workItems, /DELETE FROM pickup_details/u)
+  assert.match(workItems, /const \[updated\] = await batchWhileDayOpen\(db, context, businessDate, \[/u)
+  assert.match(workItems, /ON CONFLICT\(work_item_id\) DO UPDATE SET/u)
   assert.match(workItems, /INSERT INTO pickup_details[\s\S]*SELECT \?, 'repair'/u)
   assert.match(workItems, /UPDATE repair_details SET repair_completed_at = \?/u)
   assert.doesNotMatch(workItems, /UPDATE repair_details SET repair_status = '维修完成'/u)
@@ -66,10 +66,10 @@ test('非店修二次完成会替换遗留待取明细，且撤回与审计记�
   assert.match(workItems, /if \(!updated\?\.meta\.changes\)/u)
   assert.match(workItems, /let stateChanged = false/u)
   assert.match(workItems, /stateChanged = true/u)
-  assert.match(workItems, /if \(stateChanged\) await restoreSnapshot\(db, before\)/u)
+  assert.match(workItems, /if \(stateChanged\) await batchWhileDayOpen\(db, context, businessDate, buildRestoreSnapshotStatements\(db, before\)\)/u)
   assert.match(audit, /buildRestoreSnapshotStatements/u)
   assert.match(audit, /prepareAudit\(db/u)
-  assert.match(audit, /await db\.batch\(\[\.\.\.restoreStatements, audit\.statement\]\)/u)
+  assert.match(audit, /await batchWhileDayOpen\(db, context, businessDate, \[\.\.\.restoreStatements, audit\.statement\]\)/u)
 })
 
 
@@ -82,9 +82,9 @@ test('二手车售出转换在 Worker 与 API 中保留售出明细，并原子�
   assert.match(worker, /actionRoute\('\/api\/v1\/work-items\/:id\/sell-resale', 'sell-resale'/u)
   assert.match(worker, /UPDATE work_items SET kind = 'pickup', status = '等待取车', lifecycle = 'active'/u)
   assert.match(worker, /UPDATE resale_details SET resale_stage = 'sold', sold_at = \?/u)
-  assert.match(worker, /DELETE FROM pickup_details/u)
+  assert.match(worker, /ON CONFLICT\(work_item_id\) DO UPDATE SET/u)
   assert.match(worker, /INSERT INTO pickup_details[\s\S]*SELECT \?, 'used-car', NULL, 'pending'/u)
-  assert.match(worker, /store_id = \? AND kind = 'pickup' AND revision = \?/u)
+  assert.match(worker, /WHERE changes\(\) = 1/u)
   assert.match(worker, /extra: \{ route: 'pickup' \}/u)
   assert.match(worker, /USED_CAR_SOURCE_LOCKED/u)
 

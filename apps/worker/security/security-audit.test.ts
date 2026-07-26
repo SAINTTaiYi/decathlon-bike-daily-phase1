@@ -699,12 +699,77 @@ test('安全要求：维修并发编辑失败时不得留下与主记录不一�
       FROM work_items w JOIN repair_details r ON r.work_item_id = w.id
       WHERE w.id = 'repair-race-item'
     `)!
-    assert.deepEqual(finalState, {
+    assert.deepEqual({ ...finalState }, {
       title: '第二请求标题',
       detail: '第二请求维修项目',
       revision: 2,
       repair_project: '第二请求维修项目'
     })
+  } finally {
+    db.close()
+  }
+})
+
+test('闭店原子守卫覆盖新增、编辑、业务动作、通知、取车、删除和审计撤回', async () => {
+  const db = await migratedTestDatabase()
+  try {
+    await seedUser(db, { id: 'closed-guard-user', username: 'CLOSEDGUARD', storeId: STORE_1299 })
+    await seedSession(db, 'closed-guard-user', 'closed-guard-token', 'closed-guard-csrf')
+    const businessDate = localBusinessDate('Asia/Shanghai')
+    db.sqlite.prepare(`
+      INSERT INTO daily_closings (
+        id, store_id, business_date, sales_vehicles, sales_saved_at, sales_saved_by,
+        closing_status, closed_at, closed_by, revision, created_at, updated_at
+      ) VALUES ('closed-guard-day', ?, ?, 1, ?, 'closed-guard-user', 'closed', ?, 'closed-guard-user', 2, ?, ?)
+    `).run(STORE_1299, businessDate, STAMP, STAMP, STAMP, STAMP)
+
+    const commonHeaders = (key: string) => ({
+      ...headers('closed-guard-token', 'closed-guard-csrf', STORE_1299),
+      'content-type': 'application/json',
+      'idempotency-key': key
+    })
+    const cases: Array<{ path: string; method: string; key: string; body: unknown }> = [
+      {
+        path: '/api/v1/work-items', method: 'POST', key: 'b1111111-1111-4111-8111-111111111111',
+        body: { scene: 'poster', values: { title: '闭店新增', detail: '不得落账', meta: '', status: '待处理' } }
+      },
+      {
+        path: '/api/v1/work-items/missing-edit', method: 'PATCH', key: 'b2222222-2222-4222-8222-222222222222',
+        body: { expectedRevision: 1, values: { title: '闭店编辑', detail: '不得落账', meta: '', status: '待处理' } }
+      },
+      {
+        path: '/api/v1/work-items/missing-action/complete-handover', method: 'POST', key: 'b3333333-3333-4333-8333-333333333333',
+        body: { expectedRevision: 1 }
+      },
+      {
+        path: '/api/v1/work-items/missing-notification/notification', method: 'POST', key: 'b4444444-4444-4444-8444-444444444444',
+        body: { expectedRevision: 1, notificationStatus: 'notified' }
+      },
+      {
+        path: '/api/v1/work-items/missing-pickup/pick-up', method: 'POST', key: 'b5555555-5555-4555-8555-555555555555',
+        body: { expectedRevision: 1, pickupCode: '' }
+      },
+      {
+        path: '/api/v1/work-items/missing-delete', method: 'DELETE', key: 'b6666666-6666-4666-8666-666666666666',
+        body: { expectedRevision: 1 }
+      },
+      {
+        path: '/api/v1/audit-events/missing-audit/undo', method: 'POST', key: 'b7777777-7777-4777-8777-777777777777',
+        body: {}
+      }
+    ]
+
+    for (const entry of cases) {
+      const response = await request(db, entry.path, {
+        method: entry.method,
+        headers: commonHeaders(entry.key),
+        body: JSON.stringify(entry.body)
+      })
+      assert.equal(response.status, 423, `${entry.method} ${entry.path}`)
+      assert.equal((await json(response)).error, 'DAY_CLOSED')
+    }
+    assert.equal(db.one<{ count: number }>('SELECT COUNT(*) AS count FROM work_items WHERE store_id = ?', STORE_1299)?.count, 0)
+    assert.equal(db.one<{ count: number }>('SELECT COUNT(*) AS count FROM audit_events WHERE store_id = ?', STORE_1299)?.count, 0)
   } finally {
     db.close()
   }

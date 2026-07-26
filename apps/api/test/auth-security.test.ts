@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import { loadConfig } from '../src/config.js'
 import { createSessionSecrets, csrfTokenHash, sessionTokenHash } from '../src/auth/session.js'
 import { requiresPasswordChange } from '../src/auth/middleware.js'
@@ -45,4 +46,13 @@ test('临时密码账号在完成改密前保持受限', () => {
 
 test('生产环境拒绝不安全 Cookie 和通配 CORS', () => {
   assert.throws(() => loadConfig({ ...process.env, APP_ENV: 'production', DATABASE_URL: 'x', SESSION_SECRET: 's'.repeat(32), CSRF_SECRET: 'c'.repeat(32), PASSWORD_PEPPER: 'p'.repeat(32), CORS_ALLOWED_ORIGINS: '*', COOKIE_SECURE: 'false' }))
+})
+
+
+test('Postgres 业务写在幂等事务中物化并锁定业务日，串行化闭店竞争', async () => {
+  const source = await readFile(new URL('../src/services/business.ts', import.meta.url), 'utf8')
+  assert.match(source, /insert into bike_ops\.daily_closings \(store_id, business_date\)/u)
+  assert.match(source, /on conflict \(store_id, business_date\) do nothing/u)
+  assert.match(source, /for update/u)
+  assert.match(source, /DAY_CLOSED/u)
 })

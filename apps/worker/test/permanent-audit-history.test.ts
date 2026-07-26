@@ -35,3 +35,18 @@ test('自助注册、平台初始化、登录、退出和改密均写入永久�
   }
   assert.doesNotMatch(source + registrationSource, /after:\s*\{[^}]*password/u)
 })
+
+
+test('D1 业务写在同一事务中拒绝已闭店日期，避免检查后并发闭店', async () => {
+  const [business, workItems, audit] = await Promise.all([
+    readFile(new URL('../src/services/business.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/routes/work-items.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/routes/audit.ts', import.meta.url), 'utf8')
+  ])
+  assert.match(business, /INSERT INTO daily_closings \(id, store_id, business_date, created_at, updated_at\)/u)
+  assert.match(business, /closing_status = 'closed'/u)
+  assert.match(business, /await db\.batch\(\[dayClosedGuard\(db, context, businessDate\), \.\.\.statements\]\)/u)
+  assert.match(workItems, /batchWhileDayOpen\(db, context, businessDate/u)
+  assert.match(workItems, /buildRestoreSnapshotStatements\(db, before\)/u)
+  assert.match(audit, /batchWhileDayOpen\(db, context, businessDate, \[\.\.\.restoreStatements, audit\.statement\]\)/u)
+})
