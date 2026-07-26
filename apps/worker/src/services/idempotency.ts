@@ -33,7 +33,7 @@ export async function idempotent<T>(
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
   const insert = await c.env.DB.prepare(`
-    INSERT INTO idempotency_requests (store_id, user_id, idempotency_key, request_hash, created_at, expires_at)
+    INSERT OR IGNORE INTO idempotency_requests (store_id, user_id, idempotency_key, request_hash, created_at, expires_at)
     VALUES (?, ?, ?, ?, ?, ?)
   `).bind(auth.storeId, auth.userId, key, hash, stamp, expiresAt).run()
 
@@ -52,7 +52,23 @@ export async function idempotent<T>(
     return { status: existing.response_status, body: JSON.parse(existing.response_body) as T }
   }
 
-  const result = await handler(c.env.DB)
+  let result: IdempotentResult<T>
+  try {
+    result = await handler(c.env.DB)
+  } catch (error) {
+    if (error instanceof ApiProblem) {
+      result = {
+        status: error.status,
+        body: { error: error.code, message: error.message } as T
+      }
+    } else {
+      await c.env.DB.prepare(`
+        DELETE FROM idempotency_requests
+        WHERE store_id = ? AND user_id = ? AND idempotency_key = ? AND response_status IS NULL
+      `).bind(auth.storeId, auth.userId, key).run()
+      throw error
+    }
+  }
   await c.env.DB.prepare(`
     UPDATE idempotency_requests
     SET response_status = ?, response_body = ?

@@ -227,3 +227,11 @@
 - 第五次错误尝试在同一 SQL 中原子把状态收敛为 `expired`；并发请求不再覆盖彼此计数，也不会把 attempts 推过数据库上限。
 - 定向隔离回归 1/1 通过；Worker 全量 17/17、Worker typecheck、`git diff --check` 通过。
 - CodeGraph 后置门禁：同步 2 个文件，179 files / 2,123 nodes / 7,236 edges，索引最新。
+
+### SEC-05 修复检查点
+
+- Worker reservation 改为 `INSERT OR IGNORE`，唯一键冲突进入既有请求读取分支，不再把合法重放暴露为 500。
+- 可预期 `ApiProblem` 的状态码与 `{error,message}` 正文写入幂等结果，可重复返回相同 4xx；未知异常会删除尚未完成的 reservation 后继续抛出，允许安全重试而不永久占位。
+- Fastify/Postgres 原有 reservation、业务处理和结果写入继续共享同一事务；业务异常自动整体回滚，不留下失败占位。
+- 定向隔离回归 2/2 通过；Worker 18/18、API 19/19、两端 typecheck、`git diff --check` 通过。
+- CodeGraph 后置门禁：索引同步并保持最新；受影响测试覆盖 API audit/auth/storage 与 Worker 安全套件。

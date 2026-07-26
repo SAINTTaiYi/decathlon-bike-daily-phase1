@@ -64,3 +64,11 @@ test('登录失败计数保持数据库原子增量，唯一平台管理员不�
   assert.match(source, /when is_platform_admin then null/u)
   assert.match(source, /!user\.isPlatformAdmin/u)
 })
+
+
+test('Postgres 幂等 reservation 与业务处理共享事务，失败会整体回滚', async () => {
+  const source = await readFile(new URL('../src/services/idempotency.ts', import.meta.url), 'utf8')
+  assert.match(source, /return sql\.begin\(async \(transaction\)/u)
+  assert.match(source, /on conflict do nothing returning idempotency_key/u)
+  assert.match(source, /const result = await handler\(tx\)/u)
+})
