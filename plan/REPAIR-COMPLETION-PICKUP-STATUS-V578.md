@@ -188,3 +188,11 @@
 - 本检查点前重新从本地源码构建 CodeGraph 1.5.0（工具源码 `ea72e1b190921232aa7bd02e96bef5bbe4fe0ab6`）；状态保持 183 files / 2,199 nodes / 7,490 edges，SQLite WAL，索引 current。
 - 此处只记录恢复复核证据；尚未 push、创建 PR、触发 CI、合并、部署 Preview 或写远端 D1。
 - 下一步：提交本 Markdown 检查点后普通 push；PR 必须等待全部 CI 通过后正常合并；随后只在目标分支精确合并 SHA 上触发 Preview 工作流并验证 `0007`、身份与公开健康端点。
+
+## 2026-07-27 23:51 +08:00 — 修复分支普通推送完成
+
+- 仓库实际版本门禁 `pnpm check:version` 通过：`VERSION OK · V5.7.8 · 5 项更新 · 350 files · preview`。
+- 通过普通 push 创建远端分支 `fix/repair-completion-pickup-status-v578`；首次远端头精确验证为 `5d04a3274bcab68d6b396b88ce414b9d600b87e8`。
+- 未使用 force push，未修改目标分支，未创建 PR、触发部署或写入远端 D1。
+- 本证据检查点仅修改 Markdown；CodeGraph 前置状态为 183 files / 2,199 nodes / 7,490 edges、current，Markdown 无结构化符号的覆盖例外继续显式记录。
+- 下一步：提交并普通推送本检查点，创建目标为 `feature/cloudflare-workers-d1` 的 PR，等待全部 CI 通过后正常合并。
