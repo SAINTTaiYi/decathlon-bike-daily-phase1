@@ -147,3 +147,15 @@
 - 尚未普通 push、创建 PR、运行 GitHub CI、合并或部署 Preview。
 - 尚未对远端 Preview D1 应用 `0007`；只有获授权的 Preview 工作流会执行。
 - Staging/Production 均未触碰。
+
+## 2026-07-27 23:27 +08:00 — Preview 源码指纹与发布前门禁
+
+- 干净实现提交固定为 `d282a972dd364c6f736f1c4a808d016bbf7b9104`；登记前 tracked/untracked 工作树均为空。
+- 本地源码构建 CodeGraph 1.5.0（工具源码 `ea72e1b190921232aa7bd02e96bef5bbe4fe0ab6`）前置复核：183 files / 2,199 nodes / 7,490 edges，SQLite WAL，索引 current。
+- `pnpm version:preview` 已在该精确实现提交上登记 350 个版本化源码文件：fingerprint `59e6543dab45b5b5fda4c57af598d17bfc29efa042121e5f7922d33e4accfbcf`；`preview-manifest.json` 仍按项目规则由 Git 忽略，不进入提交。
+- root `package.json`、Web `package.json` 与 `APP_VERSION` 均保持 **5.7.8**；更新公告与正式版本文件未改动。
+- 标准版本门禁通过：`VERSION OK · V5.7.8 · 5 项更新 · 350 files · preview`。
+- 完整版本化 `pnpm build` 通过：Web、Contracts、Database、API 全部成功；Web 产物为 `index-BHqbXYMd.css` 与 `index-CC_QFcwx.js`；生成身份为 V5.7.8 / `d282a972dd364c6f736f1c4a808d016bbf7b9104`。
+- Production 反向门禁按预期以退出码 1 拒绝：Preview 源码登记不能用于 Production，且缺少 `formal-release.json`。这证明当前提交不是 Production 候选。
+- 本阶段只完成本地 Preview 源码登记、最终版本门禁与发布前检查点；未 push、未建 PR、未部署、未写远端 D1，Staging/Production 均未触碰。
+- 下一步队列：CodeGraph 后置门禁 → 提交本检查点 → 普通 push / PR / CI / merge → 仅在合并实现 SHA 上部署 Preview 并验证 `0007` 迁移、身份端点和目标业务回归。任何 Production 操作仍需用户人工验收 Preview 后另行明确授权。
