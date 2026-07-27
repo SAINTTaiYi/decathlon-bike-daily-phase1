@@ -51,7 +51,7 @@ jobs:
           SQL
           pnpm --filter @bike-ops/database migrate
           pnpm --filter @bike-ops/database migrate
-          test "$(psql -At -h 127.0.0.1 -U postgres -d bike_ops_test -c 'select count(*) from public.bike_ops_schema_migrations')" = "5"
+          test "$(psql -At -h 127.0.0.1 -U postgres -d bike_ops_test -c 'select count(*) from public.bike_ops_schema_migrations')" = "6"
       - run: pnpm test
       - run: pnpm typecheck
       - run: pnpm build

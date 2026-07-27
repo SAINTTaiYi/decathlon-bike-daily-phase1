@@ -27,6 +27,7 @@ import PickupConfirmDialog from './components/dialogs/PickupConfirmDialog.jsx'
 import RecordEditorDialog from './components/dialogs/RecordEditorDialog.jsx'
 import { sceneRecordConfig } from './data/operationsData.js'
 import { inferPickupSource } from './data/pickupRecord.js'
+import { REPAIR_POS_REMINDER_STATUS } from './data/repairRecord.js'
 import { sceneById } from './data/lookbookScenes.js'
 import useActiveScene from './hooks/useActiveScene.js'
 import useAuth from './hooks/useAuth.js'
@@ -402,7 +403,7 @@ export default function App() {
     repairPixelDissolveId,
     onRepairPixelDissolveComplete: completeRepairPixelDissolve,
     onPickup: async (record) => {
-      if (inferPickupSource(record) === 'self-pickup') return setPickupConfirm(record)
+      if (inferPickupSource(record) === 'self-pickup' || record.status === REPAIR_POS_REMINDER_STATUS) return setPickupConfirm(record)
       const result = await completePickupWithPixelFill(record)
       if (!result.ok) {
         setPickupErrors((current) => ({ ...current, [record.id]: result.error }))

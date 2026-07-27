@@ -6,7 +6,7 @@ import {
   removeWorkItem, reopenDay, saveSales, undoAuditEvent, updateWorkItem, workItemAction, getPermanentAuditHistory
 } from '../api/workflow.js'
 import { buildPickupNotificationUpdate } from '../data/pickupRecord.js'
-import { buildRepairCompletion } from '../data/repairRecord.js'
+import { buildRepairCompletion, normalizeRepairRecord } from '../data/repairRecord.js'
 
 const emptyState = { businessDate: '', day: { kpi: emptyKpi, kpiSavedAt: null, closedAt: null, revision: 0 }, records: [], events: [], store: null }
 
@@ -23,12 +23,13 @@ export default function useRemoteClosingWorkflow(enabled) {
     setSyncing(true)
     try {
       const payload = await getBootstrap(signal)
-      setState(payload)
+      const normalizedPayload = { ...payload, records: (payload.records || []).map(normalizeRepairRecord) }
+      setState(normalizedPayload)
       hasSnapshotRef.current = true
       setLastSyncedAt(new Date().toISOString())
       setError('')
       setHydrated(true)
-      return payload
+      return normalizedPayload
     } catch (error) {
       if (error.name !== 'AbortError') {
         setError(hasSnapshotRef.current
@@ -67,7 +68,7 @@ export default function useRemoteClosingWorkflow(enabled) {
       let events = current.events
       let day = current.day
       if (result.record?.id) {
-        const next = result.record
+        const next = normalizeRepairRecord(result.record)
         const index = records.findIndex((item) => item.id === next.id)
         if (index >= 0) {
           records = records.slice()

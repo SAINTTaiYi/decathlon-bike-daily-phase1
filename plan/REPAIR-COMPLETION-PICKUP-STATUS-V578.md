@@ -85,3 +85,65 @@
 - 项目业务代码尚未修改。
 - 未 push、未建 PR、未部署、未写远端 D1。
 - 下一步：提交本启动检查点，然后实施统一状态模型。
+
+## 2026-07-27 23:xx — 实现与本地验收完成
+
+### 已完成实现
+
+- Web 与共享 Domain 建立一致的维修状态模型：
+  - 五种完成前状态；
+  - 五种 `维修完成-*` 状态；
+  - 精确双向语义映射；
+  - 1/4/5 放行、2/3 阻止的取车决策；
+  - 质保付款状态返回非阻断“请确保顾客已过机核验”提醒。
+- 点击“维修完毕”时，Web 预判、Worker 和 Postgres API 均使用同一映射规则；不属于五种开单状态时拒绝完成。
+- Worker/API 同时更新 `work_items.status` 与 `repair_details.repair_status`，移除旧 D1 兼容绕路，避免主记录与详情状态分裂。
+- 待取中的维修完成记录可直接编辑；前端仅显示五个完成状态，服务端也拒绝通过编辑跨回未完成状态。
+- 操作记录撤回复用完整 before 快照，已由真实 D1 路由测试验证：恢复精确原状态、维修场景和原始字段，并删除完成时创建的 pickup detail。
+- 新增 D1 `0007_repair_completion_statuses.sql` 和 Supabase `202607270001_repair_completion_statuses.sql`：
+  - 扩展维修状态约束；
+  - 将旧 `维修完成` / `已开质保单` 数据保守迁移；
+  - 同步主记录与维修详情；
+  - 不修改任何已应用迁移历史。
+- 旧版 v5 本机数据导入同样规范为新完成状态，避免旧数据重新导入后复发。
+- UI 增加质保付款取车确认弹窗；仅提醒过机核验，不阻止继续取车。
+- Preview-only 版本政策保持：公开版本仍为 **V5.7.8**，未修改更新公告或正式版本号。
+
+### CodeGraph 后置门禁
+
+- 本地源码构建 CodeGraph 1.5.0。
+- 后置同步：183 files / 2,199 nodes / 7,490 edges，SQLite WAL，状态 current。
+- 共同步 28 个代码文件：新增 2、修改 26、476 nodes。
+- `affected` 返回 17 个受影响测试文件；全量回归已覆盖其相关测试组。
+- SQL、Markdown 与 JSON 不产生 CodeGraph 符号；迁移和项目文档通过数据库执行测试、静态断言、状态 parity 和人工 diff 独立覆盖，未静默跳过。
+
+### 本地验收
+
+- 全量仓库回归：**174/174**
+  - Domain：7/7
+  - Database：10/10
+  - Web：108/108
+  - API：21/21
+  - Worker：28/28
+- Worker 真实 D1 路由覆盖：
+  - 五种完成映射；
+  - 未开单完成阻止；
+  - 完成后编辑与状态集合限制；
+  - 1/4/5 取车放行；
+  - 2/3 取车阻止及目标状态提示；
+  - 操作记录撤回精确恢复。
+- D1 迁移执行测试：旧待取维修记录按付费、质保、免费与未知付费语义保守迁移；`foreign_key_check` 为 0。
+- 完整 TypeScript typecheck：通过。
+- 工作流治理：88/88 policies。
+- API build：通过。
+- Worker 普通与 minified bundle：通过。
+- Web Vite build：通过（专项构建阶段）。
+- 冻结离线安装：通过，lockfile 无变化。
+- Web/Domain 状态集合与映射 parity：通过。
+- `git diff --check`：通过。
+
+### 尚未执行
+
+- 尚未普通 push、创建 PR、运行 GitHub CI、合并或部署 Preview。
+- 尚未对远端 Preview D1 应用 `0007`；只有获授权的 Preview 工作流会执行。
+- Staging/Production 均未触碰。

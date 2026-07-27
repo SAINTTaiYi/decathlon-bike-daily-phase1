@@ -7,7 +7,7 @@ import {
   OPERATIONS_LEDGER_KEY,
   OPERATIONS_STORAGE_VERSION
 } from '../data/operationsData.js'
-import { buildRepairCompletion, normalizeRepairValues } from '../data/repairRecord.js'
+import { buildRepairCompletion, normalizeRepairRecord, normalizeRepairValues } from '../data/repairRecord.js'
 import { resolveAuditActor } from '../data/userSession.js'
 import {
   buildPickupNotificationUpdate,
@@ -125,7 +125,7 @@ function normalizeLedger(parsed) {
     records: sourceRecords.map((record) => {
       const { todayUpdate, updatedToday, ...normalized } = stripPickupCode(record) || {}
       if (normalized.scene === 'resale') return { ...normalized, resaleStage: inferResaleStage(normalized) }
-      return normalizePickupNotificationRecord(normalized)
+      return normalizeRepairRecord(normalizePickupNotificationRecord(normalized))
     }).filter((record) => record.id && record.scene),
     operations: Array.isArray(parsed?.operations) ? parsed.operations.map((operation) => ({ ...operation, before: stripPickupCode(operation.before) })) : [],
     updatedAt: parsed?.updatedAt || null
@@ -449,7 +449,7 @@ export default function useClosingWorkflow(actorName) {
     if (!previous) return { ok: false, error: '没有找到这条台账记录。' }
     if (previous.pickedUpOn || previous.completedOn) return { ok: false, error: '已完成记录当天只保留查看与撤回，不能继续编辑。' }
     const repairPickup = previous.scene === 'pickup' && inferPickupSource(previous) === 'repair'
-    const repairResult = previous.scene === 'repair' || repairPickup ? normalizeRepairValues(values) : null
+    const repairResult = previous.scene === 'repair' || repairPickup ? normalizeRepairValues(values, { completed: repairPickup }) : null
     const pickupResult = previous.scene === 'pickup' && !repairPickup ? normalizePickupValues(values) : null
     if (repairResult && !repairResult.ok) return repairResult
     if (pickupResult && !pickupResult.ok) return pickupResult
@@ -614,7 +614,7 @@ export default function useClosingWorkflow(actorName) {
       label: `确认取车：${previous.title}`,
       message: '车辆已取走；今天保留黑色记录，下一日期自动移除。'
     })
-    return { ok: true, pickupSource: validation.pickupSource }
+    return { ok: true, pickupSource: validation.pickupSource, ...(validation.warning ? { warning: validation.warning } : {}) }
   }, [commitLedger, dateKey, day.closedAt, ledger.records])
 
   const removeRecord = useCallback((recordId) => {

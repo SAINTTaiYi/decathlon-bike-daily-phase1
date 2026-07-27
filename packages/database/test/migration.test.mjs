@@ -101,3 +101,20 @@ test('全国门店目录与自助注册迁移保留单活跃成员、OTP 状态�
   assert.match(supabase, /alter table bike_ops\.store_members drop constraint store_members_pkey/u)
   assert.match(supabase, /on conflict \(code\) do update set city_id/u)
 })
+
+test('维修完成状态迁移同步扩展 D1 与 Supabase 约束并保守迁移旧待取记录', async () => {
+  const [d1, supabase] = await Promise.all([
+    readFile(new URL('../../../migrations/d1/0007_repair_completion_statuses.sql', import.meta.url), 'utf8'),
+    readFile(new URL('../../../supabase/migrations/202607270001_repair_completion_statuses.sql', import.meta.url), 'utf8')
+  ])
+  const executableD1 = d1.replace(/^--.*$/gmu, '')
+  assert.doesNotMatch(executableD1, /\b(?:BEGIN|COMMIT|SAVEPOINT)\b/u)
+  assert.match(d1, /ALTER TABLE repair_details RENAME TO repair_details_before_completion_statuses/u)
+  assert.match(d1, /'维修完成-已开质保付款单-请过机'/u)
+  assert.match(d1, /r\.repair_type = '免费'.*'维修完成-快速服务免费'/su)
+  assert.match(d1, /ELSE '维修完成-已开维修单'/u)
+  assert.match(d1, /UPDATE work_items[\s\S]*pickup_source = 'repair'/u)
+  assert.match(supabase, /drop constraint if exists repair_details_repair_status_check/u)
+  assert.match(supabase, /validate constraint repair_details_repair_status_check/u)
+  assert.match(supabase, /set status = r\.repair_status/u)
+})

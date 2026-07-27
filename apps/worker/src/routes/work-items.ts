@@ -10,7 +10,8 @@ import {
   normalizeRepair,
   repairCompletionRoute,
   validatePickup,
-  validatePickupCompletion
+  validatePickupCompletion,
+  validateRepairStatusContext
 } from '@bike-ops/domain'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
@@ -67,6 +68,8 @@ export function workItemRoutes() {
       if (input.scene === 'repair') {
         const normalized = normalizeRepair(input.values)
         if (!normalized.ok) throw new ApiProblem(400, 'INVALID_REPAIR', normalized.error)
+        const statusContext = validateRepairStatusContext(normalized.fields.status, false)
+        if (!statusContext.ok) throw new ApiProblem(400, 'INVALID_REPAIR_STATUS', statusContext.error ?? '维修状态不符合当前流程。')
         repairFields = normalized.fields
         title = repairFields.title
         detail = repairFields.repairProject
@@ -162,24 +165,22 @@ export function workItemRoutes() {
       const kind = String(workItem.kind)
       const pickup = before.pickup as Record<string, unknown> | null
       const repairLike = kind === 'repair' || (kind === 'pickup' && pickup?.pickupSource === 'repair')
-      const completedRepairPickup = kind === 'pickup' && pickup?.pickupSource === 'repair' && workItem.status === '维修完成'
+      const completedRepairPickup = kind === 'pickup' && pickup?.pickupSource === 'repair'
       let title = ''
       let detail = ''
       let meta = ''
       let status = ''
       let detailStatement: D1PreparedStatement | null = null
       if (repairLike) {
-        const repair = before.repair as Record<string, unknown> | null
-        const persistedRepairStatus = String(repair?.repairStatus ?? repair?.repair_status ?? '')
-        const normalized = normalizeRepair(completedRepairPickup
-          ? { ...(input.values as Record<string, unknown>), status: persistedRepairStatus }
-          : input.values)
+        const normalized = normalizeRepair(input.values)
         if (!normalized.ok) throw new ApiProblem(400, 'INVALID_REPAIR', normalized.error)
         const fields = normalized.fields
+        const statusContext = validateRepairStatusContext(fields.status, completedRepairPickup)
+        if (!statusContext.ok) throw new ApiProblem(400, 'INVALID_REPAIR_STATUS', statusContext.error ?? '维修状态不符合当前流程。')
         title = fields.title ?? ''
         detail = fields.repairProject ?? ''
         meta = fields.repairType ?? ''
-        status = completedRepairPickup ? '维修完成' : fields.status ?? ''
+        status = fields.status ?? ''
         const key = requireContactKey(config)
         detailStatement = db.prepare(`
           UPDATE repair_details SET contact_type = ?, contact_ciphertext = ?, contact_fingerprint = ?,
@@ -335,13 +336,13 @@ export function workItemRoutes() {
   })
 
   actionRoute('/api/v1/work-items/:id/complete-repair', 'complete-repair', async (db, context, id, revision, businessDate) => {
-    const repair = await first<{ title: string; repair_type: string }>(db.prepare(`
-      SELECT w.title, r.repair_type FROM work_items w
+    const repair = await first<{ title: string; repair_type: string; repair_status: string }>(db.prepare(`
+      SELECT w.title, r.repair_type, r.repair_status FROM work_items w
       JOIN repair_details r ON r.work_item_id = w.id
       WHERE w.id = ? AND w.store_id = ? AND w.kind = 'repair' AND w.lifecycle = 'active'
     `).bind(id, context.storeId))
     if (!repair) throw new ApiProblem(409, 'INVALID_STATE', '没有找到可完成的维修车辆。')
-    const route = repairCompletionRoute({ repairType: repair.repair_type })
+    const route = repairCompletionRoute({ repairType: repair.repair_type, status: repair.repair_status })
     if (!route.ok) throw new ApiProblem(400, 'INVALID_REPAIR', route.error)
     const stamp = nowIso()
     if (route.route === 'completed') {
@@ -362,13 +363,13 @@ export function workItemRoutes() {
     // left by an older undo before reinserting the canonical repair-origin pickup detail.
     const [updated] = await batchWhileDayOpen(db, context, businessDate, [
       db.prepare(`
-        UPDATE work_items SET kind = 'pickup', status = '维修完成', revision = revision + 1, updated_by = ?, updated_at = ?
+        UPDATE work_items SET kind = 'pickup', status = ?, revision = revision + 1, updated_by = ?, updated_at = ?
         WHERE id = ? AND store_id = ? AND revision = ?
-      `).bind(context.userId, stamp, id, context.storeId, revision),
+      `).bind(route.completedStatus, context.userId, stamp, id, context.storeId, revision),
       db.prepare(`
-        UPDATE repair_details SET repair_completed_at = ?
+        UPDATE repair_details SET repair_status = ?, repair_completed_at = ?
         WHERE work_item_id = ? AND changes() = 1
-      `).bind(stamp, id),
+      `).bind(route.completedStatus, stamp, id),
       db.prepare(`
         INSERT INTO pickup_details (
           work_item_id, pickup_source, self_pickup_platform, notification_status,
