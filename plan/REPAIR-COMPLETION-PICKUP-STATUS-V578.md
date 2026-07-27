@@ -222,3 +222,10 @@
 - 仓库实际 Worker bundle 命令 `pnpm build:worker-bundle` 通过：普通产物 353,740 bytes，minified 产物 198,083 bytes；两者均非空并含 fetch handler。
 - CodeGraph 在本检查点前保持 183 files / 2,199 nodes / 7,490 edges、current；本检查点仅修改 Markdown，格式覆盖例外继续显式记录。
 - 本机没有 PostgreSQL 可执行环境，因此修正后的 PostgreSQL 16 迁移解析和两次 checksum runner 幂等执行仍须由新的 GitHub Actions `verify` 证明。下一步：提交并普通推送本检查点，以新 PR head 的全部 CI 作为唯一合并门禁。
+
+## 2026-07-28 00:07 +08:00 — PR #72 修正后 PostgreSQL 16 CI 全部通过
+
+- PR head `e68a2818452769339d7056e3efe2a6c926a9f725` 的 GitHub Actions run `30282970061` 已完成：`secrets` 成功，`verify` 成功。
+- `verify` 包含 PostgreSQL 16 临时数据库中的完整 migration runner；修正后的 Supabase migration 成功应用，并在第二次 runner 执行时保持幂等，迁移历史计数为 6。
+- PR 复核状态为 `clean`，head/base 未漂移；本地与远端修复分支均精确指向 `e68a2818452769339d7056e3efe2a6c926a9f725`。
+- 本检查点仅修改 Markdown；CodeGraph 前置保持 183 files / 2,199 nodes / 7,490 edges、current。提交并普通推送后，必须等待这个新最终 head 的 `verify` 与 `secrets` 再次全部通过，才允许普通 merge；此后不再追加合并前文档提交。
