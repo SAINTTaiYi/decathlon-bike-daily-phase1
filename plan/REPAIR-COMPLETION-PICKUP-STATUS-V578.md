@@ -159,3 +159,23 @@
 - Production 反向门禁按预期以退出码 1 拒绝：Preview 源码登记不能用于 Production，且缺少 `formal-release.json`。这证明当前提交不是 Production 候选。
 - 本阶段只完成本地 Preview 源码登记、最终版本门禁与发布前检查点；未 push、未建 PR、未部署、未写远端 D1，Staging/Production 均未触碰。
 - 下一步队列：CodeGraph 后置门禁 → 提交本检查点 → 普通 push / PR / CI / merge → 仅在合并实现 SHA 上部署 Preview 并验证 `0007` 迁移、身份端点和目标业务回归。任何 Production 操作仍需用户人工验收 Preview 后另行明确授权。
+
+## 2026-07-27 23:38 +08:00 — 抗中断冻结恢复点
+
+- 用户明确要求在任何远端动作前先执行抗中断协议。
+- 冻结前事实基线：
+  - 启动检查点：`9040958a17c70dbcc450ed45e659c89b71fe1ca0`；
+  - 功能实现与本地验收：`d282a972dd364c6f736f1c4a808d016bbf7b9104`；
+  - Preview 发布门禁检查点：`0dc7005f9ce240a58d43b71d74a60fce9e8f11c1`。
+- 分支 `fix/repair-completion-pickup-status-v578` 在最后一次已知远端状态上 ahead 3 / behind 0；冻结时工作树干净。
+- 验收事实保持：174/174、完整 typecheck、88 workflow policies、API/Web/Worker builds、Worker bundles、冻结离线安装、diff checks 均通过。
+- CodeGraph 在冻结前按强制规则重新从本地源码构建 1.5.0 并复核：183 files / 2,199 nodes / 7,490 edges，SQLite WAL，索引 current。
+- Preview 源码指纹保持 350 files / `59e6543dab45b5b5fda4c57af598d17bfc29efa042121e5f7922d33e4accfbcf`；公开版本仍为 V5.7.8；Production 门禁继续按设计拒绝。
+- 恢复事实源：
+  1. 本文件；
+  2. `~/session-state.md`；
+  3. `~/journal/2026-07-27.md`；
+  4. 长期记忆中的 Workshop release/project facts。
+- 恢复顺序固定：先重新构建/检查本地 CodeGraph → 检查工作树与三个既有 SHA → 仅刷新一次远端目标分支 → 若仍为线性后继则普通 push / PR / CI / merge → 仅在合并后的目标分支 SHA 上执行 Preview 工作流与 `0007` 远端 D1 迁移。
+- 禁止项不变：force push、历史改写、Staging、Production、正式版本号变化、未经验收的 Production 候选。
+- 冻结时没有发生 push、PR、CI、merge、Preview deployment、remote D1 write、Staging 或 Production 动作。
