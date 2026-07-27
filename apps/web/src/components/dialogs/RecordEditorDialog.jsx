@@ -14,7 +14,8 @@ import {
   REPAIR_STATUSES,
   REPAIR_TYPES,
   FREE_REPAIR,
-  COMPLETED_REPAIR_STATUS,
+  COMPLETED_REPAIR_STATUSES,
+  isCompletedRepairStatus,
   repairRecordToDraft,
   STORE_PRODUCT_REPAIR
 } from '../../data/repairRecord.js'
@@ -108,7 +109,7 @@ function PickupFields({ draft, setDraft, record }) {
 function RepairFields({ draft, setDraft }) {
   const storeProductRepair = draft.repairType === STORE_PRODUCT_REPAIR
   const freeRepair = draft.repairType === FREE_REPAIR
-  const completedRepair = draft.status === COMPLETED_REPAIR_STATUS
+  const completedRepair = isCompletedRepairStatus(draft.status)
   const set = (field, value) => setDraft((current) => ({ ...current, [field]: value }))
 
   return (
@@ -173,14 +174,15 @@ function RepairFields({ draft, setDraft }) {
 
       <label className="field-row">
         <span>当前状态</span>
-        {completedRepair ? <input value={COMPLETED_REPAIR_STATUS} readOnly aria-label="当前状态，维修完成" /> : <ProjectSelect
+        <ProjectSelect
           value={draft.status}
-          options={REPAIR_STATUSES.map((status) => ({ value: status, label: status }))}
+          options={(completedRepair ? COMPLETED_REPAIR_STATUSES : REPAIR_STATUSES).map((status) => ({ value: status, label: status }))}
           onChange={(value) => set('status', value)}
-          ariaLabel="选择维修当前状态"
-        />}
+          ariaLabel={completedRepair ? '选择维修完成状态' : '选择维修当前状态'}
+        />
       </label>
-      {freeRepair ? <p className="conditional-field-note"><strong>免费维修可直接取车</strong><span>点按“维修完毕”后系统会自动标为“维修完成”，无需手动变更状态即可确认取车。</span></p> : null}
+      {freeRepair ? <p className="conditional-field-note"><strong>快速服务免费可直接取车</strong><span>先将当前状态选择为“快速服务免费”；点按“维修完毕”后会转为“维修完成-快速服务免费”。</span></p> : null}
+      {completedRepair ? <p className="conditional-field-note"><strong>完成状态可人工干预</strong><span>仅可在五个“维修完成-*”状态之间切换；如需恢复维修，请从操作记录撤回“维修完毕”。</span></p> : null}
     </>
   )
 }

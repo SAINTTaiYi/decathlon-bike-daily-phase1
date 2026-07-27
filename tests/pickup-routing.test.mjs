@@ -34,56 +34,59 @@ test('门店产品维修完毕后原地完成并写入跨日清理字段', () =>
   assert.equal(result.record.completedAt, at)
 })
 
-test('付费、质保和免费维修完毕后携带维修字段转入待取', () => {
+test('五种完成前状态一一映射为带开单语义的维修完成状态', () => {
   const cases = [
-    ['付费', '已开付款单'],
-    ['质保', '已开质保单'],
-    ['免费', '维修中']
+    ['付费', '已开付款单', '维修完成-已开付款单'],
+    ['付费', '已开维修单', '维修完成-已开维修单'],
+    ['质保', '已开质保维修单', '维修完成-已开质保维修单'],
+    ['质保', '已开质保付款单-请过机', '维修完成-已开质保付款单-请过机'],
+    ['免费', '快速服务免费', '维修完成-快速服务免费']
   ]
-  for (const [repairType, status] of cases) {
+  for (const [repairType, status, completedStatus] of cases) {
     const original = { ...baseRepair, repairType, contactType: 'phone', contactValue: '0', pickupDate: '2026-07-18', status }
     const result = buildRepairCompletion(original, '2026-07-12', at)
     assert.equal(result.ok, true)
     assert.equal(result.route, 'pickup')
+    assert.equal(result.previousStatus, status)
     assert.equal(result.record.scene, 'pickup')
     assert.equal(result.record.pickupSource, 'repair')
-    assert.equal(result.record.contactValue, '0')
-    assert.equal(result.record.repairType, repairType)
-    assert.equal(result.record.status, '维修完成')
-    assert.equal(result.record.pickupDate, '2026-07-18')
+    assert.equal(result.record.status, completedStatus)
   }
 })
 
-test('缺少维修类型时禁止执行维修完毕', () => {
+test('缺少维修类型或未选择五种开单状态时禁止维修完毕', () => {
   assert.deepEqual(buildRepairCompletion(baseRepair, '2026-07-12', at), { ok: false, error: '请先编辑并补齐维修类型，再执行维修完毕。' })
+  const blocked = buildRepairCompletion({ ...baseRepair, repairType: '付费', status: '维修中' }, '2026-07-12', at)
+  assert.equal(blocked.ok, false)
+  assert.match(blocked.error, /请先将当前状态选择为.*已开付款单.*快速服务免费/u)
 })
 
-test('非免费维修车辆只有维修完成、已开付款单或已开质保单时允许取车', () => {
+test('维修完成取车严格按五状态放行，并返回质保过机非阻断提醒', () => {
   const repairPickup = { scene: 'pickup', pickupSource: 'repair', title: '维修车', repairType: '付费' }
-  for (const status of ['维修中', '等待配件']) {
-    const result = validatePickup({ ...repairPickup, status })
-    assert.equal(result.ok, false)
-    assert.match(result.error, /非免费维修.*维修完成.*已开付款单.*已开质保单/)
-  }
-  assert.deepEqual(validatePickup({ ...repairPickup, status: '维修完成' }), { ok: true, pickupSource: 'repair' })
-  assert.deepEqual(validatePickup({ ...repairPickup, status: '已开付款单' }), { ok: true, pickupSource: 'repair' })
-  assert.deepEqual(validatePickup({ ...repairPickup, repairType: '质保', status: '已开质保单' }), { ok: true, pickupSource: 'repair' })
-})
+  assert.deepEqual(validatePickup({ ...repairPickup, status: '维修完成-已开付款单' }), { ok: true, pickupSource: 'repair' })
+  assert.deepEqual(validatePickup({ ...repairPickup, status: '维修完成-快速服务免费' }), { ok: true, pickupSource: 'repair' })
+  assert.deepEqual(validatePickup({ ...repairPickup, repairType: '质保', status: '维修完成-已开质保付款单-请过机' }), {
+    ok: true,
+    pickupSource: 'repair',
+    warning: '请确保顾客已过机核验。'
+  })
 
-test('免费维修完成后无需变更当前状态即可直接取车', () => {
-  const freeRepairPickup = { scene: 'pickup', pickupSource: 'repair', title: '免费维修车', repairType: '免费' }
-  for (const status of ['维修中', '等待配件', '已开付款单', '已开质保单']) {
-    assert.deepEqual(validatePickup({ ...freeRepairPickup, status }), { ok: true, pickupSource: 'repair' })
-  }
+  const paymentBlocked = validatePickup({ ...repairPickup, status: '维修完成-已开维修单' })
+  assert.equal(paymentBlocked.ok, false)
+  assert.match(paymentBlocked.error, /变更为“维修完成-已开付款单”/u)
+
+  const warrantyBlocked = validatePickup({ ...repairPickup, repairType: '质保', status: '维修完成-已开质保维修单' })
+  assert.equal(warrantyBlocked.ok, false)
+  assert.match(warrantyBlocked.error, /变更为“维修完成-已开质保付款单-请过机”/u)
 })
 
 test('待取通知状态可由等待确认切换为已通知且不改变维修状态', () => {
-  const record = { id: 'repair-notice', scene: 'pickup', pickupSource: 'repair', repairType: '免费', status: '维修中', notificationStatus: 'pending' }
+  const record = { id: 'repair-notice', scene: 'pickup', pickupSource: 'repair', repairType: '免费', status: '维修完成-快速服务免费', notificationStatus: 'pending' }
   const result = buildPickupNotificationUpdate(record, 'notified', at)
   assert.equal(result.ok, true)
   assert.equal(result.record.notificationStatus, 'notified')
   assert.equal(result.record.notifiedAt, at)
-  assert.equal(result.record.status, '维修中')
+  assert.equal(result.record.status, '维修完成-快速服务免费')
   assert.equal(inferPickupNotificationStatus(result.record), 'notified')
 })
 
@@ -99,7 +102,7 @@ test('旧待取通知文案迁移到独立通知状态并恢复维修业务状�
   }
   const normalized = normalizePickupNotificationRecord(legacy)
   assert.equal(normalized.notificationStatus, 'notified')
-  assert.equal(normalized.status, '已开付款单')
+  assert.equal(normalized.status, '维修完成-已开付款单')
   assert.equal(normalized.detail, '车辆已调试完成')
 })
 

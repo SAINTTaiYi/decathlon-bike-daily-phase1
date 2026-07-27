@@ -36,14 +36,15 @@ test('添加车辆对话框和固定底栏会使用动态可视视口避开浏�
   assert.match(refinement, /padding-bottom: calc\(var\(--dock-space\) \+ var\(--visual-viewport-bottom\)\)/u)
 })
 
-test('非门店产品维修转待取时，用户可见状态写入工作项而内部维修状态保持 D1 合法值', async () => {
+test('维修完成写入主记录和维修详情的精确完成状态，完成后编辑不再使用 D1 兼容绕路', async () => {
   const [worker, repair] = await Promise.all([
     read('apps/worker/src/routes/work-items.ts'),
     read('apps/web/src/data/repairRecord.js')
   ])
-  assert.match(worker, /SET kind = 'pickup', status = '维修完成'/u)
-  assert.match(worker, /UPDATE repair_details SET repair_completed_at = \?/u)
-  assert.doesNotMatch(worker, /UPDATE repair_details SET repair_status = '维修完成'/u)
-  assert.match(worker, /completedRepairPickup/u)
-  assert.match(repair, /status: '维修完成'/u)
+  assert.match(worker, /UPDATE work_items SET kind = 'pickup', status = \?/u)
+  assert.match(worker, /UPDATE repair_details SET repair_status = \?, repair_completed_at = \?/u)
+  assert.match(worker, /validateRepairStatusContext\(fields\.status, completedRepairPickup\)/u)
+  assert.doesNotMatch(worker, /persistedRepairStatus/u)
+  assert.match(repair, /'已开付款单': '维修完成-已开付款单'/u)
+  assert.match(repair, /'快速服务免费': '维修完成-快速服务免费'/u)
 })

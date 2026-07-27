@@ -6,7 +6,12 @@ export const pickupSources = ['self-pickup', 'repair', 'customer-storage', 'used
 export const selfPickupPlatforms = ['tmall', 'jd', 'mini-program'] as const
 export const notificationStatuses = ['pending', 'notified'] as const
 export const repairTypes = ['质保', '付费', '免费', '门店产品维修'] as const
-export const repairStatuses = ['维修中', '等待配件', '已开付款单', '已开质保单'] as const
+export const repairStatuses = [
+  '维修中', '等待配件',
+  '已开付款单', '已开维修单', '已开质保维修单', '已开质保付款单-请过机', '快速服务免费',
+  '维修完成-已开付款单', '维修完成-已开维修单', '维修完成-已开质保维修单',
+  '维修完成-已开质保付款单-请过机', '维修完成-快速服务免费'
+] as const
 export const contactTypes = ['phone', 'member'] as const
 
 export const usernameSchema = z.string().transform((value) => value.normalize('NFKC').trim().replace(/\s+/gu, ' ')).pipe(z.string().min(1).max(24))

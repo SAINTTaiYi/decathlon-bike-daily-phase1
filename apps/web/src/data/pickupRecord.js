@@ -1,4 +1,9 @@
-import { FREE_REPAIR, REPAIR_PICKUP_READY_STATUSES } from './repairRecord.js'
+import {
+  COMPLETED_REPAIR_STATUSES,
+  normalizeRepairStatus,
+  REPAIR_PICKUP_READY_STATUSES,
+  REPAIR_POS_REMINDER_STATUS
+} from './repairRecord.js'
 
 export const PICKUP_SOURCES = [
   { value: 'self-pickup', label: '自提订单车辆' },
@@ -85,7 +90,7 @@ export function pickupContactLabel(contactType) {
 
 export function inferPickupSource(record) {
   if (PICKUP_SOURCES.some(({ value }) => value === record?.pickupSource)) return record.pickupSource
-  if (record?.repairType || record?.repairCompletedAt || REPAIR_PICKUP_READY_STATUSES.includes(record?.status) || /维修单|维修完成|保养完成|调试完成/.test(`${record?.meta || ''} ${record?.detail || ''}`)) return 'repair'
+  if (record?.repairType || record?.repairCompletedAt || COMPLETED_REPAIR_STATUSES.includes(record?.status) || /维修单|维修完成|保养完成|调试完成/.test(`${record?.meta || ''} ${record?.detail || ''}`)) return 'repair'
   if (record?.kind === 'online' || /线上自提|自提订单/.test(`${record?.meta || ''} ${record?.detail || ''}`)) return 'self-pickup'
   if (record?.scene === 'pickup' && record?.resaleStage === 'sold') return 'used-car'
   return 'customer-storage'
@@ -127,17 +132,22 @@ export function normalizePickupNotificationRecord(record) {
   const legacyNotificationState = /^(?:待确认|待确认通知|等待确认通知|已通知)$/u.test(String(record.status || '').trim())
   const repairSource = inferPickupSource(record) === 'repair'
   const repairText = `${record.meta || ''} ${record.detail || ''}`
+  const legacyRepairStatus = /质保付款单/u.test(repairText)
+    ? '维修完成-已开质保付款单-请过机'
+    : /质保/u.test(repairText)
+      ? '维修完成-已开质保维修单'
+      : /付款单/u.test(repairText)
+        ? '维修完成-已开付款单'
+        : normalizeRepairStatus('维修完成', { repairType: record.repairType, completed: true })
   const status = legacyNotificationState
     ? repairSource
-      ? /质保单/u.test(repairText)
-        ? '已开质保单'
-        : /付款单/u.test(repairText)
-          ? '已开付款单'
-          : '维修完成'
+      ? legacyRepairStatus
       : inferPickupSource(record) === 'self-pickup'
         ? '等待顾客取车'
         : '等待取车'
-    : record.status
+    : repairSource
+      ? normalizeRepairStatus(record.status, { repairType: record.repairType, completed: true })
+      : record.status
   const normalizedDetail = String(record.detail || '').replace(/^通知状态[：:]\s*(?:待确认|待确认通知|等待确认通知|已通知)\s*[·・]\s*/u, '')
   const pickupSource = inferPickupSource(record)
   const selfPickupPlatform = pickupSource === 'self-pickup' ? inferSelfPickupPlatform(record) : ''
@@ -217,8 +227,20 @@ export function buildPickupNotificationUpdate(record, notificationStatus, at) {
 
 export function validatePickup(record, suppliedCode = '') {
   const pickupSource = inferPickupSource(record)
-  if (pickupSource === 'repair' && record.repairType !== FREE_REPAIR && !REPAIR_PICKUP_READY_STATUSES.includes(record.status)) {
-    return { ok: false, error: '维修车辆取车失败：非免费维修的当前状态必须为“维修完成”、“已开付款单”或“已开质保单”。' }
+  if (pickupSource === 'repair') {
+    const status = normalizeRepairStatus(record.status, { repairType: record.repairType, completed: true })
+    if (status === '维修完成-已开维修单') {
+      return { ok: false, error: '当前状态为“维修完成-已开维修单”，请先编辑并变更为“维修完成-已开付款单”后再确认取车。' }
+    }
+    if (status === '维修完成-已开质保维修单') {
+      return { ok: false, error: '当前状态为“维修完成-已开质保维修单”，请先编辑并变更为“维修完成-已开质保付款单-请过机”后再确认取车。' }
+    }
+    if (!REPAIR_PICKUP_READY_STATUSES.includes(status)) {
+      return { ok: false, error: '维修车辆必须先完成维修并选择对应的“维修完成-*”状态后才能确认取车。' }
+    }
+    return status === REPAIR_POS_REMINDER_STATUS
+      ? { ok: true, pickupSource, warning: '请确保顾客已过机核验。' }
+      : { ok: true, pickupSource }
   }
   if (pickupSource === 'self-pickup' && !text(suppliedCode, 40)) {
     return { ok: false, error: '请输入顾客提供的取货码后再确认取车。' }

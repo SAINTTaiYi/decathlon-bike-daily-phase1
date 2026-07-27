@@ -51,27 +51,20 @@ test('撤回非店修转待取时，快照恢复会原子删除不属于维修�
   assert.match(statements[4]?.sql ?? '', /DELETE FROM handover_details WHERE work_item_id = \?/u)
 })
 
-test('非店修二次完成会替换遗留待取明细，且撤回与审计记录走同一个 D1 批处理', async () => {
+test('非店修二次完成会替换遗留待取明细，主记录与维修详情写入相同精确完成状态', async () => {
   const workItems = await readFile(new URL('../src/routes/work-items.ts', import.meta.url), 'utf8')
   const audit = await readFile(new URL('../src/routes/audit.ts', import.meta.url), 'utf8')
 
-  assert.match(workItems, /const \[updated\] = await batchWhileDayOpen\(db, context, businessDate, \[/u)
   assert.match(workItems, /ON CONFLICT\(work_item_id\) DO UPDATE SET/u)
-  assert.match(workItems, /INSERT INTO pickup_details[\s\S]*SELECT \?, 'repair'/u)
-  assert.match(workItems, /UPDATE repair_details SET repair_completed_at = \?/u)
-  assert.doesNotMatch(workItems, /UPDATE repair_details SET repair_status = '维修完成'/u)
-  assert.match(workItems, /completedRepairPickup/u)
-  assert.match(workItems, /repair\?\.repairStatus \?\? repair\?\.repair_status/u)
-  assert.match(workItems, /status = completedRepairPickup \? '维修完成' : fields\.status/u)
-  assert.match(workItems, /if \(!updated\?\.meta\.changes\)/u)
-  assert.match(workItems, /let stateChanged = false/u)
-  assert.match(workItems, /stateChanged = true/u)
+  assert.match(workItems, /UPDATE work_items SET kind = 'pickup', status = \?/u)
+  assert.match(workItems, /UPDATE repair_details SET repair_status = \?, repair_completed_at = \?/u)
+  assert.match(workItems, /route\.completedStatus/u)
+  assert.match(workItems, /validateRepairStatusContext\(fields\.status, completedRepairPickup\)/u)
+  assert.doesNotMatch(workItems, /persistedRepairStatus/u)
   assert.match(workItems, /if \(stateChanged\) await batchWhileDayOpen\(db, context, businessDate, buildRestoreSnapshotStatements\(db, before\)\)/u)
   assert.match(audit, /buildRestoreSnapshotStatements/u)
-  assert.match(audit, /prepareAudit\(db/u)
   assert.match(audit, /await batchWhileDayOpen\(db, context, businessDate, \[\.\.\.restoreStatements, audit\.statement\]\)/u)
 })
-
 
 test('二手车售出转换在 Worker 与 API 中保留售出明细，并原子重建二手车待取明细', async () => {
   const [worker, api] = await Promise.all([

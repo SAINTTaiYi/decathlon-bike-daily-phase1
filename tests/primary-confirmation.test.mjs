@@ -44,3 +44,11 @@ test('确认中视觉保持黑色主动作面和可读的等待状态', () => {
   assert.match(styles, /\.primary-action\[data-processing='true'\]/)
   assert.match(styles, /cursor: wait/)
 })
+
+
+test('质保付款完成状态打开非阻断过机提醒后再执行取车', () => {
+  assert.match(app, /record\.status === REPAIR_POS_REMINDER_STATUS/u)
+  assert.match(pickupDialog, /请确保顾客已过机核验/u)
+  assert.match(pickupDialog, /已核验，继续取车/u)
+  assert.match(pickupDialog, /本提醒不会阻止取车/u)
+})

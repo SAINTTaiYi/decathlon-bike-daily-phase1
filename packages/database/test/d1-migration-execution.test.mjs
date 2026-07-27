@@ -41,3 +41,54 @@ test('D1 目录注册迁移可从旧 schema 顺序执行，并把多门店旧成
     db.close()
   }
 })
+
+test('D1 维修完成状态迁移执行后同步主记录和维修详情，并保守处理旧统一完成状态', async () => {
+  const db = new DatabaseSync(':memory:')
+  try {
+    db.exec('PRAGMA foreign_keys = ON')
+    for (const name of [
+      '0001_initial_sqlite.sql',
+      '0002_work_item_ticket_numbers.sql',
+      '0003_repair_undo_consistency.sql',
+      '0004_permanent_audit_history.sql',
+      '0005_pickup_used_car_source.sql'
+    ]) await apply(db, name)
+
+    const stamp = '2026-07-27T10:00:00.000Z'
+    db.prepare(`INSERT INTO stores (id, code, name, timezone, status, created_at, updated_at) VALUES ('repair-store', 'repair-store', '维修迁移店', 'Asia/Shanghai', 'active', ?, ?)`).run(stamp, stamp)
+    db.prepare(`INSERT INTO users (id, username_key, display_name, password_hash, status, must_change_password, failed_login_count, created_at, updated_at) VALUES ('repair-user', 'repair-user', '维修迁移用户', 'unused', 'active', 0, 0, ?, ?)`).run(stamp, stamp)
+
+    const cases = [
+      ['legacy-paid', 1, '付费', '已开付款单', '维修完成-已开付款单'],
+      ['legacy-warranty', 2, '质保', '已开质保单', '维修完成-已开质保维修单'],
+      ['legacy-free', 3, '免费', '维修中', '维修完成-快速服务免费'],
+      ['legacy-unknown-paid', 4, '付费', '维修中', '维修完成-已开维修单']
+    ]
+    for (const [id, ticketNo, repairType, repairStatus] of cases) {
+      db.prepare(`
+        INSERT INTO work_items (
+          id, store_id, ticket_no, kind, title, detail, meta, status, lifecycle, revision,
+          created_by, updated_by, created_at, updated_at
+        ) VALUES (?, 'repair-store', ?, 'pickup', ?, '旧维修', ?, '维修完成', 'active', 1, 'repair-user', 'repair-user', ?, ?)
+      `).run(id, ticketNo, id, repairType, stamp, stamp)
+      db.prepare(`
+        INSERT INTO repair_details (
+          work_item_id, contact_type, contact_ciphertext, repair_type, repair_project,
+          pickup_date, repair_status, repair_completed_at
+        ) VALUES (?, 'phone', 'cipher', ?, '旧维修', '2026-07-30', ?, ?)
+      `).run(id, repairType, repairStatus, stamp)
+      db.prepare(`INSERT INTO pickup_details (work_item_id, pickup_source, notification_status, repair_work_item_id) VALUES (?, 'repair', 'pending', ?)`).run(id, id)
+    }
+
+    await apply(db, '0007_repair_completion_statuses.sql')
+
+    for (const [id, , , , expectedStatus] of cases) {
+      assert.equal(db.prepare('SELECT status FROM work_items WHERE id = ?').get(id).status, expectedStatus)
+      assert.equal(db.prepare('SELECT repair_status FROM repair_details WHERE work_item_id = ?').get(id).repair_status, expectedStatus)
+    }
+    assert.match(db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'repair_details'`).get().sql, /维修完成-已开质保付款单-请过机/u)
+    assert.equal(db.prepare('PRAGMA foreign_key_check').all().length, 0)
+  } finally {
+    db.close()
+  }
+})
