@@ -229,3 +229,54 @@
 - `verify` 包含 PostgreSQL 16 临时数据库中的完整 migration runner；修正后的 Supabase migration 成功应用，并在第二次 runner 执行时保持幂等，迁移历史计数为 6。
 - PR 复核状态为 `clean`，head/base 未漂移；本地与远端修复分支均精确指向 `e68a2818452769339d7056e3efe2a6c926a9f725`。
 - 本检查点仅修改 Markdown；CodeGraph 前置保持 183 files / 2,199 nodes / 7,490 edges、current。提交并普通推送后，必须等待这个新最终 head 的 `verify` 与 `secrets` 再次全部通过，才允许普通 merge；此后不再追加合并前文档提交。
+
+## 2026-07-28 00:18 +08:00 — PR #72 合并、Preview 部署与独立验收证据
+
+### GitHub 交付
+
+- 最终合并候选：`2a67f234e2cf6fd3b03cbcf45e9f7de0c694ded7`。
+- 最终 CI：GitHub Actions run `30283376484`；`verify` 与 `secrets` 均成功。
+  - PostgreSQL 16 migration runner 成功应用全部 6 个 Supabase migrations，并第二次幂等执行通过；
+  - 仓库 174/174、完整 typecheck、完整 build 与历史 secrets 扫描均通过。
+- PR [#72](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/72) 使用普通 merge 方法合并为 `85cdce655c4fbffb90068b5baa31398adb2a0596`；未 squash、未 rebase、未 force push、未改写历史。
+- 合并后远端 `feature/cloudflare-workers-d1` 精确等于该 merge SHA，且 merge 第二父提交为最终 PR head。
+
+### Preview-only 部署
+
+- 仅触发 `deploy-cloudflare-preview.yml`；workflow run `30283663530` 在 exact merge SHA `85cdce655c4fbffb90068b5baa31398adb2a0596` 上成功，耗时 1m29s。
+- 调度参数明确确认 Cloudflare Free plan、无计费/自动升级、Preview-only；未触发 Staging 或 Production workflow。
+- 工作流重新执行 workflow policy、174 项测试、typecheck、build 与 minified Worker bundle 后才部署。
+- Preview D1 migration `0007_repair_completion_statuses.sql` 成功应用。
+- Preview endpoint：`https://bike-ops-preview.geeklightonefish.workers.dev`。
+- Cloudflare 独立 API 证据：
+  - Deployment：`d6bd1521-1ab4-460c-a8b4-b05a03ef40e9`；
+  - Worker Version：`daa0e026-6d33-4cbc-a4d1-5899e5ca0711`；
+  - 新版本承载 100% 流量。
+
+### 独立公开端点验收
+
+- `/health/live`：HTTP 200，`status=ok`，V5.7.8 / exact merge SHA。
+- `/health/ready`：HTTP 200，`status=ready`，V5.7.8 / exact merge SHA。
+- `/api/v1/meta/version`：HTTP 200，`environment=preview`、`platform=cloudflare-workers-d1`、V5.7.8 / exact merge SHA。
+- `/`：HTTP 200，返回新构建 Web shell（`index-CC_QFcwx.js` / `index-BHqbXYMd.css`）。
+- API 与 HTML 继续具有 HSTS、CSP、`nosniff`、frame denial、referrer policy 与 permissions policy；API 继续 `no-store, private`。
+- Edge 在工作流自验前两次仍返回旧 isolate，第三次收敛到新 merge SHA；独立后验请求已持续返回新身份。
+- `schemaVersion` 仍为既有 `0002_work_item_ticket_numbers`；OPS-01 meta schemaVersion 更新不属于本次授权范围。
+
+### 独立 Preview D1 只读验收
+
+- `d1_migrations` 已记录 id 7 / `0007_repair_completion_statuses.sql`，应用时间 `2026-07-27 16:13:47 UTC`。
+- `repair_details` 当前 CHECK 明确包含五个 `维修完成-*` 状态。
+- 活动维修待取中：
+  - `work_items.status` 与 `repair_details.repair_status` 不一致数为 0；
+  - 不属于五个新完成状态的记录数为 0。
+- `PRAGMA foreign_key_check` 返回 0 行。
+- 本阶段只进行了只读 D1 验收查询；除获授权 workflow 应用 `0007` 外，没有额外远端数据写入。
+
+### 最终边界与 CodeGraph
+
+- 公开版本继续为 **V5.7.8**；Staging 与 Production 均未触碰。
+- Browser Harness 仍被禁止/不可用，因此本阶段不宣称截图、视觉或登录后人工 UI 验收；业务行为由 174 项自动化回归、真实 D1 Worker 路由测试、PostgreSQL 16 CI 与公开 Preview/D1 独立证据覆盖。
+- 证据分支从 exact merge SHA 新建。CodeGraph 1.5.0 新鲜初始化与完整重建均稳定为 183 files / 2,199 nodes / 7,530 edges、current；该全量重建值取代修复工作树的旧增量索引边数 7,490 作为最终 merged-target 事实。
+- 本检查点仅修改 Markdown；CodeGraph 不生成 Markdown 结构化符号，后置同步应保持同一统计。此格式例外由 GitHub PR/CI、workflow 日志、公开 HTTP、Cloudflare Deployment API 与 D1 只读查询交叉验证。
+- 此证据 PR 合并后不再部署；最终行政 merge SHA 按非递归规则只写入 session-state、当天日记和长期记忆，不再追加自指文档提交。
