@@ -1,0 +1,328 @@
+{
+  "kind": "formal-production-release",
+  "version": "5.7.9",
+  "previewRange": {
+    "fromExclusive": "dabe0ed8d1ba662840460837c88bf288fb3ffaaa",
+    "toInclusive": "09093400daa2ca798f2b6e11fce8082f66d1780a",
+    "commits": [
+      {
+        "sha": "3d7495d54ab6ec098be1dfc07d49dd10575f29db",
+        "subject": "feat(release): govern Preview and Production versions"
+      },
+      {
+        "sha": "5b293a16f9685c2260f230a42705ee02027c1a01",
+        "subject": "docs(plan): record release policy validation"
+      },
+      {
+        "sha": "9093190055b667f951ba4874762c34f6d765c169",
+        "subject": "feat(release): govern Preview and Production versions"
+      },
+      {
+        "sha": "7328316f4a466ca85b95d1f0d4fac72bb49ec216",
+        "subject": "feat(pickup): preserve used-car source through sale"
+      },
+      {
+        "sha": "56bebc8f96cb8f2f7dd76f19ad91b3e0bfbd03a3",
+        "subject": "feat(pickup): preserve used-car source through sale"
+      },
+      {
+        "sha": "63d795281a0272a0c472c03a2443bae01d143eef",
+        "subject": "docs(plan): record used-car Preview checkpoint"
+      },
+      {
+        "sha": "9a6cc950c26dfbac80acbb4f120c7d62c9c016c5",
+        "subject": "docs(plan): record used-car Preview checkpoint"
+      },
+      {
+        "sha": "d842dcc7fb7b005a627419c9d209bb613082cd5c",
+        "subject": "fix(ci): register Preview source before Staging build"
+      },
+      {
+        "sha": "2afc81e4b6b4fde6bb87591d60a814854f4e5516",
+        "subject": "fix(ci): register Preview source before Staging build"
+      },
+      {
+        "sha": "a534f0d8511eebebba5aad754af0bebff088e2b0",
+        "subject": "docs(web): complete V5.7.8 release notes"
+      },
+      {
+        "sha": "2832585dbb60de2d4d84a4db5d51228b462b9659",
+        "subject": "docs(web): complete V5.7.8 release notes"
+      },
+      {
+        "sha": "13e01afd809fd84cfa7a086bff9dd93d6771d680",
+        "subject": "feat(web): refine desktop Endfield layout"
+      },
+      {
+        "sha": "081f090a6ea54436b4bf6d7abd6cec05fecfce10",
+        "subject": "docs(plan): record desktop layout validation"
+      },
+      {
+        "sha": "7fcefeb3364cc884e3ff39dda6118176f8e89653",
+        "subject": "feat(web): refine desktop Endfield layout"
+      },
+      {
+        "sha": "41d211fba19edc8b058a4462716a4717a9f0aaae",
+        "subject": "docs(plan): record desktop layout merge evidence"
+      },
+      {
+        "sha": "678e80a27e4123bd00980cb36cbbec762ed42d9e",
+        "subject": "docs(plan): record desktop layout merge evidence"
+      },
+      {
+        "sha": "8c03ac9b6dc1637e21a4afb8f7e27c15f1fe1072",
+        "subject": "docs(plan): define store directory and self-service registration governance"
+      },
+      {
+        "sha": "1926ae9e967ed6aae021947125c2d7b284ca4592",
+        "subject": "feat(auth): add governed self-service registration"
+      },
+      {
+        "sha": "a9c5f9036ee18249477ee495eefeb905e8b2c085",
+        "subject": "feat(auth): add governed self-service registration"
+      },
+      {
+        "sha": "016194b2748a3a04821355062ebfe2adbdd5a5e4",
+        "subject": "docs(checkpoint): record registration merge evidence"
+      },
+      {
+        "sha": "90c16c8a188f4db416a7436a7cecf00aee58122b",
+        "subject": "docs(checkpoint): record registration merge evidence"
+      },
+      {
+        "sha": "d27492b46ec8aa3326c7bd32cc67b2beff88ac28",
+        "subject": "docs(checkpoint): record preview registration acceptance"
+      },
+      {
+        "sha": "df4579dadb8066742edbafb965d66dd0298cdeb6",
+        "subject": "docs(checkpoint): record preview registration acceptance"
+      },
+      {
+        "sha": "1a7949eb656789c3d4d976efbce38e9dddbd6818",
+        "subject": "fix(registration): clarify real Profile requirement"
+      },
+      {
+        "sha": "d59c57244db3a2da1fea40866459170c6a8b3f87",
+        "subject": "docs(checkpoint): record Profile guidance validation"
+      },
+      {
+        "sha": "9cf88c1555bd3a7e055ef8842926d778dcb18123",
+        "subject": "fix(registration): clarify real Profile requirement"
+      },
+      {
+        "sha": "4636f5683963a2845b7edf4d2397d8e667593173",
+        "subject": "docs(checkpoint): record Profile Preview deployment evidence"
+      },
+      {
+        "sha": "8e9daff8d7b6ba340989a96b2042dc514923d0f3",
+        "subject": "docs(checkpoint): record Profile Preview deployment evidence"
+      },
+      {
+        "sha": "cfa5a0dd800803495196d0196078d74e9ba9f0ec",
+        "subject": "test(security): audit Preview store isolation and auth boundaries"
+      },
+      {
+        "sha": "3b4361cffd79f2e1f86aee84483b7b56f6f929d7",
+        "subject": "test(security): expand backend concurrency audit"
+      },
+      {
+        "sha": "23761cfedafce12ce3afede66c213b97fe749065",
+        "subject": "docs(security): record phase two audit evidence"
+      },
+      {
+        "sha": "4cf2d066377c36b19ceaca4d446e48e792ae8fb5",
+        "subject": "fix(security): make ledger writes atomic with closing"
+      },
+      {
+        "sha": "3f044f6833780530a974dd0d604c46e7dac50931",
+        "subject": "docs(security): record atomicity fix evidence"
+      },
+      {
+        "sha": "63c4e669a7200a53f6052407c015766004d4d392",
+        "subject": "docs(security): start auth idempotency fix checkpoint"
+      },
+      {
+        "sha": "b7276a76015af5c731d57ebf200a350f93a786dc",
+        "subject": "fix(security): harden login failure handling"
+      },
+      {
+        "sha": "1300f813aba05f291af955657e42ad48caff78c4",
+        "subject": "fix(security): atomically exhaust otp attempts"
+      },
+      {
+        "sha": "2936b3292b97687211dcec6f08e5d388d4607611",
+        "subject": "fix(security): make idempotency replay safe"
+      },
+      {
+        "sha": "ca94673ac4ba0d87cd516ee7d0b88175af7d5dfd",
+        "subject": "fix(security): upgrade patched hono runtime"
+      },
+      {
+        "sha": "c8f0c451d253d04875e798775642e461b52fee49",
+        "subject": "docs(security): record auth repair validation"
+      },
+      {
+        "sha": "5dd9e9800ab0e6bcaefc90349206a5e2612cce32",
+        "subject": "docs(security): start remaining audit repairs"
+      },
+      {
+        "sha": "7fbf30382912edaf0493bcb4017a68a9e37d5c98",
+        "subject": "fix(security): close registration and response gaps"
+      },
+      {
+        "sha": "b3e34e9e44ae562d92139df83649f72dd146aed8",
+        "subject": "docs(security): isolate SEC-06–09 preview delivery"
+      },
+      {
+        "sha": "7f7802f6dfa288444a79729de477c0a99a14e8b9",
+        "subject": "docs(security): record SEC-06–09 local acceptance"
+      },
+      {
+        "sha": "dcf9cf0f7967af01b2703f763c32168a0f7c2cf4",
+        "subject": "docs(security): record SEC-06–09 PR evidence"
+      },
+      {
+        "sha": "51879aeed8641907fd33a316f025bbf37d8dc12c",
+        "subject": "Merge pull request #69 from SAINTTaiYi/fix/sec06-sec09-preview"
+      },
+      {
+        "sha": "21d34c449f0f66a65056d6faa800c6a221ad7205",
+        "subject": "docs(security): record SEC-06–09 Preview evidence"
+      },
+      {
+        "sha": "f254df8d0fd01ba7c7edf6b2c7bbaa6d3ac389b9",
+        "subject": "Merge pull request #70 from SAINTTaiYi/docs/sec06-sec09-preview-evidence"
+      },
+      {
+        "sha": "544b926474ab5f592d2b6d367d90d388dd94ba89",
+        "subject": "docs(checkpoint): record Preview governance test accounts"
+      },
+      {
+        "sha": "e6eb93addba06f0d4e6fc27c5db2ae8abd400815",
+        "subject": "Merge pull request #71 from SAINTTaiYi/docs/preview-test-accounts-evidence"
+      },
+      {
+        "sha": "9040958a17c70dbcc450ed45e659c89b71fe1ca0",
+        "subject": "docs(checkpoint): start repair completion status fix"
+      },
+      {
+        "sha": "d282a972dd364c6f736f1c4a808d016bbf7b9104",
+        "subject": "fix(repair): preserve completion billing status"
+      },
+      {
+        "sha": "0dc7005f9ce240a58d43b71d74a60fce9e8f11c1",
+        "subject": "docs(checkpoint): record repair Preview release gate"
+      },
+      {
+        "sha": "3e9b9c6ee6baa42a3ca7b6de9ca61028cca8b2f3",
+        "subject": "docs(checkpoint): freeze repair status delivery"
+      },
+      {
+        "sha": "5d04a3274bcab68d6b396b88ce414b9d600b87e8",
+        "subject": "docs(checkpoint): revalidate repair delivery target"
+      },
+      {
+        "sha": "9005cd91012ed8f4cb7b83951296465ededf6abd",
+        "subject": "docs(checkpoint): record repair branch push"
+      },
+      {
+        "sha": "2d4537ba8aae0667236f6c3ddba137bc2cb8c3e1",
+        "subject": "docs(checkpoint): record repair PR opening"
+      },
+      {
+        "sha": "4d4ed59f2676ce85f091ae4b40bdb73d424e675c",
+        "subject": "fix(database): make repair migration PostgreSQL-safe"
+      },
+      {
+        "sha": "e68a2818452769339d7056e3efe2a6c926a9f725",
+        "subject": "docs(checkpoint): record PostgreSQL fix validation"
+      },
+      {
+        "sha": "2a67f234e2cf6fd3b03cbcf45e9f7de0c694ded7",
+        "subject": "docs(checkpoint): record repaired PR CI"
+      },
+      {
+        "sha": "85cdce655c4fbffb90068b5baa31398adb2a0596",
+        "subject": "Merge pull request #72 from SAINTTaiYi/fix/repair-completion-pickup-status-v578"
+      },
+      {
+        "sha": "117fdf99434e861bceac8e717fafe298a4c60be9",
+        "subject": "docs(checkpoint): record repair Preview delivery"
+      },
+      {
+        "sha": "09093400daa2ca798f2b6e11fce8082f66d1780a",
+        "subject": "Merge pull request #73 from SAINTTaiYi/docs/repair-completion-preview-evidence-v578"
+      }
+    ]
+  },
+  "announcement": {
+    "title": "门店治理、安全加固与维修取车闭环",
+    "summary": "V5.7.9 汇总本轮全部已验收 Preview：完善二手车待取、响应式工作台、全国门店注册治理、安全与并发边界，并完成维修状态、撤回和取车闭环。",
+    "changes": [
+      "二手车售出后自动进入待取并持续保留“二手车”来源；待取台账、卡片和闭店报告统一识别手动与售出转入的二手车。",
+      "优化桌面端 Endfield 双栏现场布局、移动端动态可视视口、固定导航、卡片操作与响应式信息层级，保持触摸、键盘和 reduced-motion 可用性。",
+      "新增区域→城市→门店全国目录、公司邮箱六位验证码自助注册、CHU13 平台管理员、角色提权和跨店调动审批，并保持门店数据隔离。",
+      "注册 Profile 明确要求填写公司系统真实 Profile，降低后续提权、调店和审计身份无法匹配的风险。",
+      "将闭店与业务写入收敛到原子事务，强化登录失败计数、并发 OTP 尝试、幂等冲突重放和未知失败清理，避免竞争条件造成状态分裂。",
+      "升级 Hono 安全版本并完善畸形路径解析、统一 OTP 响应、平台管理员保护、1 MiB 请求体限制及 API/HTML 安全响应头。",
+      "维修完毕仅接受五种开单状态并一一映射为“维修完成-*”；主记录与维修详情同步写入，旧数据按付费、质保和免费语义保守迁移。",
+      "待取中的维修完成记录可直接编辑，但状态只能在五个完成状态之间切换；操作记录撤回可恢复精确原状态和原始业务字段。",
+      "取车规则按完成状态放行或阻止：付款单、质保付款单和快速服务免费可取车，维修单与质保维修单给出目标状态提示，质保付款增加非阻断过机核验提醒。",
+      "建立 Preview 不递增公开版本、人工验收后汇总公告并一次正式升级的发布治理；完整 CI、CodeGraph、迁移校验与独立 Preview 证据已通过。"
+    ]
+  },
+  "preparedAt": "2026-07-27T22:03:31.329Z",
+  "releaseCheckpoint": {
+    "status": "candidate-frozen-before-backup",
+    "frozenAt": "2026-07-28T06:05:06+08:00",
+    "releaseBranch": "release/v5.7.9-workshop-skin",
+    "acceptedPreview": {
+      "sourceHead": "09093400daa2ca798f2b6e11fce8082f66d1780a",
+      "functionalHead": "85cdce655c4fbffb90068b5baa31398adb2a0596",
+      "workflowRun": 30283663530,
+      "manualAcceptance": "passed-full-mobile-matrix",
+      "sourceFingerprint": "02524923dcc76d954c0c19684b287a399becb6b417febebe2125de694966310b"
+    },
+    "liveTarget": {
+      "url": "https://workshop.skin",
+      "businessRole": "production",
+      "technicalEnvironmentLabel": "staging",
+      "workerName": "bike-ops-staging",
+      "d1DatabaseName": "bike-ops-staging",
+      "currentVersion": "5.7.8",
+      "currentGitSha": "2832585dbb60de2d4d84a4db5d51228b462b9659"
+    },
+    "preChangeCodeGraph": {
+      "files": 183,
+      "nodes": 2199,
+      "edges": 7530,
+      "status": "current"
+    },
+    "completed": [
+      "aggregated-announcement",
+      "formal-version-bump",
+      "formal-source-stamp",
+      "standard-version-gate",
+      "production-version-gate",
+      "codegraph-post-version-sync"
+    ],
+    "pending": [
+      "encrypted-live-d1-export",
+      "isolated-restore-drill",
+      "full-local-validation",
+      "ordinary-push",
+      "pull-request",
+      "final-ci",
+      "normal-merge",
+      "exact-sha-workshop-skin-deployment",
+      "independent-post-deploy-verification"
+    ],
+    "prohibitions": [
+      "no-force-push",
+      "no-history-rewrite",
+      "no-data-reset",
+      "no-second-production-stack",
+      "no-infrastructure-rename-in-this-release"
+    ]
+  }
+}
