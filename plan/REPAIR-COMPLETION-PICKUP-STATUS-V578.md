@@ -179,3 +179,12 @@
 - 恢复顺序固定：先重新构建/检查本地 CodeGraph → 检查工作树与三个既有 SHA → 仅刷新一次远端目标分支 → 若仍为线性后继则普通 push / PR / CI / merge → 仅在合并后的目标分支 SHA 上执行 Preview 工作流与 `0007` 远端 D1 迁移。
 - 禁止项不变：force push、历史改写、Staging、Production、正式版本号变化、未经验收的 Production 候选。
 - 冻结时没有发生 push、PR、CI、merge、Preview deployment、remote D1 write、Staging 或 Production 动作。
+
+## 2026-07-27 23:46 +08:00 — 冻结后远端目标复核通过
+
+- 用户明确授权继续完整的普通交付流程：push、PR、CI、正常合并与 Preview-only 部署；公开版本继续为 V5.7.8，Staging/Production 仍禁止。
+- 按冻结恢复顺序仅刷新一次远端目标分支：`origin/feature/cloudflare-workers-d1` 仍为 `e6eb93addba06f0d4e6fc27c5db2ae8abd400815`。
+- 本地冻结 HEAD 为 `3e9b9c6ee6baa42a3ca7b6de9ca61028cca8b2f3`；相对远端目标 ahead 4 / behind 0，merge-base 等于远端目标 HEAD，确认无漂移、无需 rebase/merge 或历史改写。
+- 本检查点前重新从本地源码构建 CodeGraph 1.5.0（工具源码 `ea72e1b190921232aa7bd02e96bef5bbe4fe0ab6`）；状态保持 183 files / 2,199 nodes / 7,490 edges，SQLite WAL，索引 current。
+- 此处只记录恢复复核证据；尚未 push、创建 PR、触发 CI、合并、部署 Preview 或写远端 D1。
+- 下一步：提交本 Markdown 检查点后普通 push；PR 必须等待全部 CI 通过后正常合并；随后只在目标分支精确合并 SHA 上触发 Preview 工作流并验证 `0007`、身份与公开健康端点。
