@@ -213,3 +213,12 @@
 - 本地验证：Database 10/10；完整仓库 174/174；完整 typecheck；88/88 workflow policies；`git diff --check` 全部通过。
 - CodeGraph 后置同步：1 个测试文件、4 nodes；总计保持 183 files / 2,199 nodes / 7,490 edges，current。SQL 不产生结构化符号；其 PostgreSQL 16 实际解析/执行必须由新的 GitHub CI 临时数据库提供，不能由本机静态测试替代。
 - `pnpm build` 首次复跑在编译前被版本门禁按设计阻止，因为源码修正后旧 Preview 指纹已过期；这不是编译失败。下一步：提交本修正，在干净新 SHA 上重录 Preview 指纹，再完成 build、Worker bundles、冻结离线安装和版本门禁后普通推送。
+
+## 2026-07-28 00:04 +08:00 — PostgreSQL 修正后的完整本地发布门禁通过
+
+- 修正提交为 `4d4ed59f2676ce85f091ae4b40bdb73d424e675c`；提交后工作树干净，并在该精确 SHA 上重新登记 Preview 源码。
+- 新 Preview manifest：350 files / fingerprint `02524923dcc76d954c0c19684b287a399becb6b417febebe2125de694966310b`；公开版本继续为 V5.7.8。
+- 修正后完整验证通过：仓库 174/174、完整 typecheck、88/88 workflow policies、完整 root build、冻结 offline install、`git diff --check` 与标准版本门禁。
+- 仓库实际 Worker bundle 命令 `pnpm build:worker-bundle` 通过：普通产物 353,740 bytes，minified 产物 198,083 bytes；两者均非空并含 fetch handler。
+- CodeGraph 在本检查点前保持 183 files / 2,199 nodes / 7,490 edges、current；本检查点仅修改 Markdown，格式覆盖例外继续显式记录。
+- 本机没有 PostgreSQL 可执行环境，因此修正后的 PostgreSQL 16 迁移解析和两次 checksum runner 幂等执行仍须由新的 GitHub Actions `verify` 证明。下一步：提交并普通推送本检查点，以新 PR head 的全部 CI 作为唯一合并门禁。
