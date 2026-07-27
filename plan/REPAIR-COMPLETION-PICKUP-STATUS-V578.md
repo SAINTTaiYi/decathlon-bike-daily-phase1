@@ -196,3 +196,10 @@
 - 未使用 force push，未修改目标分支，未创建 PR、触发部署或写入远端 D1。
 - 本证据检查点仅修改 Markdown；CodeGraph 前置状态为 183 files / 2,199 nodes / 7,490 edges、current，Markdown 无结构化符号的覆盖例外继续显式记录。
 - 下一步：提交并普通推送本检查点，创建目标为 `feature/cloudflare-workers-d1` 的 PR，等待全部 CI 通过后正常合并。
+
+## 2026-07-27 23:52 +08:00 — PR #72 已创建，等待最终 HEAD CI
+
+- 已创建 PR [#72](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/72)：`fix(repair): preserve completion billing status for pickup`，目标 `feature/cloudflare-workers-d1`。
+- PR 初始 head 为 `9005cd91012ed8f4cb7b83951296465ededf6abd`，base 为 `e6eb93addba06f0d4e6fc27c5db2ae8abd400815`；交付说明明确公开版本保持 V5.7.8，合并后只允许 Preview，禁止 Staging/Production。
+- 初始 GitHub Actions run `30282041240` 已启动 `verify` 与 `secrets`；本检查点推送后应以新的最终 PR head 及其对应 CI 结果作为合并门禁，不能使用旧 head 的检查结果代替。
+- 本检查点仅修改 Markdown；CodeGraph 前置保持 183 files / 2,199 nodes / 7,490 edges、current。下一步是后置同步、提交、普通推送，然后等待最终 head 的全部 CI 通过。
