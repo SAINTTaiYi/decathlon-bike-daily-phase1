@@ -115,6 +115,8 @@ test('维修完成状态迁移同步扩展 D1 与 Supabase 约束并保守迁移
   assert.match(d1, /ELSE '维修完成-已开维修单'/u)
   assert.match(d1, /UPDATE work_items[\s\S]*pickup_source = 'repair'/u)
   assert.match(supabase, /drop constraint if exists repair_details_repair_status_check/u)
+  assert.match(supabase, /from bike_ops\.work_items w\s+left join bike_ops\.pickup_details p on p\.work_item_id = w\.id\s+where w\.id = r\.work_item_id/su)
+  assert.doesNotMatch(supabase, /left join bike_ops\.pickup_details p on p\.work_item_id = r\.work_item_id/u)
   assert.match(supabase, /validate constraint repair_details_repair_status_check/u)
   assert.match(supabase, /set status = r\.repair_status/u)
 })

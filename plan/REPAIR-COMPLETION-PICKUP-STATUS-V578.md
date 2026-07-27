@@ -203,3 +203,13 @@
 - PR 初始 head 为 `9005cd91012ed8f4cb7b83951296465ededf6abd`，base 为 `e6eb93addba06f0d4e6fc27c5db2ae8abd400815`；交付说明明确公开版本保持 V5.7.8，合并后只允许 Preview，禁止 Staging/Production。
 - 初始 GitHub Actions run `30282041240` 已启动 `verify` 与 `secrets`；本检查点推送后应以新的最终 PR head 及其对应 CI 结果作为合并门禁，不能使用旧 head 的检查结果代替。
 - 本检查点仅修改 Markdown；CodeGraph 前置保持 183 files / 2,199 nodes / 7,490 edges、current。下一步是后置同步、提交、普通推送，然后等待最终 head 的全部 CI 通过。
+
+## 2026-07-28 00:01 +08:00 — PR #72 PostgreSQL 16 迁移失败已最小修正
+
+- PR 最终 head `2d4537ba8aae0667236f6c3ddba137bc2cb8c3e1` 的 Actions run `30282150098` 中，`secrets` 通过，`verify` 在 PostgreSQL 16 迁移执行阶段失败；合并、Preview 部署与远端 D1 写入随即阻断，未绕过门禁。
+- 失败为 PostgreSQL `42P01`：`UPDATE bike_ops.repair_details r ... FROM` 中，`pickup_details` 的 JOIN `ON` 子句非法引用了更新目标别名 `r`。
+- 最小修正：将 JOIN 改为 `p.work_item_id = w.id`，并继续用 `where w.id = r.work_item_id` 将 `work_items` 与更新目标行关联；业务迁移规则、D1 迁移和状态映射均未改变。
+- 数据库迁移静态测试新增两项防回归约束：必须出现 PostgreSQL 合法 JOIN 形态，且不得再次出现 `p.work_item_id = r.work_item_id` 的非法形态。
+- 本地验证：Database 10/10；完整仓库 174/174；完整 typecheck；88/88 workflow policies；`git diff --check` 全部通过。
+- CodeGraph 后置同步：1 个测试文件、4 nodes；总计保持 183 files / 2,199 nodes / 7,490 edges，current。SQL 不产生结构化符号；其 PostgreSQL 16 实际解析/执行必须由新的 GitHub CI 临时数据库提供，不能由本机静态测试替代。
+- `pnpm build` 首次复跑在编译前被版本门禁按设计阻止，因为源码修正后旧 Preview 指纹已过期；这不是编译失败。下一步：提交本修正，在干净新 SHA 上重录 Preview 指纹，再完成 build、Worker bundles、冻结离线安装和版本门禁后普通推送。

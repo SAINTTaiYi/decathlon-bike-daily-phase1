@@ -27,7 +27,7 @@ set repair_status = case
   else r.repair_status
 end
 from bike_ops.work_items w
-left join bike_ops.pickup_details p on p.work_item_id = r.work_item_id
+left join bike_ops.pickup_details p on p.work_item_id = w.id
 where w.id = r.work_item_id;
 
 update bike_ops.work_items w
