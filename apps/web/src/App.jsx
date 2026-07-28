@@ -12,6 +12,7 @@ import ActionDock from './components/lookbook/ActionDock.jsx'
 import ClosingSummary from './components/lookbook/ClosingSummary.jsx'
 import LookbookHeader from './components/lookbook/LookbookHeader.jsx'
 import MainHeadImage from './components/lookbook/MainHeadImage.jsx'
+import WorkshopOverviewPage from './components/overview/WorkshopOverviewPage.jsx'
 import AttachmentDialog from './components/dialogs/AttachmentDialog.jsx'
 import ConfirmClosingDialog from './components/dialogs/ConfirmClosingDialog.jsx'
 import KpiDialog from './components/dialogs/KpiDialog.jsx'
@@ -461,6 +462,14 @@ export default function App() {
     )
   }
 
+  const jumpFromOverview = (sceneId) => {
+    if (sceneId === 'pulse') {
+      window.scrollTo({ top: 0, behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+      return
+    }
+    jumpTo(sceneId)
+  }
+
   const editorConfig = recordEditor
     ? recordEditor.scene === 'pickup' && inferPickupSource(recordEditor.record) === 'repair'
       ? sceneRecordConfig.repair
@@ -471,7 +480,7 @@ export default function App() {
   return (
     <>
       {showBoot ? <BootLoader onLogin={auth.login} onComplete={() => setLoginAnimationDone(true)} onRegister={() => setAuthMode('register')} /> : null}
-      {introDone ? <a className="skip-link" href="#closing-summary">跳到闭店摘要</a> : null}
+      {introDone ? <a className="skip-link" href="#closing-summary-anchor">跳到闭店摘要</a> : null}
       <div ref={workspaceRootRef} className="app-runtime endfield-runtime" data-ark-theme="endfield" data-ark-depth="maximal" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
         <div className="workspace-depth-plane workspace-depth-plane-far" data-workspace-layer="depth-far" aria-hidden="true" />
@@ -481,10 +490,28 @@ export default function App() {
         <div className="workspace-paper-scratches" aria-hidden="true" />
         <main className="lookbook-shell" id="main-content" tabIndex="-1" data-workspace-layer="structure">
           <div className="workspace-pointer-plane" data-workspace-layer="pointer-plane">
-            <div data-workspace-layer="navigation" data-workspace-priority="true"><LookbookHeader /></div>
+            <span className="closing-summary-anchor" id="closing-summary-anchor" aria-hidden="true" />
+            <WorkshopOverviewPage
+              workflow={workflow}
+              currentStore={currentStore}
+              roleLabel={roleLabels[role]}
+              currentUser={currentUser}
+              online={online}
+              writeLocked={writeLocked}
+              onMenu={() => setMenuOpen(true)}
+              onLog={() => setLogOpen(true)}
+              onEditKpi={() => setKpiOpen(true)}
+              onCompleteClosing={requestClose}
+              onHistory={() => setHistoryTarget({ scene: 'pulse', record: null })}
+              onRefresh={() => void workflow.refresh()}
+              onJump={jumpFromOverview}
+              onAddPickup={() => setRecordEditor({ scene: 'pickup', record: null })}
+              onEditPickup={(record) => setRecordEditor({ scene: 'pickup', record })}
+            />
+            <div className="legacy-workspace-header" data-workspace-layer="navigation" data-workspace-priority="true"><LookbookHeader /></div>
             <div className="active-user-strip" data-workspace-layer="navigation" data-workspace-priority="true" aria-label={`当前登录用户：${currentUser}`}><span>{currentStore?.storeName || 'DATABASE'} · {roleLabels[role]}</span><strong>{currentUser}</strong><button type="button" onClick={() => setMenuOpen(true)}>菜单</button></div>
             {!online ? <p className="offline-banner" role="status">OFFLINE · 当前离线，仅可查看最近加载的数据；恢复网络后才能修改。</p> : null}
-            <div className="workspace-focus" data-workspace-layer="focus" data-workspace-priority="true" data-depth-card="true" id="closing-summary"><ClosingSummary workflow={workflow} onJumpToRequirement={jumpToRequirement} onCompleteClosing={requestClose} onReopenClosing={() => void reopen()} onExportReport={exportClosingReport} /></div>
+            <div className="workspace-focus" data-workspace-layer="focus" data-workspace-priority="true" data-depth-card="true"><ClosingSummary workflow={workflow} onJumpToRequirement={jumpToRequirement} onCompleteClosing={requestClose} onReopenClosing={() => void reopen()} onExportReport={exportClosingReport} /></div>
             <ReleaseNotes />
             <MainHeadImage />
             <PulseScene dateKey={workflow.dateKey} kpi={workflow.kpi} kpiReady={workflow.kpiReady} records={workflow.records} closedAt={writeLocked} onJump={jumpTo} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'pulse', record: null })} />
@@ -520,7 +547,7 @@ export default function App() {
         <ConfirmClosingDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={confirmClose} />
         <KpiDialog open={kpiOpen} onClose={() => setKpiOpen(false)} values={workflow.kpi} savedAt={workflow.kpiSavedAt} onSave={workflow.saveKpi} onClear={workflow.clearKpi} onNotify={setToast} />
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
-        {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={activeScene} onJump={jumpTo} closedAt={workflow.closedAt} /></div> : null}
+        {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={activeScene} onJump={jumpFromOverview} closedAt={workflow.closedAt} /></div> : null}
       </div>
       {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button></div> : null}
       <ReportImageDialog
