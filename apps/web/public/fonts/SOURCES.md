@@ -26,3 +26,13 @@
 - Files: `barlow-condensed-500.woff2`, `barlow-condensed-700.woff2`
 - Purpose: Workshop mobile overview English headings and tabular operational numbers.
 - Hosting: self-hosted; no remote font request.
+
+## Noto Sans SC Operations Index Subset
+
+- File: `noto-sans-sc-operations-index-subset.ttf`
+- Upstream: Google Fonts CSS subset endpoint for `Noto Sans SC` 700, requested with text `业务台账` on 2026-07-29
+- Typeface: Noto Sans SC
+- License: SIL Open Font License 1.1 (`OFL-NotoSansCJK.txt`)
+- SHA-256: `9b76d6fefcabfa935953071f34c0c4f314680a316935a94503a46728c05f7a70`
+- Purpose: deterministic local Simplified Chinese glyphs for the condensed operations-index heading only
+- Hosting: self-hosted; no runtime request to Google Fonts or another third party
