@@ -70,7 +70,8 @@ function BrandHeader({ dateKey, onMenu, onNotifications, hasUnread }) {
 function StoreContextCard({ storeName, roleLabel, userName, onMenu }) {
   return (
     <section className="ops-store-context" aria-label="当前门店和用户">
-      <div><span>{storeName || '门店'} · {roleLabel}</span><strong>{userName || '—'}</strong></div>
+      <span className="ops-store-mark" aria-hidden="true"><IconShop width={24} height={24} strokeWidth={1.75} /></span>
+      <div className="ops-store-identity"><span>{storeName || '门店'} · {roleLabel || '成员'}</span><strong>{userName || '—'}</strong></div>
       <button type="button" onClick={onMenu} aria-label="打开菜单"><span className="ops-document-glyph" aria-hidden="true">▤</span><span><strong>菜单</strong><small>MENU</small></span><ArrowGlyph /></button>
     </section>
   )
@@ -114,7 +115,7 @@ function ClosingStatusCard({ workflow, online, onEditKpi, onCompleteClosing, onH
   return (
     <section className="ops-closing-card" aria-labelledby="ops-closing-title">
       <div className="ops-closing-main">
-        <div className="ops-closing-title"><span>Daily closing</span><h2 id="ops-closing-title">CLOSING<br />STATUS</h2></div>
+        <div className="ops-closing-title"><span>Daily closing</span><h2 id="ops-closing-title">今日闭店进度</h2><small>销售数据是唯一闭店要求</small></div>
         <StatusRing value={progress} available={available && !error} />
         <p>{explanation}</p>
       </div>
@@ -129,17 +130,21 @@ function ClosingStatusCard({ workflow, online, onEditKpi, onCompleteClosing, onH
 
 function SalesVehiclesPanel({ dateKey, kpi, available, onEditKpi }) {
   const date = dateParts(dateKey)
+  const salesValue = displayMetric(kpi?.salesVehicles, available)
   return (
     <section className="ops-sales-panel" aria-labelledby="ops-sales-title">
       <button type="button" className="ops-sales-primary" onClick={onEditKpi} aria-label="填写或修改当日销售数据">
         <span className="ops-sales-label"><i /><strong id="ops-sales-title">SALES VEHICLES</strong></span>
         <time dateTime={dateKey || undefined}>{date.full.replace(/ 周.$/u, '')}</time>
         <small>销售车辆 · {available ? '读取真实业务数据' : '数据暂不可用'}</small>
-        <b>{displayMetric(kpi?.salesVehicles, available)}</b>
+        <b data-digits={salesValue === '—' ? 'unavailable' : String(salesValue.length)}>{salesValue}</b>
         <span className="ops-blueprint" aria-hidden="true"><img src="/images/ops/bicycle-workshop-blueprint.svg" alt="" /><em>UNIT</em></span>
       </button>
       <div className="ops-kpi-grid">
-        {kpiItems.map((item) => <button type="button" key={item.key} onClick={onEditKpi}><small>{item.no}</small><span><strong>{item.cn}</strong></span><em>{item.key === 'safetyChecks' && kpi?.safetyModel ? `MODEL · ${kpi.safetyModel}` : item.en}</em><b data-digits={String(kpi?.[item.key] ?? '').length}>{displayMetric(kpi?.[item.key], available)}</b></button>)}
+        {kpiItems.map((item) => {
+          const value = displayMetric(kpi?.[item.key], available)
+          return <button type="button" key={item.key} onClick={onEditKpi}><small>{item.no}</small><span><strong>{item.cn}</strong></span><em>{item.key === 'safetyChecks' && kpi?.safetyModel ? `MODEL · ${kpi.safetyModel}` : item.en}</em><b data-digits={value === '—' ? 'unavailable' : String(value.length)}>{value}</b></button>
+        })}
       </div>
     </section>
   )
@@ -166,7 +171,7 @@ function OperationsIndex({ workflow, onJump }) {
           status = '唯一闭店要求'
           value = !available ? '—' : workflow.closedAt ? 'DONE' : workflow.kpiReady ? 'READY' : 'DUE'
         }
-        return <li key={id}><button type="button" onClick={() => onJump(id)}><small>{no}</small><span><Icon width={18} height={18} strokeWidth={1.7} aria-hidden="true" /><strong>{en}</strong></span><em>{cn} · {status}</em><b>{value}</b><ArrowGlyph /></button></li>
+        return <li key={id}><button type="button" onClick={() => onJump(id)}><small>{no}</small><span><Icon width={18} height={18} strokeWidth={1.7} aria-hidden="true" /><strong>{en}</strong></span><em>{cn} · {status}</em><b data-value={String(value).toLowerCase()}>{value}</b><ArrowGlyph /></button></li>
       })}</ol>
     </nav>
   )
@@ -210,7 +215,7 @@ export default function WorkshopOverviewPage({ workflow, currentStore, roleLabel
   const pickupRecords = workflow.recordsByScene.pickup || []
   const available = workflow.hydrated && workflow.hasSnapshot
   return (
-    <div className="ops-mobile-overview" data-workspace-module="true" aria-label="Workshop 移动端总览">
+    <div className="ops-mobile-overview" data-workspace-module="true" aria-label="Workshop 业务总览">
       <BrandHeader dateKey={workflow.dateKey} onMenu={onMenu} onNotifications={onLog} hasUnread={Boolean(workflow.events?.length)} />
       <StoreContextCard storeName={currentStore?.storeName} roleLabel={roleLabel} userName={currentUser} onMenu={onMenu} />
       {!online ? <p className="ops-inline-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据</p> : null}
