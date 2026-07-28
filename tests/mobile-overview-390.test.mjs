@@ -34,25 +34,44 @@ test('mobile overview keeps existing KPI, closing, menu, history, pickup edit an
   assert.match(app, /onJump=\{jumpFromOverview\}/u)
 })
 
-test('mobile geometry, responsive widths, fixed safe-area navigation and reduced motion are explicit', async () => {
+test('reference geometry is mobile-first and explicitly rearranges for tablet and desktop', async () => {
   const css = await read('apps/web/src/styles/mobile-overview.css')
   for (const rule of [
-    /max-width: 519px/u,
-    /height: 48px/u,
-    /height: 50px/u,
-    /height: 152px/u,
-    /height: 196px/u,
-    /height: 124px/u,
-    /height: 105px/u,
-    /min-height: 23px/u,
+    /@media \(min-width: 0px\)/u,
+    /width: min\(100%, 426px\)/u,
+    /max-width: 390px/u,
+    /height: 44px/u,
+    /height: 170px/u,
+    /height: 214px/u,
+    /height: 130px/u,
+    /height: 120px/u,
+    /min-height: 26px/u,
     /repeat\(6, minmax\(0,1fr\)\)/u,
     /env\(safe-area-inset-bottom\)/u,
     /max-width: 374px/u,
-    /min-width: 400px/u,
+    /min-width: 600px/u,
+    /min-width: 840px/u,
+    /min-width: 1200px/u,
+    /repeat\(12,minmax\(0,1fr\)\)/u,
     /prefers-reduced-motion: reduce/u,
     /forced-colors: active/u
   ]) assert.match(css, rule)
   assert.doesNotMatch(css, /overflow-x:\s*auto/u)
+})
+
+test('reference hierarchy uses real identity, binary closing status and stable metric sizing', async () => {
+  const [overview, css] = await Promise.all([
+    read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'),
+    read('apps/web/src/styles/mobile-overview.css')
+  ])
+  assert.match(overview, /ops-store-mark/u)
+  assert.match(overview, /今日闭店进度/u)
+  assert.match(overview, /销售数据是唯一闭店要求/u)
+  assert.match(overview, /salesValue === '—' \? 'unavailable'/u)
+  assert.match(overview, /data-value=\{String\(value\)\.toLowerCase\(\)\}/u)
+  assert.match(css, /\.ops-sales-primary \{ height: 128px; background: var\(--ops-card\); color: var\(--ops-text\); \}/u)
+  assert.match(css, /\.ops-closing-card \{ height: 170px;/u)
+  assert.match(css, /\.ops-status-ring \{ width: 76px; height: 76px;/u)
 })
 
 test('sales blueprint and condensed fonts are local, documented, and brand-neutral', async () => {
