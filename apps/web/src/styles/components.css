@@ -662,3 +662,140 @@ button:not(:disabled) {
     min-width: 3.5rem;
   }
 }
+
+/* UI Refactor V5.7.10: Compact Record Cards */
+.record-ledger-compact .record-row-compact {
+  min-height: 120px;
+}
+
+.record-row-head-compact {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: .6rem;
+  padding: .8rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.record-title-line strong {
+  font-size: .9rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.record-primary-badge {
+  padding: .2rem .5rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-size: .7rem;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.record-body-compact {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  padding: .8rem 1rem;
+}
+
+.record-detail-block {
+  position: relative;
+  display: flex;
+  align-items: start;
+  gap: .4rem;
+}
+
+.record-detail-line {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: .85rem;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+.record-detail-line[data-expanded='true'] {
+  -webkit-line-clamp: unset;
+  display: block;
+}
+
+.record-expand-btn {
+  flex-shrink: 0;
+  padding: .1rem .4rem;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-size: .7rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color .2s var(--ease-out), color .2s var(--ease-out);
+}
+
+.record-expand-btn:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.record-metadata-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+  font-size: .75rem;
+  color: var(--muted);
+}
+
+.record-meta-item {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+}
+
+.record-meta-item svg {
+  flex-shrink: 0;
+}
+
+.record-actions-compact {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin-top: .3rem;
+}
+
+.record-action-buttons {
+  display: flex;
+  gap: .6rem;
+  margin-left: auto;
+}
+
+/* 响应式：宽屏 */
+@media (min-width: 768px) {
+  .record-ledger-compact .record-row-compact {
+    min-height: 130px;
+  }
+
+  .record-row-head-compact {
+    padding: 1rem 1.2rem;
+  }
+
+  .record-body-compact {
+    padding: 1rem 1.2rem;
+  }
+
+  .record-title-line strong {
+    font-size: .95rem;
+  }
+}
+
+/* 超窄屏：元数据行可折叠 */
+@media (max-width: 375px) {
+  .record-metadata-line {
+    flex-direction: column;
+    gap: .4rem;
+  }
+}
