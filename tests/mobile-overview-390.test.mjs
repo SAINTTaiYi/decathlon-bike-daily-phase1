@@ -41,7 +41,7 @@ test('reference geometry is mobile-first and explicitly rearranges for tablet an
     /width: min\(100%, 426px\)/u,
     /max-width: 390px/u,
     /height: 44px/u,
-    /height: 170px/u,
+    /height: 154px/u,
     /height: 214px/u,
     /height: 130px/u,
     /height: 120px/u,
@@ -70,10 +70,28 @@ test('reference hierarchy uses real identity, binary closing status and stable m
   assert.match(overview, /salesValue === '—' \? 'unavailable'/u)
   assert.match(overview, /data-value=\{String\(value\)\.toLowerCase\(\)\}/u)
   assert.match(css, /\.ops-sales-primary \{ height: 128px; background: var\(--ops-card\); color: var\(--ops-text\); \}/u)
-  assert.match(css, /\.ops-closing-card \{ height: 170px;/u)
-  assert.match(css, /\.ops-status-ring \{ width: 76px; height: 76px;/u)
+  assert.match(css, /\.ops-closing-card \{ height: 154px;/u)
+  assert.match(css, /\.ops-status-ring \{ width: 70px; height: 70px;/u)
 })
 
+
+test('feedback material removes ledger lines and uses warm surfaces with restrained yellow glow', async () => {
+  const css = await read('apps/web/src/styles/mobile-overview.css')
+  for (const rule of [
+    /--ops-page: #f7f5ef/u,
+    /--ops-card: #fffdf8/u,
+    /--ops-yellow-glow: rgb\(255 195 26 \/ \.32\)/u,
+    /--ops-card-shadow: 0 5px 18px/u,
+    /\.ops-store-context \{[\s\S]*?border: 0;[\s\S]*?box-shadow: none;/u,
+    /\.ops-closing-main \{[\s\S]*?height: 84px;/u,
+    /\.ops-closing-next \{[^}]*height: 68px;/u,
+    /text-shadow: 0 0 8px var\(--ops-yellow-glow\)/u,
+    /filter: drop-shadow\(0 0 4px var\(--ops-yellow-glow\)\)/u
+  ]) assert.match(css, rule)
+  assert.doesNotMatch(css, /border-(?:top|right|bottom): 1px solid #e2e1db/u)
+  assert.doesNotMatch(css, /border: 1px solid var\(--ops-border\)/u)
+  assert.doesNotMatch(css, /border: 1px solid var\(--ops-border-strong\)/u)
+})
 test('sales blueprint and condensed fonts are local, documented, and brand-neutral', async () => {
   const [overview, svg, imageSources, fontSources] = await Promise.all([
     read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'),
