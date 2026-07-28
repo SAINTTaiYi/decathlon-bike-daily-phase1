@@ -137,26 +137,25 @@
 
   .ops-sales-panel { height: 196px; margin-top: 10px; border: 1px solid var(--ops-border); background: var(--ops-card); }
   .ops-sales-primary { position: relative; display: block; width: 100%; height: 111px; overflow: hidden; padding: 13px 13px; background: var(--ops-black); color: var(--ops-text-inverse); text-align: left; }
-  .ops-sales-label { display: flex; align-items: center; gap: 7px; }
+  .ops-sales-label { position: absolute; top: 9px; left: 13px; display: flex; align-items: center; gap: 7px; }
   .ops-sales-label i { width: 7px; height: 7px; background: var(--ops-yellow); }
-  .ops-sales-label strong { font-family: var(--ops-display); font-size: 11px; font-weight: 500; letter-spacing: .04em; }
+  .ops-sales-label strong { font-family: var(--ops-display); font-size: 11px; font-weight: 500; line-height: 12px; letter-spacing: .04em; }
   .ops-sales-primary > time { position: absolute; top: 13px; right: 13px; font-family: var(--ops-display); font-size: 10px; font-weight: 500; letter-spacing: .08em; }
-  .ops-sales-primary > small { position: absolute; left: 13px; top: 34px; font-size: 9px; }
-  .ops-sales-primary > b { position: absolute; left: 13px; bottom: 0; color: var(--ops-yellow); font-family: var(--ops-display); font-size: 66px; line-height: .92; letter-spacing: -2px; }
+  .ops-sales-primary > small { position: absolute; top: 25px; left: 13px; font-size: 9px; line-height: 11px; }
+  .ops-sales-primary > b { position: absolute; top: 38px; left: 13px; color: var(--ops-yellow); font-family: var(--ops-display); font-size: 66px; line-height: .82; letter-spacing: -2px; }
   .ops-blueprint { position: absolute; right: 10px; bottom: 3px; width: 154px; height: 73px; color: #deded8; opacity: .4; }
   .ops-blueprint img { width: 100%; height: 100%; object-fit: contain; }
   .ops-blueprint em { position: absolute; right: 7px; top: 22px; color: var(--ops-yellow); font-family: var(--ops-display); font-size: 9px; font-style: normal; font-weight: 700; opacity: 1; }
   .ops-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); height: 83px; }
-  .ops-kpi-grid button { position: relative; min-width: 0; padding: 7px 6px 4px; border-right: 1px solid #e2e1db; text-align: left; }
+  .ops-kpi-grid button { position: relative; min-width: 0; padding: 0; border-right: 1px solid #e2e1db; text-align: left; }
   .ops-kpi-grid button:last-child { border-right: 0; }
-  .ops-kpi-grid button > small { display: block; color: #d9ad16; font-family: var(--ops-display); font-size: 9px; line-height: 10px; }
-  .ops-kpi-grid button > span { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 3px; margin-top: 5px; }
-  .ops-kpi-grid button i { font-family: Arial, sans-serif; font-size: 19px; font-style: normal; line-height: 1; }
-  .ops-kpi-grid button strong { overflow: hidden; font-size: 9px; line-height: 11px; text-overflow: ellipsis; white-space: nowrap; }
-  .ops-kpi-grid button > em { display: block; margin: 3px 0 0 21px; overflow: hidden; color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 8px; font-style: normal; line-height: 9px; text-overflow: ellipsis; white-space: nowrap; }
-  .ops-kpi-grid button > b { position: absolute; right: 7px; bottom: 2px; font-family: var(--ops-display); font-size: 25px; line-height: 25px; }
-  .ops-kpi-grid button > b[data-digits='3'] { font-size: 21px; }
-  .ops-kpi-grid button > b[data-digits='4'] { font-size: 18px; }
+  .ops-kpi-grid button > small { position: absolute; top: 6px; left: 6px; display: block; color: #d9ad16; font-family: var(--ops-display); font-size: 9px; line-height: 10px; }
+  .ops-kpi-grid button > span { position: absolute; top: 21px; right: 6px; left: 6px; display: block; }
+  .ops-kpi-grid button strong { display: block; overflow: hidden; font-size: 9px; line-height: 11px; text-overflow: ellipsis; white-space: nowrap; }
+  .ops-kpi-grid button > em { position: absolute; top: 35px; right: 6px; left: 6px; display: block; overflow: hidden; color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 8px; font-style: normal; line-height: 9px; text-overflow: ellipsis; white-space: nowrap; }
+  .ops-kpi-grid button > b { position: absolute; top: 45px; right: 7px; font-family: var(--ops-display); font-size: 29px; line-height: 29px; }
+  .ops-kpi-grid button > b[data-digits='3'] { font-size: 24px; }
+  .ops-kpi-grid button > b[data-digits='4'] { font-size: 20px; }
 
   .ops-index { height: 124px; margin-top: 10px; border: 1px solid var(--ops-border); background: var(--ops-card); }
   .ops-index-head { display: flex; align-items: center; justify-content: space-between; height: 38px; padding: 0 10px; border-bottom: 1px solid #e2e1db; }
@@ -165,13 +164,13 @@
   .ops-index ol { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); height: 84px; list-style: none; }
   .ops-index li { min-width: 0; border-right: 1px solid #e2e1db; }
   .ops-index li:last-child { border-right: 0; }
-  .ops-index button { position: relative; display: block; width: 100%; height: 100%; padding: 7px 8px 4px; text-align: left; }
-  .ops-index button > small { color: #d9ad16; font-family: var(--ops-display); font-size: 10px; }
-  .ops-index button > span { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+  .ops-index button { position: relative; display: block; width: 100%; height: 100%; padding: 0; text-align: left; }
+  .ops-index button > small { position: absolute; top: 5px; left: 8px; color: #d9ad16; font-family: var(--ops-display); font-size: 10px; line-height: 11px; }
+  .ops-index button > span { position: absolute; top: 19px; right: 5px; left: 8px; display: flex; align-items: center; gap: 4px; }
   .ops-index button > span strong { font-family: var(--ops-display); font-size: 11px; line-height: 12px; }
-  .ops-index button > em { display: block; margin-top: 2px; overflow: hidden; color: var(--ops-text-muted); font-size: 8px; font-style: normal; line-height: 9px; text-overflow: ellipsis; white-space: nowrap; }
-  .ops-index button > b { position: absolute; left: 9px; bottom: 14px; font-family: var(--ops-display); font-size: 24px; line-height: 24px; }
-  .ops-index button > .ops-arrow { position: absolute; left: 10px; bottom: 0; font-size: 16px; }
+  .ops-index button > em { position: absolute; top: 40px; right: 5px; left: 8px; display: block; overflow: hidden; color: var(--ops-text-muted); font-size: 8px; font-style: normal; line-height: 9px; text-overflow: ellipsis; white-space: nowrap; }
+  .ops-index button > b { position: absolute; top: 50px; left: 8px; font-family: var(--ops-display); font-size: 24px; line-height: 24px; }
+  .ops-index button > .ops-arrow { position: absolute; top: 55px; right: 7px; left: auto; font-size: 16px; line-height: 16px; }
 
   .ops-pickup-board { height: 105px; margin-top: 9px; border: 1px solid var(--ops-border); background: var(--ops-card); }
   .ops-pickup-board > header { display: grid; grid-template-columns: 29px auto minmax(0,1fr) auto; align-items: center; height: 25px; padding: 0 8px; border-bottom: 1px solid #e2e1db; }
@@ -181,15 +180,15 @@
   .ops-pickup-board > header > button { min-width: 62px; min-height: 44px; margin-right: -7px; font-family: var(--ops-display); font-size: 9px; font-weight: 700; }
   .ops-pickup-board > header .ops-arrow { font-size: 16px; }
   .ops-pickup-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 6px; height: 78px; padding: 5px 8px 6px; }
-  .ops-pickup-card { position: relative; min-width: 0; overflow: hidden; padding: 5px; border: 1px solid #e2e1db; text-align: left; }
+  .ops-pickup-card { position: relative; min-width: 0; overflow: hidden; padding: 0; border: 1px solid #e2e1db; text-align: left; }
   .ops-pickup-card strong,
   .ops-pickup-card span,
   .ops-pickup-card small,
-  .ops-pickup-card em { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ops-pickup-card strong { padding-right: 12px; font-family: var(--ops-display); font-size: 12px; line-height: 13px; }
-  .ops-pickup-card span { margin-top: 2px; font-size: 8px; line-height: 10px; }
-  .ops-pickup-card small { margin-top: 2px; font-family: var(--ops-display); font-size: 8px; }
-  .ops-pickup-card em { position: absolute; inset: auto 5px 4px; padding: 2px 3px; background: var(--ops-yellow); font-size: 8px; font-style: normal; font-weight: 650; line-height: 10px; text-align: center; }
+  .ops-pickup-card em { position: absolute; right: 5px; left: 5px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ops-pickup-card strong { top: 4px; padding-right: 12px; font-family: var(--ops-display); font-size: 12px; line-height: 13px; }
+  .ops-pickup-card span { top: 19px; font-size: 8px; line-height: 10px; }
+  .ops-pickup-card small { top: 31px; font-family: var(--ops-display); font-size: 8px; line-height: 9px; }
+  .ops-pickup-card em { top: 44px; padding: 2px 3px; background: var(--ops-yellow); font-size: 8px; font-style: normal; font-weight: 650; line-height: 10px; text-align: center; }
   .ops-pickup-empty { grid-column: span 3; border: 1px solid #e2e1db; text-align: center; }
   .ops-pickup-empty strong,
   .ops-pickup-empty span { display: block; }

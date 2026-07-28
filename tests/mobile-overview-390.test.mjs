@@ -82,3 +82,21 @@ test('bottom navigation remains six operational destinations without a separate 
   assert.match(css, /\.look-dock \.dock-status \{ display: none !important; \}/u)
   assert.match(scenes, /LOOK_TOTAL = 6/u)
 })
+
+
+test('feedback alignment uses top-anchored content and removes only sales KPI icons', async () => {
+  const [overview, css] = await Promise.all([
+    read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'),
+    read('apps/web/src/styles/mobile-overview.css')
+  ])
+  assert.doesNotMatch(overview, /item\.glyph/u)
+  assert.doesNotMatch(overview, /<i aria-hidden="true">\{item\.glyph\}<\/i>/u)
+  assert.match(css, /\.ops-sales-primary > b \{ position: absolute; top: 38px;/u)
+  assert.match(css, /\.ops-kpi-grid button > b \{ position: absolute; top: 45px;/u)
+  assert.match(css, /\.ops-kpi-grid button > b[^}]*font-size: 29px/u)
+  assert.match(css, /\.ops-index button > span \{ position: absolute; top: 19px;/u)
+  assert.match(css, /\.ops-index button > b \{ position: absolute; top: 50px;/u)
+  assert.match(css, /\.ops-index button > \.ops-arrow \{ position: absolute; top: 55px; right: 7px;/u)
+  assert.match(css, /\.ops-pickup-card strong \{ top: 4px;/u)
+  assert.match(css, /\.ops-pickup-card em \{ top: 44px;/u)
+})

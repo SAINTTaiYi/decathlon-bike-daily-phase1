@@ -44,3 +44,13 @@
 3. 使用独立 browser-harness 对可访问环境做 360/375/390/412/430 视觉与溢出核验。
 4. 创建 PR，等待 CI 成功；部署并独立核验 Preview。
 5. 将 Preview 交用户人工验收；不部署 Production。
+
+
+## 人工验收反馈修复 · 2026-07-29
+
+- 反馈：销售主区左侧、四项销售 KPI、Operations Index 与 Pickup 卡片内容偏下并发生拥挤。
+- 边界：所有外框高度、模块位置、业务数据与处理函数保持不变。
+- 调整：销售主区只上移左侧信息；销售 KPI 移除四个装饰图标并将数字从 25px 调至 29px；Operations Index 保留图标和数字大小；上述单元及 Pickup 卡片全部改用顶部显式定位，数字与箭头错位排列。
+- 验证：专项与关键测试 16/16；完整测试、typecheck、88 workflow policies、Web build 及 CodeGraph 均通过。
+- CodeGraph：185 files / 2,234 nodes / 7,570 edges，up to date。
+- 下一步：follow-up PR、CI、重新部署 Preview，继续等待用户人工验收。
