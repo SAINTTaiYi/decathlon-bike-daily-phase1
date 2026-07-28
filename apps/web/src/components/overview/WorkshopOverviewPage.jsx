@@ -15,10 +15,10 @@ const operations = [
 ]
 
 const kpiItems = [
-  { key: 'safetyChecks', no: '01', cn: '安全检查开单', en: 'MODEL', glyph: '▤' },
-  { key: 'validReviews', no: '02', cn: '顾客有效评价', en: 'VALID REVIEWS', glyph: '☆' },
-  { key: 'usedSold', no: '03', cn: '销售二手车', en: 'USED SOLD', glyph: '◇' },
-  { key: 'usedReceived', no: '04', cn: '收二手车', en: 'USED RECEIVED', glyph: '⇩' }
+  { key: 'safetyChecks', no: '01', cn: '安全检查开单', en: 'MODEL' },
+  { key: 'validReviews', no: '02', cn: '顾客有效评价', en: 'VALID REVIEWS' },
+  { key: 'usedSold', no: '03', cn: '销售二手车', en: 'USED SOLD' },
+  { key: 'usedReceived', no: '04', cn: '收二手车', en: 'USED RECEIVED' }
 ]
 
 function dateParts(dateKey) {
@@ -139,7 +139,7 @@ function SalesVehiclesPanel({ dateKey, kpi, available, onEditKpi }) {
         <span className="ops-blueprint" aria-hidden="true"><img src="/images/ops/bicycle-workshop-blueprint.svg" alt="" /><em>UNIT</em></span>
       </button>
       <div className="ops-kpi-grid">
-        {kpiItems.map((item) => <button type="button" key={item.key} onClick={onEditKpi}><small>{item.no}</small><span><i aria-hidden="true">{item.glyph}</i><strong>{item.cn}</strong></span><em>{item.key === 'safetyChecks' && kpi?.safetyModel ? `MODEL · ${kpi.safetyModel}` : item.en}</em><b data-digits={String(kpi?.[item.key] ?? '').length}>{displayMetric(kpi?.[item.key], available)}</b></button>)}
+        {kpiItems.map((item) => <button type="button" key={item.key} onClick={onEditKpi}><small>{item.no}</small><span><strong>{item.cn}</strong></span><em>{item.key === 'safetyChecks' && kpi?.safetyModel ? `MODEL · ${kpi.safetyModel}` : item.en}</em><b data-digits={String(kpi?.[item.key] ?? '').length}>{displayMetric(kpi?.[item.key], available)}</b></button>)}
       </div>
     </section>
   )
