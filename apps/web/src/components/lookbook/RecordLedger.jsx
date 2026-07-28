@@ -338,6 +338,7 @@ function SwipeDeleteRecord({ record, disabled, onRemove, children }) {
       </div>
     </div>
   )
+}
 export default function RecordLedger({
   records = [], config, closedAt, onAdd, onEdit, onRemove, onHistory,
   onHandoverComplete, onPickup, onResaleListing, onResaleSold,
