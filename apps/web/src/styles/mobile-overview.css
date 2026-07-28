@@ -13,6 +13,13 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Noto Sans SC Operations';
+  src: url('/fonts/noto-sans-sc-operations-index-subset.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
 .ops-mobile-overview { display: none; }
 
 @media (min-width: 0px) {
@@ -159,7 +166,8 @@
 
   .ops-index { height: 124px; margin-top: 10px; border: 0; background: var(--ops-card); }
   .ops-index-head { display: flex; align-items: center; justify-content: space-between; height: 38px; padding: 0 10px; border-bottom: 0; }
-  .ops-index-head span { font-family: var(--ops-display); font-size: 10px; letter-spacing: .02em; }
+  .ops-index-label { display: flex; align-items: baseline; gap: 3px; font-family: var(--ops-display); font-size: 10px; letter-spacing: .02em; white-space: nowrap; }
+  .ops-index-label-cn { display: inline-block; width: 29px; font-family: 'Noto Sans SC Operations', 'Noto Sans SC', sans-serif; font-weight: 700; letter-spacing: 0; transform: scaleX(.72); transform-origin: left center; }
   .ops-index-head strong { font-size: 9px; font-weight: 650; }
   .ops-index ol { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); height: 84px; list-style: none; }
   .ops-index li { min-width: 0; border: 0; }
@@ -380,7 +388,7 @@
 .ops-kpi-grid button > b[data-digits='unavailable'] { font-size: 27px; }
 
 .ops-index { height: 130px; }
-.ops-index-head span { letter-spacing: 0; }
+.ops-index-label { letter-spacing: 0; }
 .ops-index ol { height: 90px; }
 .ops-index button { min-height: 44px; }
 .ops-index button > b[data-value='due'] { color: var(--ops-yellow-pressed); }

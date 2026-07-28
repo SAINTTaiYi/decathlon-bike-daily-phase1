@@ -157,16 +157,14 @@ function OperationsIndex({ workflow, onJump }) {
   const available = workflow.hydrated && workflow.hasSnapshot && !workflow.storageError
   return (
     <nav className="ops-index" aria-label="业务台账模块">
-      <div className="ops-index-head"><span>OPERATIONS INDEX · 业务台账</span><strong>{operationSummary(workflow)}</strong></div>
+      <div className="ops-index-head"><span className="ops-index-label"><span>OPERATIONS INDEX ·</span><span className="ops-index-label-cn">业务台账</span></span><strong>{operationSummary(workflow)}</strong></div>
       <ol>{operations.map(({ id, no, en, cn, Icon }) => {
         const count = workflow.recordsByScene[id]?.length ?? 0
         let value = displayMetric(count, available)
-        let status = '跨日保留'
         if (id === 'sales') {
-          status = '唯一闭店要求'
           value = !available ? '—' : workflow.closedAt ? 'DONE' : workflow.kpiReady ? 'READY' : 'DUE'
         }
-        return <li key={id}><button type="button" onClick={() => onJump(id)}><small>{no}</small><span><Icon width={18} height={18} strokeWidth={1.7} aria-hidden="true" /><strong>{en}</strong></span><em>{cn} · {status}</em><b data-value={String(value).toLowerCase()}>{value}</b><ArrowGlyph /></button></li>
+        return <li key={id}><button type="button" onClick={() => onJump(id)}><small>{no}</small><span><Icon width={18} height={18} strokeWidth={1.7} aria-hidden="true" /><strong>{en}</strong></span><em>{cn}</em><b data-value={String(value).toLowerCase()}>{value}</b><ArrowGlyph /></button></li>
       })}</ol>
     </nav>
   )

@@ -77,6 +77,23 @@ test('reference hierarchy uses real identity, binary closing status and stable m
 })
 
 
+
+test('operations index uses a condensed Chinese label and concise module subtitles', async () => {
+  const [overview, css] = await Promise.all([
+    read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'),
+    read('apps/web/src/styles/mobile-overview.css')
+  ])
+  assert.match(overview, /className="ops-index-label-cn">业务台账<\/span>/u)
+  assert.match(css, /@font-face \{[\s\S]*?font-family: 'Noto Sans SC Operations';[\s\S]*?noto-sans-sc-operations-index-subset\.ttf/u)
+  assert.match(css, /\.ops-index-label-cn \{[^}]*font-family: 'Noto Sans SC Operations', 'Noto Sans SC', sans-serif;[^}]*font-weight: 700;[^}]*transform: scaleX\(\.72\);/u)
+  for (const label of ['待取车辆', '其它交接', '维修交接', '二手车台账', '销售数据']) {
+    assert.match(overview, new RegExp(`'${label}'`, 'u'))
+  }
+  const operationsIndex = overview.slice(overview.indexOf('function OperationsIndex'), overview.indexOf('function compactContact'))
+  assert.doesNotMatch(operationsIndex, /跨日保留|唯一闭店要求/u)
+  assert.match(operationsIndex, /<em>\{cn\}<\/em>/u)
+})
+
 test('feedback material removes ledger lines and uses warm surfaces with restrained yellow glow', async () => {
   const css = await read('apps/web/src/styles/mobile-overview.css')
   for (const rule of [
