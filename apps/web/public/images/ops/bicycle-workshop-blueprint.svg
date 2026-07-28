@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 150" fill="none">
+  <title>Generic workshop bicycle engineering line drawing</title>
+  <g stroke="#d8d8d2" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path opacity=".28" d="M12 18h296M12 50h296M12 82h296M12 114h296M34 8v132M86 8v132M138 8v132M190 8v132M242 8v132M294 8v132"/>
+    <circle cx="78" cy="104" r="34"/><circle cx="244" cy="104" r="34"/>
+    <circle cx="78" cy="104" r="4"/><circle cx="244" cy="104" r="4"/>
+    <path d="m78 104 55-4 30-48 31 52H78l36-61m0 0 49 9m-49-9-9-12m-10 0h25m74 73 31-61m-8-8h25m-17 8 19 61m-111-4 31 4m-31-4-19-57m19 57 30-48"/>
+    <path d="M157 52h23m-6-8 14 4-8 4M97 27h26"/>
+    <path opacity=".55" d="M42 132h238M59 139h202M52 104h52m114 0h52M78 70v68m166-68v68"/>
+    <path opacity=".7" d="m128 96 11-18 12 19m23-43 12 12m-72-23 17 14"/>
+  </g>
+  <g fill="#d8d8d2"><circle cx="78" cy="104" r="1.8"/><circle cx="244" cy="104" r="1.8"/><path d="M24 18h5v5h-5zm276 96h5v5h-5z"/></g>
+</svg>
