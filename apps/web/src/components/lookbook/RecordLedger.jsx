@@ -339,7 +339,6 @@ function SwipeDeleteRecord({ record, disabled, onRemove, children }) {
     </div>
   )
 }
-
 export default function RecordLedger({
   records = [], config, closedAt, onAdd, onEdit, onRemove, onHistory,
   onHandoverComplete, onPickup, onResaleListing, onResaleSold,
@@ -349,9 +348,19 @@ export default function RecordLedger({
   heading = 'ACTIVE LEDGER / 在册台账', dark = false, showAdd = true
 }) {
   const hasSwipeDelete = !closedAt && records.some((record) => !record.pickedUpToday && !record.completedToday)
+  const [expandedRecords, setExpandedRecords] = useState(new Set())
+
+  const toggleExpand = (recordId) => {
+    setExpandedRecords((prev) => {
+      const next = new Set(prev)
+      if (next.has(recordId)) next.delete(recordId)
+      else next.add(recordId)
+      return next
+    })
+  }
 
   return (
-    <div className="record-ledger" data-reveal-group="records" data-dark={dark ? 'true' : undefined} aria-label={`${config.singular}台账，共 ${records.length} 条`}>
+    <div className="record-ledger record-ledger-compact" data-reveal-group="records" data-dark={dark ? 'true' : undefined} aria-label={`${config.singular}台账，共 ${records.length} 条`}>
       <div className="record-ledger-head">
         <div>
           <span>{heading}</span>
@@ -389,11 +398,9 @@ export default function RecordLedger({
             ? (record.contactValue ?? '')
             : (manualContact?.contactValue ?? '')
         ).trim()
-        const contactLabel = pickupContactLabel(contactType)
         const contactDisplay = contactValue || '无'
         const showContact = repairRecord || pickupRecord
         const detail = String(record.repairProject || record.detail || '').trim()
-        const detailLine = joinMaintenanceLine(detail)
         const ticketNumber = formatTicketNumber(record.ticketNo, record.id)
         const sourceLabel = pickupRecord
           ? `${pickupSourceLabel(record)}${selfPickupPlatformLabel(record) ? ` / ${selfPickupPlatformLabel(record)}` : ''}`
@@ -401,7 +408,11 @@ export default function RecordLedger({
         const stateLabel = pickedUp ? '已取车' : completedToday ? '已完成' : record.status
         const paymentOrType = repairRecord || repairPickup ? record.repairType : ''
         const rowDark = dark || resolved
-        const englishState = pickedUp ? 'PICKED UP' : completedToday ? 'COMPLETED' : record.scene === 'resale' && record.resaleStage === 'pending' ? 'PENDING' : 'ACTIVE'
+        const expanded = expandedRecords.has(record.id)
+        
+        // 智能单徽章（优先级排序）
+        const primaryBadge = pickedUp ? '已取车' : completedToday ? '已完成' : paymentOrType || sourceLabel || stateLabel
+
         const primaryButton = (label, onClick) => (
           <button
             type="button"
@@ -416,6 +427,7 @@ export default function RecordLedger({
             <span aria-live="polite">{primaryProcessing ? '确认中…' : label}</span>
           </button>
         )
+        
         const primaryAction = record.scene === 'resale' && record.resaleStage === 'pending'
           ? primaryButton('维修完毕', () => onResaleListing(record))
           : record.scene === 'resale' && record.resaleStage === 'listed'
@@ -427,64 +439,72 @@ export default function RecordLedger({
                 : record.scene === 'pickup' && !pickedUp
                   ? primaryButton('确认取车', () => onPickup(record))
                   : null
-        const actionButtons = (
-          <>
-            {!resolved ? <button type="button" className="record-edit-action" onClick={() => onEdit(record)} disabled={Boolean(closedAt) || primaryProcessing} aria-label={`编辑：${record.title}`}><IconEdit width={15} height={15} aria-hidden="true" />编辑</button> : null}
-            {primaryAction}
-          </>
-        )
 
         const row = (
-          <article className="record-row" data-spatial-tilt="true" data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-pickup-pixel-filling={pickupPixelFill ? 'true' : undefined} data-repair-pixel-dissolving={repairPixelDissolve ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-motion="row">
+          <article className="record-row record-row-compact" data-spatial-tilt="true" data-record-id={record.id} data-service-ticket={serviceTicket ? 'true' : undefined} data-row-dark={rowDark ? 'true' : undefined} data-resolved={resolved ? 'true' : undefined} data-pickup-pixel-filling={pickupPixelFill ? 'true' : undefined} data-repair-pixel-dissolving={repairPixelDissolve ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-expanded={expanded ? 'true' : undefined} data-motion="row">
             {pickupPixelFill ? <PickupPixelFill recordId={record.id} onComplete={onPickupPixelFillComplete} /> : null}
             {repairPixelDissolve ? <RepairPixelDissolve recordId={record.id} onComplete={onRepairPixelDissolveComplete} /> : null}
-            <header className="record-row-head">
-              <button type="button" className="record-history-mark" onClick={() => onHistory(record)} aria-label={`查看“${record.title}”的操作记录`}><IconJournal width={16} height={16} aria-hidden="true" /></button>
-              <div className="record-model-block">
-                <strong>{record.title}</strong>
-                <span>{ticketNumber}</span>
-                {pickupRecord && !pickedUp ? (
-                  <div className="record-notify-line">
-                    <ProjectSelect value={pickupNotificationStatus} options={PICKUP_NOTIFICATION_STATUSES} onChange={(value) => onPickupNotificationChange(record, value)} disabled={Boolean(closedAt)} ariaLabel={`${record.title}的通知状态`} compact />
-                  </div>
-                ) : null}
+            
+            {/* 紧凑 Header：单行 */}
+            <header className="record-row-head-compact">
+              <button type="button" className="record-history-mark" onClick={() => onHistory(record)} aria-label={`查看"${record.title}"的操作记录`}>
+                <IconJournal width={16} height={16} aria-hidden="true" />
+              </button>
+              <div className="record-title-line">
+                <strong>{record.title} · {ticketNumber}</strong>
               </div>
-              <div className="record-head-meta" aria-label="来源、支付与状态">
-                <span className="record-state">{englishState}</span>
-                <div className="record-badge-row">
-                  <Badge>{sourceLabel}</Badge>
-                  <Badge>{paymentOrType}</Badge>
-                  <Badge>{stateLabel}</Badge>
-                  {!serviceTicket && record.meta ? <Badge>{record.meta}</Badge> : null}
-                </div>
-              </div>
+              {primaryBadge ? <span className="record-primary-badge">{primaryBadge}</span> : null}
             </header>
 
-            <div className="record-body">
-              {detailLine ? (
-                <p className="record-detail-line" aria-label={`维修内容：${detail}`}>
-                  {detailLine}
-                </p>
+            {/* 紧凑 Body */}
+            <div className="record-body-compact">
+              {detail ? (
+                <div className="record-detail-block">
+                  <p className="record-detail-line" data-expanded={expanded ? 'true' : undefined} aria-label={`维修内容：${detail}`}>
+                    {detail}
+                  </p>
+                  {detail.length > 60 ? (
+                    <button type="button" className="record-expand-btn" onClick={() => toggleExpand(record.id)} aria-label={expanded ? '收起' : '展开'}>
+                      {expanded ? '收起' : '展开'}
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
 
-              <div className="record-scan-line">
+              {/* 元数据行合并 */}
+              <div className="record-metadata-line">
                 {showContact ? (
-                  <span className="record-scan-item" title={`${contactLabel} ${contactDisplay}`}>
-                    <IconPhone width={14} height={14} aria-hidden="true" />
-                    <span>{contactValue ? displayContactValue(contactValue) : '无'}</span>
+                  <span className="record-meta-item">
+                    <IconPhone width={12} height={12} aria-hidden="true" />
+                    {contactDisplay}
                   </span>
                 ) : null}
                 {record.pickupDate ? (
-                  <span className="record-scan-item" title={`取车日期 ${record.pickupDate}`}>
-                    <IconCalendar width={14} height={14} aria-hidden="true" />
-                    <time dateTime={record.pickupDate}>{formatScanDate(record.pickupDate)}</time>
+                  <span className="record-meta-item">
+                    <IconCalendar width={12} height={12} aria-hidden="true" />
+                    {formatScanDate(record.pickupDate)}
+                  </span>
+                ) : null}
+                {sourceLabel && !primaryBadge.includes(sourceLabel) ? (
+                  <span className="record-meta-item">
+                    {sourceLabel}
                   </span>
                 ) : null}
               </div>
 
               {pickupError ? <p className="record-inline-error" role="alert">{pickupError}</p> : null}
               {resolved ? <p className="record-resolution-note">{pickedUp ? '本条今日保留，下一业务日自动移除。' : '本条今日保留，下一业务日自动清除。'}</p> : null}
-              <footer className="record-actions" data-has-primary={primaryAction ? 'true' : undefined}>{actionButtons}</footer>
+              
+              {/* 操作区：通知状态 + 编辑 + 主操作 */}
+              <footer className="record-actions-compact" data-has-primary={primaryAction ? 'true' : undefined}>
+                {pickupRecord && !pickedUp ? (
+                  <ProjectSelect value={pickupNotificationStatus} options={PICKUP_NOTIFICATION_STATUSES} onChange={(value) => onPickupNotificationChange(record, value)} disabled={Boolean(closedAt)} ariaLabel={`${record.title}的通知状态`} compact />
+                ) : null}
+                <div className="record-action-buttons">
+                  {!resolved ? <button type="button" className="record-edit-action" onClick={() => onEdit(record)} disabled={Boolean(closedAt) || primaryProcessing} aria-label={`编辑：${record.title}`}><IconEdit width={15} height={15} aria-hidden="true" />编辑</button> : null}
+                  {primaryAction}
+                </div>
+              </footer>
             </div>
           </article>
         )
@@ -492,7 +512,7 @@ export default function RecordLedger({
         return deletable
           ? <SwipeDeleteRecord key={record.id} record={record} disabled={Boolean(closedAt) || primaryProcessing} onRemove={onRemove}>{row}</SwipeDeleteRecord>
           : <div key={record.id}>{row}</div>
-      }) : <p className="empty-inline">当前没有记录。{showAdd ? `使用“${config.addLabel}”开始录入。` : ''}</p>}
+      }) : <p className="empty-inline">当前没有记录。{showAdd ? `使用"${config.addLabel}"开始录入。` : ''}</p>}
     </div>
   )
 }
