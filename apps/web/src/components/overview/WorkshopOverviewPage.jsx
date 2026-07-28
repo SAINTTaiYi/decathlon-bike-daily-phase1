@@ -46,11 +46,11 @@ function BellGlyph({ unread }) {
 
 function ArrowGlyph() { return <span className="ops-arrow" aria-hidden="true">›</span> }
 
-function StatusRing({ value, available }) {
-  const progress = available ? Math.max(0, Math.min(100, value)) : 0
+function StatusValue({ value, available }) {
+  const progress = available ? Math.max(0, Math.min(100, value)) : null
   return (
-    <div className="ops-status-ring" style={{ '--ops-progress': `${progress * 3.6}deg` }} aria-label={available ? `闭店准备度 ${progress}%` : '闭店准备度暂不可用'}>
-      <div><strong>{available ? progress : '—'}</strong>{available ? <span>%</span> : null}</div>
+    <div className="ops-status-value" aria-label={progress === null ? '闭店准备度暂不可用' : `闭店准备度 ${progress}%`}>
+      <strong>{progress === null ? '—' : progress}</strong>{progress === null ? null : <span>%</span>}
     </div>
   )
 }
@@ -83,14 +83,12 @@ function ClosingStatusCard({ workflow, online, onEditKpi, onCompleteClosing, onH
   const error = Boolean(workflow.storageError)
   const ready = workflow.kpiReady
   const progress = ready ? 100 : 0
-  let explanation = '销售数据是唯一闭店要求。其它台账按实际变化更新。'
   let nextLabel = 'NEXT / 唯一要求'
   let nextTitle = '填写当日销售数据'
   let nextCopy = '这是唯一的闭店要求'
   let action = '填写数据'
   let onAction = onEditKpi
   if (!available || error) {
-    explanation = workflow.storageError || '业务台账尚未同步，暂时无法判断。'
     nextLabel = 'ERROR / 需要处理'
     nextTitle = '检查数据库同步'
     nextCopy = online ? '请重新同步后再操作' : '恢复网络后重试'
@@ -98,14 +96,12 @@ function ClosingStatusCard({ workflow, online, onEditKpi, onCompleteClosing, onH
     onAction = onRefresh
   } else if (closed) {
     const time = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(workflow.closedAt))
-    explanation = `闭店已完成，${time} 的业务快照已锁定。`
     nextLabel = 'DONE / 已闭店'
     nextTitle = '当日闭店已完成'
     nextCopy = `${time} 已同步`
     action = '查看记录'
     onAction = onHistory
   } else if (ready) {
-    explanation = '销售数据已保存。确认无误后即可完成闭店。'
     nextLabel = 'READY / 可以闭店'
     nextTitle = '当日销售数据已保存'
     nextCopy = '完成前请再次核对'
@@ -116,8 +112,7 @@ function ClosingStatusCard({ workflow, online, onEditKpi, onCompleteClosing, onH
     <section className="ops-closing-card" aria-labelledby="ops-closing-title">
       <div className="ops-closing-main">
         <div className="ops-closing-title"><span>Daily closing</span><h2 id="ops-closing-title">今日闭店进度</h2><small>销售数据是唯一闭店要求</small></div>
-        <StatusRing value={progress} available={available && !error} />
-        <p>{explanation}</p>
+        <StatusValue value={progress} available={available && !error} />
       </div>
       <div className="ops-closing-next">
         <span className="ops-clock-glyph" aria-hidden="true">◷</span>

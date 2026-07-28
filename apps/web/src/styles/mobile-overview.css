@@ -26,6 +26,7 @@
     --ops-yellow: #ffc31a;
     --ops-yellow-pressed: #e7a900;
     --ops-yellow-glow: rgb(255 195 26 / .32);
+    --ops-black-glow: rgb(12 14 12 / .22);
     --ops-card-shadow: 0 5px 18px rgb(64 55 34 / .055);
     --ops-border: #d6d5cf;
     --ops-border-strong: #b9b8b1;
@@ -104,7 +105,7 @@
   .ops-store-context > div strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ops-store-context > div span { font-size: 11px; font-weight: 650; line-height: 14px; }
   .ops-store-context > div strong { font-family: var(--ops-display); font-size: 19px; line-height: 20px; }
-  .ops-store-context > button { display: grid; grid-template-columns: 23px minmax(0,1fr) 10px; align-items: center; gap: 8px; height: 36px; margin-right: 8px; padding: 0 9px; background: var(--ops-black); color: var(--ops-text-inverse); text-align: left; }
+  .ops-store-context > button { display: grid; grid-template-columns: 23px minmax(0,1fr) 10px; align-items: center; gap: 8px; height: 36px; margin-right: 8px; padding: 0 9px; background: var(--ops-black); box-shadow: 0 0 16px var(--ops-black-glow); color: var(--ops-text-inverse); text-align: left; }
   .ops-store-context > button:active { background: #191b18; }
   .ops-store-context > button:active .ops-arrow { transform: translateX(2px); }
   .ops-document-glyph { color: var(--ops-yellow); font-size: 22px; }
@@ -116,15 +117,12 @@
   .ops-inline-alert { margin: 6px 0 -3px; padding: 5px 8px; border-left: 0; background: #fff2ef; color: var(--ops-danger); font-size: 9px; font-weight: 700; }
 
   .ops-closing-card { height: 154px; margin-top: 9px; border: 0; background: var(--ops-card); }
-  .ops-closing-main { display: grid; grid-template-columns: minmax(122px,1.05fr) 76px minmax(105px,1.05fr); align-items: center; gap: 8px; height: 84px; padding: 9px 13px 6px; }
+  .ops-closing-main { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; height: 84px; padding: 9px 13px 6px; }
   .ops-closing-title > span { font-size: 10px; font-weight: 650; line-height: 12px; }
   .ops-closing-title h2 { margin-top: 4px; color: var(--ops-text); font-family: var(--ops-display); font-size: 29px; font-weight: 700; line-height: 24px; letter-spacing: -.3px; }
-  .ops-status-ring { display: grid; place-items: center; width: 70px; height: 70px; border-radius: 50%; background: conic-gradient(from 0deg, var(--ops-yellow) var(--ops-progress), #deddd7 0); }
-  .ops-status-ring::before { content: ''; grid-area: 1/1; width: 66px; height: 66px; border-radius: 50%; background: var(--ops-card); }
-  .ops-status-ring > div { z-index: 1; display: flex; grid-area: 1/1; align-items: baseline; }
-  .ops-status-ring strong { font-family: var(--ops-display); font-size: 34px; line-height: 1; }
-  .ops-status-ring span { font-family: var(--ops-display); font-size: 10px; font-weight: 700; }
-  .ops-closing-main > p { overflow: hidden; font-size: 10px; line-height: 16px; text-overflow: ellipsis; white-space: nowrap; }
+  .ops-status-value { display: flex; align-items: baseline; justify-self: end; color: var(--ops-yellow); font-family: var(--ops-display); line-height: .82; text-shadow: 0 0 14px var(--ops-yellow-glow); }
+  .ops-status-value strong { font-size: 68px; font-weight: 700; }
+  .ops-status-value span { font-size: 18px; font-weight: 700; }
   .ops-closing-next { display: grid; grid-template-columns: 31px minmax(0,1fr) 120px; align-items: center; gap: 8px; height: 68px; margin: 0 13px; border-top: 0; }
   .ops-clock-glyph { color: var(--ops-yellow); font-size: 28px; line-height: 1; }
   .ops-closing-next > span:nth-child(2) { min-width: 0; }
@@ -228,7 +226,7 @@
   .look-dock ul { display: grid !important; grid-template-columns: repeat(6, minmax(0,1fr)) !important; height: 58px; overflow: visible !important; }
   .look-dock li { min-width: 0 !important; }
   .look-dock button { display: grid !important; grid-template-rows: 21px 11px 9px !important; place-items: center; gap: 1px !important; min-width: 0 !important; min-height: 58px !important; padding: 7px 1px 3px !important; color: var(--ops-black) !important; }
-  .look-dock button[data-active='true'] { background: var(--ops-black) !important; color: var(--ops-yellow) !important; }
+  .look-dock button[data-active='true'] { background: var(--ops-black) !important; box-shadow: 0 0 16px var(--ops-black-glow) !important; color: var(--ops-yellow) !important; }
   .look-dock button svg { width: 20px; height: 20px; }
   .look-dock button span { display: block !important; font-family: var(--ops-body); font-size: 9px !important; font-weight: 700; line-height: 10px; }
   .look-dock button small { position: static !important; display: block !important; color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 8px !important; line-height: 8px; }
@@ -241,10 +239,9 @@
     .ops-brand-header time::after { content: attr(data-short); font-size: 10px; }
     .ops-store-context { grid-template-columns: minmax(0,1fr) 124px; }
     .ops-store-context > button { margin-right: 5px; }
-    .ops-closing-main { grid-template-columns: minmax(108px,1fr) 66px minmax(90px,1fr); padding-inline: 10px; }
+    .ops-closing-main { grid-template-columns: minmax(0,1fr) auto; padding-inline: 10px; }
     .ops-closing-title h2 { font-size: 27px; }
-    .ops-status-ring { width: 66px; height: 66px; }
-    .ops-status-ring::before { width: 58px; height: 58px; }
+    .ops-status-value strong { font-size: 58px; }
     .ops-closing-next { grid-template-columns: 27px minmax(0,1fr) 112px; margin-inline: 10px; }
     .ops-closing-next button { width: 112px; }
     .ops-blueprint { right: 3px; width: 142px; }
@@ -257,12 +254,12 @@
 
   @media (min-width: 400px) {
     .lookbook-shell { padding-inline: 14px; }
-    .ops-closing-main { grid-template-columns: minmax(122px,1.08fr) 76px minmax(116px,1.2fr); }
+    .ops-closing-main { grid-template-columns: minmax(0,1fr) auto; }
     .ops-pickup-grid { gap: 7px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .ops-status-ring { transition: none; }
+    .ops-status-value { transition: none; }
     .ops-mobile-overview button:active,
     .ops-mobile-overview summary:active { transform: none; }
   }
@@ -271,7 +268,7 @@
     .ops-sales-primary,
     .ops-store-context > button,
     .look-dock button[data-active='true'] { forced-color-adjust: none; }
-    .ops-status-ring { border: 2px solid CanvasText; background: Canvas; }
+    .ops-status-value { color: CanvasText; text-shadow: none; }
   }
 }
 
@@ -309,16 +306,15 @@
 .ops-pickup-board { overflow: hidden; border-radius: 8px; border: 0; box-shadow: var(--ops-card-shadow); }
 .ops-closing-card { height: 154px; margin-top: 16px; }
 .ops-closing-main {
-  grid-template-columns: minmax(122px,1.05fr) 76px minmax(105px,1.05fr);
+  grid-template-columns: minmax(0,1fr) auto;
   gap: 8px;
   height: 84px;
   padding: 9px 13px 6px;
 }
 .ops-closing-title h2 { margin-top: 4px; font-family: var(--ops-body); font-size: 20px; font-weight: 750; line-height: 23px; letter-spacing: 0; white-space: nowrap; }
 .ops-closing-title > small { display: block; margin-top: 5px; color: var(--ops-text-muted); font-size: 9px; line-height: 13px; }
-.ops-status-ring { width: 70px; height: 70px; box-shadow: 0 0 14px rgb(255 195 26 / .14); transition: background 280ms linear; }
-.ops-status-ring::before { width: 64px; height: 64px; }
-.ops-status-ring strong { font-size: 38px; }
+.ops-status-value { font-size: 68px; }
+.ops-status-value strong { font-size: 68px; }
 .ops-closing-next { grid-template-columns: 32px minmax(0,1fr) 136px; gap: 10px; height: 68px; margin-inline: 13px; border-top: 0; }
 .ops-closing-next button { width: 136px; min-height: 44px; border-radius: 8px; box-shadow: 0 0 14px var(--ops-yellow-glow); }
 
@@ -350,6 +346,22 @@
 .ops-release-strip summary > strong,
 .ops-release-strip summary > b { box-shadow: 0 0 10px var(--ops-yellow-glow); }
 
+
+.ops-brand-lockup strong,
+.ops-store-identity strong,
+.ops-closing-title h2,
+.ops-kpi-grid button > b,
+.ops-index button > b:not([data-value='due']):not([data-value='ready']):not([data-value='done']),
+.ops-pickup-card strong {
+  text-shadow: 0 0 7px var(--ops-black-glow);
+}
+.ops-menu-glyph,
+.ops-bell-glyph,
+.ops-store-mark svg,
+.ops-index button > span svg,
+.look-dock button:not([data-active='true']) svg {
+  filter: drop-shadow(0 0 3px var(--ops-black-glow));
+}
 .ops-sales-panel { height: 214px; }
 .ops-sales-primary { height: 128px; background: var(--ops-card); color: var(--ops-text); }
 .ops-sales-label strong,
@@ -390,9 +402,8 @@
 @media (max-width: 374px) {
   .ops-store-context { grid-template-columns: 40px minmax(0,1fr) 124px; }
   .ops-store-identity { padding-right: 7px; }
-  .ops-closing-main { grid-template-columns: minmax(108px,1fr) 66px minmax(90px,1fr); gap: 6px; padding-inline: 10px; }
-  .ops-status-ring { width: 64px; height: 64px; }
-  .ops-status-ring::before { width: 58px; height: 58px; }
+  .ops-closing-main { grid-template-columns: minmax(0,1fr) auto; gap: 6px; padding-inline: 10px; }
+  .ops-status-value strong { font-size: 58px; }
   .ops-closing-next { grid-template-columns: 27px minmax(0,1fr) 112px; gap: 7px; margin-inline: 10px; }
   .ops-closing-next button { width: 112px; }
 }
@@ -404,7 +415,7 @@
   }
   .ops-mobile-overview { max-width: none; }
   .ops-store-context { margin-top: 24px; }
-  .ops-closing-main { grid-template-columns: minmax(190px,1.2fr) 76px minmax(170px,1fr); }
+  .ops-closing-main { grid-template-columns: minmax(0,1fr) auto; }
   .ops-sales-primary { min-height: 128px; }
   .ops-blueprint { right: 32px; width: 210px; }
   .look-dock {
@@ -431,7 +442,7 @@
   .ops-pickup-board,
   .ops-release-strip { margin-top: 0; }
   .ops-closing-card { grid-column: span 7; height: 174px; }
-  .ops-closing-main { grid-template-columns: minmax(145px,1.2fr) 76px minmax(125px,1fr); height: 104px; }
+  .ops-closing-main { grid-template-columns: minmax(0,1fr) auto; height: 104px; }
   .ops-sales-panel { grid-column: span 5; }
   .ops-sales-primary > small { max-width: 45%; }
   .ops-blueprint { right: 12px; width: 48%; }

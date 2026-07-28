@@ -71,7 +71,9 @@ test('reference hierarchy uses real identity, binary closing status and stable m
   assert.match(overview, /data-value=\{String\(value\)\.toLowerCase\(\)\}/u)
   assert.match(css, /\.ops-sales-primary \{ height: 128px; background: var\(--ops-card\); color: var\(--ops-text\); \}/u)
   assert.match(css, /\.ops-closing-card \{ height: 154px;/u)
-  assert.match(css, /\.ops-status-ring \{ width: 70px; height: 70px;/u)
+  assert.match(overview, /<StatusValue value=\{progress\} available=\{available && !error\}/u)
+  assert.doesNotMatch(overview, /StatusRing|ops-status-ring|<p>\{explanation\}<\/p>/u)
+  assert.match(css, /\.ops-status-value strong \{ font-size: 68px; \}/u)
 })
 
 
@@ -86,6 +88,10 @@ test('feedback material removes ledger lines and uses warm surfaces with restrai
     /\.ops-closing-main \{[\s\S]*?height: 84px;/u,
     /\.ops-closing-next \{[^}]*height: 68px;/u,
     /text-shadow: 0 0 8px var\(--ops-yellow-glow\)/u,
+    /--ops-black-glow: rgb\(12 14 12 \/ \.22\)/u,
+    /text-shadow: 0 0 7px var\(--ops-black-glow\)/u,
+    /filter: drop-shadow\(0 0 3px var\(--ops-black-glow\)\)/u,
+    /box-shadow: 0 0 16px var\(--ops-black-glow\)/u,
     /filter: drop-shadow\(0 0 4px var\(--ops-yellow-glow\)\)/u
   ]) assert.match(css, rule)
   assert.doesNotMatch(css, /border-(?:top|right|bottom): 1px solid #e2e1db/u)
