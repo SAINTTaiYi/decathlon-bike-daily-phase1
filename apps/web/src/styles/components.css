@@ -799,3 +799,90 @@ button:not(:disabled) {
     gap: .4rem;
   }
 }
+
+/* UI Refactor V5.7.10: Scene Sub-Navigation */
+.scene-subnav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: .8rem 0;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.subnav-back {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .4rem .7rem;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: .8rem;
+  color: var(--ink);
+  transition: background-color .2s var(--ease-out), border-color .2s var(--ease-out);
+}
+
+.subnav-back:hover {
+  background: rgb(8 8 10 / .035);
+  border-color: var(--ink);
+}
+
+.subnav-tabs {
+  display: flex;
+  gap: .5rem;
+  flex: 1;
+}
+
+.subnav-tabs button {
+  padding: .4rem .8rem;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: .8rem;
+  font-weight: 500;
+  color: var(--muted);
+  transition: background-color .2s var(--ease-out), border-color .2s var(--ease-out), color .2s var(--ease-out);
+}
+
+.subnav-tabs button:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.subnav-tabs button[data-active='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.subnav-filter {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .4rem .7rem;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: .8rem;
+  color: var(--muted);
+  transition: background-color .2s var(--ease-out), border-color .2s var(--ease-out), color .2s var(--ease-out);
+}
+
+.subnav-filter:hover {
+  background: rgb(8 8 10 / .035);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+/* 响应式：窄屏 */
+@media (max-width: 640px) {
+  .scene-subnav {
+    flex-wrap: wrap;
+  }
+
+  .subnav-tabs {
+    order: 3;
+    flex-basis: 100%;
+  }
+}
