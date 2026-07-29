@@ -54,3 +54,17 @@ Implementation and local gates are complete. No commit, push, PR, cloud deployme
 ## Next exact step
 
 Run post-change CodeGraph, commit the verified source, register the clean Preview fingerprint, open and merge a PR after Node 22 CI succeeds, then deploy and independently verify Preview identity and health endpoints.
+
+
+## Preview delivery evidence
+
+- Functional commit: `aec6c32bfaab603c0d68598dc009c2e96eacd8de`.
+- Implementation PR: #92; Node 22 CI run `30447549748` (`secrets` and `verify` succeeded).
+- Actual merge SHA and deployed identity: `24433d7ee24d92692a256b4bdb1e8f4e4fe1bfca`.
+- Preview deployment workflow: `30447808839`, success; Free/no-billing/Preview-only guard passed.
+- Cloudflare Deployment: `feca729a-4a3d-4bf3-8557-fa43d1fa05d5`.
+- Worker Version: `b5e96278-8a03-436c-82b3-4edc85d4acee`, 100% traffic.
+- Preview URL: `https://bike-ops-preview.geeklightonefish.workers.dev`.
+- Independent HTTP verification: `/health/live`, `/health/ready`, `/api/v1/meta/version` and Web shell all matched V5.7.9 / merge SHA; HSTS, strict CSP, DENY and `nosniff` were present.
+- `browser-harness` remains unavailable, so screenshot/browser-driven visual verification was not performed. Human Preview acceptance is still required.
+- Staging, Production and Production D1 were not modified. Public version remains V5.7.9.
