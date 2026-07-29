@@ -101,6 +101,23 @@ export function pickupSourceLabel(record) {
   return PICKUP_SOURCES.find(({ value }) => value === source)?.label || '顾客暂存'
 }
 
+/** Map verbose storage / repair statuses to compact pickup-result language for scanning. */
+export function pickupResultLabel(record = {}) {
+  if (record.pickedUpToday || record.pickedUpOn) return '已取车'
+  const source = inferPickupSource(record)
+  const status = String(record.status || '').trim()
+  if (source === 'repair') {
+    if (/质保维修单/u.test(status) && !/质保付款单/u.test(status)) return '待开质保付款单'
+    if (/已开维修单/u.test(status) && !/付款单/u.test(status)) return '待开付款单'
+    if (/质保付款单/u.test(status)) return '待过机核验'
+    if (/维修完成|保养完成|调试完成/u.test(status)) return '维修完成'
+    return '待确认结果'
+  }
+  if (source === 'used-car') return '车辆已售'
+  if (source === 'self-pickup') return '等待取车'
+  return status || '等待取车'
+}
+
 export function inferSelfPickupPlatform(record) {
   if (SELF_PICKUP_PLATFORMS.some(({ value }) => value === record?.selfPickupPlatform)) return record.selfPickupPlatform
   const legacyText = `${record?.meta || ''} ${record?.detail || ''}`

@@ -9,6 +9,7 @@ import {
   inferPickupSource,
   normalizePickupNotificationRecord,
   normalizePickupValues,
+  pickupResultLabel,
   pickupSourceLabel,
   validatePickup
 } from '../apps/web/src/data/pickupRecord.js'
@@ -213,4 +214,17 @@ test('联系方式 meta 编解码兼容空值、手机号与会员号', () => {
   assert.deepEqual(decodePickupContact({ meta: '18172049175' }), { contactType: 'phone', contactValue: '18172049175' })
   assert.deepEqual(decodePickupContact({ meta: '会员号：M-1' }), { contactType: 'member', contactValue: 'M-1' })
   assert.deepEqual(decodePickupContact({ contactType: 'member', contactValue: 'M-2' }), { contactType: 'member', contactValue: 'M-2' })
+})
+
+
+test('待取列表将维修原始状态映射为统一短文案', () => {
+  const repair = { scene: 'pickup', pickupSource: 'repair', repairType: '付费' }
+  assert.equal(pickupResultLabel({ ...repair, status: '维修完成-已开付款单' }), '维修完成')
+  assert.equal(pickupResultLabel({ ...repair, status: '维修完成-已开维修单' }), '待开付款单')
+  assert.equal(pickupResultLabel({ ...repair, repairType: '质保', status: '维修完成-已开质保维修单' }), '待开质保付款单')
+  assert.equal(pickupResultLabel({ ...repair, repairType: '质保', status: '维修完成-已开质保付款单-请过机' }), '待过机核验')
+  assert.equal(pickupResultLabel({ scene: 'pickup', pickupSource: 'self-pickup', status: '等待顾客取车' }), '等待取车')
+  assert.equal(pickupResultLabel({ scene: 'pickup', pickupSource: 'used-car' }), '车辆已售')
+  assert.equal(pickupResultLabel({ scene: 'pickup', pickupSource: 'customer-storage', status: '等待本人取车' }), '等待本人取车')
+  assert.equal(pickupResultLabel({ scene: 'pickup', pickupSource: 'repair', pickedUpToday: true }), '已取车')
 })

@@ -51,6 +51,7 @@ The accepted overview palette defines the project baseline.
 | `--ops-yellow` | `#ffc31a` | Primary action, progress, current state, numbering, active navigation |
 | `--ops-yellow-pressed` | `#e7a900` | Yellow pressed state and stronger warning emphasis |
 | `--ops-yellow-glow` | `rgb(255 195 26 / .32)` | Restrained yellow edge diffusion |
+| `--ops-pickup-expanded` | `#fff1dc` | Low-emphasis warm orange fill for the single expanded Pending Pickup card |
 | `--ops-black-glow` | `rgb(12 14 12 / .22)` | Restrained black edge diffusion on major elements |
 | `--ops-card-shadow` | `0 5px 18px rgb(64 55 34 / .055)` | Soft elevation for major modules only |
 | `--ops-danger` | `#c63b2e` | Errors, failed synchronization, destructive warnings |
@@ -63,6 +64,7 @@ Rules:
 3. Do not introduce gradients, neon colors, blue accents, decorative multicolor systems, glass effects, or colored background bands.
 4. Semantic green and red must never replace labels, icons, or accessible state text.
 5. New colors require a documented semantic role and must be added here before use.
+6. The pickup expanded-card orange is a contextual focus surface only; it must not become a general status color or decorative band.
 
 ## Typography
 
