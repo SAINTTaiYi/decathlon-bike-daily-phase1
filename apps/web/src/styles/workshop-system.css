@@ -189,6 +189,7 @@ button:disabled { opacity: .48; }
 .workshop-module-stack {
   position: relative;
   min-height: 100dvh;
+  padding-bottom: calc(var(--ops-header-height) + 12px);
   overflow-x: clip;
 }
 .workshop-module-panel {

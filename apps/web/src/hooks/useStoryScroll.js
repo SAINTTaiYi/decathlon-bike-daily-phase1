@@ -41,9 +41,7 @@ export default function useStoryScroll({ enabled, rootRef, quiet = false }) {
     const stack = rootRef.current?.querySelector('[data-module-flow-stack]')
     const naturalAnchor = targetId === sceneIds[0] && stack ? stack : anchor
     const naturalTop = naturalAnchor.getBoundingClientRect().top + window.scrollY - headerOffset() - 8
-    const top = handoff
-      ? handoff.end + Math.max(1, window.innerHeight * .25 - headerOffset() - 8)
-      : naturalTop
+    const top = handoff ? handoff.end : naturalTop
     updateActiveScene(targetId)
     window.scrollTo({
       top: Math.max(0, top),
@@ -107,7 +105,7 @@ export default function useStoryScroll({ enabled, rootRef, quiet = false }) {
             scrollTrigger: {
               trigger: section,
               start: 'top bottom',
-              end: 'top 25%',
+              end: () => `top ${headerOffset() + 8}px`,
               scrub: true,
               invalidateOnRefresh: true,
               onUpdate: syncSceneFromProgress

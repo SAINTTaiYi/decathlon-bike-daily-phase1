@@ -133,3 +133,18 @@ The feedback correction and local gates are complete. Next: commit the verified 
 ## Acceptance boundary
 
 This corrected Preview is now waiting for human acceptance. Do not deploy Production or change the public version without a separate explicit request after Preview acceptance.
+
+## Chrome MCP real-browser acceptance correction
+
+- Official Chrome DevTools MCP v1.6.0 on Android Chrome 150 found three remaining Preview defects: a prior-module fragment at the Repair→Sales handoff, repeated obsolete Albert Sans preload warnings, and expanded release notes starting beneath the fixed dock.
+- Story Scroll now completes each rotating handoff directly below the combined fixed header and dock jumps target the exact handoff end. Final stack clearance allows the last module to complete the same geometry.
+- The release strip measures the live header and bottom dock when opened and scrolls only as needed, respecting reduced-motion.
+- `index.html` no longer preloads the removed Albert font. Closing-report canvas generation waits only for self-hosted Noto Sans SC and Barlow Condensed.
+- Added regressions for handoff geometry, final stack clearance, dock avoidance, obsolete preload removal and report-image font readiness.
+- Frozen offline install, focused tests 26/26, full Web regression 124/124, root typecheck, Web production build, 88 workflow policies and `git diff --check` all passed.
+- Post-change CodeGraph is up to date at 189 files / 2,273 nodes / 7,649 edges. A true pre-edit graph run was missed before interruption and is recorded as an explicit process exception; HTML/CSS and source-scanning tests remain explicit coverage exceptions.
+- Public version remains V5.7.9. No Preview redeployment, Staging, Production or Production D1 mutation has occurred in this correction stage.
+
+## Current acceptance-fix stage
+
+Local implementation and gates are complete. Next: functional/evidence commit, unchanged-version Preview fingerprint registration, clean root build, PR/Node 22 CI and protected Preview-only deployment. Production remains prohibited.
