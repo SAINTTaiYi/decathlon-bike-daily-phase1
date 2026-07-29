@@ -19,14 +19,15 @@ One complete Preview delivery covering every existing Web surface: six authentic
 - Pre-change CodeGraph task `workshop-21st-codegraph-pre`: succeeded.
 - Inventory: 6 modules, 5 authentication/security entry states, 12 shared dialogs, plus loading/offline/empty/error/update states.
 
-### 2. Module Flow structure — complete
+### 2. Module Flow structure — complete, corrected after Preview feedback
 
-- Added a boundary-aware wheel/touch/PageUp/PageDown state machine.
-- A second boundary gesture is required before module switching, preventing accidental changes while internal lists and forms keep native scrolling.
-- Six modules remain mounted but only the active module is exposed; local list/form state survives navigation.
-- Added GSAP chapter handoff, global module header, boundary prompt and active navigation integration.
-- Removed duplicate rendering of the overview and the legacy KPI scene from the active application shell.
-- Verification task `workshop-21st-module-flow-build`: Web build succeeded.
+- Preview feedback rejected the gesture-gated chapter overlay because it differed from the supplied Story Scroll reference and did not reliably support upward switching.
+- Replaced wheel/touch/PageUp/PageDown interception with native continuous document scrolling. No second gesture, threshold or `preventDefault` remains.
+- All six modules stay mounted and visible in document flow; local list/form state survives while the active header and dock follow scroll progress.
+- Each later module rotates from 30 degrees to 0 around the bottom-left origin with GSAP ScrollTrigger `scrub`; each preceding module pins with `pinSpacing: false`. Reversing scroll automatically reverses the handoff.
+- Reduced-motion users receive unrotated modules and directional active-scene updates without scrub animation.
+- The duplicate overview/KPI rendering remains removed and all business handlers are unchanged.
+- Focused module-flow regression passes 6/6 after the correction.
 
 ### 3. Full-site visual system — complete
 
@@ -68,3 +69,15 @@ Run post-change CodeGraph, commit the verified source, register the clean Previe
 - Independent HTTP verification: `/health/live`, `/health/ready`, `/api/v1/meta/version` and Web shell all matched V5.7.9 / merge SHA; HSTS, strict CSP, DENY and `nosniff` were present.
 - `browser-harness` remains unavailable, so screenshot/browser-driven visual verification was not performed. Human Preview acceptance is still required.
 - Staging, Production and Production D1 were not modified. Public version remains V5.7.9.
+
+## Preview feedback correction gate
+
+- Corrected interaction: continuous native bidirectional Story Scroll; no gesture threshold, second-boundary prompt or fixed transition overlay.
+- Final focused module-flow regression: 6/6 passed.
+- Final complete Web regression: 121/121 passed.
+- Root typecheck passed across contracts, database, Worker and API.
+- Production Web build passed with 123 transformed modules.
+- Workflow policy validation passed all 88 policies across 5 workflows.
+- Post-change CodeGraph is up to date at 189 files / 2,283 nodes / 7,667 edges; Markdown and JSON evidence remain explicit unsupported-language exceptions.
+- Root build is intentionally deferred until the clean functional commit is created and the unchanged V5.7.9 Preview source fingerprint is re-registered.
+- No cloud deployment or database mutation has occurred in this correction stage.

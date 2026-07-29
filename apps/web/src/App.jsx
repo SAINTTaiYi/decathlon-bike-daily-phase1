@@ -8,8 +8,6 @@ import StatusToast from './components/StatusToast.jsx'
 import { APP_VERSION } from './data/releaseNotes.js'
 import { buildClosingReportModel, exportClosingReportImage } from './utils/closingReportImage.js'
 import ActionDock from './components/lookbook/ActionDock.jsx'
-import ModuleBoundaryHint from './components/workshop/ModuleBoundaryHint.jsx'
-import ModuleFlowTransition from './components/workshop/ModuleFlowTransition.jsx'
 import WorkshopShellHeader from './components/workshop/WorkshopShellHeader.jsx'
 import WorkshopOverviewPage from './components/overview/WorkshopOverviewPage.jsx'
 import AttachmentDialog from './components/dialogs/AttachmentDialog.jsx'
@@ -31,7 +29,7 @@ import { REPAIR_POS_REMINDER_STATUS } from './data/repairRecord.js'
 import { sceneById } from './data/lookbookScenes.js'
 import useAuth from './hooks/useAuth.js'
 import useRemoteClosingWorkflow from './hooks/useRemoteClosingWorkflow.js'
-import useModuleFlow from './hooks/useModuleFlow.js'
+import useStoryScroll from './hooks/useStoryScroll.js'
 import useMotionSystem from './hooks/useMotionSystem.js'
 import useWorkspaceMotion from './hooks/useWorkspaceMotion.js'
 import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
@@ -42,6 +40,22 @@ import ResaleScene from './scenes/ResaleScene.jsx'
 import SalesScene from './scenes/SalesScene.jsx'
 
 const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员' }
+
+function StoryScrollPanel({ active, children, className = '', sceneId }) {
+  return (
+    <section
+      className={`workshop-module-panel ${className}`.trim()}
+      id={`module-${sceneId}`}
+      tabIndex="-1"
+      data-workspace-module="true"
+      data-module-flow-section="true"
+      data-scene-id={sceneId}
+      data-active={active ? 'true' : undefined}
+    >
+      <div className="workshop-module-flow-inner" data-module-flow-inner="true">{children}</div>
+    </section>
+  )
+}
 
 export default function App() {
   useVisualViewportMetrics()
@@ -103,8 +117,9 @@ export default function App() {
     onComplete: completeWorkspaceAssembly
   })
   const taskFocused = Boolean(taskInputFocused || menuOpen || logOpen || permanentHistoryOpen || confirmOpen || kpiOpen || migrationOpen || governanceOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
-  const { activeScene, transition, boundaryHint, jumpTo, completeTransition } = useModuleFlow({
+  const { activeScene, jumpTo } = useStoryScroll({
     enabled: introDone && workflow.hydrated && !workspaceLaunching,
+    rootRef: workspaceRootRef,
     quiet: taskFocused
   })
 
@@ -462,13 +477,7 @@ export default function App() {
     )
   }
 
-  const jumpFromOverview = (sceneId) => {
-    if (sceneId === activeScene) {
-      window.scrollTo({ top: 0, behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
-      return
-    }
-    jumpTo(sceneId, { origin: 'navigation' })
-  }
+  const jumpFromOverview = (sceneId) => jumpTo(sceneId)
 
   const editorConfig = recordEditor
     ? recordEditor.scene === 'pickup' && inferPickupSource(recordEditor.record) === 'repair'
@@ -497,8 +506,8 @@ export default function App() {
         </div>
         {!online ? <p className="workshop-global-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据；恢复网络后才能修改。</p> : null}
         <main className="workshop-shell" id="main-content" tabIndex="-1" data-workspace-layer="structure">
-          <div className="workshop-module-stack" data-workspace-layer="focus">
-            <section className="workshop-module-panel workshop-overview-panel" id="module-pulse" tabIndex="-1" data-workspace-module="true" data-active={activeScene === 'pulse' ? 'true' : undefined} hidden={activeScene !== 'pulse'} inert={activeScene !== 'pulse' ? '' : undefined} aria-hidden={activeScene !== 'pulse' ? 'true' : undefined}>
+          <div className="workshop-module-stack" data-workspace-layer="focus" data-module-flow-stack="true">
+            <StoryScrollPanel sceneId="pulse" active={activeScene === 'pulse'} className="workshop-overview-panel">
               <span className="closing-summary-anchor" id="closing-summary-anchor" aria-hidden="true" />
               <WorkshopOverviewPage
                 workflow={workflow}
@@ -519,12 +528,12 @@ export default function App() {
                 onAddPickup={() => setRecordEditor({ scene: 'pickup', record: null })}
                 onEditPickup={(record) => setRecordEditor({ scene: 'pickup', record })}
               />
-            </section>
-            <section className="workshop-module-panel" id="module-pickup" tabIndex="-1" data-workspace-module="true" data-active={activeScene === 'pickup' ? 'true' : undefined} hidden={activeScene !== 'pickup'} inert={activeScene !== 'pickup' ? '' : undefined} aria-hidden={activeScene !== 'pickup' ? 'true' : undefined}><PickupScene {...recordProps('pickup')} /></section>
-            <section className="workshop-module-panel" id="module-poster" tabIndex="-1" data-workspace-module="true" data-active={activeScene === 'poster' ? 'true' : undefined} hidden={activeScene !== 'poster'} inert={activeScene !== 'poster' ? '' : undefined} aria-hidden={activeScene !== 'poster' ? 'true' : undefined}><OpeningScene {...recordProps('poster')} /></section>
-            <section className="workshop-module-panel" id="module-repair" tabIndex="-1" data-workspace-module="true" data-active={activeScene === 'repair' ? 'true' : undefined} hidden={activeScene !== 'repair'} inert={activeScene !== 'repair' ? '' : undefined} aria-hidden={activeScene !== 'repair' ? 'true' : undefined}><RepairScene {...recordProps('repair')} /></section>
-            <section className="workshop-module-panel" id="module-resale" tabIndex="-1" data-workspace-module="true" data-active={activeScene === 'resale' ? 'true' : undefined} hidden={activeScene !== 'resale'} inert={activeScene !== 'resale' ? '' : undefined} aria-hidden={activeScene !== 'resale' ? 'true' : undefined}><ResaleScene {...recordProps('resale')} /></section>
-            <section className="workshop-module-panel" id="module-sales" tabIndex="-1" data-workspace-module="true" data-active={activeScene === 'sales' ? 'true' : undefined} hidden={activeScene !== 'sales'} inert={activeScene !== 'sales' ? '' : undefined} aria-hidden={activeScene !== 'sales' ? 'true' : undefined}><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></section>
+            </StoryScrollPanel>
+            <StoryScrollPanel sceneId="pickup" active={activeScene === 'pickup'}><PickupScene {...recordProps('pickup')} /></StoryScrollPanel>
+            <StoryScrollPanel sceneId="poster" active={activeScene === 'poster'}><OpeningScene {...recordProps('poster')} /></StoryScrollPanel>
+            <StoryScrollPanel sceneId="repair" active={activeScene === 'repair'}><RepairScene {...recordProps('repair')} /></StoryScrollPanel>
+            <StoryScrollPanel sceneId="resale" active={activeScene === 'resale'}><ResaleScene {...recordProps('resale')} /></StoryScrollPanel>
+            <StoryScrollPanel sceneId="sales" active={activeScene === 'sales'}><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></StoryScrollPanel>
           </div>
           <footer className="closing-footer workshop-footer">
             <div className="footer-identity"><span>{currentStore?.storeName || 'ACTIVE USER'} · {roleLabels[role]}</span><strong>{currentUser}</strong></div>
@@ -553,9 +562,7 @@ export default function App() {
         <KpiDialog open={kpiOpen} onClose={() => setKpiOpen(false)} values={workflow.kpi} savedAt={workflow.kpiSavedAt} onSave={workflow.saveKpi} onClear={workflow.clearKpi} onNotify={setToast} />
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
         {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={activeScene} onJump={jumpFromOverview} closedAt={workflow.closedAt} /></div> : null}
-        <ModuleBoundaryHint hint={boundaryHint} />
       </div>
-      <ModuleFlowTransition transition={transition} onComplete={completeTransition} />
       {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button></div> : null}
       <ReportImageDialog
         open={Boolean(reportImage?.objectUrl)}

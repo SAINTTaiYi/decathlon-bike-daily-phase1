@@ -61,7 +61,6 @@ body {
   color: var(--ops-text);
   font-family: var(--ops-body);
 }
-body.module-transitioning { overflow: hidden; touch-action: none; }
 :focus-visible { outline: 2px solid var(--ops-yellow); outline-offset: 3px; }
 ::selection { background: var(--ops-yellow); color: var(--ops-black); }
 button, input, textarea, select { font-family: inherit; letter-spacing: 0; }
@@ -176,14 +175,37 @@ button:disabled { opacity: .48; }
   width: min(100%, 1180px);
   min-height: calc(100dvh - var(--ops-header-height));
   margin-inline: auto;
-  padding: 12px 12px var(--dock-space);
+  padding: 12px 12px 0;
   background: var(--ops-page);
 }
-.workshop-module-stack { min-height: 52dvh; }
-.workshop-module-panel { min-width: 0; outline: none; }
-.workshop-module-panel[hidden] { display: none !important; }
-.workshop-module-panel > .look-section,
-.workshop-module-panel > .pickup-look {
+.workshop-module-stack {
+  position: relative;
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+.workshop-module-panel {
+  position: relative;
+  min-width: 0;
+  min-height: calc(100dvh - var(--ops-header-height) - 12px);
+  overflow-x: clip;
+  outline: none;
+  background: var(--ops-page);
+}
+.workshop-module-flow-inner {
+  position: relative;
+  width: 100%;
+  min-height: calc(100dvh - var(--ops-header-height) - 12px);
+  padding-bottom: var(--dock-space);
+  overflow-x: clip;
+  transform-origin: bottom left;
+  will-change: transform;
+  background: var(--ops-page);
+  box-shadow: 0 -1px 0 var(--ops-line), 0 -22px 44px rgb(39 34 24 / .07);
+}
+.workshop-module-panel:first-child .workshop-module-flow-inner { box-shadow: none; }
+.workshop-module-panel[data-active='true'] .workshop-module-flow-inner { background: var(--ops-page); }
+.workshop-module-flow-inner > .look-section,
+.workshop-module-flow-inner > .pickup-look {
   min-height: auto;
   margin: 0;
   padding: 0;
@@ -220,87 +242,7 @@ button:disabled { opacity: .48; }
 .ops-brand-header,
 .ops-store-context { display: none !important; }
 
-/* Story-scroll-inspired handoff: the sole high-salience motion. */
-.module-flow-transition {
-  position: fixed;
-  inset: 0;
-  z-index: 220;
-  overflow: hidden;
-  background: var(--ops-page);
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-.module-flow-chapter {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: 28px;
-  padding: max(28px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
-  background: var(--ops-page);
-  color: var(--ops-black);
-}
-.module-flow-chapter-to { background: var(--ops-black); color: var(--ops-text-inverse); }
-.module-flow-chapter-mark { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.module-flow-chapter-mark span {
-  font-family: var(--ops-display);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: .04em;
-}
-.module-flow-chapter-to .module-flow-chapter-mark { color: var(--ops-yellow); }
-.module-flow-chapter-copy { align-self: center; display: grid; gap: 4px; }
-.module-flow-chapter-copy small {
-  color: var(--ops-yellow-pressed);
-  font-family: var(--ops-display);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: .08em;
-}
-.module-flow-chapter-to .module-flow-chapter-copy small { color: var(--ops-yellow); }
-.module-flow-chapter-copy strong {
-  max-width: 9ch;
-  font-family: var(--ops-display);
-  font-size: 52px;
-  font-weight: 700;
-  line-height: .82;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-.module-flow-chapter-copy span { font-size: 22px; font-weight: 800; }
-.module-flow-progress {
-  display: block;
-  width: 100%;
-  height: 7px;
-  border-radius: 99px;
-  background: var(--ops-yellow);
-  box-shadow: 0 0 18px var(--ops-yellow-glow);
-}
-.module-boundary-hint {
-  position: fixed;
-  left: 50%;
-  bottom: calc(var(--ops-dock-height) + 18px + env(safe-area-inset-bottom));
-  z-index: 88;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: max-content;
-  max-width: calc(100% - 24px);
-  padding: 9px 13px;
-  border-radius: var(--ops-radius);
-  background: var(--ops-black);
-  color: var(--ops-text-inverse);
-  box-shadow: 0 12px 34px rgb(12 14 12 / .2);
-  transform: translateX(-50%);
-  animation: module-hint-in 180ms ease-out both;
-}
-.module-boundary-hint[data-direction='previous'] > svg { transform: rotate(180deg); }
-.module-boundary-hint > svg { color: var(--ops-yellow); }
-.module-boundary-hint > span { display: grid; }
-.module-boundary-hint small { color: var(--ops-yellow); font-family: var(--ops-display); font-size: 10px; font-weight: 700; }
-.module-boundary-hint strong { font-size: 13px; }
-@keyframes module-hint-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+/* Story Scroll module handoff: pinned layers scrub in both directions. */
 
 /* Shared moving navigation indicator, adapted from animated tab patterns. */
 .look-dock {
@@ -831,14 +773,14 @@ button:disabled { opacity: .48; }
 @media (min-width: 840px) {
   .boot-title-word { font-size: 112px; }
   .workshop-shell { padding-inline: 28px; }
-  .workshop-module-panel:not(.workshop-overview-panel) > .look-section {
+  .workshop-module-panel:not(.workshop-overview-panel) .workshop-module-flow-inner > .look-section {
     display: grid;
     grid-template-columns: minmax(220px,280px) minmax(0,1fr);
     align-items: start;
     gap: 28px;
   }
-  .workshop-module-panel:not(.workshop-overview-panel) > .look-section > .scene-title { position: sticky; top: calc(var(--ops-header-height) + 18px); grid-column: 1; }
-  .workshop-module-panel:not(.workshop-overview-panel) > .look-section > :not(.scene-title) { grid-column: 2; }
+  .workshop-module-panel:not(.workshop-overview-panel) .workshop-module-flow-inner > .look-section > .scene-title { position: sticky; top: calc(var(--ops-header-height) + 18px); grid-column: 1; }
+  .workshop-module-panel:not(.workshop-overview-panel) .workshop-module-flow-inner > .look-section > :not(.scene-title) { grid-column: 2; }
   .pickup-operations-section { display: block !important; }
   .record-row { padding: 16px !important; }
   .record-body { grid-template-columns: minmax(0,1fr) minmax(180px,220px); }
@@ -869,7 +811,10 @@ button:disabled { opacity: .48; }
 
 @media (prefers-reduced-motion: reduce) {
   .dock-active-indicator { transition: none; }
-  .module-boundary-hint,
+  .workshop-module-flow-inner {
+    transform: none !important;
+    will-change: auto;
+  }
   .dialog-panel[data-dialog-panel] { animation: none; }
 }
 

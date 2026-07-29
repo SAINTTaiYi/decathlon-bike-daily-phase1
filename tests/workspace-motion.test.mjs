@@ -5,8 +5,7 @@ import { readFileSync } from 'node:fs'
 const app = readFileSync(new URL('../apps/web/src/App.jsx', import.meta.url), 'utf8')
 const launch = readFileSync(new URL('../apps/web/src/hooks/useWorkspaceMotion.js', import.meta.url), 'utf8')
 const motion = readFileSync(new URL('../apps/web/src/hooks/useMotionSystem.js', import.meta.url), 'utf8')
-const flow = readFileSync(new URL('../apps/web/src/hooks/useModuleFlow.js', import.meta.url), 'utf8')
-const transition = readFileSync(new URL('../apps/web/src/components/workshop/ModuleFlowTransition.jsx', import.meta.url), 'utf8')
+const storyScroll = readFileSync(new URL('../apps/web/src/hooks/useStoryScroll.js', import.meta.url), 'utf8')
 const styles = readFileSync(new URL('../apps/web/src/styles/workshop-system.css', import.meta.url), 'utf8')
 
 function sourceOf(path) {
@@ -30,35 +29,34 @@ test('工作台入场可跳过并在完成后把焦点交回主内容', () => {
   assert.doesNotMatch(launch, /perspective|rotationX|blur/u)
 })
 
-test('六模块保持挂载但仅暴露当前模块，本地表单和列表状态不会因切换卸载', () => {
+test('六模块持续挂载并全部进入文档流，本地表单和列表状态不会因切换卸载', () => {
   for (const id of ['pulse', 'pickup', 'poster', 'repair', 'resale', 'sales']) {
-    assert.match(app, new RegExp(`id="module-${id}"`, 'u'))
+    assert.match(app, new RegExp(`<StoryScrollPanel sceneId=\"${id}\"`, 'u'))
   }
-  assert.match(app, /hidden=\{activeScene !== 'pickup'\}/u)
-  assert.match(app, /inert=\{activeScene !== 'repair'/u)
-  assert.match(app, /aria-hidden=\{activeScene !== 'sales'/u)
-  assert.doesNotMatch(app, /useActiveScene/u)
+  assert.match(app, /id=\{`module-\$\{sceneId\}`\}/u)
+  assert.match(app, /data-module-flow-stack="true"/u)
+  assert.match(app, /data-module-flow-section="true"/u)
+  assert.doesNotMatch(app, /hidden=\{activeScene|inert=\{activeScene|aria-hidden=\{activeScene/u)
 })
 
-test('模块边界手势保持内部原生滚动并要求二次确认', () => {
-  assert.match(flow, /scrollableAncestorCanMove/u)
-  assert.match(flow, /atDocumentBoundary/u)
-  assert.match(flow, /WHEEL_THRESHOLD = 72/u)
-  assert.match(flow, /TOUCH_THRESHOLD = 64/u)
-  assert.match(flow, /boundaryHint\?\.target === targetId/u)
-  assert.match(flow, /passive: false/u)
-  assert.match(flow, /PageDown/u)
-  assert.match(flow, /PageUp/u)
-  assert.match(styles, /touch-action: pan-y/u)
+test('Story Scroll 使用原生连续滚动，不拦截滚轮、触摸或翻页键', () => {
+  assert.match(storyScroll, /ScrollTrigger/u)
+  assert.match(storyScroll, /scrub: true/u)
+  assert.doesNotMatch(storyScroll, /addEventListener\(['"](?:wheel|touchstart|touchend|keydown)/u)
+  assert.doesNotMatch(storyScroll, /preventDefault|WHEEL_THRESHOLD|TOUCH_THRESHOLD|boundaryHint/u)
+  assert.doesNotMatch(styles, /module-transitioning|module-boundary-hint|module-flow-transition/u)
 })
 
-test('Story Scroll 只影响模块交接并提供 reduced-motion 淡出', () => {
-  assert.match(transition, /module-flow-chapter/u)
-  assert.match(transition, /yPercent: direction > 0 \? 100 : -100/u)
-  assert.match(transition, /module-flow-progress/u)
-  assert.match(transition, /transition\.reduced/u)
-  assert.match(transition, /duration: \.12/u)
-  assert.doesNotMatch(transition, /ScrollTrigger/u)
+test('模块交接按参考从左下角旋转并由滚动进度双向回放', () => {
+  assert.match(storyScroll, /rotation: 30/u)
+  assert.match(storyScroll, /rotation: 0/u)
+  assert.match(storyScroll, /transformOrigin: 'bottom left'/u)
+  assert.match(storyScroll, /start: 'top bottom'/u)
+  assert.match(storyScroll, /end: 'top 25%'/u)
+  assert.match(storyScroll, /pin: true/u)
+  assert.match(storyScroll, /pinSpacing: false/u)
+  assert.match(storyScroll, /onLeaveBack:/u)
+  assert.match(storyScroll, /prefers-reduced-motion: reduce/u)
 })
 
 test('模块内部 reveal 仅使用短距离位移和透明度，不恢复三维或模糊效果', () => {
