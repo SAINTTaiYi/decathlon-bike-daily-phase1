@@ -1,6 +1,6 @@
-# Decathlon Bike Ops · Daily Closing Lookbook
+# Decathlon Bike Ops · Daily Closing Workspace
 
-A database-backed bike-department closing and cross-day operations workspace. The interface keeps its mobile, black-and-white hard-edge product-lookbook language while a Fastify API, PostgreSQL transactions, real accounts, audit history, concurrency control, and private attachments support multi-user operation.
+A database-backed bike-department closing and cross-day operations workspace. Its interface follows the warm off-white, black, and signal-yellow operational design baseline in [`DESIGN.md`](./DESIGN.md), while a Fastify API, PostgreSQL transactions, real accounts, audit history, concurrency control, and private attachments support multi-user operation.
 
 > This project does not connect to official Decathlon business APIs. Store colleagues enter data manually. PostgreSQL is the business source of truth; the browser keeps only runtime session state, the latest in-memory snapshot, and an optional explicit legacy-v5 import source.
 
@@ -68,7 +68,7 @@ The version endpoints report package version, checked-out Git SHA, schema versio
 
 ```text
 apps/
-  web/                  Vite/React lookbook UI
+  web/                  Vite/React operational workspace UI
   api/                  Fastify auth/business/media API + EdgeOne adapter
 cloud-functions/        EdgeOne same-origin /api and /health entrypoints
 packages/
