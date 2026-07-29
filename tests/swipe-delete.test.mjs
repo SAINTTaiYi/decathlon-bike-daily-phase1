@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 const ledger = readFileSync(new URL('../apps/web/src/components/lookbook/RecordLedger.jsx', import.meta.url), 'utf8')
 const app = readFileSync(new URL('../apps/web/src/App.jsx', import.meta.url), 'utf8')
 const motion = readFileSync(new URL('../apps/web/src/hooks/useMotionSystem.js', import.meta.url), 'utf8')
-const styles = readFileSync(new URL('../apps/web/src/styles/refinement.css', import.meta.url), 'utf8')
+const styles = readFileSync(new URL('../apps/web/src/styles/workshop-system.css', import.meta.url), 'utf8')
 
 test('可删除台账仅在未完成且未锁定时采用左滑删除容器，卡片内不保留删除按钮', () => {
   assert.match(ledger, /const deletable = !resolved && !closedAt/)
@@ -36,8 +36,9 @@ test('删除无二次确认，成功走电子退场，失败恢复原卡片与�
 
 test('左滑表面与空间系统分层，避免与卡片倾斜和批量滚动 reveal 争抢 transform', () => {
   assert.match(ledger, /className="record-swipe-surface"/)
-  assert.match(styles, /contained destructive control sits in a quiet tray/)
-  assert.match(motion, /\[data-swipe-delete\]/)
+  assert.match(styles, /Gesture separation and confirmed completion feedback remain functional/)
+  assert.doesNotMatch(motion, /data-swipe-delete/)
+  assert.doesNotMatch(motion, /rotationX|rotationY|perspective/)
 })
 
 
@@ -48,7 +49,7 @@ test('所有主操作与编辑操作在同一行，编辑始终位于左侧、�
   assert.match(styles, /\.record-actions \.record-edit-action \{ order: 0; \}/)
   assert.match(styles, /\.record-actions \.record-primary-action \{\s+order: 1;/)
   assert.match(ledger, /data-has-primary=\{primaryAction \? 'true' : undefined\}/)
-  assert.match(styles, /\.record-actions\[data-has-primary='true'\] \.record-primary-action \{ flex: 1 1 calc\(50% - \.15rem\) !important; \}/)
+  assert.match(styles, /\.record-actions\[data-has-primary='true'\] \.record-primary-action \{ flex: 1 1 calc\(50% - 4px\) !important; \}/)
 })
 
 const workflow = readFileSync(new URL('../apps/web/src/hooks/useRemoteClosingWorkflow.js', import.meta.url), 'utf8')

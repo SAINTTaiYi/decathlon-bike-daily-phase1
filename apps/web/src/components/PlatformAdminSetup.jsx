@@ -34,7 +34,7 @@ export default function PlatformAdminSetup({ token, onComplete }) {
   }
 
   return (
-    <main className="registration-shell" data-ark-theme="endfield" data-ark-depth="maximal">
+    <main className="registration-shell">
       <form className="registration-panel" onSubmit={submit} noValidate>
         <header><span>ONE-TIME PLATFORM SETUP</span><h1>初始化 CHU13</h1><p>CHU13 是全国目录和角色提权的唯一平台管理员。此链接只能成功执行一次。</p></header>
         <label className="field-row"><span>Profile</span><input value="CHU13" readOnly aria-readonly="true" /></label>

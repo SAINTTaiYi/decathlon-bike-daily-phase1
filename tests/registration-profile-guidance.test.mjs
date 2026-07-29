@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 const registrationWizard = readFileSync(new URL('../apps/web/src/components/RegistrationWizard.jsx', import.meta.url), 'utf8')
-const endfieldStyles = readFileSync(new URL('../apps/web/src/styles/endfield.css', import.meta.url), 'utf8')
+const workshopStyles = readFileSync(new URL('../apps/web/src/styles/workshop-system.css', import.meta.url), 'utf8')
 
 test('注册 Profile 字段明确要求填写真实公司 Profile，并说明治理流程影响', () => {
   assert.match(registrationWizard, /placeholder="请输入真实 Profile"/)
@@ -13,5 +13,5 @@ test('注册 Profile 字段明确要求填写真实公司 Profile，并说明治
 })
 
 test('Profile 辅助说明沿用注册界面的可读文本样式', () => {
-  assert.match(endfieldStyles, /\.registration-profile-help \{ max-width: 52ch; color: var\(--ink-soft\); font-size: \.8125rem; line-height: 1\.55; text-wrap: pretty; \}/)
+  assert.match(workshopStyles, /\.registration-profile-help \{ color: var\(--ops-text-muted\); \}/)
 })

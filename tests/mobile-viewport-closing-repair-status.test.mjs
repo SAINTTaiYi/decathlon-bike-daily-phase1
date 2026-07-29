@@ -22,7 +22,7 @@ test('添加车辆对话框和固定底栏会使用动态可视视口避开浏�
     read('apps/web/src/App.jsx'),
     read('apps/web/src/hooks/useVisualViewportMetrics.js'),
     read('apps/web/src/components/dialogs/AppDialog.jsx'),
-    read('apps/web/src/styles/refinement.css')
+    read('apps/web/src/styles/workshop-system.css')
   ])
   assert.match(app, /useVisualViewportMetrics/u)
   assert.match(hook, /window\.visualViewport/u)
@@ -32,7 +32,7 @@ test('添加车辆对话框和固定底栏会使用动态可视视口避开浏�
   assert.match(refinement, /touch-action: pan-y/u)
   assert.match(refinement, /overscroll-behavior: contain/u)
   assert.match(refinement, /inset:[\s\S]*var\(--visual-viewport-top\)[\s\S]*env\(safe-area-inset-right\)[\s\S]*var\(--visual-viewport-bottom\)[\s\S]*env\(safe-area-inset-left\)/u)
-  assert.match(refinement, /bottom: calc\(max\(\.6rem, env\(safe-area-inset-bottom\)\) \+ var\(--visual-viewport-bottom\)\)/u)
+  assert.match(refinement, /bottom: calc\(max\(8px,env\(safe-area-inset-bottom\)\) \+ var\(--visual-viewport-bottom\)\)/u)
   assert.match(refinement, /padding-bottom: calc\(var\(--dock-space\) \+ var\(--visual-viewport-bottom\)\)/u)
 })
 

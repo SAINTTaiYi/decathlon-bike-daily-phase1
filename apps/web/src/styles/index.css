@@ -1,4 +1,3 @@
-@import './noto-serif-sc.css';
 @import './tokens.css';
 @import './base.css';
 @import './boot.css';
@@ -7,8 +6,8 @@
 @import './motion.css';
 @import './responsive.css';
 @import './refinement.css';
-@import './endfield.css';
-@import './desktop-endfield.css';
 @import './mobile-overview.css';
 
 @import './pickup-ledger.css';
+
+@import './workshop-system.css';

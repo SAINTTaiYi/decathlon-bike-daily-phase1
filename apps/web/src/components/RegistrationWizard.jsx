@@ -90,7 +90,7 @@ export default function RegistrationWizard({ onBack, onComplete }) {
   }
 
   return (
-    <main className="registration-shell" data-ark-theme="endfield" data-ark-depth="maximal">
+    <main className="registration-shell">
       <section className="registration-panel" aria-labelledby="registration-title">
         <header>
           <span>COMPANY ACCESS · 门店自助注册</span>

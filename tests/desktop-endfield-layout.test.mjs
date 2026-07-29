@@ -2,19 +2,16 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 
-const desktopStylesheet = new URL('../apps/web/src/styles/desktop-endfield.css', import.meta.url)
+const stylesheet = new URL('../apps/web/src/styles/workshop-system.css', import.meta.url)
 const stylesheetIndex = new URL('../apps/web/src/styles/index.css', import.meta.url)
 
-test('桌面 Endfield 布局只使用既有 1080px 断点且在 Endfield 层之后加载', async () => {
-  const [desktopCss, indexCss] = await Promise.all([
-    readFile(desktopStylesheet, 'utf8'),
-    readFile(stylesheetIndex, 'utf8')
-  ])
-
-  assert.equal((desktopCss.match(/@media \(min-width: 1080px\)/gu) || []).length, 1)
-  assert.doesNotMatch(desktopCss, /@media \(max-width:/u)
-  assert.match(desktopCss, /\.workspace-pointer-plane/u)
-  assert.match(desktopCss, /\.look-section/u)
-  assert.match(desktopCss, /\.record-actions/u)
-  assert.match(indexCss, /@import '\.\/endfield\.css';\n@import '\.\/desktop-endfield\.css';/u)
+test('桌面与平板使用同一 Workshop 主题并按断点重排，不加载第二套 Endfield 主题', async () => {
+  const [css, indexCss] = await Promise.all([readFile(stylesheet, 'utf8'), readFile(stylesheetIndex, 'utf8')])
+  assert.match(css, /@media \(min-width: 600px\)/u)
+  assert.match(css, /@media \(min-width: 840px\)/u)
+  assert.match(css, /@media \(min-width: 1200px\)/u)
+  assert.match(css, /grid-template-columns: minmax\(220px,280px\) minmax\(0,1fr\)/u)
+  assert.match(css, /\.record-actions/u)
+  assert.match(indexCss, /@import '\.\/workshop-system\.css';/u)
+  assert.doesNotMatch(indexCss, /endfield\.css|desktop-endfield\.css/u)
 })

@@ -6,7 +6,7 @@ const app = readFileSync(new URL('../apps/web/src/App.jsx', import.meta.url), 'u
 const ledger = readFileSync(new URL('../apps/web/src/components/lookbook/RecordLedger.jsx', import.meta.url), 'utf8')
 const pickupDialog = readFileSync(new URL('../apps/web/src/components/dialogs/PickupConfirmDialog.jsx', import.meta.url), 'utf8')
 const closingDialog = readFileSync(new URL('../apps/web/src/components/dialogs/ConfirmClosingDialog.jsx', import.meta.url), 'utf8')
-const styles = readFileSync(new URL('../apps/web/src/styles/refinement.css', import.meta.url), 'utf8')
+const styles = readFileSync(new URL('../apps/web/src/styles/workshop-system.css', import.meta.url), 'utf8')
 
 test('所有记录业务主操作共享确认中状态与单次远端确认守卫', () => {
   assert.match(app, /const \[primaryProcessingId, setPrimaryProcessingId\]/)

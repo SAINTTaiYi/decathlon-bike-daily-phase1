@@ -3,8 +3,10 @@ import { lookbookScenes } from '../../data/lookbookScenes.js'
 const navEnglish = { pulse: 'OVERVIEW', pickup: 'PENDING', poster: 'OTHER', repair: 'REPAIR', resale: 'USED', sales: 'SALES' }
 
 export default function ActionDock({ activeScene, onJump, closedAt }) {
+  const activeIndex = Math.max(0, lookbookScenes.findIndex(({ id }) => id === activeScene))
   return (
-    <nav className="look-dock" aria-label="全部日报模块" data-motion="dock">
+    <nav className="look-dock" aria-label="全部日报模块" data-motion="dock" style={{ '--dock-active-index': activeIndex }}>
+      <span className="dock-active-indicator" aria-hidden="true" />
       <ul>
         {lookbookScenes.map(({ id, cn, dock, NavIcon }) => (
           <li key={id}>
