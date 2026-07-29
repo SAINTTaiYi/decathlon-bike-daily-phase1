@@ -30,7 +30,7 @@
 - Functional policy checkpoint: `3d7495d54ab6ec098be1dfc07d49dd10575f29db` (`feat(release): govern Preview and Production versions`).
 - Clean-commit Preview-path verification passed at that SHA: `pnpm version:preview` retained V5.7.8 and bound the 323-file fingerprint to the committed SHA; standard `pnpm check:version` and `pnpm build` passed.
 - Negative Production-path verification passed: `pnpm check:version -- --mode production` rejected the Preview fingerprint and missing `formal-release.json` before any deployment mutation.
-- `code/index.json` was audited and intentionally left unchanged: it is an unreferenced legacy static snapshot from V5.2.7, not a runtime, CI, or deployment source of truth.
+- The unreferenced V5.2.7 `code/index.json` static snapshot was removed during the 2026-07-29 design-document consolidation. It was never a runtime, CI, deployment, or current CodeGraph source of truth.
 
 ## Boundaries
 

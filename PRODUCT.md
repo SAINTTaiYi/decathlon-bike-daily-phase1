@@ -6,7 +6,7 @@ product
 
 ## Product purpose
 
-Decathlon Bike Ops 是自行车部门的移动端优先闭店与跨日业务工作台。它保留产品 Lookbook / editorial ops 的视觉语言，同时以数据库、真实账号和服务端业务规则支撑多设备协作。
+Decathlon Bike Ops 是自行车部门的移动端优先闭店与跨日业务工作台。它以数据库、真实账号和服务端业务规则支撑多设备协作；界面统一遵循 [`DESIGN.md`](./DESIGN.md) 的项目设计基准。
 
 系统不接入迪卡侬官方业务 API。销售、维修、待取、二手车和其它交接仍由门店同事人工录入，但 PostgreSQL 是正式业务事实源，浏览器不再以 localStorage 作为生产数据源。
 
@@ -116,22 +116,8 @@ Decathlon Bike Ops 是自行车部门的移动端优先闭店与跨日业务工�
 - Production 只有在 Staging 源码验收、main SHA/version 固定、环境审批、显式批准、加密导出和恢复演练确认后才允许发布。
 - Preview 仅供人工验收，不递增公开版本号。只有用户人工接受 Preview 后明确要求 Production，才汇总该 Preview 周期的变更写入更新公告、递增公开版本并进入现有 Staging/Production 门禁。
 
-## Brand personality
+## Design authority
 
-运动、机械、编辑感、黑白高对比、硬边、产品造型、运营票据、移动端原生。
-
-## Design principles
-
-1. **外层是产品 Lookbook，内层是可信运营工具。**
-2. **销售数据仍是唯一闭店要求。**
-3. **数据库与服务端规则是正式事实源。**
-4. **真实变化才操作，未变化事项自然跨日。**
-5. **权限、审计、并发和敏感数据保护不是前端装饰。**
-6. **离线只读，不伪装为已同步。**
-7. **一个页面只保留一个明确的闭店主操作。**
-8. **业务枚举使用一致的项目化选择控件。**
-9. **视觉升级不得破坏现有业务规则、可访问性和移动端触摸目标。**
-
-## Accessibility baseline
-
-WCAG 2.1 AA：语义 HTML、Skip Link、可见焦点、44px 触摸目标、原生 Dialog、Escape、焦点恢复、aria-live、错误/加载/空/离线状态，以及 `prefers-reduced-motion` 均为必需项。
+- [`DESIGN.md`](./DESIGN.md) 是项目唯一有效的视觉设计事实源。
+- 本文件只定义产品、业务、权限、数据和发布规则，不重复定义配色、字体、布局或交互风格。
+- 视觉修改不得破坏现有业务规则、可访问性、移动端触摸目标、审计与离线边界。

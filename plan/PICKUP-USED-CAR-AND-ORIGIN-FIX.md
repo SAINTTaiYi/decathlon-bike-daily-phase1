@@ -46,7 +46,7 @@
 
 ## Staging release-note completeness correction — 2026-07-25
 
-- User identified that the rendered V5.7.8 Staging announcement described only the Endfield visual system and omitted the accepted used-car workflow and formal-domain login-origin fix.
+- User identified that the rendered V5.7.8 Staging announcement omitted the accepted used-car workflow and formal-domain login-origin fix.
 - Authorized correction: amend the existing **V5.7.8** announcement only; **no public version bump** and no Production action.
 - `apps/web/src/data/releaseNotes.js` now states that: (1) a sold used car moves into Pending Pickup with the used-car identity retained; manual used-car Pending Pickup records plus card/report source labeling are supported; (2) both exact formal origins, `https://workshop.skin` and `https://www.workshop.skin`, pass login-origin validation while unknown/wildcard origins remain blocked.
 - Local source assertions passed: V5.7.8 was retained, required used-car and both formal-origin phrases were present, and `git diff --check` was clean.

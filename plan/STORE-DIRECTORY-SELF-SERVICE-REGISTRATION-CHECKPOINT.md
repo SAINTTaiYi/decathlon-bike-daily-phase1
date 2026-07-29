@@ -52,7 +52,7 @@
 
 - Profile 输入框 placeholder 改为 `请输入真实 Profile`，移除昵称式示例 `例如：小王`。
 - 增加持续可见的说明：Profile 必须与公司系统实际使用的身份一致；昵称或临时名称可能导致后续提权、门店转移等权限流程无法正常处理。
-- 输入框通过 `aria-describedby` 关联说明；说明沿用现有 Endfield 注册表单可读文本样式。
+- 输入框通过 `aria-describedby` 关联说明；说明使用当时既有的可读文本样式。当前及后续视觉实现统一遵循 [`DESIGN.md`](../DESIGN.md)。
 - 新增 `tests/registration-profile-guidance.test.mjs`，锁定文案、可访问性关联、旧提示移除与样式约束。
 
 ### 验证与部署证据
