@@ -148,3 +148,19 @@ This corrected Preview is now waiting for human acceptance. Do not deploy Produc
 ## Current acceptance-fix stage
 
 Local implementation and gates are complete. Next: functional/evidence commit, unchanged-version Preview fingerprint registration, clean root build, PR/Node 22 CI and protected Preview-only deployment. Production remains prohibited.
+
+## Chrome MCP acceptance corrected Preview evidence
+
+- Functional commit `481367d0f1d4f705be51bb1c555125fed5bf8aa2`; Preview fingerprint `a83fe4f52ecb67dbbe0c2da7684fc916d14eeee8d259325b1d8f1edf07b6872b` across 365 versioned files; V5.7.9 unchanged.
+- PR #98 passed Node 22 `secrets` and `verify` in run `30478399915`; ordinary merge/deployed SHA is `861e795773e3012912da45f9a9e35d15c63269e6`.
+- Post-merge CI `30478560899` succeeded.
+- Protected Preview-only workflow `30478746543` passed exact remote-head, Free/no-billing/Preview-only, frozen install, complete verification, Preview D1, deploy and identity gates.
+- Preview D1 had no migrations to apply. Staging, Production and Production D1 remain untouched.
+- Cloudflare Deployment `e7efdcae-c93f-4588-84f7-284dc70baf8a`; Worker Version `a965f15a-1e68-4a7f-845f-62701d8cd9c8` receives 100% traffic.
+- Independent HTTP verification confirmed V5.7.9 / merge SHA on live, ready, meta and Web; HTTP redirects with 308 and strict security/cache headers remain present.
+- Served CSS has 103 self-hosted font faces, zero forbidden runtime fallback declarations and zero Albert references.
+- Official Chrome DevTools MCP is installed and origin-restricted, but its Android ADB connection is currently absent. Mobile real-browser re-acceptance is blocked until one-time Wireless debugging reconnection; no prohibited fallback was used.
+
+## Current acceptance boundary
+
+The corrected Preview is deployed and independently verified at the protocol/assets level. Real-browser interaction acceptance is pending the one-time ADB reconnection and then human review. Do not deploy Production or change the public version without a separate explicit request after Preview acceptance.

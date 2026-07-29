@@ -49,3 +49,21 @@ The draft source edits existed before the interrupted task was recovered, so thi
 
 - No Preview redeployment, Staging, Production, Production D1, version, route, API contract, permission or business-data mutation has occurred in this fix stage.
 - Next: commit the verified source and evidence, register the unchanged-version Preview fingerprint, run the clean root build, open a PR, require Node 22 CI, and deploy only to Preview.
+
+## Preview delivery evidence
+
+- Functional source commit: `481367d0f1d4f705be51bb1c555125fed5bf8aa2`.
+- Preview fingerprint: `a83fe4f52ecb67dbbe0c2da7684fc916d14eeee8d259325b1d8f1edf07b6872b` across 365 versioned files; public version unchanged at V5.7.9.
+- PR: #98; Node 22 CI run `30478399915`, `secrets` and `verify` succeeded.
+- Ordinary merge/deployed identity: `861e795773e3012912da45f9a9e35d15c63269e6`.
+- Post-merge CI: `30478560899`, success.
+- Protected Preview workflow: `30478746543`, success.
+- Preview D1: no migrations to apply.
+- Cloudflare Deployment: `e7efdcae-c93f-4588-84f7-284dc70baf8a`.
+- Worker Version: `a965f15a-1e68-4a7f-845f-62701d8cd9c8`, 100% traffic.
+- Public endpoint and security verification: passed for live, ready, version metadata, Web shell, 308 HTTPS redirect, HSTS, strict CSP, DENY, `nosniff`, permissions/referrer policy and API `no-store, private`.
+- Online typography: 103 self-hosted font faces; zero forbidden system/generic declarations; zero Albert references in served HTML/CSS.
+
+## Remaining acceptance blocker
+
+The official Chrome DevTools MCP daemon is still running with the Preview URL allowlist, but `adb devices` is empty and `127.0.0.1:9222` is not available. One-time Android Wireless debugging reconnection is required before repeating the mobile Story Scroll, release-note dock clearance and console/network checks. No application browser or Android Accessibility fallback is permitted.
