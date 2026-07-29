@@ -113,3 +113,23 @@ Run post-change CodeGraph, commit the verified source, register the clean Previe
 ## Current stage
 
 The feedback correction and local gates are complete. Next: commit the verified source, register its clean Preview fingerprint without changing V5.7.9, run the clean root build, then open a PR for Node 22 CI and protected Preview-only deployment.
+
+## Header and scroll stability corrected Preview evidence
+
+- Functional source commit: `a01787d5b96dc9db68388841e290a953dee83c85`.
+- Implementation PR: #96; Node 22 CI run `30464450946`, `secrets` and `verify` both succeeded.
+- Actual ordinary merge and deployed identity: `d1540c201fc3bd29b6461756272f7b14bc3dba5d`.
+- Protected Preview-only workflow: `30464847355`, success; exact remote branch-head, Free/no-billing/Preview-only, frozen install, full test/typecheck/build, Preview D1 migration, deploy and identity gates passed.
+- Preview D1 reported `No migrations to apply`; Production D1 was not accessed or changed.
+- Cloudflare Deployment: `8ed722ca-59c7-412b-b131-b2a965ba449d`.
+- Worker Version: `c8296724-ccc0-432a-86d6-1476a23578cb` (#99), 100% Preview traffic.
+- Preview URL: `https://bike-ops-preview.geeklightonefish.workers.dev`.
+- Independent HTTP verification confirmed `/health/live`, `/health/ready`, `/api/v1/meta/version` and the Web shell at V5.7.9 / deployed merge SHA, with HSTS, strict CSP, DENY, `nosniff`, restricted permissions and API `no-store, private`; HTTP redirects to HTTPS with 308.
+- Online CSS contains 103 self-hosted font faces: 101 Noto definitions deduplicated by Vite into 98 Noto assets plus 2 Barlow assets. Runtime CSS has zero system or generic fallback declarations, and a representative Noto WOFF2 asset returns 200.
+- Post-deploy CodeGraph sync remains up to date at 189 files / 2,274 nodes / 7,654 edges. Markdown evidence and font binaries remain explicit unsupported-language/binary exceptions.
+- `browser-harness` remains unavailable. No prohibited application browser or Android accessibility fallback was used; human visual interaction acceptance is still required.
+- Staging, Production and Production D1 were not modified. Public version remains V5.7.9.
+
+## Acceptance boundary
+
+This corrected Preview is now waiting for human acceptance. Do not deploy Production or change the public version without a separate explicit request after Preview acceptance.
