@@ -199,3 +199,108 @@
 @media (prefers-reduced-motion: reduce) {
   .pickup-tools-area { transition: none; }
 }
+
+/* Preview feedback: stable pinning, line-free surfaces, diffuse signal light and repeated reveals. */
+.pickup-operations-section {
+  --pickup-glow: rgb(255 184 18 / .42);
+  border-top: 0;
+  --pickup-glow-soft: rgb(255 197 55 / .18);
+}
+.pickup-sticky-slot { position: relative; min-height: 64px; }
+.pickup-sticky-shell, .pickup-filter-sheet {
+  --pickup-page: var(--ops-page, #f7f5ef);
+  --pickup-card: var(--ops-card, #fffdf8);
+  --pickup-black: var(--ops-black, #0c0e0c);
+  --pickup-text: var(--ops-text, #0a0b0a);
+  --pickup-muted: var(--ops-text-muted, #55554f);
+  --pickup-yellow: var(--ops-yellow, #ffc31a);
+  --pickup-orange-wash: var(--ops-pickup-expanded, #fff1dc);
+  --pickup-glow: rgb(255 184 18 / .42);
+  --pickup-glow-soft: rgb(255 197 55 / .18);
+  font-family: var(--ops-body, var(--font-body));
+}
+.pickup-sticky-shell :is(button, input), .pickup-filter-sheet :is(button, input) { font: inherit; color: inherit; }
+.pickup-sticky-shell { position: relative; top: auto; z-index: 90; margin-inline: -12px; background: var(--pickup-page); }
+.pickup-sticky-shell[data-pinned='true'] {
+  position: fixed;
+  top: 0;
+  left: var(--pickup-sticky-left);
+  width: var(--pickup-sticky-width);
+  margin-inline: 0;
+  animation: pickup-header-pin 220ms cubic-bezier(.16, 1, .3, 1) both;
+}
+@keyframes pickup-header-pin { from { opacity: .92; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+.pickup-ledger :is(.pickup-search-field, .pickup-tool-row > button, .pickup-applied-filters span, .pickup-ledger-global-actions button, .pickup-card, .pickup-card-status b, .pickup-notification-buttons button, .pickup-card-actions button, .pickup-card-more summary, .pickup-card-error, .pickup-empty-state, .pickup-completed-today),
+.pickup-sticky-shell :is(.pickup-search-field, .pickup-tool-row > button, .pickup-applied-filters span),
+.pickup-filter-sheet :is(.pickup-sheet-tabs button, .pickup-sheet-options label, footer button) { border: 0; }
+.pickup-module-header, .pickup-tool-row, .pickup-filter-sheet > footer { background: color-mix(in srgb, var(--pickup-card) 94%, transparent); }
+.pickup-module-code { position: relative; isolation: isolate; box-shadow: 0 0 20px var(--pickup-glow), 0 0 44px var(--pickup-glow-soft); }
+.pickup-module-code::after { content: ''; position: absolute; z-index: -1; inset: -10px; background: radial-gradient(circle, var(--pickup-glow), transparent 68%); filter: blur(8px); opacity: .72; }
+.pickup-module-count b { text-shadow: 0 0 14px var(--pickup-glow); }
+.pickup-search-field, .pickup-tool-row > button { background: var(--pickup-card); box-shadow: 0 4px 14px rgb(64 55 34 / .055); }
+.pickup-tool-row > button[data-active='true'], .pickup-sheet-tabs button[aria-selected='true'] { background: var(--pickup-black); color: var(--pickup-yellow); box-shadow: 0 0 18px var(--pickup-glow), 0 8px 22px rgb(12 14 12 / .12); }
+.pickup-applied-filters span { background: #fff2cf; box-shadow: 0 0 14px var(--pickup-glow-soft); }
+.pickup-applied-filters button { text-decoration: none; }
+.pickup-ledger-global-actions button { box-shadow: 0 5px 16px rgb(64 55 34 / .07); }
+.pickup-ledger-global-actions button:last-child { box-shadow: 0 0 22px var(--pickup-glow), 0 7px 18px rgb(64 55 34 / .1); }
+.pickup-card-frame { background: transparent; opacity: 0; transform: translate3d(0, 28px, 0) scale(.985); }
+.pickup-card-frame[data-entering] { animation: pickup-card-enter 460ms cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes pickup-card-enter { from { opacity: 0; transform: translate3d(0, 28px, 0) scale(.985); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
+.pickup-card { background: var(--pickup-card); box-shadow: 0 8px 24px rgb(64 55 34 / .075); }
+.pickup-card[data-expanded='true'] { background: radial-gradient(circle at 78% 12%, rgb(255 195 26 / .32), transparent 34%), linear-gradient(145deg, #fff8e8, var(--pickup-orange-wash)); box-shadow: 0 0 30px var(--pickup-glow-soft), 0 10px 28px rgb(64 55 34 / .09); }
+.pickup-card-index { border-right: 0; }
+.pickup-card-status b { padding: 4px 7px; background: rgb(12 14 12 / .06); }
+.pickup-card-status b[data-repair='true'] { background: var(--pickup-black); color: var(--pickup-card); }
+.pickup-card[data-expanded='true'] .pickup-card-summary { min-height: 88px; padding-bottom: 6px; }
+
+.pickup-sticky-shell:not([data-tools-visible='true']) .pickup-tools-area { max-height: 0; opacity: 0; pointer-events: none; }
+.pickup-card[data-expanded='true'] .pickup-card-detail > section:first-child dl div:nth-child(-n + 2),
+.pickup-card[data-expanded='true'] .pickup-card-detail > section:nth-child(2) { display: none; }
+.pickup-card-detail { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 14px; padding: 4px 12px 12px; }
+.pickup-card-detail h4 { margin-bottom: 4px; font-size: 10px; }
+.pickup-card-detail dl { gap: 3px; }
+.pickup-card-detail dl div { grid-template-columns: 58px minmax(0, 1fr); gap: 5px; }
+.pickup-card-detail dt { font-size: 9px; }
+.pickup-card-detail dd { font-size: 10px; }
+.pickup-card-detail p { font-size: 10px; line-height: 14px; }
+.pickup-detail-wide, .pickup-card-error, .pickup-card-resolved, .pickup-card-actions { grid-column: 1 / -1; }
+.pickup-card-detail > .pickup-detail-wide:not(.pickup-notification-control) { grid-column: 2; grid-row: 1; align-self: start; }
+.pickup-notification-control { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.pickup-notification-control h4 { margin: 0; }
+.pickup-notification-buttons { gap: 4px; }
+.pickup-notification-buttons button { min-height: 34px; background: rgb(255 253 248 / .72); box-shadow: 0 3px 10px rgb(64 55 34 / .06); }
+.pickup-notification-buttons button[data-active='true'] { background: var(--pickup-black); color: var(--pickup-yellow); box-shadow: 0 0 14px var(--pickup-glow-soft); }
+.pickup-card-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.pickup-card-actions button, .pickup-card-more summary { min-height: 38px; background: rgb(255 253 248 / .58); box-shadow: 0 3px 10px rgb(64 55 34 / .055); }
+.pickup-card-actions .pickup-primary-action { grid-column: auto; background: var(--pickup-black); box-shadow: 0 0 18px var(--pickup-glow-soft); }
+.pickup-empty-state, .pickup-completed-today { box-shadow: 0 7px 22px rgb(64 55 34 / .065); }
+.pickup-completed-today > div button { border-top: 0; }
+.pickup-sheet-backdrop { overscroll-behavior: contain; touch-action: none; }
+.pickup-filter-sheet { background: var(--pickup-card); color: var(--pickup-text); touch-action: pan-y; }
+.pickup-sheet-handle { display: none; }
+.pickup-sheet-tabs button { background: rgb(12 14 12 / .04); }
+.pickup-sheet-options label { background: var(--pickup-page); box-shadow: 0 3px 12px rgb(64 55 34 / .055); }
+.pickup-filter-sheet > footer button { box-shadow: 0 4px 14px rgb(64 55 34 / .07); }
+.pickup-sheet-apply { box-shadow: 0 0 20px var(--pickup-glow) !important; }
+.pickup-sticky-shell :focus-visible, .pickup-filter-sheet :focus-visible { outline: 2px solid var(--pickup-yellow); outline-offset: 2px; }
+@media (min-width: 600px) {
+  .pickup-sticky-shell { margin-inline: 0; }
+  .pickup-card-detail { padding: 6px 16px 14px; }
+}
+@media (min-width: 840px) {
+  .pickup-filter-sheet { height: auto; max-height: min(82dvh, 700px); margin-right: auto; border-radius: 8px 8px 0 0; }
+  .pickup-sheet-backdrop { align-items: end; justify-items: stretch; }
+}
+@media (max-width: 374px) {
+  .pickup-card-detail { grid-template-columns: 1fr; padding-left: 10px; }
+  .pickup-detail-wide, .pickup-card-error, .pickup-card-resolved, .pickup-card-actions { grid-column: 1; }
+  .pickup-card-detail > .pickup-detail-wide:not(.pickup-notification-control) { grid-column: 1; grid-row: auto; }
+  .pickup-card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pickup-card-frame, .pickup-card-frame[data-entering] { opacity: 1; transform: none; animation: none; }
+  .pickup-sticky-shell[data-pinned='true'] { animation: none; }
+}
+@media (forced-colors: active) {
+  .pickup-ledger :is(.pickup-search-field, .pickup-tool-row > button, .pickup-card, .pickup-card-status b, .pickup-notification-buttons button, .pickup-card-actions button, .pickup-empty-state, .pickup-completed-today, .pickup-filter-sheet) { border: 1px solid CanvasText; box-shadow: none; }
+}

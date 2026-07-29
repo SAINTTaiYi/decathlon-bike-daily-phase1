@@ -37,3 +37,25 @@ test('待取卡片遵循暖纸、黑色结构、黄色信号和浅橙展开态',
   assert.match(styles, /\.pickup-card\[data-expanded='true'\] \{ background: var\(--pickup-orange-wash\); \}/u)
   assert.match(styles, /\.pickup-card-status b\[data-repair='true'\]/u)
 })
+
+test('Preview 反馈修复包含固定页头、body 抽屉、滚动锁定和重复进入动效', () => {
+  assert.match(component, /createPortal/u)
+  assert.match(component, /document\.body\.style\.position = 'fixed'/u)
+  assert.match(component, /focus\(\{ preventScroll: true \}\)/u)
+  assert.match(component, /className="pickup-sticky-slot"/u)
+  assert.match(component, /data-pinned/u)
+  assert.match(component, /new IntersectionObserver/u)
+  assert.match(component, /toggleAttribute\('data-entering', entry\.isIntersecting\)/u)
+  assert.match(styles, /\.pickup-sticky-shell\[data-pinned='true'\]/u)
+  assert.match(styles, /\.pickup-card-frame\[data-entering\]/u)
+  assert.match(styles, /@keyframes pickup-card-enter/u)
+})
+
+test('Preview 反馈视觉取消容器描边并采用局部橙黄弥散柔光和紧凑展开', () => {
+  assert.match(styles, /--pickup-glow:/u)
+  assert.match(styles, /\.pickup-ledger :is\([^)]+\),[\s\S]*\.pickup-sticky-shell :is\([^)]+\),[\s\S]*\.pickup-filter-sheet :is\([^)]+\) \{ border: 0; \}/u)
+  assert.match(styles, /\.pickup-module-code::after/u)
+  assert.match(styles, /\.pickup-card\[data-expanded='true'\][\s\S]*radial-gradient/u)
+  assert.match(styles, /\.pickup-card\[data-expanded='true'\] \.pickup-card-summary \{ min-height: 88px/u)
+  assert.match(styles, /\.pickup-card-detail \{[\s\S]*grid-template-columns: repeat\(2/u)
+})
