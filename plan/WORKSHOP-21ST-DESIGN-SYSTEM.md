@@ -81,3 +81,16 @@ Run post-change CodeGraph, commit the verified source, register the clean Previe
 - Post-change CodeGraph is up to date at 189 files / 2,283 nodes / 7,667 edges; Markdown and JSON evidence remain explicit unsupported-language exceptions.
 - Root build is intentionally deferred until the clean functional commit is created and the unchanged V5.7.9 Preview source fingerprint is re-registered.
 - No cloud deployment or database mutation has occurred in this correction stage.
+
+## Bidirectional Story Scroll Preview delivery evidence
+
+- Functional commit: `1ccaaf4accfc32342e9e28a8cf87cf1cd5611866`.
+- Implementation PR: #94; Node 22 CI run `30455545537`, `secrets` and `verify` both succeeded.
+- Actual merge/deploy SHA: `a1b9a49801a758b4f7bb2678fa559e7da655fdc8`.
+- Protected Preview-only workflow: `30455820547`, success; Free/no-billing/Preview-only enforcement and remote-branch-head identity checks passed.
+- Cloudflare Deployment: `0e9ea0bd-baf5-48aa-b1ea-fe3b8ab3d579`.
+- Worker Version: `cb580368-27f6-449d-9a5a-f4ea7b2cba14` (#98), 100% Preview traffic.
+- Preview URL: `https://bike-ops-preview.geeklightonefish.workers.dev`.
+- Independent HTTP verification: `/health/live`, `/health/ready`, `/api/v1/meta/version` and Web shell matched V5.7.9 / merge SHA; HSTS, strict CSP, DENY, `nosniff`, and API `no-store, private` were present.
+- `browser-harness` remains unavailable. No prohibited application browser or Android accessibility fallback was used; human visual acceptance is still required.
+- Staging, Production and Production D1 were not modified. Public version remains V5.7.9.
