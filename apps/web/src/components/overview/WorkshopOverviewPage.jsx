@@ -147,9 +147,29 @@ function OperationsIndex({ workflow, onJump }) {
   )
 }
 
+function revealReleaseAboveDock(event) {
+  const details = event.currentTarget
+  if (!details.open) return
+  window.requestAnimationFrame(() => {
+    const dock = document.querySelector('.look-dock')
+    const dockTop = dock?.getBoundingClientRect().top ?? window.innerHeight
+    const rect = details.getBoundingClientRect()
+    const headerHeight = Number.parseFloat(window.getComputedStyle(document.documentElement).getPropertyValue('--ops-header-height')) || 72
+    const availableHeight = dockTop - headerHeight - 24
+    const delta = rect.height <= availableHeight
+      ? rect.bottom - dockTop + 12
+      : rect.top - headerHeight - 12
+    if (delta <= 0) return
+    window.scrollBy({
+      top: delta,
+      behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+    })
+  })
+}
+
 function ReleaseStrip() {
   return (
-    <details className="ops-release-strip">
+    <details className="ops-release-strip" onToggle={revealReleaseAboveDock}>
       <summary aria-label="查看更新说明"><strong>V{APP_VERSION}</strong><span>{currentRelease.title}</span><time>{currentRelease.date}</time><b aria-hidden="true">＋</b></summary>
       <div><p>{currentRelease.summary}</p><ul>{currentRelease.changes.map((change) => <li key={change}>{change}</li>)}</ul></div>
     </details>

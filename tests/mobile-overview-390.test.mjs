@@ -177,3 +177,16 @@ test('workspace uses only self-hosted Noto Sans SC and Barlow Condensed without 
   assert.match(notoCss, /font-display: block/u)
   assert.doesNotMatch(runtimeCss, /Arial|Helvetica|Segoe|BlinkMac|system-ui|sans-serif|monospace|ui-sans/u)
 })
+
+test('展开更新日志会主动避开固定底部导航，首屏也不再预加载已移除的字体', async () => {
+  const [overview, html] = await Promise.all([
+    read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'),
+    read('apps/web/index.html')
+  ])
+  assert.match(overview, /onToggle=\{revealReleaseAboveDock\}/u)
+  assert.match(overview, /querySelector\('\.look-dock'\)/u)
+  assert.match(overview, /--ops-header-height/u)
+  assert.match(overview, /window\.scrollBy/u)
+  assert.match(overview, /prefers-reduced-motion: reduce/u)
+  assert.doesNotMatch(html, /albert/iu)
+})

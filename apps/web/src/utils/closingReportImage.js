@@ -15,15 +15,13 @@ const PANEL = '#f0eee8'
 const CHIP_BG = '#ffffff'
 const CHIP_BORDER = '#1a1a1a'
 
-const FONT_BODY = '"Albert Sans Local", "Noto Serif SC Variable"'
-const FONT_DISPLAY = '"Albert Sans Local", "Noto Serif SC Variable"'
-const FONT_MONO = '"Albert Sans Local", "Noto Serif SC Variable"'
+const FONT_BODY = '"Noto Sans SC Variable"'
+const FONT_DISPLAY = '"Barlow Condensed Ops", "Noto Sans SC Variable"'
+const FONT_MONO = '"Barlow Condensed Ops", "Noto Sans SC Variable"'
 
 const R = 22
 const CARD_GAP = 18
 const BOTTOM_SAFE = 120
-
-let fontsReadyPromise
 
 function pad2(value) {
   return String(value ?? 0).padStart(2, '0')
@@ -102,61 +100,18 @@ export function buildClosingReportModel({
   }
 }
 
-function collectSiteFontUrls() {
-  const albert = new Set()
-  const noto = new Set()
-  for (const sheet of document.styleSheets) {
-    let rules
-    try { rules = sheet.cssRules } catch { continue }
-    for (const rule of rules || []) {
-      if (!(rule instanceof CSSFontFaceRule)) continue
-      const family = String(rule.style.getPropertyValue('font-family') || '').replace(/['"]/g, '')
-      const src = String(rule.style.getPropertyValue('src') || '')
-      const match = src.match(/url\((['"]?)(.*?)\1\)/u)
-      if (!match?.[2]) continue
-      if (family.includes('Albert Sans Local')) albert.add(match[2])
-      if (family.includes('Noto Serif SC Variable')) noto.add(match[2])
-    }
-  }
-  return { albert: [...albert], noto: [...noto] }
-}
-
-async function ensureReportFonts() {
-  if (fontsReadyPromise) return fontsReadyPromise
-  fontsReadyPromise = (async () => {
-    let found = collectSiteFontUrls()
-    if (!found.noto.length) {
-      await new Promise((r) => requestAnimationFrame(() => r()))
-      found = collectSiteFontUrls()
-    }
-    const faces = []
-    for (const url of (found.albert.length ? found.albert : ['/fonts/albert-sans-variable.woff2'])) {
-      faces.push(new FontFace('Albert Sans Local', `url('${url}') format('woff2')`, { style: 'normal', weight: '100 900', display: 'block' }))
-    }
-    if (!found.noto.length) throw new Error('无法读取网站中文字体，已拒绝使用手机字体。')
-    for (const url of found.noto) {
-      faces.push(new FontFace('Noto Serif SC Variable', `url('${url}') format('woff2-variations')`, { style: 'normal', weight: '200 900', display: 'block' }))
-    }
-    const loaded = await Promise.all(faces.map(async (face) => {
-      try {
-        const ready = await face.load()
-        document.fonts.add(ready)
-        return true
-      } catch { return false }
-    }))
-    await document.fonts.ready.catch(() => undefined)
-    await Promise.all([
-      document.fonts.load(`900 96px ${FONT_DISPLAY}`),
-      document.fonts.load(`700 24px ${FONT_MONO}`),
-      document.fonts.load(`500 26px ${FONT_BODY}`),
-      document.fonts.load('900 48px "Noto Serif SC Variable"')
-    ])
-    if (!loaded.some(Boolean)) throw new Error('站点字体加载失败。')
-    const probe = document.createElement('canvas').getContext('2d')
-    probe.font = `700 48px ${FONT_DISPLAY}`
-    if (probe.measureText('闭店日报').width < 12) throw new Error('网站中文字体未就绪。')
-  })()
-  return fontsReadyPromise
+async function ensureReportFonts(model) {
+  const reportText = `闭店日报门店销售车辆安全检查评价二手售出收车待取维修交接${JSON.stringify(model)}`
+  const [bodyFaces, bodyDisplayFaces, displayFaces] = await Promise.all([
+    document.fonts.load('500 26px "Noto Sans SC Variable"', reportText),
+    document.fonts.load('900 48px "Noto Sans SC Variable"', reportText),
+    document.fonts.load('700 96px "Barlow Condensed Ops"', 'WORKSHOP OPS 0123456789')
+  ])
+  await document.fonts.ready.catch(() => undefined)
+  if (!bodyFaces.length || !bodyDisplayFaces.length || !displayFaces.length) throw new Error('站点字体加载失败。')
+  const probe = document.createElement('canvas').getContext('2d')
+  probe.font = `700 48px ${FONT_DISPLAY}`
+  if (probe.measureText('闭店日报').width < 12) throw new Error('网站中文字体未就绪。')
 }
 
 function wrapText(ctx, text, maxWidth) {
@@ -526,7 +481,7 @@ function drawList(ctx, items, y, emptyLabel) {
 }
 
 export async function renderClosingReportCanvas(model) {
-  await ensureReportFonts()
+  await ensureReportFonts(model)
   const measure = document.createElement('canvas').getContext('2d')
   const contentW = WIDTH - PAD * 2
   const pickupH = measureList(measure, model.pickups, contentW)

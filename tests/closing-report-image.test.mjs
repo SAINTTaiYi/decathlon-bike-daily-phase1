@@ -99,3 +99,12 @@ test('自提车辆会员号也使用日报图联系槽位，详情保持为空',
   assert.equal(reportItemDetail(order), '')
   assert.deepEqual(reportContact(order), { contactType: 'member', contactValue: 'M-2048' })
 })
+
+test('闭店日报图只等待站点自托管的两套字体，不再探测已移除的字体族', async () => {
+  const source = await (await import('node:fs/promises')).readFile(new URL('../apps/web/src/utils/closingReportImage.js', import.meta.url), 'utf8')
+  assert.match(source, /"Noto Sans SC Variable"/u)
+  assert.match(source, /"Barlow Condensed Ops"/u)
+  assert.match(source, /document\.fonts\.load\(/u)
+  assert.doesNotMatch(source, /Albert Sans Local|Noto Serif SC Variable/u)
+  assert.doesNotMatch(source, /CSSFontFaceRule|new FontFace\(/u)
+})
