@@ -186,46 +186,141 @@ button:disabled { opacity: .48; }
   padding: calc(var(--ops-header-height) + 12px) 12px 0;
   background: var(--ops-page);
 }
-.workshop-module-stack {
+.workshop-module-stage-stack {
   position: relative;
   min-height: 100dvh;
   padding-bottom: calc(var(--ops-header-height) + 12px);
   overflow-x: clip;
 }
-.workshop-module-panel {
+.workshop-module-stage {
+  --module-stage-height: min(42dvh, 316px);
+  --module-stage-hold: min(42dvh, 320px);
+  --module-stage-overlap: min(16dvh, 120px);
   position: relative;
+  z-index: calc(10 + var(--module-stage-index));
   min-width: 0;
-  min-height: calc(100dvh - var(--ops-header-height) - 12px);
   overflow-x: clip;
   outline: none;
   background: var(--ops-page);
+  scroll-margin-top: calc(var(--ops-header-height) + 8px);
 }
-.workshop-module-flow-inner {
+.workshop-module-stage + .workshop-module-stage { margin-top: 16px; }
+.workshop-module-stage-runway {
   position: relative;
-  width: 100%;
+  min-height: calc(var(--module-stage-height) + var(--module-stage-hold));
+  background: var(--ops-page);
+}
+.workshop-module-stage:first-child .workshop-module-stage-runway { min-height: var(--module-stage-height); }
+.workshop-module-stage:first-child .workshop-module-stage-content { margin-top: 0; }
+.workshop-module-stage-cover {
+  position: sticky;
+  top: var(--ops-header-height);
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: end;
+  min-height: var(--module-stage-height);
+  padding: 18px;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--ops-black);
+  box-shadow: 0 18px 42px rgb(12 14 12 / .2);
+  color: var(--ops-text-inverse);
+}
+.workshop-module-stage-cover::before {
+  position: absolute;
+  inset: -12%;
+  z-index: -1;
+  content: '';
+  background-image: url('/images/ops/workshop-slate-texture.png');
+  background-position: 50% 50%;
+  background-size: 256px 256px;
+  mix-blend-mode: screen;
+  opacity: .72;
+  transform: scale(1.04);
+}
+.workshop-module-stage-cover::after {
+  position: absolute;
+  inset: 8px;
+  z-index: -1;
+  border: 1px solid rgb(255 195 26 / .38);
+  content: '';
+  pointer-events: none;
+}
+.workshop-module-stage-index {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  background: var(--ops-yellow);
+  color: var(--ops-black);
+  font-family: var(--ops-display);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+.workshop-module-stage-copy { display: grid; gap: 3px; min-width: 0; }
+.workshop-module-stage-copy > span,
+.workshop-module-stage-copy > small {
+  color: rgb(255 253 248 / .72);
+  font-family: var(--ops-display);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.workshop-module-stage-copy > strong {
+  overflow: hidden;
+  color: var(--ops-text-inverse);
+  font-family: var(--ops-display);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: .92;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workshop-module-stage-copy > small {
+  color: var(--ops-yellow);
+  font-family: var(--ops-body);
+  font-size: 12px;
+  text-transform: none;
+}
+.workshop-module-stage-content {
+  position: relative;
+  margin-top: calc(0px - var(--module-stage-overlap));
+  z-index: 2;
   min-height: calc(100dvh - var(--ops-header-height) - 12px);
   padding-bottom: var(--dock-space);
   overflow-x: clip;
-  transform-origin: bottom left;
-  backface-visibility: hidden;
   background: var(--ops-page);
-  box-shadow: 0 -1px 0 var(--ops-line), 0 -22px 44px rgb(39 34 24 / .07);
+  box-shadow: 0 -1px 0 var(--ops-line);
 }
-.workshop-module-panel:first-child .workshop-module-flow-inner { box-shadow: none; }
-.workshop-module-panel[data-active='true'] .workshop-module-flow-inner { background: var(--ops-page); }
-.workshop-module-flow-inner > .look-section,
-.workshop-module-flow-inner > .pickup-look {
+.workshop-module-stage[data-active='true'] .workshop-module-stage-cover { box-shadow: 0 18px 42px rgb(12 14 12 / .24), 0 0 0 1px rgb(255 195 26 / .26); }
+.workshop-module-stage-content > .look-section,
+.workshop-module-stage-content > .pickup-look {
   min-height: auto;
   margin: 0;
   padding: 0;
   border: 0;
   scroll-margin-top: calc(var(--ops-header-height) + 12px);
 }
-.workshop-overview-panel .ops-mobile-overview { display: block; }
+.workshop-overview-stage .ops-mobile-overview { display: block; }
 .ops-brand-header,
 .ops-store-context { display: none !important; }
 
-/* Story Scroll module handoff: pinned layers scrub in both directions. */
+@supports (animation-timeline: view()) {
+  .workshop-module-stage-cover::before {
+    animation: workshop-stage-material-drift linear both;
+    animation-range: entry 0% exit 100%;
+    animation-timeline: view();
+  }
+}
+@keyframes workshop-stage-material-drift {
+  from { transform: translateY(-7%) scale(1.04); }
+  to { transform: translateY(7%) scale(1.04); }
+}
 
 /* Shared moving navigation indicator, adapted from animated tab patterns. */
 .look-dock {
@@ -753,14 +848,14 @@ button:disabled { opacity: .48; }
 @media (min-width: 840px) {
   .boot-title-word { font-size: 112px; }
   .workshop-shell { padding-inline: 28px; }
-  .workshop-module-panel:not(.workshop-overview-panel) .workshop-module-flow-inner > .look-section {
+  .workshop-module-stage:not(.workshop-overview-stage) .workshop-module-stage-content > .look-section {
     display: grid;
     grid-template-columns: minmax(220px,280px) minmax(0,1fr);
     align-items: start;
     gap: 28px;
   }
-  .workshop-module-panel:not(.workshop-overview-panel) .workshop-module-flow-inner > .look-section > .scene-title { position: relative; top: auto; grid-column: 1; }
-  .workshop-module-panel:not(.workshop-overview-panel) .workshop-module-flow-inner > .look-section > :not(.scene-title) { grid-column: 2; }
+  .workshop-module-stage:not(.workshop-overview-stage) .workshop-module-stage-content > .look-section > .scene-title { position: relative; top: auto; grid-column: 1; }
+  .workshop-module-stage:not(.workshop-overview-stage) .workshop-module-stage-content > .look-section > :not(.scene-title) { grid-column: 2; }
   .pickup-operations-section { display: block !important; }
   .record-row { padding: 16px !important; }
   .record-body { grid-template-columns: minmax(0,1fr) minmax(180px,220px); }
@@ -791,9 +886,9 @@ button:disabled { opacity: .48; }
 
 @media (prefers-reduced-motion: reduce) {
   .dock-active-indicator { transition: none; }
-  .workshop-module-flow-inner {
-    transform: none !important;
-    will-change: auto;
+  .workshop-module-stage-cover::before {
+    animation: none;
+    transform: none;
   }
   .dialog-panel[data-dialog-panel] { animation: none; }
 }
