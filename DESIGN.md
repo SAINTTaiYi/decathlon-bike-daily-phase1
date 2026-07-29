@@ -71,8 +71,9 @@ Rules:
 ### Families
 
 - Operational English labels, dates, version marks, and large numbers: self-hosted `Barlow Condensed Ops` 500/700.
-- Simplified Chinese and general body content: the project body sans stack, led by self-hosted `Albert Sans Local` with Chinese sans fallbacks.
-- The condensed `业务台账` label: self-hosted `Noto Sans SC Operations` 700 subset, visually compressed to align with `OPERATIONS INDEX`.
+- Simplified Chinese and general body content: self-hosted `Noto Sans SC Variable` 100–900.
+- The `业务台账` label uses the same self-hosted Noto Sans SC family, visually compressed to align with `OPERATIONS INDEX`.
+- Runtime UI text may use only `Noto Sans SC Variable` or `Barlow Condensed Ops`; system fonts and generic font-family fallbacks are prohibited.
 
 All font assets must be self-hosted, licensed, documented in `apps/web/public/fonts/SOURCES.md`, and loaded without runtime third-party requests.
 

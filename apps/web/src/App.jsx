@@ -511,13 +511,7 @@ export default function App() {
               <span className="closing-summary-anchor" id="closing-summary-anchor" aria-hidden="true" />
               <WorkshopOverviewPage
                 workflow={workflow}
-                currentStore={currentStore}
-                roleLabel={roleLabels[role]}
-                currentUser={currentUser}
                 online={online}
-                writeLocked={writeLocked}
-                onMenu={() => setMenuOpen(true)}
-                onLog={() => setLogOpen(true)}
                 onEditKpi={() => setKpiOpen(true)}
                 onCompleteClosing={requestClose}
                 onHistory={() => setHistoryTarget({ scene: 'pulse', record: null })}
@@ -525,8 +519,6 @@ export default function App() {
                 onReopenClosing={() => void reopen()}
                 onExportReport={exportClosingReport}
                 onJump={jumpFromOverview}
-                onAddPickup={() => setRecordEditor({ scene: 'pickup', record: null })}
-                onEditPickup={(record) => setRecordEditor({ scene: 'pickup', record })}
               />
             </StoryScrollPanel>
             <StoryScrollPanel sceneId="pickup" active={activeScene === 'pickup'}><PickupScene {...recordProps('pickup')} /></StoryScrollPanel>

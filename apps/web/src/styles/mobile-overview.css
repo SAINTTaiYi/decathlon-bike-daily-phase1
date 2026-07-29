@@ -3,23 +3,16 @@
   src: url('/fonts/barlow-condensed-500.woff2') format('woff2');
   font-style: normal;
   font-weight: 500;
-  font-display: swap;
+  font-display: block;
 }
 @font-face {
   font-family: 'Barlow Condensed Ops';
   src: url('/fonts/barlow-condensed-700.woff2') format('woff2');
   font-style: normal;
   font-weight: 700;
-  font-display: swap;
+  font-display: block;
 }
 
-@font-face {
-  font-family: 'Noto Sans SC Operations';
-  src: url('/fonts/noto-sans-sc-operations-index-subset.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-}
 .ops-mobile-overview { display: none; }
 
 @media (min-width: 0px) {
@@ -39,8 +32,8 @@
     --ops-border-strong: #b9b8b1;
     --ops-danger: #c63b2e;
     --ops-success: #17613c;
-    --ops-display: 'Barlow Condensed Ops', 'Arial Narrow', 'Roboto Condensed', Arial, sans-serif;
-    --ops-body: 'Albert Sans Local', 'Noto Sans SC', 'Source Han Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    --ops-display: 'Barlow Condensed Ops', 'Noto Sans SC Variable';
+    --ops-body: 'Noto Sans SC Variable';
   }
 
   html, body { background: var(--ops-page); }
@@ -120,7 +113,7 @@
   .ops-store-context button small { display: block; }
   .ops-store-context button strong { font-size: 11px; line-height: 12px; }
   .ops-store-context button small { margin-top: 2px; font-family: var(--ops-display); font-size: 9px; }
-  .ops-arrow { display: inline-block; font-family: Arial, sans-serif; font-size: 22px; font-weight: 300; line-height: 1; transition: transform 120ms ease; }
+  .ops-arrow { display: inline-block; font-family: var(--ops-display); font-size: 22px; font-weight: 300; line-height: 1; transition: transform 120ms ease; }
   .ops-inline-alert { margin: 6px 0 -3px; padding: 5px 8px; border-left: 0; background: #fff2ef; color: var(--ops-danger); font-size: 9px; font-weight: 700; }
 
   .ops-closing-card { height: 154px; margin-top: 9px; border: 0; background: var(--ops-card); }
@@ -167,7 +160,7 @@
   .ops-index { height: 124px; margin-top: 10px; border: 0; background: var(--ops-card); }
   .ops-index-head { display: flex; align-items: center; justify-content: space-between; height: 38px; padding: 0 10px; border-bottom: 0; }
   .ops-index-label { display: flex; align-items: baseline; gap: 3px; font-family: var(--ops-display); font-size: 10px; letter-spacing: .02em; white-space: nowrap; }
-  .ops-index-label-cn { display: inline-block; width: 29px; font-family: 'Noto Sans SC Operations', 'Noto Sans SC', sans-serif; font-weight: 700; letter-spacing: 0; transform: scaleX(.72); transform-origin: left center; }
+  .ops-index-label-cn { display: inline-block; width: 29px; font-family: 'Noto Sans SC Variable'; font-weight: 700; letter-spacing: 0; transform: scaleX(.72); transform-origin: left center; }
   .ops-index-head strong { font-size: 9px; font-weight: 650; }
   .ops-index ol { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); height: 84px; list-style: none; }
   .ops-index li { min-width: 0; border: 0; }

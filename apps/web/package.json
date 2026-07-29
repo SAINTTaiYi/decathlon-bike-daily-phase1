@@ -11,6 +11,7 @@
     "preview:lan": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "@fontsource-variable/noto-sans-sc": "5.3.0",
     "animejs": "4.5.0",
     "gsap": "3.13.0",
     "iconoir-react": "7.11.1",

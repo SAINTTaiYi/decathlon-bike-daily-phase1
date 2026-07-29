@@ -132,7 +132,9 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
       return undefined
     }
     const observer = new IntersectionObserver(([entry]) => {
-      frame.toggleAttribute('data-entering', entry.isIntersecting)
+      if (!entry.isIntersecting) return
+      frame.setAttribute('data-entering', '')
+      observer.unobserve(frame)
     }, { threshold: 0.08, rootMargin: '0px 0px -3% 0px' })
     observer.observe(frame)
     return () => observer.disconnect()
@@ -180,9 +182,7 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [toolsVisible, setToolsVisible] = useState(true)
   const ledgerRef = useRef(null)
-  const stickyShellRef = useRef(null)
   const lastScrollYRef = useRef(0)
-  const [stickyLayout, setStickyLayout] = useState({ pinned: false, height: 0, left: 0, width: 0 })
   const waitingRecords = records.filter((record) => !record.pickedUpToday)
   const pickedRecords = records.filter((record) => record.pickedUpToday)
   const autoDensity = waitingRecords.length > 12 ? 'compact' : density
@@ -203,34 +203,6 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [query, sheet])
-  useEffect(() => {
-    const ledger = ledgerRef.current
-    const shell = stickyShellRef.current
-    if (!ledger || !shell) return undefined
-    let frame = 0
-    const update = () => {
-      frame = 0
-      const ledgerRect = ledger.getBoundingClientRect()
-      const shellHeight = shell.offsetHeight
-      const pinned = ledgerRect.top <= 0 && ledgerRect.bottom > shellHeight
-      setStickyLayout((current) => {
-        const next = { pinned, height: shellHeight, left: ledgerRect.left, width: ledgerRect.width }
-        return current.pinned === next.pinned && current.height === next.height && current.left === next.left && current.width === next.width ? current : next
-      })
-    }
-    const schedule = () => { if (!frame) frame = window.requestAnimationFrame(update) }
-    const resizeObserver = 'ResizeObserver' in window ? new ResizeObserver(schedule) : null
-    resizeObserver?.observe(shell)
-    window.addEventListener('scroll', schedule, { passive: true })
-    window.addEventListener('resize', schedule, { passive: true })
-    update()
-    return () => {
-      window.cancelAnimationFrame(frame)
-      resizeObserver?.disconnect()
-      window.removeEventListener('scroll', schedule)
-      window.removeEventListener('resize', schedule)
-    }
-  }, [stickyLayout.pinned])
   const visible = useMemo(() => {
     const term = debouncedQuery.toLocaleLowerCase('zh-CN')
     return sortRecords(waitingRecords.filter((record) => (!sources.length || sources.includes(inferPickupSource(record))) && (!term || normalizedSearch(record).includes(term))), sort)
@@ -239,16 +211,14 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   const closeSheet = useCallback(() => setSheet(null), [])
   const applySheet = useCallback(({ sources: nextSources, sort: nextSort }) => { setSources(nextSources); setSort(nextSort); setSheet(null) }, [])
 
-  const stickyShell = <div ref={stickyShellRef} className="pickup-sticky-shell" data-pinned={stickyLayout.pinned ? 'true' : undefined} data-tools-visible={toolsVisible ? 'true' : undefined} style={stickyLayout.pinned ? { '--pickup-sticky-left': `${stickyLayout.left}px`, '--pickup-sticky-width': `${stickyLayout.width}px` } : undefined}>
-    <header className="pickup-module-header"><div className="pickup-module-code"><span>02</span><small>PICKUP</small></div><div><small>WORKSHOP QUEUE</small><h2 id="pickup-title">待取车辆</h2></div><div className="pickup-module-count"><span><b>{String(waitingRecords.length).padStart(2, '0')}</b>待取</span><span><b>{String(pickedRecords.length).padStart(2, '0')}</b>今日已取</span></div><button type="button" className="pickup-header-search" onClick={() => { setToolsVisible(true); window.setTimeout(() => document.getElementById('pickup-search')?.focus({ preventScroll: true }), 0) }} aria-label="搜索待取车辆"><IconSearch width={19} height={19} aria-hidden="true" /></button></header>
+  const queueControls = <div className="pickup-queue-controls" data-tools-visible={toolsVisible ? 'true' : undefined}>
+    <div className="pickup-queue-summary"><h2 id="pickup-title" className="sr-only">待取车辆</h2><span>QUEUE STATUS</span><div className="pickup-module-count"><span><b>{String(waitingRecords.length).padStart(2, '0')}</b>待取</span><span><b>{String(pickedRecords.length).padStart(2, '0')}</b>今日已取</span></div><button type="button" className="pickup-header-search" onClick={() => { setToolsVisible(true); window.setTimeout(() => document.getElementById('pickup-search')?.focus({ preventScroll: true }), 0) }} aria-label="搜索待取车辆"><IconSearch width={19} height={19} aria-hidden="true" /></button></div>
     <div className="pickup-tools-area"><div className="pickup-tool-row"><label className="pickup-search-field" htmlFor="pickup-search"><IconSearch width={17} height={17} aria-hidden="true" /><input id="pickup-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索车型、电话、编号…" /></label><button type="button" onClick={() => setSheet('filter')} data-active={sources.length ? 'true' : undefined}><IconFilter width={17} height={17} aria-hidden="true" /><span>筛选</span>{sources.length ? <b>{sources.length}</b> : null}</button><button type="button" onClick={() => setSheet('sort')} data-active={sort !== 'default' ? 'true' : undefined}><IconSort width={17} height={17} aria-hidden="true" /><span>排序</span></button><button type="button" onClick={() => setDensity((current) => current === 'balanced' ? 'compact' : 'balanced')} aria-label={`切换为${density === 'balanced' ? '紧凑' : '平衡'}密度`}>{density === 'balanced' ? <IconList width={17} height={17} aria-hidden="true" /> : <IconViewColumns width={17} height={17} aria-hidden="true" />}<span>密度</span></button><button type="button" className="pickup-collapse-all" onClick={() => setExpandedId('')} disabled={!expandedId} aria-label="全部收起"><IconNavArrowDown width={17} height={17} aria-hidden="true" /><span>收起</span></button></div>
     {appliedLabels.length ? <div className="pickup-applied-filters" aria-label="已应用规则">{appliedLabels.map((label) => <span key={label}>{label}</span>)}<button type="button" onClick={() => { setSources([]); setSort('default') }}>清除</button></div> : null}</div>
   </div>
 
   return <div ref={ledgerRef} className="pickup-ledger" data-density={autoDensity} data-tools-visible={toolsVisible ? 'true' : undefined} aria-label={`待取车辆台账，共 ${records.length} 条`}>
-    <div className="pickup-sticky-slot" style={{ height: stickyLayout.height || undefined }}>
-      {stickyLayout.pinned ? createPortal(stickyShell, document.body) : stickyShell}
-    </div>
+    {queueControls}
     <div className="pickup-ledger-intro"><div><span>ACTIVE PICKUP</span><strong>{visible.length ? `当前显示 ${visible.length} 台，按列表顺序核对并交付。` : '当前规则下没有待取车辆。'}</strong></div><div className="pickup-ledger-global-actions"><button type="button" onClick={() => onHistory()}><IconJournal width={17} height={17} aria-hidden="true" />操作记录</button><button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />增加待取</button></div></div>
     {visible.length ? <div className="pickup-card-grid">{visible.map((record, index) => <PickupCard key={record.id} record={record} index={index} expanded={expandedId === record.id} density={autoDensity} query={debouncedQuery} closedAt={closedAt} pickupError={pickupErrors[record.id] || ''} primaryProcessing={primaryProcessingId === record.id} primaryActionBusy={primaryActionBusy} pickupPixelFill={pickupPixelFillId === record.id} onToggle={(id) => setExpandedId((current) => current === id ? '' : id)} onEdit={onEdit} onRemove={onRemove} onHistory={onHistory} onPickup={onPickup} onNotificationChange={onPickupNotificationChange} onPickupPixelFillComplete={onPickupPixelFillComplete} />)}</div> : <section className="pickup-empty-state"><IconBicycle width={34} height={34} aria-hidden="true" /><span>{waitingRecords.length ? 'NO MATCH' : 'QUEUE CLEAR'}</span><h3>{waitingRecords.length ? '没有符合条件的车辆' : '当前没有待取车辆'}</h3><p>{waitingRecords.length ? '清除搜索或筛选条件，恢复完整待取列表。' : '新增顾客暂存、自提订单或二手车待取记录。'}</p>{waitingRecords.length ? <button type="button" onClick={() => { setQuery(''); setSources([]); setSort('default') }}>恢复全部车辆</button> : <button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />增加待取车辆</button>}</section>}
     {pickedRecords.length ? <details className="pickup-completed-today"><summary><span><IconCheck width={17} height={17} aria-hidden="true" />今日已取</span><b>{String(pickedRecords.length).padStart(2, '0')}</b></summary><div>{pickedRecords.map((record) => <button type="button" key={record.id} onClick={() => onHistory(record)}><span>{record.title}</span><small>{pickupSourceLabel(record)} · 查看操作记录</small></button>)}</div></details> : null}

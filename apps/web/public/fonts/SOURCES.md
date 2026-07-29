@@ -6,7 +6,17 @@
 - Upstream project asset: `nexu-io/open-design` landing-page public skill assets
 - Typeface: Albert Sans
 - License family: SIL Open Font License (OFL)
-- Use: local Latin, number and display font; no third-party runtime request
+- Use: legacy local asset retained for historical builds; it is not part of the current runtime font stack
+
+## Noto Sans SC Variable
+
+- Package: `@fontsource-variable/noto-sans-sc@5.3.0`
+- Typeface: Noto Sans SC Variable, weights 100–900
+- License: SIL Open Font License 1.1; bundled as `noto-sans-sc/OFL-1.1.txt`
+- Use: sole body and Simplified Chinese runtime family; unicode-range shards are bundled by Vite and fetched only for matching glyphs
+- Runtime: fully self-hosted; `font-display: block`; no system or generic fallback and no third-party request
+- Package license SHA-256: `18aabf190848725e2576eefb5c29ba06aac1029d02132252a7f312eac2e50cf3`
+- Local CSS manifest SHA-256: `a2fe5734cb338d2bda3c3ca7fbc9d28b607f846f6e93582aba0f4abf1c8dcb2b`
 
 ## Noto Serif SC Variable
 
@@ -34,5 +44,5 @@
 - Typeface: Noto Sans SC
 - License: SIL Open Font License 1.1 (`OFL-NotoSansCJK.txt`)
 - SHA-256: `9b76d6fefcabfa935953071f34c0c4f314680a316935a94503a46728c05f7a70`
-- Purpose: deterministic local Simplified Chinese glyphs for the condensed operations-index heading only
+- Purpose: legacy subset retained for audit history; the current runtime uses Noto Sans SC Variable instead
 - Hosting: self-hosted; no runtime request to Google Fonts or another third party

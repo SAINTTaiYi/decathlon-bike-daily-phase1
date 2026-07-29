@@ -5,7 +5,6 @@ import IconLabel from '@iconoir/Label.mjs'
 import IconShop from '@iconoir/ShopWindow.mjs'
 import IconWrench from '@iconoir/Wrench.mjs'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
-import { decodePickupContact, pickupNotificationLabel } from '../../data/pickupRecord.js'
 
 const operations = [
   { id: 'pickup', no: '02', en: 'PICKUP', cn: '待取车辆', Icon: IconDelivery },
@@ -37,14 +36,6 @@ function displayMetric(value, available = true) {
   return String(Math.max(0, Number(value))).padStart(2, '0')
 }
 
-function MenuGlyph() {
-  return <span className="ops-menu-glyph" aria-hidden="true"><i /><i /><i /></span>
-}
-
-function BellGlyph({ unread }) {
-  return <span className="ops-bell-glyph" aria-hidden="true"><i />{unread ? <b /> : null}</span>
-}
-
 function ArrowGlyph() { return <span className="ops-arrow" aria-hidden="true">›</span> }
 
 function StatusValue({ value, available }) {
@@ -53,28 +44,6 @@ function StatusValue({ value, available }) {
     <div className="ops-status-value" aria-label={progress === null ? '闭店准备度暂不可用' : `闭店准备度 ${progress}%`}>
       <strong>{progress === null ? '—' : progress}</strong>{progress === null ? null : <span>%</span>}
     </div>
-  )
-}
-
-function BrandHeader({ dateKey, onMenu, onNotifications, hasUnread }) {
-  const date = dateParts(dateKey)
-  return (
-    <header className="ops-brand-header">
-      <button type="button" className="ops-icon-button" onClick={onMenu} aria-label="打开日报菜单"><MenuGlyph /></button>
-      <div className="ops-brand-lockup"><span>WORKSHOP LEDGER</span><div><strong>WORKSHOP OPS</strong><em>V{APP_VERSION}</em></div></div>
-      <time dateTime={dateKey || undefined} data-short={date.short}>{date.full}</time>
-      <button type="button" className="ops-icon-button" onClick={onNotifications} aria-label="查看当日日志"><BellGlyph unread={hasUnread} /></button>
-    </header>
-  )
-}
-
-function StoreContextCard({ storeName, roleLabel, userName, onMenu }) {
-  return (
-    <section className="ops-store-context" aria-label="当前门店和用户">
-      <span className="ops-store-mark" aria-hidden="true"><IconShop width={24} height={24} strokeWidth={1.75} /></span>
-      <div className="ops-store-identity"><span>{storeName || '门店'} · {roleLabel || '成员'}</span><strong>{userName || '—'}</strong></div>
-      <button type="button" onClick={onMenu} aria-label="打开菜单"><span className="ops-document-glyph" aria-hidden="true">▤</span><span><strong>菜单</strong><small>MENU</small></span><ArrowGlyph /></button>
-    </section>
   )
 }
 
@@ -178,31 +147,6 @@ function OperationsIndex({ workflow, onJump }) {
   )
 }
 
-function compactContact(record) {
-  const { contactValue } = decodePickupContact(record)
-  return contactValue || record.detail || record.meta || '未填写联系人'
-}
-
-function compactDate(record) {
-  if (record.pickupDate) return record.pickupDate.slice(5).replace('-', '.')
-  if (record.updatedAt) return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' }).format(new Date(record.updatedAt))
-  return '日期未填写'
-}
-
-function PickupBoard({ records, canCreate, onViewAll, onAdd, onEdit }) {
-  const items = records.filter((record) => !record.pickedUpToday).slice(0, 3)
-  return (
-    <section className="ops-pickup-board" aria-labelledby="ops-pickup-title">
-      <header><span>02</span><strong id="ops-pickup-title">PICKUP BOARD</strong><small>待取车辆 · 跨日保留</small><button type="button" onClick={onViewAll}>VIEW ALL <ArrowGlyph /></button></header>
-      <div className="ops-pickup-grid">
-        {items.map((record) => <button type="button" className="ops-pickup-card" key={record.id} onClick={() => onEdit(record)} aria-label={`查看或编辑 ${record.title}`}><strong>{record.title}</strong><span>{compactContact(record)}</span><small>◷ {compactDate(record)}</small><em>{pickupNotificationLabel(record)}</em></button>)}
-        {items.length === 0 ? <button type="button" className="ops-pickup-empty" onClick={onViewAll}><strong>当前无待取车辆</strong><span>查看完整待取台账</span></button> : null}
-        <button type="button" className="ops-pickup-add" onClick={onAdd} disabled={!canCreate}><b aria-hidden="true">＋</b><span>{canCreate ? '新增取车' : '当前不可新增'}</span></button>
-      </div>
-    </section>
-  )
-}
-
 function ReleaseStrip() {
   return (
     <details className="ops-release-strip">
@@ -212,17 +156,14 @@ function ReleaseStrip() {
   )
 }
 
-export default function WorkshopOverviewPage({ workflow, currentStore, roleLabel, currentUser, online, writeLocked, onMenu, onLog, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport, onJump, onAddPickup, onEditPickup }) {
-  const pickupRecords = workflow.recordsByScene.pickup || []
+export default function WorkshopOverviewPage({ workflow, online, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport, onJump }) {
   const available = workflow.hydrated && workflow.hasSnapshot
   return (
     <div className="ops-mobile-overview" data-workspace-module="true" aria-label="Workshop 业务总览">
-      <header className="ops-overview-intro"><span>01 / OVERVIEW</span><div><strong>今日经营总览</strong><small>DAILY OPERATIONS</small></div><p>{currentStore?.storeName || '门店'} · {roleLabel || '成员'} · {currentUser || '—'}</p></header>
       {!online ? <p className="ops-inline-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据</p> : null}
       <ClosingStatusCard workflow={workflow} online={online} onEditKpi={onEditKpi} onCompleteClosing={onCompleteClosing} onHistory={onHistory} onRefresh={onRefresh} onReopenClosing={onReopenClosing} onExportReport={onExportReport} />
       <SalesVehiclesPanel dateKey={workflow.dateKey} kpi={workflow.kpi} available={available} onEditKpi={onEditKpi} />
       <OperationsIndex workflow={workflow} onJump={onJump} />
-      <PickupBoard records={pickupRecords} canCreate={!writeLocked} onViewAll={() => onJump('pickup')} onAdd={onAddPickup} onEdit={onEditPickup} />
       <ReleaseStrip />
       <div className="ops-first-screen-spacer" aria-hidden="true" />
     </div>
