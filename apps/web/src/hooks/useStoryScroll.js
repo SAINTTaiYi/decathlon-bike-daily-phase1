@@ -4,6 +4,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { lookbookScenes } from '../data/lookbookScenes.js'
 
 gsap.registerPlugin(ScrollTrigger)
+ScrollTrigger.config({ ignoreMobileResize: true })
 
 function reducedMotion() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false
@@ -64,7 +65,8 @@ export default function useStoryScroll({ enabled, rootRef, quiet = false }) {
     const reduce = reducedMotion()
     const handoffs = []
     let sceneFrame = 0
-    let refreshFrame = 0
+    let refreshTimer = 0
+    let disposed = false
 
     const syncSceneFromProgress = () => {
       window.cancelAnimationFrame(sceneFrame)
@@ -124,6 +126,7 @@ export default function useStoryScroll({ enabled, rootRef, quiet = false }) {
             end: 'bottom top',
             pin: true,
             pinSpacing: false,
+            anticipatePin: 1,
             invalidateOnRefresh: true
           })
         }
@@ -131,23 +134,26 @@ export default function useStoryScroll({ enabled, rootRef, quiet = false }) {
     }, stack)
 
     const scheduleRefresh = () => {
-      window.cancelAnimationFrame(refreshFrame)
-      refreshFrame = window.requestAnimationFrame(() => {
+      window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => {
+        if (disposed) return
         ScrollTrigger.refresh()
         syncSceneFromProgress()
-      })
+      }, 180)
     }
     const resizeObserver = typeof ResizeObserver === 'undefined'
       ? null
       : new ResizeObserver(scheduleRefresh)
     sections.forEach((section) => resizeObserver?.observe(section.querySelector('[data-module-flow-inner]') || section))
-    window.addEventListener('load', scheduleRefresh)
+    window.addEventListener('resize', scheduleRefresh, { passive: true })
+    document.fonts?.ready.then(scheduleRefresh)
     scheduleRefresh()
 
     return () => {
+      disposed = true
       window.cancelAnimationFrame(sceneFrame)
-      window.cancelAnimationFrame(refreshFrame)
-      window.removeEventListener('load', scheduleRefresh)
+      window.clearTimeout(refreshTimer)
+      window.removeEventListener('resize', scheduleRefresh)
       resizeObserver?.disconnect()
       context.revert()
       sectionRefs.current.clear()

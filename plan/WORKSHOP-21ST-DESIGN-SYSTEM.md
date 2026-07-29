@@ -94,3 +94,22 @@ Run post-change CodeGraph, commit the verified source, register the clean Previe
 - Independent HTTP verification: `/health/live`, `/health/ready`, `/api/v1/meta/version` and Web shell matched V5.7.9 / merge SHA; HSTS, strict CSP, DENY, `nosniff`, and API `no-store, private` were present.
 - `browser-harness` remains unavailable. No prohibited application browser or Android accessibility fallback was used; human visual acceptance is still required.
 - Staging, Production and Production D1 were not modified. Public version remains V5.7.9.
+
+## Header, scroll stability and typography feedback correction
+
+- Human Preview feedback identified duplicate module headings, a non-persistent Workshop header, the release log being covered by the bottom dock, scroll-time jitter, and runtime fallback to system fonts.
+- The Workshop shell now owns two fixed header rows: global Workshop identity/context/actions above the active module identity. Module-local visual titles are screen-reader-only, so no second visible heading competes with the shell header.
+- The overview-only `PICKUP BOARD` preview was removed while the independent Pickup module and bottom Pickup navigation remain intact.
+- Pickup no longer portals or continuously remeasures a second fixed header. Queue controls remain inside the module, and card entry animation runs only once after first intersection.
+- Story Scroll now ignores mobile viewport-only resize noise, debounces real resize/font refreshes, anticipates pins, and does not retain a blanket `will-change` layer.
+- The release strip reserves bottom-dock space. Global alerts and shell content use the combined two-row header height.
+- Runtime typography is limited to self-hosted `Noto Sans SC Variable` and `Barlow Condensed Ops`; system and generic fallback families are absent from the project runtime CSS. The Fontsource Noto package contributes 101 Unicode-range definitions and is bundled by Vite with no third-party runtime request.
+- Focused feedback tests passed 21/21; complete Web regression passed 122/122; root typecheck, final Web build and all 88 workflow policies passed.
+- Offline frozen install succeeded. The root build reached the expected Preview fingerprint gate and correctly stopped before a clean functional commit was registered.
+- Post-change CodeGraph sync is up to date at 189 files / 2,274 nodes / 7,654 edges. Markdown and font assets are explicit unsupported-language/binary exceptions.
+- `browser-harness` remains unavailable, so no prohibited browser or Android accessibility fallback was used. Human visual interaction acceptance remains required after the corrected Preview is deployed.
+- No Preview redeployment, Staging, Production or D1 mutation has occurred in this correction stage. Public version remains V5.7.9.
+
+## Current stage
+
+The feedback correction and local gates are complete. Next: commit the verified source, register its clean Preview fingerprint without changing V5.7.9, run the clean root build, then open a PR for Node 22 CI and protected Preview-only deployment.

@@ -11,9 +11,9 @@ test('390 mobile overview maps every visible business field to auth and workflow
     read('apps/web/src/components/overview/WorkshopOverviewPage.jsx')
   ])
   assert.match(app, /workflow=\{workflow\}/u)
-  assert.match(app, /currentStore=\{currentStore\}/u)
-  assert.match(app, /currentUser=\{currentUser\}/u)
-  assert.match(app, /writeLocked=\{writeLocked\}/u)
+  assert.match(app, /storeName=\{currentStore\?\.storeName\}/u)
+  assert.match(app, /roleLabel=\{roleLabels\[role\]\}/u)
+  assert.match(app, /userName=\{currentUser\}/u)
   assert.match(overview, /workflow\.dateKey/u)
   assert.match(overview, /workflow\.kpi/u)
   assert.match(overview, /workflow\.recordsByScene/u)
@@ -22,15 +22,15 @@ test('390 mobile overview maps every visible business field to auth and workflow
   assert.doesNotMatch(overview, /CHUI3|粤A12345|张三|李四|王五/u)
 })
 
-test('mobile overview keeps existing KPI, closing, menu, history, pickup edit and scene jump handlers', async () => {
+test('mobile overview keeps KPI, closing, history and scene jump handlers while pickup stays in its dedicated module', async () => {
   const app = await read('apps/web/src/App.jsx')
   assert.match(app, /onMenu=\{\(\) => setMenuOpen\(true\)\}/u)
   assert.match(app, /onLog=\{\(\) => setLogOpen\(true\)\}/u)
   assert.match(app, /onEditKpi=\{\(\) => setKpiOpen\(true\)\}/u)
   assert.match(app, /onCompleteClosing=\{requestClose\}/u)
   assert.match(app, /setHistoryTarget\(\{ scene: 'pulse', record: null \}\)/u)
-  assert.match(app, /setRecordEditor\(\{ scene: 'pickup', record: null \}\)/u)
-  assert.match(app, /setRecordEditor\(\{ scene: 'pickup', record \}\)/u)
+  assert.match(app, /<PickupScene \{\.\.\.recordProps\('pickup'\)\} \/>/u)
+  assert.match(app, /<ActionDock activeScene=\{activeScene\} onJump=\{jumpFromOverview\}/u)
   assert.match(app, /onJump=\{jumpFromOverview\}/u)
 })
 
@@ -60,11 +60,13 @@ test('reference geometry is mobile-first and explicitly rearranges for tablet an
 })
 
 test('reference hierarchy uses real identity, binary closing status and stable metric sizing', async () => {
-  const [overview, css] = await Promise.all([
+  const [overview, css, header] = await Promise.all([
     read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'),
-    read('apps/web/src/styles/mobile-overview.css')
+    read('apps/web/src/styles/mobile-overview.css'),
+    read('apps/web/src/components/workshop/WorkshopShellHeader.jsx')
   ])
-  assert.match(overview, /ops-store-mark/u)
+  assert.match(header, /workshop-global-header/u)
+  assert.match(header, /workshop-module-header/u)
   assert.match(overview, /今日闭店进度/u)
   assert.match(overview, /销售数据是唯一闭店要求/u)
   assert.match(overview, /salesValue === '—' \? 'unavailable'/u)
@@ -84,12 +86,11 @@ test('operations index uses a condensed Chinese label and concise module subtitl
     read('apps/web/src/styles/mobile-overview.css')
   ])
   assert.match(overview, /className="ops-index-label-cn">业务台账<\/span>/u)
-  assert.match(css, /@font-face \{[\s\S]*?font-family: 'Noto Sans SC Operations';[\s\S]*?noto-sans-sc-operations-index-subset\.ttf/u)
-  assert.match(css, /\.ops-index-label-cn \{[^}]*font-family: 'Noto Sans SC Operations', 'Noto Sans SC', sans-serif;[^}]*font-weight: 700;[^}]*transform: scaleX\(\.72\);/u)
+  assert.match(css, /\.ops-index-label-cn \{[^}]*font-family: 'Noto Sans SC Variable';[^}]*font-weight: 700;[^}]*transform: scaleX\(\.72\);/u)
   for (const label of ['待取车辆', '其它交接', '维修交接', '二手车台账', '销售数据']) {
     assert.match(overview, new RegExp(`'${label}'`, 'u'))
   }
-  const operationsIndex = overview.slice(overview.indexOf('function OperationsIndex'), overview.indexOf('function compactContact'))
+  const operationsIndex = overview.slice(overview.indexOf('function OperationsIndex'), overview.indexOf('function ReleaseStrip'))
   assert.doesNotMatch(operationsIndex, /跨日保留|唯一闭店要求/u)
   assert.match(operationsIndex, /<em>\{cn\}<\/em>/u)
 })
@@ -157,6 +158,22 @@ test('feedback alignment uses top-anchored content and removes only sales KPI ic
   assert.match(css, /\.ops-index button > span \{ position: absolute; top: 19px;/u)
   assert.match(css, /\.ops-index button > b \{ position: absolute; top: 50px;/u)
   assert.match(css, /\.ops-index button > \.ops-arrow \{ position: absolute; top: 55px; right: 7px;/u)
-  assert.match(css, /\.ops-pickup-card strong \{ top: 4px;/u)
-  assert.match(css, /\.ops-pickup-card em \{ top: 44px;/u)
+  assert.doesNotMatch(overview, /PICKUP BOARD|ops-pickup-board/u)
+  assert.match(overview, /id: 'pickup'/u)
+})
+
+
+test('workspace uses only self-hosted Noto Sans SC and Barlow Condensed without system or generic fallbacks', async () => {
+  const [tokens, system, overviewCss, notoCss] = await Promise.all([
+    read('apps/web/src/styles/tokens.css'),
+    read('apps/web/src/styles/workshop-system.css'),
+    read('apps/web/src/styles/mobile-overview.css'),
+    read('apps/web/src/styles/noto-sans-sc.css')
+  ])
+  const runtimeCss = [tokens, system, overviewCss].join('\n')
+  assert.match(runtimeCss, /--ops-body: 'Noto Sans SC Variable'/u)
+  assert.match(runtimeCss, /--ops-display: 'Barlow Condensed Ops', 'Noto Sans SC Variable'/u)
+  assert.match(notoCss, /font-family: 'Noto Sans SC Variable'/u)
+  assert.match(notoCss, /font-display: block/u)
+  assert.doesNotMatch(runtimeCss, /Arial|Helvetica|Segoe|BlinkMac|system-ui|sans-serif|monospace|ui-sans/u)
 })

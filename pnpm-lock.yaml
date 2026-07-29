@@ -60,6 +60,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@fontsource-variable/noto-sans-sc':
+        specifier: 5.3.0
+        version: 5.3.0
       animejs:
         specifier: 4.5.0
         version: 4.5.0
@@ -599,6 +602,9 @@ packages:
 
   '@fastify/rate-limit@9.1.0':
     resolution: {integrity: sha512-h5dZWCkuZXN0PxwqaFQLxeln8/LNwQwH9popywmDCFdKfgpi4b/HoMH1lluy6P+30CG9yzzpSpwTCIPNB9T1JA==}
+
+  '@fontsource-variable/noto-sans-sc@5.3.0':
+    resolution: {integrity: sha512-lNar1dF7Ik/lHNPo/7JWG0TolXY29LtsqYgMvEysooZ5bsO9uH4shJmRrwyJ3PjyTPljhpMJEK0jDuLSU4vJ1w==}
 
   '@lukeed/ms@2.0.2':
     resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
@@ -1453,6 +1459,8 @@ snapshots:
       '@lukeed/ms': 2.0.2
       fastify-plugin: 4.5.1
       toad-cache: 3.7.4
+
+  '@fontsource-variable/noto-sans-sc@5.3.0': {}
 
   '@lukeed/ms@2.0.2': {}
 

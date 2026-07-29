@@ -30,7 +30,7 @@ test('唯一运行设计层采用 DESIGN.md 暖白、黑色和信号黄 token', 
 })
 
 
-test('认证与安全入口不再声明已废弃主题，正文使用无衬线中文 fallback', async () => {
+test('认证与安全入口不再声明已废弃主题，正文使用自托管中文字体且无系统 fallback', async () => {
   const sources = await Promise.all([
     'BootLoader.jsx',
     'InitialSetup.jsx',
@@ -39,7 +39,8 @@ test('认证与安全入口不再声明已废弃主题，正文使用无衬线�
     'RegistrationWizard.jsx'
   ].map((name) => readFile(new URL(`../apps/web/src/components/${name}`, import.meta.url), 'utf8')))
   for (const source of sources) assert.doesNotMatch(source, /data-ark-theme|data-ark-depth|endfield/u)
-  assert.match(tokens, /--font-body: 'Albert Sans Local', 'Noto Sans SC'/u)
-  assert.doesNotMatch(tokens, /Noto Serif SC Variable/u)
+  assert.match(tokens, /--font-body: 'Noto Sans SC Variable'/u)
+  assert.match(tokens, /--font-display: 'Barlow Condensed Ops', 'Noto Sans SC Variable'/u)
+  assert.doesNotMatch(tokens, /Albert Sans Local|Noto Serif SC Variable|sans-serif|system-ui/u)
   assert.match(css, /\.boot-title-word \{ font-size: 56px; \}/u)
 })
