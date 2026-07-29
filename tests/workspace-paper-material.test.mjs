@@ -3,20 +3,43 @@ import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 
 const app = await readFile(new URL('../apps/web/src/App.jsx', import.meta.url), 'utf8')
-const css = await readFile(new URL('../apps/web/src/styles/refinement.css', import.meta.url), 'utf8')
+const css = await readFile(new URL('../apps/web/src/styles/workshop-system.css', import.meta.url), 'utf8')
+const index = await readFile(new URL('../apps/web/src/styles/index.css', import.meta.url), 'utf8')
+const tokens = await readFile(new URL('../apps/web/src/styles/tokens.css', import.meta.url), 'utf8')
 
-for (const layer of ['workspace-paper-film', 'workspace-paper-fibre', 'workspace-paper-scratches']) {
-  test(`主工作台拥有 ${layer} 装饰层`, () => {
-    assert.ok(app.includes(`<div className="${layer}" aria-hidden="true" />`))
-  })
-}
+test('主工作台不再挂载旧纸张磨损和三维深度装饰层', () => {
+  for (const layer of ['workspace-paper-film', 'workspace-paper-fibre', 'workspace-paper-scratches', 'workspace-depth-plane-far', 'workspace-depth-plane-near']) {
+    assert.doesNotMatch(app, new RegExp(layer, 'u'))
+  }
+  assert.doesNotMatch(index, /endfield\.css|desktop-endfield\.css|noto-serif-sc\.css/u)
+})
 
-test('旧纸背景和标题磨损纹理只在就绪的登录工作台启用', () => {
-  assert.match(css, /\.app-runtime\[data-ready='true'\] \{\n  --workspace-aged-paper: #EFEEEC;/u)
-  assert.match(css, /\.app-runtime\[data-ready='true'\] \.workspace-paper-film/u)
-  assert.match(css, /\.app-runtime\[data-ready='true'\] \.workspace-paper-fibre/u)
-  assert.match(css, /\.app-runtime\[data-ready='true'\] \.workspace-paper-scratches/u)
-  assert.match(css, /\.lookbook-shell :is\(h1, h2, \.title-translation, \.look-number, \.summary-copy > span/u)
-  assert.match(css, /@media \(forced-colors: active\)/u)
-  assert.doesNotMatch(css, /body\.is-booting[^\n]*workspace-paper/u)
+test('唯一运行设计层采用 DESIGN.md 暖白、黑色和信号黄 token', () => {
+  for (const rule of [
+    /--ops-page: #f7f5ef/u,
+    /--ops-card: #fffdf8/u,
+    /--ops-black: #0c0e0c/u,
+    /--ops-yellow: #ffc31a/u,
+    /--ops-radius: 8px/u,
+    /--ops-card-shadow: 0 5px 18px/u,
+    /@media \(prefers-reduced-motion: reduce\)/u,
+    /@media \(forced-colors: active\)/u
+  ]) assert.match(css, rule)
+  assert.match(tokens, /--accent: #ffc31a/u)
+  assert.doesNotMatch(tokens, /#075dff/u)
+})
+
+
+test('认证与安全入口不再声明已废弃主题，正文使用无衬线中文 fallback', async () => {
+  const sources = await Promise.all([
+    'BootLoader.jsx',
+    'InitialSetup.jsx',
+    'PasswordChangeGate.jsx',
+    'PlatformAdminSetup.jsx',
+    'RegistrationWizard.jsx'
+  ].map((name) => readFile(new URL(`../apps/web/src/components/${name}`, import.meta.url), 'utf8')))
+  for (const source of sources) assert.doesNotMatch(source, /data-ark-theme|data-ark-depth|endfield/u)
+  assert.match(tokens, /--font-body: 'Albert Sans Local', 'Noto Sans SC'/u)
+  assert.doesNotMatch(tokens, /Noto Serif SC Variable/u)
+  assert.match(css, /\.boot-title-word \{ font-size: 56px; \}/u)
 })

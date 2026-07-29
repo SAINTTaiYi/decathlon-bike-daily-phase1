@@ -5,7 +5,9 @@ import { readFileSync } from 'node:fs'
 const app = readFileSync(new URL('../apps/web/src/App.jsx', import.meta.url), 'utf8')
 const launch = readFileSync(new URL('../apps/web/src/hooks/useWorkspaceMotion.js', import.meta.url), 'utf8')
 const motion = readFileSync(new URL('../apps/web/src/hooks/useMotionSystem.js', import.meta.url), 'utf8')
-const boot = readFileSync(new URL('../apps/web/src/components/BootLoader.jsx', import.meta.url), 'utf8')
+const flow = readFileSync(new URL('../apps/web/src/hooks/useModuleFlow.js', import.meta.url), 'utf8')
+const transition = readFileSync(new URL('../apps/web/src/components/workshop/ModuleFlowTransition.jsx', import.meta.url), 'utf8')
+const styles = readFileSync(new URL('../apps/web/src/styles/workshop-system.css', import.meta.url), 'utf8')
 
 function sourceOf(path) {
   return readFileSync(new URL(path, import.meta.url), 'utf8')
@@ -17,66 +19,54 @@ test('登录后的工作台入场只在真实登录且首屏数据稳定后启�
   assert.match(app, /auth\.source === 'restore'/)
 })
 
-test('工作台入场提供遮罩点击、显式按钮和 Escape 跳过，并把焦点交回主内容', () => {
+test('工作台入场可跳过并在完成后把焦点交回主内容', () => {
   assert.match(app, /跳过入场动画/)
   assert.match(app, /event\.key === 'Escape'/)
   assert.match(app, /onPointerDown=/)
   assert.match(app, /id="main-content" tabIndex="-1"/)
   assert.match(app, /main-content'\)\?\.focus/)
-})
-
-test('入场按环境、结构、导航、焦点与模块分层，并为 reduced motion 走短淡入', () => {
-  assert.match(launch, /data-workspace-layer="environment"/)
-  assert.match(launch, /data-workspace-layer="structure"/)
-  assert.match(launch, /data-workspace-layer="navigation"/)
-  assert.match(launch, /data-workspace-layer="focus"/)
-  assert.match(launch, /gsap\.set\(structure, \{ perspective: 1180/)
   assert.match(launch, /reducedMotion\(\)/)
-  assert.match(launch, /duration: 0\.2/)
-  assert.match(launch, /addLabel\('focus', 0\.72\)/)
-  assert.match(launch, /to\(overlay, \{ autoAlpha: 0, duration: 0\.26/)
+  assert.match(launch, /duration: \.12/)
+  assert.doesNotMatch(launch, /perspective|rotationX|blur/u)
 })
 
-test('常驻空间响应使用 GSAP group-level ScrollTrigger，不转化滚动壳，并保持 touch 原生连续滑动', () => {
-  assert.match(motion, /ScrollTrigger\.create/)
-  assert.match(motion, /data-workspace-layer=\"depth-far\"/)
-  assert.match(motion, /data-workspace-layer=\"depth-near\"/)
-  assert.doesNotMatch(motion, /scrollPlane/)
-  assert.doesNotMatch(motion, /addEventListener\('scroll'/)
-  assert.match(motion, /quietRef\.current \? \.22 : 1/)
-  assert.match(motion, /event\.pointerType === 'touch'/)
-  assert.match(motion, /distance < 8/)
+test('六模块保持挂载但仅暴露当前模块，本地表单和列表状态不会因切换卸载', () => {
+  for (const id of ['pulse', 'pickup', 'poster', 'repair', 'resale', 'sales']) {
+    assert.match(app, new RegExp(`id="module-${id}"`, 'u'))
+  }
+  assert.match(app, /hidden=\{activeScene !== 'pickup'\}/u)
+  assert.match(app, /inert=\{activeScene !== 'repair'/u)
+  assert.match(app, /aria-hidden=\{activeScene !== 'sales'/u)
+  assert.doesNotMatch(app, /useActiveScene/u)
 })
 
-test('移动端深度使用独立平面、可见区块位移和 pan-y，而不是减弱成桌面附属效果', () => {
-  const app = sourceOf('../apps/web/src/App.jsx')
-  const styles = sourceOf('../apps/web/src/styles/refinement.css')
-  assert.match(app, /data-workspace-layer=\"depth-far\"/)
-  assert.match(app, /data-workspace-layer=\"depth-near\"/)
-  assert.match(motion, /compact \? 1\.34 : 1/)
-  assert.match(styles, /touch-action: pan-y/)
-  assert.doesNotMatch(styles, /\.app-runtime \{[^}]*perspective:/)
-  assert.match(styles, /look-section\[data-depth-section\]/)
-  assert.match(styles, /workspace-depth-plane-near/)
+test('模块边界手势保持内部原生滚动并要求二次确认', () => {
+  assert.match(flow, /scrollableAncestorCanMove/u)
+  assert.match(flow, /atDocumentBoundary/u)
+  assert.match(flow, /WHEEL_THRESHOLD = 72/u)
+  assert.match(flow, /TOUCH_THRESHOLD = 64/u)
+  assert.match(flow, /boundaryHint\?\.target === targetId/u)
+  assert.match(flow, /passive: false/u)
+  assert.match(flow, /PageDown/u)
+  assert.match(flow, /PageUp/u)
+  assert.match(styles, /touch-action: pan-y/u)
 })
 
-test('现有首页首屏组件成为空间编排对象，且登录品牌开屏缩短后交给工作台入场', () => {
-  assert.match(sourceOf('../apps/web/src/components/lookbook/ReleaseNotes.jsx'), /data-workspace-module="true"/)
-  assert.match(sourceOf('../apps/web/src/components/lookbook/MainHeadImage.jsx'), /data-depth-card="true"/)
-  assert.match(sourceOf('../apps/web/src/scenes/PulseScene.jsx'), /data-workspace-module="true"/)
-  assert.match(boot, /duration: 0\.74/)
-  assert.match(boot, /0\.72\)/)
+test('Story Scroll 只影响模块交接并提供 reduced-motion 淡出', () => {
+  assert.match(transition, /module-flow-chapter/u)
+  assert.match(transition, /yPercent: direction > 0 \? 100 : -100/u)
+  assert.match(transition, /module-flow-progress/u)
+  assert.match(transition, /transition\.reduced/u)
+  assert.match(transition, /duration: \.12/u)
+  assert.doesNotMatch(transition, /ScrollTrigger/u)
 })
 
-
-test('滚动组件进入使用批量 GSAP 空间 reveal，不使用 clip-path 或 blur 裁切内容', () => {
+test('模块内部 reveal 仅使用短距离位移和透明度，不恢复三维或模糊效果', () => {
   const ledger = sourceOf('../apps/web/src/components/lookbook/RecordLedger.jsx')
-  assert.match(motion, /data-reveal-group/)
-  assert.match(motion, /transformPerspective: 1050/)
-  assert.match(motion, /rotationX: profile\.rotationX/)
-  assert.match(motion, /stagger/)
-  assert.match(motion, /MutationObserver/)
-  assert.doesNotMatch(motion, /clipPath/)
-  assert.doesNotMatch(motion, /filter: 'blur/)
-  assert.match(ledger, /data-reveal-group="records"/)
+  assert.match(motion, /data-reveal-group/u)
+  assert.match(motion, /IntersectionObserver/u)
+  assert.match(motion, /MutationObserver/u)
+  assert.match(motion, /stagger: targets\.length/u)
+  assert.doesNotMatch(motion, /ScrollTrigger|perspective|rotationX|rotationY|filter:\s*['"]blur/u)
+  assert.match(ledger, /data-reveal-group="records"/u)
 })

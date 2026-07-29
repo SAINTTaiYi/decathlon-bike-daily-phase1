@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import IconCash from '@iconoir/Cash.mjs'
 import IconDelivery from '@iconoir/DeliveryTruck.mjs'
 import IconLabel from '@iconoir/Label.mjs'
@@ -77,7 +78,8 @@ function StoreContextCard({ storeName, roleLabel, userName, onMenu }) {
   )
 }
 
-function ClosingStatusCard({ workflow, online, onEditKpi, onCompleteClosing, onHistory, onRefresh }) {
+function ClosingStatusCard({ workflow, online, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport }) {
+  const [exporting, setExporting] = useState(false)
   const available = workflow.hydrated && workflow.hasSnapshot
   const closed = Boolean(workflow.closedAt)
   const error = Boolean(workflow.storageError)
@@ -108,6 +110,11 @@ function ClosingStatusCard({ workflow, online, onEditKpi, onCompleteClosing, onH
     action = '检查闭店'
     onAction = onCompleteClosing
   }
+  const exportReport = async () => {
+    if (!onExportReport || exporting) return
+    setExporting(true)
+    try { await onExportReport() } finally { setExporting(false) }
+  }
   return (
     <section className="ops-closing-card" aria-labelledby="ops-closing-title">
       <div className="ops-closing-main">
@@ -119,6 +126,7 @@ function ClosingStatusCard({ workflow, online, onEditKpi, onCompleteClosing, onH
         <span><small>{nextLabel}</small><strong>{nextTitle}</strong><em>{nextCopy}</em></span>
         <button type="button" onClick={onAction} disabled={!online && !closed}>{action}<ArrowGlyph /></button>
       </div>
+      {closed ? <div className="ops-closing-actions"><button type="button" onClick={() => void exportReport()} disabled={exporting}>{exporting ? '正在生成…' : '导出日报图'}</button><button type="button" onClick={onReopenClosing}>重新打开闭店</button></div> : null}
     </section>
   )
 }
@@ -204,15 +212,14 @@ function ReleaseStrip() {
   )
 }
 
-export default function WorkshopOverviewPage({ workflow, currentStore, roleLabel, currentUser, online, writeLocked, onMenu, onLog, onEditKpi, onCompleteClosing, onHistory, onRefresh, onJump, onAddPickup, onEditPickup }) {
+export default function WorkshopOverviewPage({ workflow, currentStore, roleLabel, currentUser, online, writeLocked, onMenu, onLog, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport, onJump, onAddPickup, onEditPickup }) {
   const pickupRecords = workflow.recordsByScene.pickup || []
   const available = workflow.hydrated && workflow.hasSnapshot
   return (
     <div className="ops-mobile-overview" data-workspace-module="true" aria-label="Workshop 业务总览">
-      <BrandHeader dateKey={workflow.dateKey} onMenu={onMenu} onNotifications={onLog} hasUnread={Boolean(workflow.events?.length)} />
-      <StoreContextCard storeName={currentStore?.storeName} roleLabel={roleLabel} userName={currentUser} onMenu={onMenu} />
+      <header className="ops-overview-intro"><span>01 / OVERVIEW</span><div><strong>今日经营总览</strong><small>DAILY OPERATIONS</small></div><p>{currentStore?.storeName || '门店'} · {roleLabel || '成员'} · {currentUser || '—'}</p></header>
       {!online ? <p className="ops-inline-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据</p> : null}
-      <ClosingStatusCard workflow={workflow} online={online} onEditKpi={onEditKpi} onCompleteClosing={onCompleteClosing} onHistory={onHistory} onRefresh={onRefresh} />
+      <ClosingStatusCard workflow={workflow} online={online} onEditKpi={onEditKpi} onCompleteClosing={onCompleteClosing} onHistory={onHistory} onRefresh={onRefresh} onReopenClosing={onReopenClosing} onExportReport={onExportReport} />
       <SalesVehiclesPanel dateKey={workflow.dateKey} kpi={workflow.kpi} available={available} onEditKpi={onEditKpi} />
       <OperationsIndex workflow={workflow} onJump={onJump} />
       <PickupBoard records={pickupRecords} canCreate={!writeLocked} onViewAll={() => onJump('pickup')} onAdd={onAddPickup} onEdit={onEditPickup} />

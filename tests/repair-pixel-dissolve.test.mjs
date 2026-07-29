@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 const app = readFileSync(new URL('../apps/web/src/App.jsx', import.meta.url), 'utf8')
 const ledger = readFileSync(new URL('../apps/web/src/components/lookbook/RecordLedger.jsx', import.meta.url), 'utf8')
 const workflow = readFileSync(new URL('../apps/web/src/hooks/useRemoteClosingWorkflow.js', import.meta.url), 'utf8')
-const styles = readFileSync(new URL('../apps/web/src/styles/refinement.css', import.meta.url), 'utf8')
+const styles = readFileSync(new URL('../apps/web/src/styles/workshop-system.css', import.meta.url), 'utf8')
 
 test('维修完毕只在服务端成功后启动白色像素向左消散', () => {
   assert.match(app, /workflow\.completeRepair\(record\.id, \{ apply: false, sync: 'none' \}\)/)
@@ -30,9 +30,9 @@ test('维修消散以更小黑色像素格缓慢从右向左转为透明，且 r
   assert.match(ledger, /onRepairPixelDissolveComplete/)
   assert.match(styles, /V5\.7\.0 repair completion/)
   assert.match(styles, /\.repair-pixel-dissolve \{[\s\S]*background: transparent/)
-  assert.match(styles, /\.repair-pixel-dissolve i \{[\s\S]*background: var\(--ink\)/)
+  assert.match(styles, /\.repair-pixel-dissolve i \{[\s\S]*background: var\(--ops-black\)/)
   assert.match(styles, /record-row\[data-repair-pixel-dissolving='true'\] \{[\s\S]*border-color: transparent/)
-  assert.match(styles, /@media \(prefers-reduced-motion: reduce\) \{\s+\.repair-pixel-dissolve/)
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.repair-pixel-dissolve i/)
 })
 
 test('远端维修完成支持延迟提交，使消散期间不产生乐观完成态', () => {
