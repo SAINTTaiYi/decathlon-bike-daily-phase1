@@ -29,7 +29,7 @@ import { REPAIR_POS_REMINDER_STATUS } from './data/repairRecord.js'
 import { sceneById } from './data/lookbookScenes.js'
 import useAuth from './hooks/useAuth.js'
 import useRemoteClosingWorkflow from './hooks/useRemoteClosingWorkflow.js'
-import useStoryScroll from './hooks/useStoryScroll.js'
+import useModuleStages from './hooks/useModuleStages.js'
 import useMotionSystem from './hooks/useMotionSystem.js'
 import useWorkspaceMotion from './hooks/useWorkspaceMotion.js'
 import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
@@ -41,18 +41,31 @@ import SalesScene from './scenes/SalesScene.jsx'
 
 const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员' }
 
-function StoryScrollPanel({ active, children, className = '', sceneId }) {
+function ModuleStage({ active, children, className = '', sceneId }) {
+  const scene = sceneById(sceneId)
+  const stageIndex = Math.max(0, Number.parseInt(scene.no, 10) - 1)
   return (
     <section
-      className={`workshop-module-panel ${className}`.trim()}
+      className={`workshop-module-stage ${className}`.trim()}
       id={`module-${sceneId}`}
       tabIndex="-1"
+      style={{ '--module-stage-index': stageIndex }}
       data-workspace-module="true"
-      data-module-flow-section="true"
+      data-module-stage="true"
       data-scene-id={sceneId}
       data-active={active ? 'true' : undefined}
     >
-      <div className="workshop-module-flow-inner" data-module-flow-inner="true">{children}</div>
+      <div className="workshop-module-stage-runway" data-module-stage-runway="true">
+        <div className="workshop-module-stage-cover" data-module-stage-cover="true" aria-hidden="true">
+          <span className="workshop-module-stage-index">{scene.no} / 06</span>
+          <div className="workshop-module-stage-copy">
+            <span>{scene.label}</span>
+            <strong>{scene.title}</strong>
+            <small>{scene.cn}</small>
+          </div>
+        </div>
+      </div>
+      <div className="workshop-module-stage-content" data-module-stage-content="true">{children}</div>
     </section>
   )
 }
@@ -117,7 +130,7 @@ export default function App() {
     onComplete: completeWorkspaceAssembly
   })
   const taskFocused = Boolean(taskInputFocused || menuOpen || logOpen || permanentHistoryOpen || confirmOpen || kpiOpen || migrationOpen || governanceOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
-  const { activeScene, jumpTo } = useStoryScroll({
+  const { activeScene, jumpTo } = useModuleStages({
     enabled: introDone && workflow.hydrated && !workspaceLaunching,
     rootRef: workspaceRootRef,
     quiet: taskFocused
@@ -506,8 +519,8 @@ export default function App() {
         </div>
         {!online ? <p className="workshop-global-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据；恢复网络后才能修改。</p> : null}
         <main className="workshop-shell" id="main-content" tabIndex="-1" data-workspace-layer="structure">
-          <div className="workshop-module-stack" data-workspace-layer="focus" data-module-flow-stack="true">
-            <StoryScrollPanel sceneId="pulse" active={activeScene === 'pulse'} className="workshop-overview-panel">
+          <div className="workshop-module-stage-stack" data-workspace-layer="focus" data-module-stage-stack="true">
+            <ModuleStage sceneId="pulse" active={activeScene === 'pulse'} className="workshop-overview-stage">
               <span className="closing-summary-anchor" id="closing-summary-anchor" aria-hidden="true" />
               <WorkshopOverviewPage
                 workflow={workflow}
@@ -520,12 +533,12 @@ export default function App() {
                 onExportReport={exportClosingReport}
                 onJump={jumpFromOverview}
               />
-            </StoryScrollPanel>
-            <StoryScrollPanel sceneId="pickup" active={activeScene === 'pickup'}><PickupScene {...recordProps('pickup')} /></StoryScrollPanel>
-            <StoryScrollPanel sceneId="poster" active={activeScene === 'poster'}><OpeningScene {...recordProps('poster')} /></StoryScrollPanel>
-            <StoryScrollPanel sceneId="repair" active={activeScene === 'repair'}><RepairScene {...recordProps('repair')} /></StoryScrollPanel>
-            <StoryScrollPanel sceneId="resale" active={activeScene === 'resale'}><ResaleScene {...recordProps('resale')} /></StoryScrollPanel>
-            <StoryScrollPanel sceneId="sales" active={activeScene === 'sales'}><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></StoryScrollPanel>
+            </ModuleStage>
+            <ModuleStage sceneId="pickup" active={activeScene === 'pickup'}><PickupScene {...recordProps('pickup')} /></ModuleStage>
+            <ModuleStage sceneId="poster" active={activeScene === 'poster'}><OpeningScene {...recordProps('poster')} /></ModuleStage>
+            <ModuleStage sceneId="repair" active={activeScene === 'repair'}><RepairScene {...recordProps('repair')} /></ModuleStage>
+            <ModuleStage sceneId="resale" active={activeScene === 'resale'}><ResaleScene {...recordProps('resale')} /></ModuleStage>
+            <ModuleStage sceneId="sales" active={activeScene === 'sales'}><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></ModuleStage>
           </div>
           <footer className="closing-footer workshop-footer">
             <div className="footer-identity"><span>{currentStore?.storeName || 'ACTIVE USER'} · {roleLabels[role]}</span><strong>{currentUser}</strong></div>
