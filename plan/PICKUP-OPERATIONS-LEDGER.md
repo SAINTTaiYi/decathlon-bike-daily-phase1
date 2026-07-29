@@ -1,6 +1,6 @@
 # Pending Pickup Operations Ledger
 
-**Status:** implementation complete; functional commit pending
+**Status:** functional source committed; Preview gates pending
 **Branch:** `feat/pickup-operations-ledger`
 **Base:** `1071761c774fbc01a8eeb37a4717a7085a8613ba`
 **Public version:** V5.7.9 unchanged (Preview-only cycle)
@@ -53,6 +53,12 @@ It is not a general status color and cannot be reused as a decorative band.
 - earlier monorepo typecheck: passed;
 - root build was not bypassed: it correctly requires a clean committed source SHA before Preview fingerprint registration.
 
+## Functional checkpoint
+
+- source commit: `e93baeb733d06c0c7e8ad422121fbf234a780f38` (`feat(web): redesign pending pickup operations ledger`);
+- commit scope: 10 files, 565 insertions, 11 deletions;
+- public version remains V5.7.9.
+
 ## Final local gates
 
 - Web regression suite: 121 passed, 0 failed;
@@ -73,8 +79,7 @@ The Termux host runs Node 24 while `.nvmrc` and every GitHub workflow use Node 2
 
 ## Remaining gates
 
-1. functional source commit;
-2. clean-tree `pnpm version:preview` registration and root build;
-3. normal PR and green Node 22 CI, including pinned Gitleaks;
-4. Cloudflare Preview deployment, independent endpoint checks, then human visual acceptance;
-5. no Production deployment without a separate explicit request.
+1. clean-tree `pnpm version:preview` registration and root build;
+2. normal PR and green Node 22 CI, including pinned Gitleaks;
+3. Cloudflare Preview deployment, independent endpoint checks, then human visual acceptance;
+4. no Production deployment without a separate explicit request.
