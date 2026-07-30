@@ -1,12 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 
 const app = readFileSync(new URL('../apps/web/src/App.jsx', import.meta.url), 'utf8')
 const launch = readFileSync(new URL('../apps/web/src/hooks/useWorkspaceMotion.js', import.meta.url), 'utf8')
 const motion = readFileSync(new URL('../apps/web/src/hooks/useMotionSystem.js', import.meta.url), 'utf8')
 const moduleStages = readFileSync(new URL('../apps/web/src/hooks/useModuleStages.js', import.meta.url), 'utf8')
+const progress = readFileSync(new URL('../apps/web/src/utils/moduleStageProgress.js', import.meta.url), 'utf8')
+const scenes = readFileSync(new URL('../apps/web/src/data/lookbookScenes.js', import.meta.url), 'utf8')
 const styles = readFileSync(new URL('../apps/web/src/styles/workshop-system.css', import.meta.url), 'utf8')
+const stageSources = readFileSync(new URL('../apps/web/public/images/ops/stages/SOURCES.md', import.meta.url), 'utf8')
 
 function sourceOf(path) {
   return readFileSync(new URL(path, import.meta.url), 'utf8')
@@ -31,43 +34,87 @@ test('工作台入场可跳过、使用无透视的遮罩揭示并在完成后�
 
 test('六模块持续挂载并全部进入文档流，本地表单和列表状态不会因切换卸载', () => {
   for (const id of ['pulse', 'pickup', 'poster', 'repair', 'resale', 'sales']) {
-    assert.match(app, new RegExp('<ModuleStage sceneId=\"' + id + '\"', 'u'))
+    assert.equal(app.includes('<ModuleStage sceneId="' + id + '"'), true)
   }
   assert.match(app, /data-module-stage-stack="true"/u)
   assert.match(app, /data-module-stage="true"/u)
+  assert.match(app, /data-module-stage-content="true"/u)
   assert.doesNotMatch(app, /hidden=\{activeScene|inert=\{activeScene|aria-hidden=\{activeScene/u)
 })
 
-test('模块切换使用原生连续滚动和被动观测，不创建 pin、滚动补偿或输入劫持', () => {
-  assert.match(moduleStages, /IntersectionObserver/u)
-  assert.match(moduleStages, /addEventListener\('scroll', syncActiveStage, \{ passive: true \}\)/u)
-  assert.match(moduleStages, /window\.scrollTo/u)
+test('模块使用连续 rAF 进度而非阈值式假视差或输入劫持', () => {
+  assert.match(moduleStages, /stageProgressForGeometry/u)
+  assert.match(moduleStages, /stageMotionValues/u)
+  assert.match(moduleStages, /stageWordFocus/u)
+  assert.match(moduleStages, /requestAnimationFrame/u)
+  assert.match(moduleStages, /addEventListener\('scroll', syncStages, \{ passive: true \}\)/u)
+  assert.match(moduleStages, /setProperty\('--stage-title-2-y'/u)
+  assert.match(moduleStages, /setProperty\('--stage-title-3-y'/u)
+  assert.match(moduleStages, /setProperty\('--stage-backdrop-y'/u)
+  assert.match(moduleStages, /setProperty\('--stage-object-scale'/u)
+  assert.match(moduleStages, /setAttribute\('startOffset'/u)
+  assert.match(progress, /\(-20 \+ safeProgress \* 40\)/u)
+  assert.match(progress, /1 \+ safeProgress \* 0\.2/u)
   assert.doesNotMatch(moduleStages, /ScrollTrigger|gsap|ResizeObserver|pinSpacing|pin:|scrub:/u)
-  for (const eventName of ['wheel', 'touchstart', 'touchend', 'keydown']) assert.equal(moduleStages.includes("addEventListener('" + eventName + "'"), false)
+  for (const eventName of ['wheel', 'touchstart', 'touchend', 'keydown']) {
+    assert.equal(moduleStages.includes("addEventListener('" + eventName + "'"), false)
+  }
   assert.doesNotMatch(moduleStages, /preventDefault|WHEEL_THRESHOLD|TOUCH_THRESHOLD|boundaryHint/u)
-  assert.doesNotMatch(styles, /module-transitioning|module-boundary-hint|module-flow-transition/u)
 })
 
-test('每个模块都有短生命周期的原生 sticky 覆盖舞台，随后释放为普通业务内容流', () => {
-  assert.match(app, /data-module-stage-runway="true"/u)
-  assert.match(app, /data-module-stage-cover="true"/u)
-  assert.match(app, /data-module-stage-content="true"/u)
-  assert.match(styles, /\.workshop-module-stage-runway \{[\s\S]*?min-height: calc\(var\(--module-stage-height\) \+ var\(--module-stage-hold\)\);/u)
-  assert.match(styles, /\.workshop-module-stage-cover \{[\s\S]*?position: sticky;[\s\S]*?top: var\(--ops-header-height\);/u)
-  assert.match(styles, /\.workshop-module-stage-content \{[\s\S]*?position: relative;[\s\S]*?min-height: calc\(100dvh - var\(--ops-header-height\) - 12px\);/u)
-  assert.match(styles, /\.workshop-module-stage-content \{[\s\S]*?margin-top: calc\(0px - var\(--module-stage-overlap\)\);/u)
-  assert.match(styles, /\.workshop-module-stage:first-child \.workshop-module-stage-content \{ margin-top: 0; \}/u)
-  assert.match(styles, /animation-timeline: view\(\);/u)
-  assert.match(styles, /workshop-slate-texture\.png/u)
-  assert.match(moduleStages, /prefers-reduced-motion: reduce/u)
+test('六个舞台都具备 About-derived 多层排版、前景、曲线与逐词轨迹', () => {
+  for (const marker of [
+    'workshop-stage-backdrop',
+    'workshop-stage-material',
+    'workshop-stage-orbit',
+    'workshop-stage-title',
+    'workshop-stage-object',
+    'workshop-stage-curve-copy',
+    'workshop-stage-trail',
+    'data-stage-curve-copy="true"',
+    'data-stage-trail-word="true"'
+  ]) assert.match(app, new RegExp(marker, 'u'))
+
+  assert.match(styles, /\.workshop-module-stage-cover \{[\s\S]*?position: sticky;[\s\S]*?min-height: var\(--module-stage-height\);/u)
+  assert.match(styles, /\.workshop-stage-material \{[\s\S]*?transform: translate3d\(0,var\(--stage-backdrop-y\),0\) scale\(1\.38\);/u)
+  assert.match(styles, /\.workshop-stage-title-line-2 \{[\s\S]*?var\(--stage-title-2-y\)/u)
+  assert.match(styles, /\.workshop-stage-title-line-3 \{[\s\S]*?var\(--stage-title-3-y\)/u)
+  assert.match(styles, /\.workshop-stage-object \{[\s\S]*?var\(--stage-object-y\)[\s\S]*?var\(--stage-object-scale\)/u)
+  assert.match(styles, /\.workshop-stage-trail span \{[\s\S]*?var\(--stage-word-focus\)/u)
+  assert.match(styles, /transition-delay: var\(--stage-char-delay\)/u)
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?--stage-object-scale: 1 !important/u)
 })
 
-test('模块内部 reveal 仅使用短距离位移和透明度，不恢复三维或模糊效果', () => {
+test('每个模块都有独立的原创透明车间物件且来源和哈希可追溯', () => {
+  const assets = [
+    'pulse-drivetrain.svg',
+    'pickup-wheel-rack.svg',
+    'handover-clipboard.svg',
+    'repair-service-stand.svg',
+    'resale-second-life.svg',
+    'sales-counter-stack.svg'
+  ]
+  assert.equal(new Set(assets).size, 6)
+  for (const asset of assets) {
+    assert.match(scenes, new RegExp('/images/ops/stages/' + asset.replace('.', '\\.'), 'u'))
+    const path = new URL('../apps/web/public/images/ops/stages/' + asset, import.meta.url)
+    assert.equal(existsSync(path), true)
+    const svg = readFileSync(path, 'utf8')
+    assert.match(svg, /<svg[^>]+viewBox="0 0 720 880"/u)
+    assert.match(svg, /data-original-workshop-object=/u)
+    assert.match(stageSources, new RegExp(asset.replace('.', '\\.'), 'u'))
+  }
+  assert.match(stageSources, /No Obsidian Assembly image, logo, font, screenshot, silhouette, or proprietary asset is copied or traced/u)
+})
+
+test('模块内部业务 reveal 保持短距离且不恢复三维动画', () => {
   const ledger = sourceOf('../apps/web/src/components/lookbook/RecordLedger.jsx')
   assert.match(motion, /data-reveal-group/u)
   assert.match(motion, /IntersectionObserver/u)
   assert.match(motion, /MutationObserver/u)
   assert.match(motion, /stagger: targets\.length/u)
-  for (const forbidden of ['ScrollTrigger', 'perspective', 'rotationX', 'rotationY', 'filter: blur']) assert.equal(motion.includes(forbidden), false)
+  for (const forbidden of ['ScrollTrigger', 'perspective', 'rotationX', 'rotationY']) {
+    assert.equal(motion.includes(forbidden), false)
+  }
   assert.match(ledger, /data-reveal-group="records"/u)
 })

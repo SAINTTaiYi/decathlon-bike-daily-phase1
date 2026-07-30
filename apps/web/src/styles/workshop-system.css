@@ -193,9 +193,15 @@ button:disabled { opacity: .48; }
   overflow-x: clip;
 }
 .workshop-module-stage {
-  --module-stage-height: min(42dvh, 316px);
-  --module-stage-hold: min(42dvh, 320px);
-  --module-stage-overlap: min(16dvh, 120px);
+  --module-progress: 0;
+  --module-stage-height: calc(100dvh - var(--ops-header-height) - 12px);
+  --module-stage-hold: max(94dvh, 680px);
+  --module-stage-overlap: min(14dvh, 108px);
+  --stage-title-2-y: 0px;
+  --stage-title-3-y: 0px;
+  --stage-backdrop-y: -20dvh;
+  --stage-object-y: 8dvh;
+  --stage-object-scale: 1;
   position: relative;
   z-index: calc(10 + var(--module-stage-index));
   min-width: 0;
@@ -210,94 +216,213 @@ button:disabled { opacity: .48; }
   min-height: calc(var(--module-stage-height) + var(--module-stage-hold));
   background: var(--ops-page);
 }
-.workshop-module-stage:first-child .workshop-module-stage-runway { min-height: var(--module-stage-height); }
-.workshop-module-stage:first-child .workshop-module-stage-content { margin-top: 0; }
 .workshop-module-stage-cover {
   position: sticky;
-  top: var(--ops-header-height);
+  top: calc(var(--ops-header-height) + 8px);
   z-index: 1;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 14px;
-  align-items: end;
   min-height: var(--module-stage-height);
-  padding: 18px;
   overflow: hidden;
   isolation: isolate;
   background: var(--ops-black);
-  box-shadow: 0 18px 42px rgb(12 14 12 / .2);
+  box-shadow: 0 18px 42px rgb(12 14 12 / .24);
   color: var(--ops-text-inverse);
+  contain: paint;
 }
-.workshop-module-stage-cover::before {
-  position: absolute;
-  inset: -12%;
-  z-index: -1;
-  content: '';
+.workshop-stage-backdrop,
+.workshop-stage-material,
+.workshop-stage-axis,
+.workshop-stage-orbit,
+.workshop-stage-title,
+.workshop-stage-object,
+.workshop-stage-curve-copy,
+.workshop-stage-trail { position: absolute; }
+.workshop-stage-backdrop { inset: -24dvh -12% -24dvh; z-index: 0; overflow: hidden; }
+.workshop-stage-material {
+  inset: -18%;
+  display: block;
+  background-color: #151515;
   background-image: url('/images/ops/workshop-slate-texture.png');
   background-position: 50% 50%;
   background-size: 256px 256px;
-  mix-blend-mode: screen;
-  opacity: .72;
-  transform: scale(1.04);
+  opacity: .82;
+  transform: translate3d(0,var(--stage-backdrop-y),0) scale(1.38);
+  will-change: transform;
 }
-.workshop-module-stage-cover::after {
+.workshop-stage-material::after {
   position: absolute;
-  inset: 8px;
-  z-index: -1;
-  border: 1px solid rgb(255 195 26 / .38);
+  inset: 0;
+  background: rgb(255 195 26 / .045);
   content: '';
-  pointer-events: none;
 }
-.workshop-module-stage-index {
-  display: grid;
-  place-items: center;
-  width: 58px;
-  height: 58px;
-  background: var(--ops-yellow);
-  color: var(--ops-black);
-  font-family: var(--ops-display);
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1;
+.workshop-stage-axis {
+  inset: 8%;
+  display: block;
+  border: 1px solid rgb(255 253 248 / .12);
 }
-.workshop-module-stage-copy { display: grid; gap: 3px; min-width: 0; }
-.workshop-module-stage-copy > span,
-.workshop-module-stage-copy > small {
-  color: rgb(255 253 248 / .72);
+.workshop-stage-axis::before,
+.workshop-stage-axis::after {
+  position: absolute;
+  background: rgb(255 253 248 / .12);
+  content: '';
+}
+.workshop-stage-axis::before { top: 50%; left: -12%; width: 124%; height: 1px; }
+.workshop-stage-axis::after { top: -12%; left: 50%; width: 1px; height: 124%; }
+.workshop-stage-orbit {
+  inset: -6% -10%;
+  z-index: 1;
+  width: 120%;
+  height: 112%;
+  fill: none;
+  stroke: rgb(255 195 26 / .55);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  transform: translate3d(0,calc(var(--stage-backdrop-y) * -.16),0);
+  will-change: transform;
+}
+.workshop-module-stage-index,
+.workshop-stage-context {
+  position: absolute;
+  top: 16px;
+  z-index: 8;
   font-family: var(--ops-display);
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
-  letter-spacing: 0;
   text-transform: uppercase;
 }
-.workshop-module-stage-copy > strong {
-  overflow: hidden;
+.workshop-module-stage-index {
+  left: 16px;
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 32px;
+  background: var(--ops-yellow);
+  color: var(--ops-black);
+}
+.workshop-stage-context { right: 16px; color: rgb(255 253 248 / .64); }
+.workshop-stage-title {
+  inset: 11% 2% auto;
+  z-index: 3;
+  display: grid;
   color: var(--ops-text-inverse);
   font-family: var(--ops-display);
-  font-size: 30px;
+  font-size: clamp(58px,20vw,94px);
+  font-weight: 700;
+  line-height: .73;
+  letter-spacing: -.045em;
+  pointer-events: none;
+  text-transform: uppercase;
+}
+.workshop-stage-title-line { display: flex; width: max-content; max-width: 100%; white-space: nowrap; }
+.workshop-stage-title-line i {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(.05em);
+  font-style: normal;
+  transform: translate3d(.25em,1em,0) skew(15deg,30deg) scale(1.7);
+  transform-origin: 50% 100%;
+  will-change: transform,opacity,filter;
+}
+.workshop-module-stage[data-stage-inview='true'] .workshop-stage-title-line i {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0,0,0) skew(0deg,0deg) scale(1);
+  transition: opacity 1.5s cubic-bezier(.2,.75,.35,1),transform 1.5s cubic-bezier(.2,.75,.35,1),filter 1.5s cubic-bezier(.2,.75,.35,1);
+  transition-delay: var(--stage-char-delay);
+}
+.workshop-stage-title-line-1 { justify-self: start; margin-left: 1%; }
+.workshop-stage-title-line-2 { justify-self: end; margin-right: -1%; transform: translate3d(0,var(--stage-title-2-y),0); will-change: transform; }
+.workshop-stage-title-line-3 { justify-self: start; margin-left: 14%; transform: translate3d(0,var(--stage-title-3-y),0); will-change: transform; }
+.workshop-stage-object {
+  inset: 18% auto auto 50%;
+  z-index: 5;
+  width: min(64%,440px);
+  margin: 0;
+  opacity: .98;
+  transform: translate3d(-50%,var(--stage-object-y),0) scale(var(--stage-object-scale));
+  transform-origin: 50% -35%;
+  will-change: transform;
+  isolation: isolate;
+}
+.workshop-stage-object::after {
+  position: absolute;
+  right: -14%;
+  bottom: 4%;
+  left: -14%;
+  height: 24%;
+  background: rgb(255 195 26 / .12);
+  border-radius: 50%;
+  content: '';
+  filter: blur(22px);
+  z-index: 0;
+}
+.workshop-stage-object img { position: relative; z-index: 1; width: 100%; height: auto; }
+.workshop-stage-curve-copy {
+  inset: 5% 7% auto;
+  z-index: 4;
+  width: 86%;
+  height: 92%;
+  overflow: visible;
+  fill: var(--ops-yellow);
+  pointer-events: none;
+}
+.workshop-stage-curve-copy path { fill: none; }
+.workshop-stage-curve-copy text {
+  font-family: var(--ops-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.workshop-stage-side-label {
+  position: absolute;
+  top: 51%;
+  z-index: 7;
+  color: rgb(255 253 248 / .54);
+  font-family: var(--ops-display);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+}
+.workshop-stage-side-label-left { left: 13px; transform: rotate(180deg); }
+.workshop-stage-side-label-right { right: 13px; }
+.workshop-stage-trail {
+  right: 20px;
+  bottom: 18px;
+  left: 20px;
+  z-index: 8;
+  display: grid;
+  justify-items: center;
+  color: var(--ops-text-inverse);
+  font-family: var(--ops-display);
+  font-size: clamp(17px,5.5vw,26px);
   font-weight: 700;
   line-height: .92;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-align: center;
+  text-transform: uppercase;
 }
-.workshop-module-stage-copy > small {
-  color: var(--ops-yellow);
-  font-family: var(--ops-body);
-  font-size: 12px;
-  text-transform: none;
+.workshop-stage-trail span {
+  --stage-word-focus: 0;
+  display: block;
+  opacity: calc(.08 + var(--stage-word-focus) * .92);
+  filter: blur(calc((1 - var(--stage-word-focus)) * .05em));
+  transform: translate3d(0,calc((1 - var(--stage-word-focus)) * .2em),0);
+  transition: opacity 75ms linear,transform 75ms linear,filter 75ms linear;
+  will-change: transform,filter,opacity;
 }
 .workshop-module-stage-content {
   position: relative;
-  margin-top: calc(0px - var(--module-stage-overlap));
   z-index: 2;
   min-height: calc(100dvh - var(--ops-header-height) - 12px);
+  margin-top: calc(0px - var(--module-stage-overlap));
+  padding-top: 12px;
   padding-bottom: var(--dock-space);
   overflow-x: clip;
   background: var(--ops-page);
-  box-shadow: 0 -1px 0 var(--ops-line);
+  box-shadow: 0 -1px 0 var(--ops-line),0 -22px 48px rgb(12 14 12 / .12);
 }
-.workshop-module-stage[data-active='true'] .workshop-module-stage-cover { box-shadow: 0 18px 42px rgb(12 14 12 / .24), 0 0 0 1px rgb(255 195 26 / .26); }
+.workshop-module-stage[data-active='true'] .workshop-module-stage-cover { box-shadow: 0 18px 42px rgb(12 14 12 / .3),0 0 0 1px rgb(255 195 26 / .3); }
 .workshop-module-stage-content > .look-section,
 .workshop-module-stage-content > .pickup-look {
   min-height: auto;
@@ -310,16 +435,54 @@ button:disabled { opacity: .48; }
 .ops-brand-header,
 .ops-store-context { display: none !important; }
 
-@supports (animation-timeline: view()) {
-  .workshop-module-stage-cover::before {
-    animation: workshop-stage-material-drift linear both;
-    animation-range: entry 0% exit 100%;
-    animation-timeline: view();
-  }
+@media (min-width: 600px) {
+  .workshop-stage-title { inset-inline: 3%; font-size: clamp(86px,14vw,148px); }
+  .workshop-stage-title-line-3 { margin-left: 22%; }
+  .workshop-stage-object { top: 12%; width: min(48%,500px); }
+  .workshop-stage-curve-copy { inset: 2% 20% auto; width: 60%; height: 96%; }
+  .workshop-stage-trail { font-size: clamp(24px,4vw,38px); }
 }
-@keyframes workshop-stage-material-drift {
-  from { transform: translateY(-7%) scale(1.04); }
-  to { transform: translateY(7%) scale(1.04); }
+@media (min-width: 1024px) {
+  .workshop-module-stage { --module-stage-hold: max(112dvh,920px); }
+  .workshop-stage-title { top: 6%; font-size: clamp(108px,10vw,174px); }
+  .workshop-stage-title-line-1 { margin-left: 28%; }
+  .workshop-stage-title-line-2 { justify-self: start; margin-left: 1%; }
+  .workshop-stage-title-line-3 { justify-self: end; margin-right: 10%; }
+  .workshop-stage-object { top: 6%; width: min(42%,520px); }
+  .workshop-stage-curve-copy { inset: -2% 29% auto; width: 42%; height: 104%; }
+  .workshop-stage-trail { right: auto; bottom: 24px; left: 50%; width: 46%; transform: translateX(-50%); font-size: 30px; }
+}
+
+@media (forced-colors: active) {
+  .workshop-module-stage-cover { background: Canvas; color: CanvasText; border: 1px solid CanvasText; box-shadow: none; }
+  .workshop-stage-material { display: none; }
+  .workshop-stage-orbit { stroke: Highlight; }
+  .workshop-stage-curve-copy { fill: Highlight; }
+  .workshop-stage-object { forced-color-adjust: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workshop-module-stage {
+    --stage-title-2-y: 0px !important;
+    --stage-title-3-y: 0px !important;
+    --stage-backdrop-y: 0px !important;
+    --stage-object-y: 0px !important;
+    --stage-object-scale: 1 !important;
+  }
+  .workshop-stage-material,
+  .workshop-stage-orbit,
+  .workshop-stage-title-line-2,
+  .workshop-stage-title-line-3,
+  .workshop-stage-object { transform: none !important; }
+  .workshop-stage-object { transform: translateX(-50%) !important; }
+  .workshop-stage-title-line i,
+  .workshop-module-stage[data-stage-inview='true'] .workshop-stage-title-line i {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    transition: none;
+  }
+  .workshop-stage-trail span { opacity: 1; filter: none; transform: none; transition: none; }
 }
 
 /* Shared moving navigation indicator, adapted from animated tab patterns. */
@@ -869,7 +1032,7 @@ button:disabled { opacity: .48; }
 
 @media (min-width: 1200px) {
   .boot-title-word { font-size: 132px; }
-  .workshop-overview-panel .ops-mobile-overview { max-width: none; }
+  .workshop-overview-stage .ops-mobile-overview { max-width: none; }
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -886,10 +1049,6 @@ button:disabled { opacity: .48; }
 
 @media (prefers-reduced-motion: reduce) {
   .dock-active-indicator { transition: none; }
-  .workshop-module-stage-cover::before {
-    animation: none;
-    transform: none;
-  }
   .dialog-panel[data-dialog-panel] { animation: none; }
 }
 
