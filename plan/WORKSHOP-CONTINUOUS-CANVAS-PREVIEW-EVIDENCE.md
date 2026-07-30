@@ -1,6 +1,6 @@
 # Workshop Continuous Canvas Preview Evidence
 
-> **Status: local gates passed; Preview delivery pending.** This file records the replacement for the rejected independent-stage Preview. It does not authorize Production.
+> **Status: Preview deployed and independently verified; awaiting human acceptance.** This file records the replacement for the rejected independent-stage Preview. It does not authorize Production.
 
 ## Approved Scope
 
@@ -34,12 +34,31 @@
 
 ## Delivery Identity
 
-- Public version remains `V5.7.9`; Preview-only changes do not increment it.
+- Public version remains `V5.7.9`; Preview-only changes did not increment it.
 - Functional commit: `7f1bfae289b3285998317c65698637e16f1bc3a8`.
-- PR / merge SHA / CI: pending.
-- Preview fingerprint: pending clean-commit registration.
-- Protected Preview deployment: pending.
+- Pre-merge evidence commit: `e567c296e1a0b45d09cd47cb99f3945f6c8f8813`.
+- PR: [#104](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/104).
+- PR CI run: [30566318666](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/actions/runs/30566318666), with `secrets` and `verify` successful.
+- Normal merge / deployed release SHA: `4b3d80f8fa61d07202d98dff5c0b99fa397a8c7d`.
+- Deterministic Preview fingerprint: `fd30cabc3115ef9e051c9ad6217f4bb07f46c74a33f73040621ed2724742c8e9` across 376 files.
+- Protected Preview-only workflow: [30566728980](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/actions/runs/30566728980), completed successfully on the exact protected-branch head.
+- Preview D1: `No migrations to apply`.
+- Public Preview: <https://bike-ops-preview.geeklightonefish.workers.dev>.
+- Cloudflare Deployment: `c630ac34-d4c2-48d8-9aa5-1fa544c073be`.
+- Worker Version: `2b4f5301-51ed-49bd-bc4c-dfa120088e8e` (#103), receiving 100% of traffic.
 - Staging, Production, and Production D1 remain untouched.
+
+## Independent Preview Verification
+
+- `/health/live`: HTTP 200, `status=ok`, `version=5.7.9`, exact `gitSha=4b3d80f8fa61d07202d98dff5c0b99fa397a8c7d`.
+- `/health/ready`: HTTP 200, `status=ready`, version and SHA identical to the deployed release.
+- `/api/v1/meta/version`: HTTP 200, `environment=preview`, `platform=cloudflare-workers-d1`, public version unchanged.
+- Web root: HTTP 200 HTML shell with `#root` and hashed JS/CSS assets.
+- HTTP origin redirects to HTTPS with 308.
+- API headers include no-store/private caching, HSTS, deny-all API CSP, `frame-ancestors 'none'`, `X-Frame-Options: DENY`, nosniff, strict referrer policy, and restrictive permissions policy.
+- Web headers include HSTS, same-origin CSP, `frame-ancestors 'none'`, `X-Frame-Options: DENY`, nosniff, strict referrer policy, and restrictive permissions policy.
+- Cloudflare version bindings independently report `APP_ENV=preview`, `APP_VERSION=5.7.9`, and exact `GIT_SHA=4b3d80f8fa61d07202d98dff5c0b99fa397a8c7d`.
+- No Preview deployment was repeated during evidence finalization.
 
 ## Browser Evidence Limitation
 
