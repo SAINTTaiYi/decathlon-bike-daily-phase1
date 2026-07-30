@@ -1,61 +1,70 @@
-# Workshop Obsidian-derived Parallax Adaptation
+# Workshop Continuous Canvas Motion Specification
 
 ## Status and authority
 
-This specification records the approved adaptation of the public `https://obsidianassembly.com/about` motion and layout system into Workshop. It supplements the project-wide `DESIGN.md`; it does not authorize copying Obsidian Assembly text, brand, fonts, images, logos, or proprietary assets.
+This specification records the approved adaptation of the public `https://obsidianassembly.com/about` motion mechanics into the Workshop authenticated operations workspace. It supplements the project-wide `DESIGN.md`; it does not authorize copying Obsidian Assembly text, brand, fonts, images, logos, silhouettes, screenshots, or proprietary assets.
+
+The former six independent full-height sticky stages, black covers, per-module three-line titles, and repeated curve/trail compositions are rejected and obsolete.
 
 ## Verified source mechanics
 
-The cached public About implementation uses a normalized per-object scroll value:
+The cached public About implementation uses normalized continuous scroll values:
 
 ```text
 progress = clamp((currentScroll - startPosition) / differencePosition, 0, 1)
 ```
 
-The page then applies that continuous value to independent depth layers:
+Verified transferable mechanics include independent layer speeds, object scale and opposing translation, two-path curve offsets, distance-based seven-word focus, and deterministic transformed character reveal. Source evidence remains under `/data/data/com.termux/files/home/obsidian-motion-audit/` and `/data/data/com.termux/files/home/obsidianassembly-analysis/`.
 
-- second title line: `translateY(progress * 10vh)`;
-- third title line: `translateY(progress * 20vh)`;
-- transparent foreground object: `scale(1 + progress * 0.2)`;
-- map/background layer: `translateY(-20vh + progress * 40vh)`;
-- repeated curve text: `startOffset = progress * 75%` and `-100% + progress * 75%`;
-- seven-word trail: each word has a focus centre `t=(index+0.5)/7`; opacity/focus is derived from its distance to progress with a `0.25` fade window;
-- oversized character reveal: 1.5s transformed entry with deterministic random-like 75ms character delays, initial scale/skew/translate/blur, and clear final state;
-- line reveal: 1.5s clip/translate reveal with 75ms line staggering.
+## Approved Workshop composition
 
-Source evidence is retained locally under `/data/data/com.termux/files/home/obsidian-motion-audit/` and `/data/data/com.termux/files/home/obsidianassembly-analysis/`.
+The authenticated workspace is one uninterrupted native-scroll canvas:
 
-## Workshop implementation contract
+1. **Continuous warm field** — `#f7f5ef` remains dominant. A small number of ultra-long pale-gray and pale-yellow fields drift across several semantic modules and never align to module boundaries.
+2. **Six persistent semantic modules** — KPI, Pickup, Other, Repair, Used, and Sales remain mounted, addressable, keyboard-focusable landmarks. They have no visible divider, chapter strip, independent cover, sticky pause, or module-level outer card.
+3. **Spatial handoff** — adjacent modules may briefly coexist in the viewport. Whitespace, offset composition, depth, scale, and motion differences create natural separation without borders or section bands.
+4. **Business content in motion** — headings, summaries, filters, statistics, and primary business groups translate and scale with continuous progress. Repeated records and necessary forms, drawers, and dialogs keep compact warm-white containers; nested cards are prohibited.
+5. **Cross-module Workshop objects** — all six original transparent objects move through independent page-progress windows across multiple modules. They are not bound one-to-one to sections and do not restart at boundaries.
+6. **Sparse narrative typography** — oversized display words appear only at two page-scale spatial moments and may cross two semantic modules. Module names use normal operational heading hierarchy.
+7. **Sparse curve and word motifs** — curved copy and seven-word distance-focus trails each appear only twice across the complete page.
+8. **Transparent navigation layers** — the fixed header is transparent/translucent and the six-item bottom dock is a lightweight translucent diffused layer, not a heavy opaque panel.
 
-Every one of the six operational modules must have an independent full-height stage with all of these layers:
+## Navigation and interaction
 
-1. **moving material backdrop** — restrained project-owned workshop texture moving from `-20vh` to `+20vh`;
-2. **oversized three-line title** — asymmetric grid placement with the second and third lines moving at 10vh and 20vh ranges;
-3. **curved path copy** — two repeated text paths moving 75% across an original SVG curve;
-4. **unique transparent foreground object** — one original self-hosted workshop illustration per module, scaling from 1 to 1.2 with a smaller opposing vertical shift;
-5. **sequential trail** — seven operational words focusing in sequence as progress advances;
-6. **viewport entry reveal** — deterministic per-character transformed reveal when the stage first enters view.
+- Active module state changes when the incoming semantic anchor crosses approximately `42vh`.
+- Directional hysteresis prevents dock and URL/history jitter during small reverse scrolls.
+- Dock jumps and deep links target `#module-<id>` landmarks; business modules never unmount.
+- Foreground objects use `pointer-events: none` and may create depth without obscuring controls, critical values, or substantial body text.
+- On pointer or focus interaction, foreground objects retreat and the relevant business section settles to a stable target within `180–240ms`. Scrolling resumes the continuous parallax.
+- The first-load reveal plays only for a normal top entry. Restored scroll positions, dock jumps, and deep links bypass it. Any keyboard, pointer, wheel, or touch input can skip it immediately.
 
-The stage is followed by the existing warm-white operational content. All business components remain mounted so local form and list state survives navigation.
+## Runtime contract
 
-## Runtime and safety requirements
+- Native document scrolling only; no wheel/touch/PageUp/PageDown interception.
+- No ScrollTrigger, pin spacer, sticky stage, scroll snap, `pinSpacing:false`, or content-size-driven scroll correction.
+- One passive scroll listener scheduled through `requestAnimationFrame` writes one normalized page progress plus section-local progress values.
+- Module geometry is derived from untransformed document offsets so visual transforms cannot feed back into progress calculation.
+- Six object windows, two narrative windows, two curve paths, and two word trails use independent deterministic formulas.
+- `prefers-reduced-motion` disables animated transforms, blur, sequencing, and foreground occlusion while preserving complete readable static content.
+- Forced-colors removes nonessential spatial fields and foreground motifs while keeping semantic modules and controls intact.
 
-- Native document scrolling only; no wheel, touch, PageUp/PageDown interception.
-- No ScrollTrigger, pin spacer, `pinSpacing:false`, scroll snapping, or content-size-driven scroll correction.
-- One passive scroll listener scheduled through `requestAnimationFrame` writes stage-scoped variables and SVG text-path offsets.
-- Stage progress is calculated from the sticky runway travel distance, not from arbitrary time.
-- `prefers-reduced-motion` disables depth movement, blur, transforms and sequential focusing while keeping every title and object visible.
-- Fixed header and bottom dock remain usable; business content keeps dock clearance.
-- At 320–430px widths, titles may reduce size but must not create horizontal scrolling.
-- Runtime fonts remain the existing self-hosted `Noto Sans SC Variable` and `Barlow Condensed Ops`; reference-site fonts are not copied.
+## Mobile equivalence
+
+Mobile is not a reduced-motion or reduced-layer variant.
+
+- At `320–430px`, preserve the same animation intensity, depth, duration, layer count, object count, and narrative memory points as desktop.
+- Portrait may use purpose-built diagonal or foreground/background trajectories instead of desktop horizontal geometry.
+- No motif or business motion may be removed merely because the viewport is narrow.
+- `390px` is a mandatory no-horizontal-overflow, readable-text, stable-hit-target, and full-business-interaction gate.
+- Dynamic viewport and safe-area changes must not move a focused control out from under the user.
 
 ## Original asset policy
 
-Six transparent workshop-object SVGs are generated deterministically by `scripts/generate-workshop-stage-assets.mjs` and stored under `apps/web/public/images/ops/stages/`. They are project-authored illustrations with no external source image or proprietary silhouette. Their SHA-256 values and purposes are generated into the local asset source record.
+The six transparent Workshop-object SVGs are generated deterministically by `scripts/generate-workshop-stage-assets.mjs` and stored under `apps/web/public/images/ops/stages/`. They are project-authored illustrations with documented SHA-256 values. No external or Obsidian proprietary asset is copied, traced, hotlinked, or imitated.
 
 ## Acceptance gates
 
-- All six stages expose measurable progress values that change continuously while scrolling.
-- Automated contracts verify all five moving visual layers, six distinct object assets, no prohibited scroll interception, reduced-motion behavior, stable anchors, and persistent module mounting.
-- Full tests, typecheck, Web build, CodeGraph post-gate, PR CI and protected Preview deployment must pass.
-- Human Preview acceptance must verify visible depth separation during both downward and upward scrolling before any Production action.
+- Automated contracts verify a single continuous page progress, six mounted landmarks, 42vh active-state behavior, hysteresis, spatial overlap, six independent object windows, two sparse narrative/curve/trail motifs, interaction settling, entry bypass rules, and reduced-motion behavior.
+- Mobile contracts and human verification cover `390px` with full-strength motion and no horizontal overflow.
+- Full tests, typecheck, Web build, CodeGraph post-gate, PR CI, and protected Preview-only deployment must pass.
+- Human Preview acceptance must verify visible depth separation in both scroll directions, stable controls, bottom-dock navigation, deep-link restoration, and reduced-motion behavior before any Production action.

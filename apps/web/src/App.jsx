@@ -26,10 +26,10 @@ import RecordEditorDialog from './components/dialogs/RecordEditorDialog.jsx'
 import { sceneRecordConfig } from './data/operationsData.js'
 import { inferPickupSource } from './data/pickupRecord.js'
 import { REPAIR_POS_REMINDER_STATUS } from './data/repairRecord.js'
-import { sceneById } from './data/lookbookScenes.js'
+import { lookbookScenes, sceneById } from './data/lookbookScenes.js'
 import useAuth from './hooks/useAuth.js'
 import useRemoteClosingWorkflow from './hooks/useRemoteClosingWorkflow.js'
-import useModuleStages from './hooks/useModuleStages.js'
+import useContinuousCanvas from './hooks/useContinuousCanvas.js'
 import useMotionSystem from './hooks/useMotionSystem.js'
 import useWorkspaceMotion from './hooks/useWorkspaceMotion.js'
 import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
@@ -41,13 +41,21 @@ import SalesScene from './scenes/SalesScene.jsx'
 
 const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员' }
 
-function StageTitleLine({ children, lineIndex, stageIndex }) {
+const canvasNarratives = [
+  { id: 'workshop', lines: ['WORKSHOP', 'OPERATIONS'], start: 0.05 },
+  { id: 'daily', lines: ['DAILY', 'MOTION'], start: 0.55 }
+]
+
+const canvasMotifs = [lookbookScenes[0], lookbookScenes[3]]
+const foregroundObjectIds = new Set(['pickup', 'resale'])
+
+function NarrativeLine({ children, lineIndex, narrativeIndex }) {
   return (
-    <span className={`workshop-stage-title-line workshop-stage-title-line-${lineIndex + 1}`}>
+    <span className={`workshop-canvas-title-line workshop-canvas-title-line-${lineIndex + 1}`}>
       {[...children].map((character, characterIndex) => (
         <i
           key={`${character}-${characterIndex}`}
-          style={{ '--stage-char-delay': `${((characterIndex * 7 + lineIndex * 3 + stageIndex * 5) % 11) * 75}ms` }}
+          style={{ '--canvas-char-delay': `${((characterIndex * 7 + lineIndex * 3 + narrativeIndex * 5) % 11) * 75}ms` }}
         >
           {character === ' ' ? '\u00a0' : character}
         </i>
@@ -56,58 +64,96 @@ function StageTitleLine({ children, lineIndex, stageIndex }) {
   )
 }
 
-function ModuleStage({ active, children, className = '', sceneId }) {
+function CanvasObject({ scene, index }) {
+  return (
+    <figure
+      className="workshop-continuous-object"
+      data-continuous-object="true"
+      data-object-id={scene.id}
+      data-object-depth={foregroundObjectIds.has(scene.id) ? 'front' : 'back'}
+      style={{ '--canvas-object-index': index }}
+    >
+      <img src={scene.canvasObject} alt="" width="720" height="880" loading={index > 1 ? 'lazy' : 'eager'} />
+    </figure>
+  )
+}
+
+function CanvasCurve({ scene, index }) {
+  const curveId = `workshop-continuous-curve-${scene.id}`
+  return (
+    <svg className="workshop-continuous-curve" data-continuous-curve={index} viewBox="0 0 720 880" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <path id={curveId} d="M84 676C84 384 126 142 360 142C594 142 636 384 636 676C636 792 546 838 360 838C174 838 84 792 84 676Z" />
+      </defs>
+      <text>
+        <textPath href={`#${curveId}`} data-continuous-curve-copy="true">{scene.canvasCurve.repeat(3)}</textPath>
+        <textPath href={`#${curveId}`} data-continuous-curve-copy="true">{scene.canvasCurve.repeat(3)}</textPath>
+      </text>
+    </svg>
+  )
+}
+
+function CanvasTrail({ scene, index }) {
+  return (
+    <div className="workshop-continuous-trail" data-continuous-trail={index}>
+      {scene.canvasTrail.map((word) => <span key={word} data-continuous-trail-word="true">{word}</span>)}
+    </div>
+  )
+}
+
+function ContinuousCanvas() {
+  const backObjects = lookbookScenes.filter((scene) => !foregroundObjectIds.has(scene.id))
+  const frontObjects = lookbookScenes.filter((scene) => foregroundObjectIds.has(scene.id))
+  return (
+    <>
+      <div className="workshop-continuous-canvas" data-continuous-canvas="true" aria-hidden="true">
+        <div className="workshop-continuous-fields">
+          <span className="workshop-continuous-field workshop-continuous-field-gray" />
+          <span className="workshop-continuous-field workshop-continuous-field-yellow" />
+          <span className="workshop-continuous-field workshop-continuous-field-paper" />
+        </div>
+        <div className="workshop-continuous-narratives">
+          {canvasNarratives.map((narrative, narrativeIndex) => (
+            <div className="workshop-canvas-title" data-continuous-narrative={narrativeIndex} key={narrative.id}>
+              {narrative.lines.map((line, lineIndex) => (
+                <NarrativeLine key={line} lineIndex={lineIndex} narrativeIndex={narrativeIndex}>{line}</NarrativeLine>
+              ))}
+            </div>
+          ))}
+        </div>
+        {backObjects.map((scene) => <CanvasObject key={scene.id} scene={scene} index={lookbookScenes.indexOf(scene)} />)}
+        {canvasMotifs.map((scene, index) => <CanvasCurve key={scene.id} scene={scene} index={index} />)}
+        {canvasMotifs.map((scene, index) => <CanvasTrail key={scene.id} scene={scene} index={index} />)}
+      </div>
+      <div className="workshop-continuous-foreground" data-continuous-foreground="true" aria-hidden="true">
+        {frontObjects.map((scene) => <CanvasObject key={scene.id} scene={scene} index={lookbookScenes.indexOf(scene)} />)}
+      </div>
+    </>
+  )
+}
+
+function ModuleSection({ active, children, className = '', sceneId }) {
   const scene = sceneById(sceneId)
-  const stageIndex = Math.max(0, Number.parseInt(scene.no, 10) - 1)
-  const curveId = `workshop-stage-curve-${scene.id}`
   return (
     <section
-      className={`workshop-module-stage ${className}`.trim()}
+      className={`workshop-continuous-module ${className}`.trim()}
       id={`module-${sceneId}`}
       tabIndex="-1"
-      style={{ '--module-stage-index': stageIndex }}
       data-workspace-module="true"
-      data-module-stage="true"
+      data-continuous-module="true"
       data-scene-id={sceneId}
       data-active={active ? 'true' : undefined}
+      aria-labelledby={`module-title-${sceneId}`}
     >
-      <h2 className="sr-only">{scene.cn} · {scene.title}</h2>
-      <div className="workshop-module-stage-runway" data-module-stage-runway="true">
-        <div className="workshop-module-stage-cover" data-module-stage-cover="true" aria-hidden="true">
-          <div className="workshop-stage-backdrop">
-            <span className="workshop-stage-material" />
-            <span className="workshop-stage-axis" />
-          </div>
-          <svg className="workshop-stage-orbit" viewBox="0 0 1440 1080" preserveAspectRatio="none">
-            <path d="M-40 540C170 1040 302 88 486 230C662 366 760 980 1016 720C1228 504 1120 86 1480 238" />
-          </svg>
-          <span className="workshop-module-stage-index">{scene.no} / 06</span>
-          <span className="workshop-stage-context">{scene.label} · {scene.cn}</span>
-          <div className="workshop-stage-title">
-            {scene.stageLines.map((line, lineIndex) => (
-              <StageTitleLine key={line} lineIndex={lineIndex} stageIndex={stageIndex}>{line}</StageTitleLine>
-            ))}
-          </div>
-          <figure className="workshop-stage-object">
-            <img src={scene.stageObject} alt="" width="720" height="880" loading={stageIndex > 1 ? 'lazy' : 'eager'} />
-          </figure>
-          <svg className="workshop-stage-curve-copy" viewBox="0 0 720 880" preserveAspectRatio="xMidYMid meet">
-            <defs>
-              <path id={curveId} d="M84 676C84 384 126 142 360 142C594 142 636 384 636 676C636 792 546 838 360 838C174 838 84 792 84 676Z" />
-            </defs>
-            <text>
-              <textPath href={`#${curveId}`} data-stage-curve-copy="true">{scene.stageCurve.repeat(3)}</textPath>
-              <textPath href={`#${curveId}`} data-stage-curve-copy="true">{scene.stageCurve.repeat(3)}</textPath>
-            </text>
-          </svg>
-          <span className="workshop-stage-side-label workshop-stage-side-label-left">CONTINUOUS</span>
-          <span className="workshop-stage-side-label workshop-stage-side-label-right">OPERATION</span>
-          <div className="workshop-stage-trail">
-            {scene.stageTrail.map((word) => <span key={word} data-stage-trail-word="true">{word}</span>)}
-          </div>
+      <header className="workshop-continuous-heading" data-module-heading="true">
+        <span>{scene.no} / 06</span>
+        <div>
+          <small>{scene.label}</small>
+          <h2 id={`module-title-${sceneId}`}>{scene.cn}</h2>
+          <p>{scene.title}</p>
         </div>
-      </div>
-      <div className="workshop-module-stage-content" data-module-stage-content="true">{children}</div>
+      </header>
+      <div className="workshop-continuous-content" data-module-business="true">{children}</div>
     </section>
   )
 }
@@ -131,7 +177,8 @@ export default function App() {
   const authenticated = auth.status === 'authenticated'
   const introDone = authenticated && (auth.source === 'restore' || auth.source === 'registration' || loginAnimationDone)
   const mustChangePassword = Boolean(auth.user?.mustChangePassword)
-  const deferUpdatePrompt = auth.source === 'login' && !mustChangePassword && !workspaceAssemblyDone
+  const workspaceEntryEligible = auth.source === 'login' && window.scrollY <= 8 && !/^#module-(pulse|pickup|poster|repair|resale|sales)$/u.test(window.location.hash)
+  const deferUpdatePrompt = workspaceEntryEligible && !mustChangePassword && !workspaceAssemblyDone
   const workflow = useRemoteClosingWorkflow(authenticated && !mustChangePassword)
   const [menuOpen, setMenuOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
@@ -161,7 +208,7 @@ export default function App() {
   const canReopenClosing = role === 'manager' || role === 'admin'
   const writeLocked = Boolean(workflow.closedAt) || !online || Boolean(workflow.storageError)
 
-  const workspaceLaunching = authenticated && auth.source === 'login' && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone
+  const workspaceLaunching = authenticated && workspaceEntryEligible && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone
   const completeWorkspaceAssembly = useCallback(() => {
     setWorkspaceAssemblyDone(true)
     window.requestAnimationFrame(() => document.getElementById('main-content')?.focus({ preventScroll: true }))
@@ -172,7 +219,7 @@ export default function App() {
     onComplete: completeWorkspaceAssembly
   })
   const taskFocused = Boolean(taskInputFocused || menuOpen || logOpen || permanentHistoryOpen || confirmOpen || kpiOpen || migrationOpen || governanceOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
-  const { activeScene, jumpTo } = useModuleStages({
+  const { activeScene, jumpTo } = useContinuousCanvas({
     enabled: introDone && workflow.hydrated && !workspaceLaunching,
     rootRef: workspaceRootRef,
     quiet: taskFocused
@@ -190,14 +237,20 @@ export default function App() {
 
   useEffect(() => {
     if (!workspaceLaunching) return undefined
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        skipWorkspaceAssembly()
-      }
+    const skipOnInput = (event) => {
+      if (event.type === 'keydown' && event.key === 'Escape') event.preventDefault()
+      skipWorkspaceAssembly()
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', skipOnInput)
+    window.addEventListener('pointerdown', skipOnInput, { capture: true })
+    window.addEventListener('wheel', skipOnInput, { passive: true })
+    window.addEventListener('touchstart', skipOnInput, { passive: true })
+    return () => {
+      window.removeEventListener('keydown', skipOnInput)
+      window.removeEventListener('pointerdown', skipOnInput, { capture: true })
+      window.removeEventListener('wheel', skipOnInput)
+      window.removeEventListener('touchstart', skipOnInput)
+    }
   }, [skipWorkspaceAssembly, workspaceLaunching])
 
   useEffect(() => {
@@ -547,6 +600,7 @@ export default function App() {
       {introDone ? <a className="skip-link" href="#closing-summary-anchor">跳到闭店摘要</a> : null}
       <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
+        <ContinuousCanvas />
         <div data-workspace-layer="navigation" data-workspace-priority="true">
           <WorkshopShellHeader
             activeScene={activeScene}
@@ -561,8 +615,8 @@ export default function App() {
         </div>
         {!online ? <p className="workshop-global-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据；恢复网络后才能修改。</p> : null}
         <main className="workshop-shell" id="main-content" tabIndex="-1" data-workspace-layer="structure">
-          <div className="workshop-module-stage-stack" data-workspace-layer="focus" data-module-stage-stack="true">
-            <ModuleStage sceneId="pulse" active={activeScene === 'pulse'} className="workshop-overview-stage">
+          <div className="workshop-continuous-stack" data-workspace-layer="focus" data-continuous-stack="true">
+            <ModuleSection sceneId="pulse" active={activeScene === 'pulse'} className="workshop-overview-module">
               <span className="closing-summary-anchor" id="closing-summary-anchor" aria-hidden="true" />
               <WorkshopOverviewPage
                 workflow={workflow}
@@ -575,12 +629,12 @@ export default function App() {
                 onExportReport={exportClosingReport}
                 onJump={jumpFromOverview}
               />
-            </ModuleStage>
-            <ModuleStage sceneId="pickup" active={activeScene === 'pickup'}><PickupScene {...recordProps('pickup')} /></ModuleStage>
-            <ModuleStage sceneId="poster" active={activeScene === 'poster'}><OpeningScene {...recordProps('poster')} /></ModuleStage>
-            <ModuleStage sceneId="repair" active={activeScene === 'repair'}><RepairScene {...recordProps('repair')} /></ModuleStage>
-            <ModuleStage sceneId="resale" active={activeScene === 'resale'}><ResaleScene {...recordProps('resale')} /></ModuleStage>
-            <ModuleStage sceneId="sales" active={activeScene === 'sales'}><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></ModuleStage>
+            </ModuleSection>
+            <ModuleSection sceneId="pickup" active={activeScene === 'pickup'}><PickupScene {...recordProps('pickup')} /></ModuleSection>
+            <ModuleSection sceneId="poster" active={activeScene === 'poster'}><OpeningScene {...recordProps('poster')} /></ModuleSection>
+            <ModuleSection sceneId="repair" active={activeScene === 'repair'}><RepairScene {...recordProps('repair')} /></ModuleSection>
+            <ModuleSection sceneId="resale" active={activeScene === 'resale'}><ResaleScene {...recordProps('resale')} /></ModuleSection>
+            <ModuleSection sceneId="sales" active={activeScene === 'sales'}><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></ModuleSection>
           </div>
           <footer className="closing-footer workshop-footer">
             <div className="footer-identity"><span>{currentStore?.storeName || 'ACTIVE USER'} · {roleLabels[role]}</span><strong>{currentUser}</strong></div>

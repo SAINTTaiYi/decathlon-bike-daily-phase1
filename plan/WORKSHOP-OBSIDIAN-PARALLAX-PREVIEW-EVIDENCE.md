@@ -1,6 +1,8 @@
 # Workshop True Multilayer Parallax Preview Evidence
 
-> **Status: awaiting human Preview acceptance.** This evidence supersedes the rejected native-stage Preview recorded in `plan/WORKSHOP-OBSIDIAN-MOTION-PREVIEW-EVIDENCE.md`. It does not authorize a Production release.
+> **Status: rejected by human Preview review.** This historical evidence records deployed identity `73a02372619261fdba66b32765edb8f6fa011070` only. It is not an accepted design baseline and does not authorize a Production release.
+
+The reviewer rejected the independent black stage covers and fixed large module panels because they did not form one immersive cross-module spatial canvas. The replacement specification is `plan/WORKSHOP-CONTINUOUS-CANVAS-PREVIEW-EVIDENCE.md`.
 
 ## Scope
 

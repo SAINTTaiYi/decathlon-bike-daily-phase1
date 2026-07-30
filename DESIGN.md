@@ -1,7 +1,7 @@
 # Workshop Project Design Baseline
 
 > Status: current and authoritative
-> Effective date: 2026-07-29
+> Effective date: 2026-07-31
 > Accepted reference implementation: Workshop authenticated overview
 > Preview identity: `b3a3413006381115653b0bae942c9a6927f195f1`
 
@@ -61,7 +61,7 @@ Rules:
 
 1. Warm off-white must remain the dominant field; do not turn the interface into a black or yellow theme.
 2. Yellow is a signal, not decoration. Use it for one primary action or one dominant status per decision area.
-3. Do not introduce gradients, neon colors, blue accents, decorative multicolor systems, glass effects, or colored background bands.
+3. Do not introduce gradients, neon colors, blue accents, decorative multicolor systems, or glass effects. The authenticated workspace may use a small number of ultra-long pale-gray and pale-yellow spatial fields that cross multiple semantic modules; they must remain subordinate to the warm off-white page and must never become section bands or visible dividers.
 4. Semantic green and red must never replace labels, icons, or accessible state text.
 5. New colors require a documented semantic role and must be added here before use.
 6. The pickup expanded-card orange is a contextual focus surface only; it must not become a general status color or decorative band.
@@ -94,7 +94,7 @@ All font assets must be self-hosted, licensed, documented in `apps/web/public/fo
 
 ## Geometry And Surfaces
 
-- The mobile content rail is centered with a maximum overview width of `390px` inside an app shell up to `426px`.
+- The mobile business rail is centered and readable at `390px`; the continuous spatial canvas may span the viewport, while business controls remain inside stable safe-area-aware bounds.
 - Primary module corners use `8px` radius. Avoid larger pill-like cards.
 - Cards must not be nested inside decorative cards. Use one surface per functional module.
 - Major modules use the restrained card shadow. Identity rows, navigation, and lightweight strips should remain flat unless elevation communicates interaction.
@@ -126,7 +126,7 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 - Primary actions are yellow when they advance the active task. Black is used for structural or menu actions. Secondary actions remain flat and low emphasis.
 - Active navigation uses black background, yellow icon/text emphasis, and clear Chinese plus compact English labels.
 - Press feedback may use a small opacity change and `scale(.985)`; it must not move surrounding layout.
-- Motion is short and functional inside business content. Before each of the six operational modules, the approved narrative stage uses a full multi-layer continuous parallax composition derived from the mechanics documented in `plan/WORKSHOP-OBSIDIAN-PARALLAX-SPEC.md`: independent moving material backdrop, three asymmetric title lines at distinct speeds, curved path copy, one unique original transparent Workshop object, and a sequential word trail. A static sticky card is not an acceptable substitute for this parallax contract. Stage navigation uses stable anchors and passive observation only—never wheel/touch interception, pinned spacers, or content-size-driven scroll correction. Respect `prefers-reduced-motion`; never require animation to understand state.
+- Motion is short and functional inside business controls, while the authenticated workspace uses one uninterrupted native-scroll spatial canvas documented in `plan/WORKSHOP-OBSIDIAN-PARALLAX-SPEC.md`. The six operational modules remain semantic landmarks but have no visible divider, independent cover, black stage, sticky pause, or module-level outer card. Ultra-long pale fields, six original transparent Workshop objects, sparse oversized words, curved copy, and distance-focus word trails cross module boundaries at independent speeds. Business headings, filters, statistics, and summaries sit directly on the canvas; only repeated records and necessary forms, drawers, and dialogs retain compact warm-white containers. Never use wheel/touch interception, pinned spacers, scroll snapping, or content-size-driven correction. Respect `prefers-reduced-motion`; never require animation to understand state.
 - Loading, offline, empty, error, permission, and synchronization states must be explicit. Unknown data must render as unavailable, not as a false zero.
 
 ## Responsive Behavior
@@ -136,8 +136,9 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 - Mobile is the primary composition.
 - Support at least `320px` through `430px` widths without horizontal scrolling.
 - Preserve safe areas and dynamic viewport bottom offsets.
-- Keep the six-item navigation fixed and ensure content can scroll fully above it.
-- At narrow widths, reduce secondary metadata before reducing touch targets or primary values.
+- Keep the six-item navigation fixed as a lightweight translucent diffused layer and ensure content can scroll fully above it.
+- Preserve the same motion intensity, layer count, depth, duration, and narrative memory points as desktop. Portrait layouts may use different diagonal or foreground/background trajectories, but must not reduce or remove effects.
+- At narrow widths, reduce secondary metadata before reducing touch targets, primary values, or motion strength.
 
 ### Tablet
 
