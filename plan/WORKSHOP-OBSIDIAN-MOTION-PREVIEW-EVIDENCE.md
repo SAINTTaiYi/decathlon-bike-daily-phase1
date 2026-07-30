@@ -1,5 +1,7 @@
 # Workshop Native Module Stages Preview Evidence
 
+> **Status: rejected by human Preview review on 2026-07-30.** This document remains as deployment history only. The deployed implementation used a sticky material stage but did not implement the requested Obsidian Assembly About-style multi-layer parallax or typography. It is superseded by `plan/WORKSHOP-OBSIDIAN-PARALLAX-SPEC.md` and the `fix/workshop-obsidian-parallax` correction.
+
 ## Scope
 
 - Objective: replace the unstable GSAP ScrollTrigger / pinned Story Scroll module switching system with native continuous vertical module stages.

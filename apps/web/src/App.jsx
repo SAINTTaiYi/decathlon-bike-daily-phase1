@@ -41,9 +41,25 @@ import SalesScene from './scenes/SalesScene.jsx'
 
 const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员' }
 
+function StageTitleLine({ children, lineIndex, stageIndex }) {
+  return (
+    <span className={`workshop-stage-title-line workshop-stage-title-line-${lineIndex + 1}`}>
+      {[...children].map((character, characterIndex) => (
+        <i
+          key={`${character}-${characterIndex}`}
+          style={{ '--stage-char-delay': `${((characterIndex * 7 + lineIndex * 3 + stageIndex * 5) % 11) * 75}ms` }}
+        >
+          {character === ' ' ? '\u00a0' : character}
+        </i>
+      ))}
+    </span>
+  )
+}
+
 function ModuleStage({ active, children, className = '', sceneId }) {
   const scene = sceneById(sceneId)
   const stageIndex = Math.max(0, Number.parseInt(scene.no, 10) - 1)
+  const curveId = `workshop-stage-curve-${scene.id}`
   return (
     <section
       className={`workshop-module-stage ${className}`.trim()}
@@ -55,13 +71,39 @@ function ModuleStage({ active, children, className = '', sceneId }) {
       data-scene-id={sceneId}
       data-active={active ? 'true' : undefined}
     >
+      <h2 className="sr-only">{scene.cn} · {scene.title}</h2>
       <div className="workshop-module-stage-runway" data-module-stage-runway="true">
         <div className="workshop-module-stage-cover" data-module-stage-cover="true" aria-hidden="true">
+          <div className="workshop-stage-backdrop">
+            <span className="workshop-stage-material" />
+            <span className="workshop-stage-axis" />
+          </div>
+          <svg className="workshop-stage-orbit" viewBox="0 0 1440 1080" preserveAspectRatio="none">
+            <path d="M-40 540C170 1040 302 88 486 230C662 366 760 980 1016 720C1228 504 1120 86 1480 238" />
+          </svg>
           <span className="workshop-module-stage-index">{scene.no} / 06</span>
-          <div className="workshop-module-stage-copy">
-            <span>{scene.label}</span>
-            <strong>{scene.title}</strong>
-            <small>{scene.cn}</small>
+          <span className="workshop-stage-context">{scene.label} · {scene.cn}</span>
+          <div className="workshop-stage-title">
+            {scene.stageLines.map((line, lineIndex) => (
+              <StageTitleLine key={line} lineIndex={lineIndex} stageIndex={stageIndex}>{line}</StageTitleLine>
+            ))}
+          </div>
+          <figure className="workshop-stage-object">
+            <img src={scene.stageObject} alt="" width="720" height="880" loading={stageIndex > 1 ? 'lazy' : 'eager'} />
+          </figure>
+          <svg className="workshop-stage-curve-copy" viewBox="0 0 720 880" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <path id={curveId} d="M84 676C84 384 126 142 360 142C594 142 636 384 636 676C636 792 546 838 360 838C174 838 84 792 84 676Z" />
+            </defs>
+            <text>
+              <textPath href={`#${curveId}`} data-stage-curve-copy="true">{scene.stageCurve.repeat(3)}</textPath>
+              <textPath href={`#${curveId}`} data-stage-curve-copy="true">{scene.stageCurve.repeat(3)}</textPath>
+            </text>
+          </svg>
+          <span className="workshop-stage-side-label workshop-stage-side-label-left">CONTINUOUS</span>
+          <span className="workshop-stage-side-label workshop-stage-side-label-right">OPERATION</span>
+          <div className="workshop-stage-trail">
+            {scene.stageTrail.map((word) => <span key={word} data-stage-trail-word="true">{word}</span>)}
           </div>
         </div>
       </div>
