@@ -35,7 +35,7 @@
 ## Delivery Identity
 
 - Public version remains `V5.7.9`; Preview-only changes do not increment it.
-- Functional commit: pending.
+- Functional commit: `7f1bfae289b3285998317c65698637e16f1bc3a8`.
 - PR / merge SHA / CI: pending.
 - Preview fingerprint: pending clean-commit registration.
 - Protected Preview deployment: pending.
