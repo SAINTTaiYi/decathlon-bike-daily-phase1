@@ -18,7 +18,7 @@ export default function useWorkspaceMotion({ active, rootRef, onComplete }) {
     const environment = root.querySelector('[data-workspace-layer="environment"]')
     const structure = root.querySelector('[data-workspace-layer="structure"]')
     const navigation = [...root.querySelectorAll('[data-workspace-layer="navigation"]')]
-    const module = root.querySelector('[data-module-stage][data-active="true"]')
+    const module = root.querySelector('[data-continuous-module][data-active="true"]')
     const dock = root.querySelector('[data-workspace-layer="dock"]')
     const targets = [environment, structure, ...navigation, module, dock].filter(Boolean)
 
