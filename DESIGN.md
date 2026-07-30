@@ -1,9 +1,10 @@
 # Workshop Project Design Baseline
 
-> Status: current and authoritative
-> Effective date: 2026-07-31
-> Accepted reference implementation: Workshop authenticated overview
-> Preview identity: `b3a3413006381115653b0bae942c9a6927f195f1`
+> Status: candidate branch, pending Preview acceptance
+> Candidate date: 2026-07-31
+> Production baseline: V5.7.9 at administrative baseline `8ae32f3f0760349cc46a185a2141224fc8c71a28`
+> Candidate implementation: Workshop reference-structured authenticated Overview
+> Preview identity: pending
 
 ## Authority
 
@@ -34,7 +35,7 @@ The visual hierarchy combines:
 - signal yellow for progress, state, numbering, current navigation, and primary action;
 - green and red only for semantic success and failure.
 
-The interface is an operations product, not a marketing page, portfolio, game HUD, cinematic scene, or imitation of another brand.
+The interface is an operations product, not a marketing page, portfolio, game HUD, cinematic scene, or imitation of another brand. The candidate Overview borrows only the supplied reference’s large-scale spatial rhythm: warm opening field, central material object, dark photographic work field, warm data field, photographic connection field, and compact update ending. Every visible label, state, control, metric, destination, and image is rebuilt for Workshop.
 
 ## Color System
 
@@ -105,7 +106,7 @@ All font assets must be self-hosted, licensed, documented in `apps/web/public/fo
 
 ## Information Architecture
 
-The accepted overview establishes the priority order:
+The candidate reference-structured overview establishes the priority order:
 
 1. Product identity, version, business date, and notifications.
 2. Current store, user identity, and menu.
@@ -115,6 +116,8 @@ The accepted overview establishes the priority order:
 6. Pickup work queue.
 7. Release information.
 8. Persistent six-destination navigation.
+
+The Overview is a continuous five-field mobile composition: opening and closing decision; dark Workshop-space operations index; measured KPI proof; Workshop connection and direct Pending Pickup action; release disclosure. Its editorial-scale English headings orient the fields but never replace Chinese operational meaning or real controls. This exception applies only to the Overview; the five dedicated business modules retain their established operational layouts.
 
 Apply the same principle elsewhere: current decision first, supporting evidence second, history and configuration later. Avoid landing-page heroes, decorative introductions, feature explanations, and oversized editorial headings inside work surfaces.
 
@@ -169,8 +172,8 @@ The minimum baseline is WCAG 2.1 AA:
 
 ## Asset Policy
 
-- Prefer real operational content and project-owned, brand-neutral assets.
-- The bicycle workshop blueprint is the accepted restrained technical motif. It must remain secondary to business data.
+- Prefer real operational content and project-owned, brand-neutral assets. The candidate Overview also uses documented public-domain/CC0 photography from Wikimedia Commons, converted to responsive self-hosted WebP files and integrity-pinned in `apps/web/public/images/ops/SOURCES.md`.
+- The bicycle workshop blueprint remains the restrained technical motif. The documented obsidian specimen is a decorative material object and the documented mechanic workbench photograph is a contextual Workshop-space background; neither represents a product, employee, store, or live record. It must remain secondary to business data.
 - Do not copy proprietary logos, screenshots, character art, fonts, or visual assets from other products.
 - Do not hotlink production assets. Self-host, compress, document source, license, purpose, and SHA-256 where applicable.
 - Do not simulate irregular material texture with noisy CSS or generated ornament when it does not improve task comprehension.
