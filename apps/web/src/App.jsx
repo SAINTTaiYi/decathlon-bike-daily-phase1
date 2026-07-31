@@ -10,7 +10,6 @@ import { buildClosingReportModel, exportClosingReportImage } from './utils/closi
 import WorkshopShellHeader from './components/workshop/WorkshopShellHeader.jsx'
 import WorkshopOverviewPage from './components/overview/WorkshopOverviewPage.jsx'
 import AssemblyText from './components/motion/AssemblyText.jsx'
-import AssemblyModuleStage from './components/motion/AssemblyModuleStage.jsx'
 import AttachmentDialog from './components/dialogs/AttachmentDialog.jsx'
 import ConfirmClosingDialog from './components/dialogs/ConfirmClosingDialog.jsx'
 import KpiDialog from './components/dialogs/KpiDialog.jsx'
@@ -66,7 +65,6 @@ function ModuleSection({ active, children, className = '', sceneId }) {
       data-active={active ? 'true' : undefined}
       aria-labelledby={`module-title-${sceneId}`}
     >
-      <AssemblyModuleStage scene={scene} />
       <header className="workshop-continuous-heading" data-module-heading="true">
         <span>{scene.no} / 06</span>
         <div>
@@ -99,7 +97,7 @@ export default function App() {
   const authenticated = auth.status === 'authenticated'
   const introDone = authenticated && (auth.source === 'restore' || auth.source === 'registration' || loginAnimationDone)
   const mustChangePassword = Boolean(auth.user?.mustChangePassword)
-  const workspaceEntryEligible = ['login', 'restore', 'registration'].includes(auth.source) && window.scrollY <= 8 && !/^#module-(pulse|pickup|poster|repair|resale|sales)$/u.test(window.location.hash)
+  const workspaceEntryEligible = auth.source === 'login' && window.scrollY <= 8 && !/^#module-(pulse|pickup|poster|repair|resale|sales)$/u.test(window.location.hash)
   const deferUpdatePrompt = workspaceEntryEligible && !mustChangePassword && !workspaceAssemblyDone
   const workflow = useRemoteClosingWorkflow(authenticated && !mustChangePassword)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -130,8 +128,7 @@ export default function App() {
   const canReopenClosing = role === 'manager' || role === 'admin'
   const writeLocked = Boolean(workflow.closedAt) || !online || Boolean(workflow.storageError)
 
-  const workspaceEntryReady = auth.source === 'login' ? loginAnimationDone : true
-  const workspaceLaunching = authenticated && workspaceEntryEligible && workspaceEntryReady && workflow.hydrated && !workspaceAssemblyDone
+  const workspaceLaunching = authenticated && workspaceEntryEligible && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone
   const completeWorkspaceAssembly = useCallback(() => {
     setWorkspaceAssemblyDone(true)
     window.requestAnimationFrame(() => document.getElementById('main-content')?.focus({ preventScroll: true }))
@@ -587,11 +584,7 @@ export default function App() {
         <KpiDialog open={kpiOpen} onClose={() => setKpiOpen(false)} values={workflow.kpi} savedAt={workflow.kpiSavedAt} onSave={workflow.saveKpi} onClear={workflow.clearKpi} onNotify={setToast} />
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
       </div>
-      {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}>
-        <div className="workspace-launch-bands" data-workspace-transition-bands aria-hidden="true">{[0, 1, 2, 3].map((order) => <i key={order} style={{ '--workspace-band-order': order }} />)}</div>
-        <strong className="workspace-launch-title" data-workspace-transition-title aria-hidden="true"><span>THE</span> WORKSHOP <span>ASSEMBLY</span></strong>
-        <button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button>
-      </div> : null}
+      {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button></div> : null}
       <ReportImageDialog
         open={Boolean(reportImage?.objectUrl)}
         onClose={closeReportImage}
