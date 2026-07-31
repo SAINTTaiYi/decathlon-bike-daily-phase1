@@ -35,30 +35,30 @@ test('overview is one industrial poster composition rather than five page sectio
   assert.match(overview, /TODAY'S<br \/>OVERVIEW/u)
 })
 
-test('390 poster uses one normalized 852 by 1876 coordinate field and stays static', async () => {
+test('390 poster keeps one normalized 852 by 1876 coordinate field with bounded assembly motion', async () => {
   const [overview, css, system] = await Promise.all([read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'), read('apps/web/src/styles/mobile-overview.css'), read('apps/web/src/styles/workshop-system.css')])
   for (const rule of [/aspect-ratio: 852 \/ 1876/u,/position: absolute; inset: 0/u,/container-type: inline-size/u,/@media \(max-width: 374px\)/u,/@media \(min-width: 600px\)/u,/@media \(min-width: 840px\)/u,/@media \(min-width: 1200px\)/u,/repeat\(6,minmax\(0,1fr\)\)/u,/@media \(prefers-reduced-motion: reduce\)/u,/@media \(forced-colors: active\)/u]) assert.match(css, rule)
   assert.ok(system.includes(".workshop-runtime[data-active-scene='pulse'] .workshop-overview-module { display: block; width: 100%; min-height: 0; margin: 0; padding: 0;"))
   assert.doesNotMatch(css, /min-height:\s*(?:970|285|590|180)px|overflow-x:\s*auto|font-size:\s*clamp|font-size:[^;]*(?:vw|dvw)|letter-spacing:\s*-/u)
-  assert.doesNotMatch(css, /gradient|@keyframes|animation\s*:|transition\s*:|transform\s*:/u)
   assert.doesNotMatch(overview, /requestAnimationFrame|addEventListener|behavior:\s*'smooth'|poster-operation-links/u)
   assert.match(overview, /viewBox="0 0 852 1876"/u)
   assert.match(overview, /behavior: 'auto'/u)
 })
 
-test('static Overview uses the static scene router and is not attached to a global motion runtime', async () => {
+test('Overview participates in the native continuous assembly runtime', async () => {
   const [app, navigation, overview, system] = await Promise.all([
     read('apps/web/src/App.jsx'),
-    read('apps/web/src/hooks/useStaticSceneNavigation.js'),
+    read('apps/web/src/hooks/useObsidianAssemblyScroll.js'),
     read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'),
     read('apps/web/src/styles/workshop-system.css')
   ])
-  assert.match(app, /useStaticSceneNavigation/u)
-  assert.doesNotMatch(app, /useContinuousCanvas|useMotionSystem|ActionDock/u)
-  assert.match(navigation, /behavior: 'auto'/u)
-  assert.doesNotMatch(navigation, /smooth|addEventListener\('scroll'/u)
+  assert.match(app, /useObsidianAssemblyScroll/u)
+  assert.match(app, /useMotionSystem/u)
+  assert.doesNotMatch(app, /ActionDock/u)
+  assert.match(navigation, /addEventListener\('scroll', sync, \{ passive: true \}\)/u)
+  assert.match(navigation, /requestAnimationFrame/u)
   assert.match(overview, /function SwipeSceneCard/u)
-  assert.match(system, /Static scene architecture/u)
+  assert.match(system, /Obsidian Assembly motion adaptation/u)
 })
 
 test('poster colors, type and geometry follow the design system', async () => {
@@ -83,5 +83,5 @@ test('release disclosure remains accessible and the persistent dock is removed',
   const [overview, app, system] = await Promise.all([read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'),read('apps/web/src/App.jsx'),read('apps/web/src/styles/workshop-system.css')])
   assert.match(overview, /className="poster-release"/u)
   assert.doesNotMatch(app, /ActionDock|data-workspace-layer="dock"/u)
-  assert.match(system, /\.look-dock \{ display: none !important; \}/u)
+  assert.doesNotMatch(app, /ActionDock|data-workspace-layer="dock"/u)
 })

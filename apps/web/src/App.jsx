@@ -9,6 +9,7 @@ import { APP_VERSION } from './data/releaseNotes.js'
 import { buildClosingReportModel, exportClosingReportImage } from './utils/closingReportImage.js'
 import WorkshopShellHeader from './components/workshop/WorkshopShellHeader.jsx'
 import WorkshopOverviewPage from './components/overview/WorkshopOverviewPage.jsx'
+import AssemblyText from './components/motion/AssemblyText.jsx'
 import AttachmentDialog from './components/dialogs/AttachmentDialog.jsx'
 import ConfirmClosingDialog from './components/dialogs/ConfirmClosingDialog.jsx'
 import KpiDialog from './components/dialogs/KpiDialog.jsx'
@@ -25,10 +26,11 @@ import RecordEditorDialog from './components/dialogs/RecordEditorDialog.jsx'
 import { sceneRecordConfig } from './data/operationsData.js'
 import { inferPickupSource } from './data/pickupRecord.js'
 import { REPAIR_POS_REMINDER_STATUS } from './data/repairRecord.js'
-import { lookbookScenes, sceneById } from './data/lookbookScenes.js'
+import { sceneById } from './data/lookbookScenes.js'
 import useAuth from './hooks/useAuth.js'
 import useRemoteClosingWorkflow from './hooks/useRemoteClosingWorkflow.js'
-import useStaticSceneNavigation from './hooks/useStaticSceneNavigation.js'
+import useObsidianAssemblyScroll from './hooks/useObsidianAssemblyScroll.js'
+import useMotionSystem from './hooks/useMotionSystem.js'
 import useWorkspaceMotion from './hooks/useWorkspaceMotion.js'
 import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
 import OpeningScene from './scenes/OpeningScene.jsx'
@@ -39,10 +41,41 @@ import SalesScene from './scenes/SalesScene.jsx'
 
 const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员' }
 
-function ScenePanel({ children, className = '', sceneId }) {
+function AssemblyLineLayer() {
+  return (
+    <div className="workshop-assembly-line-layer" data-assembly-line="true" aria-hidden="true">
+      <svg viewBox="0 0 852 6000" preserveAspectRatio="none">
+        <path className="assembly-s-line-base" pathLength="1" d="M690-80C940 430 86 650 424 1190C766 1730 88 2070 430 2690C780 3320 76 3650 432 4230C786 4810 94 5260 436 6080" />
+        <path className="assembly-s-line-tracer" pathLength="1" d="M690-80C940 430 86 650 424 1190C766 1730 88 2070 430 2690C780 3320 76 3650 432 4230C786 4810 94 5260 436 6080" />
+      </svg>
+    </div>
+  )
+}
+
+function ModuleSection({ active, children, className = '', sceneId }) {
   const scene = sceneById(sceneId)
-  const labelledBy = sceneId === 'pickup' ? 'pickup-title' : sceneId === 'pulse' ? 'workshop-poster-title' : `module-title-${sceneId}`
-  return <section className={`workshop-scene-panel ${className}`.trim()} id={`module-${sceneId}`} tabIndex="-1" data-workspace-module="true" data-scene-id={sceneId} aria-labelledby={labelledBy}>{sceneId !== 'pulse' && sceneId !== 'pickup' ? <header className="workshop-scene-heading"><span>{scene.no} / 06</span><div><small>{scene.label}</small><h2 id={`module-title-${sceneId}`}>{scene.cn}</h2><p>{scene.title}</p></div></header> : null}<div className="workshop-scene-content">{children}</div></section>
+  return (
+    <section
+      className={`workshop-continuous-module ${className}`.trim()}
+      id={`module-${sceneId}`}
+      tabIndex="-1"
+      data-workspace-module="true"
+      data-continuous-module="true" data-assembly-module="true"
+      data-scene-id={sceneId}
+      data-active={active ? 'true' : undefined}
+      aria-labelledby={`module-title-${sceneId}`}
+    >
+      <header className="workshop-continuous-heading" data-module-heading="true">
+        <span>{scene.no} / 06</span>
+        <div>
+          <small>{scene.label}</small>
+          <AssemblyText as="h2" id={`module-title-${sceneId}`} text={scene.cn} seed={Number(scene.no)} />
+          <p>{scene.title}</p>
+        </div>
+      </header>
+      <div className="workshop-continuous-content" data-module-business="true">{children}</div>
+    </section>
+  )
 }
 
 export default function App() {
@@ -104,12 +137,16 @@ export default function App() {
     active: workspaceLaunching,
     rootRef: workspaceRootRef,
     onComplete: completeWorkspaceAssembly,
-    staticMode: true
+    staticMode: false
   })
   const taskFocused = Boolean(taskInputFocused || menuOpen || logOpen || permanentHistoryOpen || confirmOpen || kpiOpen || migrationOpen || governanceOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
-  const { activeScene, jumpTo } = useStaticSceneNavigation({
-    enabled: introDone && workflow.hydrated && !workspaceLaunching
+  const { activeScene, jumpTo } = useObsidianAssemblyScroll({
+    enabled: introDone && workflow.hydrated && !workspaceLaunching,
+    rootRef: workspaceRootRef,
+    quiet: taskFocused
   })
+
+  useMotionSystem({ enabled: introDone && workflow.hydrated && !workspaceLaunching, rootRef: workspaceRootRef, quiet: taskFocused })
 
   useEffect(() => {
     if (auth.status === 'anonymous') {
@@ -260,7 +297,7 @@ export default function App() {
       closedAt: result.day?.closedAt
     }, { automatic: true })
     if (!report.ok) setToast({ message: `闭店已完成，但日报图未生成：${report.error}`, tone: 'error' })
-    window.scrollTo({ top: 0, behavior: 'auto' })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const exportClosingReport = async () => generateClosingReport()
@@ -463,7 +500,6 @@ export default function App() {
             <button type="button" className="primary-action" onClick={() => void workflow.refresh()} disabled={workflow.syncing}>{workflow.syncing ? '正在重试…' : '重新同步'}</button>
             <button type="button" className="secondary-action" onClick={() => void logout()}>退出登录</button>
           </div>
-          {activeScene !== 'pulse' ? <footer className="static-business-footer"><div><span>{currentStore?.storeName || 'ACTIVE USER'} · {roleLabels[role]}</span><strong>{currentUser}</strong></div><p><span>LAST SYNC · 最后同步</span><strong>{workflow.lastSyncedAt ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(workflow.lastSyncedAt)) : '尚未同步'}</strong></p><button type="button" className="primary-action" onClick={requestClose} disabled={writeLocked}>{workflow.closedAt ? '今日已闭店' : workflow.kpiReady ? '完成闭店' : '填写销售数据'}</button></footer> : null}
         </main>
         <UpdateRefreshDialog enabled={!deferUpdatePrompt} />
       </>
@@ -495,19 +531,39 @@ export default function App() {
             onMenu={() => setMenuOpen(true)}
             onLog={() => setLogOpen(true)}
             hasUnread={Boolean(workflow.events?.length)}
-            onHome={() => jumpTo('pulse')}
           />
         </div>
         {!online ? <p className="workshop-global-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据；恢复网络后才能修改。</p> : null}
         <main className="workshop-shell" id="main-content" tabIndex="-1" data-workspace-layer="structure">
-          <div className="workshop-scene-stage" data-workspace-layer="focus">
-            {activeScene === 'pulse' ? <ScenePanel sceneId="pulse" className="workshop-overview-module"><span className="closing-summary-anchor" id="closing-summary-anchor" aria-hidden="true" /><WorkshopOverviewPage workflow={workflow} online={online} onEditKpi={() => setKpiOpen(true)} onCompleteClosing={requestClose} onHistory={() => setHistoryTarget({ scene: 'pulse', record: null })} onRefresh={() => void workflow.refresh()} onReopenClosing={() => void reopen()} onExportReport={exportClosingReport} onJump={jumpFromOverview} /></ScenePanel> : null}
-            {activeScene === 'pickup' ? <ScenePanel sceneId="pickup" className="workshop-pickup-module"><PickupScene {...recordProps('pickup')} /></ScenePanel> : null}
-            {activeScene === 'poster' ? <ScenePanel sceneId="poster"><OpeningScene {...recordProps('poster')} /></ScenePanel> : null}
-            {activeScene === 'repair' ? <ScenePanel sceneId="repair"><RepairScene {...recordProps('repair')} /></ScenePanel> : null}
-            {activeScene === 'resale' ? <ScenePanel sceneId="resale"><ResaleScene {...recordProps('resale')} /></ScenePanel> : null}
-            {activeScene === 'sales' ? <ScenePanel sceneId="sales"><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></ScenePanel> : null}
+          <div className="workshop-continuous-stack" data-workspace-layer="focus" data-continuous-stack="true" data-assembly-stack="true">
+            <AssemblyLineLayer />
+            <ModuleSection sceneId="pulse" active={activeScene === 'pulse'} className="workshop-overview-module">
+              <span className="closing-summary-anchor" id="closing-summary-anchor" aria-hidden="true" />
+              <WorkshopOverviewPage
+                workflow={workflow}
+                online={online}
+                onEditKpi={() => setKpiOpen(true)}
+                onCompleteClosing={requestClose}
+                onHistory={() => setHistoryTarget({ scene: 'pulse', record: null })}
+                onRefresh={() => void workflow.refresh()}
+                onReopenClosing={() => void reopen()}
+                onExportReport={exportClosingReport}
+                onJump={jumpFromOverview}
+              />
+            </ModuleSection>
+            <ModuleSection sceneId="pickup" active={activeScene === 'pickup'}><PickupScene {...recordProps('pickup')} /></ModuleSection>
+            <ModuleSection sceneId="poster" active={activeScene === 'poster'}><OpeningScene {...recordProps('poster')} /></ModuleSection>
+            <ModuleSection sceneId="repair" active={activeScene === 'repair'}><RepairScene {...recordProps('repair')} /></ModuleSection>
+            <ModuleSection sceneId="resale" active={activeScene === 'resale'}><ResaleScene {...recordProps('resale')} /></ModuleSection>
+            <ModuleSection sceneId="sales" active={activeScene === 'sales'}><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></ModuleSection>
           </div>
+          <footer className="closing-footer workshop-footer">
+            <div className="footer-identity"><span>{currentStore?.storeName || 'ACTIVE USER'} · {roleLabels[role]}</span><strong>{currentUser}</strong></div>
+            <span>LAST SYNC · 最后同步</span>
+            <strong>{workflow.lastSyncedAt ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(workflow.lastSyncedAt)) : '尚未同步'}</strong>
+            <button type="button" className="primary-action" onClick={requestClose} disabled={writeLocked}>{workflow.closedAt ? '今日已闭店' : workflow.kpiReady ? '完成闭店' : '填写销售数据'}</button>
+            <div className="footer-utility-actions" aria-label="日报辅助操作"><button type="button" onClick={() => setMenuOpen(true)}>日报菜单</button><button type="button" onClick={() => setLogOpen(true)}>当日日志</button><button type="button" onClick={() => setPermanentHistoryOpen(true)}>永久历史</button></div>
+          </footer>
         </main>
         <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} />
         <GovernanceDialog open={governanceOpen} onClose={() => setGovernanceOpen(false)} currentStoreId={currentStore?.storeId || auth.currentStoreId} onNotify={setToast} />

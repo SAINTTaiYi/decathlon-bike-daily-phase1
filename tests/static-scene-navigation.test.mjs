@@ -5,16 +5,16 @@ import { readFile } from 'node:fs/promises'
 const root = new URL('../', import.meta.url)
 const read = (path) => readFile(new URL(path, root), 'utf8')
 
-test('one scene is mounted at a time and the persistent dock and continuous canvas are absent', async () => {
-  const [app, navigation] = await Promise.all([read('apps/web/src/App.jsx'), read('apps/web/src/hooks/useStaticSceneNavigation.js')])
-  assert.match(app, /useStaticSceneNavigation/u)
-  assert.doesNotMatch(app, /ActionDock|<ContinuousCanvas|useContinuousCanvas|useMotionSystem/u)
-  for (const id of ['pulse','pickup','poster','repair','resale','sales']) assert.match(app, new RegExp(`activeScene === '${id}' \\? <ScenePanel sceneId="${id}"`, 'u'))
+test('all scenes remain mounted and hash navigation follows the native vertical document', async () => {
+  const [app, navigation] = await Promise.all([read('apps/web/src/App.jsx'), read('apps/web/src/hooks/useObsidianAssemblyScroll.js')])
+  assert.match(app, /useObsidianAssemblyScroll/u)
+  assert.doesNotMatch(app, /ActionDock|useStaticSceneNavigation/u)
+  for (const id of ['pulse','pickup','poster','repair','resale','sales']) assert.match(app, new RegExp(`<ModuleSection sceneId="${id}"`, 'u'))
   assert.match(navigation, /history\.pushState/u)
   assert.match(navigation, /history\.replaceState/u)
   assert.match(navigation, /addEventListener\('popstate'/u)
-  assert.match(navigation, /scrollTo\(\{ top: 0, behavior: 'auto' \}\)/u)
-  assert.doesNotMatch(navigation, /addEventListener\('scroll'|IntersectionObserver|ResizeObserver|smooth|transform|transition/u)
+  assert.match(navigation, /addEventListener\('scroll', sync, \{ passive: true \}\)/u)
+  assert.doesNotMatch(navigation, /preventDefault|scroll-snap|ScrollTrigger/u)
 })
 
 test('Overview edge cards use intentional horizontal swipe thresholds with click fallback', async () => {

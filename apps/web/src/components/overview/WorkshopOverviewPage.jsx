@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
+import AssemblyText from '../motion/AssemblyText.jsx'
 
 const recordScenes = ['pickup', 'poster', 'repair', 'resale']
 const completedStates = new Set(['complete', 'completed', 'resolved', 'done', 'closed', 'sold', 'picked_up', 'picked-up'])
@@ -64,7 +65,7 @@ function ReleaseFooter() {
   return <details className="poster-release" onToggle={revealReleaseAboveDock}><summary aria-label="查看更新说明"><strong>V{APP_VERSION}</strong><span>{currentRelease.title}</span><time>{currentRelease.date}</time><b aria-hidden="true">＋</b></summary><div><p>{currentRelease.summary}</p><ul>{currentRelease.changes.map((change) => <li key={change}>{change}</li>)}</ul></div></details>
 }
 function PosterGuides() {
-  return <svg className="poster-guides" viewBox="0 0 852 1876" preserveAspectRatio="none" aria-hidden="true"><path d="M516-24C716 171 674 433 548 632C402 863 119 1070 139 1298" /><g className="poster-guide-cross poster-guide-cross-title"><path d="M462 367h24M474 355v24" /><circle cx="474" cy="367" r="4" /></g><g className="poster-guide-cross poster-guide-cross-right"><path d="M746 491h26M759 468v47" /><circle cx="759" cy="491" r="5" /></g><g className="poster-guide-cross poster-guide-cross-kpi"><path d="M416 1234h20M426 1224v20" /><circle cx="426" cy="1234" r="3" /></g></svg>
+  return <svg className="poster-guides" viewBox="0 0 852 1876" preserveAspectRatio="none" aria-hidden="true"><g className="poster-guide-cross poster-guide-cross-title"><path d="M462 367h24M474 355v24" /><circle cx="474" cy="367" r="4" /></g><g className="poster-guide-cross poster-guide-cross-right"><path d="M746 491h26M759 468v47" /><circle cx="759" cy="491" r="5" /></g><g className="poster-guide-cross poster-guide-cross-kpi"><path d="M416 1234h20M426 1224v20" /><circle cx="426" cy="1234" r="3" /></g></svg>
 }
 export default function WorkshopOverviewPage({ workflow, online, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport, onJump }) {
   const available = workflow.hydrated && workflow.hasSnapshot && !workflow.storageError
@@ -81,13 +82,13 @@ export default function WorkshopOverviewPage({ workflow, online, onEditKpi, onCo
     <main className="workshop-poster" aria-labelledby="workshop-poster-title">
       <PosterGuides />
       <section className="poster-opening" aria-label="Workshop Operations 主视觉">
-        <header className="poster-title-block"><h1 id="workshop-poster-title"><span>WORKSHOP</span><span>OPS</span></h1><div className="poster-date"><i aria-hidden="true" /><small>DAY</small><strong>{date.monthDay}</strong><span>{date.weekday}</span><time dateTime={workflow.dateKey || undefined}>{date.full}</time></div></header>
+        <header className="poster-title-block"><h1 id="workshop-poster-title"><AssemblyText text="WORKSHOP" seed={1} /><AssemblyText text="OPS" seed={2} /></h1><div className="poster-date"><i aria-hidden="true" /><small>DAY</small><strong>{date.monthDay}</strong><span>{date.weekday}</span><time dateTime={workflow.dateKey || undefined}>{date.full}</time></div></header>
         <div className="poster-system-line"><i aria-hidden="true" /><strong>SYSTEM {online ? 'ONLINE' : 'OFFLINE'}</strong><span>FOCUS / EXECUTE / IMPROVE</span></div>
-        <p className="poster-purpose"><strong>精益运营 · 高效协同</strong><span>让每一项工作都有价值</span></p>
-        <img className="poster-ore" src="/images/ops/reference-home/obsidian-orange-cut-900.webp" alt="" width="900" height="720" decoding="async" />
+        <p className="poster-purpose"><AssemblyText as="strong" text="精益运营 · 高效协同" seed={3} /><AssemblyText text="让每一项工作都有价值" seed={4} /></p>
+        <img className="poster-ore" data-assembly-ore="true" src="/images/ops/reference-home/obsidian-orange-cut-900.webp" alt="" width="900" height="720" decoding="async" />
         <div className="poster-plinth" aria-hidden="true" /><p className="poster-object-note poster-object-note-left">WORK<br />SMARTER<br />TOGETHER</p><p className="poster-object-note poster-object-note-right">DATA<br />DRIVEN<br />RESULTS</p>
       </section>
-      <section className="poster-kpi" aria-labelledby="poster-kpi-title"><div><h2 id="poster-kpi-title">Today KPI</h2><p>今日数据</p></div><button type="button" onClick={onEditKpi}><span>VIEW DASHBOARD</span><b aria-hidden="true">→</b></button></section>
+      <section className="poster-kpi" aria-labelledby="poster-kpi-title"><div><AssemblyText as="h2" id="poster-kpi-title" text="Today KPI" seed={5} /><AssemblyText as="p" text="今日数据" seed={6} /></div><button type="button" onClick={onEditKpi}><span>VIEW DASHBOARD</span><b aria-hidden="true">→</b></button></section>
       <section className="poster-workzone" aria-labelledby="poster-overview-title">
         <SwipeSceneCard className="poster-photo poster-photo-left" direction="right" label="向右滑动或点击进入维修交接" onActivate={() => onJump('repair')}><WorkbenchPicture className="poster-photo-media" position="18% center" /><span><strong>MAINTENANCE<br />AREA</strong><small>01.</small></span></SwipeSceneCard>
         <SwipeSceneCard className="poster-photo poster-photo-right" direction="left" label="向左滑动或点击进入待取车辆" onActivate={() => onJump('pickup')}><WorkbenchPicture className="poster-photo-media" position="82% center" /><span><strong>WORK<br />STATION</strong><small>02.</small></span></SwipeSceneCard>
