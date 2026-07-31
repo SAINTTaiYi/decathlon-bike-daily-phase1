@@ -119,7 +119,7 @@ The candidate reference-structured overview establishes the priority order:
 7. Release information.
 8. Persistent six-destination navigation.
 
-The Overview remains one poster coordinate field, followed by Pickup, Other, Repair, Used, and Sales in the same native document. Each later module owns a sticky full-viewport material stage derived from the documented Places, Objects, About, People, and Policy composition families. The single S trajectory is always below readable components. Real cards, forms, lists, dialogs, and controls sit on opaque business surfaces above every decorative line and photograph. No persistent navigation dock is allowed.
+Overview, Pickup, Other, Repair, Used, and Sales form one native vertical document of six full-bleed material scenes. Every scene owns a sticky 100dvh image field derived from the documented Admission, Places, Objects, About, People, and Policy composition families; images touch both viewport edges with no poster gutter or separate content block. Titles, counters, filters, ledgers, records, KPI values, and actions are dismantled into independent semantic instruments inside the image field. Use local dark or warm translucent plates only where text or controls need contrast; never restore a page-sized white module below the image. The single S trajectory remains below readable components. No persistent navigation dock is allowed.
 
 Apply the same principle elsewhere: current decision first, supporting evidence second, history and configuration later. Avoid landing-page heroes, decorative introductions, feature explanations, and oversized editorial headings inside work surfaces.
 
@@ -131,7 +131,7 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 - Primary actions are yellow when they advance the active task. Black is used for structural or menu actions. Secondary actions remain flat and low emphasis.
 - Active navigation uses black background, yellow icon/text emphasis, and clear Chinese plus compact English labels.
 - Press feedback may use a small opacity change and `scale(.985)`; it must not move surrounding layout.
-- The authenticated workspace uses ordinary native vertical scrolling with all six modules mounted. Sticky material stages convert scroll distance into local progress without scroll snap, wheel/touch interception, or ScrollTrigger. A passive requestAnimationFrame renderer reads only cached geometry; ResizeObserver owns layout measurement. Four transition bands, a central title, header pull-down, character reveals, clip wipes, bounded transforms, and 0.6/0.9/1.5/2.1s timing tokens follow the local Obsidian Assembly analysis. `prefers-reduced-motion` makes every stage finite and static.
+- The authenticated workspace uses ordinary native vertical scrolling with all six modules mounted. Sticky full-bleed material stages convert scroll distance directly into local progress without smoothing, scroll snap, wheel/touch interception, or ScrollTrigger. Progress begins as the next scene enters the lower 82% of the viewport and active identity crosses at 62%, so mobile hand movement and visual replacement stay coupled rather than lagging above the finger. A passive requestAnimationFrame renderer reads only cached geometry; ResizeObserver owns layout measurement. Four 25% transition bands, a central title, header pull-down, character reveals, clip wipes, bounded transforms, and 0.6/0.9/1.5/2.1s timing tokens follow the local Obsidian Assembly analysis. `prefers-reduced-motion` makes every stage finite and static.
 - Loading, offline, empty, error, permission, and synchronization states must be explicit. Unknown data must render as unavailable, not as a false zero.
 
 ### Figure 2 Pickup
@@ -151,13 +151,13 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 - Support at least `320px` through `430px` widths without horizontal scrolling.
 - Preserve safe areas and dynamic viewport bottom offsets.
 - Do not render a persistent navigation dock. Scene entry is contextual: Overview edge cards, each business page brand/home control, and existing menu routes.
-- Preserve the exact 852:1876 poster ratio: at 390 CSS px wide the artwork field is about 858 CSS px tall. Source coordinates are normalized inside one container; interactive hit regions may expand to 44px without changing the source-sized visual control. Use explicit breakpoints and container-relative geometry, never viewport-width type.
+- The former 852:1876 Overview poster boundary is retired. Every scene fills the viewport width and uses a 100dvh sticky image stage inside a bounded native-scroll runway; no left/right page seam is allowed. Interactive hit regions remain at least 44px, and overlaid controls use viewport-safe clamps plus explicit mobile/tablet/desktop rearrangement.
 - At narrow widths, reduce secondary metadata before reducing touch targets, primary values, or motion strength.
 
 ### Tablet
 
 - At `600px` and above, increase page padding and available media width while preserving the same reading order. Figure 2 Pickup keeps one vertical ledger rail capped at 852px.
-- Navigation may float with the accepted `8px` radius but must remain operationally dense.
+- The fixed shell header uses a warm-white-to-transparent vertical gradient, preserves real menu/log actions, and must not terminate as an opaque bar over the scene. Navigation may float with the accepted `8px` radius but must remain operationally dense.
 
 ### Desktop
 

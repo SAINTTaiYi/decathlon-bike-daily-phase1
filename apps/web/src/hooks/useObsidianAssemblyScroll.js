@@ -82,10 +82,10 @@ export default function useObsidianAssemblyScroll({ enabled, rootRef, quiet = fa
       line.style.setProperty('--assembly-line-y', `${(reduce ? 0 : (progress - 0.5) * -64).toFixed(2)}px`)
       line.style.setProperty('--assembly-line-dash', (reduce ? 0 : -progress * 1.86).toFixed(4))
 
-      const focal = scrollY + viewportHeight * 0.42
+      const focal = scrollY + viewportHeight * 0.62
       let current = geometry[0]
       geometry.forEach((entry) => {
-        const local = reduce ? 0.5 : clamp((scrollY + viewportHeight - entry.top) / Math.max(1, entry.height + viewportHeight))
+        const local = reduce ? 0.5 : clamp((scrollY + viewportHeight * 0.82 - entry.top) / Math.max(1, viewportHeight * 0.92))
         entry.section.style.setProperty('--assembly-local-progress', local.toFixed(4))
         const inview = entry.top < scrollY + viewportHeight && entry.top + entry.height > scrollY
         if (entry.inview !== inview) {
@@ -98,7 +98,7 @@ export default function useObsidianAssemblyScroll({ enabled, rootRef, quiet = fa
       const overview = sectionsRef.current.get('pulse')
       const ore = overview?.section.querySelector('[data-assembly-ore]')
       if (ore) {
-        const local = reduce ? 0.5 : clamp((scrollY + viewportHeight - overview.top) / Math.max(1, overview.height + viewportHeight))
+        const local = reduce ? 0.5 : clamp((scrollY + viewportHeight * 0.82 - overview.top) / Math.max(1, viewportHeight * 0.92))
         const centred = local - 0.5
         ore.style.setProperty('--assembly-ore-x', `${(centred * 20).toFixed(2)}px`)
         ore.style.setProperty('--assembly-ore-y', `${(centred * -88).toFixed(2)}px`)
