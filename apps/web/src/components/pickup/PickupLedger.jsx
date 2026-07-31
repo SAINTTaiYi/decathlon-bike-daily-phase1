@@ -159,7 +159,8 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
         <span className="pickup-card-status"><b data-repair={repairPickup ? 'true' : undefined}>{resultLabel}</b><IconNavArrowDown width={18} height={18} aria-hidden="true" /></span>
         <span className="pickup-card-scan"><span><IconPhone width={14} height={14} aria-hidden="true" />{contactValue ? displayContactValue(contactValue) : '无联系方式'}</span>{record.pickupDate ? <span><IconCalendar width={14} height={14} aria-hidden="true" /><time dateTime={record.pickupDate}>{formatScanDate(record.pickupDate)}</time></span> : null}</span>
       </button>
-      {expanded ? <div className="pickup-card-detail" id={`pickup-detail-${record.id}`}>
+      <div className="pickup-card-reveal" data-expanded={expanded ? 'true' : undefined} aria-hidden={!expanded} inert={!expanded}>
+      <div className="pickup-card-detail" id={`pickup-detail-${record.id}`}>
         <section><h4>CUSTOMER <span>/ 顾客</span></h4><dl><div><dt>车辆标识</dt><dd>{record.title}</dd></div><div><dt>{contact.contactType === 'member' ? '会员号' : '手机号'}</dt><dd>{contactValue || '无'}</dd></div><div><dt>取车日期</dt><dd>{record.pickupDate ? formatScanDate(record.pickupDate) : '未指定'}</dd></div><div><dt>业务编号</dt><dd>{ticketNumber}</dd></div></dl></section>
         <section><h4>ORIGIN <span>/ 来源</span></h4><dl><div><dt>待取来源</dt><dd>{pickupSourceLabel(record)}{platform ? ` · ${platform}` : ''}</dd></div><div><dt>业务结果</dt><dd>{resultLabel}</dd></div></dl></section>
         {detailLine ? <section className="pickup-detail-wide"><h4>{repairPickup ? 'SERVICE / 维修' : 'NOTE / 备注'}</h4><p>{detailLine}</p></section> : null}
@@ -167,7 +168,8 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
         {pickupError ? <p className="pickup-card-error" role="alert">{pickupError}</p> : null}
         {pickedUp ? <p className="pickup-card-resolved">本条今日保留，下一业务日自动移除。</p> : null}
         <footer className="pickup-card-actions">{!pickedUp ? <button type="button" className="pickup-secondary-action" onClick={() => onEdit(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconEdit width={16} height={16} aria-hidden="true" />编辑记录</button> : null}<button type="button" className="pickup-history-action" onClick={() => onHistory(record)}><IconJournal width={16} height={16} aria-hidden="true" />操作记录</button>{!pickedUp ? <details className="pickup-card-more"><summary>更多</summary><button type="button" onClick={() => onRemove(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconTrash width={15} height={15} aria-hidden="true" />删除记录</button></details> : null}{!pickedUp ? <button type="button" className="pickup-primary-action" onClick={() => onPickup(record)} disabled={locked} aria-busy={primaryProcessing || undefined}><IconCheck width={17} height={17} aria-hidden="true" />{primaryProcessing ? '确认中…' : '确认取车'}</button> : null}</footer>
-      </div> : null}
+      </div>
+    </div>
     </article>
   </div>
 }
