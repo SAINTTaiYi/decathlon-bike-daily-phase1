@@ -57,3 +57,29 @@ The visual composition was rebuilt around Workshop business content. No Obsidian
 - **Purpose:** central black mineral object with the safety-orange cut face required by the static Workshop poster candidate.
 - **Changes:** offline Pillow processing only: resized, high-contrast monochrome treatment, irregular alpha mask on a transparent background, and two original orange polygon cut faces; no proprietary reference asset was traced or embedded.
 - **Integrity:** SHA-256 `306c82097e6b912d2cc4da5a907a4d052ca330d532ed44ce3c546229f522e258`.
+
+
+## Obsidian Assembly reconstruction photography
+
+Three self-hosted CC0 Wikimedia Commons photographs provide real Workshop material. Original JPEG files were used only for deterministic local conversion and then deleted. No Obsidian Assembly proprietary image, font, text, or source code is included.
+
+### `assembly/wheel-truing-1600.webp`
+- Source: https://commons.wikimedia.org/wiki/File:Bicycle_wheel_truing_stand.jpg
+- Author/license: Foxtod, CC0 1.0 Universal.
+- Original SHA-256: `f7b2dd9b21687d35fb337ec2505de1db0455ccc289197264e1a504cb7f187b06`.
+- WebP SHA-256: `4658049a74249e9208c6bb50ba0847d5d9cffee306777bb3fc1906382b07f521`.
+- Purpose: Repair material stage.
+
+### `assembly/bicycle-tools-1600.webp`
+- Source: https://commons.wikimedia.org/wiki/File:Bicycle_hand_tools_1.jpg
+- Author/license: Armchair, CC0 1.0 Universal.
+- Original SHA-256: `79ca4af84cbf809b6d87e171c7a018c9b85027cde89f5884e8f3aad5e97612d9`.
+- WebP SHA-256: `dee9a7a33e8555829ec30d98609de60c7378ad5e7759a92ccd928ff81b7271d2`.
+- Purpose: Other-handover material stage.
+
+### `assembly/brixton-cycles-1600.webp`
+- Source: https://commons.wikimedia.org/wiki/File:Brixton_Cycles_Interior.jpg
+- Author/license: Rhagfyr, CC0 1.0 Universal.
+- Original SHA-256: `cc920dc63abae075129a0aecb44d4c4a35a4865a1b1088001c451218bb683237`.
+- WebP SHA-256: `c897c888ac12fd2dd09e645a03d6a7e472667d67dab171739fcaee88987f1707`.
+- Purpose: Used-bike material stage.

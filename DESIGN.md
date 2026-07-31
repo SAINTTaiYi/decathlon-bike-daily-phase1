@@ -35,7 +35,7 @@ The visual hierarchy combines:
 - signal yellow for progress, state, numbering, current navigation, and primary action;
 - green and red only for semantic success and failure.
 
-The interface is an operations product, not a marketing page, portfolio, game HUD, cinematic scene, or imitation of another brand. The pending Figure 3 Overview candidate uses one normalized 852:1876 warm-paper poster field: a condensed WORKSHOP OPS masthead, black mineral object with safety-orange cut face, angular black plinth, Today KPI command, two cropped workbench views, a centered real-data overview panel, and compact footer. Header controls overlay this same field; KPI, photographs and footer are positioned layers rather than stacked page sections. It replaces the rejected segmented Preview candidate. No animation, transition, keyframe, scroll-driven visible transform, viewport-scaled type, gradient, proprietary reference asset, or invented business value is permitted in this Overview. The former global continuous-scroll runtime and persistent six-item dock are retired. Exactly one scene is mounted at a time and URL-hash navigation changes scenes immediately without page-transition animation.
+The interface is an operations product rebuilt with the documented Obsidian Assembly motion grammar, not its proprietary brand, text, code, or assets. Overview retains the normalized 852:1876 Workshop poster field and real data. All six business modules remain mounted in one native document and share a stable 6/12-column composition, sticky material stages, progress-driven masks, deterministic character reveals, and one background trajectory. The reconstruction must preserve every live workflow, handler, accessible name, and 44px action target.
 
 ## Color System
 
@@ -119,7 +119,7 @@ The candidate reference-structured overview establishes the priority order:
 7. Release information.
 8. Persistent six-destination navigation.
 
-The Overview remains one poster coordinate field. It is followed in the same native document by Pickup, Other, Repair, Used, and Sales as continuously stacked semantic modules. The left and right workbench photographs remain direct Repair and Pickup shortcuts with click and keyboard fallback. One orange S trajectory crosses the complete six-module document; the Overview mineral, trajectory, module headings, and selected text groups use the approved Obsidian Assembly motion mechanics while all business records and controls remain stable and readable. No persistent navigation dock is allowed.
+The Overview remains one poster coordinate field, followed by Pickup, Other, Repair, Used, and Sales in the same native document. Each later module owns a sticky full-viewport material stage derived from the documented Places, Objects, About, People, and Policy composition families. The single S trajectory is always below readable components. Real cards, forms, lists, dialogs, and controls sit on opaque business surfaces above every decorative line and photograph. No persistent navigation dock is allowed.
 
 Apply the same principle elsewhere: current decision first, supporting evidence second, history and configuration later. Avoid landing-page heroes, decorative introductions, feature explanations, and oversized editorial headings inside work surfaces.
 
@@ -131,7 +131,7 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 - Primary actions are yellow when they advance the active task. Black is used for structural or menu actions. Secondary actions remain flat and low emphasis.
 - Active navigation uses black background, yellow icon/text emphasis, and clear Chinese plus compact English labels.
 - Press feedback may use a small opacity change and `scale(.985)`; it must not move surrounding layout.
-- The authenticated workspace uses ordinary native vertical scrolling with all six modules mounted. A single passive requestAnimationFrame scroll runtime drives the full-page orange S trajectory and the Overview mineral with bounded translation, rotation, and scale. Obsidian Assembly-style deterministic character reveals apply to display text and module headings. No scroll snap, sticky stage, wheel/touch interception, ScrollTrigger, or transform-derived layout measurement is allowed. `prefers-reduced-motion` returns the mineral and text to complete static states and removes the moving tracer.
+- The authenticated workspace uses ordinary native vertical scrolling with all six modules mounted. Sticky material stages convert scroll distance into local progress without scroll snap, wheel/touch interception, or ScrollTrigger. A passive requestAnimationFrame renderer reads only cached geometry; ResizeObserver owns layout measurement. Four transition bands, a central title, header pull-down, character reveals, clip wipes, bounded transforms, and 0.6/0.9/1.5/2.1s timing tokens follow the local Obsidian Assembly analysis. `prefers-reduced-motion` makes every stage finite and static.
 - Loading, offline, empty, error, permission, and synchronization states must be explicit. Unknown data must render as unavailable, not as a false zero.
 
 ### Figure 2 Pickup
