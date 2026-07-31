@@ -213,10 +213,12 @@ export default function App() {
     setWorkspaceAssemblyDone(true)
     window.requestAnimationFrame(() => document.getElementById('main-content')?.focus({ preventScroll: true }))
   }, [])
+  const staticOverviewLaunch = !/^#module-(pickup|poster|repair|resale|sales)$/u.test(window.location.hash)
   const { skip: skipWorkspaceAssembly } = useWorkspaceMotion({
     active: workspaceLaunching,
     rootRef: workspaceRootRef,
-    onComplete: completeWorkspaceAssembly
+    onComplete: completeWorkspaceAssembly,
+    staticMode: staticOverviewLaunch
   })
   const taskFocused = Boolean(taskInputFocused || menuOpen || logOpen || permanentHistoryOpen || confirmOpen || kpiOpen || migrationOpen || governanceOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
   const { activeScene, jumpTo } = useContinuousCanvas({
@@ -598,7 +600,7 @@ export default function App() {
     <>
       {showBoot ? <BootLoader onLogin={auth.login} onComplete={() => setLoginAnimationDone(true)} onRegister={() => setAuthMode('register')} /> : null}
       {introDone ? <a className="skip-link" href="#closing-summary-anchor">跳到闭店摘要</a> : null}
-      <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
+      <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} data-active-scene={activeScene} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
         <ContinuousCanvas />
         <div data-workspace-layer="navigation" data-workspace-priority="true">

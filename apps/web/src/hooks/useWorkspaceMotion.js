@@ -5,7 +5,7 @@ function reducedMotion() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false
 }
 
-export default function useWorkspaceMotion({ active, rootRef, onComplete }) {
+export default function useWorkspaceMotion({ active, rootRef, onComplete, staticMode = false }) {
   const timelineRef = useRef(null)
   const finishRef = useRef(() => {})
   const completedRef = useRef(false)
@@ -38,6 +38,12 @@ export default function useWorkspaceMotion({ active, rootRef, onComplete }) {
     }
     finishRef.current = finish
 
+    if (staticMode) {
+      if (overlay) gsap.set(overlay, { autoAlpha: 0, pointerEvents: 'none' })
+      finish()
+      return undefined
+    }
+
     if (reducedMotion() || !structure || !module) {
       const fade = gsap.to(overlay, { autoAlpha: 0, duration: .12, ease: 'power2.out', onComplete: finish })
       timelineRef.current = fade
@@ -54,7 +60,7 @@ export default function useWorkspaceMotion({ active, rootRef, onComplete }) {
       .to(overlay, { autoAlpha: 0, duration: .16, ease: 'power2.out' }, .46)
     timelineRef.current = timeline
     return () => timeline.kill()
-  }, [active, onComplete, rootRef])
+  }, [active, onComplete, rootRef, staticMode])
 
   return { skip }
 }

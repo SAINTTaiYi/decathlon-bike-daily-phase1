@@ -108,7 +108,10 @@ export default function useMotionSystem({ enabled, rootRef, quiet = false }) {
     let pressed = null
     const down = (event) => {
       pressed = event.target.closest('button:not(:disabled), summary, [role="option"]')
-      if (!pressed || !root.contains(pressed)) return
+      if (!pressed || !root.contains(pressed) || pressed.closest('.workshop-overview-module')) {
+        pressed = null
+        return
+      }
       gsap.to(pressed, { scale: .985, opacity: .9, duration: .09, ease: 'power2.out', overwrite: 'auto' })
     }
     const up = () => {

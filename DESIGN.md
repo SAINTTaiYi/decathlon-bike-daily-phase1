@@ -35,7 +35,7 @@ The visual hierarchy combines:
 - signal yellow for progress, state, numbering, current navigation, and primary action;
 - green and red only for semantic success and failure.
 
-The interface is an operations product, not a marketing page, portfolio, game HUD, cinematic scene, or imitation of another brand. The pending static Overview candidate uses one continuous warm-paper industrial poster: a condensed WORKSHOP OPS masthead, black mineral object with safety-orange cut face, angular black plinth, Today KPI command, two cropped workbench views, a centered real-data overview panel, and compact footer. It replaces the prior reference-home Preview candidate. No animation, transition, keyframe, scroll listener, viewport-scaled type, gradient, proprietary reference asset, or invented business value is permitted in this Overview.
+The interface is an operations product, not a marketing page, portfolio, game HUD, cinematic scene, or imitation of another brand. The pending static Overview candidate uses one continuous warm-paper industrial poster: a condensed WORKSHOP OPS masthead, black mineral object with safety-orange cut face, angular black plinth, Today KPI command, two cropped workbench views, a centered real-data overview panel, and compact footer. It replaces the prior reference-home Preview candidate. No animation, transition, keyframe, scroll-driven visible transform, viewport-scaled type, gradient, proprietary reference asset, or invented business value is permitted in this Overview. Any global scroll runtime retained for the five dedicated modules must write identity motion values for Overview and hide its background/foreground layers while Overview is active or visible.
 
 ## Color System
 
@@ -130,7 +130,7 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 - Primary actions are yellow when they advance the active task. Black is used for structural or menu actions. Secondary actions remain flat and low emphasis.
 - Active navigation uses black background, yellow icon/text emphasis, and clear Chinese plus compact English labels.
 - Press feedback may use a small opacity change and `scale(.985)`; it must not move surrounding layout.
-- The current Overview candidate is deliberately static: no animation, transition, keyframes, scroll listener, transform-driven motion, or smooth-scroll behavior. Native vertical scrolling remains. The five dedicated business modules retain their existing behavior and data boundaries; this candidate does not redesign them.
+- The current Overview candidate is deliberately static: no animation, transition, keyframes, transform-driven motion, smooth-scroll behavior, GSAP press scaling, or visible response to a global scroll listener. Native vertical scrolling remains. The Overview module always resolves to x=0, y=0, scale=1 and opacity=1; continuous-canvas background/foreground layers are hidden while it is active or in view. The five dedicated business modules retain their existing behavior and data boundaries; this candidate does not redesign them.
 - Loading, offline, empty, error, permission, and synchronization states must be explicit. Unknown data must render as unavailable, not as a false zero.
 
 ## Responsive Behavior

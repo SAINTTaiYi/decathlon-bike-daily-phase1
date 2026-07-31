@@ -112,7 +112,8 @@ export default function useContinuousCanvas({ enabled, rootRef, quiet = false })
     activeRef.current = targetId
     setActiveScene(targetId)
     window.history.pushState(window.history.state, '', `#module-${targetId}`)
-    window.scrollTo({ top: Math.max(0, top), behavior: reducedMotion() ? 'auto' : 'smooth' })
+    const staticBoundary = activeRef.current === 'pulse' || targetId === 'pulse'
+    window.scrollTo({ top: Math.max(0, top), behavior: staticBoundary || reducedMotion() ? 'auto' : 'smooth' })
     window.requestAnimationFrame(() => section.focus({ preventScroll: true }))
     return true
   }, [enabled, sceneIds])
@@ -170,7 +171,10 @@ export default function useContinuousCanvas({ enabled, rootRef, quiet = false })
           const moduleHeight = section.offsetHeight
           const rect = { top: moduleTop, bottom: moduleTop + moduleHeight, height: moduleHeight }
           const progress = moduleProgressForGeometry({ moduleTop, moduleHeight, viewportHeight })
-          const motion = moduleMotionValues(progress, viewportWidth, viewportHeight, index, { reduce })
+          const isStaticOverview = section.dataset.sceneId === 'pulse'
+          const motion = isStaticOverview
+            ? { x: 0, y: 0, scale: 1, opacity: 1, progress }
+            : moduleMotionValues(progress, viewportWidth, viewportHeight, index, { reduce })
           writeMotionVariables(section, motion, 'module')
           section.style.setProperty('--module-progress', motion.progress.toFixed(4))
           if (rect.bottom > header && rect.top < viewportHeight) section.dataset.moduleInview = 'true'

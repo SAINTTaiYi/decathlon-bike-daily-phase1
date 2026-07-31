@@ -44,6 +44,27 @@ test('390 poster is about 2025px and responsive geometry stays static', async ()
   assert.match(overview, /behavior: 'auto'/u)
 })
 
+test('static Overview is isolated from every global motion runtime', async () => {
+  const [app, canvas, motion, workspace, system] = await Promise.all([
+    read('apps/web/src/App.jsx'),
+    read('apps/web/src/hooks/useContinuousCanvas.js'),
+    read('apps/web/src/hooks/useMotionSystem.js'),
+    read('apps/web/src/hooks/useWorkspaceMotion.js'),
+    read('apps/web/src/styles/workshop-system.css')
+  ])
+  assert.ok(app.includes('data-active-scene={activeScene}'))
+  assert.ok(app.includes('staticMode: staticOverviewLaunch'))
+  assert.ok(canvas.includes("isStaticOverview = section.dataset.sceneId === 'pulse'"))
+  assert.ok(canvas.includes('? { x: 0, y: 0, scale: 1, opacity: 1, progress }'))
+  assert.ok(canvas.includes("staticBoundary = activeRef.current === 'pulse' || targetId === 'pulse'"))
+  assert.ok(motion.includes("pressed.closest('.workshop-overview-module')"))
+  assert.ok(workspace.includes('if (staticMode)'))
+  assert.ok(system.includes(".workshop-runtime[data-active-scene='pulse'] .workshop-continuous-canvas"))
+  assert.ok(system.includes(".workshop-runtime:has(.workshop-overview-module[data-module-inview='true']) .workshop-continuous-canvas"))
+  const staticBlock = system.slice(system.indexOf('.workshop-overview-module {'), system.indexOf('.workshop-continuous-module +'))
+  for (const declaration of ['animation: none !important;', 'transform: none !important;', 'transition: none !important;', 'will-change: auto !important;']) assert.ok(staticBlock.includes(declaration))
+})
+
 test('poster colors, type and geometry follow the design system', async () => {
   const [css, tokens, system] = await Promise.all([read('apps/web/src/styles/mobile-overview.css'),read('apps/web/src/styles/tokens.css'),read('apps/web/src/styles/workshop-system.css')])
   for (const rule of [/--ops-page: #f7f5ef/u,/--ops-card: #fffdf8/u,/--ops-black: #0c0e0c/u,/--ops-orange: #ff6a00/u,/--ops-yellow: #ffc31a/u,/clip-path: polygon/u,/--ops-radius: 8px/u]) assert.match(css + system, rule)

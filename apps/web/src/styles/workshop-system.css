@@ -203,6 +203,11 @@ button:disabled { opacity: .48; }
 }
 .workshop-continuous-canvas { z-index: 3; }
 .workshop-continuous-foreground { z-index: 28; transition: opacity 220ms cubic-bezier(.2,.8,.2,1); }
+/* The Overview is a static poster. Hide every continuous-canvas layer while it is active or visible. */
+.workshop-runtime[data-active-scene='pulse'] .workshop-continuous-canvas,
+.workshop-runtime[data-active-scene='pulse'] .workshop-continuous-foreground,
+.workshop-runtime:has(.workshop-overview-module[data-module-inview='true']) .workshop-continuous-canvas,
+.workshop-runtime:has(.workshop-overview-module[data-module-inview='true']) .workshop-continuous-foreground { display: none; }
 .workshop-continuous-fields,
 .workshop-continuous-narratives { position: absolute; inset: 0; }
 .workshop-continuous-fields { z-index: 0; transform: translate3d(0,var(--canvas-field-drift,0px),0); will-change: transform; }
@@ -379,6 +384,13 @@ button:disabled { opacity: .48; }
   transform-origin: 50% 42%;
   transition: transform 90ms linear,opacity 90ms linear;
   will-change: transform,opacity;
+}
+.workshop-overview-module {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+  will-change: auto !important;
 }
 .workshop-continuous-module + .workshop-continuous-module { margin-top: -12dvh; }
 .workshop-runtime[data-canvas-settled='true'] .workshop-continuous-module[data-interaction-settled='true'] {
