@@ -5,7 +5,7 @@ function reducedMotion() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false
 }
 
-export default function useWorkspaceMotion({ active, rootRef, onComplete, staticMode = false }) {
+export default function useWorkspaceMotion({ active, rootRef, onComplete }) {
   const timelineRef = useRef(null)
   const finishRef = useRef(() => {})
   const completedRef = useRef(false)
@@ -18,7 +18,7 @@ export default function useWorkspaceMotion({ active, rootRef, onComplete, static
     const environment = root.querySelector('[data-workspace-layer="environment"]')
     const structure = root.querySelector('[data-workspace-layer="structure"]')
     const navigation = [...root.querySelectorAll('[data-workspace-layer="navigation"]')]
-    const module = root.querySelector('[data-continuous-module][data-active="true"]')
+    const module = root.querySelector('[data-workspace-module][data-active="true"]')
     const dock = root.querySelector('[data-workspace-layer="dock"]')
     const targets = [environment, structure, ...navigation, module, dock].filter(Boolean)
 
@@ -26,7 +26,7 @@ export default function useWorkspaceMotion({ active, rootRef, onComplete, static
     root.dataset.workspaceAssembled = 'false'
     const reset = () => {
       timelineRef.current?.kill()
-      gsap.set(targets, { clearProps: 'transform,opacity,visibility,willChange,clipPath' })
+      gsap.set(targets, { clearProps: 'transform,opacity,visibility,willChange' })
       if (overlay) gsap.set(overlay, { clearProps: 'opacity,visibility,pointerEvents,willChange' })
       root.dataset.workspaceAssembled = 'true'
     }
@@ -37,12 +37,6 @@ export default function useWorkspaceMotion({ active, rootRef, onComplete, static
       onComplete()
     }
     finishRef.current = finish
-
-    if (staticMode) {
-      if (overlay) gsap.set(overlay, { autoAlpha: 0, pointerEvents: 'none' })
-      finish()
-      return undefined
-    }
 
     if (reducedMotion() || !structure || !module) {
       const fade = gsap.to(overlay, { autoAlpha: 0, duration: .12, ease: 'power2.out', onComplete: finish })
@@ -55,12 +49,12 @@ export default function useWorkspaceMotion({ active, rootRef, onComplete, static
       .fromTo(environment, { autoAlpha: 0 }, { autoAlpha: 1, duration: .24 }, 0)
       .fromTo(navigation, { autoAlpha: 0, y: -8 }, { autoAlpha: 1, y: 0, duration: .32, stagger: .035 }, .06)
       .fromTo(structure, { autoAlpha: 0, y: 12 }, { autoAlpha: 1, y: 0, duration: .38 }, .12)
-      .fromTo(module, { autoAlpha: 0, y: 14, clipPath: 'inset(0 0 100% 0)' }, { autoAlpha: 1, y: 0, clipPath: 'inset(0 0 0% 0)', duration: .42 }, .16)
+      .fromTo(module, { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: .36 }, .16)
       .fromTo(dock, { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: .3 }, .22)
       .to(overlay, { autoAlpha: 0, duration: .16, ease: 'power2.out' }, .46)
     timelineRef.current = timeline
     return () => timeline.kill()
-  }, [active, onComplete, rootRef, staticMode])
+  }, [active, onComplete, rootRef])
 
   return { skip }
 }

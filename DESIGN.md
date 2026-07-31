@@ -1,10 +1,9 @@
 # Workshop Project Design Baseline
 
-> Status: candidate branch, pending Preview acceptance
-> Candidate date: 2026-07-31
-> Production baseline: V5.7.9; administrative candidate baseline `69743619ce55796c5683eeb77a96fdfbf1205630`
-> Candidate implementation: Figure 3 normalized 852 x 1876 single-field industrial-poster Overview; rejected stacked-section Preview superseded
-> Preview identity: pending
+> Status: current and authoritative
+> Effective date: 2026-07-29
+> Accepted reference implementation: Workshop authenticated overview
+> Preview identity: `b3a3413006381115653b0bae942c9a6927f195f1`
 
 ## Authority
 
@@ -35,7 +34,7 @@ The visual hierarchy combines:
 - signal yellow for progress, state, numbering, current navigation, and primary action;
 - green and red only for semantic success and failure.
 
-The interface is an operations product, not a marketing page, portfolio, game HUD, cinematic scene, or imitation of another brand. The pending Figure 3 Overview candidate uses one normalized 852:1876 warm-paper poster field: a condensed WORKSHOP OPS masthead, black mineral object with safety-orange cut face, angular black plinth, Today KPI command, two cropped workbench views, a centered real-data overview panel, and compact footer. Header controls overlay this same field; KPI, photographs and footer are positioned layers rather than stacked page sections. It replaces the rejected segmented Preview candidate. No animation, transition, keyframe, scroll-driven visible transform, viewport-scaled type, gradient, proprietary reference asset, or invented business value is permitted in this Overview. The former global continuous-scroll runtime and persistent six-item dock are retired. Exactly one scene is mounted at a time and URL-hash navigation changes scenes immediately without page-transition animation.
+The interface is an operations product, not a marketing page, portfolio, game HUD, cinematic scene, or imitation of another brand.
 
 ## Color System
 
@@ -50,7 +49,6 @@ The accepted overview palette defines the project baseline.
 | `--ops-text-muted` | `#55554f` | Secondary explanations and metadata |
 | `--ops-text-inverse` | `#fffdf8` | Text on black controls |
 | `--ops-yellow` | `#ffc31a` | Primary action, progress, current state, numbering, active navigation |
-| `--ops-orange` | `#ff6a00` | Static Overview poster cut face, registration lines, and poster commands only |
 | `--ops-yellow-pressed` | `#e7a900` | Yellow pressed state and stronger warning emphasis |
 | `--ops-yellow-glow` | `rgb(255 195 26 / .32)` | Restrained yellow edge diffusion |
 | `--ops-pickup-expanded` | `#fff1dc` | Low-emphasis warm orange fill for the single expanded Pending Pickup card |
@@ -63,7 +61,7 @@ Rules:
 
 1. Warm off-white must remain the dominant field; do not turn the interface into a black or yellow theme.
 2. Yellow is a signal, not decoration. Use it for one primary action or one dominant status per decision area.
-3. Do not introduce gradients, neon colors, blue accents, decorative multicolor systems, or glass effects. The authenticated workspace may use a small number of ultra-long pale-gray and pale-yellow spatial fields that cross multiple semantic modules; they must remain subordinate to the warm off-white page and must never become section bands or visible dividers.
+3. Do not introduce gradients, neon colors, blue accents, decorative multicolor systems, glass effects, or colored background bands.
 4. Semantic green and red must never replace labels, icons, or accessible state text.
 5. New colors require a documented semantic role and must be added here before use.
 6. The pickup expanded-card orange is a contextual focus surface only; it must not become a general status color or decorative band.
@@ -74,9 +72,8 @@ Rules:
 
 - Operational English labels, dates, version marks, and large numbers: self-hosted `Barlow Condensed Ops` 500/700.
 - Simplified Chinese and general body content: self-hosted `Noto Sans SC Variable` 100–900.
-- The Figure 3 Overview `Today KPI` display line alone uses the self-hosted Noto Serif SC Latin variable subset under the local alias `Figure 3 Serif`; the historical global serif stylesheet remains disabled.
 - The `业务台账` label uses the same self-hosted Noto Sans SC family, visually compressed to align with `OPERATIONS INDEX`.
-- Runtime UI text may use `Noto Sans SC Variable` or `Barlow Condensed Ops`; the single Figure 3 `Today KPI` line may use the local `Figure 3 Serif` subset. System fonts and generic font-family fallbacks are prohibited.
+- Runtime UI text may use only `Noto Sans SC Variable` or `Barlow Condensed Ops`; system fonts and generic font-family fallbacks are prohibited.
 
 All font assets must be self-hosted, licensed, documented in `apps/web/public/fonts/SOURCES.md`, and loaded without runtime third-party requests.
 
@@ -97,7 +94,7 @@ All font assets must be self-hosted, licensed, documented in `apps/web/public/fo
 
 ## Geometry And Surfaces
 
-- The mobile business rail is centered and readable at `390px`; the continuous spatial canvas may span the viewport, while business controls remain inside stable safe-area-aware bounds.
+- The mobile content rail is centered with a maximum overview width of `390px` inside an app shell up to `426px`.
 - Primary module corners use `8px` radius. Avoid larger pill-like cards.
 - Cards must not be nested inside decorative cards. Use one surface per functional module.
 - Major modules use the restrained card shadow. Identity rows, navigation, and lightweight strips should remain flat unless elevation communicates interaction.
@@ -108,7 +105,7 @@ All font assets must be self-hosted, licensed, documented in `apps/web/public/fo
 
 ## Information Architecture
 
-The candidate reference-structured overview establishes the priority order:
+The accepted overview establishes the priority order:
 
 1. Product identity, version, business date, and notifications.
 2. Current store, user identity, and menu.
@@ -118,8 +115,6 @@ The candidate reference-structured overview establishes the priority order:
 6. Pickup work queue.
 7. Release information.
 8. Persistent six-destination navigation.
-
-The Overview remains one poster coordinate field. It is followed in the same native document by Pickup, Other, Repair, Used, and Sales as continuously stacked semantic modules. The left and right workbench photographs remain direct Repair and Pickup shortcuts with click and keyboard fallback. One orange S trajectory crosses the complete six-module document; the Overview mineral, trajectory, module headings, and selected text groups use the approved Obsidian Assembly motion mechanics while all business records and controls remain stable and readable. No persistent navigation dock is allowed.
 
 Apply the same principle elsewhere: current decision first, supporting evidence second, history and configuration later. Avoid landing-page heroes, decorative introductions, feature explanations, and oversized editorial headings inside work surfaces.
 
@@ -131,17 +126,8 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 - Primary actions are yellow when they advance the active task. Black is used for structural or menu actions. Secondary actions remain flat and low emphasis.
 - Active navigation uses black background, yellow icon/text emphasis, and clear Chinese plus compact English labels.
 - Press feedback may use a small opacity change and `scale(.985)`; it must not move surrounding layout.
-- The authenticated workspace uses ordinary native vertical scrolling with all six modules mounted. A single passive requestAnimationFrame scroll runtime drives the full-page orange S trajectory and the Overview mineral with bounded translation, rotation, and scale. Obsidian Assembly-style deterministic character reveals apply to display text and module headings. No scroll snap, sticky stage, wheel/touch interception, ScrollTrigger, or transform-derived layout measurement is allowed. `prefers-reduced-motion` returns the mineral and text to complete static states and removes the moving tracer.
+- Motion is short and functional. Respect `prefers-reduced-motion`; never require animation to understand state.
 - Loading, offline, empty, error, permission, and synchronization states must be explicit. Unknown data must render as unavailable, not as a false zero.
-
-### Figure 2 Pickup
-
-- Source geometry is 852 × 1839: identity header, chapter marker, mineral/queue Hero, floating tool surface, active summary, then one-column cards.
-- Queue totals, record content and states always come from real workflow records. Never copy reference phone numbers, ticket numbers, dates or vehicle names.
-- The tool surface keeps real search, filter, sort, density and collapse controls.
-- The second waiting record is the default expanded example when available; fewer records fall back to the first.
-- Cards, tool surfaces and completion feedback are static in this phase: no IntersectionObserver entry reveal, auto-hiding tools, pixel-fill animation, gradient glow or transition.
-- Full details are governed by `plan/WORKSHOP-STATIC-SWIPE-PICKUP-SPEC.md`.
 
 ## Responsive Behavior
 
@@ -150,13 +136,12 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 - Mobile is the primary composition.
 - Support at least `320px` through `430px` widths without horizontal scrolling.
 - Preserve safe areas and dynamic viewport bottom offsets.
-- Do not render a persistent navigation dock. Scene entry is contextual: Overview edge cards, each business page brand/home control, and existing menu routes.
-- Preserve the exact 852:1876 poster ratio: at 390 CSS px wide the artwork field is about 858 CSS px tall. Source coordinates are normalized inside one container; interactive hit regions may expand to 44px without changing the source-sized visual control. Use explicit breakpoints and container-relative geometry, never viewport-width type.
-- At narrow widths, reduce secondary metadata before reducing touch targets, primary values, or motion strength.
+- Keep the six-item navigation fixed and ensure content can scroll fully above it.
+- At narrow widths, reduce secondary metadata before reducing touch targets or primary values.
 
 ### Tablet
 
-- At `600px` and above, increase page padding and available media width while preserving the same reading order. Figure 2 Pickup keeps one vertical ledger rail capped at 852px.
+- At `600px` and above, increase page padding and available media width while preserving the same reading order.
 - Navigation may float with the accepted `8px` radius but must remain operationally dense.
 
 ### Desktop
@@ -183,8 +168,8 @@ The minimum baseline is WCAG 2.1 AA:
 
 ## Asset Policy
 
-- Prefer real operational content and project-owned, brand-neutral assets. The candidate Overview also uses documented public-domain/CC0 photography from Wikimedia Commons, converted to responsive self-hosted WebP files and integrity-pinned in `apps/web/public/images/ops/SOURCES.md`.
-- The bicycle workshop blueprint remains the restrained technical motif. The documented obsidian specimen is a decorative material object and the documented mechanic workbench photograph is a contextual Workshop-space background; neither represents a product, employee, store, or live record. It must remain secondary to business data.
+- Prefer real operational content and project-owned, brand-neutral assets.
+- The bicycle workshop blueprint is the accepted restrained technical motif. It must remain secondary to business data.
 - Do not copy proprietary logos, screenshots, character art, fonts, or visual assets from other products.
 - Do not hotlink production assets. Self-host, compress, document source, license, purpose, and SHA-256 where applicable.
 - Do not simulate irregular material texture with noisy CSS or generated ornament when it does not improve task comprehension.

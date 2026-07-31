@@ -1,100 +1,191 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
+import IconCash from '@iconoir/Cash.mjs'
+import IconDelivery from '@iconoir/DeliveryTruck.mjs'
+import IconLabel from '@iconoir/Label.mjs'
+import IconShop from '@iconoir/ShopWindow.mjs'
+import IconWrench from '@iconoir/Wrench.mjs'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
-import AssemblyText from '../motion/AssemblyText.jsx'
 
-const recordScenes = ['pickup', 'poster', 'repair', 'resale']
-const completedStates = new Set(['complete', 'completed', 'resolved', 'done', 'closed', 'sold', 'picked_up', 'picked-up'])
+const operations = [
+  { id: 'pickup', no: '02', en: 'PICKUP', cn: '待取车辆', Icon: IconDelivery },
+  { id: 'poster', no: '03', en: 'OTHER', cn: '其它交接', Icon: IconShop },
+  { id: 'repair', no: '04', en: 'REPAIR', cn: '维修交接', Icon: IconWrench },
+  { id: 'resale', no: '05', en: 'USED', cn: '二手车台账', Icon: IconLabel },
+  { id: 'sales', no: '06', en: 'SALES', cn: '销售数据', Icon: IconCash }
+]
+
+const kpiItems = [
+  { key: 'safetyChecks', no: '01', cn: '安全检查开单', en: 'MODEL' },
+  { key: 'validReviews', no: '02', cn: '顾客有效评价', en: 'VALID REVIEWS' },
+  { key: 'usedSold', no: '03', cn: '销售二手车', en: 'USED SOLD' },
+  { key: 'usedReceived', no: '04', cn: '收二手车', en: 'USED RECEIVED' }
+]
 
 function dateParts(dateKey) {
-  const source = dateKey ? new Date(dateKey + 'T12:00:00') : new Date()
-  if (Number.isNaN(source.getTime())) return { monthDay: '—', weekday: '—', full: '—' }
+  const source = dateKey ? new Date(`${dateKey}T12:00:00`) : new Date()
+  if (Number.isNaN(source.getTime())) return { full: '—', short: '—' }
+  const weekday = ['日', '一', '二', '三', '四', '五', '六'][source.getDay()]
+  const year = source.getFullYear()
   const month = String(source.getMonth() + 1).padStart(2, '0')
   const day = String(source.getDate()).padStart(2, '0')
-  return { monthDay: month + '.' + day, weekday: new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(source).toUpperCase(), full: source.getFullYear() + '.' + month + '.' + day }
+  return { full: `${year} / ${month} / ${day} 周${weekday}`, short: `${month} / ${day} 周${weekday}` }
 }
-function metric(value, available, suffix = '') {
+
+function displayMetric(value, available = true) {
   if (!available || value === null || value === undefined || Number.isNaN(Number(value))) return '—'
-  return String(Math.max(0, Number(value))) + suffix
+  return String(Math.max(0, Number(value))).padStart(2, '0')
 }
-function recordsForOverview(recordsByScene) { return recordScenes.flatMap((scene) => Array.isArray(recordsByScene?.[scene]) ? recordsByScene[scene] : []) }
-function isCompletedRecord(record) {
-  const state = String(record?.status ?? record?.state ?? record?.lifecycleState ?? '').toLowerCase()
-  return Boolean(record?.completedAt || record?.resolvedAt || record?.handedOverAt || record?.soldAt || completedStates.has(state))
+
+function ArrowGlyph() { return <span className="ops-arrow" aria-hidden="true">›</span> }
+
+function StatusValue({ value, available }) {
+  const progress = available ? Math.max(0, Math.min(100, value)) : null
+  return (
+    <div className="ops-status-value" aria-label={progress === null ? '闭店准备度暂不可用' : `闭店准备度 ${progress}%`}>
+      <strong>{progress === null ? '—' : progress}</strong>{progress === null ? null : <span>%</span>}
+    </div>
+  )
 }
-function closingState(workflow, online) {
-  const available = workflow.hydrated && workflow.hasSnapshot && !workflow.storageError
-  if (!available) return { label: 'SYNC REQUIRED', action: 'REFRESH', handler: 'refresh', disabled: !online }
-  if (workflow.closedAt) return { label: 'DAY CLOSED', action: 'HISTORY', handler: 'history', disabled: false }
-  if (workflow.kpiReady) return { label: 'READY TO CLOSE', action: 'COMPLETE', handler: 'complete', disabled: !online }
-  return { label: 'KPI REQUIRED', action: 'ENTER KPI', handler: 'edit', disabled: false }
-}
-function PosterClosingControl({ workflow, online, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport }) {
+
+function ClosingStatusCard({ workflow, online, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport }) {
   const [exporting, setExporting] = useState(false)
-  const state = closingState(workflow, online)
-  const actions = { refresh: onRefresh, history: onHistory, complete: onCompleteClosing, edit: onEditKpi }
-  const exportReport = async () => { if (!onExportReport || exporting) return; setExporting(true); try { await onExportReport() } finally { setExporting(false) } }
-  return <aside className="poster-closing-control" aria-label="今日闭店控制"><span><i aria-hidden="true" />DAILY CLOSING</span><strong>{state.label}</strong><button type="button" onClick={actions[state.handler]} disabled={state.disabled}>{state.action}<b aria-hidden="true">→</b></button>{workflow.closedAt ? <div><button type="button" onClick={() => void exportReport()} disabled={exporting}>{exporting ? 'EXPORTING' : 'EXPORT'}</button><button type="button" onClick={onReopenClosing}>REOPEN</button></div> : null}</aside>
-}
-function WorkbenchPicture({ className, position }) {
-  return <picture className={className} aria-hidden="true"><source media="(min-width: 600px)" srcSet="/images/ops/reference-home/mechanic-workbench-1600.webp" /><img src="/images/ops/reference-home/mechanic-workbench-960.webp" alt="" width="960" height="641" loading="eager" decoding="async" style={{ objectPosition: position }} /></picture>
-}
-function SwipeSceneCard({ children, className, direction, label, onActivate }) {
-  const originRef = useRef(null)
-  const movedRef = useRef(false)
-  const onPointerDown = (event) => { if (event.pointerType !== 'mouse') { originRef.current = { x: event.clientX, y: event.clientY }; movedRef.current = false } }
-  const onPointerUp = (event) => {
-    const origin = originRef.current
-    originRef.current = null
-    if (!origin) return
-    const deltaX = event.clientX - origin.x
-    const deltaY = event.clientY - origin.y
-    if (Math.abs(deltaX) < 48 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.25) return
-    const accepted = direction === 'left' ? deltaX < 0 : deltaX > 0
-    if (accepted) { movedRef.current = true; onActivate() }
+  const available = workflow.hydrated && workflow.hasSnapshot
+  const closed = Boolean(workflow.closedAt)
+  const error = Boolean(workflow.storageError)
+  const ready = workflow.kpiReady
+  const progress = ready ? 100 : 0
+  let nextLabel = 'NEXT / 唯一要求'
+  let nextTitle = '填写当日销售数据'
+  let nextCopy = '这是唯一的闭店要求'
+  let action = '填写数据'
+  let onAction = onEditKpi
+  if (!available || error) {
+    nextLabel = 'ERROR / 需要处理'
+    nextTitle = '检查数据库同步'
+    nextCopy = online ? '请重新同步后再操作' : '恢复网络后重试'
+    action = '处理异常'
+    onAction = onRefresh
+  } else if (closed) {
+    const time = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(workflow.closedAt))
+    nextLabel = 'DONE / 已闭店'
+    nextTitle = '当日闭店已完成'
+    nextCopy = `${time} 已同步`
+    action = '查看记录'
+    onAction = onHistory
+  } else if (ready) {
+    nextLabel = 'READY / 可以闭店'
+    nextTitle = '当日销售数据已保存'
+    nextCopy = '完成前请再次核对'
+    action = '检查闭店'
+    onAction = onCompleteClosing
   }
-  return <button type="button" className={className} onClick={() => { if (movedRef.current) { movedRef.current = false; return } onActivate() }} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={() => { originRef.current = null }} aria-label={label} data-swipe-direction={direction}>{children}<b className="poster-swipe-cue" aria-hidden="true">{direction === 'left' ? '← SWIPE' : 'SWIPE →'}</b></button>
+  const exportReport = async () => {
+    if (!onExportReport || exporting) return
+    setExporting(true)
+    try { await onExportReport() } finally { setExporting(false) }
+  }
+  return (
+    <section className="ops-closing-card" aria-labelledby="ops-closing-title">
+      <div className="ops-closing-main">
+        <div className="ops-closing-title"><span>Daily closing</span><h2 id="ops-closing-title">今日闭店进度</h2><small>销售数据是唯一闭店要求</small></div>
+        <StatusValue value={progress} available={available && !error} />
+      </div>
+      <div className="ops-closing-next">
+        <span className="ops-clock-glyph" aria-hidden="true">◷</span>
+        <span><small>{nextLabel}</small><strong>{nextTitle}</strong><em>{nextCopy}</em></span>
+        <button type="button" onClick={onAction} disabled={!online && !closed}>{action}<ArrowGlyph /></button>
+      </div>
+      {closed ? <div className="ops-closing-actions"><button type="button" onClick={() => void exportReport()} disabled={exporting}>{exporting ? '正在生成…' : '导出日报图'}</button><button type="button" onClick={onReopenClosing}>重新打开闭店</button></div> : null}
+    </section>
+  )
 }
+
+function SalesVehiclesPanel({ dateKey, kpi, available, onEditKpi }) {
+  const date = dateParts(dateKey)
+  const salesValue = displayMetric(kpi?.salesVehicles, available)
+  return (
+    <section className="ops-sales-panel" aria-labelledby="ops-sales-title">
+      <button type="button" className="ops-sales-primary" onClick={onEditKpi} aria-label="填写或修改当日销售数据">
+        <span className="ops-sales-label"><i /><strong id="ops-sales-title">SALES VEHICLES</strong></span>
+        <time dateTime={dateKey || undefined}>{date.full.replace(/ 周.$/u, '')}</time>
+        <small>销售车辆 · {available ? '读取真实业务数据' : '数据暂不可用'}</small>
+        <b data-digits={salesValue === '—' ? 'unavailable' : String(salesValue.length)}>{salesValue}</b>
+        <span className="ops-blueprint" aria-hidden="true"><img src="/images/ops/bicycle-workshop-blueprint.svg" alt="" /><em>UNIT</em></span>
+      </button>
+      <div className="ops-kpi-grid">
+        {kpiItems.map((item) => {
+          const value = displayMetric(kpi?.[item.key], available)
+          return <button type="button" key={item.key} onClick={onEditKpi}><small>{item.no}</small><span><strong>{item.cn}</strong></span><em>{item.key === 'safetyChecks' && kpi?.safetyModel ? `MODEL · ${kpi.safetyModel}` : item.en}</em><b data-digits={value === '—' ? 'unavailable' : String(value.length)}>{value}</b></button>
+        })}
+      </div>
+    </section>
+  )
+}
+
+function operationSummary(workflow) {
+  if (workflow.storageError) return '同步异常'
+  if (!workflow.hydrated || !workflow.hasSnapshot) return '业务数据加载中'
+  if (workflow.closedAt) return '今日已闭店'
+  if (!workflow.kpiReady) return '销售数据待填写'
+  return '销售数据已保存 · 可闭店'
+}
+
+function OperationsIndex({ workflow, onJump }) {
+  const available = workflow.hydrated && workflow.hasSnapshot && !workflow.storageError
+  return (
+    <nav className="ops-index" aria-label="业务台账模块">
+      <div className="ops-index-head"><span className="ops-index-label"><span>OPERATIONS INDEX ·</span><span className="ops-index-label-cn">业务台账</span></span><strong>{operationSummary(workflow)}</strong></div>
+      <ol>{operations.map(({ id, no, en, cn, Icon }) => {
+        const count = workflow.recordsByScene[id]?.length ?? 0
+        let value = displayMetric(count, available)
+        if (id === 'sales') {
+          value = !available ? '—' : workflow.closedAt ? 'DONE' : workflow.kpiReady ? 'READY' : 'DUE'
+        }
+        return <li key={id}><button type="button" onClick={() => onJump(id)}><small>{no}</small><span><Icon width={18} height={18} strokeWidth={1.7} aria-hidden="true" /><strong>{en}</strong></span><em>{cn}</em><b data-value={String(value).toLowerCase()}>{value}</b><ArrowGlyph /></button></li>
+      })}</ol>
+    </nav>
+  )
+}
+
 function revealReleaseAboveDock(event) {
   const details = event.currentTarget
   if (!details.open) return
-  const dockTop = document.querySelector('.look-dock')?.getBoundingClientRect().top ?? window.innerHeight
-  const delta = details.getBoundingClientRect().bottom - dockTop + 12
-  if (delta > 0) window.scrollBy({ top: delta, behavior: 'auto' })
+  window.requestAnimationFrame(() => {
+    const dock = document.querySelector('.look-dock')
+    const dockTop = dock?.getBoundingClientRect().top ?? window.innerHeight
+    const rect = details.getBoundingClientRect()
+    const headerHeight = Number.parseFloat(window.getComputedStyle(document.documentElement).getPropertyValue('--ops-header-height')) || 72
+    const availableHeight = dockTop - headerHeight - 24
+    const delta = rect.height <= availableHeight
+      ? rect.bottom - dockTop + 12
+      : rect.top - headerHeight - 12
+    if (delta <= 0) return
+    window.scrollBy({
+      top: delta,
+      behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+    })
+  })
 }
-function ReleaseFooter() {
-  return <details className="poster-release" onToggle={revealReleaseAboveDock}><summary aria-label="查看更新说明"><strong>V{APP_VERSION}</strong><span>{currentRelease.title}</span><time>{currentRelease.date}</time><b aria-hidden="true">＋</b></summary><div><p>{currentRelease.summary}</p><ul>{currentRelease.changes.map((change) => <li key={change}>{change}</li>)}</ul></div></details>
+
+function ReleaseStrip() {
+  return (
+    <details className="ops-release-strip" onToggle={revealReleaseAboveDock}>
+      <summary aria-label="查看更新说明"><strong>V{APP_VERSION}</strong><span>{currentRelease.title}</span><time>{currentRelease.date}</time><b aria-hidden="true">＋</b></summary>
+      <div><p>{currentRelease.summary}</p><ul>{currentRelease.changes.map((change) => <li key={change}>{change}</li>)}</ul></div>
+    </details>
+  )
 }
-function PosterGuides() {
-  return <svg className="poster-guides" viewBox="0 0 852 1876" preserveAspectRatio="none" aria-hidden="true"><g className="poster-guide-cross poster-guide-cross-title"><path d="M462 367h24M474 355v24" /><circle cx="474" cy="367" r="4" /></g><g className="poster-guide-cross poster-guide-cross-right"><path d="M746 491h26M759 468v47" /><circle cx="759" cy="491" r="5" /></g><g className="poster-guide-cross poster-guide-cross-kpi"><path d="M416 1234h20M426 1224v20" /><circle cx="426" cy="1234" r="3" /></g></svg>
-}
+
 export default function WorkshopOverviewPage({ workflow, online, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport, onJump }) {
-  const available = workflow.hydrated && workflow.hasSnapshot && !workflow.storageError
-  const date = dateParts(workflow.dateKey)
-  const overviewRecords = recordsForOverview(workflow.recordsByScene)
-  const dashboardRows = [
-    { label: '工单完成', en: 'WORK ORDERS DONE', value: metric(overviewRecords.filter(isCompletedRecord).length, available) },
-    { label: '待处理工单', en: 'OPEN WORK ORDERS', value: metric(overviewRecords.length, available) },
-    { label: '销售车辆', en: 'SALES VEHICLES', value: metric(workflow.kpi?.salesVehicles, available) },
-    { label: '闭店准备度', en: 'CLOSING READY', value: metric(workflow.kpiReady ? 100 : 0, available, '%'), accent: true }
-  ]
-  return <div className="ops-mobile-overview" data-workspace-module="true" aria-label="Workshop 业务总览">
-    {!online ? <p className="poster-offline" role="status">SYSTEM OFFLINE · 显示最近成功加载的数据</p> : null}
-    <main className="workshop-poster" aria-labelledby="workshop-poster-title">
-      <PosterGuides />
-      <section className="poster-opening" aria-label="Workshop Operations 主视觉">
-        <header className="poster-title-block"><h1 id="workshop-poster-title"><AssemblyText text="WORKSHOP" seed={1} /><AssemblyText text="OPS" seed={2} /></h1><div className="poster-date"><i aria-hidden="true" /><small>DAY</small><strong>{date.monthDay}</strong><span>{date.weekday}</span><time dateTime={workflow.dateKey || undefined}>{date.full}</time></div></header>
-        <div className="poster-system-line"><i aria-hidden="true" /><strong>SYSTEM {online ? 'ONLINE' : 'OFFLINE'}</strong><span>FOCUS / EXECUTE / IMPROVE</span></div>
-        <p className="poster-purpose"><AssemblyText as="strong" text="精益运营 · 高效协同" seed={3} /><AssemblyText text="让每一项工作都有价值" seed={4} /></p>
-        <img className="poster-ore" data-assembly-ore="true" src="/images/ops/reference-home/obsidian-orange-cut-900.webp" alt="" width="900" height="720" decoding="async" />
-        <div className="poster-plinth" aria-hidden="true" /><p className="poster-object-note poster-object-note-left">WORK<br />SMARTER<br />TOGETHER</p><p className="poster-object-note poster-object-note-right">DATA<br />DRIVEN<br />RESULTS</p>
-      </section>
-      <section className="poster-kpi" aria-labelledby="poster-kpi-title"><div><AssemblyText as="h2" id="poster-kpi-title" text="Today KPI" seed={5} /><AssemblyText as="p" text="今日数据" seed={6} /></div><button type="button" onClick={onEditKpi}><span>VIEW DASHBOARD</span><b aria-hidden="true">→</b></button></section>
-      <section className="poster-workzone" aria-labelledby="poster-overview-title">
-        <SwipeSceneCard className="poster-photo poster-photo-left" direction="right" label="向右滑动或点击进入维修交接" onActivate={() => onJump('repair')}><WorkbenchPicture className="poster-photo-media" position="18% center" /><span><strong>MAINTENANCE<br />AREA</strong><small>01.</small></span></SwipeSceneCard>
-        <SwipeSceneCard className="poster-photo poster-photo-right" direction="left" label="向左滑动或点击进入待取车辆" onActivate={() => onJump('pickup')}><WorkbenchPicture className="poster-photo-media" position="82% center" /><span><strong>WORK<br />STATION</strong><small>02.</small></span></SwipeSceneCard>
-        <article className="poster-overview-card"><header><h2 id="poster-overview-title">TODAY'S<br />OVERVIEW</h2><i aria-hidden="true" /></header><dl>{dashboardRows.map((row) => <div key={row.en} data-accent={row.accent ? 'true' : 'false'}><dt><strong>{row.label}</strong><small>{row.en}</small></dt><dd>{row.value}</dd></div>)}</dl><PosterClosingControl workflow={workflow} online={online} onEditKpi={onEditKpi} onCompleteClosing={onCompleteClosing} onHistory={onHistory} onRefresh={onRefresh} onReopenClosing={onReopenClosing} onExportReport={onExportReport} /></article>
-      </section>
-      <footer className="poster-footer"><span>KEEP IMPROVING<br /><strong>MAKE IT COUNT ——</strong></span><i className="poster-globe" aria-hidden="true"><b /><b /></i><span><i aria-hidden="true" />WORKSHOP<br /><strong>OPERATIONS</strong></span><ReleaseFooter /></footer>
-    </main>
-  </div>
+  const available = workflow.hydrated && workflow.hasSnapshot
+  return (
+    <div className="ops-mobile-overview" data-workspace-module="true" aria-label="Workshop 业务总览">
+      {!online ? <p className="ops-inline-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据</p> : null}
+      <ClosingStatusCard workflow={workflow} online={online} onEditKpi={onEditKpi} onCompleteClosing={onCompleteClosing} onHistory={onHistory} onRefresh={onRefresh} onReopenClosing={onReopenClosing} onExportReport={onExportReport} />
+      <SalesVehiclesPanel dateKey={workflow.dateKey} kpi={workflow.kpi} available={available} onEditKpi={onEditKpi} />
+      <OperationsIndex workflow={workflow} onJump={onJump} />
+      <ReleaseStrip />
+      <div className="ops-first-screen-spacer" aria-hidden="true" />
+    </div>
+  )
 }

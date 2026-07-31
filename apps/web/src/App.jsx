@@ -7,9 +7,9 @@ import PasswordChangeGate from './components/PasswordChangeGate.jsx'
 import StatusToast from './components/StatusToast.jsx'
 import { APP_VERSION } from './data/releaseNotes.js'
 import { buildClosingReportModel, exportClosingReportImage } from './utils/closingReportImage.js'
+import ActionDock from './components/lookbook/ActionDock.jsx'
 import WorkshopShellHeader from './components/workshop/WorkshopShellHeader.jsx'
 import WorkshopOverviewPage from './components/overview/WorkshopOverviewPage.jsx'
-import AssemblyText from './components/motion/AssemblyText.jsx'
 import AttachmentDialog from './components/dialogs/AttachmentDialog.jsx'
 import ConfirmClosingDialog from './components/dialogs/ConfirmClosingDialog.jsx'
 import KpiDialog from './components/dialogs/KpiDialog.jsx'
@@ -29,7 +29,7 @@ import { REPAIR_POS_REMINDER_STATUS } from './data/repairRecord.js'
 import { sceneById } from './data/lookbookScenes.js'
 import useAuth from './hooks/useAuth.js'
 import useRemoteClosingWorkflow from './hooks/useRemoteClosingWorkflow.js'
-import useObsidianAssemblyScroll from './hooks/useObsidianAssemblyScroll.js'
+import useStoryScroll from './hooks/useStoryScroll.js'
 import useMotionSystem from './hooks/useMotionSystem.js'
 import useWorkspaceMotion from './hooks/useWorkspaceMotion.js'
 import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
@@ -41,39 +41,18 @@ import SalesScene from './scenes/SalesScene.jsx'
 
 const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员' }
 
-function AssemblyLineLayer() {
-  return (
-    <div className="workshop-assembly-line-layer" data-assembly-line="true" aria-hidden="true">
-      <svg viewBox="0 0 852 6000" preserveAspectRatio="none">
-        <path className="assembly-s-line-base" pathLength="1" d="M690-80C940 430 86 650 424 1190C766 1730 88 2070 430 2690C780 3320 76 3650 432 4230C786 4810 94 5260 436 6080" />
-        <path className="assembly-s-line-tracer" pathLength="1" d="M690-80C940 430 86 650 424 1190C766 1730 88 2070 430 2690C780 3320 76 3650 432 4230C786 4810 94 5260 436 6080" />
-      </svg>
-    </div>
-  )
-}
-
-function ModuleSection({ active, children, className = '', sceneId }) {
-  const scene = sceneById(sceneId)
+function StoryScrollPanel({ active, children, className = '', sceneId }) {
   return (
     <section
-      className={`workshop-continuous-module ${className}`.trim()}
+      className={`workshop-module-panel ${className}`.trim()}
       id={`module-${sceneId}`}
       tabIndex="-1"
       data-workspace-module="true"
-      data-continuous-module="true" data-assembly-module="true"
+      data-module-flow-section="true"
       data-scene-id={sceneId}
       data-active={active ? 'true' : undefined}
-      aria-labelledby={`module-title-${sceneId}`}
     >
-      <header className="workshop-continuous-heading" data-module-heading="true">
-        <span>{scene.no} / 06</span>
-        <div>
-          <small>{scene.label}</small>
-          <AssemblyText as="h2" id={`module-title-${sceneId}`} text={scene.cn} seed={Number(scene.no)} />
-          <p>{scene.title}</p>
-        </div>
-      </header>
-      <div className="workshop-continuous-content" data-module-business="true">{children}</div>
+      <div className="workshop-module-flow-inner" data-module-flow-inner="true">{children}</div>
     </section>
   )
 }
@@ -97,8 +76,7 @@ export default function App() {
   const authenticated = auth.status === 'authenticated'
   const introDone = authenticated && (auth.source === 'restore' || auth.source === 'registration' || loginAnimationDone)
   const mustChangePassword = Boolean(auth.user?.mustChangePassword)
-  const workspaceEntryEligible = auth.source === 'login' && window.scrollY <= 8 && !/^#module-(pulse|pickup|poster|repair|resale|sales)$/u.test(window.location.hash)
-  const deferUpdatePrompt = workspaceEntryEligible && !mustChangePassword && !workspaceAssemblyDone
+  const deferUpdatePrompt = auth.source === 'login' && !mustChangePassword && !workspaceAssemblyDone
   const workflow = useRemoteClosingWorkflow(authenticated && !mustChangePassword)
   const [menuOpen, setMenuOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
@@ -128,7 +106,7 @@ export default function App() {
   const canReopenClosing = role === 'manager' || role === 'admin'
   const writeLocked = Boolean(workflow.closedAt) || !online || Boolean(workflow.storageError)
 
-  const workspaceLaunching = authenticated && workspaceEntryEligible && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone
+  const workspaceLaunching = authenticated && auth.source === 'login' && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone
   const completeWorkspaceAssembly = useCallback(() => {
     setWorkspaceAssemblyDone(true)
     window.requestAnimationFrame(() => document.getElementById('main-content')?.focus({ preventScroll: true }))
@@ -136,11 +114,10 @@ export default function App() {
   const { skip: skipWorkspaceAssembly } = useWorkspaceMotion({
     active: workspaceLaunching,
     rootRef: workspaceRootRef,
-    onComplete: completeWorkspaceAssembly,
-    staticMode: false
+    onComplete: completeWorkspaceAssembly
   })
   const taskFocused = Boolean(taskInputFocused || menuOpen || logOpen || permanentHistoryOpen || confirmOpen || kpiOpen || migrationOpen || governanceOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
-  const { activeScene, jumpTo } = useObsidianAssemblyScroll({
+  const { activeScene, jumpTo } = useStoryScroll({
     enabled: introDone && workflow.hydrated && !workspaceLaunching,
     rootRef: workspaceRootRef,
     quiet: taskFocused
@@ -158,20 +135,14 @@ export default function App() {
 
   useEffect(() => {
     if (!workspaceLaunching) return undefined
-    const skipOnInput = (event) => {
-      if (event.type === 'keydown' && event.key === 'Escape') event.preventDefault()
-      skipWorkspaceAssembly()
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        skipWorkspaceAssembly()
+      }
     }
-    window.addEventListener('keydown', skipOnInput)
-    window.addEventListener('pointerdown', skipOnInput, { capture: true })
-    window.addEventListener('wheel', skipOnInput, { passive: true })
-    window.addEventListener('touchstart', skipOnInput, { passive: true })
-    return () => {
-      window.removeEventListener('keydown', skipOnInput)
-      window.removeEventListener('pointerdown', skipOnInput, { capture: true })
-      window.removeEventListener('wheel', skipOnInput)
-      window.removeEventListener('touchstart', skipOnInput)
-    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [skipWorkspaceAssembly, workspaceLaunching])
 
   useEffect(() => {
@@ -519,7 +490,7 @@ export default function App() {
     <>
       {showBoot ? <BootLoader onLogin={auth.login} onComplete={() => setLoginAnimationDone(true)} onRegister={() => setAuthMode('register')} /> : null}
       {introDone ? <a className="skip-link" href="#closing-summary-anchor">跳到闭店摘要</a> : null}
-      <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} data-active-scene={activeScene} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
+      <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
         <div data-workspace-layer="navigation" data-workspace-priority="true">
           <WorkshopShellHeader
@@ -535,9 +506,8 @@ export default function App() {
         </div>
         {!online ? <p className="workshop-global-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据；恢复网络后才能修改。</p> : null}
         <main className="workshop-shell" id="main-content" tabIndex="-1" data-workspace-layer="structure">
-          <div className="workshop-continuous-stack" data-workspace-layer="focus" data-continuous-stack="true" data-assembly-stack="true">
-            <AssemblyLineLayer />
-            <ModuleSection sceneId="pulse" active={activeScene === 'pulse'} className="workshop-overview-module">
+          <div className="workshop-module-stack" data-workspace-layer="focus" data-module-flow-stack="true">
+            <StoryScrollPanel sceneId="pulse" active={activeScene === 'pulse'} className="workshop-overview-panel">
               <span className="closing-summary-anchor" id="closing-summary-anchor" aria-hidden="true" />
               <WorkshopOverviewPage
                 workflow={workflow}
@@ -550,12 +520,12 @@ export default function App() {
                 onExportReport={exportClosingReport}
                 onJump={jumpFromOverview}
               />
-            </ModuleSection>
-            <ModuleSection sceneId="pickup" active={activeScene === 'pickup'}><PickupScene {...recordProps('pickup')} /></ModuleSection>
-            <ModuleSection sceneId="poster" active={activeScene === 'poster'}><OpeningScene {...recordProps('poster')} /></ModuleSection>
-            <ModuleSection sceneId="repair" active={activeScene === 'repair'}><RepairScene {...recordProps('repair')} /></ModuleSection>
-            <ModuleSection sceneId="resale" active={activeScene === 'resale'}><ResaleScene {...recordProps('resale')} /></ModuleSection>
-            <ModuleSection sceneId="sales" active={activeScene === 'sales'}><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></ModuleSection>
+            </StoryScrollPanel>
+            <StoryScrollPanel sceneId="pickup" active={activeScene === 'pickup'}><PickupScene {...recordProps('pickup')} /></StoryScrollPanel>
+            <StoryScrollPanel sceneId="poster" active={activeScene === 'poster'}><OpeningScene {...recordProps('poster')} /></StoryScrollPanel>
+            <StoryScrollPanel sceneId="repair" active={activeScene === 'repair'}><RepairScene {...recordProps('repair')} /></StoryScrollPanel>
+            <StoryScrollPanel sceneId="resale" active={activeScene === 'resale'}><ResaleScene {...recordProps('resale')} /></StoryScrollPanel>
+            <StoryScrollPanel sceneId="sales" active={activeScene === 'sales'}><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></StoryScrollPanel>
           </div>
           <footer className="closing-footer workshop-footer">
             <div className="footer-identity"><span>{currentStore?.storeName || 'ACTIVE USER'} · {roleLabels[role]}</span><strong>{currentUser}</strong></div>
@@ -583,6 +553,7 @@ export default function App() {
         <ConfirmClosingDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={confirmClose} />
         <KpiDialog open={kpiOpen} onClose={() => setKpiOpen(false)} values={workflow.kpi} savedAt={workflow.kpiSavedAt} onSave={workflow.saveKpi} onClear={workflow.clearKpi} onNotify={setToast} />
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
+        {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={activeScene} onJump={jumpFromOverview} closedAt={workflow.closedAt} /></div> : null}
       </div>
       {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button></div> : null}
       <ReportImageDialog
