@@ -46,25 +46,19 @@ test('390 poster uses one normalized 852 by 1876 coordinate field and stays stat
   assert.match(overview, /behavior: 'auto'/u)
 })
 
-test('static Overview is isolated from every global motion runtime', async () => {
-  const [app, canvas, motion, workspace, system] = await Promise.all([
+test('static Overview uses the static scene router and is not attached to a global motion runtime', async () => {
+  const [app, navigation, overview, system] = await Promise.all([
     read('apps/web/src/App.jsx'),
-    read('apps/web/src/hooks/useContinuousCanvas.js'),
-    read('apps/web/src/hooks/useMotionSystem.js'),
-    read('apps/web/src/hooks/useWorkspaceMotion.js'),
+    read('apps/web/src/hooks/useStaticSceneNavigation.js'),
+    read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'),
     read('apps/web/src/styles/workshop-system.css')
   ])
-  assert.ok(app.includes('data-active-scene={activeScene}'))
-  assert.ok(app.includes('staticMode: staticOverviewLaunch'))
-  assert.ok(canvas.includes("isStaticOverview = section.dataset.sceneId === 'pulse'"))
-  assert.ok(canvas.includes('? { x: 0, y: 0, scale: 1, opacity: 1, progress }'))
-  assert.ok(canvas.includes("staticBoundary = activeRef.current === 'pulse' || targetId === 'pulse'"))
-  assert.ok(motion.includes("pressed.closest('.workshop-overview-module')"))
-  assert.ok(workspace.includes('if (staticMode)'))
-  assert.ok(system.includes(".workshop-runtime[data-active-scene='pulse'] .workshop-continuous-canvas"))
-  assert.ok(system.includes(".workshop-runtime:has(.workshop-overview-module[data-module-inview='true']) .workshop-continuous-canvas"))
-  const staticBlock = system.slice(system.indexOf('.workshop-overview-module {'), system.indexOf('.workshop-continuous-module +'))
-  for (const declaration of ['animation: none !important;', 'transform: none !important;', 'transition: none !important;', 'will-change: auto !important;']) assert.ok(staticBlock.includes(declaration))
+  assert.match(app, /useStaticSceneNavigation/u)
+  assert.doesNotMatch(app, /useContinuousCanvas|useMotionSystem|ActionDock/u)
+  assert.match(navigation, /behavior: 'auto'/u)
+  assert.doesNotMatch(navigation, /smooth|addEventListener\('scroll'/u)
+  assert.match(overview, /function SwipeSceneCard/u)
+  assert.match(system, /Static scene architecture/u)
 })
 
 test('poster colors, type and geometry follow the design system', async () => {
@@ -85,8 +79,9 @@ test('self-hosted imagery is licensed and integrity pinned', async () => {
   assert.equal(await hash('apps/web/public/images/ops/reference-home/mechanic-workbench-1600.webp'), '6c746d85ba41f7ac4e011cfbbcfb3b68969835ea27bfbdc7131347c53abef235')
 })
 
-test('release disclosure and six-item dock remain accessible above safe area', async () => {
-  const [overview, dock, scenes, css] = await Promise.all([read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'),read('apps/web/src/components/lookbook/ActionDock.jsx'),read('apps/web/src/data/lookbookScenes.js'),read('apps/web/src/styles/mobile-overview.css')])
-  assert.match(overview, /onToggle=\{revealReleaseAboveDock\}/u); assert.match(overview, /querySelector\('\.look-dock'\)/u); assert.match(overview, /window\.scrollBy/u)
-  assert.match(dock, /OVERVIEW/u); assert.match(scenes, /LOOK_TOTAL = 6/u); assert.match(css, /\.look-dock \.dock-status \{ display: none !important; \}/u); assert.match(css, /min-height: 44px/u)
+test('release disclosure remains accessible and the persistent dock is removed', async () => {
+  const [overview, app, system] = await Promise.all([read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'),read('apps/web/src/App.jsx'),read('apps/web/src/styles/workshop-system.css')])
+  assert.match(overview, /className="poster-release"/u)
+  assert.doesNotMatch(app, /ActionDock|data-workspace-layer="dock"/u)
+  assert.match(system, /\.look-dock \{ display: none !important; \}/u)
 })

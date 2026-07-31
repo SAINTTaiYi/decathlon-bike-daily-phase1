@@ -35,7 +35,7 @@ The visual hierarchy combines:
 - signal yellow for progress, state, numbering, current navigation, and primary action;
 - green and red only for semantic success and failure.
 
-The interface is an operations product, not a marketing page, portfolio, game HUD, cinematic scene, or imitation of another brand. The pending Figure 3 Overview candidate uses one normalized 852:1876 warm-paper poster field: a condensed WORKSHOP OPS masthead, black mineral object with safety-orange cut face, angular black plinth, Today KPI command, two cropped workbench views, a centered real-data overview panel, and compact footer. Header controls overlay this same field; KPI, photographs and footer are positioned layers rather than stacked page sections. It replaces the rejected segmented Preview candidate. No animation, transition, keyframe, scroll-driven visible transform, viewport-scaled type, gradient, proprietary reference asset, or invented business value is permitted in this Overview. Any global scroll runtime retained for the five dedicated modules must write identity motion values for Overview and hide its background/foreground layers while Overview is active or visible.
+The interface is an operations product, not a marketing page, portfolio, game HUD, cinematic scene, or imitation of another brand. The pending Figure 3 Overview candidate uses one normalized 852:1876 warm-paper poster field: a condensed WORKSHOP OPS masthead, black mineral object with safety-orange cut face, angular black plinth, Today KPI command, two cropped workbench views, a centered real-data overview panel, and compact footer. Header controls overlay this same field; KPI, photographs and footer are positioned layers rather than stacked page sections. It replaces the rejected segmented Preview candidate. No animation, transition, keyframe, scroll-driven visible transform, viewport-scaled type, gradient, proprietary reference asset, or invented business value is permitted in this Overview. The former global continuous-scroll runtime and persistent six-item dock are retired. Exactly one scene is mounted at a time and URL-hash navigation changes scenes immediately without page-transition animation.
 
 ## Color System
 
@@ -119,7 +119,7 @@ The candidate reference-structured overview establishes the priority order:
 7. Release information.
 8. Persistent six-destination navigation.
 
-The Overview is one continuous poster coordinate field, not a five-field or multi-section page. Its reading path is brand and masthead, mineral and black plinth, Today KPI command, edge workbench photographs, central real-data card, then compact footer/release disclosure. Overlap and angular crops create the transitions; no full-width section border, alternate background band or duplicate in-poster navigation is allowed. This exception applies only to the Overview; the five dedicated business modules retain their established operational layouts.
+The Overview is one continuous poster coordinate field, not a five-field or multi-section page. Its reading path is brand and masthead, mineral and black plinth, Today KPI command, edge workbench photographs, central real-data card, then compact footer/release disclosure. The left edge photo is a right-swipe Repair entry and the right edge photo is a left-swipe Pickup entry, each with click and keyboard fallback. Overlap and angular crops create the visual transitions; no full-width section border, alternate background band or persistent navigation dock is allowed. This exception applies only to the Overview; the five dedicated business modules retain their established operational layouts.
 
 Apply the same principle elsewhere: current decision first, supporting evidence second, history and configuration later. Avoid landing-page heroes, decorative introductions, feature explanations, and oversized editorial headings inside work surfaces.
 
@@ -134,6 +134,15 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 - The current Overview candidate is deliberately static: no animation, transition, keyframes, transform-driven motion, smooth-scroll behavior, GSAP press scaling, or visible response to a global scroll listener. Native vertical scrolling remains. The Overview module always resolves to x=0, y=0, scale=1 and opacity=1; continuous-canvas background/foreground layers are hidden while it is active or in view. The five dedicated business modules retain their existing behavior and data boundaries; this candidate does not redesign them.
 - Loading, offline, empty, error, permission, and synchronization states must be explicit. Unknown data must render as unavailable, not as a false zero.
 
+### Figure 2 Pickup
+
+- Source geometry is 852 × 1839: identity header, chapter marker, mineral/queue Hero, floating tool surface, active summary, then one-column cards.
+- Queue totals, record content and states always come from real workflow records. Never copy reference phone numbers, ticket numbers, dates or vehicle names.
+- The tool surface keeps real search, filter, sort, density and collapse controls.
+- The second waiting record is the default expanded example when available; fewer records fall back to the first.
+- Cards, tool surfaces and completion feedback are static in this phase: no IntersectionObserver entry reveal, auto-hiding tools, pixel-fill animation, gradient glow or transition.
+- Full details are governed by `plan/WORKSHOP-STATIC-SWIPE-PICKUP-SPEC.md`.
+
 ## Responsive Behavior
 
 ### Mobile
@@ -141,13 +150,13 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 - Mobile is the primary composition.
 - Support at least `320px` through `430px` widths without horizontal scrolling.
 - Preserve safe areas and dynamic viewport bottom offsets.
-- Keep the six-item navigation fixed as a lightweight translucent diffused layer and ensure content can scroll fully above it.
+- Do not render a persistent navigation dock. Scene entry is contextual: Overview edge cards, each business page brand/home control, and existing menu routes.
 - Preserve the exact 852:1876 poster ratio: at 390 CSS px wide the artwork field is about 858 CSS px tall. Source coordinates are normalized inside one container; interactive hit regions may expand to 44px without changing the source-sized visual control. Use explicit breakpoints and container-relative geometry, never viewport-width type.
 - At narrow widths, reduce secondary metadata before reducing touch targets, primary values, or motion strength.
 
 ### Tablet
 
-- At `600px` and above, increase page padding and available media width while preserving the same reading order.
+- At `600px` and above, increase page padding and available media width while preserving the same reading order. Figure 2 Pickup keeps one vertical ledger rail capped at 852px.
 - Navigation may float with the accepted `8px` radius but must remain operationally dense.
 
 ### Desktop

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
 
 const recordScenes = ['pickup', 'poster', 'repair', 'resale']
@@ -37,6 +37,22 @@ function PosterClosingControl({ workflow, online, onEditKpi, onCompleteClosing, 
 function WorkbenchPicture({ className, position }) {
   return <picture className={className} aria-hidden="true"><source media="(min-width: 600px)" srcSet="/images/ops/reference-home/mechanic-workbench-1600.webp" /><img src="/images/ops/reference-home/mechanic-workbench-960.webp" alt="" width="960" height="641" loading="eager" decoding="async" style={{ objectPosition: position }} /></picture>
 }
+function SwipeSceneCard({ children, className, direction, label, onActivate }) {
+  const originRef = useRef(null)
+  const movedRef = useRef(false)
+  const onPointerDown = (event) => { if (event.pointerType !== 'mouse') { originRef.current = { x: event.clientX, y: event.clientY }; movedRef.current = false } }
+  const onPointerUp = (event) => {
+    const origin = originRef.current
+    originRef.current = null
+    if (!origin) return
+    const deltaX = event.clientX - origin.x
+    const deltaY = event.clientY - origin.y
+    if (Math.abs(deltaX) < 48 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.25) return
+    const accepted = direction === 'left' ? deltaX < 0 : deltaX > 0
+    if (accepted) { movedRef.current = true; onActivate() }
+  }
+  return <button type="button" className={className} onClick={() => { if (movedRef.current) { movedRef.current = false; return } onActivate() }} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={() => { originRef.current = null }} aria-label={label} data-swipe-direction={direction}>{children}<b className="poster-swipe-cue" aria-hidden="true">{direction === 'left' ? '← SWIPE' : 'SWIPE →'}</b></button>
+}
 function revealReleaseAboveDock(event) {
   const details = event.currentTarget
   if (!details.open) return
@@ -73,8 +89,8 @@ export default function WorkshopOverviewPage({ workflow, online, onEditKpi, onCo
       </section>
       <section className="poster-kpi" aria-labelledby="poster-kpi-title"><div><h2 id="poster-kpi-title">Today KPI</h2><p>今日数据</p></div><button type="button" onClick={onEditKpi}><span>VIEW DASHBOARD</span><b aria-hidden="true">→</b></button></section>
       <section className="poster-workzone" aria-labelledby="poster-overview-title">
-        <button type="button" className="poster-photo poster-photo-left" onClick={() => onJump('repair')} aria-label="进入维修交接"><WorkbenchPicture className="poster-photo-media" position="18% center" /><span><strong>MAINTENANCE<br />AREA</strong><small>01.</small></span></button>
-        <button type="button" className="poster-photo poster-photo-right" onClick={() => onJump('pickup')} aria-label="进入待取车辆"><WorkbenchPicture className="poster-photo-media" position="82% center" /><span><strong>WORK<br />STATION</strong><small>02.</small></span></button>
+        <SwipeSceneCard className="poster-photo poster-photo-left" direction="right" label="向右滑动或点击进入维修交接" onActivate={() => onJump('repair')}><WorkbenchPicture className="poster-photo-media" position="18% center" /><span><strong>MAINTENANCE<br />AREA</strong><small>01.</small></span></SwipeSceneCard>
+        <SwipeSceneCard className="poster-photo poster-photo-right" direction="left" label="向左滑动或点击进入待取车辆" onActivate={() => onJump('pickup')}><WorkbenchPicture className="poster-photo-media" position="82% center" /><span><strong>WORK<br />STATION</strong><small>02.</small></span></SwipeSceneCard>
         <article className="poster-overview-card"><header><h2 id="poster-overview-title">TODAY'S<br />OVERVIEW</h2><i aria-hidden="true" /></header><dl>{dashboardRows.map((row) => <div key={row.en} data-accent={row.accent ? 'true' : 'false'}><dt><strong>{row.label}</strong><small>{row.en}</small></dt><dd>{row.value}</dd></div>)}</dl><PosterClosingControl workflow={workflow} online={online} onEditKpi={onEditKpi} onCompleteClosing={onCompleteClosing} onHistory={onHistory} onRefresh={onRefresh} onReopenClosing={onReopenClosing} onExportReport={onExportReport} /></article>
       </section>
       <footer className="poster-footer"><span>KEEP IMPROVING<br /><strong>MAKE IT COUNT ——</strong></span><i className="poster-globe" aria-hidden="true"><b /><b /></i><span><i aria-hidden="true" />WORKSHOP<br /><strong>OPERATIONS</strong></span><ReleaseFooter /></footer>

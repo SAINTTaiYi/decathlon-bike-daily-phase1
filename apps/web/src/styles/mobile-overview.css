@@ -123,3 +123,7 @@
   .poster-plinth, .poster-kpi > button::before, .poster-release summary strong { border: 1px solid CanvasText; background: Canvas; color: CanvasText; forced-color-adjust: none; }
   .poster-overview-card, .poster-closing-control, .poster-release { border-color: CanvasText; background: Canvas; }
 }
+.poster-photo { touch-action: pan-y; }
+.poster-swipe-cue { position: absolute; bottom: 8%; z-index: 3; padding: .55cqw .8cqw; background: var(--ops-orange); color: var(--ops-black); font-family: var(--ops-display); font-size: 1.15cqw; font-weight: 700; line-height: 1; }
+.poster-photo-left .poster-swipe-cue { left: 12%; }
+.poster-photo-right .poster-swipe-cue { right: 12%; }

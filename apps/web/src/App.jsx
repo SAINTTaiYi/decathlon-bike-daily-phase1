@@ -7,7 +7,6 @@ import PasswordChangeGate from './components/PasswordChangeGate.jsx'
 import StatusToast from './components/StatusToast.jsx'
 import { APP_VERSION } from './data/releaseNotes.js'
 import { buildClosingReportModel, exportClosingReportImage } from './utils/closingReportImage.js'
-import ActionDock from './components/lookbook/ActionDock.jsx'
 import WorkshopShellHeader from './components/workshop/WorkshopShellHeader.jsx'
 import WorkshopOverviewPage from './components/overview/WorkshopOverviewPage.jsx'
 import AttachmentDialog from './components/dialogs/AttachmentDialog.jsx'
@@ -29,8 +28,7 @@ import { REPAIR_POS_REMINDER_STATUS } from './data/repairRecord.js'
 import { lookbookScenes, sceneById } from './data/lookbookScenes.js'
 import useAuth from './hooks/useAuth.js'
 import useRemoteClosingWorkflow from './hooks/useRemoteClosingWorkflow.js'
-import useContinuousCanvas from './hooks/useContinuousCanvas.js'
-import useMotionSystem from './hooks/useMotionSystem.js'
+import useStaticSceneNavigation from './hooks/useStaticSceneNavigation.js'
 import useWorkspaceMotion from './hooks/useWorkspaceMotion.js'
 import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
 import OpeningScene from './scenes/OpeningScene.jsx'
@@ -41,121 +39,10 @@ import SalesScene from './scenes/SalesScene.jsx'
 
 const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员' }
 
-const canvasNarratives = [
-  { id: 'workshop', lines: ['WORKSHOP', 'OPERATIONS'], start: 0.05 },
-  { id: 'daily', lines: ['DAILY', 'MOTION'], start: 0.55 }
-]
-
-const canvasMotifs = [lookbookScenes[0], lookbookScenes[3]]
-const foregroundObjectIds = new Set(['pickup', 'resale'])
-
-function NarrativeLine({ children, lineIndex, narrativeIndex }) {
-  return (
-    <span className={`workshop-canvas-title-line workshop-canvas-title-line-${lineIndex + 1}`}>
-      {[...children].map((character, characterIndex) => (
-        <i
-          key={`${character}-${characterIndex}`}
-          style={{ '--canvas-char-delay': `${((characterIndex * 7 + lineIndex * 3 + narrativeIndex * 5) % 11) * 75}ms` }}
-        >
-          {character === ' ' ? '\u00a0' : character}
-        </i>
-      ))}
-    </span>
-  )
-}
-
-function CanvasObject({ scene, index }) {
-  return (
-    <figure
-      className="workshop-continuous-object"
-      data-continuous-object="true"
-      data-object-id={scene.id}
-      data-object-depth={foregroundObjectIds.has(scene.id) ? 'front' : 'back'}
-      style={{ '--canvas-object-index': index }}
-    >
-      <img src={scene.canvasObject} alt="" width="720" height="880" loading={index > 1 ? 'lazy' : 'eager'} />
-    </figure>
-  )
-}
-
-function CanvasCurve({ scene, index }) {
-  const curveId = `workshop-continuous-curve-${scene.id}`
-  return (
-    <svg className="workshop-continuous-curve" data-continuous-curve={index} viewBox="0 0 720 880" preserveAspectRatio="xMidYMid meet">
-      <defs>
-        <path id={curveId} d="M84 676C84 384 126 142 360 142C594 142 636 384 636 676C636 792 546 838 360 838C174 838 84 792 84 676Z" />
-      </defs>
-      <text>
-        <textPath href={`#${curveId}`} data-continuous-curve-copy="true">{scene.canvasCurve.repeat(3)}</textPath>
-        <textPath href={`#${curveId}`} data-continuous-curve-copy="true">{scene.canvasCurve.repeat(3)}</textPath>
-      </text>
-    </svg>
-  )
-}
-
-function CanvasTrail({ scene, index }) {
-  return (
-    <div className="workshop-continuous-trail" data-continuous-trail={index}>
-      {scene.canvasTrail.map((word) => <span key={word} data-continuous-trail-word="true">{word}</span>)}
-    </div>
-  )
-}
-
-function ContinuousCanvas() {
-  const backObjects = lookbookScenes.filter((scene) => !foregroundObjectIds.has(scene.id))
-  const frontObjects = lookbookScenes.filter((scene) => foregroundObjectIds.has(scene.id))
-  return (
-    <>
-      <div className="workshop-continuous-canvas" data-continuous-canvas="true" aria-hidden="true">
-        <div className="workshop-continuous-fields">
-          <span className="workshop-continuous-field workshop-continuous-field-gray" />
-          <span className="workshop-continuous-field workshop-continuous-field-yellow" />
-          <span className="workshop-continuous-field workshop-continuous-field-paper" />
-        </div>
-        <div className="workshop-continuous-narratives">
-          {canvasNarratives.map((narrative, narrativeIndex) => (
-            <div className="workshop-canvas-title" data-continuous-narrative={narrativeIndex} key={narrative.id}>
-              {narrative.lines.map((line, lineIndex) => (
-                <NarrativeLine key={line} lineIndex={lineIndex} narrativeIndex={narrativeIndex}>{line}</NarrativeLine>
-              ))}
-            </div>
-          ))}
-        </div>
-        {backObjects.map((scene) => <CanvasObject key={scene.id} scene={scene} index={lookbookScenes.indexOf(scene)} />)}
-        {canvasMotifs.map((scene, index) => <CanvasCurve key={scene.id} scene={scene} index={index} />)}
-        {canvasMotifs.map((scene, index) => <CanvasTrail key={scene.id} scene={scene} index={index} />)}
-      </div>
-      <div className="workshop-continuous-foreground" data-continuous-foreground="true" aria-hidden="true">
-        {frontObjects.map((scene) => <CanvasObject key={scene.id} scene={scene} index={lookbookScenes.indexOf(scene)} />)}
-      </div>
-    </>
-  )
-}
-
-function ModuleSection({ active, children, className = '', sceneId }) {
+function ScenePanel({ children, className = '', sceneId }) {
   const scene = sceneById(sceneId)
-  return (
-    <section
-      className={`workshop-continuous-module ${className}`.trim()}
-      id={`module-${sceneId}`}
-      tabIndex="-1"
-      data-workspace-module="true"
-      data-continuous-module="true"
-      data-scene-id={sceneId}
-      data-active={active ? 'true' : undefined}
-      aria-labelledby={`module-title-${sceneId}`}
-    >
-      <header className="workshop-continuous-heading" data-module-heading="true">
-        <span>{scene.no} / 06</span>
-        <div>
-          <small>{scene.label}</small>
-          <h2 id={`module-title-${sceneId}`}>{scene.cn}</h2>
-          <p>{scene.title}</p>
-        </div>
-      </header>
-      <div className="workshop-continuous-content" data-module-business="true">{children}</div>
-    </section>
-  )
+  const labelledBy = sceneId === 'pickup' ? 'pickup-title' : sceneId === 'pulse' ? 'workshop-poster-title' : `module-title-${sceneId}`
+  return <section className={`workshop-scene-panel ${className}`.trim()} id={`module-${sceneId}`} tabIndex="-1" data-workspace-module="true" data-scene-id={sceneId} aria-labelledby={labelledBy}>{sceneId !== 'pulse' && sceneId !== 'pickup' ? <header className="workshop-scene-heading"><span>{scene.no} / 06</span><div><small>{scene.label}</small><h2 id={`module-title-${sceneId}`}>{scene.cn}</h2><p>{scene.title}</p></div></header> : null}<div className="workshop-scene-content">{children}</div></section>
 }
 
 export default function App() {
@@ -213,21 +100,16 @@ export default function App() {
     setWorkspaceAssemblyDone(true)
     window.requestAnimationFrame(() => document.getElementById('main-content')?.focus({ preventScroll: true }))
   }, [])
-  const staticOverviewLaunch = !/^#module-(pickup|poster|repair|resale|sales)$/u.test(window.location.hash)
   const { skip: skipWorkspaceAssembly } = useWorkspaceMotion({
     active: workspaceLaunching,
     rootRef: workspaceRootRef,
     onComplete: completeWorkspaceAssembly,
-    staticMode: staticOverviewLaunch
+    staticMode: true
   })
   const taskFocused = Boolean(taskInputFocused || menuOpen || logOpen || permanentHistoryOpen || confirmOpen || kpiOpen || migrationOpen || governanceOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
-  const { activeScene, jumpTo } = useContinuousCanvas({
-    enabled: introDone && workflow.hydrated && !workspaceLaunching,
-    rootRef: workspaceRootRef,
-    quiet: taskFocused
+  const { activeScene, jumpTo } = useStaticSceneNavigation({
+    enabled: introDone && workflow.hydrated && !workspaceLaunching
   })
-
-  useMotionSystem({ enabled: introDone && workflow.hydrated && !workspaceLaunching, rootRef: workspaceRootRef, quiet: taskFocused })
 
   useEffect(() => {
     if (auth.status === 'anonymous') {
@@ -378,7 +260,7 @@ export default function App() {
       closedAt: result.day?.closedAt
     }, { automatic: true })
     if (!report.ok) setToast({ message: `闭店已完成，但日报图未生成：${report.error}`, tone: 'error' })
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.scrollTo({ top: 0, behavior: 'auto' })
   }
 
   const exportClosingReport = async () => generateClosingReport()
@@ -581,6 +463,7 @@ export default function App() {
             <button type="button" className="primary-action" onClick={() => void workflow.refresh()} disabled={workflow.syncing}>{workflow.syncing ? '正在重试…' : '重新同步'}</button>
             <button type="button" className="secondary-action" onClick={() => void logout()}>退出登录</button>
           </div>
+          {activeScene !== 'pulse' ? <footer className="static-business-footer"><div><span>{currentStore?.storeName || 'ACTIVE USER'} · {roleLabels[role]}</span><strong>{currentUser}</strong></div><p><span>LAST SYNC · 最后同步</span><strong>{workflow.lastSyncedAt ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(workflow.lastSyncedAt)) : '尚未同步'}</strong></p><button type="button" className="primary-action" onClick={requestClose} disabled={writeLocked}>{workflow.closedAt ? '今日已闭店' : workflow.kpiReady ? '完成闭店' : '填写销售数据'}</button></footer> : null}
         </main>
         <UpdateRefreshDialog enabled={!deferUpdatePrompt} />
       </>
@@ -602,7 +485,6 @@ export default function App() {
       {introDone ? <a className="skip-link" href="#closing-summary-anchor">跳到闭店摘要</a> : null}
       <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} data-active-scene={activeScene} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
-        <ContinuousCanvas />
         <div data-workspace-layer="navigation" data-workspace-priority="true">
           <WorkshopShellHeader
             activeScene={activeScene}
@@ -613,38 +495,19 @@ export default function App() {
             onMenu={() => setMenuOpen(true)}
             onLog={() => setLogOpen(true)}
             hasUnread={Boolean(workflow.events?.length)}
+            onHome={() => jumpTo('pulse')}
           />
         </div>
         {!online ? <p className="workshop-global-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据；恢复网络后才能修改。</p> : null}
         <main className="workshop-shell" id="main-content" tabIndex="-1" data-workspace-layer="structure">
-          <div className="workshop-continuous-stack" data-workspace-layer="focus" data-continuous-stack="true">
-            <ModuleSection sceneId="pulse" active={activeScene === 'pulse'} className="workshop-overview-module">
-              <span className="closing-summary-anchor" id="closing-summary-anchor" aria-hidden="true" />
-              <WorkshopOverviewPage
-                workflow={workflow}
-                online={online}
-                onEditKpi={() => setKpiOpen(true)}
-                onCompleteClosing={requestClose}
-                onHistory={() => setHistoryTarget({ scene: 'pulse', record: null })}
-                onRefresh={() => void workflow.refresh()}
-                onReopenClosing={() => void reopen()}
-                onExportReport={exportClosingReport}
-                onJump={jumpFromOverview}
-              />
-            </ModuleSection>
-            <ModuleSection sceneId="pickup" active={activeScene === 'pickup'}><PickupScene {...recordProps('pickup')} /></ModuleSection>
-            <ModuleSection sceneId="poster" active={activeScene === 'poster'}><OpeningScene {...recordProps('poster')} /></ModuleSection>
-            <ModuleSection sceneId="repair" active={activeScene === 'repair'}><RepairScene {...recordProps('repair')} /></ModuleSection>
-            <ModuleSection sceneId="resale" active={activeScene === 'resale'}><ResaleScene {...recordProps('resale')} /></ModuleSection>
-            <ModuleSection sceneId="sales" active={activeScene === 'sales'}><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></ModuleSection>
+          <div className="workshop-scene-stage" data-workspace-layer="focus">
+            {activeScene === 'pulse' ? <ScenePanel sceneId="pulse" className="workshop-overview-module"><span className="closing-summary-anchor" id="closing-summary-anchor" aria-hidden="true" /><WorkshopOverviewPage workflow={workflow} online={online} onEditKpi={() => setKpiOpen(true)} onCompleteClosing={requestClose} onHistory={() => setHistoryTarget({ scene: 'pulse', record: null })} onRefresh={() => void workflow.refresh()} onReopenClosing={() => void reopen()} onExportReport={exportClosingReport} onJump={jumpFromOverview} /></ScenePanel> : null}
+            {activeScene === 'pickup' ? <ScenePanel sceneId="pickup" className="workshop-pickup-module"><PickupScene {...recordProps('pickup')} /></ScenePanel> : null}
+            {activeScene === 'poster' ? <ScenePanel sceneId="poster"><OpeningScene {...recordProps('poster')} /></ScenePanel> : null}
+            {activeScene === 'repair' ? <ScenePanel sceneId="repair"><RepairScene {...recordProps('repair')} /></ScenePanel> : null}
+            {activeScene === 'resale' ? <ScenePanel sceneId="resale"><ResaleScene {...recordProps('resale')} /></ScenePanel> : null}
+            {activeScene === 'sales' ? <ScenePanel sceneId="sales"><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></ScenePanel> : null}
           </div>
-          <footer className="closing-footer workshop-footer">
-            <div className="footer-identity"><span>{currentStore?.storeName || 'ACTIVE USER'} · {roleLabels[role]}</span><strong>{currentUser}</strong></div>
-            <span>LAST SYNC · 最后同步</span>
-            <strong>{workflow.lastSyncedAt ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(workflow.lastSyncedAt)) : '尚未同步'}</strong>
-            <button type="button" className="primary-action" onClick={requestClose} disabled={writeLocked}>{workflow.closedAt ? '今日已闭店' : workflow.kpiReady ? '完成闭店' : '填写销售数据'}</button>
-            <div className="footer-utility-actions" aria-label="日报辅助操作"><button type="button" onClick={() => setMenuOpen(true)}>日报菜单</button><button type="button" onClick={() => setLogOpen(true)}>当日日志</button><button type="button" onClick={() => setPermanentHistoryOpen(true)}>永久历史</button></div>
-          </footer>
         </main>
         <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} />
         <GovernanceDialog open={governanceOpen} onClose={() => setGovernanceOpen(false)} currentStoreId={currentStore?.storeId || auth.currentStoreId} onNotify={setToast} />
@@ -664,7 +527,6 @@ export default function App() {
         <ConfirmClosingDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={confirmClose} />
         <KpiDialog open={kpiOpen} onClose={() => setKpiOpen(false)} values={workflow.kpi} savedAt={workflow.kpiSavedAt} onSave={workflow.saveKpi} onClear={workflow.clearKpi} onNotify={setToast} />
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
-        {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={activeScene} onJump={jumpFromOverview} closedAt={workflow.closedAt} /></div> : null}
       </div>
       {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button></div> : null}
       <ReportImageDialog
