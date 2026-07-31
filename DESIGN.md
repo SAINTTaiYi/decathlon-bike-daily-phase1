@@ -194,3 +194,7 @@ When modifying an existing screen:
 - Plans, journals, release notes, and Preview receipts may record historical facts but must not define an alternative visual system.
 - Any proposal to change the project-wide palette, typography, surface geometry, navigation model, or interaction language requires explicit user approval and a Preview acceptance cycle.
 - Preview-only design changes do not increment the public version. Production remains a separate, explicitly approved release action.
+
+## Workshop module navigation
+
+The six business modules use one normal vertical document flow in this order: Overview, Pending, Other, Repair, Used, Sales. The fixed bottom dock may identify the visible module and scroll to its section, but must not rotate, scale, stack, pin, snap, or replace modules. All modules remain mounted and reachable through ordinary vertical scrolling, including with reduced motion.
