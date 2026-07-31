@@ -1239,21 +1239,33 @@ button:disabled { opacity: .48; }
   .repair-pixel-dissolve i { visibility: hidden; }
 }
 
-/* Static reference-poster header for the Overview only. Other modules retain the operational header above. */
-.workshop-shell-header[data-active-module='pulse'] { background: var(--ops-page); box-shadow: 0 1px 0 rgb(12 14 12 / .14); }
-.workshop-poster-header { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; min-height: 68px; padding-inline: 10px; }
-.workshop-poster-brand { display: flex; align-items: center; gap: 7px; min-width: 0; font-family: var(--ops-display); font-size: 10px; line-height: .9; }
-.workshop-poster-brand > i { display: flex; gap: 2px; width: 27px; height: 25px; }
-.workshop-poster-brand > i b { display: block; width: 7px; height: 25px; background: var(--ops-black); clip-path: polygon(55% 0,100% 0,45% 100%,0 100%); }
-.workshop-poster-brand > i b:first-child { background: #ff6a00; }
-.workshop-poster-coordinate { display: none; align-items: center; gap: 5px; color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 8px; line-height: 1; }
-.workshop-poster-coordinate > b { display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid #ff6a00; border-radius: 50%; color: #ff6a00; font-size: 18px; }
-.workshop-poster-actions { display: flex; gap: 4px; margin-left: 7px; }
-.workshop-poster-actions button { position: relative; display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 44px; min-height: 44px; padding-inline: 9px; border: 1px solid var(--ops-black); border-radius: 0; background: transparent; font-family: var(--ops-display); font-size: 11px; font-weight: 700; }
-.workshop-poster-actions button:last-child { min-width: 78px; background: var(--ops-black); color: var(--ops-card); }
-.workshop-poster-actions button > i { position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: #ff6a00; }
-.workshop-poster-context { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 7px; min-height: 40px; padding: 0 10px; border-top: 1px solid rgb(12 14 12 / .15); font-family: var(--ops-display); font-size: 9px; }
-.workshop-poster-context span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.workshop-poster-context small { color: #ff6a00; font-weight: 700; }
-@media (min-width: 600px) { .workshop-poster-header { padding-inline: 7%; } .workshop-poster-coordinate { display: flex; } .workshop-poster-context { padding-inline: 7%; } }
-@media (forced-colors: active) { .workshop-poster-brand > i b, .workshop-poster-actions button:last-child { border: 1px solid ButtonText; background: ButtonFace; color: ButtonText; } }
+/* Figure 3 Overview header is registered inside the same 852:1876 poster coordinate field. */
+.workshop-runtime[data-active-scene='pulse'] > [data-workspace-layer='navigation'] { position: absolute; }
+.workshop-runtime[data-active-scene='pulse'] .workshop-shell { width: 100%; min-height: 0; padding: 0; }
+.workshop-runtime[data-active-scene='pulse'] .workshop-continuous-stack { min-height: 0; padding-bottom: var(--dock-space); }
+.workshop-runtime[data-active-scene='pulse'] .workshop-overview-module { display: block; width: 100%; min-height: 0; margin: 0; padding: 0; scroll-margin-top: 0; }
+.workshop-shell-header[data-active-module='pulse'] { width: min(100%,852px); height: auto; background: transparent; box-shadow: none; container-type: inline-size; pointer-events: none; }
+.workshop-poster-header { position: relative; width: 100%; aspect-ratio: 852 / 112; pointer-events: none; }
+.workshop-poster-brand { position: absolute; top: 8.55cqw; left: 6.1cqw; display: flex; align-items: center; gap: 3cqw; color: var(--ops-black); font-family: var(--ops-display); font-size: 1.12cqw; font-weight: 700; line-height: 1; white-space: nowrap; }
+.workshop-poster-brand > i { display: flex; gap: .35cqw; width: 6cqw; height: 2.3cqw; }
+.workshop-poster-brand > i b { display: block; width: 1.65cqw; height: 2.3cqw; background: var(--ops-black); clip-path: polygon(35% 0,100% 0,65% 100%,0 100%); }
+.workshop-poster-brand > i b:first-child { background: var(--ops-orange); }
+.workshop-poster-coordinate { position: absolute; top: calc(9.88cqw - 22px); left: 39.65cqw; display: flex; align-items: center; gap: 3.4cqw; width: 23.5cqw; min-height: 44px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--ops-muted); font-family: var(--ops-display); font-size: 1.12cqw; font-weight: 500; pointer-events: auto; }
+.workshop-poster-coordinate > b { position: relative; display: grid; place-items: center; width: 2.7cqw; height: 2.7cqw; color: var(--ops-muted); font-size: 2.45cqw; font-weight: 500; }
+.workshop-poster-coordinate > b::before, .workshop-poster-coordinate > b::after { position: absolute; background: var(--ops-muted); content: ''; }
+.workshop-poster-coordinate > b::before { width: 2.7cqw; height: 1px; }
+.workshop-poster-coordinate > b::after { width: 1px; height: 2.7cqw; }
+.workshop-poster-coordinate > i { position: absolute; top: 8px; left: 2cqw; width: .7cqw; height: .7cqw; border-radius: 50%; background: var(--ops-orange); }
+.workshop-poster-menu { position: absolute; top: calc(9.75cqw - 22px); right: 6.1cqw; display: flex; align-items: center; justify-content: center; gap: 1.3cqw; width: 13.15cqw; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--ops-black); font-family: var(--ops-display); font-size: 1.9cqw; font-weight: 500; pointer-events: auto; }
+.workshop-poster-menu::before { position: absolute; top: 50%; right: 0; left: 0; z-index: -1; height: 5.15cqw; border: 1px solid var(--ops-muted); border-radius: .75cqw; content: ''; translate: 0 -50%; }
+.workshop-poster-menu svg { width: 2.8cqw; height: 2.8cqw; }
+@media (max-width: 374px) {
+  .workshop-poster-brand { gap: 2.2cqw; font-size: 1.25cqw; }
+  .workshop-poster-coordinate { gap: 2.2cqw; }
+}
+@media (min-width: 853px) {
+  .workshop-runtime[data-active-scene='pulse'] .workshop-shell { width: min(100%,1180px); }
+}
+@media (forced-colors: active) {
+  .workshop-poster-brand > i b, .workshop-poster-menu::before { border: 1px solid ButtonText; background: ButtonFace; color: ButtonText; }
+}

@@ -35,12 +35,14 @@ test('overview is one industrial poster composition rather than five page sectio
   assert.match(overview, /TODAY'S<br \/>OVERVIEW/u)
 })
 
-test('390 poster is about 2025px and responsive geometry stays static', async () => {
-  const [overview, css] = await Promise.all([read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'), read('apps/web/src/styles/mobile-overview.css')])
-  for (const rule of [/min-height: 970px/u,/min-height: 285px/u,/min-height: 590px/u,/min-height: 180px/u,/@media \(max-width: 374px\)/u,/@media \(min-width: 600px\)/u,/@media \(min-width: 840px\)/u,/@media \(min-width: 1200px\)/u,/repeat\(6,minmax\(0,1fr\)\)/u,/env\(safe-area-inset-bottom\)/u,/@media \(prefers-reduced-motion: reduce\)/u,/@media \(forced-colors: active\)/u]) assert.match(css, rule)
-  assert.doesNotMatch(css, /overflow-x:\s*auto|font-size:\s*clamp|font-size:[^;]*(?:vw|dvw)|letter-spacing:\s*-/u)
+test('390 poster uses one normalized 852 by 1876 coordinate field and stays static', async () => {
+  const [overview, css, system] = await Promise.all([read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'), read('apps/web/src/styles/mobile-overview.css'), read('apps/web/src/styles/workshop-system.css')])
+  for (const rule of [/aspect-ratio: 852 \/ 1876/u,/position: absolute; inset: 0/u,/container-type: inline-size/u,/@media \(max-width: 374px\)/u,/@media \(min-width: 600px\)/u,/@media \(min-width: 840px\)/u,/@media \(min-width: 1200px\)/u,/repeat\(6,minmax\(0,1fr\)\)/u,/@media \(prefers-reduced-motion: reduce\)/u,/@media \(forced-colors: active\)/u]) assert.match(css, rule)
+  assert.ok(system.includes(".workshop-runtime[data-active-scene='pulse'] .workshop-overview-module { display: block; width: 100%; min-height: 0; margin: 0; padding: 0;"))
+  assert.doesNotMatch(css, /min-height:\s*(?:970|285|590|180)px|overflow-x:\s*auto|font-size:\s*clamp|font-size:[^;]*(?:vw|dvw)|letter-spacing:\s*-/u)
   assert.doesNotMatch(css, /gradient|@keyframes|animation\s*:|transition\s*:|transform\s*:/u)
-  assert.doesNotMatch(overview, /requestAnimationFrame|addEventListener|behavior:\s*'smooth'/u)
+  assert.doesNotMatch(overview, /requestAnimationFrame|addEventListener|behavior:\s*'smooth'|poster-operation-links/u)
+  assert.match(overview, /viewBox="0 0 852 1876"/u)
   assert.match(overview, /behavior: 'auto'/u)
 })
 
