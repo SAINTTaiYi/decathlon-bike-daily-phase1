@@ -18,3 +18,13 @@
 Targeted contracts, full tests, typecheck, workflow policy, Vite build, post-CodeGraph, bounded secret scan, candidate CI and Protected Preview-only deployment. Public V5.7.9 and Production remain unchanged.
 
 - Final frozen gates: full repository tests, typecheck, 88 workflow policies, official Web build, CC0 asset integrity and bounded credential scan passed. Post-change CodeGraph: 197 files / 2,327 nodes / 7,808 edges, up to date.
+
+## Immersive overlay correction — 2026-07-31
+
+- Human Preview feedback rejected the split composition of a bounded image followed by a page-sized business module.
+- All six scenes now use edge-to-edge 100dvh sticky images. Overview joins the same material-stage architecture instead of retaining a warm-white poster boundary.
+- Semantic headings, queue controls, ledger headers, record rows, KPI instruments and actions remain real and interactive, but are distributed as local translucent instruments over each image. No page-sized white ledger/module shell remains.
+- Native scroll progress maps directly at viewport 82%; active scene identity crosses at 62%. There is no smoothing, scroll snap, ScrollTrigger, wheel capture or touch capture.
+- The fixed header is a warm-white-to-transparent gradient. Existing menu/log handlers and 44px targets remain.
+- Four 25% Obsidian Assembly transition bands, image scale/translation, character reveal, reduced-motion and forced-colors paths remain.
+- Targeted contracts 23/23 and direct Vite build (122 modules) passed. Full gates and Preview lifecycle remain pending.

@@ -1,52 +1,262 @@
-
-/* Obsidian Assembly reconstruction: stable document geometry, sticky material stages and content-first layering. */
-.workshop-runtime > [data-workspace-layer='navigation'] { position: fixed !important; top: 0; left: 50%; z-index: 70; width: min(100%,1180px); translate: -50% 0; }
+/* Immersive Obsidian Assembly reconstruction.
+   Every business scene is one full-bleed sticky image timeline; semantic controls float inside it. */
+.workshop-runtime > [data-workspace-layer='navigation'] {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  z-index: 70;
+  width: 100%;
+  padding-bottom: 34px;
+  translate: none;
+  background: linear-gradient(180deg,rgb(247 245 239 / .98) 0%,rgb(247 245 239 / .84) 48%,rgb(247 245 239 / .28) 78%,rgb(247 245 239 / 0) 100%);
+  pointer-events: none;
+}
+.workshop-runtime > [data-workspace-layer='navigation'] .workshop-shell-header { pointer-events: auto; }
 .workshop-runtime .workshop-shell,
-.workshop-runtime[data-active-scene='pulse'] .workshop-shell { width: 100%; min-height: 100dvh; padding: 0; }
+.workshop-runtime[data-active-scene='pulse'] .workshop-shell { width: 100%; max-width: none; min-height: 100dvh; padding: 0; }
 .workshop-runtime .workshop-continuous-stack,
-.workshop-runtime[data-active-scene='pulse'] .workshop-continuous-stack { min-height: 100dvh; padding: 0; overflow: clip visible; }
-.workshop-continuous-stack { isolation: isolate; }
-.workshop-assembly-line-layer { z-index: 0; opacity: .72; }
+.workshop-runtime[data-active-scene='pulse'] .workshop-continuous-stack { width: 100%; min-height: 100dvh; padding: 0; overflow: clip visible; }
+.workshop-continuous-stack { isolation: isolate; background: var(--ops-black); }
+.workshop-assembly-line-layer { z-index: 0; opacity: .42; mix-blend-mode: screen; }
+
 .workshop-continuous-module,
 .workshop-runtime[data-active-scene='pulse'] .workshop-overview-module {
-  position: relative; z-index: 1; display: block; width: min(100%,1180px); min-height: 170dvh; margin: 0 auto; padding: 0 14px 18dvh; overflow: visible; opacity: 1; transform: none; transition: none; will-change: auto;
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  max-width: none;
+  min-height: 132dvh;
+  margin: 0;
+  padding: 0;
+  overflow: clip;
+  outline: none;
+  background: var(--ops-black);
+  opacity: 1;
+  transform: none;
+  transition: none;
+  will-change: auto;
+  isolation: isolate;
 }
-.workshop-continuous-module + .workshop-continuous-module { margin-top: 0; }
+.workshop-continuous-module + .workshop-continuous-module { margin-top: -8dvh; }
 .workshop-overview-module,
-.workshop-runtime[data-active-scene='pulse'] .workshop-overview-module { width: min(100%,852px); min-height: 0; padding: 0; }
+.workshop-runtime[data-active-scene='pulse'] .workshop-overview-module { min-height: 154dvh; }
 .workshop-continuous-heading,
 .workshop-continuous-content { position: relative; z-index: 4; }
-.workshop-continuous-module:not(.workshop-overview-module) .workshop-continuous-heading { margin-top: -66dvh; margin-bottom: 48dvh; color: var(--ops-black); }
-.workshop-continuous-module:nth-child(even) .workshop-continuous-heading { justify-self: auto; margin-left: auto; }
-.workshop-continuous-module:not(.workshop-overview-module) .workshop-continuous-content { padding: 22px 0 12dvh; }
-.workshop-continuous-content :is(.record-row,.pickup-card,.sales-input-summary,.kpi-sheet,.record-ledger-head,.pickup-queue-controls,.pickup-ledger-intro) { position: relative; z-index: 5; background: var(--ops-card) !important; }
-.pickup-hero-guide { z-index: 0; }
-.pickup-reference-hero::after { z-index: 1; }
-.pickup-hero-ore { z-index: 2; }
-.pickup-hero-status,.pickup-chapter { z-index: 3; }
+.workshop-continuous-module:not(.workshop-overview-module) .workshop-continuous-heading {
+  width: min(90%,1180px);
+  margin: -100dvh auto 0;
+  padding-top: max(112px,14dvh);
+  color: var(--ops-card);
+  text-align: left;
+  text-shadow: 0 2px 20px rgb(0 0 0 / .66);
+}
+.workshop-continuous-module:nth-child(even) .workshop-continuous-heading {
+  grid-template-columns: 56px minmax(0,1fr);
+  justify-self: auto;
+  margin-left: auto;
+  text-align: left;
+}
+.workshop-continuous-module:nth-child(even) .workshop-continuous-heading > span { grid-column: 1; grid-row: 1; }
+.workshop-continuous-module:nth-child(even) .workshop-continuous-heading > div { grid-column: 2; grid-row: 1; }
+.workshop-continuous-heading > span {
+  background: rgb(10 11 10 / .7);
+  color: var(--ops-orange);
+  box-shadow: none;
+  backdrop-filter: blur(10px);
+}
+.workshop-continuous-heading small { color: var(--ops-orange); }
+.workshop-continuous-heading h2 { color: var(--ops-card); font-size: clamp(28px,7vw,54px); }
+.workshop-continuous-heading p { color: rgb(255 253 248 / .72); }
+.workshop-continuous-module:not(.workshop-overview-module) .workshop-continuous-content {
+  width: min(100%,1180px);
+  min-height: 132dvh;
+  margin: 0 auto;
+  padding: 54dvh clamp(14px,4vw,46px) 18dvh;
+  color: var(--ops-card);
+}
+.workshop-continuous-content > .look-section,
+.workshop-continuous-content > .pickup-look { min-height: 0; margin: 0; padding: 0; border: 0; background: transparent; }
 
 .assembly-module-stage {
   --assembly-local-progress: inherit;
-  position: sticky; top: 0; z-index: 1; height: 100dvh; min-height: 620px; overflow: hidden; background: transparent; color: var(--ops-black); isolation: isolate;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100dvh;
+  min-height: 560px;
+  overflow: hidden;
+  background: var(--ops-black);
+  color: var(--ops-card);
+  isolation: isolate;
 }
-.assembly-stage-field { position: absolute; inset: 0; background: transparent; }
-.assembly-stage-image { position: absolute; inset: 8% 6% 10%; margin: 0; overflow: hidden; border-radius: 4px; clip-path: inset(calc((1 - var(--assembly-local-progress)) * 30%) calc((1 - var(--assembly-local-progress)) * 18%) calc((1 - var(--assembly-local-progress)) * 8%)); transform: scale(calc(1.28 - var(--assembly-local-progress) * .2)); transform-origin: 50% 52%; }
-.assembly-stage-image::after { position: absolute; inset: 0; background: rgb(12 14 12 / .28); content: ''; }
-.assembly-stage-image img { display: block; width: 100%; height: 100%; object-fit: cover; filter: saturate(.55) contrast(1.08); }
-.assembly-stage-copy { position: absolute; z-index: 3; right: 7%; bottom: 9%; left: 7%; display: grid; gap: 10px; color: var(--ops-card); text-shadow: 0 2px 18px rgb(0 0 0 / .42); }
-.assembly-stage-copy > span { font-family: var(--ops-display); font-size: 11px; font-weight: 700; text-transform: uppercase; }
-.assembly-stage-copy > strong { max-width: 9ch; font-family: var(--ops-display); font-size: 64px; font-weight: 700; line-height: .78; text-transform: uppercase; }
-.assembly-stage-copy > p { max-width: 28rem; font-size: 14px; font-weight: 650; line-height: 1.45; }
-.assembly-stage-orbit { position: absolute; z-index: 2; top: 12%; right: -13%; width: 58%; aspect-ratio: 1; border: 1px solid rgb(241 234 222 / .72); border-radius: 50%; transform: translate3d(calc((.5 - var(--assembly-local-progress)) * 18vw),calc((.5 - var(--assembly-local-progress)) * 12dvh),0) rotate(calc(var(--assembly-local-progress) * 90deg)); }
-.assembly-stage-cross { position: absolute; z-index: 3; top: 18%; left: 10%; width: 34px; height: 34px; color: var(--ops-orange); transform: rotate(calc(var(--assembly-local-progress) * 180deg)); }
+.assembly-stage-image { position: absolute; inset: 0; z-index: 0; margin: 0; overflow: hidden; }
+.assembly-stage-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 50%;
+  filter: saturate(.62) contrast(1.12) brightness(.72);
+  transform: translate3d(0,calc((.5 - var(--assembly-local-progress)) * 7dvh),0) scale(calc(1.12 - var(--assembly-local-progress) * .08));
+  transform-origin: 50% 52%;
+  will-change: transform;
+}
+.assembly-stage-field {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(180deg,rgb(7 8 7 / .42) 0%,rgb(7 8 7 / .08) 30%,rgb(7 8 7 / .16) 53%,rgb(7 8 7 / .88) 100%);
+}
+.assembly-module-stage::before {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: repeating-linear-gradient(180deg,rgb(12 14 12 / .96) 0%,rgb(12 14 12 / .96) 24.9%,rgb(58 51 55 / .96) 25%,rgb(58 51 55 / .96) 49.9%);
+  clip-path: inset(0 0 min(100%,calc(var(--assembly-local-progress) * 500%)) 0);
+  content: '';
+  pointer-events: none;
+}
+.assembly-stage-copy {
+  position: absolute;
+  z-index: 3;
+  right: clamp(18px,6vw,84px);
+  bottom: clamp(64px,11dvh,120px);
+  left: clamp(18px,6vw,84px);
+  display: grid;
+  gap: 10px;
+  color: var(--ops-card);
+  text-shadow: 0 3px 22px rgb(0 0 0 / .66);
+  pointer-events: none;
+}
+.assembly-stage-copy > span { font-family: var(--ops-display); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+.assembly-stage-copy > strong { max-width: 10ch; font-family: var(--ops-display); font-size: clamp(70px,22vw,190px); font-weight: 700; line-height: .72; text-transform: uppercase; }
+.assembly-stage-copy > p { max-width: 36rem; font-size: clamp(14px,2.4vw,19px); font-weight: 700; line-height: 1.45; }
+.assembly-stage-orbit { position: absolute; z-index: 2; top: 8%; right: -20%; width: min(72vw,720px); aspect-ratio: 1; border: 1px solid rgb(255 253 248 / .58); border-radius: 50%; transform: translate3d(calc((.5 - var(--assembly-local-progress)) * 14vw),calc((.5 - var(--assembly-local-progress)) * 9dvh),0) rotate(calc(var(--assembly-local-progress) * 90deg)); }
+.assembly-stage-cross { position: absolute; z-index: 3; top: 24%; left: 8%; width: 34px; height: 34px; color: var(--ops-orange); transform: rotate(calc(var(--assembly-local-progress) * 180deg)); }
 .assembly-stage-cross::before,.assembly-stage-cross::after { position: absolute; top: 50%; left: 50%; background: currentColor; content: ''; translate: -50% -50%; }
 .assembly-stage-cross::before { width: 100%; height: 1px; }
 .assembly-stage-cross::after { width: 1px; height: 100%; }
-.assembly-module-stage[data-assembly-stage='places'] .assembly-stage-image { inset: 9% 2% 12%; clip-path: inset(calc((1 - var(--assembly-local-progress)) * 22%) calc((1 - var(--assembly-local-progress)) * 34%) 0 round 48% 48% 5px 5px); }
-.assembly-module-stage[data-assembly-stage='objects'] .assembly-stage-image { inset: 6% 12% 15% 2%; clip-path: polygon(0 calc((1 - var(--assembly-local-progress)) * 36%),100% 0,100% 100%,0 88%); }
-.assembly-module-stage[data-assembly-stage='about'] .assembly-stage-image { inset: 10% 3% 8% 16%; clip-path: circle(calc(18% + var(--assembly-local-progress) * 58%) at 60% 48%); }
-.assembly-module-stage[data-assembly-stage='people'] .assembly-stage-image { inset: 5% 0 14% 8%; clip-path: inset(0 calc((1 - var(--assembly-local-progress)) * 42%) 0 0 round 48% 48% 2px 2px); }
-.assembly-module-stage[data-assembly-stage='policy'] .assembly-stage-image { inset: 8% 8% 12%; clip-path: polygon(12% 0,88% 0,calc(100% - (1 - var(--assembly-local-progress)) * 18%) 100%,calc((1 - var(--assembly-local-progress)) * 18%) 100%); }
+.assembly-module-stage[data-assembly-stage='places'] .assembly-stage-image img { object-position: 52% 50%; }
+.assembly-module-stage[data-assembly-stage='objects'] .assembly-stage-image img { object-position: 46% 50%; }
+.assembly-module-stage[data-assembly-stage='about'] .assembly-stage-image img { object-position: 64% 50%; }
+.assembly-module-stage[data-assembly-stage='people'] .assembly-stage-image img { object-position: 48% 50%; }
+.assembly-module-stage[data-assembly-stage='policy'] .assembly-stage-image img { object-position: 62% 50%; }
+
+/* Business controls are fragments in the image field, never a second page-sized card. */
+.workshop-continuous-content .scene-title { max-width: 720px; margin: 0 0 18px; color: var(--ops-card); }
+.workshop-continuous-content .scene-note { display: inline-block; max-width: 48rem; margin: 0; padding: 10px 12px; background: rgb(10 11 10 / .58); color: rgb(255 253 248 / .86); font-size: 13px; line-height: 1.55; backdrop-filter: blur(12px); }
+.workshop-continuous-content .scene-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.workshop-continuous-content .scene-actions button,
+.workshop-continuous-content :is(.ledger-history,.ledger-add) { border-color: rgb(255 253 248 / .72) !important; background: rgb(10 11 10 / .62) !important; color: var(--ops-card) !important; box-shadow: none; backdrop-filter: blur(12px); }
+.workshop-continuous-content :is(.ledger-add,.record-primary-action,.pickup-primary-action,.sales-input-summary > button) { border-color: var(--ops-orange) !important; background: var(--ops-orange) !important; color: var(--ops-black) !important; }
+.workshop-continuous-content .record-ledger { grid-template-columns: repeat(auto-fit,minmax(min(100%,300px),1fr)); gap: 10px; background: transparent !important; }
+.workshop-continuous-content .record-ledger-head { grid-column: 1 / -1; padding: 0 0 12px; background: transparent !important; color: var(--ops-card); box-shadow: none !important; }
+.workshop-continuous-content .record-ledger-head small,
+.workshop-continuous-content .ledger-swipe-hint { color: rgb(255 253 248 / .66); }
+.workshop-continuous-content .record-swipe-frame { background: rgb(190 45 20 / .84); }
+.workshop-continuous-content .record-row,
+.workshop-continuous-content .empty-inline {
+  border: 1px solid rgb(255 253 248 / .22) !important;
+  background: rgb(10 11 10 / .64) !important;
+  color: var(--ops-card);
+  box-shadow: none;
+  backdrop-filter: blur(14px) saturate(.8);
+}
+.workshop-continuous-content .record-row :is(.record-model-block > span,.record-detail-line,.record-resolution-note,.record-scan-item) { color: rgb(255 253 248 / .74); }
+.workshop-continuous-content .record-row :is(.record-state,.record-badge,.pickup-source-label) { border-color: rgb(255 253 248 / .34) !important; color: var(--ops-card); }
+.workshop-continuous-content .record-row .record-history-mark { background: rgb(255 106 0 / .9); }
+.workshop-continuous-content .record-actions button { border-color: rgb(255 253 248 / .45) !important; background: rgb(255 253 248 / .9) !important; }
+.workshop-continuous-content .record-ledger[data-dark='true'] { grid-column: 1 / -1; padding: 0; background: transparent; }
+
+/* Pickup controls and cards are independent glass instruments over the material image. */
+.workshop-continuous-content .pickup-reference-hero { display: none; }
+.workshop-continuous-content .pickup-ledger { z-index: 4; margin: 0; padding: 0; color: var(--ops-card); }
+.workshop-continuous-content :is(.pickup-queue-controls,.pickup-tools-area,.pickup-queue-summary,.pickup-ledger-intro) { border: 0 !important; background: transparent !important; box-shadow: none !important; }
+.workshop-continuous-content .pickup-queue-controls { padding: 0; }
+.workshop-continuous-content .pickup-queue-summary { color: var(--ops-card); }
+.workshop-continuous-content .pickup-tools-area { padding-inline: 0; }
+.workshop-continuous-content .pickup-tool-row { padding: 8px; background: rgb(10 11 10 / .58); backdrop-filter: blur(14px); }
+.workshop-continuous-content .pickup-search-field,
+.workshop-continuous-content .pickup-tool-row button { border-color: rgb(255 253 248 / .34) !important; background: rgb(255 253 248 / .9) !important; color: var(--ops-black); }
+.workshop-continuous-content .pickup-ledger-intro { min-height: 0; padding: 18px 0 12px; color: var(--ops-card); }
+.workshop-continuous-content .pickup-ledger-intro span { color: var(--ops-orange); }
+.workshop-continuous-content .pickup-card-grid { gap: 10px; }
+.workshop-continuous-content .pickup-card,
+.workshop-continuous-content .pickup-empty-state,
+.workshop-continuous-content .pickup-completed-today {
+  border: 1px solid rgb(255 253 248 / .22) !important;
+  background: rgb(255 253 248 / .88) !important;
+  color: var(--ops-black);
+  box-shadow: none;
+  backdrop-filter: blur(14px) saturate(.78);
+}
+
+/* Sales becomes a floating instrument cluster. */
+.workshop-continuous-content .sales-input-summary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; padding: 0; background: transparent !important; }
+.workshop-continuous-content .sales-input-summary > div { min-height: 112px; border: 1px solid rgb(255 253 248 / .22); background: rgb(10 11 10 / .62) !important; color: var(--ops-card); backdrop-filter: blur(14px); }
+.workshop-continuous-content .sales-input-summary > button,
+.workshop-continuous-content .sales-input-summary > p { grid-column: 1 / -1; }
+.workshop-continuous-content .sales-input-summary > p { padding: 10px 12px; background: rgb(10 11 10 / .54); color: rgb(255 253 248 / .82); }
+
+/* Overview: dismantle the warm-white poster and place its real controls in the first image field. */
+.workshop-overview-module > .workshop-continuous-heading { display: none; }
+.workshop-overview-module > .workshop-continuous-content { width: 100%; min-height: 154dvh; margin-top: -100dvh; padding: 0 !important; color: var(--ops-card); }
+.workshop-overview-module .assembly-stage-copy { display: none; }
+.workshop-overview-module .ops-mobile-overview { width: 100%; max-width: none; overflow: visible; }
+.workshop-overview-module .workshop-poster { width: 100%; max-width: none; min-height: 154dvh; aspect-ratio: auto; overflow: visible; background: transparent; color: var(--ops-card); }
+.workshop-overview-module .poster-guides,.workshop-overview-module .poster-ore,.workshop-overview-module .poster-plinth { display: none; }
+.workshop-overview-module .poster-title-block h1 { top: max(116px,15dvh); left: 5%; color: var(--ops-card); font-size: clamp(78px,24vw,210px); text-shadow: 0 3px 26px rgb(0 0 0 / .7); }
+.workshop-overview-module .poster-date { top: max(122px,16dvh); right: 5%; width: auto; color: var(--ops-card); text-shadow: 0 2px 15px rgb(0 0 0 / .7); }
+.workshop-overview-module .poster-date strong { font-size: clamp(32px,9vw,64px); }
+.workshop-overview-module .poster-system-line { top: 39dvh; left: 6%; width: auto; color: var(--ops-card); }
+.workshop-overview-module .poster-purpose { top: 47dvh; left: 6%; color: var(--ops-card); font-size: clamp(16px,4vw,28px); text-shadow: 0 2px 18px rgb(0 0 0 / .72); }
+.workshop-overview-module .poster-object-note { color: var(--ops-card); text-shadow: 0 2px 16px rgb(0 0 0 / .72); }
+.workshop-overview-module .poster-object-note-left { top: 54dvh; left: 6%; }
+.workshop-overview-module .poster-object-note-right { top: 54dvh; right: 6%; }
+.workshop-overview-module .poster-kpi > div { top: 61dvh; left: 5%; width: auto; text-align: left; }
+.workshop-overview-module .poster-kpi h2 { color: var(--ops-card); font-size: clamp(54px,15vw,112px); text-shadow: 0 3px 20px rgb(0 0 0 / .7); }
+.workshop-overview-module .poster-kpi > button { top: 72dvh; left: 5%; width: min(58%,340px); color: var(--ops-black); font-size: 13px; }
+.workshop-overview-module .poster-photo { top: 82dvh; width: calc(45% - 8px); height: 58px; clip-path: none; border: 1px solid rgb(255 253 248 / .4); border-radius: 8px; background: rgb(10 11 10 / .58); backdrop-filter: blur(12px); }
+.workshop-overview-module .poster-photo-left { left: 5%; }
+.workshop-overview-module .poster-photo-right { right: 5%; }
+.workshop-overview-module .poster-photo-media { display: none; }
+.workshop-overview-module .poster-photo > span { top: 12px; left: 12px; }
+.workshop-overview-module .poster-photo-right > span { right: 12px; left: auto; }
+.workshop-overview-module .poster-photo > span strong { font-size: 12px; }
+.workshop-overview-module .poster-photo > span small { display: none; }
+.workshop-overview-module .poster-swipe-cue { right: 8px; bottom: 7px; left: auto; font-size: 9px; }
+.workshop-overview-module .poster-overview-card {
+  top: 94dvh;
+  left: 5%;
+  width: 90%;
+  height: auto;
+  min-height: 42dvh;
+  padding: clamp(18px,5vw,38px);
+  border: 1px solid rgb(255 253 248 / .24);
+  border-radius: 8px;
+  background: rgb(10 11 10 / .58);
+  color: var(--ops-card);
+  backdrop-filter: blur(16px) saturate(.78);
+}
+.workshop-overview-module .poster-overview-card h2 { font-size: clamp(22px,6vw,42px); }
+.workshop-overview-module .poster-overview-card dl { margin-top: 18px; }
+.workshop-overview-module .poster-overview-card dl > div { min-height: 52px; border-color: rgb(255 253 248 / .2); }
+.workshop-overview-module .poster-overview-card dt strong { font-size: 14px; }
+.workshop-overview-module .poster-overview-card dt small { display: block; color: rgb(255 253 248 / .58); font-size: 9px; }
+.workshop-overview-module .poster-overview-card dd { font-size: clamp(28px,8vw,52px); }
+.workshop-overview-module .poster-overview-card header > i { background: var(--ops-orange); }
+.workshop-overview-module .poster-closing-control { position: relative; right: auto; bottom: auto; left: auto; grid-template-columns: minmax(0,1fr) minmax(120px,34%); gap: 8px; min-height: 50px; margin-top: 18px; }
+.workshop-overview-module .poster-closing-control > strong { font-size: 13px; }
+.workshop-overview-module .poster-closing-control > button { min-height: 48px; background: var(--ops-orange); color: var(--ops-black); font-size: 13px; }
+.workshop-overview-module .poster-closing-control > button::before { display: none; }
+.workshop-overview-module .poster-closing-control > div { top: calc(100% + 4px); background: transparent; }
+.workshop-overview-module .poster-footer { top: auto; bottom: 0; height: 13dvh; color: var(--ops-card); }
+.workshop-overview-module .poster-footer > span { top: 18%; }
+.workshop-overview-module .poster-globe { top: 18%; }
+.workshop-overview-module .poster-release { top: auto; bottom: 0; background: rgb(10 11 10 / .62); color: var(--ops-card); backdrop-filter: blur(12px); }
+.workshop-overview-module .poster-release > div { background: rgb(10 11 10 / .94); color: var(--ops-card); }
 
 .workspace-launch-overlay { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; overflow: hidden; background: transparent; }
 .workspace-launch-bands { position: absolute; inset: 0; display: grid; grid-template-rows: repeat(4,1fr); }
@@ -56,20 +266,34 @@
 .workspace-launch-title span { color: var(--ops-orange); font-size: .28em; }
 .workspace-launch-overlay button { position: absolute; z-index: 3; right: 16px; bottom: max(16px,env(safe-area-inset-bottom)); min-height: 44px; padding: 0 14px; }
 
-@media (min-width: 840px) {
-  .workshop-continuous-module { padding-inline: 28px; }
-  .assembly-stage-copy { right: 9%; bottom: 10%; left: 9%; }
-  .assembly-stage-copy > strong { font-size: 112px; }
-  .workspace-launch-title { font-size: 64px; }
-  .workshop-continuous-module:not(.workshop-overview-module) .workshop-continuous-heading { width: min(92%,980px); }
-}
-@media (min-width: 1024px) { .assembly-stage-copy > strong { font-size: 156px; } }
 [data-assembly-char] { opacity: .001; filter: blur(.08em); transform: translate3d(.28em,.9em,0) skew(15deg,30deg) scale(2); }
 [data-assembly-text][data-assembly-text-visible='true'] [data-assembly-char] { transition-duration: 1.5s; }
+
+@media (min-width: 600px) {
+  .workshop-continuous-module:not(.workshop-overview-module) .workshop-continuous-content { padding-inline: clamp(28px,6vw,72px); }
+  .workshop-continuous-content .pickup-card-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .assembly-stage-copy > strong { font-size: clamp(110px,17vw,190px); }
+}
+@media (min-width: 840px) {
+  .workshop-continuous-module:not(.workshop-overview-module) .workshop-continuous-heading { width: min(88%,1080px); }
+  .workshop-continuous-content .sales-input-summary { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .workshop-continuous-content .sales-input-summary > button { grid-column: 1 / 3; }
+  .workshop-continuous-content .sales-input-summary > p { grid-column: 3 / -1; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .assembly-module-stage { position: relative; height: min(82dvh,720px); }
-  .assembly-stage-image,.assembly-stage-orbit,.assembly-stage-cross { transform: none !important; }
-  .assembly-stage-image { clip-path: inset(0) !important; }
+  .workshop-continuous-module + .workshop-continuous-module { margin-top: 0; }
+  .assembly-module-stage { position: absolute; inset: 0; height: 100%; }
+  .assembly-module-stage::before { display: none; }
+  .assembly-stage-image img,.assembly-stage-orbit,.assembly-stage-cross { transform: none !important; }
+  .workshop-continuous-module:not(.workshop-overview-module) .workshop-continuous-heading { margin-top: 0; }
+  .workshop-overview-module > .workshop-continuous-content { margin-top: 0; }
   .workspace-launch-title { filter: none !important; transform: none !important; }
 }
-@media (forced-colors: active) { .assembly-module-stage { border-block: 1px solid CanvasText; background: Canvas; color: CanvasText; } .assembly-stage-image,.assembly-stage-orbit,.assembly-stage-cross { display: none; } .assembly-stage-copy { color: CanvasText; text-shadow: none; } }
+@media (forced-colors: active) {
+  .workshop-runtime > [data-workspace-layer='navigation'] { background: Canvas; }
+  .assembly-module-stage { border-block: 1px solid CanvasText; background: Canvas; color: CanvasText; }
+  .assembly-stage-image,.assembly-stage-orbit,.assembly-stage-cross { display: none; }
+  .assembly-stage-field { background: Canvas; }
+  .assembly-stage-copy,.workshop-continuous-module:not(.workshop-overview-module) .workshop-continuous-heading { color: CanvasText; text-shadow: none; }
+  .workshop-continuous-content :is(.record-row,.pickup-card,.poster-overview-card,.sales-input-summary > div) { border: 1px solid CanvasText !important; background: Canvas !important; color: CanvasText; }
+}
