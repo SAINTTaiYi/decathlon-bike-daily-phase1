@@ -2,9 +2,31 @@ import IconBell from '@iconoir/Bell.mjs'
 import IconMenu from '@iconoir/Menu.mjs'
 import { APP_VERSION } from '../../data/releaseNotes.js'
 import { sceneById } from '../../data/lookbookScenes.js'
-function formatDate(dateKey) { if (!dateKey) return 'DATE —'; const date = new Date(dateKey + 'T12:00:00'); if (Number.isNaN(date.getTime())) return dateKey; return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', weekday: 'short' }).format(date) }
+
+function formatDate(dateKey) {
+  if (!dateKey) return 'DATE —'
+  const date = new Date(`${dateKey}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return dateKey
+  return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', weekday: 'short' }).format(date)
+}
+
 export default function WorkshopShellHeader({ activeScene, dateKey, storeName, roleLabel, userName, onMenu, onLog, hasUnread }) {
-  const scene = sceneById(activeScene); const Icon = scene.NavIcon
-  if (scene.id === 'pulse') return <header className="workshop-shell-header" data-active-module={scene.id} aria-label={`${storeName || '门店'} · ${roleLabel || '成员'} · ${userName || '—'} · V${APP_VERSION}`}><div className="workshop-poster-header"><div className="workshop-poster-brand"><i aria-hidden="true"><b /><b /><b /></i><span>WORKSHOP OPERATIONS</span></div><button type="button" className="workshop-poster-coordinate" onClick={onLog} aria-label="查看当日日志"><b aria-hidden="true">+</b><span>22°32′ / 113°56′</span>{hasUnread ? <i aria-hidden="true" /> : null}</button><button type="button" className="workshop-poster-menu" onClick={onMenu} aria-label="打开日报菜单"><span>MENU</span><IconMenu width={19} height={19} aria-hidden="true" /></button></div></header>
-  return <header className="workshop-shell-header" data-active-module={scene.id}><div className="workshop-global-header"><button type="button" className="workshop-header-action" onClick={onMenu} aria-label="打开日报菜单"><IconMenu width={21} height={21} aria-hidden="true" /></button><div className="workshop-header-brand"><span>WORKSHOP LEDGER</span><strong>WORKSHOP OPS</strong><small>V{APP_VERSION}</small></div><div className="workshop-header-context"><time dateTime={dateKey || undefined}>{formatDate(dateKey)}</time><span>{storeName || '门店'} · {roleLabel || '成员'}</span><strong>{userName || '—'}</strong></div><button type="button" className="workshop-header-action" onClick={onLog} aria-label="查看当日日志"><IconBell width={21} height={21} aria-hidden="true" />{hasUnread ? <i aria-hidden="true" /> : null}</button></div><div className="workshop-module-header" aria-live="polite"><Icon width={20} height={20} strokeWidth={1.7} aria-hidden="true" /><span>{scene.no} / 06</span><strong>{scene.cn}</strong><small>{scene.title}</small></div></header>
+  const scene = sceneById(activeScene)
+  const Icon = scene.NavIcon
+  return (
+    <header className="workshop-shell-header" data-active-module={scene.id}>
+      <div className="workshop-global-header">
+        <button type="button" className="workshop-header-action" onClick={onMenu} aria-label="打开日报菜单"><IconMenu width={21} height={21} aria-hidden="true" /></button>
+        <div className="workshop-header-brand"><span>WORKSHOP LEDGER</span><strong>WORKSHOP OPS</strong><small>V{APP_VERSION}</small></div>
+        <div className="workshop-header-context"><time dateTime={dateKey || undefined}>{formatDate(dateKey)}</time><span>{storeName || '门店'} · {roleLabel || '成员'}</span><strong>{userName || '—'}</strong></div>
+        <button type="button" className="workshop-header-action" onClick={onLog} aria-label="查看当日日志"><IconBell width={21} height={21} aria-hidden="true" />{hasUnread ? <i aria-hidden="true" /> : null}</button>
+      </div>
+      <div className="workshop-module-header" aria-live="polite">
+        <Icon width={20} height={20} strokeWidth={1.7} aria-hidden="true" />
+        <span>{scene.no} / 06</span>
+        <strong>{scene.cn}</strong>
+        <small>{scene.title}</small>
+      </div>
+    </header>
+  )
 }

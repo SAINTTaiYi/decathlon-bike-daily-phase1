@@ -1,4 +1,3 @@
-function waitingDefault(records) { const waiting = records.filter((record) => !record.pickedUpToday); return (waiting[1] || waiting[0])?.id || '' }
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import IconArchive from '@iconoir/Archive.mjs'
@@ -118,7 +117,28 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
   const matchReason = hiddenMatchReason(record, query, source, contactValue, detailLine)
   const locked = Boolean(closedAt) || primaryActionBusy
 
-  useEffect(() => { if (pickupPixelFill) onPickupPixelFillComplete?.(record.id) }, [onPickupPixelFillComplete, pickupPixelFill, record.id])
+  useEffect(() => {
+    if (!pickupPixelFill) return undefined
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const timer = window.setTimeout(() => onPickupPixelFillComplete?.(record.id), reduced ? 0 : 460)
+    return () => window.clearTimeout(timer)
+  }, [onPickupPixelFillComplete, pickupPixelFill, record.id])
+
+  useEffect(() => {
+    const frame = frameRef.current
+    if (!frame) return undefined
+    if (!('IntersectionObserver' in window) || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      frame.setAttribute('data-entering', '')
+      return undefined
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return
+      frame.setAttribute('data-entering', '')
+      observer.unobserve(frame)
+    }, { threshold: 0.08, rootMargin: '0px 0px -3% 0px' })
+    observer.observe(frame)
+    return () => observer.disconnect()
+  }, [])
 
   const onPointerDown = (event) => { if (!pickedUp && !closedAt && event.pointerType !== 'mouse') startXRef.current = event.clientX }
   const onPointerUp = (event) => {
@@ -154,7 +174,7 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
 
 export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, onRemove, onHistory, onPickup, onPickupNotificationChange, pickupErrors = {}, primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete }) {
   const [query, setQuery] = useState('')
-  const [expandedId, setExpandedId] = useState(() => waitingDefault(records))
+  const [expandedId, setExpandedId] = useState('')
   const [density, setDensity] = useState(() => window.localStorage?.getItem('pickup-ledger-density') || 'balanced')
   const [sources, setSources] = useState([])
   const [sort, setSort] = useState(() => window.localStorage?.getItem('pickup-ledger-sort') || 'default')
@@ -162,6 +182,7 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [toolsVisible, setToolsVisible] = useState(true)
   const ledgerRef = useRef(null)
+  const lastScrollYRef = useRef(0)
   const waitingRecords = records.filter((record) => !record.pickedUpToday)
   const pickedRecords = records.filter((record) => record.pickedUpToday)
   const autoDensity = waitingRecords.length > 12 ? 'compact' : density
@@ -169,7 +190,19 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   useEffect(() => { window.localStorage?.setItem('pickup-ledger-density', density) }, [density])
   useEffect(() => { window.localStorage?.setItem('pickup-ledger-sort', sort) }, [sort])
   useEffect(() => { const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 250); return () => window.clearTimeout(timer) }, [query])
-
+  useEffect(() => {
+    const onScroll = () => {
+      const current = window.scrollY
+      const delta = current - lastScrollYRef.current
+      lastScrollYRef.current = current
+      if (!ledgerRef.current || ledgerRef.current.getBoundingClientRect().top > 96 || sheet || query) return setToolsVisible(true)
+      if (delta > 14) setToolsVisible(false)
+      else if (delta < -8) setToolsVisible(true)
+    }
+    lastScrollYRef.current = window.scrollY
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [query, sheet])
   const visible = useMemo(() => {
     const term = debouncedQuery.toLocaleLowerCase('zh-CN')
     return sortRecords(waitingRecords.filter((record) => (!sources.length || sources.includes(inferPickupSource(record))) && (!term || normalizedSearch(record).includes(term))), sort)
