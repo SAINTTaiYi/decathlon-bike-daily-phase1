@@ -23,3 +23,12 @@ Status: Protected Preview-only deployment independently verified; pending human 
 - The deployment workflow initially observed the old edge SHA, then converged after about 45 seconds without replaying deployment.
 - Staging, Production and Production D1 were not invoked or changed.
 - `browser-harness` was not available; prohibited application-browser and Accessibility fallbacks were not used. Visual acceptance at 320–430px, 600/840/1200px, reduced-motion and forced-colors remains a human Preview gate.
+
+
+## Residual Parallax Correction
+
+- Human feedback showed that scrolling still moved or scaled the static Overview because global continuous-canvas and GSAP runtimes remained attached outside the component-local CSS scope.
+- Candidate `9f91492ee0a29d31caefa6053779782d494e0b78`; PR #111; CI `30618297506`; normal deployed merge `503851a0df2b1186d5d34413f8d8a8ccecf3bfd8`.
+- The fix forces Overview motion variables to x=0/y=0/scale=1/opacity=1, hides fixed continuous-canvas layers while Overview is active or visible, excludes Overview controls from GSAP press scaling, bypasses first-entry workspace assembly, and uses immediate module-boundary positioning. The five dedicated modules retain their prior continuous behavior.
+- Frozen full gates, related contracts 22/22, typecheck, 88 workflow policies, official build and CodeGraph 192 files / 2,309 nodes / 7,776 edges passed. Preview fingerprint: `a9df8eaf09dc629c3259004d5a617bf24ec757ab4cabb57fab555f49c55312cb` / 380 files; V5.7.9 unchanged.
+- Protected Preview-only run `30618559036` passed with Preview D1 `No migrations to apply`; independent JSON-envelope-safe live/ready/meta/Web/security/HTTP 308 checks matched `503851a0df2b1186d5d34413f8d8a8ccecf3bfd8` / environment `preview`. Staging, Production and Production D1 were untouched.
