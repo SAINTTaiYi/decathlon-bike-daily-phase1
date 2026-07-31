@@ -49,3 +49,11 @@ These files are self-hosted, brand-neutral source material selected for the pend
 - **Integrity:** 960px SHA-256 `904828cb3488107082bf2356fe8692771b6a89a9dfe2cc9e4b17ab7c30f064f4`; 1600px SHA-256 `6c746d85ba41f7ac4e011cfbbcfb3b68969835ea27bfbdc7131347c53abef235`.
 
 The visual composition was rebuilt around Workshop business content. No Obsidian Assembly image, logo, font, text, proprietary object, or source code is included or traced.
+
+### `reference-home/obsidian-orange-cut-900.webp`
+
+- **Source:** derivative of the documented `ObsidianOregon.jpg` / `obsidian-oregon-760.webp` above.
+- **License:** Public domain, inherited from the Wikimedia Commons source.
+- **Purpose:** central black mineral object with the safety-orange cut face required by the static Workshop poster candidate.
+- **Changes:** offline Pillow processing only: resized, high-contrast monochrome treatment, irregular alpha mask on a transparent background, and two original orange polygon cut faces; no proprietary reference asset was traced or embedded.
+- **Integrity:** SHA-256 `306c82097e6b912d2cc4da5a907a4d052ca330d532ed44ce3c546229f522e258`.
