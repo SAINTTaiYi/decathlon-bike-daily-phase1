@@ -2,8 +2,8 @@
 
 > Status: candidate branch, pending Preview acceptance
 > Candidate date: 2026-07-31
-> Production baseline: V5.7.9 at administrative baseline `8ae32f3f0760349cc46a185a2141224fc8c71a28`
-> Candidate implementation: Workshop reference-structured authenticated Overview
+> Production baseline: V5.7.9; administrative candidate baseline `69743619ce55796c5683eeb77a96fdfbf1205630`
+> Candidate implementation: static 852 x 1876 industrial-poster Overview; prior reference-home Preview superseded
 > Preview identity: pending
 
 ## Authority
@@ -35,7 +35,7 @@ The visual hierarchy combines:
 - signal yellow for progress, state, numbering, current navigation, and primary action;
 - green and red only for semantic success and failure.
 
-The interface is an operations product, not a marketing page, portfolio, game HUD, cinematic scene, or imitation of another brand. The candidate Overview borrows only the supplied reference’s large-scale spatial rhythm: warm opening field, central material object, dark photographic work field, warm data field, photographic connection field, and compact update ending. Every visible label, state, control, metric, destination, and image is rebuilt for Workshop.
+The interface is an operations product, not a marketing page, portfolio, game HUD, cinematic scene, or imitation of another brand. The pending static Overview candidate uses one continuous warm-paper industrial poster: a condensed WORKSHOP OPS masthead, black mineral object with safety-orange cut face, angular black plinth, Today KPI command, two cropped workbench views, a centered real-data overview panel, and compact footer. It replaces the prior reference-home Preview candidate. No animation, transition, keyframe, scroll listener, viewport-scaled type, gradient, proprietary reference asset, or invented business value is permitted in this Overview.
 
 ## Color System
 
@@ -50,6 +50,7 @@ The accepted overview palette defines the project baseline.
 | `--ops-text-muted` | `#55554f` | Secondary explanations and metadata |
 | `--ops-text-inverse` | `#fffdf8` | Text on black controls |
 | `--ops-yellow` | `#ffc31a` | Primary action, progress, current state, numbering, active navigation |
+| `--ops-orange` | `#ff6a00` | Static Overview poster cut face, registration lines, and poster commands only |
 | `--ops-yellow-pressed` | `#e7a900` | Yellow pressed state and stronger warning emphasis |
 | `--ops-yellow-glow` | `rgb(255 195 26 / .32)` | Restrained yellow edge diffusion |
 | `--ops-pickup-expanded` | `#fff1dc` | Low-emphasis warm orange fill for the single expanded Pending Pickup card |
@@ -129,7 +130,7 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 - Primary actions are yellow when they advance the active task. Black is used for structural or menu actions. Secondary actions remain flat and low emphasis.
 - Active navigation uses black background, yellow icon/text emphasis, and clear Chinese plus compact English labels.
 - Press feedback may use a small opacity change and `scale(.985)`; it must not move surrounding layout.
-- Motion is short and functional inside business controls, while the authenticated workspace uses one uninterrupted native-scroll spatial canvas documented in `plan/WORKSHOP-OBSIDIAN-PARALLAX-SPEC.md`. The six operational modules remain semantic landmarks but have no visible divider, independent cover, black stage, sticky pause, or module-level outer card. Ultra-long pale fields, six original transparent Workshop objects, sparse oversized words, curved copy, and distance-focus word trails cross module boundaries at independent speeds. Business headings, filters, statistics, and summaries sit directly on the canvas; only repeated records and necessary forms, drawers, and dialogs retain compact warm-white containers. Never use wheel/touch interception, pinned spacers, scroll snapping, or content-size-driven correction. Respect `prefers-reduced-motion`; never require animation to understand state.
+- The current Overview candidate is deliberately static: no animation, transition, keyframes, scroll listener, transform-driven motion, or smooth-scroll behavior. Native vertical scrolling remains. The five dedicated business modules retain their existing behavior and data boundaries; this candidate does not redesign them.
 - Loading, offline, empty, error, permission, and synchronization states must be explicit. Unknown data must render as unavailable, not as a false zero.
 
 ## Responsive Behavior
@@ -140,7 +141,7 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 - Support at least `320px` through `430px` widths without horizontal scrolling.
 - Preserve safe areas and dynamic viewport bottom offsets.
 - Keep the six-item navigation fixed as a lightweight translucent diffused layer and ensure content can scroll fully above it.
-- Preserve the same motion intensity, layer count, depth, duration, and narrative memory points as desktop. Portrait layouts may use different diagonal or foreground/background trajectories, but must not reduce or remove effects.
+- Preserve the static poster reading order and a total Overview content height near 1750–2050px at 390px. Use explicit breakpoints rather than viewport-scaled type.
 - At narrow widths, reduce secondary metadata before reducing touch targets, primary values, or motion strength.
 
 ### Tablet
