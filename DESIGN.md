@@ -3,7 +3,7 @@
 > Status: candidate branch, pending Preview acceptance
 > Candidate date: 2026-07-31
 > Production baseline: V5.7.9; administrative candidate baseline `69743619ce55796c5683eeb77a96fdfbf1205630`
-> Candidate implementation: static 852 x 1876 industrial-poster Overview; prior reference-home Preview superseded
+> Candidate implementation: Figure 3 normalized 852 x 1876 single-field industrial-poster Overview; rejected stacked-section Preview superseded
 > Preview identity: pending
 
 ## Authority
@@ -35,7 +35,7 @@ The visual hierarchy combines:
 - signal yellow for progress, state, numbering, current navigation, and primary action;
 - green and red only for semantic success and failure.
 
-The interface is an operations product, not a marketing page, portfolio, game HUD, cinematic scene, or imitation of another brand. The pending static Overview candidate uses one continuous warm-paper industrial poster: a condensed WORKSHOP OPS masthead, black mineral object with safety-orange cut face, angular black plinth, Today KPI command, two cropped workbench views, a centered real-data overview panel, and compact footer. It replaces the prior reference-home Preview candidate. No animation, transition, keyframe, scroll-driven visible transform, viewport-scaled type, gradient, proprietary reference asset, or invented business value is permitted in this Overview. Any global scroll runtime retained for the five dedicated modules must write identity motion values for Overview and hide its background/foreground layers while Overview is active or visible.
+The interface is an operations product, not a marketing page, portfolio, game HUD, cinematic scene, or imitation of another brand. The pending Figure 3 Overview candidate uses one normalized 852:1876 warm-paper poster field: a condensed WORKSHOP OPS masthead, black mineral object with safety-orange cut face, angular black plinth, Today KPI command, two cropped workbench views, a centered real-data overview panel, and compact footer. Header controls overlay this same field; KPI, photographs and footer are positioned layers rather than stacked page sections. It replaces the rejected segmented Preview candidate. No animation, transition, keyframe, scroll-driven visible transform, viewport-scaled type, gradient, proprietary reference asset, or invented business value is permitted in this Overview. Any global scroll runtime retained for the five dedicated modules must write identity motion values for Overview and hide its background/foreground layers while Overview is active or visible.
 
 ## Color System
 
@@ -74,8 +74,9 @@ Rules:
 
 - Operational English labels, dates, version marks, and large numbers: self-hosted `Barlow Condensed Ops` 500/700.
 - Simplified Chinese and general body content: self-hosted `Noto Sans SC Variable` 100–900.
+- The Figure 3 Overview `Today KPI` display line alone uses the self-hosted Noto Serif SC Latin variable subset under the local alias `Figure 3 Serif`; the historical global serif stylesheet remains disabled.
 - The `业务台账` label uses the same self-hosted Noto Sans SC family, visually compressed to align with `OPERATIONS INDEX`.
-- Runtime UI text may use only `Noto Sans SC Variable` or `Barlow Condensed Ops`; system fonts and generic font-family fallbacks are prohibited.
+- Runtime UI text may use `Noto Sans SC Variable` or `Barlow Condensed Ops`; the single Figure 3 `Today KPI` line may use the local `Figure 3 Serif` subset. System fonts and generic font-family fallbacks are prohibited.
 
 All font assets must be self-hosted, licensed, documented in `apps/web/public/fonts/SOURCES.md`, and loaded without runtime third-party requests.
 
@@ -118,7 +119,7 @@ The candidate reference-structured overview establishes the priority order:
 7. Release information.
 8. Persistent six-destination navigation.
 
-The Overview is a continuous five-field mobile composition: opening and closing decision; dark Workshop-space operations index; measured KPI proof; Workshop connection and direct Pending Pickup action; release disclosure. Its editorial-scale English headings orient the fields but never replace Chinese operational meaning or real controls. This exception applies only to the Overview; the five dedicated business modules retain their established operational layouts.
+The Overview is one continuous poster coordinate field, not a five-field or multi-section page. Its reading path is brand and masthead, mineral and black plinth, Today KPI command, edge workbench photographs, central real-data card, then compact footer/release disclosure. Overlap and angular crops create the transitions; no full-width section border, alternate background band or duplicate in-poster navigation is allowed. This exception applies only to the Overview; the five dedicated business modules retain their established operational layouts.
 
 Apply the same principle elsewhere: current decision first, supporting evidence second, history and configuration later. Avoid landing-page heroes, decorative introductions, feature explanations, and oversized editorial headings inside work surfaces.
 
@@ -141,7 +142,7 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 - Support at least `320px` through `430px` widths without horizontal scrolling.
 - Preserve safe areas and dynamic viewport bottom offsets.
 - Keep the six-item navigation fixed as a lightweight translucent diffused layer and ensure content can scroll fully above it.
-- Preserve the static poster reading order and a total Overview content height near 1750–2050px at 390px. Use explicit breakpoints rather than viewport-scaled type.
+- Preserve the exact 852:1876 poster ratio: at 390 CSS px wide the artwork field is about 858 CSS px tall. Source coordinates are normalized inside one container; interactive hit regions may expand to 44px without changing the source-sized visual control. Use explicit breakpoints and container-relative geometry, never viewport-width type.
 - At narrow widths, reduce secondary metadata before reducing touch targets, primary values, or motion strength.
 
 ### Tablet
