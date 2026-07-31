@@ -119,7 +119,7 @@ The candidate reference-structured overview establishes the priority order:
 7. Release information.
 8. Persistent six-destination navigation.
 
-The Overview is one continuous poster coordinate field, not a five-field or multi-section page. Its reading path is brand and masthead, mineral and black plinth, Today KPI command, edge workbench photographs, central real-data card, then compact footer/release disclosure. The left edge photo is a right-swipe Repair entry and the right edge photo is a left-swipe Pickup entry, each with click and keyboard fallback. Overlap and angular crops create the visual transitions; no full-width section border, alternate background band or persistent navigation dock is allowed. This exception applies only to the Overview; the five dedicated business modules retain their established operational layouts.
+The Overview remains one poster coordinate field. It is followed in the same native document by Pickup, Other, Repair, Used, and Sales as continuously stacked semantic modules. The left and right workbench photographs remain direct Repair and Pickup shortcuts with click and keyboard fallback. One orange S trajectory crosses the complete six-module document; the Overview mineral, trajectory, module headings, and selected text groups use the approved Obsidian Assembly motion mechanics while all business records and controls remain stable and readable. No persistent navigation dock is allowed.
 
 Apply the same principle elsewhere: current decision first, supporting evidence second, history and configuration later. Avoid landing-page heroes, decorative introductions, feature explanations, and oversized editorial headings inside work surfaces.
 
@@ -131,7 +131,7 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 - Primary actions are yellow when they advance the active task. Black is used for structural or menu actions. Secondary actions remain flat and low emphasis.
 - Active navigation uses black background, yellow icon/text emphasis, and clear Chinese plus compact English labels.
 - Press feedback may use a small opacity change and `scale(.985)`; it must not move surrounding layout.
-- The current Overview candidate is deliberately static: no animation, transition, keyframes, transform-driven motion, smooth-scroll behavior, GSAP press scaling, or visible response to a global scroll listener. Native vertical scrolling remains. The Overview module always resolves to x=0, y=0, scale=1 and opacity=1; continuous-canvas background/foreground layers are hidden while it is active or in view. The five dedicated business modules retain their existing behavior and data boundaries; this candidate does not redesign them.
+- The authenticated workspace uses ordinary native vertical scrolling with all six modules mounted. A single passive requestAnimationFrame scroll runtime drives the full-page orange S trajectory and the Overview mineral with bounded translation, rotation, and scale. Obsidian Assembly-style deterministic character reveals apply to display text and module headings. No scroll snap, sticky stage, wheel/touch interception, ScrollTrigger, or transform-derived layout measurement is allowed. `prefers-reduced-motion` returns the mineral and text to complete static states and removes the moving tracer.
 - Loading, offline, empty, error, permission, and synchronization states must be explicit. Unknown data must render as unavailable, not as a false zero.
 
 ### Figure 2 Pickup
