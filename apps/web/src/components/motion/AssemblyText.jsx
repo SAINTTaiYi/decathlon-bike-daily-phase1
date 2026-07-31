@@ -11,6 +11,6 @@ export default function AssemblyText({ as = 'span', text, seed = 0, className = 
     key: `${character}-${index}`,
     'aria-hidden': 'true',
     'data-assembly-char': 'true',
-    style: { '--assembly-char-delay': `${((index * 7 + seed * 5) % 11) * 75}ms` }
+    style: { '--assembly-char-delay': `${((index * 7 + seed * 5) % 11) * 65}ms` }
   }, character === ' ' ? '\u00a0' : character)))
 }

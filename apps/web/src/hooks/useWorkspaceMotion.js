@@ -1,7 +1,9 @@
 import { useCallback, useLayoutEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 
-function reducedMotion() { return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false }
+function reducedMotion() {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false
+}
 
 export default function useWorkspaceMotion({ active, rootRef, onComplete, staticMode = false }) {
   const timelineRef = useRef(null)
@@ -13,36 +15,52 @@ export default function useWorkspaceMotion({ active, rootRef, onComplete, static
     if (!active || !rootRef.current) return undefined
     const root = rootRef.current
     const overlay = document.querySelector('[data-workspace-launch-overlay]')
-    const bands = [...(overlay?.querySelectorAll('[data-workspace-transition-bands] > i') || [])]
-    const title = overlay?.querySelector('[data-workspace-transition-title]')
-    const navigation = [...root.querySelectorAll('[data-workspace-layer="navigation"]')]
+    const environment = root.querySelector('[data-workspace-layer="environment"]')
     const structure = root.querySelector('[data-workspace-layer="structure"]')
-    const targets = [structure, ...navigation].filter(Boolean)
+    const navigation = [...root.querySelectorAll('[data-workspace-layer="navigation"]')]
+    const module = root.querySelector('[data-continuous-module][data-active="true"]')
+    const dock = root.querySelector('[data-workspace-layer="dock"]')
+    const targets = [environment, structure, ...navigation, module, dock].filter(Boolean)
+
     completedRef.current = false
     root.dataset.workspaceAssembled = 'false'
     const reset = () => {
       timelineRef.current?.kill()
-      gsap.set([...targets, ...bands, title].filter(Boolean), { clearProps: 'transform,opacity,visibility,willChange,filter' })
-      if (overlay) gsap.set(overlay, { clearProps: 'opacity,visibility,pointerEvents' })
+      gsap.set(targets, { clearProps: 'transform,opacity,visibility,willChange,clipPath' })
+      if (overlay) gsap.set(overlay, { clearProps: 'opacity,visibility,pointerEvents,willChange' })
       root.dataset.workspaceAssembled = 'true'
     }
-    const finish = () => { if (completedRef.current) return; completedRef.current = true; reset(); onComplete() }
+    const finish = () => {
+      if (completedRef.current) return
+      completedRef.current = true
+      reset()
+      onComplete()
+    }
     finishRef.current = finish
-    if (staticMode || reducedMotion() || !overlay || !structure || bands.length !== 4) {
+
+    if (staticMode) {
       if (overlay) gsap.set(overlay, { autoAlpha: 0, pointerEvents: 'none' })
       finish()
       return undefined
     }
-    const timeline = gsap.timeline({ onComplete: finish })
-      .set(targets, { autoAlpha: 1 }, 0)
-      .set(bands, { scaleX: 1, transformOrigin: '100% 50%', willChange: 'transform' }, 0)
-      .fromTo(title, { autoAlpha: 0, yPercent: 120, filter: 'blur(10px)' }, { autoAlpha: 1, yPercent: 0, filter: 'blur(0px)', duration: 1.2, ease: 'power3.out' }, 0.08)
-      .fromTo(navigation, { yPercent: -150, skewX: -10, skewY: -5 }, { yPercent: 0, skewX: 0, skewY: 0, duration: 2.1, ease: 'cubic-bezier(.69,0,0,1)' }, 0.16)
-      .to(title, { autoAlpha: 0, yPercent: -80, duration: 0.6, ease: 'power2.in' }, 1.0)
-      .to(bands.slice().reverse(), { scaleX: 0, duration: 0.9, stagger: 0.15, ease: 'cubic-bezier(.6,0,.05,1)' }, 1.0)
-      .to(overlay, { autoAlpha: 0, duration: 0.15 }, 2.36)
+
+    if (reducedMotion() || !structure || !module) {
+      const fade = gsap.to(overlay, { autoAlpha: 0, duration: .12, ease: 'power2.out', onComplete: finish })
+      timelineRef.current = fade
+      return () => fade.kill()
+    }
+
+    const timeline = gsap.timeline({ defaults: { ease: 'power3.out' }, onComplete: finish })
+      .set(targets, { willChange: 'transform, opacity' })
+      .fromTo(environment, { autoAlpha: 0 }, { autoAlpha: 1, duration: .24 }, 0)
+      .fromTo(navigation, { autoAlpha: 0, y: -8 }, { autoAlpha: 1, y: 0, duration: .32, stagger: .035 }, .06)
+      .fromTo(structure, { autoAlpha: 0, y: 12 }, { autoAlpha: 1, y: 0, duration: .38 }, .12)
+      .fromTo(module, { autoAlpha: 0, y: 14, clipPath: 'inset(0 0 100% 0)' }, { autoAlpha: 1, y: 0, clipPath: 'inset(0 0 0% 0)', duration: .42 }, .16)
+      .fromTo(dock, { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: .3 }, .22)
+      .to(overlay, { autoAlpha: 0, duration: .16, ease: 'power2.out' }, .46)
     timelineRef.current = timeline
     return () => timeline.kill()
   }, [active, onComplete, rootRef, staticMode])
+
   return { skip }
 }
