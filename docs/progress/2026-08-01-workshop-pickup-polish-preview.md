@@ -20,3 +20,14 @@
 - Corrected surface contract: Add Pickup and the complete expanded-card surface share the fixed opaque token `--pickup-action-yellow: #ffc31a`; summary/detail surfaces are transparent to that solid parent surface, with no pale/translucent/warm-white card layer.
 - Corrected motion contract: `useLayoutEffect` measures detail `scrollHeight`, animates explicit pixel height, switches to `height: auto` after expansion, and measures the current rendered height before collapse. `ResizeObserver` and reduced-motion behavior are retained.
 - CSS and Markdown remain explicit CodeGraph non-indexed exceptions; JSX impact is covered by targeted contract tests, full tests, typecheck, build, CI, and online asset readback.
+
+### Corrected Preview evidence
+
+- Candidate: `5c77b1943d408b6f1a176f23eaf6d05a7c0f4816`.
+- PR #126: `verify` and `secrets` passed; normal merge/actual deployed SHA `03373217a94025728bb8aea61da20bef7b6e24b3`.
+- Protected Preview run `30696591412` succeeded with free/no-billing/Preview-only gates, full validation, Preview D1 migrations, Worker/Static Assets deployment, and workflow online acceptance.
+- Worker Version ID: `eba885b1-127a-47fe-b98a-0afc0a896526`.
+- Independent online verification: exact SHA, live/ready/meta, HSTS, CSP, HTTP 308, shared opaque `#ffc31a`, higher-specificity full-card rule, transparent internal card surfaces, measured `scrollHeight`/`ResizeObserver`/`transitionend` motion, and absence of legacy grid interpolation passed.
+- Online CSS SHA-256: `ac26eae16f1c09421283534624c674f95ee230f4bb50e5827ea660688855ccd0`; JS SHA-256: `c6e71d1144def7ec33e1fdba9bd1264a5be258804cba04437e65fe21df951432`.
+- Production version identity remained byte-for-byte unchanged. Production and Production D1 were not touched.
+- Browser-harness remains unavailable; no in-app browser or Android Accessibility fallback was used. Awaiting authenticated human visual acceptance.
