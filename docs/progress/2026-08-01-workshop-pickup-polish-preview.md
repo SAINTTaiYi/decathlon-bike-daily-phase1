@@ -31,3 +31,9 @@
 - Online CSS SHA-256: `ac26eae16f1c09421283534624c674f95ee230f4bb50e5827ea660688855ccd0`; JS SHA-256: `c6e71d1144def7ec33e1fdba9bd1264a5be258804cba04437e65fe21df951432`.
 - Production version identity remained byte-for-byte unchanged. Production and Production D1 were not touched.
 - Browser-harness remains unavailable; no in-app browser or Android Accessibility fallback was used. Awaiting authenticated human visual acceptance.
+
+## Collapse no-flash revision
+
+- Human accepted expansion but reported both collapse entry points first stretched downward and flashed duplicate phone/pickup-time detail fields.
+- Root cause: duplicate detail fields were hidden only under expanded state, so they immediately re-entered layout when `expanded` became false; summary min-height also jumped from 88px to the closed height before measured detail collapse began.
+- Fix: duplicate detail fields remain stably hidden in the detail composition, and summary min-height/padding animate on the same 420ms measured-height curve as the reveal. Both card-title and global-collapse entry points now share the same state path.

@@ -24,3 +24,11 @@ test('pickup detail uses measured pixel height instead of intrinsic grid interpo
 test('search and queue tools retain the cohesive shared control surface', () => {
   assert.match(css, /\.pickup-tool-row \{[^}]*background: rgb\(255 253 248 \/ \.86\)[^}]*box-shadow:/s)
 })
+
+
+test('collapse keeps detail composition stable and synchronizes summary geometry', () => {
+  assert.ok(css.includes('nth-child(-n + 2)'))
+  assert.ok(css.includes('section:nth-child(2) { display: none; }'))
+  assert.doesNotMatch(css, /data-expanded='true'\] \.pickup-card-detail section:first-child/)
+  assert.match(css, /\.pickup-card-summary \{[^}]*min-height 420ms cubic-bezier\(\.2, \.8, \.2, 1\)[^}]*padding-bottom 420ms/s)
+})
