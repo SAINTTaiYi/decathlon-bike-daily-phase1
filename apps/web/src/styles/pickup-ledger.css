@@ -233,8 +233,8 @@
 .pickup-card[data-expanded='true'] .pickup-card-summary { min-height: 88px; padding-bottom: 6px; }
 
 .pickup-queue-controls:not([data-tools-visible='true']) .pickup-tools-area { max-height: 0; opacity: 0; pointer-events: none; }
-.pickup-card[data-expanded='true'] .pickup-card-detail > section:first-child dl div:nth-child(-n + 2),
-.pickup-card[data-expanded='true'] .pickup-card-detail > section:nth-child(2) { display: none; }
+.pickup-card-detail > section:first-child dl div:nth-child(-n + 2),
+.pickup-card-detail > section:nth-child(2) { display: none; }
 .pickup-card-detail { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 14px; padding: 4px 12px 12px; }
 .pickup-card-detail h4 { margin-bottom: 4px; font-size: 10px; }
 .pickup-card-detail dl { gap: 3px; }
@@ -319,6 +319,12 @@
     transform 380ms cubic-bezier(.2, .8, .2, 1);
 }
 
+.pickup-card-summary {
+  transition:
+    min-height 420ms cubic-bezier(.2, .8, .2, 1),
+    padding-bottom 420ms cubic-bezier(.2, .8, .2, 1);
+}
+
 .pickup-card-reveal {
   height: 0;
   overflow: hidden;
@@ -365,6 +371,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pickup-card,
+  .pickup-card-summary,
   .pickup-card-reveal,
   .pickup-tool-row .pickup-search-field,
   .pickup-tool-row > button {
