@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import IconArchive from '@iconoir/Archive.mjs'
 import IconBell from '@iconoir/Bell.mjs'
@@ -103,6 +103,8 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
   const [deleteOpen, setDeleteOpen] = useState(false)
   const startXRef = useRef(null)
   const frameRef = useRef(null)
+  const revealRef = useRef(null)
+  const detailRef = useRef(null)
   const pickedUp = Boolean(record.pickedUpToday)
   const source = inferPickupSource(record)
   const SourceIcon = sourceIcons[source] || IconArchive
@@ -140,6 +142,40 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
     return () => observer.disconnect()
   }, [])
 
+  useLayoutEffect(() => {
+    const reveal = revealRef.current
+    const detail = detailRef.current
+    if (!reveal || !detail) return undefined
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    let frame = 0
+    const measure = () => {
+      window.cancelAnimationFrame(frame)
+      if (reduced) {
+        reveal.style.height = expanded ? 'auto' : '0px'
+        return
+      }
+      const currentHeight = reveal.getBoundingClientRect().height
+      reveal.style.height = `${currentHeight}px`
+      frame = window.requestAnimationFrame(() => {
+        reveal.style.height = expanded ? `${detail.scrollHeight}px` : '0px'
+      })
+    }
+    const onTransitionEnd = (event) => {
+      if (event.target === reveal && event.propertyName === 'height' && expanded) reveal.style.height = 'auto'
+    }
+    measure()
+    reveal.addEventListener('transitionend', onTransitionEnd)
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
+      if (expanded && reveal.style.height !== 'auto') reveal.style.height = `${detail.scrollHeight}px`
+    })
+    observer?.observe(detail)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      observer?.disconnect()
+      reveal.removeEventListener('transitionend', onTransitionEnd)
+    }
+  }, [expanded])
+
   const onPointerDown = (event) => { if (!pickedUp && !closedAt && event.pointerType !== 'mouse') startXRef.current = event.clientX }
   const onPointerUp = (event) => {
     if (startXRef.current == null) return
@@ -159,8 +195,8 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
         <span className="pickup-card-status"><b data-repair={repairPickup ? 'true' : undefined}>{resultLabel}</b><IconNavArrowDown width={18} height={18} aria-hidden="true" /></span>
         <span className="pickup-card-scan"><span><IconPhone width={14} height={14} aria-hidden="true" />{contactValue ? displayContactValue(contactValue) : '无联系方式'}</span>{record.pickupDate ? <span><IconCalendar width={14} height={14} aria-hidden="true" /><time dateTime={record.pickupDate}>{formatScanDate(record.pickupDate)}</time></span> : null}</span>
       </button>
-      <div className="pickup-card-reveal" data-expanded={expanded ? 'true' : undefined} aria-hidden={!expanded} inert={!expanded}>
-      <div className="pickup-card-detail" id={`pickup-detail-${record.id}`}>
+      <div ref={revealRef} className="pickup-card-reveal" data-expanded={expanded ? 'true' : undefined} aria-hidden={!expanded} inert={!expanded}>
+      <div ref={detailRef} className="pickup-card-detail" id={`pickup-detail-${record.id}`}>
         <section><h4>CUSTOMER <span>/ 顾客</span></h4><dl><div><dt>车辆标识</dt><dd>{record.title}</dd></div><div><dt>{contact.contactType === 'member' ? '会员号' : '手机号'}</dt><dd>{contactValue || '无'}</dd></div><div><dt>取车日期</dt><dd>{record.pickupDate ? formatScanDate(record.pickupDate) : '未指定'}</dd></div><div><dt>业务编号</dt><dd>{ticketNumber}</dd></div></dl></section>
         <section><h4>ORIGIN <span>/ 来源</span></h4><dl><div><dt>待取来源</dt><dd>{pickupSourceLabel(record)}{platform ? ` · ${platform}` : ''}</dd></div><div><dt>业务结果</dt><dd>{resultLabel}</dd></div></dl></section>
         {detailLine ? <section className="pickup-detail-wide"><h4>{repairPickup ? 'SERVICE / 维修' : 'NOTE / 备注'}</h4><p>{detailLine}</p></section> : null}

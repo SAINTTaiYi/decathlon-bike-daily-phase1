@@ -13,3 +13,10 @@
 - Protected Preview: run `30665280040` succeeded at the exact merge SHA, including free/no-billing/Preview-only guards, validation, Preview D1 migrations, Worker/Static Assets deployment, and workflow online acceptance.
 - Independent verification: `live`, `ready`, and version meta passed; exact Git SHA, HSTS, CSP, HTTP 308, signal-yellow/glow CSS, and content-sized reveal CSS passed. Production version identity remained unchanged.
 - Browser acceptance: independent browser-harness is unavailable on this device; per user rule no in-app browser or Android Accessibility fallback was used. Awaiting human authenticated visual acceptance.
+
+## Human feedback revision: solid yellow and measured motion
+
+- Human rejected the first Preview because a higher-specificity legacy expanded-card rule still rendered the card pale yellow and intrinsic grid-track interpolation felt sluggish on content-heavy cards.
+- Corrected surface contract: Add Pickup and the complete expanded-card surface share the fixed opaque token `--pickup-action-yellow: #ffc31a`; summary/detail surfaces are transparent to that solid parent surface, with no pale/translucent/warm-white card layer.
+- Corrected motion contract: `useLayoutEffect` measures detail `scrollHeight`, animates explicit pixel height, switches to `height: auto` after expansion, and measures the current rendered height before collapse. `ResizeObserver` and reduced-motion behavior are retained.
+- CSS and Markdown remain explicit CodeGraph non-indexed exceptions; JSX impact is covered by targeted contract tests, full tests, typecheck, build, CI, and online asset readback.
