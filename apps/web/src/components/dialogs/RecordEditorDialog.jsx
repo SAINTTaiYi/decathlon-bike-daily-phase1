@@ -21,6 +21,7 @@ import {
 } from '../../data/repairRecord.js'
 
 const emptyDraft = { title: '', detail: '', meta: '', status: '' }
+const HANDOVER_STATUSES = [{ value: '继续跟进', label: '继续跟进' }, { value: '已处理', label: '已处理' }]
 
 function genericRecordToDraft(record) {
   return record ? {
@@ -29,6 +30,21 @@ function genericRecordToDraft(record) {
     meta: record.meta || '',
     status: record.status || ''
   } : { ...emptyDraft }
+}
+
+function handoverRecordToDraft(record) {
+  const draft = genericRecordToDraft(record)
+  return { ...draft, status: HANDOVER_STATUSES.some(({ value }) => value === draft.status) ? draft.status : '继续跟进' }
+}
+
+function HandoverFields({ draft, setDraft }) {
+  const item = draft.detail || draft.title
+  const set = (field, value) => setDraft((current) => ({ ...current, [field]: value }))
+  const updateItem = (value) => setDraft((current) => ({ ...current, title: value.slice(0, 80), detail: value }))
+  return <>
+    <label className="field-row"><span>交接事项</span><textarea required rows="6" maxLength="240" value={item} onChange={(event) => updateItem(event.target.value)} /></label>
+    <div className="field-row"><span>当前状态</span><ProjectSelect value={draft.status || '继续跟进'} options={HANDOVER_STATUSES} onChange={(value) => set('status', value)} ariaLabel="选择交接事项当前状态" /></div>
+  </>
 }
 
 function PickupFields({ draft, setDraft, record }) {
@@ -190,15 +206,16 @@ function RepairFields({ draft, setDraft }) {
 export default function RecordEditorDialog({ open, onClose, config, record, onSave, onNotify }) {
   const repairForm = config.formKind === 'repair'
   const pickupForm = config.formKind === 'pickup'
+  const handoverForm = config.formKind === 'handover'
   const [draft, setDraft] = useState(repairForm ? emptyRepairDraft : pickupForm ? emptyPickupDraft : emptyDraft)
   const [error, setError] = useState('')
   const editing = Boolean(record)
 
   useEffect(() => {
     if (!open) return
-    setDraft(repairForm ? repairRecordToDraft(record) : pickupForm ? pickupRecordToDraft(record) : genericRecordToDraft(record))
+    setDraft(repairForm ? repairRecordToDraft(record) : pickupForm ? pickupRecordToDraft(record) : handoverForm ? handoverRecordToDraft(record) : genericRecordToDraft(record))
     setError('')
-  }, [open, record, pickupForm, repairForm])
+  }, [open, record, pickupForm, repairForm, handoverForm])
 
   const [submitting, setSubmitting] = useState(false)
 
@@ -219,12 +236,14 @@ export default function RecordEditorDialog({ open, onClose, config, record, onSa
     ? '按门店维修单结构登记；固定选项不可自由输入。门店产品维修完成后原地留档，付费、质保与免费维修完成后转入待取。'
     : pickupForm
       ? '请选择自提订单车辆或顾客暂存，并按需登记联系方式（手机号或会员号，可留空）。自提订单需选择天猫、京东或小程序，不填写取车说明；确认取车时再输入取货码。'
-      : '这条记录会跨日期保留；当天没有编辑时会原样延续到下一日期。新增、编辑和删除都会写入操作记录。'
+      : handoverForm
+        ? '交接事项会跨日期保留。只需填写交接事项，并从“继续跟进”或“已处理”中选择当前状态。'
+        : '这条记录会跨日期保留；当天没有编辑时会原样延续到下一日期。新增、编辑和删除都会写入操作记录。'
 
   return (
     <AppDialog open={open} onClose={onClose} title={editing ? `编辑${config.singular}` : config.addLabel} eyebrow="LEDGER · 长期台账" description={description} className="data-dialog">
       <form className="data-form" onSubmit={submit}>
-        {repairForm ? <RepairFields draft={draft} setDraft={setDraft} /> : pickupForm ? <PickupFields draft={draft} setDraft={setDraft} record={record} /> : (
+        {repairForm ? <RepairFields draft={draft} setDraft={setDraft} /> : pickupForm ? <PickupFields draft={draft} setDraft={setDraft} record={record} /> : handoverForm ? <HandoverFields draft={draft} setDraft={setDraft} /> : (
           <>
             <label className="field-row"><span>{config.titleLabel}</span><input required maxLength="80" value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label>
             <label className="field-row"><span>{config.detailLabel}</span><textarea required rows="4" maxLength="240" value={draft.detail} onChange={(event) => setDraft((current) => ({ ...current, detail: event.target.value }))} /></label>

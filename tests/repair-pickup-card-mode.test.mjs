@@ -16,7 +16,7 @@ test('维修场景复用待取卡片台账，而非通用 RecordLedger', () => {
 })
 
 test('维修卡没有通知状态，主操作为维修完成并沿用现有完成回调', () => {
-  assert.match(pickupLedger, /!repairMode && !pickedUp/u)
+  assert.match(pickupLedger, /!repairMode && !handoverMode && !pickedUp/u)
   assert.match(pickupLedger, /repairMode \? '维修完成' : '确认取车'/u)
   assert.match(pickupLedger, /repairMode \? onRepairComplete\(record\) : onPickup\(record\)/u)
   assert.match(app, /onRepairComplete: \(record\) => void completeRepairWithConfirmation\(record\)/u)

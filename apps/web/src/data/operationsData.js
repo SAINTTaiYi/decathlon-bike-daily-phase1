@@ -23,11 +23,8 @@ export const sceneRecordConfig = {
   poster: {
     singular: '交接事项',
     addLabel: '增加交接事项',
-    titleLabel: '事项名称',
-    detailLabel: '交接说明',
-    metaLabel: '分类、位置或关联信息',
-    statusLabel: '当前状态',
-    statusPlaceholder: '例如：继续跟进 / 等待顾客 / 已处理'
+    formKind: 'handover',
+    statusOptions: ['继续跟进', '已处理']
   },
   repair: {
     singular: '维修车辆',
