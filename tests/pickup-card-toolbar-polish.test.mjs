@@ -32,3 +32,10 @@ test('collapse keeps detail composition stable and synchronizes summary geometry
   assert.doesNotMatch(css, /data-expanded='true'\] \.pickup-card-detail section:first-child/)
   assert.match(css, /\.pickup-card-summary \{[^}]*min-height 420ms cubic-bezier\(\.2, \.8, \.2, 1\)[^}]*padding-bottom 420ms/s)
 })
+
+
+test('every expanded Pickup and repair card has a high-specificity diffuse bulb glow', () => {
+  assert.match(css, /.pickup-ledger .pickup-card\[data-expanded='true'\] \{[\s\S]*radial-gradient[\s\S]*#ffc31a[\s\S]*box-shadow:/u)
+  assert.match(css, /.pickup-ledger .pickup-card\[data-expanded='true'\]::before \{[\s\S]*circle at 82% 20%[\s\S]*filter: blur\(12px\)/u)
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*.pickup-ledger .pickup-card\[data-expanded='true'\]::before/u)
+})

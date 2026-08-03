@@ -380,3 +380,40 @@
     transform: none !important;
   }
 }
+
+
+/* Expanded-card diffuse bulb light: final specificity override for Pickup and repairMode. */
+.pickup-ledger .pickup-card[data-expanded='true'] {
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse 46% 29% at 82% 13%, rgb(255 253 214 / .98) 0%, rgb(255 247 153 / .92) 19%, rgb(255 220 48 / .45) 48%, transparent 76%),
+    radial-gradient(ellipse 55% 37% at 4% 98%, rgb(255 244 130 / .72) 0%, rgb(255 201 22 / .36) 48%, transparent 78%),
+    #ffc31a;
+  box-shadow:
+    0 14px 28px rgb(160 92 0 / .24),
+    0 0 24px rgb(255 201 26 / .78),
+    0 0 56px rgb(255 186 0 / .44);
+}
+
+.pickup-ledger .pickup-card[data-expanded='true'] > :not(.pickup-complete-wash) {
+  position: relative;
+  z-index: 1;
+}
+
+.pickup-ledger .pickup-card[data-expanded='true']::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: -34% -20%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 82% 20%, rgb(255 255 226 / .96) 0 5%, rgb(255 239 97 / .54) 18%, transparent 43%),
+    radial-gradient(circle at 10% 90%, rgb(255 239 110 / .46) 0 9%, transparent 42%);
+  filter: blur(12px);
+  opacity: .94;
+  transform: translateZ(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pickup-ledger .pickup-card[data-expanded='true']::before { filter: none; }
+}
