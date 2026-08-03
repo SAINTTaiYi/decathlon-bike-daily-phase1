@@ -27,7 +27,7 @@ const sortOptions = [['default', '默认顺序'], ['pickup-asc', '取车时间�
 
 function normalizedSearch(record) {
   const contact = decodePickupContact(record)
-  return [record.title, record.status, record.detail, record.repairProject, record.meta, record.ticketNo, record.pickupDate, contact.contactValue, pickupSourceLabel(record), selfPickupPlatformLabel(record)].filter(Boolean).join(' ').toLocaleLowerCase('zh-CN')
+  return [record.title, record.status, record.detail, record.repairProject, record.meta, record.ticketNo, record.pickupDate, record.contactValue, contact.contactValue, pickupSourceLabel(record), selfPickupPlatformLabel(record)].filter(Boolean).join(' ').toLocaleLowerCase('zh-CN')
 }
 
 function sortRecords(records, sort) {
@@ -57,7 +57,7 @@ function hiddenMatchReason(record, query, source, contactValue, detailLine) {
   return '匹配完整记录'
 }
 
-function PickupFilterSheet({ open, initialTab, appliedSources, appliedSort, onClose, onApply }) {
+function PickupFilterSheet({ open, initialTab, appliedSources, appliedSort, repairMode = false, onClose, onApply }) {
   const [tab, setTab] = useState(initialTab)
   const [sources, setSources] = useState(appliedSources)
   const [sort, setSort] = useState(appliedSort)
@@ -88,7 +88,7 @@ function PickupFilterSheet({ open, initialTab, appliedSources, appliedSort, onCl
   return createPortal(<div className="pickup-sheet-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section ref={panelRef} className="pickup-filter-sheet" role="dialog" aria-modal="true" aria-labelledby="pickup-filter-title" tabIndex={-1}>
       <div className="pickup-sheet-handle" aria-hidden="true" />
-      <header><div><span>LIST CONTROL</span><h3 id="pickup-filter-title">整理待取车辆</h3></div><button type="button" onClick={onClose}>关闭</button></header>
+      <header><div><span>LIST CONTROL</span><h3 id="pickup-filter-title">{repairMode ? '整理维修车辆' : '整理待取车辆'}</h3></div><button type="button" onClick={onClose}>关闭</button></header>
       <div className="pickup-sheet-tabs" role="tablist" aria-label="筛选和排序">
         <button type="button" role="tab" aria-selected={tab === 'filter'} onClick={() => setTab('filter')}><IconFilter width={17} height={17} aria-hidden="true" />筛选 FILTER</button>
         <button type="button" role="tab" aria-selected={tab === 'sort'} onClick={() => setTab('sort')}><IconSort width={17} height={17} aria-hidden="true" />排序 SORT</button>
@@ -99,22 +99,22 @@ function PickupFilterSheet({ open, initialTab, appliedSources, appliedSort, onCl
   </div>, document.body)
 }
 
-function PickupCard({ record, index, expanded, density, query, closedAt, pickupError, primaryProcessing, primaryActionBusy, pickupPixelFill, onToggle, onEdit, onRemove, onHistory, onPickup, onNotificationChange, onPickupPixelFillComplete }) {
+function PickupCard({ record, index, expanded, density, query, closedAt, pickupError, primaryProcessing, primaryActionBusy, pickupPixelFill, repairMode = false, onToggle, onEdit, onRemove, onHistory, onPickup, onRepairComplete, onNotificationChange, onPickupPixelFillComplete }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const startXRef = useRef(null)
   const frameRef = useRef(null)
   const revealRef = useRef(null)
   const detailRef = useRef(null)
-  const pickedUp = Boolean(record.pickedUpToday)
-  const source = inferPickupSource(record)
+  const pickedUp = repairMode ? Boolean(record.completedToday || record.completedOn) : Boolean(record.pickedUpToday)
+  const source = repairMode ? 'repair' : inferPickupSource(record)
   const SourceIcon = sourceIcons[source] || IconArchive
-  const repairPickup = source === 'repair'
+  const repairPickup = repairMode || source === 'repair'
   const contact = repairPickup ? { contactType: record.contactType === 'member' ? 'member' : 'phone', contactValue: String(record.contactValue || '').trim() } : decodePickupContact(record)
   const contactValue = String(contact.contactValue || '').trim()
   const detailLine = joinMaintenanceLine(String(record.repairProject || record.detail || '').trim())
-  const platform = selfPickupPlatformLabel(record)
-  const notificationStatus = inferPickupNotificationStatus(record)
-  const resultLabel = pickupResultLabel(record)
+  const platform = repairMode ? '' : selfPickupPlatformLabel(record)
+  const notificationStatus = repairMode ? null : inferPickupNotificationStatus(record)
+  const resultLabel = repairMode ? (record.status || '维修中') : pickupResultLabel(record)
   const ticketNumber = formatTicketNumber(record.ticketNo, record.id)
   const matchReason = hiddenMatchReason(record, query, source, contactValue, detailLine)
   const locked = Boolean(closedAt) || primaryActionBusy
@@ -191,42 +191,44 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
       {pickupPixelFill ? <span className="pickup-complete-wash" aria-hidden="true" /> : null}
       <button type="button" className="pickup-card-summary" onClick={() => onToggle(record.id)} aria-expanded={expanded} aria-controls={`pickup-detail-${record.id}`}>
         <span className="pickup-card-index" aria-label={`列表序号 ${index + 1}`}><small>NO.</small>{String(index + 1).padStart(2, '0')}</span>
-        <span className="pickup-card-core"><strong><Highlight query={query}>{record.title}</Highlight></strong><span className="pickup-source-line"><SourceIcon width={15} height={15} aria-hidden="true" />{pickupSourceLabel(record)}{platform ? <small>{platform}</small> : null}</span>{source === 'customer-storage' && detailLine ? <span className="pickup-storage-summary"><Highlight query={query}>{detailLine}</Highlight></span> : null}{matchReason ? <span className="pickup-hidden-match">{matchReason}</span> : null}</span>
+        <span className="pickup-card-core"><strong><Highlight query={query}>{record.title}</Highlight></strong><span className="pickup-source-line"><SourceIcon width={15} height={15} aria-hidden="true" />{repairMode ? '维修登记' : pickupSourceLabel(record)}{platform ? <small>{platform}</small> : null}</span>{source === 'customer-storage' && detailLine ? <span className="pickup-storage-summary"><Highlight query={query}>{detailLine}</Highlight></span> : null}{matchReason ? <span className="pickup-hidden-match">{matchReason}</span> : null}</span>
         <span className="pickup-card-status"><b data-repair={repairPickup ? 'true' : undefined}>{resultLabel}</b><IconNavArrowDown width={18} height={18} aria-hidden="true" /></span>
         <span className="pickup-card-scan"><span><IconPhone width={14} height={14} aria-hidden="true" />{contactValue ? displayContactValue(contactValue) : '无联系方式'}</span>{record.pickupDate ? <span><IconCalendar width={14} height={14} aria-hidden="true" /><time dateTime={record.pickupDate}>{formatScanDate(record.pickupDate)}</time></span> : null}</span>
       </button>
       <div ref={revealRef} className="pickup-card-reveal" data-expanded={expanded ? 'true' : undefined} aria-hidden={!expanded} inert={!expanded}>
       <div ref={detailRef} className="pickup-card-detail" id={`pickup-detail-${record.id}`}>
-        <section><h4>CUSTOMER <span>/ 顾客</span></h4><dl><div><dt>车辆标识</dt><dd>{record.title}</dd></div><div><dt>{contact.contactType === 'member' ? '会员号' : '手机号'}</dt><dd>{contactValue || '无'}</dd></div><div><dt>取车日期</dt><dd>{record.pickupDate ? formatScanDate(record.pickupDate) : '未指定'}</dd></div><div><dt>业务编号</dt><dd>{ticketNumber}</dd></div></dl></section>
-        <section><h4>ORIGIN <span>/ 来源</span></h4><dl><div><dt>待取来源</dt><dd>{pickupSourceLabel(record)}{platform ? ` · ${platform}` : ''}</dd></div><div><dt>业务结果</dt><dd>{resultLabel}</dd></div></dl></section>
+        <section><h4>CUSTOMER <span>/ 顾客</span></h4><dl><div><dt>车辆标识</dt><dd>{record.title}</dd></div><div><dt>{contact.contactType === 'member' ? '会员号' : '手机号'}</dt><dd>{contactValue || '无'}</dd></div><div><dt>{repairMode ? '预计取车' : '取车日期'}</dt><dd>{record.pickupDate ? formatScanDate(record.pickupDate) : '未指定'}</dd></div><div><dt>业务编号</dt><dd>{ticketNumber}</dd></div></dl></section>
+        <section><h4>{repairMode ? 'SERVICE' : 'ORIGIN'} <span>/ {repairMode ? '维修' : '来源'}</span></h4><dl><div><dt>{repairMode ? '维修类型' : '待取来源'}</dt><dd>{repairMode ? (record.repairType || '未指定') : `${pickupSourceLabel(record)}${platform ? ` · ${platform}` : ''}`}</dd></div><div><dt>{repairMode ? '当前状态' : '业务结果'}</dt><dd>{resultLabel}</dd></div></dl></section>
         {detailLine ? <section className="pickup-detail-wide"><h4>{repairPickup ? 'SERVICE / 维修' : 'NOTE / 备注'}</h4><p>{detailLine}</p></section> : null}
-        {!pickedUp ? <section className="pickup-detail-wide pickup-notification-control"><h4>NOTICE <span>/ 通知</span></h4><div className="pickup-notification-buttons" aria-label={`${record.title}通知状态`}><button type="button" data-active={notificationStatus === 'pending'} onClick={() => onNotificationChange(record, 'pending')} disabled={Boolean(closedAt)}>等待通知</button><button type="button" data-active={notificationStatus === 'notified'} onClick={() => onNotificationChange(record, 'notified')} disabled={Boolean(closedAt)}><IconBell width={15} height={15} aria-hidden="true" />已通知</button></div></section> : null}
+        {!repairMode && !pickedUp ? <section className="pickup-detail-wide pickup-notification-control"><h4>NOTICE <span>/ 通知</span></h4><div className="pickup-notification-buttons" aria-label={`${record.title}通知状态`}><button type="button" data-active={notificationStatus === 'pending'} onClick={() => onNotificationChange(record, 'pending')} disabled={Boolean(closedAt)}>等待通知</button><button type="button" data-active={notificationStatus === 'notified'} onClick={() => onNotificationChange(record, 'notified')} disabled={Boolean(closedAt)}><IconBell width={15} height={15} aria-hidden="true" />已通知</button></div></section> : null}
         {pickupError ? <p className="pickup-card-error" role="alert">{pickupError}</p> : null}
-        {pickedUp ? <p className="pickup-card-resolved">本条今日保留，下一业务日自动移除。</p> : null}
-        <footer className="pickup-card-actions">{!pickedUp ? <button type="button" className="pickup-secondary-action" onClick={() => onEdit(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconEdit width={16} height={16} aria-hidden="true" />编辑记录</button> : null}<button type="button" className="pickup-history-action" onClick={() => onHistory(record)}><IconJournal width={16} height={16} aria-hidden="true" />操作记录</button>{!pickedUp ? <details className="pickup-card-more"><summary>更多</summary><button type="button" onClick={() => onRemove(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconTrash width={15} height={15} aria-hidden="true" />删除记录</button></details> : null}{!pickedUp ? <button type="button" className="pickup-primary-action" onClick={() => onPickup(record)} disabled={locked} aria-busy={primaryProcessing || undefined}><IconCheck width={17} height={17} aria-hidden="true" />{primaryProcessing ? '确认中…' : '确认取车'}</button> : null}</footer>
+        {pickedUp ? <p className="pickup-card-resolved">{repairMode ? '维修完成后将转入待取车辆。' : '本条今日保留，下一业务日自动移除。'}</p> : null}
+        <footer className="pickup-card-actions">{!pickedUp ? <button type="button" className="pickup-secondary-action" onClick={() => onEdit(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconEdit width={16} height={16} aria-hidden="true" />编辑记录</button> : null}<button type="button" className="pickup-history-action" onClick={() => onHistory(record)}><IconJournal width={16} height={16} aria-hidden="true" />操作记录</button>{!pickedUp ? <details className="pickup-card-more"><summary>更多</summary><button type="button" onClick={() => onRemove(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconTrash width={15} height={15} aria-hidden="true" />删除记录</button></details> : null}{!pickedUp ? <button type="button" className="pickup-primary-action" onClick={() => repairMode ? onRepairComplete(record) : onPickup(record)} disabled={locked} aria-busy={primaryProcessing || undefined}><IconCheck width={17} height={17} aria-hidden="true" />{primaryProcessing ? '确认中…' : repairMode ? '维修完成' : '确认取车'}</button> : null}</footer>
       </div>
     </div>
     </article>
   </div>
 }
 
-export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, onRemove, onHistory, onPickup, onPickupNotificationChange, pickupErrors = {}, primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete }) {
+export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, onRemove, onHistory, onPickup, onRepairComplete, onPickupNotificationChange, pickupErrors = {}, primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete, repairMode = false, repairPixelDissolveId = '', onRepairPixelDissolveComplete }) {
   const [query, setQuery] = useState('')
   const [expandedId, setExpandedId] = useState('')
-  const [density, setDensity] = useState(() => window.localStorage?.getItem('pickup-ledger-density') || 'balanced')
+  const storageKey = repairMode ? 'repair-ledger' : 'pickup-ledger'
+  const searchId = `${storageKey}-search`
+  const [density, setDensity] = useState(() => window.localStorage?.getItem(`${storageKey}-density`) || 'balanced')
   const [sources, setSources] = useState([])
-  const [sort, setSort] = useState(() => window.localStorage?.getItem('pickup-ledger-sort') || 'default')
+  const [sort, setSort] = useState(() => window.localStorage?.getItem(`${storageKey}-sort`) || 'default')
   const [sheet, setSheet] = useState(null)
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [toolsVisible, setToolsVisible] = useState(true)
   const ledgerRef = useRef(null)
   const lastScrollYRef = useRef(0)
-  const waitingRecords = records.filter((record) => !record.pickedUpToday)
-  const pickedRecords = records.filter((record) => record.pickedUpToday)
+  const waitingRecords = repairMode ? records.filter((record) => !record.completedToday && !record.completedOn) : records.filter((record) => !record.pickedUpToday)
+  const pickedRecords = repairMode ? records.filter((record) => record.completedToday || record.completedOn) : records.filter((record) => record.pickedUpToday)
   const autoDensity = waitingRecords.length > 12 ? 'compact' : density
 
-  useEffect(() => { window.localStorage?.setItem('pickup-ledger-density', density) }, [density])
-  useEffect(() => { window.localStorage?.setItem('pickup-ledger-sort', sort) }, [sort])
+  useEffect(() => { window.localStorage?.setItem(`${storageKey}-density`, density) }, [density, storageKey])
+  useEffect(() => { window.localStorage?.setItem(`${storageKey}-sort`, sort) }, [sort, storageKey])
   useEffect(() => { const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 250); return () => window.clearTimeout(timer) }, [query])
   useEffect(() => {
     const onScroll = () => {
@@ -243,23 +245,23 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   }, [query, sheet])
   const visible = useMemo(() => {
     const term = debouncedQuery.toLocaleLowerCase('zh-CN')
-    return sortRecords(waitingRecords.filter((record) => (!sources.length || sources.includes(inferPickupSource(record))) && (!term || normalizedSearch(record).includes(term))), sort)
+    return sortRecords(waitingRecords.filter((record) => (repairMode || !sources.length || sources.includes(inferPickupSource(record))) && (!term || normalizedSearch(record).includes(term))), sort)
   }, [debouncedQuery, records, sort, sources])
-  const appliedLabels = [...sources.map((value) => sourceOptions.find(([key]) => key === value)?.[1]).filter(Boolean), sort === 'default' ? null : sortOptions.find(([value]) => value === sort)?.[1]].filter(Boolean)
+  const appliedLabels = [...(repairMode ? [] : sources.map((value) => sourceOptions.find(([key]) => key === value)?.[1]).filter(Boolean)), sort === 'default' ? null : sortOptions.find(([value]) => value === sort)?.[1]].filter(Boolean)
   const closeSheet = useCallback(() => setSheet(null), [])
   const applySheet = useCallback(({ sources: nextSources, sort: nextSort }) => { setSources(nextSources); setSort(nextSort); setSheet(null) }, [])
 
   const queueControls = <div className="pickup-queue-controls" data-tools-visible={toolsVisible ? 'true' : undefined}>
-    <div className="pickup-queue-summary"><h2 id="pickup-title" className="sr-only">待取车辆</h2><span>QUEUE STATUS</span><div className="pickup-module-count"><span><b>{String(waitingRecords.length).padStart(2, '0')}</b>待取</span><span><b>{String(pickedRecords.length).padStart(2, '0')}</b>今日已取</span></div><button type="button" className="pickup-header-search" onClick={() => { setToolsVisible(true); window.setTimeout(() => document.getElementById('pickup-search')?.focus({ preventScroll: true }), 0) }} aria-label="搜索待取车辆"><IconSearch width={19} height={19} aria-hidden="true" /></button></div>
-    <div className="pickup-tools-area"><div className="pickup-tool-row"><label className="pickup-search-field" htmlFor="pickup-search"><IconSearch width={17} height={17} aria-hidden="true" /><input id="pickup-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索车型、电话、编号…" /></label><button type="button" onClick={() => setSheet('filter')} data-active={sources.length ? 'true' : undefined}><IconFilter width={17} height={17} aria-hidden="true" /><span>筛选</span>{sources.length ? <b>{sources.length}</b> : null}</button><button type="button" onClick={() => setSheet('sort')} data-active={sort !== 'default' ? 'true' : undefined}><IconSort width={17} height={17} aria-hidden="true" /><span>排序</span></button><button type="button" onClick={() => setDensity((current) => current === 'balanced' ? 'compact' : 'balanced')} aria-label={`切换为${density === 'balanced' ? '紧凑' : '平衡'}密度`}>{density === 'balanced' ? <IconList width={17} height={17} aria-hidden="true" /> : <IconViewColumns width={17} height={17} aria-hidden="true" />}<span>密度</span></button><button type="button" className="pickup-collapse-all" onClick={() => setExpandedId('')} disabled={!expandedId} aria-label="全部收起"><IconNavArrowDown width={17} height={17} aria-hidden="true" /><span>收起</span></button></div>
+    <div className="pickup-queue-summary"><h2 id={repairMode ? 'repair-title' : 'pickup-title'} className="sr-only">{repairMode ? '维修车辆' : '待取车辆'}</h2><span>{repairMode ? 'REPAIR STATUS' : 'QUEUE STATUS'}</span><div className="pickup-module-count"><span><b>{String(waitingRecords.length).padStart(2, '0')}</b>{repairMode ? '待完成' : '待取'}</span>{!repairMode ? <span><b>{String(pickedRecords.length).padStart(2, '0')}</b>今日已取</span> : null}</div><button type="button" className="pickup-header-search" onClick={() => { setToolsVisible(true); window.setTimeout(() => document.getElementById(searchId)?.focus({ preventScroll: true }), 0) }} aria-label={repairMode ? '搜索维修车辆' : '搜索待取车辆'}><IconSearch width={19} height={19} aria-hidden="true" /></button></div>
+    <div className="pickup-tools-area"><div className="pickup-tool-row"><label className="pickup-search-field" htmlFor={searchId}><IconSearch width={17} height={17} aria-hidden="true" /><input id={searchId} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={repairMode ? '搜索车型、电话、维修单号…' : '搜索车型、电话、编号…'} /></label>{!repairMode ? <button type="button" onClick={() => setSheet('filter')} data-active={sources.length ? 'true' : undefined}><IconFilter width={17} height={17} aria-hidden="true" /><span>筛选</span>{sources.length ? <b>{sources.length}</b> : null}</button> : null}<button type="button" onClick={() => setSheet('sort')} data-active={sort !== 'default' ? 'true' : undefined}><IconSort width={17} height={17} aria-hidden="true" /><span>排序</span></button><button type="button" onClick={() => setDensity((current) => current === 'balanced' ? 'compact' : 'balanced')} aria-label={`切换为${density === 'balanced' ? '紧凑' : '平衡'}密度`}>{density === 'balanced' ? <IconList width={17} height={17} aria-hidden="true" /> : <IconViewColumns width={17} height={17} aria-hidden="true" />}<span>密度</span></button><button type="button" className="pickup-collapse-all" onClick={() => setExpandedId('')} disabled={!expandedId} aria-label="全部收起"><IconNavArrowDown width={17} height={17} aria-hidden="true" /><span>收起</span></button></div>
     {appliedLabels.length ? <div className="pickup-applied-filters" aria-label="已应用规则">{appliedLabels.map((label) => <span key={label}>{label}</span>)}<button type="button" onClick={() => { setSources([]); setSort('default') }}>清除</button></div> : null}</div>
   </div>
 
-  return <div ref={ledgerRef} className="pickup-ledger" data-density={autoDensity} data-tools-visible={toolsVisible ? 'true' : undefined} aria-label={`待取车辆台账，共 ${records.length} 条`}>
+  return <div ref={ledgerRef} className="pickup-ledger" data-density={autoDensity} data-tools-visible={toolsVisible ? 'true' : undefined} aria-label={`${repairMode ? '维修车辆' : '待取车辆'}台账，共 ${records.length} 条`}>
     {queueControls}
-    <div className="pickup-ledger-intro"><div><span>ACTIVE PICKUP</span><strong>{visible.length ? `当前显示 ${visible.length} 台，按列表顺序核对并交付。` : '当前规则下没有待取车辆。'}</strong></div><div className="pickup-ledger-global-actions"><button type="button" onClick={() => onHistory()}><IconJournal width={17} height={17} aria-hidden="true" />操作记录</button><button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />增加待取</button></div></div>
-    {visible.length ? <div className="pickup-card-grid">{visible.map((record, index) => <PickupCard key={record.id} record={record} index={index} expanded={expandedId === record.id} density={autoDensity} query={debouncedQuery} closedAt={closedAt} pickupError={pickupErrors[record.id] || ''} primaryProcessing={primaryProcessingId === record.id} primaryActionBusy={primaryActionBusy} pickupPixelFill={pickupPixelFillId === record.id} onToggle={(id) => setExpandedId((current) => current === id ? '' : id)} onEdit={onEdit} onRemove={onRemove} onHistory={onHistory} onPickup={onPickup} onNotificationChange={onPickupNotificationChange} onPickupPixelFillComplete={onPickupPixelFillComplete} />)}</div> : <section className="pickup-empty-state"><IconBicycle width={34} height={34} aria-hidden="true" /><span>{waitingRecords.length ? 'NO MATCH' : 'QUEUE CLEAR'}</span><h3>{waitingRecords.length ? '没有符合条件的车辆' : '当前没有待取车辆'}</h3><p>{waitingRecords.length ? '清除搜索或筛选条件，恢复完整待取列表。' : '新增顾客暂存、自提订单或二手车待取记录。'}</p>{waitingRecords.length ? <button type="button" onClick={() => { setQuery(''); setSources([]); setSort('default') }}>恢复全部车辆</button> : <button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />增加待取车辆</button>}</section>}
-    {pickedRecords.length ? <details className="pickup-completed-today"><summary><span><IconCheck width={17} height={17} aria-hidden="true" />今日已取</span><b>{String(pickedRecords.length).padStart(2, '0')}</b></summary><div>{pickedRecords.map((record) => <button type="button" key={record.id} onClick={() => onHistory(record)}><span>{record.title}</span><small>{pickupSourceLabel(record)} · 查看操作记录</small></button>)}</div></details> : null}
-    <PickupFilterSheet open={Boolean(sheet)} initialTab={sheet || 'filter'} appliedSources={sources} appliedSort={sort} onClose={closeSheet} onApply={applySheet} />
+    <div className="pickup-ledger-intro"><div><span>{repairMode ? 'ACTIVE REPAIR' : 'ACTIVE PICKUP'}</span><strong>{visible.length ? (repairMode ? `当前显示 ${visible.length} 台，按列表顺序核对并完成维修。` : `当前显示 ${visible.length} 台，按列表顺序核对并交付。`) : (repairMode ? '当前规则下没有维修车辆。' : '当前规则下没有待取车辆。')}</strong></div><div className="pickup-ledger-global-actions"><button type="button" onClick={() => onHistory()}><IconJournal width={17} height={17} aria-hidden="true" />操作记录</button><button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />{repairMode ? '增加维修' : '增加待取'}</button></div></div>
+    {visible.length ? <div className="pickup-card-grid">{visible.map((record, index) => <PickupCard key={record.id} record={record} index={index} expanded={expandedId === record.id} density={autoDensity} query={debouncedQuery} closedAt={closedAt} pickupError={pickupErrors[record.id] || ''} primaryProcessing={primaryProcessingId === record.id} primaryActionBusy={primaryActionBusy} pickupPixelFill={repairMode ? repairPixelDissolveId === record.id : pickupPixelFillId === record.id} repairMode={repairMode} onToggle={(id) => setExpandedId((current) => current === id ? '' : id)} onEdit={onEdit} onRemove={onRemove} onHistory={onHistory} onPickup={onPickup} onRepairComplete={onRepairComplete} onNotificationChange={onPickupNotificationChange} onPickupPixelFillComplete={repairMode ? onRepairPixelDissolveComplete : onPickupPixelFillComplete} />)}</div> : <section className="pickup-empty-state"><IconBicycle width={34} height={34} aria-hidden="true" /><span>{waitingRecords.length ? 'NO MATCH' : 'QUEUE CLEAR'}</span><h3>{waitingRecords.length ? '没有符合条件的车辆' : repairMode ? '当前没有维修车辆' : '当前没有待取车辆'}</h3><p>{waitingRecords.length ? '清除搜索或筛选条件，恢复完整列表。' : repairMode ? '新增维修车辆记录，开始录入维修单。' : '新增顾客暂存、自提订单或二手车待取记录。'}</p>{waitingRecords.length ? <button type="button" onClick={() => { setQuery(''); setSources([]); setSort('default') }}>恢复全部车辆</button> : <button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />{repairMode ? '增加维修车辆' : '增加待取车辆'}</button>}</section>}
+    {!repairMode && pickedRecords.length ? <details className="pickup-completed-today"><summary><span><IconCheck width={17} height={17} aria-hidden="true" />今日已取</span><b>{String(pickedRecords.length).padStart(2, '0')}</b></summary><div>{pickedRecords.map((record) => <button type="button" key={record.id} onClick={() => onHistory(record)}><span>{record.title}</span><small>{pickupSourceLabel(record)} · 查看操作记录</small></button>)}</div></details> : null}
+    <PickupFilterSheet open={Boolean(sheet)} initialTab={sheet || 'filter'} appliedSources={sources} appliedSort={sort} repairMode={repairMode} onClose={closeSheet} onApply={applySheet} />
   </div>
 }
