@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import BootLoader from './components/BootLoader.jsx'
 import InitialSetup from './components/InitialSetup.jsx'
 import PlatformAdminSetup from './components/PlatformAdminSetup.jsx'
@@ -105,6 +105,29 @@ export default function App() {
   const writeLocked = Boolean(workflow.closedAt) || !online || Boolean(workflow.storageError)
 
   const workspaceLaunching = authenticated && auth.source === 'login' && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone
+  const loginScrollResetRef = useRef(false)
+  useLayoutEffect(() => {
+    if (!authenticated) {
+      loginScrollResetRef.current = false
+      return undefined
+    }
+    if (auth.source !== 'login' || !introDone || !workflow.hydrated || loginScrollResetRef.current) return undefined
+
+    loginScrollResetRef.current = true
+    const root = document.documentElement
+    const previousScrollBehavior = root.style.scrollBehavior
+    const resetToTop = () => window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    root.style.scrollBehavior = 'auto'
+    resetToTop()
+    const frame = window.requestAnimationFrame(() => {
+      resetToTop()
+      root.style.scrollBehavior = previousScrollBehavior
+    })
+    return () => {
+      window.cancelAnimationFrame(frame)
+      root.style.scrollBehavior = previousScrollBehavior
+    }
+  }, [authenticated, auth.source, introDone, workflow.hydrated])
   const completeWorkspaceAssembly = useCallback(() => {
     setWorkspaceAssemblyDone(true)
     window.requestAnimationFrame(() => document.getElementById('main-content')?.focus({ preventScroll: true }))

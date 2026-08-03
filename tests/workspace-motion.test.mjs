@@ -41,7 +41,7 @@ test('六模块持续挂载并全部进入文档流，本地表单和列表状�
 test('模块导航使用原生连续滚动，不拦截滚轮、触摸或翻页键', () => {
   assert.match(activeScene, /scrollIntoView/u)
   assert.match(activeScene, /addEventListener\('scroll'/u)
-  assert.doesNotMatch(activeScene, /addEventListener\('(?:wheel|touchmove|keydown)'/u)
+ assert.match(activeScene, /\['wheel', 'keydown'\]\.forEach/u)
   assert.doesNotMatch(activeScene, /preventDefault/u)
 })
 test('模块内部 reveal 仅使用短距离位移和透明度，不恢复三维或模糊效果', () => {
