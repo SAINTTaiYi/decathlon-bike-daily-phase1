@@ -382,38 +382,44 @@
 }
 
 
-/* Expanded-card diffuse bulb light: final specificity override for Pickup and repairMode. */
-.pickup-ledger .pickup-card[data-expanded='true'] {
+
+
+/* Expanded-card outer halo: matches the Add Pickup button’s surrounding diffuse glow. */
+.pickup-ledger .pickup-card-frame[data-expanded='true'] {
+  position: relative;
+  z-index: 2;
   isolation: isolate;
-  background:
-    radial-gradient(ellipse 46% 29% at 82% 13%, rgb(255 253 214 / .98) 0%, rgb(255 247 153 / .92) 19%, rgb(255 220 48 / .45) 48%, transparent 76%),
-    radial-gradient(ellipse 55% 37% at 4% 98%, rgb(255 244 130 / .72) 0%, rgb(255 201 22 / .36) 48%, transparent 78%),
-    #ffc31a;
-  box-shadow:
-    0 14px 28px rgb(160 92 0 / .24),
-    0 0 24px rgb(255 201 26 / .78),
-    0 0 56px rgb(255 186 0 / .44);
+  filter:
+    drop-shadow(0 12px 22px rgb(172 112 0 / .22))
+    drop-shadow(0 0 18px rgb(255 194 22 / .52))
+    drop-shadow(0 0 42px rgb(255 188 0 / .30));
 }
 
-.pickup-ledger .pickup-card[data-expanded='true'] > :not(.pickup-complete-wash) {
-  position: relative;
-  z-index: 1;
+.pickup-ledger .pickup-card-frame[data-expanded='true']::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 14px 10px 8px;
+  border-radius: 16px;
+  pointer-events: none;
+  background: rgb(255 195 22 / .86);
+  box-shadow:
+    0 0 22px 10px rgb(255 202 37 / .42),
+    0 0 54px 18px rgb(255 182 0 / .25);
+  filter: blur(15px);
+  opacity: .9;
+}
+
+/* Keep the expanded surface itself pure and opaque; the light lives outside its perimeter. */
+.pickup-ledger .pickup-card[data-expanded='true'] {
+  background: #ffc31a;
+  box-shadow: none;
 }
 
 .pickup-ledger .pickup-card[data-expanded='true']::before {
-  content: '';
-  position: absolute;
-  z-index: 0;
-  inset: -34% -20%;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 82% 20%, rgb(255 255 226 / .96) 0 5%, rgb(255 239 97 / .54) 18%, transparent 43%),
-    radial-gradient(circle at 10% 90%, rgb(255 239 110 / .46) 0 9%, transparent 42%);
-  filter: blur(12px);
-  opacity: .94;
-  transform: translateZ(0);
+  content: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pickup-ledger .pickup-card[data-expanded='true']::before { filter: none; }
+  .pickup-ledger .pickup-card-frame[data-expanded='true']::after { filter: none; }
 }

@@ -34,8 +34,10 @@ test('collapse keeps detail composition stable and synchronizes summary geometry
 })
 
 
-test('every expanded Pickup and repair card has a high-specificity diffuse bulb glow', () => {
-  assert.match(css, /.pickup-ledger .pickup-card\[data-expanded='true'\] \{[\s\S]*radial-gradient[\s\S]*#ffc31a[\s\S]*box-shadow:/u)
-  assert.match(css, /.pickup-ledger .pickup-card\[data-expanded='true'\]::before \{[\s\S]*circle at 82% 20%[\s\S]*filter: blur\(12px\)/u)
-  assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*.pickup-ledger .pickup-card\[data-expanded='true'\]::before/u)
+test('every expanded Pickup and repair card has the Add Pickup-style outer halo', () => {
+  assert.match(css, /\.pickup-ledger \.pickup-card-frame\[data-expanded='true'\] \{[\s\S]*drop-shadow\(0 0 18px[\s\S]*drop-shadow\(0 0 42px/u)
+  assert.match(css, /\.pickup-ledger \.pickup-card-frame\[data-expanded='true'\]::after \{[\s\S]*box-shadow:[\s\S]*0 0 54px 18px/u)
+  assert.match(css, /\.pickup-ledger \.pickup-card\[data-expanded='true'\] \{[\s\S]*background: #ffc31a;[\s\S]*box-shadow: none/u)
+  assert.match(css, /\.pickup-ledger \.pickup-card\[data-expanded='true'\]::before \{[\s\S]*content: none/u)
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*pickup-card-frame\[data-expanded='true'\]::after/u)
 })
