@@ -20,7 +20,10 @@ export default function ActionDock({ activeScene, onJump, closedAt, desktopLayou
           </li>
         ))}
       </ul>
-      <aside className="dock-release-card" aria-label={`当前版本 V${APP_VERSION}`}><strong>V{APP_VERSION}</strong><span>{currentRelease.title}</span><time>{currentRelease.date}</time><b aria-hidden="true">＋</b></aside>
+      <details className="dock-release-card">
+        <summary aria-label={`查看 V${APP_VERSION} 更新公告`}><strong>V{APP_VERSION}</strong><span>{currentRelease.title}</span><time>{currentRelease.date}</time><b aria-hidden="true">＋</b></summary>
+        <div className="dock-release-details"><strong>更新公告</strong><p>{currentRelease.summary}</p><ul>{currentRelease.changes.map((change) => <li key={change}>{change}</li>)}</ul></div>
+      </details>
       <span className="dock-status" data-closed={closedAt ? 'true' : 'false'}>{closedAt ? 'CLOSED' : 'OPEN'}</span>
     </nav>
   )
