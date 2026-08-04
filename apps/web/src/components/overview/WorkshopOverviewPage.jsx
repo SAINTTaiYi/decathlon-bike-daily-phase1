@@ -3,6 +3,7 @@ import IconCash from '@iconoir/Cash.mjs'
 import IconDelivery from '@iconoir/DeliveryTruck.mjs'
 import IconShop from '@iconoir/ShopWindow.mjs'
 import IconWrench from '@iconoir/Wrench.mjs'
+import IconTag from '@iconoir/Tag.mjs'
 import IconCheck from '@iconoir/Check.mjs'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
 
@@ -10,6 +11,7 @@ const operations = [
   { id: 'pickup', no: '02', en: 'PICKUP', cn: '待取车辆', Icon: IconDelivery },
   { id: 'poster', no: '03', en: 'OTHER', cn: '其它交接', Icon: IconShop },
   { id: 'repair', no: '04', en: 'REPAIR', cn: '维修交接', Icon: IconWrench },
+  { id: 'resale', no: '05', en: 'USED', cn: '二手台账', Icon: IconTag },
   { id: 'sales', no: '06', en: 'SALES', cn: '销售数据', Icon: IconCash }
 ]
 
@@ -129,12 +131,12 @@ function operationSummary(workflow) {
   return '销售数据已保存 · 可闭店'
 }
 
-function OperationsIndex({ workflow, onJump }) {
+function OperationsIndex({ workflow, onJump, showUsed = false }) {
   const available = workflow.hydrated && workflow.hasSnapshot && !workflow.storageError
   return (
     <nav className="ops-index" aria-label="业务台账模块">
       <div className="ops-index-head"><span className="ops-index-label"><span>OPERATIONS INDEX ·</span><span className="ops-index-label-cn">业务台账</span></span><strong>{operationSummary(workflow)}</strong></div>
-      <ol>{operations.map(({ id, no, en, cn, Icon }) => {
+      <ol>{operations.filter(({ id }) => showUsed || id !== 'resale').map(({ id, no, en, cn, Icon }) => {
         const count = workflow.recordsByScene[id]?.length ?? 0
         let value = displayMetric(count, available)
         if (id === 'sales') {
@@ -158,16 +160,20 @@ function OverviewAnalytics({ workflow }) {
     ['其它交接', available ? `${otherCount} 条在册` : '待同步']
   ]
   const total = repairCount + pickupCount + otherCount
+  const completeness = available ? (workflow.kpiReady ? 100 : 75) : 0
+  const sales = Number(workflow.kpi?.salesVehicles || 0)
+  const chartDates = ['07/29', '07/30', '07/31', '08/01', '08/02', '08/03', '今日']
   return <section className="ops-analytics-grid" aria-label="业务趋势与数据健康度">
-    <article className="ops-analytics-panel ops-activity-panel">
-      <header><strong>业务趋势概览</strong><span>实时业务数据</span></header>
-      <div className="ops-activity-metrics"><div><small>待处理业务</small><b>{available ? String(total).padStart(2, '0') : '—'}</b><em>ITEMS</em></div><div><small>维修交接</small><b>{available ? String(repairCount).padStart(2, '0') : '—'}</b><em>REPAIR</em></div></div>
-      <div className="ops-activity-bars" aria-hidden="true">{[pickupCount, otherCount, repairCount, Number(workflow.kpi?.salesVehicles || 0), Number(workflow.kpi?.usedSold || 0), Number(workflow.kpi?.usedReceived || 0)].map((value, index) => <i key={index} style={{ '--ops-bar-value': `${Math.max(10, Math.min(100, Number(value) * 18 || 10))}%` }} />)}</div>
-      <footer><span>待取</span><span>其它</span><span>维修</span><span>销售</span><span>售出</span><span>收车</span></footer>
+    <article className="ops-analytics-panel ops-trends-panel">
+      <header><strong>业务趋势概览</strong><span aria-hidden="true">↗</span></header>
+      <div className="ops-trend-grid">
+        <section className="ops-trend-card"><small>销售数据趋势（近7天）</small><div className="ops-trend-value"><b>{available ? String(sales).padStart(2, '0') : '—'}</b><em>UNIT</em></div><div className="ops-trend-bars" aria-hidden="true">{chartDates.map((date, index) => <i key={date} style={{ '--ops-trend-height': index === chartDates.length - 1 ? `${Math.max(12, Math.min(100, sales * 16))}%` : '0%' }} />)}</div><footer>{chartDates.map((date) => <span key={date}>{date}</span>)}</footer></section>
+        <section className="ops-trend-card ops-repair-trend"><small>维修交接趋势（近7天）</small><div className="ops-trend-value"><b>{available ? String(repairCount).padStart(2, '0') : '—'}</b><em>单</em></div><svg viewBox="0 0 420 120" preserveAspectRatio="none" aria-hidden="true"><path className="ops-trend-gridline" d="M0 30H420M0 60H420M0 90H420"/><polyline points={`0,96 70,96 140,96 210,96 280,96 350,96 420,${Math.max(16, 96 - repairCount * 15)}`} /></svg><footer>{chartDates.map((date) => <span key={date}>{date}</span>)}</footer></section>
+      </div>
     </article>
     <article className="ops-analytics-panel ops-health-panel">
       <header><strong>数据健康度</strong><span>{available ? 'LIVE' : 'SYNC'}</span></header>
-      <div className="ops-health-score"><b>{available ? (workflow.kpiReady ? '100' : '75') : '—'}</b><span>%</span><small>数据完整度</small></div>
+      <div className="ops-health-score" style={{ '--ops-health-percent': `${completeness}%` }}><b>{available ? completeness : '—'}</b><span>{available ? '%' : ''}</span><small>数据完整度</small></div>
       <ul>{healthRows.map(([label, value]) => <li key={label}><IconCheck width={14} height={14} aria-hidden="true" /><span>{label}</span><strong>{value}</strong></li>)}</ul>
     </article>
   </section>
@@ -202,14 +208,14 @@ function ReleaseStrip() {
   )
 }
 
-export default function WorkshopOverviewPage({ workflow, online, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport, onJump }) {
+export default function WorkshopOverviewPage({ workflow, online, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport, onJump, showUsed = false }) {
   const available = workflow.hydrated && workflow.hasSnapshot
   return (
     <div className="ops-mobile-overview" data-workspace-module="true" aria-label="Workshop 业务总览">
       {!online ? <p className="ops-inline-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据</p> : null}
       <ClosingStatusCard workflow={workflow} online={online} onEditKpi={onEditKpi} onCompleteClosing={onCompleteClosing} onHistory={onHistory} onRefresh={onRefresh} onReopenClosing={onReopenClosing} onExportReport={onExportReport} />
       <SalesVehiclesPanel dateKey={workflow.dateKey} kpi={workflow.kpi} available={available} onEditKpi={onEditKpi} />
-      <OperationsIndex workflow={workflow} onJump={onJump} />
+      <OperationsIndex workflow={workflow} onJump={onJump} showUsed={showUsed} />
       <OverviewAnalytics workflow={workflow} />
       <ReleaseStrip />
       <div className="ops-first-screen-spacer" aria-hidden="true" />

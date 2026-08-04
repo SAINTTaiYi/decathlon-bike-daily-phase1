@@ -5,10 +5,11 @@ import { readFile } from 'node:fs/promises'
 const css = await readFile(new URL('../apps/web/src/styles/desktop-workbench.css', import.meta.url), 'utf8')
 const ledger = await readFile(new URL('../apps/web/src/components/pickup/PickupLedger.jsx', import.meta.url), 'utf8')
 
-test('desktop reference overview uses a 1024px breakpoint and a stable 5/7 first row', () => {
-  assert.match(css, /@media \(min-width: 1024px\)/u)
-  assert.match(css, /ops-closing-card \{ grid-column: span 5;/u)
-  assert.match(css, /ops-sales-panel \{ grid-column: span 7;/u)
+test('desktop reference uses the physical-pixel canvas and stable two-panel first row', () => {
+  assert.match(css, /@media \(min-width: 768px\)/u)
+  assert.match(css, /zoom: calc\(100vw \/ 1536px\)/u)
+  assert.match(css, /ops-closing-card \{ grid-column: 1;/u)
+  assert.match(css, /ops-sales-panel \{ grid-column: 2;/u)
   assert.match(css, /ops-analytics-grid/u)
 })
 

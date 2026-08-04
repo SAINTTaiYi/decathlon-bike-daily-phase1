@@ -160,3 +160,10 @@ EdgeOne 平台操作若当前网络不可达，停止并提醒开启 VPN；不�
 - 未配置真实 Secret、未部署 Staging、未创建 Production 资源。
 - 不在聊天、仓库、日志或 artifact 中保存凭据。
 - 无 force push、无历史改写。
+
+## 2026-08-05 — Reference desktop pixel reconstruction R2
+- Rejected Preview baseline: `152e0eaf` (desktop layout failed to activate on the actual high-DPR desktop-mode viewport).
+- R2 implementation root: `worktrees/workshop-reference-pixel-r2`, branch `fix/reference-pixel-r2-v581`.
+- Locked target: five supplied 1536×1024 boards; real data/business interactions and phone UI preserved; Preview-only.
+- Structural correction: native 1536×1024 canvas scaling, 768 CSS px desktop/tablet activation, six-item left navigation retained, release card restored.
+- Exact next step: run tests/typecheck/workflow/build and CodeGraph post-gate; then commit, PR, CI and canonical Cloudflare Preview-only deployment.

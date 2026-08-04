@@ -1,10 +1,10 @@
 /*
- * 1536 × 1024 reference-workbench cascade.
- * The five supplied boards share one fixed 90px global header, a 262px rail,
- * a 66px module bar, and a 12-column content field.  This layer intentionally
- * starts at 1024px so the existing mobile/tablet flow remains intact below it.
+ * 1536 × 1024 reference board — final desktop/tablet cascade.
+ * The board is authored in the reference's native coordinate system and zoomed
+ * as one canvas. This keeps physical-pixel geometry stable on high-DPR Android
+ * desktop mode while leaving the existing phone UI untouched below 768 CSS px.
  */
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   :root {
     --ops-global-header-height: 90px;
     --ops-module-header-height: 66px;
@@ -13,10 +13,24 @@
     --dock-space: 0px;
   }
 
-  html { scroll-padding-top: calc(var(--ops-header-height) + 18px); }
-  .workshop-runtime > [data-workspace-layer='navigation'] { box-shadow: 0 1px 0 rgb(12 14 12 / .09); }
-  .workshop-shell-header { width: 100%; height: var(--ops-header-height); }
-  .workshop-global-header { grid-template-columns: 84px 230px minmax(0, 1fr); min-height: var(--ops-global-header-height); padding: 0; }
+  html { overflow-x: hidden; scroll-padding-top: 174px; }
+  body { min-width: 0; overflow-x: hidden; }
+  .workshop-runtime {
+    width: 1536px;
+    min-width: 1536px;
+    min-height: 1024px;
+    zoom: calc(100vw / 1536px);
+  }
+  .workshop-runtime > [data-workspace-layer='navigation'] {
+    width: 1536px;
+    box-shadow: 0 1px 0 rgb(12 14 12 / .09);
+  }
+  .workshop-shell-header { width: 1536px; height: 156px; margin: 0; }
+  .workshop-global-header {
+    grid-template-columns: 84px 230px minmax(0, 1fr);
+    min-height: 90px;
+    padding: 0;
+  }
   .workshop-header-action { width: 56px; height: 56px; }
   .workshop-header-menu { width: 84px; height: 90px; border-right: 1px solid rgb(12 14 12 / .07); }
   .workshop-header-brand { align-self: stretch; align-content: center; padding-left: 20px; }
@@ -25,43 +39,114 @@
   .workshop-header-brand > small { margin-top: 2px; font-size: 12px; }
   .workshop-header-desktop-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-right: 30px; }
   .workshop-header-context { display: none !important; }
-  .workshop-user-context { display: grid; grid-template-columns: 42px minmax(0, 1fr) 18px; align-items: center; gap: 10px; min-width: 200px; min-height: 56px; padding: 0 0 0 6px; text-align: left; }
+  .workshop-user-context {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 18px;
+    align-items: center;
+    gap: 10px;
+    min-width: 200px;
+    min-height: 56px;
+    padding: 0 0 0 6px;
+    text-align: left;
+  }
   .workshop-user-avatar { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--ops-yellow); color: var(--ops-black); box-shadow: 0 0 16px var(--ops-yellow-glow); }
   .workshop-user-context > span:nth-child(2) { min-width: 0; }
   .workshop-user-context strong, .workshop-user-context small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .workshop-user-context strong { font-size: 13px; line-height: 18px; }
   .workshop-user-context small { color: var(--ops-text-muted); font-size: 11px; line-height: 15px; }
-  .workshop-module-header { grid-template-columns: 32px auto minmax(0, 1fr) auto; gap: 12px; min-height: var(--ops-module-header-height); margin-left: 262px; padding: 0 28px 0 38px; border-top: 1px solid rgb(12 14 12 / .09); border-bottom: 1px solid rgb(12 14 12 / .08); background: var(--ops-page); }
+  .workshop-module-header {
+    grid-template-columns: 32px auto minmax(0, 1fr) auto;
+    gap: 12px;
+    min-height: 66px;
+    margin-left: 262px;
+    padding: 0 28px 0 38px;
+    border-top: 1px solid rgb(12 14 12 / .09);
+    border-bottom: 1px solid rgb(12 14 12 / .08);
+    background: var(--ops-page);
+  }
   .workshop-module-header > svg { color: var(--ops-yellow-pressed); }
   .workshop-module-header > span { font-size: 15px; }
   .workshop-module-header > strong { font-size: 24px; line-height: 1; }
   .workshop-module-header > small { font-size: 15px; }
 
-  .workshop-shell { width: auto; min-height: calc(100dvh - var(--ops-header-height)); margin: 0 26px 0 278px; padding: calc(var(--ops-header-height) + 24px) 0 40px; background: transparent; }
+  .workshop-shell {
+    width: 1274px;
+    min-height: 868px;
+    margin: 0 0 0 262px;
+    padding: 180px 32px 40px;
+    background: transparent;
+  }
   .workshop-module-stack { gap: 0; }
   .workshop-module-panel { display: none !important; min-height: 0; margin: 0; padding: 0; }
   .workshop-shell[data-desktop-scene='pulse'] .workshop-module-panel[data-scene-id='pulse'],
   .workshop-shell[data-desktop-scene='pickup'] .workshop-module-panel[data-scene-id='pickup'],
   .workshop-shell[data-desktop-scene='poster'] .workshop-module-panel[data-scene-id='poster'],
   .workshop-shell[data-desktop-scene='repair'] .workshop-module-panel[data-scene-id='repair'],
+  .workshop-shell[data-desktop-scene='resale'] .workshop-module-panel[data-scene-id='resale'],
   .workshop-shell[data-desktop-scene='sales'] .workshop-module-panel[data-scene-id='sales'] { display: block !important; }
   .workshop-footer { display: none; }
 
-  /* Fixed five-destination left rail. Used is deliberately absent: only its KPIs remain. */
-  .look-dock { left: 20px !important; top: 132px !important; bottom: auto !important; width: 218px !important; min-height: 0; padding: 0 !important; overflow: visible !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; transform: none !important; }
+  /* Reference left rail: six destinations plus release card. */
+  .look-dock {
+    left: 20px !important;
+    top: 132px !important;
+    bottom: auto !important;
+    width: 218px !important;
+    min-height: 0;
+    padding: 0 !important;
+    overflow: visible !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
   .look-dock ul { display: grid !important; grid-template-columns: 1fr !important; gap: 12px; }
   .dock-active-indicator { display: none; }
-  .look-dock button { grid-template-columns: 38px minmax(0, 1fr); grid-template-rows: 19px 15px !important; justify-items: start; column-gap: 13px; min-height: 72px !important; padding: 10px 20px !important; border-radius: 8px !important; color: var(--ops-black) !important; }
+  .look-dock button {
+    grid-template-columns: 38px minmax(0, 1fr);
+    grid-template-rows: 19px 15px !important;
+    justify-items: start;
+    column-gap: 13px;
+    min-height: 72px !important;
+    padding: 10px 20px !important;
+    border-radius: 8px !important;
+    color: var(--ops-black) !important;
+  }
   .look-dock button svg { grid-row: 1 / 3; width: 29px; height: 29px; }
   .look-dock button span { align-self: end; font-size: 15px !important; line-height: 17px; }
   .look-dock button small { align-self: start; font-size: 12px !important; line-height: 14px; }
   .look-dock button[data-active='true'] { background: var(--ops-black) !important; color: var(--ops-yellow) !important; box-shadow: 0 0 16px var(--ops-black-glow) !important; }
   .look-dock button[data-active='true'] small { color: var(--ops-text-inverse); }
+  .dock-release-card {
+    position: absolute;
+    top: 704px;
+    left: 12px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    width: 190px;
+    min-height: 116px;
+    padding: 12px;
+    border: 1px solid rgb(12 14 12 / .07);
+    border-radius: 8px;
+    background: var(--ops-card);
+    box-shadow: var(--ops-card-shadow);
+  }
+  .dock-release-card strong { align-self: start; padding: 4px 10px; border-radius: 3px; background: var(--ops-yellow); font-family: var(--ops-display); font-size: 13px; line-height: 17px; }
+  .dock-release-card span { grid-column: 1 / -1; font-size: 11px; line-height: 17px; }
+  .dock-release-card time { align-self: end; color: var(--ops-text-muted); font-size: 11px; }
+  .dock-release-card b { align-self: end; justify-self: end; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 3px; background: var(--ops-yellow); font-size: 21px; line-height: 1; }
 
-  /* Overview: exact 5/7 first row, full operational index, 8/4 lower row. */
-  .workshop-overview-panel .ops-mobile-overview { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); align-items: start; gap: 16px; }
-  .workshop-overview-panel .ops-mobile-overview > .ops-closing-card { grid-column: span 5; min-height: 292px; margin: 0; }
-  .workshop-overview-panel .ops-mobile-overview > .ops-sales-panel { grid-column: span 7; height: 292px; margin: 0; }
+  /* Overview begins flush below the module bar, matching the reference. */
+  .workshop-overview-panel .ops-mobile-overview {
+    display: grid;
+    grid-template-columns: minmax(0, .94fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 16px;
+    margin: -24px -16px 0;
+  }
+  .workshop-overview-panel .ops-mobile-overview > .ops-closing-card { grid-column: 1; min-height: 292px; margin: 0; }
+  .workshop-overview-panel .ops-mobile-overview > .ops-sales-panel { grid-column: 2; height: 292px; margin: 0; }
   .workshop-overview-panel .ops-mobile-overview > .ops-index { grid-column: 1 / -1; height: 204px; margin: 0; }
   .workshop-overview-panel .ops-mobile-overview > .ops-analytics-grid { grid-column: 1 / -1; }
   .workshop-overview-panel .ops-mobile-overview > :is(.ops-release-strip, .ops-first-screen-spacer) { display: none; }
@@ -96,14 +181,14 @@
   .ops-index-head { height: 54px; padding: 0 28px; }
   .ops-index-label { font-size: 15px; }
   .ops-index-head strong { font-size: 13px; }
-  .ops-index ol { grid-template-columns: repeat(4, minmax(0, 1fr)); height: 150px; }
+  .ops-index ol { grid-template-columns: repeat(5, minmax(0, 1fr)); height: 150px; }
   .ops-index button > small { top: 16px; left: 28px; font-size: 13px; }
   .ops-index button > span { top: 40px; right: 22px; left: 28px; gap: 9px; }
   .ops-index button > span strong { font-size: 16px; }
   .ops-index button > em { top: 69px; right: 22px; left: 28px; font-size: 13px; }
   .ops-index button > b { top: 94px; left: 28px; font-size: 45px; }
   .ops-index button > .ops-arrow { top: 103px; right: 26px; font-size: 24px; }
-  .ops-analytics-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); gap: 16px; }
+  .ops-analytics-grid { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(360px, 1fr); gap: 16px; }
   .ops-analytics-panel { min-height: 290px; padding: 20px 24px; border-radius: 8px; background: var(--ops-card); box-shadow: var(--ops-card-shadow); }
   .ops-analytics-panel > header { display: flex; align-items: baseline; justify-content: space-between; }
   .ops-analytics-panel > header strong { font-size: 16px; }
@@ -126,9 +211,9 @@
   .ops-health-panel li { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 6px; min-height: 32px; border-bottom: 1px solid rgb(12 14 12 / .08); font-size: 12px; }
   .ops-health-panel li strong { color: var(--ops-text-muted); font-size: 12px; font-weight: 650; }
 
-  /* Pending, Other, and Repair use the reference’s full-width ledger board. */
+  /* Pending and Repair: exact 312/24 toolbar split and full-width table. */
   .pickup-operations-section { width: 100%; }
-  .pickup-queue-controls { display: grid; grid-template-columns: 292px minmax(0, 1fr); gap: 16px; margin: 0; }
+  .pickup-queue-controls { display: grid; grid-template-columns: 312px minmax(0, 1fr); gap: 24px; margin: 0; }
   .pickup-queue-summary { min-height: 72px; padding: 10px 18px; border-radius: 8px; background: var(--ops-card); }
   .pickup-queue-summary > span { font-size: 13px; }
   .pickup-module-count b { font-size: 34px; }
@@ -174,9 +259,19 @@
   .pickup-card-actions .pickup-primary-action { grid-column: auto; }
   .handover-complete-stamp-stage { right: 112px; }
 
-  /* Sales check mirrors its one-card reference page while retaining all real KPI fields. */
+  /* Other Handover's reference deliberately uses a taller control row and cards. */
+  .workshop-shell[data-desktop-scene='poster'] .pickup-queue-controls { margin-top: 25px; }
+  .workshop-shell[data-desktop-scene='poster'] :is(.pickup-queue-summary, .pickup-tool-row) { min-height: 105px; }
+  .workshop-shell[data-desktop-scene='poster'] .pickup-tool-row .pickup-search-field { min-height: 93px; }
+  .workshop-shell[data-desktop-scene='poster'] .pickup-tool-row > button { height: 93px; }
+  .workshop-shell[data-desktop-scene='poster'] .pickup-ledger-board { margin-top: 20px; }
+  .workshop-shell[data-desktop-scene='poster'] .pickup-ledger-intro { min-height: 104px; }
+  .workshop-shell[data-desktop-scene='poster'] .pickup-ledger-table-head { min-height: 61px; }
+  .workshop-shell[data-desktop-scene='poster'] .pickup-card-summary { min-height: 116px; }
+
+  /* Sales check: one full reference card, real KPI fields and original actions. */
   .closing-look .scene-title { display: none; }
-  .closing-look .sales-input-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; min-height: 542px; margin: 0 34px; padding: 34px 28px; border-radius: 8px; }
+  .closing-look .sales-input-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; min-height: 542px; margin: 38px 18px 0; padding: 34px 28px; border-radius: 8px; }
   .sales-input-summary > div { display: grid; align-content: space-between; min-height: 184px; padding: 28px 22px; border-radius: 8px; }
   .sales-input-summary > div span { font-size: 18px; }
   .sales-input-summary > div strong { font-size: 46px; }
@@ -184,11 +279,37 @@
   .sales-input-summary > p { grid-column: 1 / -1; padding: 0; font-size: 16px; }
 }
 
-@media (min-width: 1440px) {
-  .workshop-shell { margin-right: 28px; }
-  .ops-analytics-grid { grid-template-columns: minmax(0, 2.1fr) minmax(360px, 1fr); }
+@media (forced-colors: active) and (min-width: 768px) {
+  .look-dock button[data-active='true'], .workshop-user-avatar, .ops-health-score { forced-color-adjust: auto; }
 }
 
-@media (forced-colors: active) and (min-width: 1024px) {
-  .look-dock button[data-active='true'], .workshop-user-avatar, .ops-health-score { forced-color-adjust: auto; }
+@media (min-width: 768px) {
+  .ops-trends-panel { padding: 0; overflow: hidden; }
+  .ops-trends-panel > header { height: 52px; padding: 0 24px; }
+  .ops-trend-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-height: 238px; }
+  .ops-trend-card { position: relative; display: grid; grid-template-rows: auto auto 1fr auto; min-width: 0; padding: 16px 24px 12px; border-right: 1px solid rgb(12 14 12 / .08); }
+  .ops-trend-card:last-child { border-right: 0; }
+  .ops-trend-card > small { color: var(--ops-text-muted); font-size: 12px; }
+  .ops-trend-value { display: flex; align-items: end; gap: 7px; margin-top: 8px; }
+  .ops-trend-value b { font-family: var(--ops-display); font-size: 43px; line-height: .8; }
+  .ops-trend-value em { padding-bottom: 3px; color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 11px; font-style: normal; }
+  .ops-trend-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); align-items: end; gap: 18px; min-height: 92px; margin-top: 8px; border-bottom: 1px solid rgb(12 14 12 / .12); }
+  .ops-trend-bars i { min-height: 2px; height: var(--ops-trend-height); background: linear-gradient(to bottom, var(--ops-yellow), rgb(255 195 26 / .22)); }
+  .ops-trend-card footer { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; padding-top: 6px; color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 9px; text-align: center; }
+  .ops-repair-trend svg { align-self: end; width: 100%; height: 100px; margin-top: 1px; overflow: visible; }
+  .ops-repair-trend .ops-trend-gridline { fill: none; stroke: rgb(12 14 12 / .08); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .ops-repair-trend polyline { fill: none; stroke: var(--ops-yellow); stroke-width: 2; vector-effect: non-scaling-stroke; }
+  .ops-health-score { position: relative; z-index: 0; border: 0; background: conic-gradient(var(--ops-yellow) var(--ops-health-percent), rgb(12 14 12 / .1) 0); }
+  .ops-health-score::before { content: ''; position: absolute; inset: 10px; z-index: -1; border-radius: 50%; background: var(--ops-card); }
+
+  .closing-look .sales-input-summary { grid-template-rows: 126px 184px 70px auto; }
+  .sales-input-summary > .sales-reference-intro { grid-column: 1 / -1; display: grid; align-content: start; min-height: 0; padding: 0; background: transparent; }
+  .sales-reference-intro > div { display: flex; align-items: center; gap: 14px; }
+  .sales-reference-intro strong { font-family: var(--ops-body); font-size: 19px; line-height: 28px; }
+  .sales-reference-intro > p { margin: 20px 0 0; padding: 0; color: var(--ops-text-muted); font-size: 15px; line-height: 26px; }
+  .sales-input-summary > .sales-reference-submit { min-height: 70px; }
+  .sales-input-summary > .sales-reference-note { margin: 0; padding: 6px 0 0; }
+
+  .workshop-shell[data-desktop-scene='poster'] .handover-complete-stamp-stage { right: 210px; bottom: 24px; width: 150px; height: 58px; }
+  .workshop-shell[data-desktop-scene='poster'] .handover-complete-stamp { font-size: 36px; }
 }
