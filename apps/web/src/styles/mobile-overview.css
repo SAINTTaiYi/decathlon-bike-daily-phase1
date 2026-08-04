@@ -224,7 +224,7 @@
   }
   .look-dock::before { display: none !important; }
   .look-dock .dock-status { display: none !important; }
-  .look-dock ul { display: grid !important; grid-template-columns: repeat(6, minmax(0,1fr)) !important; height: 58px; overflow: visible !important; }
+  .look-dock ul { display: grid !important; grid-template-columns: repeat(5, minmax(0,1fr)) !important; height: 58px; overflow: visible !important; }
   .look-dock li { min-width: 0 !important; }
   .look-dock button { display: grid !important; grid-template-rows: 21px 11px 9px !important; place-items: center; gap: 1px !important; min-width: 0 !important; min-height: 58px !important; padding: 7px 1px 3px !important; color: var(--ops-black) !important; }
   .look-dock button[data-active='true'] { background: var(--ops-black) !important; box-shadow: 0 0 16px var(--ops-black-glow) !important; color: var(--ops-yellow) !important; }

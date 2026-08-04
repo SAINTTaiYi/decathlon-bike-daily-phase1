@@ -111,10 +111,10 @@ The accepted overview establishes the priority order:
 2. Current store, user identity, and menu.
 3. Daily closing status and the single next action.
 4. Sales vehicle total and supporting sales KPIs.
-5. Operations index for Pickup, Other, Repair, Used, and Sales.
+5. Operations index for Pickup, Other, Repair, and Sales; used-car sale/acquisition remain sales KPIs only.
 6. Pickup work queue.
 7. Release information.
-8. Persistent six-destination navigation.
+8. Persistent five-destination navigation (Overview, Pending, Other, Repair, Sales); used-car metrics remain under Sales.
 
 Apply the same principle elsewhere: current decision first, supporting evidence second, history and configuration later. Avoid landing-page heroes, decorative introductions, feature explanations, and oversized editorial headings inside work surfaces.
 
@@ -146,9 +146,8 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 
 ### Desktop
 
-- At `840px` and above, use a stable 12-column work grid.
-- Closing and sales surfaces may share a row; supporting modules use full-width or balanced columns according to task density.
-- At `1200px` and above, the operations index and pickup board may share the row.
+- At `1024px` and above, use the reference workbench: fixed 90px global header, 262px left rail, 66px module bar, and one selected board in the remaining field.
+- Overview uses a 5/7 closing-to-sales row, full-width four-operation index, then an 8/4 trend-and-health row; Pending, Other, and Repair use a full-width ledger table.
 - Desktop is a wider workbench, not a different visual theme. Do not revive obsolete desktop-specific art directions.
 
 ## Accessibility
@@ -197,4 +196,4 @@ When modifying an existing screen:
 
 ## Workshop module navigation
 
-The six business modules use one normal vertical document flow in this order: Overview, Pending, Other, Repair, Used, Sales. The fixed bottom dock may identify the visible module and scroll to its section, but must not rotate, scale, stack, pin, snap, or replace modules. All modules remain mounted and reachable through ordinary vertical scrolling, including with reduced motion.
+Mobile keeps the normal document flow. At 1024px and above, the reference workbench uses a fixed left rail and displays one selected work board at a time: Overview, Pending, Other, Repair, Sales. The independent Used module and /used route are retired; /used redirects to Overview. Used-car sale and acquisition remain real KPI fields in Overview and Sales. The desktop rail must not rotate, scale, stack, or animate between boards; mobile continues to use ordinary vertical scrolling and reduced-motion-safe navigation.

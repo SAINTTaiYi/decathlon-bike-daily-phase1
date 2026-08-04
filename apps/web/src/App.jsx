@@ -36,7 +36,6 @@ import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
 import OpeningScene from './scenes/OpeningScene.jsx'
 import PickupScene from './scenes/PickupScene.jsx'
 import RepairScene from './scenes/RepairScene.jsx'
-import ResaleScene from './scenes/ResaleScene.jsx'
 import SalesScene from './scenes/SalesScene.jsx'
 
 const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员' }
@@ -62,6 +61,8 @@ export default function App() {
   const [authMode, setAuthMode] = useState('login')
   const [workspaceAssemblyDone, setWorkspaceAssemblyDone] = useState(false)
   const [taskInputFocused, setTaskInputFocused] = useState(false)
+  const [desktopLayout, setDesktopLayout] = useState(() => window.matchMedia?.('(min-width: 1024px)').matches ?? false)
+  const [desktopScene, setDesktopScene] = useState('pulse')
   const workspaceRootRef = useRef(null)
   const [setupToken, setSetupToken] = useState(() => {
     const match = window.location.hash.match(/^#setup=([^&]+)$/u)
@@ -142,6 +143,29 @@ export default function App() {
     enabled: introDone && workflow.hydrated && !workspaceLaunching,
     rootRef: workspaceRootRef
   })
+
+  useEffect(() => {
+    const media = window.matchMedia?.('(min-width: 1024px)')
+    if (!media) return undefined
+    const sync = () => setDesktopLayout(media.matches)
+    sync()
+    media.addEventListener?.('change', sync)
+    return () => media.removeEventListener?.('change', sync)
+  }, [])
+
+  useEffect(() => {
+    if (!['/used', '/resale'].includes(window.location.pathname)) return
+    window.history.replaceState({}, '', '/')
+    setDesktopScene('pulse')
+    window.requestAnimationFrame(() => jumpTo('pulse'))
+  }, [jumpTo])
+
+  const navigateToScene = useCallback((sceneId) => {
+    const nextScene = sceneId === 'resale' ? 'pulse' : sceneId
+    setDesktopScene(nextScene)
+    window.requestAnimationFrame(() => jumpTo(nextScene))
+  }, [jumpTo])
+  const visibleScene = desktopLayout ? desktopScene : activeScene
 
   useMotionSystem({ enabled: introDone && workflow.hydrated && !workspaceLaunching, rootRef: workspaceRootRef, quiet: taskFocused })
 
@@ -497,7 +521,7 @@ export default function App() {
     )
   }
 
-  const jumpFromOverview = (sceneId) => jumpTo(sceneId)
+  const jumpFromOverview = (sceneId) => navigateToScene(sceneId)
 
   const editorConfig = recordEditor
     ? recordEditor.scene === 'pickup' && inferPickupSource(recordEditor.record) === 'repair'
@@ -514,18 +538,19 @@ export default function App() {
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
         <div data-workspace-layer="navigation" data-workspace-priority="true">
           <WorkshopShellHeader
-            activeScene={activeScene}
+            activeScene={visibleScene}
             dateKey={workflow.dateKey}
             storeName={currentStore?.storeName}
             roleLabel={roleLabels[role]}
             userName={currentUser}
             onMenu={() => setMenuOpen(true)}
             onLog={() => setLogOpen(true)}
+            onSearch={() => navigateToScene('pickup')}
             hasUnread={Boolean(workflow.events?.length)}
           />
         </div>
         {!online ? <p className="workshop-global-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据；恢复网络后才能修改。</p> : null}
-        <main className="workshop-shell" id="main-content" tabIndex="-1" data-workspace-layer="structure">
+        <main className="workshop-shell" data-desktop-scene={desktopScene} id="main-content" tabIndex="-1" data-workspace-layer="structure">
           <div className="workshop-module-stack" data-workspace-layer="focus">
             <WorkshopModuleSection sceneId="pulse" className="workshop-overview-panel">
               <span className="closing-summary-anchor" id="closing-summary-anchor" aria-hidden="true" />
@@ -544,7 +569,6 @@ export default function App() {
             <WorkshopModuleSection sceneId="pickup"><PickupScene {...recordProps('pickup')} /></WorkshopModuleSection>
             <WorkshopModuleSection sceneId="poster"><OpeningScene {...recordProps('poster')} /></WorkshopModuleSection>
             <WorkshopModuleSection sceneId="repair"><RepairScene {...recordProps('repair')} /></WorkshopModuleSection>
-            <WorkshopModuleSection sceneId="resale"><ResaleScene {...recordProps('resale')} /></WorkshopModuleSection>
             <WorkshopModuleSection sceneId="sales"><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></WorkshopModuleSection>
           </div>
           <footer className="closing-footer workshop-footer">
@@ -573,7 +597,7 @@ export default function App() {
         <ConfirmClosingDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={confirmClose} />
         <KpiDialog open={kpiOpen} onClose={() => setKpiOpen(false)} values={workflow.kpi} savedAt={workflow.kpiSavedAt} onSave={workflow.saveKpi} onClear={workflow.clearKpi} onNotify={setToast} />
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
-        {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={activeScene} onJump={jumpFromOverview} closedAt={workflow.closedAt} /></div> : null}
+        {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={visibleScene} onJump={jumpFromOverview} closedAt={workflow.closedAt} /></div> : null}
       </div>
       {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button></div> : null}
       <ReportImageDialog

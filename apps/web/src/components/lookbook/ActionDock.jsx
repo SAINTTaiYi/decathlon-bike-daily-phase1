@@ -1,6 +1,6 @@
 import { lookbookScenes } from '../../data/lookbookScenes.js'
 
-const navEnglish = { pulse: 'OVERVIEW', pickup: 'PENDING', poster: 'OTHER', repair: 'REPAIR', resale: 'USED', sales: 'SALES' }
+const navEnglish = { pulse: 'OVERVIEW', pickup: 'PENDING', poster: 'OTHER', repair: 'REPAIR', sales: 'SALES' }
 
 export default function ActionDock({ activeScene, onJump, closedAt }) {
   const activeIndex = Math.max(0, lookbookScenes.findIndex(({ id }) => id === activeScene))
