@@ -122,7 +122,9 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
   const resultLabel = repairMode || handoverMode ? (record.status || '继续跟进') : pickupResultLabel(record)
   const ticketNumber = formatTicketNumber(record.ticketNo, record.id)
   const matchReason = hiddenMatchReason(record, query, source, contactValue, detailLine)
-  const cardTitle = handoverMode ? detailLine : pickupCardTitle(record, detailLine)
+  // Legacy handovers can have a numeric detail (for example `1`) while title is the persisted human-facing item.
+  // Keep title authoritative; detail is only a compatibility fallback for records whose title is genuinely empty.
+  const cardTitle = handoverMode ? String(record.title || '').trim() || detailLine : pickupCardTitle(record, detailLine)
   const locked = Boolean(closedAt) || primaryActionBusy
 
   useEffect(() => {
