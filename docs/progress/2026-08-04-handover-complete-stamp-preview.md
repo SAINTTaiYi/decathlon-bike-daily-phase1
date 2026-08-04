@@ -26,3 +26,16 @@
 ## 发布约束
 
 只创建并验证 Cloudflare Preview；等待人工验收，绝不隐式部署 Production。
+
+## Preview delivery evidence
+
+- Candidate PR `#135` passed GitHub `verify` and `secrets`, then was normally merged to `feature/cloudflare-workers-d1` as `7eeef6e457232466b0a02b48d3d55dc95bb4d3a6`.
+- The canonical manual workflow `deploy-cloudflare-preview.yml` was dispatched only after explicit `confirm_free_plan=true`, `confirm_no_billing=true`, and `confirm_preview_only=true` confirmations. Run `30919256531` completed successfully.
+- The workflow applied only **Preview D1** migrations and deployed only the `bike-ops-preview` Worker/static assets. Production and Production D1 were not selected or touched.
+- Independent no-cache probes converged to `5.8.1` / `7eeef6e` for `/health/live`, `/health/ready`, and `/api/v1/meta/version`; the metadata reports `environment: "preview"` and `platform: "cloudflare-workers-d1"`.
+- Preview Web-shell verification confirmed HSTS, strict CSP with `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, strict referrer policy, and disabled camera/microphone/geolocation permissions. HTTP redirects to HTTPS.
+- Deployed CSS asset contains `handover-complete-stamp`, the arrival and trail keyframes, and the `#ffc31a` yellow token. The minified JS deliberately does not preserve development function names; the workflow's source-build and release-identity verification is the authoritative execution proof.
+
+## Human acceptance queue
+
+Use the Preview URL in an authenticated real session. On **其它 / Other**: expand an unresolved handover, choose **完成交接**, then confirm that the persisted card collapses, the right-side capsule is absent, the lower-right stamp enters once with a short yellow trajectory, and a subsequent tap reopens the details and audit history. Do not deploy Production until this Preview behavior is explicitly accepted.
