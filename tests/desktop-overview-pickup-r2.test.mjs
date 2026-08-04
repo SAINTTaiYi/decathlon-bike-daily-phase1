@@ -5,17 +5,18 @@ import { readFile } from 'node:fs/promises'
 const css = await readFile(new URL('../apps/web/src/styles/desktop-workbench.css', import.meta.url), 'utf8')
 const ledger = await readFile(new URL('../apps/web/src/components/pickup/PickupLedger.jsx', import.meta.url), 'utf8')
 
-test('desktop overview overrides the mobile display rule and places first-screen cards side by side', () => {
-  assert.match(css, /\.workshop-overview-panel \.ops-mobile-overview \{[\s\S]*?display: grid;/u)
-  assert.match(css, /ops-closing-card \{[\s\S]*?grid-column: span 7;/u)
-  assert.match(css, /ops-sales-panel \{[\s\S]*?grid-column: span 5;/u)
+test('desktop reference overview uses a 1024px breakpoint and a stable 5/7 first row', () => {
+  assert.match(css, /@media \(min-width: 1024px\)/u)
+  assert.match(css, /ops-closing-card \{ grid-column: span 5;/u)
+  assert.match(css, /ops-sales-panel \{ grid-column: span 7;/u)
+  assert.match(css, /ops-analytics-grid/u)
 })
 
-test('desktop card reveal keeps its column width and only grows downward', () => {
-  const expandedBlock = css.match(/\.pickup-card-frame\[data-expanded='true'\] \{[^}]*\}/u)?.[0] || ''
-  assert.match(expandedBlock, /grid-column: auto;/u)
-  assert.doesNotMatch(expandedBlock, /grid-column: span/u)
-  assert.match(css, /grid-auto-rows: auto;/u)
+test('desktop ledger retains a single full-width row per record and expanded detail grows down only', () => {
+  assert.match(css, /.pickup-card-grid \{ grid-template-columns: minmax\(0, 1fr\); gap: 7px;/u)
+  assert.match(css, /.pickup-card-frame\[data-expanded='true'\] \{ grid-column: auto; filter: none;/u)
+  assert.match(ledger, /pickup-card-reveal/u)
+  assert.match(css, /grid-template-columns: 96px minmax\(310px, 1.5fr\) minmax\(280px, 1fr\) 160px/u)
 })
 
 test('pickup display title and completion state do not treat a string false as completed', () => {

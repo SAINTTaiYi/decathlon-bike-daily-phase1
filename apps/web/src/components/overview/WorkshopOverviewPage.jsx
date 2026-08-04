@@ -1,16 +1,15 @@
 import { useState } from 'react'
 import IconCash from '@iconoir/Cash.mjs'
 import IconDelivery from '@iconoir/DeliveryTruck.mjs'
-import IconLabel from '@iconoir/Label.mjs'
 import IconShop from '@iconoir/ShopWindow.mjs'
 import IconWrench from '@iconoir/Wrench.mjs'
+import IconCheck from '@iconoir/Check.mjs'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
 
 const operations = [
   { id: 'pickup', no: '02', en: 'PICKUP', cn: '待取车辆', Icon: IconDelivery },
   { id: 'poster', no: '03', en: 'OTHER', cn: '其它交接', Icon: IconShop },
   { id: 'repair', no: '04', en: 'REPAIR', cn: '维修交接', Icon: IconWrench },
-  { id: 'resale', no: '05', en: 'USED', cn: '二手车台账', Icon: IconLabel },
   { id: 'sales', no: '06', en: 'SALES', cn: '销售数据', Icon: IconCash }
 ]
 
@@ -147,6 +146,33 @@ function OperationsIndex({ workflow, onJump }) {
   )
 }
 
+function OverviewAnalytics({ workflow }) {
+  const available = workflow.hydrated && workflow.hasSnapshot && !workflow.storageError
+  const repairCount = workflow.recordsByScene.repair?.length ?? 0
+  const pickupCount = workflow.recordsByScene.pickup?.length ?? 0
+  const otherCount = workflow.recordsByScene.poster?.length ?? 0
+  const healthRows = [
+    ['销售数据', workflow.kpiReady ? '完整' : '待填写'],
+    ['维修交接', available ? `${repairCount} 条在册` : '待同步'],
+    ['待取车辆', available ? `${pickupCount} 条在册` : '待同步'],
+    ['其它交接', available ? `${otherCount} 条在册` : '待同步']
+  ]
+  const total = repairCount + pickupCount + otherCount
+  return <section className="ops-analytics-grid" aria-label="业务趋势与数据健康度">
+    <article className="ops-analytics-panel ops-activity-panel">
+      <header><strong>业务趋势概览</strong><span>实时业务数据</span></header>
+      <div className="ops-activity-metrics"><div><small>待处理业务</small><b>{available ? String(total).padStart(2, '0') : '—'}</b><em>ITEMS</em></div><div><small>维修交接</small><b>{available ? String(repairCount).padStart(2, '0') : '—'}</b><em>REPAIR</em></div></div>
+      <div className="ops-activity-bars" aria-hidden="true">{[pickupCount, otherCount, repairCount, Number(workflow.kpi?.salesVehicles || 0), Number(workflow.kpi?.usedSold || 0), Number(workflow.kpi?.usedReceived || 0)].map((value, index) => <i key={index} style={{ '--ops-bar-value': `${Math.max(10, Math.min(100, Number(value) * 18 || 10))}%` }} />)}</div>
+      <footer><span>待取</span><span>其它</span><span>维修</span><span>销售</span><span>售出</span><span>收车</span></footer>
+    </article>
+    <article className="ops-analytics-panel ops-health-panel">
+      <header><strong>数据健康度</strong><span>{available ? 'LIVE' : 'SYNC'}</span></header>
+      <div className="ops-health-score"><b>{available ? (workflow.kpiReady ? '100' : '75') : '—'}</b><span>%</span><small>数据完整度</small></div>
+      <ul>{healthRows.map(([label, value]) => <li key={label}><IconCheck width={14} height={14} aria-hidden="true" /><span>{label}</span><strong>{value}</strong></li>)}</ul>
+    </article>
+  </section>
+}
+
 function revealReleaseAboveDock(event) {
   const details = event.currentTarget
   if (!details.open) return
@@ -184,6 +210,7 @@ export default function WorkshopOverviewPage({ workflow, online, onEditKpi, onCo
       <ClosingStatusCard workflow={workflow} online={online} onEditKpi={onEditKpi} onCompleteClosing={onCompleteClosing} onHistory={onHistory} onRefresh={onRefresh} onReopenClosing={onReopenClosing} onExportReport={onExportReport} />
       <SalesVehiclesPanel dateKey={workflow.dateKey} kpi={workflow.kpi} available={available} onEditKpi={onEditKpi} />
       <OperationsIndex workflow={workflow} onJump={onJump} />
+      <OverviewAnalytics workflow={workflow} />
       <ReleaseStrip />
       <div className="ops-first-screen-spacer" aria-hidden="true" />
     </div>
