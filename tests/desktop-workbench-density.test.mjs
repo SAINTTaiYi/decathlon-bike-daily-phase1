@@ -8,10 +8,10 @@ const ledger = await readFile(new URL('../apps/web/src/components/pickup/PickupL
 
 test('reference workbench uses its fixed rail and full-width operational ledger instead of peer-stretching cards', () => {
   assert.match(indexCss, /@import '\.\/desktop-workbench\.css';/u)
-  assert.match(css, /.look-dock \{ left: 20px/u)
-  assert.match(css, /.pickup-ledger-board \{ margin-top: 16px/u)
-  assert.match(css, /.pickup-card-grid \{ grid-template-columns: minmax\(0, 1fr\); gap: 7px;/u)
-  assert.match(css, /.pickup-card-frame:not\(\[data-expanded='true'\]\) \{ min-height: auto; opacity: 1;/u)
+  assert.match(css, /\.look-dock \{[\s\S]*?left: 20px !important;/u)
+  assert.match(css, /\.pickup-ledger-board \{[\s\S]*?margin-top: 16px;/u)
+  assert.match(css, /\.pickup-card-grid \{ grid-template-columns: minmax\(0, 1fr\); gap: 7px;/u)
+  assert.match(css, /\.pickup-card-frame,[\s\S]*?\.pickup-card-frame:not\(\[data-expanded='true'\]\) \{[\s\S]*?min-height: auto;[\s\S]*?opacity: 1;/u)
 })
 
 test('desktop handover details retain one independent content row without overlapping pickup positions', () => {

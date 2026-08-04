@@ -36,6 +36,7 @@ import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
 import OpeningScene from './scenes/OpeningScene.jsx'
 import PickupScene from './scenes/PickupScene.jsx'
 import RepairScene from './scenes/RepairScene.jsx'
+import ResaleScene from './scenes/ResaleScene.jsx'
 import SalesScene from './scenes/SalesScene.jsx'
 
 const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员' }
@@ -61,7 +62,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState('login')
   const [workspaceAssemblyDone, setWorkspaceAssemblyDone] = useState(false)
   const [taskInputFocused, setTaskInputFocused] = useState(false)
-  const [desktopLayout, setDesktopLayout] = useState(() => window.matchMedia?.('(min-width: 1024px)').matches ?? false)
+  const [desktopLayout, setDesktopLayout] = useState(() => window.matchMedia?.('(min-width: 768px)').matches ?? false)
   const [desktopScene, setDesktopScene] = useState('pulse')
   const workspaceRootRef = useRef(null)
   const [setupToken, setSetupToken] = useState(() => {
@@ -145,7 +146,7 @@ export default function App() {
   })
 
   useEffect(() => {
-    const media = window.matchMedia?.('(min-width: 1024px)')
+    const media = window.matchMedia?.('(min-width: 768px)')
     if (!media) return undefined
     const sync = () => setDesktopLayout(media.matches)
     sync()
@@ -153,17 +154,10 @@ export default function App() {
     return () => media.removeEventListener?.('change', sync)
   }, [])
 
-  useEffect(() => {
-    if (!['/used', '/resale'].includes(window.location.pathname)) return
-    window.history.replaceState({}, '', '/')
-    setDesktopScene('pulse')
-    window.requestAnimationFrame(() => jumpTo('pulse'))
-  }, [jumpTo])
 
   const navigateToScene = useCallback((sceneId) => {
-    const nextScene = sceneId === 'resale' ? 'pulse' : sceneId
-    setDesktopScene(nextScene)
-    window.requestAnimationFrame(() => jumpTo(nextScene))
+    setDesktopScene(sceneId)
+    window.requestAnimationFrame(() => jumpTo(sceneId))
   }, [jumpTo])
   const visibleScene = desktopLayout ? desktopScene : activeScene
 
@@ -564,11 +558,13 @@ export default function App() {
                 onReopenClosing={() => void reopen()}
                 onExportReport={exportClosingReport}
                 onJump={jumpFromOverview}
+                showUsed={desktopLayout}
               />
             </WorkshopModuleSection>
             <WorkshopModuleSection sceneId="pickup"><PickupScene {...recordProps('pickup')} /></WorkshopModuleSection>
             <WorkshopModuleSection sceneId="poster"><OpeningScene {...recordProps('poster')} /></WorkshopModuleSection>
             <WorkshopModuleSection sceneId="repair"><RepairScene {...recordProps('repair')} /></WorkshopModuleSection>
+            {desktopLayout ? <WorkshopModuleSection sceneId="resale"><ResaleScene {...recordProps('resale')} /></WorkshopModuleSection> : null}
             <WorkshopModuleSection sceneId="sales"><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></WorkshopModuleSection>
           </div>
           <footer className="closing-footer workshop-footer">
@@ -597,7 +593,7 @@ export default function App() {
         <ConfirmClosingDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={confirmClose} />
         <KpiDialog open={kpiOpen} onClose={() => setKpiOpen(false)} values={workflow.kpi} savedAt={workflow.kpiSavedAt} onSave={workflow.saveKpi} onClear={workflow.clearKpi} onNotify={setToast} />
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
-        {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={visibleScene} onJump={jumpFromOverview} closedAt={workflow.closedAt} /></div> : null}
+        {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={visibleScene} onJump={jumpFromOverview} closedAt={workflow.closedAt} desktopLayout={desktopLayout} /></div> : null}
       </div>
       {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button></div> : null}
       <ReportImageDialog

@@ -32,10 +32,10 @@ test('mobile overview keeps KPI, closing, history and jump handlers while pickup
   assert.match(app, /onJump=\{jumpFromOverview\}/u)
 })
 
-test('reference geometry remains mobile-first and explicitly adds a separate >=1024px desktop workbench', async () => {
+test('reference geometry remains mobile-first and explicitly adds a separate physical-pixel desktop/tablet workbench', async () => {
   const [mobileCss, desktopCss] = await Promise.all([read('apps/web/src/styles/mobile-overview.css'), read('apps/web/src/styles/desktop-workbench.css')])
   for (const rule of [/@media \(min-width: 0px\)/u, /width: min\(100%, 426px\)/u, /max-width: 390px/u, /height: 44px/u, /height: 154px/u, /height: 214px/u, /height: 130px/u, /height: 120px/u, /min-height: 26px/u, /repeat\(5, minmax\(0,1fr\)\)/u, /env\(safe-area-inset-bottom\)/u, /max-width: 374px/u, /min-width: 600px/u, /min-width: 840px/u, /min-width: 1200px/u, /repeat\(12,minmax\(0,1fr\)\)/u, /prefers-reduced-motion: reduce/u, /forced-colors: active/u]) assert.match(mobileCss, rule)
-  assert.match(desktopCss, /@media \(min-width: 1024px\)/u)
+  assert.match(desktopCss, /@media \(min-width: 768px\)/u)
   assert.doesNotMatch(mobileCss, /overflow-x:\s*auto/u)
 })
 
@@ -54,22 +54,24 @@ test('reference hierarchy uses real identity, binary closing status and stable m
   assert.match(css, /\.ops-status-value strong \{ font-size: 68px; \}/u)
 })
 
-test('operations index keeps concise labels and excludes a standalone Used destination', async () => {
+test('operations index keeps concise labels and gates Used to the desktop reference', async () => {
   const [overview, css] = await Promise.all([read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'), read('apps/web/src/styles/mobile-overview.css')])
   assert.match(overview, /className="ops-index-label-cn">业务台账<\/span>/u)
   assert.match(css, /\.ops-index-label-cn \{[^}]*font-family: 'Noto Sans SC Variable';[^}]*font-weight: 700;[^}]*transform: scaleX\(\.72\);/u)
   for (const label of ['待取车辆', '其它交接', '维修交接', '销售数据']) assert.match(overview, new RegExp(`'${label}'`, 'u'))
-  assert.doesNotMatch(overview, /二手车台账/u)
+  assert.match(overview, /二手台账/u)
+  assert.match(overview, /showUsed/u)
   assert.match(overview, /usedSold/u)
   assert.match(overview, /usedReceived/u)
 })
 
-test('bottom navigation has five operational destinations; used data remains a sales KPI', async () => {
+test('bottom navigation remains five-item on mobile and exposes Used only in the desktop reference', async () => {
   const [dock, scenes] = await Promise.all([read('apps/web/src/components/lookbook/ActionDock.jsx'), read('apps/web/src/data/lookbookScenes.js')])
   assert.match(dock, /OVERVIEW/u)
   assert.match(dock, /PENDING/u)
   assert.match(dock, /dock-status/u)
-  assert.doesNotMatch(dock, /resale/u)
+  assert.match(dock, /id !== 'resale'/u)
+  assert.match(dock, /desktopLayout \? lookbookScenes/u)
   assert.match(scenes, /LOOK_TOTAL = 6/u)
-  assert.doesNotMatch(scenes, /id: 'resale'/u)
+  assert.match(scenes, /id: 'resale'/u)
 })

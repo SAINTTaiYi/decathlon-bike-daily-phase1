@@ -28,13 +28,13 @@ test('工作台入场可跳过并在完成后把焦点交回主内容', () => {
   assert.doesNotMatch(launch, /perspective|rotationX|blur/u)
 })
 
-test('five active modules stay mounted for mobile; desktop workbench selects a board without restoring story effects', () => {
-  for (const id of ['pulse', 'pickup', 'poster', 'repair', 'sales']) assert.match(app, new RegExp(`<WorkshopModuleSection sceneId="${id}"`, 'u'))
-  assert.equal((app.match(/<WorkshopModuleSection sceneId=/gu) || []).length, 5)
-  assert.doesNotMatch(app, /<WorkshopModuleSection sceneId="resale"/u)
+test('mobile flow stays intact and the desktop reference adds its Used board without story effects', () => {
+  for (const id of ['pulse', 'pickup', 'poster', 'repair', 'resale', 'sales']) assert.match(app, new RegExp(`<WorkshopModuleSection sceneId="${id}"`, 'u'))
+  assert.equal((app.match(/<WorkshopModuleSection sceneId=/gu) || []).length, 6)
+  assert.match(app, /desktopLayout \? <WorkshopModuleSection sceneId="resale"/u)
   assert.match(app, /const visibleScene = desktopLayout \? desktopScene : activeScene/u)
   assert.match(app, /data-desktop-scene=\{desktopScene\}/u)
-  assert.match(desktop, /@media \(min-width: 1024px\)/u)
+  assert.match(desktop, /@media \(min-width: 768px\)/u)
   assert.match(desktop, /workshop-shell\[data-desktop-scene='sales'\]/u)
 })
 
