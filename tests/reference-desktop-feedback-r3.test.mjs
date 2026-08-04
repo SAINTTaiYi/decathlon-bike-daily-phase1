@@ -12,8 +12,9 @@ test('desktop operations index uses full desktop line boxes', () => {
 
 test('desktop left rail clears the complete navigation header stack', () => {
   assert.match(css, /--ops-header-height: 156px/u)
-  assert.match(css, /\.look-dock \{[\s\S]*?top: 168px !important;/u)
-  assert.doesNotMatch(css, /\.look-dock \{[\s\S]*?top: 132px !important;/u)
+  assert.match(css, /\.look-dock \{[\s\S]*?top: 112px !important;/u)
+  assert.match(css, /\.look-dock::after \{[^}]*top: 90px;[^}]*left: 261px;/u)
+  assert.doesNotMatch(css, /\.workshop-runtime > \[data-workspace-layer='navigation'\] \{[^}]*box-shadow: 0 1px 0/u)
 })
 
 test('queue metrics have independent number and label rows', () => {
@@ -24,7 +25,8 @@ test('queue metrics have independent number and label rows', () => {
 test('shared desktop ledger cards use compact actions and a continuous collapsed-row frame', () => {
   assert.match(css, /\.pickup-card-frame:not\(\[data-expanded='true'\]\) \{ overflow: hidden; border: 1px solid[^}]*border-radius: 8px; \}/u)
   assert.match(css, /\.pickup-card-frame:not\(\[data-expanded='true'\]\) \.pickup-card \{ height: auto; border: 0; border-radius: 0;/u)
-  assert.match(css, /\.pickup-card-actions \{ display: flex; flex-wrap: wrap;[^}]*justify-content: flex-start;/u)
+  assert.match(css, /\.pickup-card-actions \{ display: flex; flex-wrap: wrap;[^}]*justify-content: flex-end;/u)
   assert.match(css, /\.pickup-card-actions > \.pickup-card-more \{ flex: 0 0 auto; width: auto; min-width: 148px; max-width: 220px; \}/u)
   assert.match(css, /\.pickup-card-actions \.pickup-primary-action \{ grid-column: auto; min-width: 190px; \}/u)
+  assert.match(css, /\.pickup-notification-buttons \{ grid-column: 3; display: flex; justify-content: flex-end;/u)
 })

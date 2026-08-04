@@ -2,6 +2,7 @@ import { lookbookScenes } from '../../data/lookbookScenes.js'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
 
 const navEnglish = { pulse: 'OVERVIEW', pickup: 'PENDING', poster: 'OTHER', repair: 'REPAIR', resale: 'USED', sales: 'SALES' }
+const desktopLabels = { pulse: '总览', pickup: '待取车辆', poster: '其它交接', repair: '维修交接', resale: '二手台账', sales: '销售数据' }
 
 export default function ActionDock({ activeScene, onJump, closedAt, desktopLayout = false }) {
   const visibleScenes = desktopLayout ? lookbookScenes : lookbookScenes.filter(({ id }) => id !== 'resale')
@@ -14,7 +15,7 @@ export default function ActionDock({ activeScene, onJump, closedAt, desktopLayou
           <li key={id}>
             <button type="button" data-active={id === activeScene} onClick={() => onJump(id)} aria-current={id === activeScene ? 'page' : undefined} aria-label={cn}>
               <NavIcon width={20} height={20} strokeWidth={1.65} aria-hidden="true" />
-              <span>{dock}</span>
+              <span>{desktopLayout ? desktopLabels[id] : dock}</span>
               <small>{navEnglish[id]}</small>
             </button>
           </li>
