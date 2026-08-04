@@ -37,6 +37,13 @@ export function handoverCardTitle(record = {}) {
   return String(record?.detail ?? '').trim()
 }
 
+export function handoverCardDetail(record = {}) {
+  const detail = String(record?.detail ?? '').trim()
+  // Legacy rows can store a sequence number in detail while title holds the actual handover text.
+  if (detail && !/^\d+$/u.test(detail)) return detail
+  return handoverCardTitle(record)
+}
+
 export function displayContactValue(value = '') {
   return String(value ?? '').trim()
 }

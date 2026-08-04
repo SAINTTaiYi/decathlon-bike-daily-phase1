@@ -7,18 +7,19 @@ const ledger = await readFile(new URL('../apps/web/src/components/pickup/PickupL
 const dialog = await readFile(new URL('../apps/web/src/components/dialogs/RecordEditorDialog.jsx', import.meta.url), 'utf8')
 const config = await readFile(new URL('../apps/web/src/data/operationsData.js', import.meta.url), 'utf8')
 
-test('handover uses the shared PickupLedger card design', () => {
+test('handover uses the shared PickupLedger card design and exposes complete text after expansion', () => {
   assert.match(scene, /PickupLedger/u)
   assert.match(scene, /handoverMode/u)
   assert.doesNotMatch(scene, /RecordLedger|SceneTitle/u)
   assert.match(ledger, /handoverMode = false/u)
   assert.match(ledger, /ACTIVE HANDOVER/u)
-  assert.doesNotMatch(ledger, /HANDOVER <span>\/ 交接事项/u)
+  assert.match(ledger, /handoverMode \? <section className="pickup-detail-wide handover-detail-full"><h4>HANDOVER <span>\/ 交接事项/u)
+  assert.match(ledger, /<Highlight query=\{query\}>\{handoverDetail\}<\/Highlight>/u)
   assert.doesNotMatch(ledger, /STATUS <span>\/ 当前状态/u)
-  assert.match(ledger, /handoverMode \? null : <section><h4>CUSTOMER/u)
   assert.match(ledger, /pickup-card-actions/u)
   assert.match(ledger, /handoverMode \? handoverComplete :/u)
   assert.match(ledger, /handoverMode \? handoverCardTitle\(record\)/u)
+  assert.match(ledger, /handoverMode \? handoverCardDetail\(record\)/u)
 })
 
 test('handover form is limited to one required item and explicit status select', () => {
