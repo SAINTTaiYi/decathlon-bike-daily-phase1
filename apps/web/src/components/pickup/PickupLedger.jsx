@@ -187,7 +187,7 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
 
   return <div ref={frameRef} className="pickup-card-frame" data-delete-open={deleteOpen ? 'true' : undefined} data-expanded={expanded ? 'true' : undefined}>
     {!pickedUp ? <button type="button" className="pickup-delete-reveal" onClick={() => onRemove(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconTrash width={18} height={18} aria-hidden="true" />删除</button> : null}
-    <article className="pickup-card" data-density={density} data-expanded={expanded ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-processing={pickupPixelFill ? 'true' : undefined} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={() => { startXRef.current = null }}>
+    <article className="pickup-card" data-card-mode={handoverMode ? 'handover' : repairMode ? 'repair' : 'pickup'} data-density={density} data-expanded={expanded ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-processing={pickupPixelFill ? 'true' : undefined} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={() => { startXRef.current = null }}>
       {pickupPixelFill ? <span className="pickup-complete-wash" aria-hidden="true" /> : null}
       <button type="button" className="pickup-card-summary" onClick={() => onToggle(record.id)} aria-expanded={expanded} aria-controls={`pickup-detail-${record.id}`}>
         <span className="pickup-card-index" aria-label={`列表序号 ${index + 1}`}><small>NO.</small>{String(index + 1).padStart(2, '0')}</span>
