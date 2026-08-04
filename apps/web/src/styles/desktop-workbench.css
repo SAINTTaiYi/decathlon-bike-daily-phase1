@@ -122,21 +122,27 @@
     position: absolute;
     top: 704px;
     left: 12px;
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 8px;
+    z-index: 2;
+    display: block;
     width: 190px;
     min-height: 116px;
-    padding: 12px;
     border: 1px solid rgb(12 14 12 / .07);
     border-radius: 8px;
     background: var(--ops-card);
     box-shadow: var(--ops-card-shadow);
   }
-  .dock-release-card strong { align-self: start; padding: 4px 10px; border-radius: 3px; background: var(--ops-yellow); font-family: var(--ops-display); font-size: 13px; line-height: 17px; }
-  .dock-release-card span { grid-column: 1 / -1; font-size: 11px; line-height: 17px; }
-  .dock-release-card time { align-self: end; color: var(--ops-text-muted); font-size: 11px; }
-  .dock-release-card b { align-self: end; justify-self: end; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 3px; background: var(--ops-yellow); font-size: 21px; line-height: 1; }
+  .dock-release-card > summary { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; width: 100%; min-height: 114px; padding: 12px; cursor: pointer; list-style: none; }
+  .dock-release-card > summary::-webkit-details-marker { display: none; }
+  .dock-release-card > summary > strong { align-self: start; padding: 4px 10px; border-radius: 3px; background: var(--ops-yellow); font-family: var(--ops-display); font-size: 13px; line-height: 17px; }
+  .dock-release-card > summary > span { grid-column: 1 / -1; font-size: 11px; line-height: 17px; }
+  .dock-release-card > summary > time { align-self: end; color: var(--ops-text-muted); font-size: 11px; }
+  .dock-release-card > summary > b { align-self: end; justify-self: end; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 3px; background: var(--ops-yellow); font-size: 21px; line-height: 1; transition: transform 160ms ease; }
+  .dock-release-card[open] > summary > b { transform: rotate(45deg); }
+  .dock-release-details { position: absolute; right: -30px; bottom: calc(100% + 8px); width: 220px; max-height: 310px; overflow-y: auto; padding: 14px; border: 1px solid rgb(12 14 12 / .1); border-radius: 8px; background: var(--ops-card); box-shadow: var(--ops-panel-shadow); }
+  .dock-release-details > strong { font-size: 14px; }
+  .dock-release-details p { margin: 8px 0; color: var(--ops-text-muted); font-size: 11px; line-height: 17px; }
+  .dock-release-details ul { display: grid !important; grid-template-columns: 1fr !important; gap: 6px; margin: 0; padding-left: 16px; }
+  .dock-release-details li { font-size: 10px; line-height: 15px; }
 
   /* Overview begins flush below the module bar, matching the reference. */
   .workshop-overview-panel .ops-mobile-overview {
@@ -215,6 +221,8 @@
 
   /* Pending and Repair: exact 312/24 toolbar split and full-width table. */
   .pickup-operations-section { width: 100%; }
+  /* The target board begins 24px below the module bar; remove legacy section air. */
+  .workshop-shell[data-desktop-scene='pickup'] .pickup-operations-section { padding-top: 0; border-top: 0; }
   .pickup-queue-controls { display: grid; grid-template-columns: 312px minmax(0, 1fr); gap: 24px; margin: 0; }
   .pickup-queue-summary { min-height: 72px; padding: 10px 18px; border-radius: 8px; background: var(--ops-card); }
   .pickup-queue-summary > span { font-size: 13px; line-height: 18px; }
@@ -241,7 +249,8 @@
   .pickup-card-frame[data-expanded='true'] { grid-column: auto; filter: none; }
   .pickup-card-frame[data-expanded='true']::after { display: none; }
   .pickup-card { height: auto; border: 1px solid rgb(12 14 12 / .08); box-shadow: none; }
-  /* A collapsed row blends into the board; no rounded outline may remain at its right edge. */
+  /* Target rows use one continuous rounded frame; the old isolated right-edge box is gone. */
+  .pickup-card-frame:not([data-expanded='true']) { overflow: hidden; border: 1px solid rgb(12 14 12 / .1); border-radius: 8px; }
   .pickup-card-frame:not([data-expanded='true']) .pickup-card { height: auto; border: 0; border-radius: 0; box-shadow: none; }
   .pickup-card[data-expanded='true'] { transform: none; }
   .pickup-card-summary { grid-template-columns: 96px minmax(310px, 1.5fr) minmax(280px, 1fr) 160px; grid-template-areas: 'index core scan status'; align-items: center; min-height: 86px; padding: 11px 14px; }
@@ -252,9 +261,19 @@
   .pickup-source-line { font-size: 13px; }
   .pickup-card-scan { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; font-size: 14px; }
   .pickup-card-status { min-height: 50px; align-content: center; }
-  .pickup-card-status b { padding: 7px 13px; border: 0; background: var(--ops-black); color: var(--ops-text-inverse); font-size: 13px; }
+  .pickup-card-status b { padding: 7px 13px; border: 0; background: rgb(12 14 12 / .07); color: var(--ops-text-muted); font-size: 13px; }
+  .pickup-card-status b[data-repair='true'] { background: var(--ops-black); color: var(--ops-text-inverse); }
   .pickup-card-status svg { margin-top: 12px; }
-  .pickup-ledger-board[data-ledger-mode='handover'] .pickup-card-summary { grid-template-columns: 96px minmax(0, 1fr) 180px; grid-template-areas: 'index core status'; }
+  /* Pickup target: queue, vehicle, contact, appointment, status and operation are independent columns. */
+  .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-ledger-table-head { grid-template-columns: 96px 290px 260px 235px minmax(170px, 1fr) 42px; }
+  .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-card-summary { grid-template-columns: 96px 290px 260px 235px minmax(170px, 1fr) 42px; grid-template-areas: 'index core contact appointment status operation'; }
+  .pickup-ledger-board[data-ledger-mode='pickup'] :is(.pickup-card-scan, .pickup-card-status) { display: contents; }
+  .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-card-contact { grid-area: contact; }
+  .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-card-appointment { grid-area: appointment; }
+  .pickup-ledger-board[data-ledger-mode='pickup'] :is(.pickup-card-contact, .pickup-card-appointment) { display: inline-flex; align-items: center; gap: 6px; color: var(--pickup-muted); font-size: 14px; font-weight: 650; }
+  .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-card-status b { grid-area: status; align-self: center; justify-self: start; }
+  .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-card-status svg { grid-area: operation; align-self: center; justify-self: end; margin-top: 0; }
+    .pickup-ledger-board[data-ledger-mode='handover'] .pickup-card-summary { grid-template-columns: 96px minmax(0, 1fr) 180px; grid-template-areas: 'index core status'; }
   .pickup-ledger-board[data-ledger-mode='handover'] .pickup-card-core > strong { max-width: 54ch; }
   .pickup-card-detail { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 30px; padding: 10px 20px 20px 110px; }
   .pickup-card-detail > .pickup-detail-wide:not(.pickup-notification-control) { grid-column: 1 / -1; grid-row: auto; }
