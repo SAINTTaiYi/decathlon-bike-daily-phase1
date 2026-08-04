@@ -14,7 +14,7 @@ test('handover uses the shared PickupLedger card design', () => {
   assert.match(ledger, /handoverMode = false/u)
   assert.match(ledger, /ACTIVE HANDOVER/u)
   assert.match(ledger, /HANDOVER <span>\/ 交接事项/u)
-  assert.match(ledger, /!pickedUp && !handoverMode/u)
+  assert.match(ledger, /handoverMode \? handoverComplete :/u)
 })
 
 test('handover form is limited to one required item and explicit status select', () => {
