@@ -19,7 +19,7 @@ import IconTrash from '@iconoir/Trash.mjs'
 import IconViewColumns from '@iconoir/ViewColumns2.mjs'
 import IconWrench from '@iconoir/Wrench.mjs'
 import { decodePickupContact, inferPickupNotificationStatus, inferPickupSource, pickupResultLabel, pickupSourceLabel, selfPickupPlatformLabel } from '../../data/pickupRecord.js'
-import { displayContactValue, formatScanDate, formatTicketNumber, handoverCardTitle, joinMaintenanceLine } from '../../data/recordPresentation.js'
+import { displayContactValue, formatScanDate, formatTicketNumber, handoverCardDetail, handoverCardTitle, joinMaintenanceLine } from '../../data/recordPresentation.js'
 
 const sourceOptions = [['self-pickup', '自提订单'], ['repair', '维修待取'], ['customer-storage', '顾客暂存'], ['used-car', '二手车']]
 const sourceIcons = { 'self-pickup': IconBox, repair: IconWrench, handover: IconJournal, 'customer-storage': IconArchive, 'used-car': IconBicycle }
@@ -125,6 +125,7 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
   // Legacy handovers can have a numeric detail (for example `1`) while title is the persisted human-facing item.
   // Keep title authoritative; detail is only a compatibility fallback for records whose title is genuinely empty.
   const cardTitle = handoverMode ? handoverCardTitle(record) : pickupCardTitle(record, detailLine)
+  const handoverDetail = handoverMode ? handoverCardDetail(record) : ''
   const locked = Boolean(closedAt) || primaryActionBusy
 
   useEffect(() => {
@@ -206,7 +207,7 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
       {handoverComplete ? <span className="handover-complete-stamp-stage" data-entering={handoverStampEntering ? 'true' : undefined}><span className="handover-complete-stamp" role="status" aria-label="交接已完成">已完成</span></span> : null}
       <div ref={revealRef} className="pickup-card-reveal" data-expanded={expanded ? 'true' : undefined} aria-hidden={!expanded} inert={!expanded}>
       <div ref={detailRef} className="pickup-card-detail" id={`pickup-detail-${record.id}`}>
-        {handoverMode ? null : <section><h4>CUSTOMER <span>/ 顾客</span></h4><dl><div><dt>车辆标识</dt><dd>{record.title}</dd></div><div><dt>{contact.contactType === 'member' ? '会员号' : '手机号'}</dt><dd>{contactValue || '无'}</dd></div><div><dt>{repairMode ? '预计取车' : '取车日期'}</dt><dd>{record.pickupDate ? formatScanDate(record.pickupDate) : '未指定'}</dd></div><div><dt>业务编号</dt><dd>{ticketNumber}</dd></div></dl></section>}
+        {handoverMode ? <section className="pickup-detail-wide handover-detail-full"><h4>HANDOVER <span>/ 交接事项</span></h4><p><Highlight query={query}>{handoverDetail}</Highlight></p></section> : <section><h4>CUSTOMER <span>/ 顾客</span></h4><dl><div><dt>车辆标识</dt><dd>{record.title}</dd></div><div><dt>{contact.contactType === 'member' ? '会员号' : '手机号'}</dt><dd>{contactValue || '无'}</dd></div><div><dt>{repairMode ? '预计取车' : '取车日期'}</dt><dd>{record.pickupDate ? formatScanDate(record.pickupDate) : '未指定'}</dd></div><div><dt>业务编号</dt><dd>{ticketNumber}</dd></div></dl></section>}
         {handoverMode ? null : <section><h4>{repairMode ? 'SERVICE' : 'ORIGIN'} <span>/ {repairMode ? '维修' : '来源'}</span></h4><dl><div><dt>{repairMode ? '维修类型' : '待取来源'}</dt><dd>{repairMode ? (record.repairType || '未指定') : `${pickupSourceLabel(record)}${platform ? ` · ${platform}` : ''}`}</dd></div><div><dt>{repairMode ? '当前状态' : '业务结果'}</dt><dd>{resultLabel}</dd></div></dl></section>}
         {!handoverMode && detailLine ? <section className="pickup-detail-wide"><h4>{repairPickup ? 'SERVICE / 维修' : 'NOTE / 备注'}</h4><p>{detailLine}</p></section> : null}
         {!repairMode && !handoverMode && !pickedUp ? <section className="pickup-detail-wide pickup-notification-control"><h4>NOTICE <span>/ 通知</span></h4><div className="pickup-notification-buttons" aria-label={`${record.title}通知状态`}><button type="button" data-active={notificationStatus === 'pending'} onClick={() => onNotificationChange(record, 'pending')} disabled={Boolean(closedAt)}>等待通知</button><button type="button" data-active={notificationStatus === 'notified'} onClick={() => onNotificationChange(record, 'notified')} disabled={Boolean(closedAt)}><IconBell width={15} height={15} aria-hidden="true" />已通知</button></div></section> : null}

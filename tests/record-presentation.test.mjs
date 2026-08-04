@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   displayContactValue,
   formatDetailDate,
+  handoverCardDetail,
   handoverCardTitle,
   formatScanDate,
   formatTicketNumber,
@@ -40,6 +41,8 @@ test('手机号完整显示，日期默认短写', () => {
 test('交接卡优先显示持久化标题，避免旧详情数字覆盖标题', () => {
   assert.equal(handoverCardTitle({ title: 'RFID打印机近期损坏，无法打印。', detail: '1' }), 'RFID打印机近期损坏，无法打印。')
   assert.equal(handoverCardTitle({ title: '   ', detail: '兼容旧交接事项' }), '兼容旧交接事项')
+  assert.equal(handoverCardDetail({ title: '摘要', detail: '这是完整交接事项，不能在展开态被截断。' }), '这是完整交接事项，不能在展开态被截断。')
+  assert.equal(handoverCardDetail({ title: '旧交接真实文本', detail: '1' }), '旧交接真实文本')
 })
 
 test('服务票据区标题按维修、订单和暂存语义输出', () => {
