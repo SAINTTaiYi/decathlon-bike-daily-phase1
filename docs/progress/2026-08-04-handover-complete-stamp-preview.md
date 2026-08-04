@@ -39,3 +39,11 @@
 ## Human acceptance queue
 
 Use the Preview URL in an authenticated real session. On **其它 / Other**: expand an unresolved handover, choose **完成交接**, then confirm that the persisted card collapses, the right-side capsule is absent, the lower-right stamp enters once with a short yellow trajectory, and a subsequent tap reopens the details and audit history. Do not deploy Production until this Preview behavior is explicitly accepted.
+
+
+## Preview feedback correction · pixel-reference pass
+
+- Preview feedback found that the first completion stamp could be clipped after rotation and did not match the reference geometry; the expanded handover card also repeated its already-visible item detail.
+- The correction removes both repeated handover content sections from the reveal, leaving the existing action buttons as the entire expanded handover body.
+- The completion mark is rebuilt as a protected full-card stage: a large lower-right 2.58:1 rotated rectangular mark, double yellow frame, warm-card face, and large Website diffuse-yellow #ffc31a text, frame and halo. Conservative inset and clipping stage retain every transformed corner.
+- The entrance remains one-shot with a short matching yellow trail; historical complete records remain static, and reduced-motion/forced-colors behavior remains available.
