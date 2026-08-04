@@ -104,6 +104,8 @@ button:disabled { opacity: .48; }
   min-height: var(--ops-global-header-height);
   padding-inline: 8px;
 }
+.workshop-header-desktop-tools { display: none; }
+.workshop-header-mobile-log { display: grid; }
 .workshop-header-action {
   position: relative;
   display: grid;
@@ -158,7 +160,8 @@ button:disabled { opacity: .48; }
   border-top: 1px solid rgb(12 14 12 / .08);
   background: var(--ops-card);
 }
-.workshop-module-header > svg { color: var(--ops-yellow-pressed); filter: drop-shadow(0 0 4px var(--ops-yellow-glow)); }
+.workshop-header-menu > svg { width: 21px; height: 21px; }
+.workshop-module-header > svg { width: 20px; height: 20px; color: var(--ops-yellow-pressed); filter: drop-shadow(0 0 4px var(--ops-yellow-glow)); }
 .workshop-module-header > span,
 .workshop-module-header > small { color: var(--ops-text-muted); }
 .workshop-module-header > strong { overflow: hidden; font-size: 14px; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }

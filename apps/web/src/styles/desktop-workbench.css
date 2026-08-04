@@ -40,6 +40,8 @@
   .workshop-header-brand > strong { font-size: 29px; line-height: .88; }
   .workshop-header-brand > small { margin-top: 2px; font-size: 12px; }
   .workshop-header-desktop-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-right: 30px; }
+  .workshop-header-mobile-log { display: none; }
+  .workshop-header-menu > svg { width: 28px; height: 28px; }
   .workshop-header-context { display: none !important; }
   .workshop-user-context {
     display: grid;
@@ -66,7 +68,7 @@
     border-bottom: 1px solid rgb(12 14 12 / .08);
     background: var(--ops-page);
   }
-  .workshop-module-header > svg { color: var(--ops-yellow-pressed); }
+  .workshop-module-header > svg { width: 26px; height: 26px; color: var(--ops-yellow-pressed); }
   .workshop-module-header > span { font-size: 15px; }
   .workshop-module-header > strong { font-size: 24px; line-height: 1; }
   .workshop-module-header > small { font-size: 15px; }
