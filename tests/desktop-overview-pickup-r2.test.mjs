@@ -21,6 +21,6 @@ test('desktop card reveal keeps its column width and only grows downward', () =>
 test('pickup display title and completion state do not treat a string false as completed', () => {
   assert.match(ledger, /function isPickedUpToday\(value\) \{ return value === true \|\| value === 1 \|\| value === '1' \|\| value === 'true' \}/u)
   assert.match(ledger, /function pickupCardTitle\(record, detailLine\) \{ return String\(record\.title \|\| ''\)\.trim\(\) \|\| detailLine \|\| '未命名待取车辆' \}/u)
-  assert.match(ledger, /const cardTitle = handoverMode \? detailLine : pickupCardTitle\(record, detailLine\)/u)
+  assert.match(ledger, /const cardTitle = handoverMode \? handoverCardTitle\(record\) : pickupCardTitle\(record, detailLine\)/u)
   assert.match(ledger, /records\.filter\(\(record\) => !isPickedUpToday\(record\.pickedUpToday\)\)/u)
 })

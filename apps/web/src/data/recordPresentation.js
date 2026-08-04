@@ -31,6 +31,12 @@ export function joinMaintenanceLine(value) {
   return items.join('｜')
 }
 
+export function handoverCardTitle(record = {}) {
+  const title = String(record?.title ?? '').trim()
+  if (title) return title
+  return String(record?.detail ?? '').trim()
+}
+
 export function displayContactValue(value = '') {
   return String(value ?? '').trim()
 }
