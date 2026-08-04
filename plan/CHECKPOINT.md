@@ -1,6 +1,13 @@
 # 执行检查点
 
 保存时间：2026-07-17 04:31 +08:00
+
+## 当前正式发布加注（2026-08-04 +08:00）
+
+- Workshop 当前正式线上版本为 **V5.8.0**；发布 PR #132 合并 SHA：`ba86fd33f8f7c5dbc90ce37998a7876d0a0e85b7`。
+- 仅使用 canonical `deploy-cloudflare-staging.yml`（Cloudflare Workers + D1 free stack）发布到 `https://workshop.skin`；run `30911801908` 成功。名称中的 staging 是历史技术标签，`workshop.skin` 是当前正式线上入口；禁止回退使用已弃用 EdgeOne 工作流。
+- 已独立核验 `/health/live`、`/health/ready`、`/api/v1/meta/version` 均返回 V5.8.0 与 `ba86fd33…`，并通过 HTTPS 安全头检查。
+- 完整发布证据：`docs/progress/2026-08-04-v580-production-release.md`。后续工作从 `feature/cloudflare-workers-d1` 的新 Preview 周期开始；不得为这份文档重复部署或再次公开变更版本。
 当前阶段：Phase C / Step 10b、12、13、14、15 completed；Step 16 paused for RikkaHub Agent migration（不得继续 Secret/EdgeOne/部署）
 
 ## Accepted repository baseline
