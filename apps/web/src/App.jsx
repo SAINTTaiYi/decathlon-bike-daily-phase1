@@ -30,6 +30,7 @@ import { sceneById } from './data/lookbookScenes.js'
 import useAuth from './hooks/useAuth.js'
 import useRemoteClosingWorkflow from './hooks/useRemoteClosingWorkflow.js'
 import useActiveScene from './hooks/useActiveScene.js'
+import useDesktopSceneTransition from './hooks/useDesktopSceneTransition.js'
 import useMotionSystem from './hooks/useMotionSystem.js'
 import useWorkspaceMotion from './hooks/useWorkspaceMotion.js'
 import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
@@ -155,10 +156,19 @@ export default function App() {
   }, [])
 
 
+  const transitionToDesktopScene = useDesktopSceneTransition({
+    enabled: desktopLayout,
+    activeScene: desktopScene,
+    rootRef: workspaceRootRef,
+    onSceneChange: setDesktopScene
+  })
   const navigateToScene = useCallback((sceneId) => {
-    setDesktopScene(sceneId)
-    window.requestAnimationFrame(() => jumpTo(sceneId))
-  }, [jumpTo])
+    if (desktopLayout) {
+      transitionToDesktopScene(sceneId)
+      return
+    }
+    jumpTo(sceneId)
+  }, [desktopLayout, jumpTo, transitionToDesktopScene])
   const visibleScene = desktopLayout ? desktopScene : activeScene
 
   useMotionSystem({ enabled: introDone && workflow.hydrated && !workspaceLaunching, rootRef: workspaceRootRef, quiet: taskFocused })
@@ -530,6 +540,7 @@ export default function App() {
       {introDone ? <a className="skip-link" href="#closing-summary-anchor">跳到闭店摘要</a> : null}
       <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
+        <span className="desktop-scene-transition-wipe" aria-hidden="true" />
         <div data-workspace-layer="navigation" data-workspace-priority="true">
           <WorkshopShellHeader
             activeScene={visibleScene}

@@ -4,6 +4,8 @@
  * as one canvas. This keeps physical-pixel geometry stable on high-DPR Android
  * desktop mode while leaving the existing phone UI untouched below 768 CSS px.
  */
+.desktop-scene-transition-wipe { display: none; }
+
 @media (min-width: 768px) {
   :root {
     --ops-global-header-height: 90px;
@@ -23,7 +25,7 @@
   }
   .workshop-runtime > [data-workspace-layer='navigation'] {
     width: 1536px;
-    box-shadow: 0 1px 0 rgb(12 14 12 / .09);
+    box-shadow: none;
   }
   .workshop-shell-header { width: 1536px; height: 156px; margin: 0; }
   .workshop-global-header {
@@ -89,8 +91,8 @@
   /* Reference left rail: six destinations plus release card. */
   .look-dock {
     left: 20px !important;
-    /* Start below the 156px navigation stack so its bottom rule cannot cross OVERVIEW. */
-    top: 168px !important;
+    /* Align the first destination to the reference rail directly below the 90px global header. */
+    top: 112px !important;
     bottom: auto !important;
     width: 218px !important;
     min-height: 0;
@@ -101,6 +103,7 @@
     box-shadow: none !important;
     transform: none !important;
   }
+  .look-dock::after { content: ''; position: fixed; top: 90px; bottom: 0; left: 261px; width: 1px; background: rgb(12 14 12 / .07); pointer-events: none; }
   .look-dock ul { display: grid !important; grid-template-columns: 1fr !important; gap: 12px; }
   .dock-active-indicator { display: none; }
   .look-dock button {
@@ -120,11 +123,11 @@
   .look-dock button[data-active='true'] small { color: var(--ops-text-inverse); }
   .dock-release-card {
     position: absolute;
-    top: 704px;
-    left: 12px;
+    top: 764px;
+    left: 18px;
     z-index: 2;
     display: block;
-    width: 190px;
+    width: 182px;
     min-height: 116px;
     border: 1px solid rgb(12 14 12 / .07);
     border-radius: 8px;
@@ -279,11 +282,14 @@
   .pickup-card-detail > .pickup-detail-wide:not(.pickup-notification-control) { grid-column: 1 / -1; grid-row: auto; }
   .pickup-card-detail > section:nth-child(2) { display: block; }
   /* Shared Pickup/Other/Repair actions remain compact instead of stretching across the card. */
-  .pickup-card-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 10px; }
+  .pickup-card-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
   .pickup-card-actions > button,
   .pickup-card-actions > .pickup-card-more { flex: 0 0 auto; width: auto; min-width: 148px; max-width: 220px; }
   .pickup-card-actions button { min-height: 44px; padding-inline: 18px; }
   .pickup-card-actions .pickup-primary-action { grid-column: auto; min-width: 190px; }
+  .pickup-notification-control { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .pickup-notification-buttons { grid-column: 3; display: flex; justify-content: flex-end; gap: 10px; width: auto; }
+  .pickup-notification-buttons button { flex: 0 0 auto; width: auto; min-width: 142px; max-width: 170px; padding-inline: 18px; }
   .handover-complete-stamp-stage { right: 112px; }
 
   /* Other Handover's reference deliberately uses a taller control row and cards. */
@@ -339,4 +345,38 @@
 
   .workshop-shell[data-desktop-scene='poster'] .handover-complete-stamp-stage { right: 210px; bottom: 24px; width: 150px; height: 58px; }
   .workshop-shell[data-desktop-scene='poster'] .handover-complete-stamp { font-size: 36px; }
+
+
+  /* R5 desktop-only branded scene transition: one bold diagonal yellow wipe,
+     followed by directional panel and component choreography. */
+  .desktop-scene-transition-wipe {
+    position: fixed;
+    inset: -8% -10%;
+    z-index: 120;
+    display: block;
+    pointer-events: none;
+    background: var(--ops-yellow);
+    box-shadow: 18px 0 0 var(--ops-black), 32px 0 42px rgb(12 14 12 / .26);
+    clip-path: polygon(0 0, 92% 0, 100% 100%, 8% 100%);
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left center;
+    will-change: transform, opacity;
+  }
+  .workshop-runtime[data-desktop-scene-direction='backward'] .desktop-scene-transition-wipe {
+    box-shadow: -18px 0 0 var(--ops-black), -32px 0 42px rgb(12 14 12 / .26);
+    clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+  }
+  .workshop-runtime[data-desktop-scene-transitioning='true'] :is(.look-dock button, .workshop-module-header, .workshop-module-panel) {
+    will-change: transform, opacity, clip-path;
+  }
+  .look-dock button { transition: background-color 180ms ease, color 180ms ease, box-shadow 260ms ease, transform 260ms cubic-bezier(.2,.9,.2,1); }
+  .look-dock button[data-active='true'] { transform: translateX(6px); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .desktop-scene-transition-wipe { display: none !important; }
+    .look-dock button { transition: none; }
+    .look-dock button[data-active='true'] { transform: none; }
+  }
+
 }
