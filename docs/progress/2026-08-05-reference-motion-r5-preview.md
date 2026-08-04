@@ -27,6 +27,14 @@ Desktop-only follow-up to the independently verified R4 Preview baseline `b69a6a
 - Post-change CodeGraph: 201 files / 2,375 nodes / 7,769 edges, up to date.
 - CSS and Markdown are explicit CodeGraph non-indexed exceptions; compensate with exact CSS contracts, Vite build, mobile-path contract and final published-asset verification.
 
-## Pending
+## Final Preview evidence
 
-Preview source registration/build, PR/CI, canonical Cloudflare Preview-only deployment and independent endpoint/asset verification.
+- Candidate: `a626d5a470ca15192039cf67c32a714a92fc1df5`.
+- PR #146: CI `verify` and `secrets` both succeeded; ordinary merge/deployed SHA `4f0633c8b0df0ab1aa3b6a0edfbe8a7eb36ae981`.
+- Canonical Preview-only workflow: `deploy-cloudflare-preview.yml`, run `30942818615`, success. Free/no-billing/Preview-only confirmations, full validation, Preview D1 migration step, Worker/static-assets deploy and workflow verification all succeeded.
+- Independent cache-bypassing probes: `/health/live`, `/health/ready`, and `/api/v1/meta/version` all returned public V5.8.1 and exact SHA `4f0633c8`, environment `preview`, platform `cloudflare-workers-d1`.
+- Security: HSTS, strict CSP with `frame-ancestors 'none'`, X-Frame-Options DENY, nosniff, referrer policy, permissions policy and HTTP→HTTPS 308 verified.
+- Published CSS `/assets/index-BTsMMy0i.css`, stable SHA-256 `90dfb5e389b9deba567c45beb49c7551d4f7802e88771510f05778e024cedea0`; published JS `/assets/index-DNYwxbgI.js`, stable three-probe SHA-256 `d31e0cb700bf2961f699ffe679ded9061b1afdfbfabb2c0a6687e24e693cd3d8`.
+- Published contracts confirm the diagonal transition layer, far-right flex alignment, compact 142–170px notification controls, 112px rail top, 261px divider, reduced-motion fallback and all five full desktop labels.
+- The first post-deploy local asset comparison ran during edge convergence and failed after deployment had already succeeded; recovery queried PR/run/endpoints/assets instead of replaying deployment. Three subsequent cache-bypassing probes were byte-stable.
+- Public version, Production and Production D1 were not changed. No application/browser fallback was used; visual acceptance remains human-only.
