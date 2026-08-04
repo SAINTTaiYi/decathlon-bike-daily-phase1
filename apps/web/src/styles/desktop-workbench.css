@@ -1,34 +1,51 @@
-/*
- * Desktop workbench density repair.
- * Keep the shared Workshop system and mobile behavior intact; only wide viewports
- * become a denser, intrinsic-height workbench. DESIGN.md remains authoritative.
- */
+/* Desktop workbench: wide overview, intrinsic cards, and a fixed-width card reveal. */
 @media (min-width: 840px) {
   .workshop-shell,
-  .workshop-shell-header {
-    width: min(calc(100% - 48px), 1440px);
+  .workshop-shell-header { width: min(calc(100% - 48px), 1440px); }
+  .workshop-shell { padding-inline: clamp(24px, 3.25vw, 56px); }
+
+  /* workshop-system's two-class display:block otherwise wins over the overview's grid. */
+  .workshop-overview-panel .ops-mobile-overview {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start;
+    gap: 16px;
   }
 
-  .workshop-shell { padding-inline: clamp(24px, 3.25vw, 56px); }
+  .workshop-overview-panel .ops-mobile-overview > .ops-closing-card {
+    grid-column: span 7;
+    min-height: 174px;
+    margin-top: 0;
+  }
+
+  .workshop-overview-panel .ops-mobile-overview > .ops-sales-panel {
+    grid-column: span 5;
+    margin-top: 0;
+  }
+
+  .workshop-overview-panel .ops-mobile-overview > .ops-index,
+  .workshop-overview-panel .ops-mobile-overview > .ops-release-strip,
+  .workshop-overview-panel .ops-mobile-overview > .ops-first-screen-spacer { grid-column: 1 / -1; }
 
   .pickup-card-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-auto-rows: auto;
+    grid-auto-flow: row;
     align-items: start;
     gap: 12px;
   }
 
-  /* The former stretch + height:100% pair made a short peer inherit a tall card's height. */
+  /* No peer inherits the expanded card's height. */
   .pickup-card-frame,
   .pickup-card-frame:not([data-expanded='true']) {
     align-self: start;
     min-height: auto;
   }
-
   .pickup-card-frame:not([data-expanded='true']) .pickup-card { height: auto; }
 
+  /* Expansion remains in exactly the same grid column; it grows downward only. */
   .pickup-card-frame[data-expanded='true'] {
-    grid-column: span 2;
+    grid-column: auto;
     align-self: start;
   }
 
@@ -38,39 +55,28 @@
     grid-template-rows: auto;
     min-height: 94px;
   }
-
   .pickup-card[data-card-mode='handover'] .pickup-card-detail {
     grid-template-columns: minmax(0, 1fr);
     gap: 10px;
     padding: 10px 14px 14px;
   }
-
   .pickup-card[data-card-mode='handover'] .pickup-card-detail > .pickup-detail-wide {
     grid-column: 1;
     grid-row: auto;
     min-width: 0;
   }
-
-  .pickup-card[data-card-mode='handover'] .pickup-card-detail > section:nth-child(2) {
-    display: block;
-  }
-
-  .pickup-card[data-card-mode='handover'] .pickup-card-detail > .pickup-detail-wide p {
-    max-width: 78ch;
-    overflow-wrap: anywhere;
-  }
+  .pickup-card[data-card-mode='handover'] .pickup-card-detail > section:nth-child(2) { display: block; }
+  .pickup-card[data-card-mode='handover'] .pickup-card-detail > .pickup-detail-wide p { max-width: 78ch; overflow-wrap: anywhere; }
 }
 
 @media (min-width: 1280px) {
   .workshop-shell,
-  .workshop-shell-header {
-    width: min(calc(100% - 72px), 1560px);
-  }
-
+  .workshop-shell-header { width: min(calc(100% - 72px), 1560px); }
   .workshop-shell { padding-inline: clamp(32px, 4vw, 72px); }
+  .workshop-overview-panel .ops-mobile-overview { gap: 20px; }
+  .workshop-overview-panel .ops-mobile-overview > .ops-closing-card { grid-column: span 5; min-height: 214px; }
+  .workshop-overview-panel .ops-mobile-overview > .ops-sales-panel { grid-column: span 7; }
   .pickup-card-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 }
 
-@media (forced-colors: active) {
-  .pickup-card-frame[data-expanded='true'] { outline: 1px solid CanvasText; }
-}
+@media (forced-colors: active) { .pickup-card-frame[data-expanded='true'] { outline: 1px solid CanvasText; } }

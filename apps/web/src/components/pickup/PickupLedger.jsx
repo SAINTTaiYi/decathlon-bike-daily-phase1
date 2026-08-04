@@ -46,6 +46,10 @@ function Highlight({ children, query }) {
   return <>{text.slice(0, index)}<mark>{text.slice(index, index + query.length)}</mark>{text.slice(index + query.length)}</>
 }
 
+function isPickedUpToday(value) { return value === true || value === 1 || value === '1' || value === 'true' }
+
+function pickupCardTitle(record, detailLine) { return String(record.title || '').trim() || detailLine || '未命名待取车辆' }
+
 function hiddenMatchReason(record, query, source, contactValue, detailLine) {
   if (!query) return ''
   const term = query.toLocaleLowerCase('zh-CN')
@@ -105,7 +109,7 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
   const frameRef = useRef(null)
   const revealRef = useRef(null)
   const detailRef = useRef(null)
-  const pickedUp = handoverMode ? false : repairMode ? Boolean(record.completedToday || record.completedOn) : Boolean(record.pickedUpToday)
+  const pickedUp = handoverMode ? false : repairMode ? Boolean(record.completedToday || record.completedOn) : isPickedUpToday(record.pickedUpToday)
   const source = handoverMode ? 'handover' : repairMode ? 'repair' : inferPickupSource(record)
   const SourceIcon = sourceIcons[source] || IconArchive
   const repairPickup = repairMode || source === 'repair'
@@ -117,6 +121,7 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
   const resultLabel = repairMode || handoverMode ? (record.status || '继续跟进') : pickupResultLabel(record)
   const ticketNumber = formatTicketNumber(record.ticketNo, record.id)
   const matchReason = hiddenMatchReason(record, query, source, contactValue, detailLine)
+  const cardTitle = handoverMode ? detailLine : pickupCardTitle(record, detailLine)
   const locked = Boolean(closedAt) || primaryActionBusy
 
   useEffect(() => {
@@ -191,7 +196,7 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
       {pickupPixelFill ? <span className="pickup-complete-wash" aria-hidden="true" /> : null}
       <button type="button" className="pickup-card-summary" onClick={() => onToggle(record.id)} aria-expanded={expanded} aria-controls={`pickup-detail-${record.id}`}>
         <span className="pickup-card-index" aria-label={`列表序号 ${index + 1}`}><small>NO.</small>{String(index + 1).padStart(2, '0')}</span>
-        <span className="pickup-card-core"><strong><Highlight query={query}>{handoverMode ? detailLine : record.title}</Highlight></strong><span className="pickup-source-line"><SourceIcon width={15} height={15} aria-hidden="true" />{handoverMode ? '交接事项' : repairMode ? '维修登记' : pickupSourceLabel(record)}{platform ? <small>{platform}</small> : null}</span>{source === 'customer-storage' && detailLine ? <span className="pickup-storage-summary"><Highlight query={query}>{detailLine}</Highlight></span> : null}{matchReason ? <span className="pickup-hidden-match">{matchReason}</span> : null}</span>
+        <span className="pickup-card-core"><strong><Highlight query={query}>{cardTitle}</Highlight></strong><span className="pickup-source-line"><SourceIcon width={15} height={15} aria-hidden="true" />{handoverMode ? '交接事项' : repairMode ? '维修登记' : pickupSourceLabel(record)}{platform ? <small>{platform}</small> : null}</span>{source === 'customer-storage' && detailLine ? <span className="pickup-storage-summary"><Highlight query={query}>{detailLine}</Highlight></span> : null}{matchReason ? <span className="pickup-hidden-match">{matchReason}</span> : null}</span>
         <span className="pickup-card-status"><b data-repair={repairPickup ? 'true' : undefined}>{resultLabel}</b><IconNavArrowDown width={18} height={18} aria-hidden="true" /></span>
         {!handoverMode ? <span className="pickup-card-scan"><span><IconPhone width={14} height={14} aria-hidden="true" />{contactValue ? displayContactValue(contactValue) : '无联系方式'}</span>{record.pickupDate ? <span><IconCalendar width={14} height={14} aria-hidden="true" /><time dateTime={record.pickupDate}>{formatScanDate(record.pickupDate)}</time></span> : null}</span> : null}
       </button>
@@ -223,8 +228,8 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   const [toolsVisible, setToolsVisible] = useState(true)
   const ledgerRef = useRef(null)
   const lastScrollYRef = useRef(0)
-  const waitingRecords = handoverMode ? records : repairMode ? records.filter((record) => !record.completedToday && !record.completedOn) : records.filter((record) => !record.pickedUpToday)
-  const pickedRecords = handoverMode ? [] : repairMode ? records.filter((record) => record.completedToday || record.completedOn) : records.filter((record) => record.pickedUpToday)
+  const waitingRecords = handoverMode ? records : repairMode ? records.filter((record) => !record.completedToday && !record.completedOn) : records.filter((record) => !isPickedUpToday(record.pickedUpToday))
+  const pickedRecords = handoverMode ? [] : repairMode ? records.filter((record) => record.completedToday || record.completedOn) : records.filter((record) => isPickedUpToday(record.pickedUpToday))
   const autoDensity = waitingRecords.length > 12 ? 'compact' : density
 
   useEffect(() => { window.localStorage?.setItem(`${storageKey}-density`, density) }, [density, storageKey])
