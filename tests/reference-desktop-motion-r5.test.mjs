@@ -16,7 +16,8 @@ test('desktop navigation uses the full reference labels while mobile keeps exist
 
 test('desktop scene changes use one bold branded wipe and staggered directional entrances', () => {
   assert.ok(app.includes('useDesktopSceneTransition'))
-  assert.ok(app.includes('desktop-scene-transition-wipe'))
+  assert.ok(app.includes('desktop-scene-transition-viewport'))
+  assert.match(app, /desktop-scene-transition-viewport[^>]*><span className="desktop-scene-transition-wipe"/u)
   assert.match(app, /if \(desktopLayout\) \{\n      transitionToDesktopScene\(sceneId\)/u)
   assert.match(hook, /gsap\.timeline/u)
   assert.match(hook, /scaleX: 1/u)
@@ -37,4 +38,22 @@ test('every desktop card action row and both notice controls are compact at the 
   assert.match(css, /\.pickup-card-actions \{ display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;/u)
   assert.match(css, /\.pickup-notification-buttons \{ grid-column: 3; display: flex; justify-content: flex-end;/u)
   assert.match(css, /\.pickup-notification-buttons button \{ flex: 0 0 auto; width: auto; min-width: 142px; max-width: 170px;/u)
+})
+
+
+test('yellow wipe is paint-clipped to the changing right business region', () => {
+  assert.match(css, /\.desktop-scene-transition-viewport \{\n    position: fixed;\n    inset: 90px 0 0 262px;\n    z-index: 120;\n    display: block;\n    overflow: hidden;\n    contain: paint;\n    isolation: isolate;/u)
+  assert.match(css, /\.desktop-scene-transition-wipe \{\n    position: absolute;\n    inset: -8% -10%;/u)
+  assert.doesNotMatch(css, /\.desktop-scene-transition-wipe \{\n    position: fixed;/u)
+  assert.match(css, /\.workshop-module-header \{[\s\S]*?margin-left: 262px;/u)
+  assert.match(css, /\.look-dock::after \{[^}]*top: 90px;[^}]*left: 261px;/u)
+})
+
+
+test('global header and complete left rail remain spatially fixed during scene changes', () => {
+  assert.doesNotMatch(hook, /activeButton|look-dock button\[data-active/u)
+  assert.doesNotMatch(css, /look-dock button\[data-active='true'\] \{ transform:/u)
+  assert.doesNotMatch(css, /data-desktop-scene-transitioning='true'[^}]*look-dock/u)
+  assert.ok(hook.includes("const headerItems = [...root.querySelectorAll('.workshop-module-header > *')]") )
+  assert.doesNotMatch(hook, /workshop-global-header/u)
 })
