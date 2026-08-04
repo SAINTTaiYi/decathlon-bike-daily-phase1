@@ -31,6 +31,7 @@ export default function WorkshopShellHeader({ activeScene, dateKey, storeName, r
           </button>
         </div>
         <div className="workshop-header-context"><time dateTime={dateKey || undefined}>{formatDate(dateKey)}</time><span>{storeName || '门店'} · {roleLabel || '成员'}</span><strong>{userName || '—'}</strong></div>
+        <button type="button" className="workshop-header-action workshop-header-mobile-log" onClick={onLog} aria-label="查看当日日志"><IconBell width={21} height={21} aria-hidden="true" />{hasUnread ? <i aria-hidden="true" /> : null}</button>
       </div>
       <div className="workshop-module-header" aria-live="polite">
         <Icon width={26} height={26} strokeWidth={1.7} aria-hidden="true" />

@@ -570,6 +570,7 @@ export default function App() {
                 onExportReport={exportClosingReport}
                 onJump={jumpFromOverview}
                 showUsed={desktopLayout}
+                showAnalytics={desktopLayout}
               />
             </WorkshopModuleSection>
             <WorkshopModuleSection sceneId="pickup"><PickupScene {...recordProps('pickup')} /></WorkshopModuleSection>

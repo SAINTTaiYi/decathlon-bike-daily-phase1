@@ -208,7 +208,7 @@ function ReleaseStrip() {
   )
 }
 
-export default function WorkshopOverviewPage({ workflow, online, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport, onJump, showUsed = false }) {
+export default function WorkshopOverviewPage({ workflow, online, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport, onJump, showUsed = false, showAnalytics = false }) {
   const available = workflow.hydrated && workflow.hasSnapshot
   return (
     <div className="ops-mobile-overview" data-workspace-module="true" aria-label="Workshop 业务总览">
@@ -216,7 +216,7 @@ export default function WorkshopOverviewPage({ workflow, online, onEditKpi, onCo
       <ClosingStatusCard workflow={workflow} online={online} onEditKpi={onEditKpi} onCompleteClosing={onCompleteClosing} onHistory={onHistory} onRefresh={onRefresh} onReopenClosing={onReopenClosing} onExportReport={onExportReport} />
       <SalesVehiclesPanel dateKey={workflow.dateKey} kpi={workflow.kpi} available={available} onEditKpi={onEditKpi} />
       <OperationsIndex workflow={workflow} onJump={onJump} showUsed={showUsed} />
-      <OverviewAnalytics workflow={workflow} />
+      {showAnalytics ? <OverviewAnalytics workflow={workflow} /> : null}
       <ReleaseStrip />
       <div className="ops-first-screen-spacer" aria-hidden="true" />
     </div>
