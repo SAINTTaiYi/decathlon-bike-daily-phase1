@@ -259,6 +259,11 @@ button:disabled { opacity: .48; }
 .look-dock button[data-active='true'] small { color: var(--ops-text-inverse); }
 .look-dock .dock-status { display: none !important; }
 
+/* Desktop reference-only structures must not participate in ordinary-phone layout. */
+.pickup-ledger-table-head,
+.dock-release-card { display: none; }
+.sales-input-summary > .sales-reference-intro { display: none; }
+
 /* Module headings and operational surfaces */
 .scene-title {
   display: grid;
