@@ -3,7 +3,7 @@ import IconCash from '@iconoir/Cash.mjs'
 import IconDelivery from '@iconoir/DeliveryTruck.mjs'
 import IconShop from '@iconoir/ShopWindow.mjs'
 import IconWrench from '@iconoir/Wrench.mjs'
-import IconTag from '@iconoir/Tag.mjs'
+import IconLabel from '@iconoir/Label.mjs'
 import IconCheck from '@iconoir/Check.mjs'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
 
@@ -11,7 +11,7 @@ const operations = [
   { id: 'pickup', no: '02', en: 'PICKUP', cn: '待取车辆', Icon: IconDelivery },
   { id: 'poster', no: '03', en: 'OTHER', cn: '其它交接', Icon: IconShop },
   { id: 'repair', no: '04', en: 'REPAIR', cn: '维修交接', Icon: IconWrench },
-  { id: 'resale', no: '05', en: 'USED', cn: '二手台账', Icon: IconTag },
+  { id: 'resale', no: '05', en: 'USED', cn: '二手台账', Icon: IconLabel },
   { id: 'sales', no: '06', en: 'SALES', cn: '销售数据', Icon: IconCash }
 ]
 
