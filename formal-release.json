@@ -1,44 +1,43 @@
 {
   "kind": "formal-production-release",
-  "version": "5.8.0",
+  "version": "5.8.1",
   "previewRange": {
-    "fromExclusive": "f08212a0f5d786f2abac1312deab1146f97a8792",
-    "toInclusive": "18a216ae31bad787cccd8b7c52cba93071716fe4",
+    "fromExclusive": "110aa9ef680f893d46bfe9074f2f820502b77663",
+    "toInclusive": "bedf9066bdf68647d99efff66bdb074660798c9c",
     "commits": [
       {
-        "sha": "92c8956299b116b9489747023687249614e8ff90",
-        "subject": "fix(web): densify desktop workbench cards"
+        "sha": "ba86fd33f8f7c5dbc90ce37998a7876d0a0e85b7",
+        "subject": "release: V5.8.0 · desktop workbench and handover completion"
       },
       {
-        "sha": "c376446de4326abab5d9538615a0e82cc8f93e0e",
-        "subject": "fix(web): restore intrinsic desktop workbench card sizing"
+        "sha": "ab39e3a26a91b2ef063a2b561804047851ddd63f",
+        "subject": "docs(workshop): record V5.8.0 production release evidence"
       },
       {
-        "sha": "cb2c6d387776e5d1cb2b79edc5ec36a89f2c1eb8",
-        "subject": "fix(web): restore desktop overview and pickup actions"
+        "sha": "87fd407d326eaab861813b1ce9a88850828b1265",
+        "subject": "docs(workshop): record V5.8.0 production release evidence"
       },
       {
-        "sha": "6b3ba41fbf1a8d4f0962884c1dd6caa2e63ebdd6",
-        "subject": "fix(web): restore desktop overview and pickup actions"
+        "sha": "826a2e1f81501144285b59f76f35857269fb8b26",
+        "subject": "fix(handover): prefer persisted title on cards"
       },
       {
-        "sha": "ec7b04679e3f75b05656947f3fae0c48e0003c3a",
-        "subject": "fix(handover): restore completion action"
+        "sha": "ea13627a641e3e17b34a32aa0fd6fd182a86aa41",
+        "subject": "test(handover): cover title-priority legacy records"
       },
       {
-        "sha": "18a216ae31bad787cccd8b7c52cba93071716fe4",
-        "subject": "fix(handover): restore completion action"
+        "sha": "bedf9066bdf68647d99efff66bdb074660798c9c",
+        "subject": "test(web): align desktop handover title contract"
       }
     ]
   },
   "announcement": {
-    "title": "桌面工作台、待取与交接闭环",
-    "summary": "本次正式发布汇总已验收的桌面工作台响应式修复、待取台账可操作性恢复与其它交接完成闭环。",
+    "title": "交接事项标题紧急修复",
+    "summary": "紧急修复其它工作交接卡误把历史详情字段显示为标题的问题；既有 D1 数据不改动。",
     "changes": [
-      "桌面首屏改为左右铺开的工作台，待取、维修与交接卡片按内容高度排布。",
-      "展开卡片保持原列宽，仅向下展开详情；交接详情不再重叠。",
-      "待取卡恢复可见标题与确认取车；其它交接恢复完成交接操作，当天保留、跨日自动清理。"
+      "交接卡现在优先展示持久化 title，只有 title 为空才回退 detail。",
+      "修复仅涉及客户端显示逻辑，不执行 D1 写入、迁移或历史数据恢复。"
     ]
   },
-  "preparedAt": "2026-08-04T12:55:13.181Z"
+  "preparedAt": "2026-08-04T13:39:03.106Z"
 }
