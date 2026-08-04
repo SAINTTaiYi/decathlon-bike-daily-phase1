@@ -27,3 +27,14 @@ Preview-only follow-up from deployed source `dfbd72b3c9cfe49a7231c86c5d7f2db9693
 - Targeted desktop/shared-ledger contracts: 23 passed, 0 failed.
 - Full repository tests, typecheck, 88 workflow policies and post-change CodeGraph passed locally. Preview registration/build, PR/CI, Cloudflare Preview and independent online verification continue below.
 - CSS and Markdown are explicit CodeGraph non-indexed exceptions; compensating contract tests, build output and deployment asset verification are required.
+
+## Final Preview evidence
+
+- Functional candidate: `0ece00867beb2baae8314e0d277f2300271c1f76`.
+- Ordinary PR merge / deployed identity: `f5b9dc140940dcbbf44d0e54293e0e66c6a01a28`.
+- Canonical Cloudflare Preview-only run: [30937072330](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/actions/runs/30937072330) — success.
+- Online live/ready/meta: V5.8.1, exact `f5b9dc140940dcbbf44d0e54293e0e66c6a01a28`, environment `preview`.
+- Published CSS `/assets/index-ChPsVzwR.css` SHA-256 `14c0b612fefae3654af8b8cfed1a9ff36f0e8785fa58792ed0668ceac50737a8`; JS `/assets/index-BAqE6u8i.js` SHA-256 `d79b78711a3002f4bcb08fe2af871d97bbf781a8940dba7b26da90df66363d03`; both match the verified local build byte-for-byte.
+- HSTS, CSP `frame-ancestors`, X-Frame-Options DENY and HTTP→HTTPS 308 passed.
+- No Production, Production D1, migration, schema, API or business-flow mutation occurred.
+- Automated logged-in browser validation remains unavailable because browser-harness has no local Chrome daemon/logged-in cloud session; no prohibited in-app browser or Android Accessibility fallback was used. Human visual acceptance is required.
