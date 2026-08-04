@@ -81,8 +81,6 @@ export default function useDesktopSceneTransition({ enabled, activeScene, rootRe
           { autoAlpha: .01, x: direction * 34 },
           { autoAlpha: 1, x: 0, duration: .55, stagger: .045, ease: 'power4.out', clearProps: 'transform,opacity,visibility' }
         )
-        const activeButton = root.querySelector('.look-dock button[data-active="true"]')
-        if (activeButton) gsap.fromTo(activeButton, { scale: .88 }, { scale: 1, duration: .58, ease: 'back.out(1.9)', clearProps: 'scale' })
       })
     }
 

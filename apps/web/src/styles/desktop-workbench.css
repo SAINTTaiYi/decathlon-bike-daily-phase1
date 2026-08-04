@@ -4,7 +4,7 @@
  * as one canvas. This keeps physical-pixel geometry stable on high-DPR Android
  * desktop mode while leaving the existing phone UI untouched below 768 CSS px.
  */
-.desktop-scene-transition-wipe { display: none; }
+.desktop-scene-transition-viewport, .desktop-scene-transition-wipe { display: none; }
 
 @media (min-width: 768px) {
   :root {
@@ -349,10 +349,19 @@
 
   /* R5 desktop-only branded scene transition: one bold diagonal yellow wipe,
      followed by directional panel and component choreography. */
-  .desktop-scene-transition-wipe {
+  .desktop-scene-transition-viewport {
     position: fixed;
-    inset: -8% -10%;
+    inset: 90px 0 0 262px;
     z-index: 120;
+    display: block;
+    overflow: hidden;
+    contain: paint;
+    isolation: isolate;
+    pointer-events: none;
+  }
+  .desktop-scene-transition-wipe {
+    position: absolute;
+    inset: -8% -10%;
     display: block;
     pointer-events: none;
     background: var(--ops-yellow);
@@ -367,16 +376,15 @@
     box-shadow: -18px 0 0 var(--ops-black), -32px 0 42px rgb(12 14 12 / .26);
     clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
   }
-  .workshop-runtime[data-desktop-scene-transitioning='true'] :is(.look-dock button, .workshop-module-header, .workshop-module-panel) {
+  .workshop-runtime[data-desktop-scene-transitioning='true'] :is(.workshop-module-header, .workshop-module-panel) {
     will-change: transform, opacity, clip-path;
   }
-  .look-dock button { transition: background-color 180ms ease, color 180ms ease, box-shadow 260ms ease, transform 260ms cubic-bezier(.2,.9,.2,1); }
-  .look-dock button[data-active='true'] { transform: translateX(6px); }
+  .look-dock button { transition: background-color 180ms ease, color 180ms ease, box-shadow 260ms ease; }
 
   @media (prefers-reduced-motion: reduce) {
+    .desktop-scene-transition-viewport { display: none !important; }
     .desktop-scene-transition-wipe { display: none !important; }
     .look-dock button { transition: none; }
-    .look-dock button[data-active='true'] { transform: none; }
   }
 
 }
