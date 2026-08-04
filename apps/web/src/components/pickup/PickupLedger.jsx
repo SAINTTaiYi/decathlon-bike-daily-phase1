@@ -103,7 +103,7 @@ function PickupFilterSheet({ open, initialTab, appliedSources, appliedSort, repa
   </div>, document.body)
 }
 
-function PickupCard({ record, index, expanded, density, query, closedAt, pickupError, primaryProcessing, primaryActionBusy, pickupPixelFill, repairMode = false, handoverMode = false, onToggle, onEdit, onRemove, onHistory, onPickup, onRepairComplete, onHandoverComplete, onNotificationChange, onPickupPixelFillComplete }) {
+function PickupCard({ record, index, expanded, density, query, closedAt, pickupError, primaryProcessing, primaryActionBusy, pickupPixelFill, repairMode = false, handoverMode = false, handoverStampEntering = false, onToggle, onEdit, onRemove, onHistory, onPickup, onRepairComplete, onHandoverComplete, onNotificationChange, onPickupPixelFillComplete }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const startXRef = useRef(null)
   const frameRef = useRef(null)
@@ -195,14 +195,15 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
 
   return <div ref={frameRef} className="pickup-card-frame" data-delete-open={deleteOpen ? 'true' : undefined} data-expanded={expanded ? 'true' : undefined}>
     {!pickedUp ? <button type="button" className="pickup-delete-reveal" onClick={() => onRemove(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconTrash width={18} height={18} aria-hidden="true" />删除</button> : null}
-    <article className="pickup-card" data-card-mode={handoverMode ? 'handover' : repairMode ? 'repair' : 'pickup'} data-density={density} data-expanded={expanded ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-processing={pickupPixelFill ? 'true' : undefined} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={() => { startXRef.current = null }}>
+    <article className="pickup-card" data-card-mode={handoverMode ? 'handover' : repairMode ? 'repair' : 'pickup'} data-density={density} data-expanded={expanded ? 'true' : undefined} data-complete={handoverComplete ? 'true' : undefined} data-error={pickupError ? 'true' : undefined} data-processing={pickupPixelFill ? 'true' : undefined} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={() => { startXRef.current = null }}>
       {pickupPixelFill ? <span className="pickup-complete-wash" aria-hidden="true" /> : null}
       <button type="button" className="pickup-card-summary" onClick={() => onToggle(record.id)} aria-expanded={expanded} aria-controls={`pickup-detail-${record.id}`}>
         <span className="pickup-card-index" aria-label={`列表序号 ${index + 1}`}><small>NO.</small>{String(index + 1).padStart(2, '0')}</span>
         <span className="pickup-card-core"><strong><Highlight query={query}>{cardTitle}</Highlight></strong><span className="pickup-source-line"><SourceIcon width={15} height={15} aria-hidden="true" />{handoverMode ? '交接事项' : repairMode ? '维修登记' : pickupSourceLabel(record)}{platform ? <small>{platform}</small> : null}</span>{source === 'customer-storage' && detailLine ? <span className="pickup-storage-summary"><Highlight query={query}>{detailLine}</Highlight></span> : null}{matchReason ? <span className="pickup-hidden-match">{matchReason}</span> : null}</span>
-        <span className="pickup-card-status"><b data-repair={repairPickup ? 'true' : undefined}>{resultLabel}</b><IconNavArrowDown width={18} height={18} aria-hidden="true" /></span>
+        <span className="pickup-card-status">{!handoverComplete ? <b data-repair={repairPickup ? 'true' : undefined}>{resultLabel}</b> : null}<IconNavArrowDown width={18} height={18} aria-hidden="true" /></span>
         {!handoverMode ? <span className="pickup-card-scan"><span><IconPhone width={14} height={14} aria-hidden="true" />{contactValue ? displayContactValue(contactValue) : '无联系方式'}</span>{record.pickupDate ? <span><IconCalendar width={14} height={14} aria-hidden="true" /><time dateTime={record.pickupDate}>{formatScanDate(record.pickupDate)}</time></span> : null}</span> : null}
       </button>
+      {handoverComplete ? <span className="handover-complete-stamp" data-entering={handoverStampEntering ? 'true' : undefined} role="status" aria-label="交接已完成">已完成</span> : null}
       <div ref={revealRef} className="pickup-card-reveal" data-expanded={expanded ? 'true' : undefined} aria-hidden={!expanded} inert={!expanded}>
       <div ref={detailRef} className="pickup-card-detail" id={`pickup-detail-${record.id}`}>
         {handoverMode ? <section className="pickup-detail-wide"><h4>HANDOVER <span>/ 交接事项</span></h4><p>{detailLine}</p></section> : <section><h4>CUSTOMER <span>/ 顾客</span></h4><dl><div><dt>车辆标识</dt><dd>{record.title}</dd></div><div><dt>{contact.contactType === 'member' ? '会员号' : '手机号'}</dt><dd>{contactValue || '无'}</dd></div><div><dt>{repairMode ? '预计取车' : '取车日期'}</dt><dd>{record.pickupDate ? formatScanDate(record.pickupDate) : '未指定'}</dd></div><div><dt>业务编号</dt><dd>{ticketNumber}</dd></div></dl></section>}
@@ -229,6 +230,9 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   const [sheet, setSheet] = useState(null)
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [toolsVisible, setToolsVisible] = useState(true)
+  const [handoverStampMotionId, setHandoverStampMotionId] = useState('')
+  const handoverCompletionByIdRef = useRef(new Map())
+  const handoverCompletionReadyRef = useRef(false)
   const ledgerRef = useRef(null)
   const lastScrollYRef = useRef(0)
   const waitingRecords = handoverMode ? records : repairMode ? records.filter((record) => !record.completedToday && !record.completedOn) : records.filter((record) => !isPickedUpToday(record.pickedUpToday))
@@ -237,6 +241,29 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
 
   useEffect(() => { window.localStorage?.setItem(`${storageKey}-density`, density) }, [density, storageKey])
   useEffect(() => { window.localStorage?.setItem(`${storageKey}-sort`, sort) }, [sort, storageKey])
+  useEffect(() => {
+    if (!handoverMode) {
+      handoverCompletionReadyRef.current = false
+      handoverCompletionByIdRef.current = new Map()
+      return
+    }
+    const completionById = new Map(records.map((record) => [record.id, Boolean(record.completedToday || record.completedOn)]))
+    if (!handoverCompletionReadyRef.current) {
+      handoverCompletionByIdRef.current = completionById
+      handoverCompletionReadyRef.current = true
+      return
+    }
+    const newlyCompletedOpenRecord = records.find((record) => completionById.get(record.id) && !handoverCompletionByIdRef.current.get(record.id) && expandedId === record.id)
+    handoverCompletionByIdRef.current = completionById
+    if (!newlyCompletedOpenRecord) return
+    setExpandedId('')
+    setHandoverStampMotionId(newlyCompletedOpenRecord.id)
+  }, [expandedId, handoverMode, records])
+  useEffect(() => {
+    if (!handoverStampMotionId) return undefined
+    const timer = window.setTimeout(() => setHandoverStampMotionId(''), 820)
+    return () => window.clearTimeout(timer)
+  }, [handoverStampMotionId])
   useEffect(() => { const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 250); return () => window.clearTimeout(timer) }, [query])
   useEffect(() => {
     const onScroll = () => {
@@ -268,7 +295,7 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   return <div ref={ledgerRef} className="pickup-ledger" data-density={autoDensity} data-tools-visible={toolsVisible ? 'true' : undefined} aria-label={`${handoverMode ? '交接事项' : repairMode ? '维修车辆' : '待取车辆'}台账，共 ${records.length} 条`}>
     {queueControls}
     <div className="pickup-ledger-intro"><div><span>{handoverMode ? 'ACTIVE HANDOVER' : repairMode ? 'ACTIVE REPAIR' : 'ACTIVE PICKUP'}</span><strong>{visible.length ? (handoverMode ? `当前显示 ${visible.length} 项，按列表顺序完成交接。` : repairMode ? `当前显示 ${visible.length} 台，按列表顺序核对并完成维修。` : `当前显示 ${visible.length} 台，按列表顺序核对并交付。`) : (handoverMode ? '当前没有交接事项。' : repairMode ? '当前规则下没有维修车辆。' : '当前规则下没有待取车辆。')}</strong></div><div className="pickup-ledger-global-actions"><button type="button" onClick={() => onHistory()}><IconJournal width={17} height={17} aria-hidden="true" />操作记录</button><button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />{handoverMode ? '增加交接事项' : repairMode ? '增加维修' : '增加待取'}</button></div></div>
-    {visible.length ? <div className="pickup-card-grid">{visible.map((record, index) => <PickupCard key={record.id} record={record} index={index} expanded={expandedId === record.id} density={autoDensity} query={debouncedQuery} closedAt={closedAt} pickupError={pickupErrors[record.id] || ''} primaryProcessing={primaryProcessingId === record.id} primaryActionBusy={primaryActionBusy} pickupPixelFill={repairMode ? repairPixelDissolveId === record.id : pickupPixelFillId === record.id} repairMode={repairMode} handoverMode={handoverMode} onToggle={(id) => setExpandedId((current) => current === id ? '' : id)} onEdit={onEdit} onRemove={onRemove} onHistory={onHistory} onPickup={onPickup} onRepairComplete={onRepairComplete} onHandoverComplete={onHandoverComplete} onNotificationChange={onPickupNotificationChange} onPickupPixelFillComplete={repairMode ? onRepairPixelDissolveComplete : onPickupPixelFillComplete} />)}</div> : <section className="pickup-empty-state"><IconBicycle width={34} height={34} aria-hidden="true" /><span>{waitingRecords.length ? 'NO MATCH' : 'QUEUE CLEAR'}</span><h3>{waitingRecords.length ? '没有符合条件的车辆' : repairMode ? '当前没有维修车辆' : '当前没有待取车辆'}</h3><p>{waitingRecords.length ? '清除搜索或筛选条件，恢复完整列表。' : repairMode ? '新增维修车辆记录，开始录入维修单。' : '新增顾客暂存、自提订单或二手车待取记录。'}</p>{waitingRecords.length ? <button type="button" onClick={() => { setQuery(''); setSources([]); setSort('default') }}>恢复全部车辆</button> : <button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />{repairMode ? '增加维修车辆' : '增加待取车辆'}</button>}</section>}
+    {visible.length ? <div className="pickup-card-grid">{visible.map((record, index) => <PickupCard key={record.id} record={record} index={index} expanded={expandedId === record.id} density={autoDensity} query={debouncedQuery} closedAt={closedAt} pickupError={pickupErrors[record.id] || ''} primaryProcessing={primaryProcessingId === record.id} primaryActionBusy={primaryActionBusy} pickupPixelFill={repairMode ? repairPixelDissolveId === record.id : pickupPixelFillId === record.id} repairMode={repairMode} handoverMode={handoverMode} handoverStampEntering={handoverStampMotionId === record.id} onToggle={(id) => setExpandedId((current) => current === id ? '' : id)} onEdit={onEdit} onRemove={onRemove} onHistory={onHistory} onPickup={onPickup} onRepairComplete={onRepairComplete} onHandoverComplete={onHandoverComplete} onNotificationChange={onPickupNotificationChange} onPickupPixelFillComplete={repairMode ? onRepairPixelDissolveComplete : onPickupPixelFillComplete} />)}</div> : <section className="pickup-empty-state"><IconBicycle width={34} height={34} aria-hidden="true" /><span>{waitingRecords.length ? 'NO MATCH' : 'QUEUE CLEAR'}</span><h3>{waitingRecords.length ? '没有符合条件的车辆' : repairMode ? '当前没有维修车辆' : '当前没有待取车辆'}</h3><p>{waitingRecords.length ? '清除搜索或筛选条件，恢复完整列表。' : repairMode ? '新增维修车辆记录，开始录入维修单。' : '新增顾客暂存、自提订单或二手车待取记录。'}</p>{waitingRecords.length ? <button type="button" onClick={() => { setQuery(''); setSources([]); setSort('default') }}>恢复全部车辆</button> : <button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />{repairMode ? '增加维修车辆' : '增加待取车辆'}</button>}</section>}
     {!repairMode && !handoverMode && pickedRecords.length ? <details className="pickup-completed-today"><summary><span><IconCheck width={17} height={17} aria-hidden="true" />今日已取</span><b>{String(pickedRecords.length).padStart(2, '0')}</b></summary><div>{pickedRecords.map((record) => <button type="button" key={record.id} onClick={() => onHistory(record)}><span>{record.title}</span><small>{pickupSourceLabel(record)} · 查看操作记录</small></button>)}</div></details> : null}
     <PickupFilterSheet open={Boolean(sheet)} initialTab={sheet || 'filter'} appliedSources={sources} appliedSort={sort} repairMode={repairMode || handoverMode} onClose={closeSheet} onApply={applySheet} />
   </div>
