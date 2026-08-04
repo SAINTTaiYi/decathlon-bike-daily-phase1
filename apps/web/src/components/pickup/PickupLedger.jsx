@@ -19,7 +19,7 @@ import IconTrash from '@iconoir/Trash.mjs'
 import IconViewColumns from '@iconoir/ViewColumns2.mjs'
 import IconWrench from '@iconoir/Wrench.mjs'
 import { decodePickupContact, inferPickupNotificationStatus, inferPickupSource, pickupResultLabel, pickupSourceLabel, selfPickupPlatformLabel } from '../../data/pickupRecord.js'
-import { displayContactValue, formatScanDate, formatTicketNumber, joinMaintenanceLine } from '../../data/recordPresentation.js'
+import { displayContactValue, formatScanDate, formatTicketNumber, handoverCardTitle, joinMaintenanceLine } from '../../data/recordPresentation.js'
 
 const sourceOptions = [['self-pickup', '自提订单'], ['repair', '维修待取'], ['customer-storage', '顾客暂存'], ['used-car', '二手车']]
 const sourceIcons = { 'self-pickup': IconBox, repair: IconWrench, handover: IconJournal, 'customer-storage': IconArchive, 'used-car': IconBicycle }
@@ -124,7 +124,7 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
   const matchReason = hiddenMatchReason(record, query, source, contactValue, detailLine)
   // Legacy handovers can have a numeric detail (for example `1`) while title is the persisted human-facing item.
   // Keep title authoritative; detail is only a compatibility fallback for records whose title is genuinely empty.
-  const cardTitle = handoverMode ? String(record.title || '').trim() || detailLine : pickupCardTitle(record, detailLine)
+  const cardTitle = handoverMode ? handoverCardTitle(record) : pickupCardTitle(record, detailLine)
   const locked = Boolean(closedAt) || primaryActionBusy
 
   useEffect(() => {
