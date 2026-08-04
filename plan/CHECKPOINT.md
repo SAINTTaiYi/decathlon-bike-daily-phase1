@@ -167,3 +167,10 @@ EdgeOne 平台操作若当前网络不可达，停止并提醒开启 VPN；不�
 - Locked target: five supplied 1536×1024 boards; real data/business interactions and phone UI preserved; Preview-only.
 - Structural correction: native 1536×1024 canvas scaling, 768 CSS px desktop/tablet activation, six-item left navigation retained, release card restored.
 - Exact next step: run tests/typecheck/workflow/build and CodeGraph post-gate; then commit, PR, CI and canonical Cloudflare Preview-only deployment.
+
+### 2026-08-05 — Reference pixel R2 Preview deployed
+- PR #140 merged as `dfbd72b3c9cfe49a7231c86c5d7f2db9693c7c6d`; CI verify+secrets passed.
+- Cloudflare Preview-only run `30934010991` succeeded; online live/ready/meta and security checks passed repeatedly.
+- Published CSS/JS are byte-identical to the locally verified build. Production and Production D1 remain untouched; public V5.8.1 unchanged.
+- browser-harness is installed but has no local Chrome daemon or logged-in cloud Workshop session; no prohibited browser/accessibility fallback was used.
+- State: waiting for human visual acceptance of the five 1536×1024 boards.
