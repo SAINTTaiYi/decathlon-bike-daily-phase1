@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { localBusinessDate } from '@bike-ops/domain'
-import { passwordSchema } from '@bike-ops/contracts'
+import { adminCreateUserSchema, adminPasswordResetSchema, adminStoreDecisionSchema, adminUserStatusSchema } from '@bike-ops/contracts'
 import type { AuthContext } from '../auth/types.js'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import { createAuthMiddleware } from '../auth/middleware.js'
@@ -9,13 +9,12 @@ import { mapAuditEvent } from './audit.js'
 import { prepareAudit, prepareConditionalAudit } from '../services/business.js'
 import type { AuditModule } from '../services/business.js'
 import { ApiProblem } from '../services/problems.js'
-import { hashPassword, randomToken } from '../lib/crypto.js'
+import { idempotent } from '../services/idempotency.js'
+import { hashPassword, keyedHash } from '../lib/crypto.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
-type Role = 'operator' | 'manager' | 'admin'
 
 const AUDIT_MODULES = new Set<AuditModule>(['sales', 'closing', 'pickup', 'repair', 'resale', 'handover', 'account', 'system'])
-const ROLES = new Set<Role>(['operator', 'manager', 'admin'])
 
 function requireContext(c: { get(key: 'auth'): AuthContext | null }): AuthContext {
   const context = c.get('auth')
@@ -23,9 +22,6 @@ function requireContext(c: { get(key: 'auth'): AuthContext | null }): AuthContex
   return context
 }
 
-function normalizedUsername(value: string): string {
-  return value.normalize('NFKC').trim().toLocaleLowerCase('zh-CN')
-}
 
 function todayStartIso(): string {
   const today = localBusinessDate('Asia/Shanghai')
@@ -81,16 +77,16 @@ export function adminRoutes() {
     const d7 = daysAgoIso(7)
     const d30 = daysAgoIso(30)
     const todayStart = todayStartIso()
-    const [regionCount, cityCount, storeCount, storeDisabledCount, storePendingCount, userCount, members, pendingRoles, pendingTransfers, todayNewStores, todayNewUsers, todayRoleApproved, todayTransferApproved, todayItems, newStores7d, newStores30d, newUsers7d, newUsers30d, roleStats7d, roleStats30d, recentAudit] = await Promise.all([
+    const [regionCount, cityCount, storeCount, storeDisabledCount, storePendingCount, userCount, members, pendingRoles, pendingTransfers, todayNewStores, todayNewUsers, todayRoleApproved, todayTransferApproved, todayItems, newStores7d, newStores30d, newUsers7d, newUsers30d, roleTotal7d, roleTotal30d, roleStats7d, roleStats30d, recentAudit] = await Promise.all([
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM regions WHERE status = 'active'")),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM cities WHERE status = 'active'")),
-      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE status = 'active'")),
-      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE status = 'disabled'")),
+      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE status = 'active' AND pending_review = 0")),
+      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE status = 'disabled' AND pending_review = 0")),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE pending_review = 1")),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM users WHERE status = 'active'")),
       all<{ role: string; n: number }>(c.env.DB.prepare("SELECT role, COUNT(*) AS n FROM store_members WHERE status = 'active' GROUP BY role")),
-      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM role_change_requests WHERE status = 'pending'")),
-      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM store_transfer_requests WHERE status = 'pending'")),
+      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM role_change_requests WHERE status = 'pending' AND expires_at > ?").bind(nowIso())),
+      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM store_transfer_requests WHERE status = 'pending' AND expires_at > ?").bind(nowIso())),
       first<{ n: number }>(c.env.DB.prepare('SELECT COUNT(*) AS n FROM stores WHERE created_at >= ?').bind(todayStart)),
       first<{ n: number }>(c.env.DB.prepare('SELECT COUNT(*) AS n FROM users WHERE created_at >= ?').bind(todayStart)),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM role_change_requests WHERE status = 'approved' AND decided_at >= ?").bind(todayStart)),
@@ -100,6 +96,8 @@ export function adminRoutes() {
       first<{ n: number }>(c.env.DB.prepare('SELECT COUNT(*) AS n FROM stores WHERE created_at >= ?').bind(d30)),
       first<{ n: number }>(c.env.DB.prepare('SELECT COUNT(*) AS n FROM users WHERE created_at >= ?').bind(d7)),
       first<{ n: number }>(c.env.DB.prepare('SELECT COUNT(*) AS n FROM users WHERE created_at >= ?').bind(d30)),
+      first<{ n: number }>(c.env.DB.prepare('SELECT COUNT(*) AS n FROM role_change_requests WHERE created_at >= ?').bind(d7)),
+      first<{ n: number }>(c.env.DB.prepare('SELECT COUNT(*) AS n FROM role_change_requests WHERE created_at >= ?').bind(d30)),
       all<{ store_code: string; store_name: string; initiated: number; approved: number; rejected: number }>(c.env.DB.prepare(`
         SELECT st.code AS store_code, st.name AS store_name,
                SUM(CASE WHEN rr.created_at >= ? THEN 1 ELSE 0 END) AS initiated,
@@ -132,28 +130,28 @@ export function adminRoutes() {
       `))
     ])
 
-    const [recentStores, recentUsers, recentRoleApproved, recentTransfers] = await Promise.all([
-      all<{ id: string; name: string; code: string; created_at: string }>(c.env.DB.prepare('SELECT id, name, code, created_at FROM stores WHERE created_at >= ? ORDER BY created_at DESC LIMIT 4').bind(d30)),
-      all<{ id: string; display_name: string; created_at: string }>(c.env.DB.prepare('SELECT id, display_name, created_at FROM users WHERE created_at >= ? ORDER BY created_at DESC LIMIT 4').bind(d30)),
-      all<{ id: string; store_code: string; store_name: string; display_name: string; decided_at: string }>(c.env.DB.prepare(`
-        SELECT rr.id, st.code AS store_code, st.name AS store_name, u.display_name, rr.decided_at
+    const recentChanges = camelRows(await all(c.env.DB.prepare(`
+      SELECT type, id, store_code, title, at FROM (
+        SELECT 'new-store' AS type, st.id, st.code AS store_code,
+               '新增门店：' || st.code || ' ' || st.name AS title, st.created_at AS at
+        FROM stores st WHERE st.created_at >= ?
+        UNION ALL
+        SELECT 'new-user', u.id, NULL,
+               '新增用户：' || u.display_name, u.created_at
+        FROM users u WHERE u.created_at >= ?
+        UNION ALL
+        SELECT 'role-approved', rr.id, st.code,
+               '角色批准：' || u.display_name || ' @ ' || st.code, rr.decided_at
         FROM role_change_requests rr JOIN users u ON u.id = rr.user_id JOIN stores st ON st.id = rr.store_id
-        WHERE rr.status = 'approved' AND rr.decided_at >= ? ORDER BY rr.decided_at DESC LIMIT 4
-      `).bind(d30)),
-      all<{ id: string; source_code: string; target_code: string; display_name: string; decided_at: string }>(c.env.DB.prepare(`
-        SELECT tr.id, source.code AS source_code, target.code AS target_code, u.display_name, tr.decided_at
+        WHERE rr.status = 'approved' AND rr.decided_at >= ?
+        UNION ALL
+        SELECT 'transfer-approved', tr.id, target.code,
+               '调店批准：' || u.display_name || ' ' || source.code || ' → ' || target.code, tr.decided_at
         FROM store_transfer_requests tr JOIN users u ON u.id = tr.user_id
         JOIN stores source ON source.id = tr.source_store_id JOIN stores target ON target.id = tr.target_store_id
-        WHERE tr.status = 'approved' AND tr.decided_at >= ? ORDER BY tr.decided_at DESC LIMIT 4
-      `).bind(d30))
-    ])
-
-    const recentChanges = [
-      ...recentStores.map((row) => ({ type: 'new-store', id: row.id, storeCode: row.code, title: `新增门店：${row.code} ${row.name}`, at: row.created_at })),
-      ...recentUsers.map((row) => ({ type: 'new-user', id: row.id, storeCode: null, title: `新增用户：${row.display_name}`, at: row.created_at })),
-      ...recentRoleApproved.map((row) => ({ type: 'role-approved', id: row.id, storeCode: row.store_code, title: `角色批准：${row.display_name} @ ${row.store_code}`, at: row.decided_at })),
-      ...recentTransfers.map((row) => ({ type: 'transfer-approved', id: row.id, storeCode: row.target_code, title: `调店批准：${row.display_name} ${row.source_code} → ${row.target_code}`, at: row.decided_at }))
-    ].sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, 10)
+        WHERE tr.status = 'approved' AND tr.decided_at >= ?
+      ) ORDER BY at DESC, id DESC LIMIT 10
+    `).bind(d30, d30, d30, d30)))
 
     return c.json({
       counts: {
@@ -177,8 +175,8 @@ export function adminRoutes() {
         newStores: { d7: newStores7d?.n ?? 0, d30: newStores30d?.n ?? 0 },
         newUsers: { d7: newUsers7d?.n ?? 0, d30: newUsers30d?.n ?? 0 },
         roleChanges: {
-          d7: { total: (roleStats7d || []).reduce((sum, row) => sum + row.initiated, 0), byStore: camelRows(roleStats7d) },
-          d30: { total: (roleStats30d || []).reduce((sum, row) => sum + row.initiated, 0), byStore: camelRows(roleStats30d) }
+          d7: { total: roleTotal7d?.n ?? 0, byStore: camelRows(roleStats7d) },
+          d30: { total: roleTotal30d?.n ?? 0, byStore: camelRows(roleStats30d) }
         }
       },
       recentChanges,
@@ -229,7 +227,7 @@ export function adminRoutes() {
     if (group === 'expired') { clauses.push("r.status = 'pending'"); clauses.push('r.expires_at <= ?'); values.push(nowIsoValue) }
     if (group === 'decided') { clauses.push("r.status IN ('approved', 'rejected', 'cancelled')") }
     if (cursor) applyCursor(clauses, values, cursor)
-    values.push(limit)
+    values.push(limit + 1)
     const sql = type === 'role'
       ? `
         SELECT r.id, r.user_id, u.display_name AS user_name, r.store_id, st.code AS store_code, st.name AS store_name,
@@ -256,65 +254,72 @@ export function adminRoutes() {
         ORDER BY r.created_at DESC, r.id DESC
         LIMIT ?
       `
-    const rows = await all(c.env.DB.prepare(sql).bind(...values))
+    const page = await all(c.env.DB.prepare(sql).bind(...values))
+    const hasMore = page.length > limit
+    const rows = page.slice(0, limit)
     const last = rows[rows.length - 1]
-    return c.json({ requests: camelRows(rows), nextCursor: rows.length === limit && last ? `${last.created_at}|${last.id}` : null })
+    return c.json({ requests: camelRows(rows), nextCursor: hasMore && last ? `${last.created_at}|${last.id}` : null })
   })
 
   // ---- 轻量待审批计数（供门店工作台角标轮询）----
   app.get('/api/v1/admin/pending-count', ...platformRead, async (c) => {
+    const currentTime = nowIso()
     const [roleRequests, transferRequests, storesPending] = await Promise.all([
-      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM role_change_requests WHERE status = 'pending'")),
-      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM store_transfer_requests WHERE status = 'pending'")),
+      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM role_change_requests WHERE status = 'pending' AND expires_at > ?").bind(currentTime)),
+      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM store_transfer_requests WHERE status = 'pending' AND expires_at > ?").bind(currentTime)),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE pending_review = 1"))
     ])
     return c.json({ roleRequests: roleRequests?.n ?? 0, transferRequests: transferRequests?.n ?? 0, storesPending: storesPending?.n ?? 0 })
   })
 
-  // ---- 用户列表（q / storeId 过滤）----
+  // ---- 用户列表（稳定用户级游标分页，避免成员 JOIN 截断）----
   app.get('/api/v1/admin/users', ...platformRead, async (c) => {
-    const q = (c.req.query('q') ?? '').trim()
+    const q = (c.req.query('q') ?? '').trim().slice(0, 80)
     const storeId = (c.req.query('storeId') ?? '').trim()
-    const clauses: string[] = ["(? = '' OR u.display_name LIKE ? OR u.username_key LIKE ?)"]
+    const cursor = (c.req.query('cursor') ?? '').trim()
+    const limitRaw = Number(c.req.query('limit') ?? 50)
+    const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 50
+    const clauses = ["(? = '' OR u.display_name LIKE ? OR u.username_key LIKE ?)"]
     const values: Array<string | number> = [q, `%${q}%`, `%${q}%`]
-    if (storeId) { clauses.push('sm.store_id = ?'); values.push(storeId) }
-    values.push(200)
-    const rows = await all(c.env.DB.prepare(`
-      SELECT u.id, u.username_key, u.display_name, u.status, u.is_platform_admin,
-             u.last_login_at, u.created_at,
-             sm.store_id, st.code AS store_code, st.name AS store_name,
-             sm.role AS member_role, sm.status AS member_status
-      FROM users u
-      LEFT JOIN store_members sm ON sm.user_id = u.id AND sm.status = 'active'
-      LEFT JOIN stores st ON st.id = sm.store_id
-      WHERE ${clauses.join(' AND ')}
-      ORDER BY u.created_at ASC
-      LIMIT ?
-    `).bind(...values))
-    const byUser = new Map<string, {
-      id: string; username: string; displayName: string; status: string; isPlatformAdmin: boolean
-      lastLoginAt: string | null; createdAt: string; memberships: Array<{ storeId: string; storeCode: string; storeName: string; role: string; status: string }>
-    }>()
-    for (const row of rows) {
-      let entry = byUser.get(row.id)
-      if (!entry) {
-        entry = {
-          id: row.id,
-          username: row.username_key,
-          displayName: row.display_name,
-          status: row.status,
-          isPlatformAdmin: row.is_platform_admin === 1,
-          lastLoginAt: row.last_login_at,
-          createdAt: row.created_at,
-          memberships: []
-        }
-        byUser.set(row.id, entry)
-      }
-      if (row.store_id && row.member_role) {
-        entry.memberships.push({ storeId: row.store_id, storeCode: row.store_code, storeName: row.store_name, role: row.member_role, status: row.member_status })
-      }
+    if (storeId) {
+      clauses.push("EXISTS (SELECT 1 FROM store_members sf WHERE sf.user_id = u.id AND sf.store_id = ? AND sf.status = 'active')")
+      values.push(storeId)
     }
-    return c.json({ users: [...byUser.values()] })
+    if (cursor) {
+      const [createdAt, id] = cursor.split('|')
+      if (!createdAt || !id) throw new ApiProblem(400, 'INVALID_USER_CURSOR', '用户列表翻页标识无效。')
+      clauses.push('(u.created_at > ? OR (u.created_at = ? AND u.id > ?))')
+      values.push(createdAt, createdAt, id)
+    }
+    values.push(limit + 1)
+    const page = await all<any>(c.env.DB.prepare(`
+      SELECT u.id, u.username_key, u.display_name, u.status, u.is_platform_admin,
+             u.last_login_at, u.created_at, u.updated_at
+      FROM users u WHERE ${clauses.join(' AND ')}
+      ORDER BY u.created_at ASC, u.id ASC LIMIT ?
+    `).bind(...values))
+    const hasMore = page.length > limit
+    const users = page.slice(0, limit)
+    const memberships = users.length ? await all<any>(c.env.DB.prepare(`
+      SELECT sm.user_id, sm.store_id, st.code AS store_code, st.name AS store_name,
+             sm.role AS member_role, sm.status AS member_status
+      FROM store_members sm JOIN stores st ON st.id = sm.store_id
+      WHERE sm.status = 'active' AND sm.user_id IN (${users.map(() => '?').join(',')})
+      ORDER BY sm.user_id, sm.effective_from ASC, sm.created_at ASC
+    `).bind(...users.map((user) => user.id))) : []
+    const membershipsByUser = new Map<string, any[]>()
+    for (const row of memberships) {
+      const list = membershipsByUser.get(row.user_id) ?? []
+      list.push({ storeId: row.store_id, storeCode: row.store_code, storeName: row.store_name, role: row.member_role, status: row.member_status })
+      membershipsByUser.set(row.user_id, list)
+    }
+    const mapped = users.map((user) => ({
+      id: user.id, username: user.username_key, displayName: user.display_name, status: user.status,
+      isPlatformAdmin: user.is_platform_admin === 1, lastLoginAt: user.last_login_at,
+      createdAt: user.created_at, updatedAt: user.updated_at, memberships: membershipsByUser.get(user.id) ?? []
+    }))
+    const last = users[users.length - 1]
+    return c.json({ users: mapped, nextCursor: hasMore && last ? `${last.created_at}|${last.id}` : null })
   })
 
   // ---- 平台审计（门店 / 操作人 / 动作类型 / 日期 / 模块）----
@@ -336,8 +341,8 @@ export function adminRoutes() {
       clauses.push('(e.created_at < ? OR (e.created_at = ? AND e.id < ?))')
       values.push(createdAt, createdAt, id)
     }
-    values.push(limit)
-    const rows = await all(c.env.DB.prepare(`
+    values.push(limit + 1)
+    const page = await all(c.env.DB.prepare(`
       SELECT e.id, e.action, e.entity_type, e.entity_id, e.actor_name_snapshot, e.business_date,
              e.summary, e.reversible, e.before_state, e.after_state, e.audit_module, e.created_at,
              st.code AS store_code, st.name AS store_name,
@@ -349,131 +354,121 @@ export function adminRoutes() {
       ORDER BY e.created_at DESC, e.id DESC
       LIMIT ?
     `).bind(...values))
+    const hasMore = page.length > limit
+    const rows = page.slice(0, limit)
     const events = rows.map((row) => ({ ...mapAuditEvent(row), storeCode: row.store_code, storeName: row.store_name }))
     const last = rows[rows.length - 1]
-    return c.json({ events, nextCursor: rows.length === limit && last ? `${last.created_at}|${last.id}` : null })
+    return c.json({ events, nextCursor: hasMore && last ? `${last.created_at}|${last.id}` : null })
   })
 
-  // ---- 创建账号（CHU13 专属，可直授 operator/manager/admin）----
+  // ---- 创建账号（严格共享契约 + 幂等）----
   app.post('/api/v1/admin/users', ...platformWrite, async (c) => {
     const context = requireContext(c)
-    const body = await c.req.json() as { username?: string; displayName?: string; storeId?: string; role?: string; password?: string }
-    const username = normalizedUsername(String(body.username ?? ''))
-    const displayName = String(body.displayName ?? '').trim()
-    const role = String(body.role ?? '')
-    const storeId = String(body.storeId ?? '')
-    if (!username || username.length > 64) throw new ApiProblem(400, 'INVALID_USERNAME', '登录名无效。')
-    if (!displayName || displayName.length > 80) throw new ApiProblem(400, 'INVALID_DISPLAY_NAME', '姓名无效。')
-    if (!ROLES.has(role as Role)) throw new ApiProblem(400, 'INVALID_ROLE', '角色无效。')
-    const nextPassword = passwordSchema.parse(String(body.password ?? ''))
-    const [existing, store] = await Promise.all([
-      first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE username_key = ?').bind(username)),
-      first<{ id: string; code: string; name: string; timezone: string }>(c.env.DB.prepare("SELECT id, code, name, timezone FROM stores WHERE id = ? AND status = 'active'").bind(storeId))
-    ])
-    if (existing) throw new ApiProblem(409, 'USERNAME_TAKEN', '该登录名已被占用。')
-    if (!store) throw new ApiProblem(409, 'STORE_NOT_ACTIVE', '目标门店不存在或未生效。')
-    const passwordHash = await hashPassword(nextPassword, c.get('config').PASSWORD_PEPPER)
-    const userId = uuid()
-    const membershipId = uuid()
-    const stamp = nowIso()
-    const storeForAudit = { id: store.id, code: store.code, name: store.name, timezone: store.timezone }
-    const audit = prepareConditionalAudit(c.env.DB, {
-      context: { ...context, storeId: store.id, storeCode: store.code, storeName: store.name, storeTimezone: store.timezone },
-      action: 'admin-create-user', entityType: 'account', entityId: userId,
-      businessDate: localBusinessDate(store.timezone),
-      summary: `平台创建账号：${displayName}（${username} @ ${store.code}，${role}）`,
-      after: { username, displayName, storeId: store.id, role }, reversible: false
-    }, 'EXISTS (SELECT 1 FROM users WHERE id = ?)', [userId])
-    const result = await c.env.DB.batch([
-      c.env.DB.prepare('INSERT INTO users (id, username_key, display_name, password_hash, status, must_change_password, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?)')
-        .bind(userId, username, displayName, passwordHash, 'active', stamp, stamp),
-      c.env.DB.prepare('INSERT INTO store_members (id, store_id, user_id, role, status, effective_from, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .bind(membershipId, store.id, userId, role, 'active', stamp, stamp),
-      audit.statement
-    ])
-    if (result[0]?.meta?.changes !== 1 || result[1]?.meta?.changes !== 1) throw new ApiProblem(409, 'USER_CREATE_CONFLICT', '创建账号冲突，请重试。')
-    return c.json({ ok: true, id: userId }, 201)
+    const rawBody = await c.req.json()
+    const input = adminCreateUserSchema.parse(rawBody)
+    const username = input.username.toLocaleLowerCase('zh-CN')
+    const result = await idempotent(c, rawBody, async (db) => {
+      const [existing, store] = await Promise.all([
+        first<{ id: string }>(db.prepare('SELECT id FROM users WHERE username_key = ?').bind(username)),
+        first<{ id: string; code: string; name: string; timezone: string }>(db.prepare("SELECT id, code, name, timezone FROM stores WHERE id = ? AND status = 'active' AND pending_review = 0").bind(input.storeId))
+      ])
+      if (existing) throw new ApiProblem(409, 'USERNAME_TAKEN', '该登录名已被占用。')
+      if (!store) throw new ApiProblem(409, 'STORE_NOT_ACTIVE', '目标门店不存在、待审核或未生效。')
+      const passwordHash = await hashPassword(input.password, c.get('config').PASSWORD_PEPPER)
+      const userId = uuid(); const membershipId = uuid(); const stamp = nowIso()
+      const audit = prepareConditionalAudit(db, {
+        context: { ...context, storeId: store.id, storeCode: store.code, storeName: store.name, storeTimezone: store.timezone },
+        action: 'admin-create-user', entityType: 'account', entityId: userId,
+        businessDate: localBusinessDate(store.timezone),
+        summary: `平台创建账号：${input.displayName}（${username} @ ${store.code}，${input.role}）`,
+        after: { username, displayName: input.displayName, storeId: store.id, role: input.role }, reversible: false
+      }, 'EXISTS (SELECT 1 FROM users WHERE id = ?)', [userId])
+      const batch = await db.batch([
+        db.prepare('INSERT INTO users (id, username_key, display_name, password_hash, status, must_change_password, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?)').bind(userId, username, input.displayName, passwordHash, 'active', stamp, stamp),
+        db.prepare('INSERT INTO store_members (id, store_id, user_id, role, status, effective_from, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(membershipId, store.id, userId, input.role, 'active', stamp, stamp),
+        audit.statement
+      ])
+      if (batch[0]?.meta?.changes !== 1 || batch[1]?.meta?.changes !== 1) throw new ApiProblem(409, 'USER_CREATE_CONFLICT', '创建账号冲突，请重试。')
+      return { status: 201, body: { ok: true, id: userId, message: '账号已创建。' } }
+    })
+    return c.json(result.body, result.status as any)
   })
 
-  // ---- 禁用 / 恢复账号（禁用时立即撤销会话）----
+  // ---- 禁用 / 恢复账号（乐观锁 + 幂等；禁用立即撤销会话）----
   app.patch('/api/v1/admin/users/:id', ...platformWrite, async (c) => {
-    const context = requireContext(c)
-    const id = String(c.req.param('id') ?? '')
-    const body = await c.req.json() as { status?: string }
-    const status = String(body.status ?? '')
-    if (status !== 'active' && status !== 'disabled') throw new ApiProblem(400, 'INVALID_STATUS', '状态无效。')
-    const target = await first<{ id: string; display_name: string; is_platform_admin: number; status: string; updated_at: string }>(c.env.DB.prepare('SELECT id, display_name, is_platform_admin, status, updated_at FROM users WHERE id = ?').bind(id))
-    if (!target) throw new ApiProblem(404, 'USER_NOT_FOUND', '账号不存在。')
-    if (target.is_platform_admin === 1) throw new ApiProblem(409, 'PLATFORM_ADMIN_PROTECTED', '不能禁用平台管理员账号。')
-    const stamp = nowIso()
-    const audit = prepareConditionalAudit(c.env.DB, {
-      context, action: status === 'disabled' ? 'admin-disable-user' : 'admin-enable-user', entityType: 'account', entityId: id,
-      businessDate: localBusinessDate(context.storeTimezone),
-      summary: `${status === 'disabled' ? '禁用' : '恢复'}账号：${target.display_name}`,
-      before: { status: target.status }, after: { status }, reversible: false
-    }, 'EXISTS (SELECT 1 FROM users WHERE id = ? AND status = ? AND updated_at = ?)', [id, status, stamp])
-    const statements = [
-      c.env.DB.prepare('UPDATE users SET status = ?, updated_at = ? WHERE id = ? AND is_platform_admin = 0').bind(status, stamp, id),
-      audit.statement
-    ]
-    if (status === 'disabled') {
-      statements.splice(1, 0, c.env.DB.prepare('UPDATE auth_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').bind(stamp, id))
-    }
-    const result = await c.env.DB.batch(statements)
-    if (result[0]?.meta?.changes !== 1) throw new ApiProblem(409, 'USER_STATUS_CONFLICT', '账号状态刚刚被其他操作修改。')
-    return c.json({ ok: true, message: status === 'disabled' ? '账号已禁用，其会话已立即失效。' : '账号已恢复，可重新登录。' })
+    const context = requireContext(c); const id = String(c.req.param('id') ?? '')
+    const rawBody = await c.req.json(); const input = adminUserStatusSchema.parse(rawBody)
+    const result = await idempotent(c, rawBody, async (db) => {
+      const target = await first<any>(db.prepare('SELECT id, display_name, is_platform_admin, status, updated_at FROM users WHERE id = ?').bind(id))
+      if (!target) throw new ApiProblem(404, 'USER_NOT_FOUND', '账号不存在。')
+      if (target.is_platform_admin === 1) throw new ApiProblem(409, 'PLATFORM_ADMIN_PROTECTED', '不能修改平台管理员账号。')
+      if (target.status !== input.expectedStatus || target.updated_at !== input.expectedUpdatedAt) throw new ApiProblem(409, 'USER_STATUS_CONFLICT', '账号状态刚刚被其他操作修改，请刷新后重试。')
+      const stamp = nowIso()
+      const audit = prepareConditionalAudit(db, {
+        context, action: input.status === 'disabled' ? 'admin-disable-user' : 'admin-enable-user', entityType: 'account', entityId: id,
+        businessDate: localBusinessDate(context.storeTimezone), summary: `${input.status === 'disabled' ? '禁用' : '恢复'}账号：${target.display_name}`,
+        before: { status: target.status }, after: { status: input.status }, reversible: false
+      }, 'EXISTS (SELECT 1 FROM users WHERE id = ? AND status = ? AND updated_at = ?)', [id, input.status, stamp])
+      const statements = [db.prepare('UPDATE users SET status = ?, updated_at = ? WHERE id = ? AND is_platform_admin = 0 AND status = ? AND updated_at = ?').bind(input.status, stamp, id, input.expectedStatus, input.expectedUpdatedAt), audit.statement]
+      if (input.status === 'disabled') statements.splice(1, 0, db.prepare("UPDATE auth_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND EXISTS (SELECT 1 FROM users WHERE id = ? AND status = 'disabled' AND updated_at = ?)").bind(stamp, id, id, stamp))
+      const batch = await db.batch(statements)
+      if (batch[0]?.meta?.changes !== 1) throw new ApiProblem(409, 'USER_STATUS_CONFLICT', '账号状态刚刚被其他操作修改，请刷新后重试。')
+      return { status: 200, body: { ok: true, updatedAt: stamp, message: input.status === 'disabled' ? '账号已禁用，其会话已立即失效。' : '账号已恢复，可重新登录。' } }
+    })
+    return c.json(result.body, result.status as any)
   })
 
-  // ---- 重置密码（一次性临时密码，强制下次改密）----
+  // ---- 重置密码（平台管理员受保护；幂等响应不落明文密码）----
   app.post('/api/v1/admin/users/:id/reset-password', ...platformWrite, async (c) => {
-    const context = requireContext(c)
-    const id = String(c.req.param('id') ?? '')
-    const target = await first<{ id: string; display_name: string; status: string }>(c.env.DB.prepare('SELECT id, display_name, status FROM users WHERE id = ?').bind(id))
-    if (!target) throw new ApiProblem(404, 'USER_NOT_FOUND', '账号不存在。')
-    if (target.status !== 'active') throw new ApiProblem(409, 'USER_NOT_ACTIVE', '仅生效账号可重置密码。')
-    const tempPassword = randomToken(12)
-    const passwordHash = await hashPassword(tempPassword, c.get('config').PASSWORD_PEPPER)
-    const stamp = nowIso()
-    const audit = prepareConditionalAudit(c.env.DB, {
-      context, action: 'admin-reset-password', entityType: 'account', entityId: id,
-      businessDate: localBusinessDate(context.storeTimezone),
-      summary: `平台重置密码：${target.display_name}`,
-      after: { mustChangePassword: true }, reversible: false
-    }, 'EXISTS (SELECT 1 FROM users WHERE id = ? AND must_change_password = 1 AND updated_at = ?)', [id, stamp])
-    const result = await c.env.DB.batch([
-      c.env.DB.prepare('UPDATE users SET password_hash = ?, must_change_password = 1, updated_at = ? WHERE id = ?').bind(passwordHash, stamp, id),
-      c.env.DB.prepare('UPDATE auth_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').bind(stamp, id),
-      audit.statement
-    ])
-    if (result[0]?.meta?.changes !== 1) throw new ApiProblem(409, 'PASSWORD_RESET_CONFLICT', '重置密码冲突，请重试。')
-    return c.json({ ok: true, tempPassword, message: '临时密码仅显示一次，请立即转交给对方；下次登录将强制修改。' })
+    const context = requireContext(c); const id = String(c.req.param('id') ?? '')
+    const rawBody = await c.req.json(); const input = adminPasswordResetSchema.parse(rawBody)
+    const requestKey = c.req.header('idempotency-key') ?? ''
+    const tempPassword = (await keyedHash(`admin-reset:${context.userId}:${id}:${requestKey}`, c.get('config').PASSWORD_PEPPER)).slice(0, 24)
+    const result = await idempotent(c, rawBody, async (db) => {
+      const target = await first<any>(db.prepare('SELECT id, display_name, status, is_platform_admin, updated_at FROM users WHERE id = ?').bind(id))
+      if (!target) throw new ApiProblem(404, 'USER_NOT_FOUND', '账号不存在。')
+      if (target.is_platform_admin === 1) throw new ApiProblem(409, 'PLATFORM_ADMIN_PROTECTED', '不能通过普通后台流程重置平台管理员密码。')
+      if (target.status !== 'active') throw new ApiProblem(409, 'USER_NOT_ACTIVE', '仅生效账号可重置密码。')
+      if (target.updated_at !== input.expectedUpdatedAt) throw new ApiProblem(409, 'PASSWORD_RESET_CONFLICT', '账号刚刚被其他操作修改，请刷新后重试。')
+      const passwordHash = await hashPassword(tempPassword, c.get('config').PASSWORD_PEPPER); const stamp = nowIso()
+      const audit = prepareConditionalAudit(db, {
+        context, action: 'admin-reset-password', entityType: 'account', entityId: id,
+        businessDate: localBusinessDate(context.storeTimezone), summary: `平台重置密码：${target.display_name}`,
+        after: { mustChangePassword: true }, reversible: false
+      }, 'EXISTS (SELECT 1 FROM users WHERE id = ? AND must_change_password = 1 AND updated_at = ?)', [id, stamp])
+      const batch = await db.batch([
+        db.prepare("UPDATE users SET password_hash = ?, must_change_password = 1, updated_at = ? WHERE id = ? AND status = 'active' AND is_platform_admin = 0 AND updated_at = ?").bind(passwordHash, stamp, id, input.expectedUpdatedAt),
+        db.prepare('UPDATE auth_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND EXISTS (SELECT 1 FROM users WHERE id = ? AND must_change_password = 1 AND updated_at = ?)').bind(stamp, id, id, stamp), audit.statement
+      ])
+      if (batch[0]?.meta?.changes !== 1) throw new ApiProblem(409, 'PASSWORD_RESET_CONFLICT', '重置密码冲突，请刷新后重试。')
+      return { status: 200, body: { ok: true, updatedAt: stamp, message: '临时密码已生成；下次登录将强制修改。' } }
+    })
+    return c.json({ ...(result.body as any), ...(result.status < 400 ? { tempPassword } : {}) }, result.status as any)
   })
 
-  // ---- 门店审核（pending → active / disabled）----
+  // ---- 门店审核（严格输入 + 乐观锁 + 幂等）----
   app.post('/api/v1/admin/stores/:id/decision', ...platformWrite, async (c) => {
-    const context = requireContext(c)
-    const id = String(c.req.param('id') ?? '')
-    const body = await c.req.json() as { approve?: boolean; reason?: string }
-    const approve = body.approve === true
-    const reason = String(body.reason ?? '').trim().slice(0, 500)
-    const store = await first<{ id: string; code: string; name: string; status: string; timezone: string; updated_at: string; pending_review: number }>(c.env.DB.prepare('SELECT id, code, name, status, timezone, updated_at, pending_review FROM stores WHERE id = ?').bind(id))
-    if (!store) throw new ApiProblem(404, 'STORE_NOT_FOUND', '门店不存在。')
-    if (store.pending_review !== 1) throw new ApiProblem(409, 'STORE_NOT_PENDING', '该门店不在待审核状态。')
-    const nextStatus = approve ? 'active' : 'disabled'
-    const stamp = nowIso()
-    const audit = prepareConditionalAudit(c.env.DB, {
-      context: { ...context, storeId: store.id, storeCode: store.code, storeName: store.name, storeTimezone: store.timezone },
-      action: approve ? 'admin-approve-store' : 'admin-reject-store', entityType: 'store', entityId: id,
-      businessDate: localBusinessDate(store.timezone),
-      summary: `${approve ? '批准' : '拒绝'}门店审核：${store.code} ${store.name}${reason ? `（${reason}）` : ''}`,
-      before: { status: 'pending' }, after: { status: nextStatus, reason: reason || undefined }, reversible: false
-    }, 'EXISTS (SELECT 1 FROM stores WHERE id = ? AND status = ? AND pending_review = 0 AND updated_at = ?)', [id, nextStatus, stamp])
-    const result = await c.env.DB.batch([
-      c.env.DB.prepare('UPDATE stores SET status = ?, pending_review = 0, updated_at = ? WHERE id = ? AND pending_review = 1').bind(nextStatus, stamp, id),
-      audit.statement
-    ])
-    if (result[0]?.meta?.changes !== 1) throw new ApiProblem(409, 'STORE_REVIEW_CONFLICT', '门店审核状态刚刚被其他操作修改。')
-    return c.json({ ok: true, message: approve ? '门店已生效，可接受注册。' : '门店审核未通过，已置为停用。' })
+    const context = requireContext(c); const id = String(c.req.param('id') ?? '')
+    const rawBody = await c.req.json(); const input = adminStoreDecisionSchema.parse(rawBody)
+    const result = await idempotent(c, rawBody, async (db) => {
+      const store = await first<any>(db.prepare('SELECT id, code, name, status, timezone, updated_at, pending_review FROM stores WHERE id = ?').bind(id))
+      if (!store) throw new ApiProblem(404, 'STORE_NOT_FOUND', '门店不存在。')
+      if (store.pending_review !== 1) throw new ApiProblem(409, 'STORE_NOT_PENDING', '该门店不在待审核状态。')
+      if (store.updated_at !== input.expectedUpdatedAt) throw new ApiProblem(409, 'STORE_REVIEW_CONFLICT', '门店审核状态刚刚被其他操作修改，请刷新后重试。')
+      const nextStatus = input.approve ? 'active' : 'disabled'; const stamp = nowIso()
+      const audit = prepareConditionalAudit(db, {
+        context: { ...context, storeId: store.id, storeCode: store.code, storeName: store.name, storeTimezone: store.timezone },
+        action: input.approve ? 'admin-approve-store' : 'admin-reject-store', entityType: 'store', entityId: id,
+        businessDate: localBusinessDate(store.timezone), summary: `${input.approve ? '批准' : '拒绝'}门店审核：${store.code} ${store.name}${input.reason ? `（${input.reason}）` : ''}`,
+        before: { status: 'pending' }, after: { status: nextStatus, reason: input.reason }, reversible: false
+      }, 'EXISTS (SELECT 1 FROM stores WHERE id = ? AND status = ? AND pending_review = 0 AND updated_at = ?)', [id, nextStatus, stamp])
+      const batch = await db.batch([
+        db.prepare('UPDATE stores SET status = ?, pending_review = 0, updated_at = ? WHERE id = ? AND pending_review = 1 AND updated_at = ?').bind(nextStatus, stamp, id, input.expectedUpdatedAt), audit.statement
+      ])
+      if (batch[0]?.meta?.changes !== 1) throw new ApiProblem(409, 'STORE_REVIEW_CONFLICT', '门店审核状态刚刚被其他操作修改，请刷新后重试。')
+      return { status: 200, body: { ok: true, updatedAt: stamp, message: input.approve ? '门店已生效，可接受注册。' : '门店审核未通过，已置为停用。' } }
+    })
+    return c.json(result.body, result.status as any)
   })
 
   return app

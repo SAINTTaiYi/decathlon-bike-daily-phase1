@@ -41,6 +41,34 @@ export const createUserSchema = z.object({
   role: z.enum(appRoles).default('operator')
 }).strict()
 
+export const adminCreateUserSchema = z.object({
+  username: usernameSchema,
+  displayName: usernameSchema,
+  storeId: uuidSchema,
+  role: z.enum(appRoles),
+  password: passwordSchema
+}).strict()
+
+export const adminUserStatusSchema = z.object({
+  status: z.enum(['active', 'disabled']),
+  expectedStatus: z.enum(['active', 'disabled']),
+  expectedUpdatedAt: z.string().datetime()
+}).strict()
+
+export const adminPasswordResetSchema = z.object({
+  expectedUpdatedAt: z.string().datetime()
+}).strict()
+
+export const adminStoreDecisionSchema = z.object({
+  approve: z.boolean(),
+  reason: z.string().trim().max(500).optional(),
+  expectedUpdatedAt: z.string().datetime()
+}).strict().superRefine((value, context) => {
+  if (!value.approve && (!value.reason || value.reason.length < 2)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['reason'], message: '拒绝门店时必须填写至少 2 个字符的理由。' })
+  }
+})
+
 
 const corporateEmailSchema = z.string().trim().toLowerCase().email().max(320).refine(
   (value) => value.endsWith('@decathlon.com'),

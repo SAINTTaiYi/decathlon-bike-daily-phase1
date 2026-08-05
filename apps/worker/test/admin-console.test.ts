@@ -1,7 +1,49 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
+const source = await readFile(new URL('../src/routes/admin.ts', import.meta.url), 'utf8')
 
+test('后台读写守卫：读取需平台管理员，写入再叠加 CSRF', () => {
+  assert.match(source, /platformRead = \[auth\.loadSession, auth\.requirePasswordChanged, auth\.requirePlatformAdmin\]/u)
+  assert.match(source, /platformWrite = \[auth\.loadSession, auth\.requirePasswordChanged, auth\.requireCsrf, auth\.requirePlatformAdmin\]/u)
+})
+
+test('总览口径互斥且待办排除过期，平台总数与 Top8 分开计算', () => {
+  assert.match(source, /status = 'active' AND pending_review = 0/u); assert.match(source, /status = 'disabled' AND pending_review = 0/u)
+  assert.match(source, /status = 'pending' AND expires_at > \?/u); assert.match(source, /roleTotal7d/u); assert.match(source, /total: roleTotal7d\?\.n/u)
+  assert.match(source, /UNION ALL[\s\S]*ORDER BY at DESC, id DESC LIMIT 10/u)
+})
+
+test('用户先按用户游标分页，再批量加载成员，避免 JOIN 行截断', () => {
+  assert.match(source, /limit \+ 1/u); assert.match(source, /nextCursor: hasMore/u); assert.match(source, /membershipsByUser/u)
+  assert.match(source, /sm\.user_id IN/u); assert.doesNotMatch(source.match(/SELECT u\.id[\s\S]*?return c\.json\(\{ users: mapped/u)?.[0] || '', /password_hash/u)
+})
+
+test('账号和门店写入都使用共享契约、幂等和 updatedAt 乐观锁', () => {
+  for (const schema of ['adminCreateUserSchema', 'adminUserStatusSchema', 'adminPasswordResetSchema', 'adminStoreDecisionSchema']) assert.match(source, new RegExp(`${schema}\\.parse`, 'u'))
+  assert.ok((source.match(/await idempotent\(/gu) || []).length >= 4)
+  assert.match(source, /status = \? AND updated_at = \?/u); assert.match(source, /pending_review = 1 AND updated_at = \?/u)
+})
+
+test('平台管理员禁止状态修改和普通密码重置，禁用与重置撤销会话', () => {
+  assert.ok((source.match(/PLATFORM_ADMIN_PROTECTED/gu) || []).length >= 2)
+  assert.ok((source.match(/UPDATE auth_sessions SET revoked_at/gu) || []).length >= 2)
+  assert.match(source, /is_platform_admin = 0 AND updated_at = \?/u)
+})
+
+test('密码临时值由管理员/目标/幂等键确定，审计和幂等缓存正文不含临时值', () => {
+  assert.match(source, /admin-reset:\$\{context\.userId\}:\$\{id\}:\$\{requestKey\}/u)
+  const handlerBody = source.match(/app\.post\('\/api\/v1\/admin\/users\/:id\/reset-password'[\s\S]*?return c\.json/u)?.[0] || ''
+  assert.match(handlerBody, /tempPassword/u); assert.doesNotMatch(handlerBody.match(/after: \{[^}]*\}/u)?.[0] || '', /tempPassword|passwordHash/u)
+})
+
+test('迁移 0008 仅加列和索引，不重建 stores 父表', async () => {
+  const migration = await readFile(new URL('../../../migrations/d1/0008_store_pending_status.sql', import.meta.url), 'utf8')
+  assert.match(migration, /ALTER TABLE stores ADD COLUMN pending_review/u); assert.match(migration, /stores_pending_review_idx/u); assert.doesNotMatch(migration, /RENAME TO/u)
+})
+
+
+// Preserved baseline coverage from the accepted admin-console implementation.
 test('平台管理后台路由全部要求平台管理员身份；写端点走平台写守卫', async () => {
   const source = await readFile(new URL('../src/routes/admin.ts', import.meta.url), 'utf8')
   assert.match(source, /requirePlatformAdmin/u)
@@ -35,10 +77,7 @@ test('平台总览 v2 覆盖今日、周期统计与变化流，支持点击跳�
   assert.match(source, /initiated: number; approved: number; rejected: number/u)
   assert.match(source, /SUM\(CASE WHEN rr\.status = 'approved' AND rr\.decided_at >= \?/u)
   assert.match(source, /recentChanges/u)
-  assert.match(source, /type: 'new-store'/u)
-  assert.match(source, /type: 'new-user'/u)
-  assert.match(source, /type: 'role-approved'/u)
-  assert.match(source, /type: 'transfer-approved'/u)
+  for (const type of ['new-store', 'new-user', 'role-approved', 'transfer-approved']) assert.match(source, new RegExp(`SELECT '${type}'`, 'u'))
   assert.match(source, /pending: \{ roleRequests: pendingRoles\?\.n \?\? 0, transferRequests: pendingTransfers\?\.n \?\? 0, stores: storePendingCount\?\.n \?\? 0 \}/u)
 })
 
@@ -59,7 +98,8 @@ test('审批列表按类型与分组查询，过期按 expires_at 判定', async
   assert.match(source, /r\.expires_at <= \?/u)
   assert.match(source, /IN \('approved', 'rejected', 'cancelled'\)/u)
   assert.match(source, /ORDER BY r\.created_at DESC, r\.id DESC/u)
-  assert.match(source, /nextCursor: rows\.length === limit/u)
+  assert.match(source, /const hasMore = page\.length > limit/u)
+  assert.match(source, /nextCursor: hasMore && last/u)
 })
 
 test('轻量待审批计数端点存在', async () => {
@@ -70,11 +110,11 @@ test('轻量待审批计数端点存在', async () => {
 
 test('平台用户列表支持搜索与门店过滤，不返回密码字段', async () => {
   const source = await readFile(new URL('../src/routes/admin.ts', import.meta.url), 'utf8')
-  assert.match(source, /LEFT JOIN store_members sm ON sm\.user_id = u\.id AND sm\.status = 'active'/u)
+  assert.match(source, /WHERE sm\.status = 'active' AND sm\.user_id IN/u)
   assert.match(source, /username_key LIKE \?/u)
-  assert.match(source, /sm\.store_id = \?/u)
+  assert.match(source, /sf\.store_id = \?/u)
   assert.match(source, /LIMIT \?/u)
-  assert.match(source, /values\.push\(200\)/u)
+  assert.match(source, /values\.push\(limit \+ 1\)/u)
   const selectBlock = source.match(/SELECT u\.id, u\.username_key,[\s\S]*?LIMIT \?/u)?.[0] || ''
   assert.doesNotMatch(selectBlock, /password_hash/u)
 })
@@ -98,7 +138,7 @@ test('用户写操作受审计、保护平台管理员并即时撤销会话', as
   assert.match(source, /app\.patch\('\/api\/v1\/admin\/users\/:id', \.\.\.platformWrite/u)
   assert.match(source, /app\.post\('\/api\/v1\/admin\/users\/:id\/reset-password', \.\.\.platformWrite/u)
   assert.match(source, /action: 'admin-create-user'/u)
-  assert.match(source, /action: status === 'disabled' \? 'admin-disable-user' : 'admin-enable-user'/u)
+  assert.match(source, /action: input\.status === 'disabled' \? 'admin-disable-user' : 'admin-enable-user'/u)
   assert.match(source, /action: 'admin-reset-password'/u)
   assert.match(source, /PLATFORM_ADMIN_PROTECTED/u)
   assert.match(source, /is_platform_admin = 0/u)
@@ -111,9 +151,9 @@ test('用户写操作受审计、保护平台管理员并即时撤销会话', as
 test('门店审核端点只处理待审核门店且受审计', async () => {
   const source = await readFile(new URL('../src/routes/admin.ts', import.meta.url), 'utf8')
   assert.match(source, /app\.post\('\/api\/v1\/admin\/stores\/:id\/decision', \.\.\.platformWrite/u)
-  assert.match(source, /action: approve \? 'admin-approve-store' : 'admin-reject-store'/u)
+  assert.match(source, /action: input\.approve \? 'admin-approve-store' : 'admin-reject-store'/u)
   assert.match(source, /STORE_NOT_PENDING/u)
-  assert.match(source, /AND pending_review = 1'\)\.bind\(nextStatus, stamp, id\)/u)
+  assert.match(source, /pending_review = 1 AND updated_at = \?/u)
 })
 
 test('门店创建进入待审核，待审核门店不可被目录开关绕过', async () => {
