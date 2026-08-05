@@ -16,7 +16,7 @@ test('平台总览统计覆盖目录、账号、待审队列与当日工单', as
   const source = await readFile(new URL('../src/routes/admin.ts', import.meta.url), 'utf8')
   assert.match(source, /SELECT COUNT\(\*\) AS n FROM regions WHERE status = 'active'/u)
   assert.match(source, /SELECT COUNT\(\*\) AS n FROM stores WHERE status = 'disabled'/u)
-  assert.match(source, /SELECT COUNT\(\*\) AS n FROM stores WHERE status = 'pending'/u)
+  assert.match(source, /SELECT COUNT\(\*\) AS n FROM stores WHERE pending_review = 1/u)
   assert.match(source, /FROM users WHERE status = 'active'/u)
   assert.match(source, /FROM store_members WHERE status = 'active' GROUP BY role/u)
   assert.match(source, /FROM role_change_requests WHERE status = 'pending'/u)
@@ -113,22 +113,20 @@ test('门店审核端点只处理待审核门店且受审计', async () => {
   assert.match(source, /app\.post\('\/api\/v1\/admin\/stores\/:id\/decision', \.\.\.platformWrite/u)
   assert.match(source, /action: approve \? 'admin-approve-store' : 'admin-reject-store'/u)
   assert.match(source, /STORE_NOT_PENDING/u)
-  assert.match(source, /AND status = 'pending'"\)\.bind\(nextStatus, stamp, id\)/u)
+  assert.match(source, /AND pending_review = 1'\)\.bind\(nextStatus, stamp, id\)/u)
 })
 
 test('门店创建进入待审核，待审核门店不可被目录开关绕过', async () => {
   const governanceSource = await readFile(new URL('../src/routes/governance.ts', import.meta.url), 'utf8')
-  assert.match(governanceSource, /VALUES \(\?, \?, \?, \?, 'Asia\/Shanghai', 'pending', \?, \?\)`\)\n\s*\.bind\(id, input\.parentId, input\.code, input\.name, stamp, stamp\)/u)
+  assert.match(governanceSource, /VALUES \(\?, \?, \?, \?, 'Asia\/Shanghai', 'disabled', 1, \?, \?\)`\)\n\s*\.bind\(id, input\.parentId, input\.code, input\.name, stamp, stamp\)/u)
   assert.match(governanceSource, /新增门店（待审核）/u)
   assert.match(governanceSource, /PENDING_STORE_REVIEW_REQUIRED/u)
   assert.match(governanceSource, /待审核门店必须由平台管理员在审批队列中处理/u)
 })
 
-test('迁移 0008 为门店加入待审核状态并保留既有列与索引', async () => {
+test('迁移 0008 以 pending_review 列实现门店待审核（无父表重建）', async () => {
   const migration = await readFile(new URL('../../../migrations/d1/0008_store_pending_status.sql', import.meta.url), 'utf8')
-  assert.match(migration, /status TEXT NOT NULL DEFAULT 'active' CHECK \(status IN \('active', 'pending', 'disabled'\)\)/u)
-  assert.match(migration, /city_id TEXT REFERENCES cities\(id\) ON DELETE RESTRICT/u)
-  assert.match(migration, /ALTER TABLE stores RENAME TO stores_legacy/u)
-  assert.match(migration, /DROP TABLE stores_legacy/u)
-  assert.match(migration, /CREATE INDEX stores_city_active_idx ON stores\(city_id, status, code\)/u)
+  assert.match(migration, /ALTER TABLE stores ADD COLUMN pending_review INTEGER NOT NULL DEFAULT 0;/u)
+  assert.match(migration, /CREATE INDEX stores_pending_review_idx ON stores\(pending_review, created_at DESC\) WHERE pending_review = 1;/u)
+  assert.doesNotMatch(migration, /RENAME TO stores_legacy/u)
 })

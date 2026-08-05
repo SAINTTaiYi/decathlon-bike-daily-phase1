@@ -103,15 +103,18 @@
 
 ### 5.4 迁移 0008（门店待审核状态）
 
-`stores.status` CHECK 从 `('active','disabled')` 扩为 `('active','pending','disabled')`。SQLite 需重建表（沿用 0006 对 store_members 的 RENAME→CREATE→INSERT→DROP 模式）：
+`stores` 是多个子表的父表；SQLite 在 `ALTER TABLE RENAME` 时会改写子表 `REFERENCES` 指向 legacy 名，D1 实测父表重建会失败（FOREIGN KEY constraint failed），修改 status 的 CHECK 约束又必须重建表。**因此 0008 改为新增轻量列，不做表重建**：
 
-1. `ALTER TABLE stores RENAME TO stores_legacy`
-2. `CREATE TABLE stores (id, code UNIQUE, name, timezone, status CHECK(…'pending'…), created_at, updated_at, city_id REFERENCES cities(id) ON DELETE RESTRICT)`
-3. `INSERT INTO stores SELECT … FROM stores_legacy`
-4. `DROP TABLE stores_legacy`
-5. 重建 `stores_city_active_idx`
+```sql
+ALTER TABLE stores ADD COLUMN pending_review INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX stores_pending_review_idx ON stores(pending_review, created_at DESC) WHERE pending_review = 1;
+```
 
-风险控制：迁移后跑隔离 SQLite drill 验证完整性（0 FK 违规、行数一致），Preview D1 由工作流自动应用，Production D1 仅在正式发布时应用。
+- 待审核 = `pending_review=1`（展示层派生为 `status='pending'`；目录 payload 用 CASE 派生）
+- 批准 → `status='active'` 且 `pending_review=0`；拒绝 → `status='disabled'` 且 `pending_review=0`
+- 仅 ADD COLUMN + 索引，无外键风险；Preview D1 由工作流自动应用，Production D1 仅在正式发布时应用
+
+隔离 drill 已验证：8 迁移应用、待审核写入、0 FK 违规。
 
 ## 6. 前端组件清单
 

@@ -81,7 +81,7 @@ export function adminRoutes() {
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM cities WHERE status = 'active'")),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE status = 'active'")),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE status = 'disabled'")),
-      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE status = 'pending'")),
+      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE pending_review = 1")),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM users WHERE status = 'active'")),
       all<{ role: string; n: number }>(c.env.DB.prepare("SELECT role, COUNT(*) AS n FROM store_members WHERE status = 'active' GROUP BY role")),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM role_change_requests WHERE status = 'pending'")),
@@ -184,7 +184,7 @@ export function adminRoutes() {
   // ---- 门店详情（组织路径 / 成员 / 业务概览）----
   app.get('/api/v1/admin/stores/:storeId', ...platformRead, async (c) => {
     const storeId = String(c.req.param('storeId') ?? '')
-    const store = await first<{ id: string; code: string; name: string; status: string; timezone: string; created_at: string; city_id: string | null }>(c.env.DB.prepare('SELECT id, code, name, status, timezone, created_at, city_id FROM stores WHERE id = ?').bind(storeId))
+    const store = await first<{ id: string; code: string; name: string; status: string; timezone: string; created_at: string; city_id: string | null; pending_review: number }>(c.env.DB.prepare('SELECT id, code, name, status, timezone, created_at, city_id, pending_review FROM stores WHERE id = ?').bind(storeId))
     if (!store) throw new ApiProblem(404, 'STORE_NOT_FOUND', '门店不存在。')
     const [path, members, todayItems, closing, memberCount] = await Promise.all([
       first<{ region_id: string; region_name: string; city_id: string; city_name: string }>(c.env.DB.prepare(`
@@ -203,7 +203,7 @@ export function adminRoutes() {
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM store_members WHERE store_id = ? AND status = 'active'").bind(storeId))
     ])
     return c.json({
-      store: { id: store.id, code: store.code, name: store.name, status: store.status, timezone: store.timezone, createdAt: store.created_at },
+      store: { id: store.id, code: store.code, name: store.name, status: store.pending_review === 1 ? 'pending' : store.status, timezone: store.timezone, createdAt: store.created_at },
       path: path ? { regionId: path.region_id, regionName: path.region_name, cityId: path.city_id, cityName: path.city_name } : null,
       members: members.map((row) => ({ id: row.id, displayName: row.display_name, username: row.username_key, role: row.role, status: row.status, lastLoginAt: row.last_login_at, isPlatformAdmin: row.is_platform_admin === 1 })),
       overview: {
@@ -261,7 +261,7 @@ export function adminRoutes() {
     const [roleRequests, transferRequests, storesPending] = await Promise.all([
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM role_change_requests WHERE status = 'pending'")),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM store_transfer_requests WHERE status = 'pending'")),
-      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE status = 'pending'"))
+      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE pending_review = 1"))
     ])
     return c.json({ roleRequests: roleRequests?.n ?? 0, transferRequests: transferRequests?.n ?? 0, storesPending: storesPending?.n ?? 0 })
   })
@@ -451,9 +451,9 @@ export function adminRoutes() {
     const body = await c.req.json() as { approve?: boolean; reason?: string }
     const approve = body.approve === true
     const reason = String(body.reason ?? '').trim().slice(0, 500)
-    const store = await first<{ id: string; code: string; name: string; status: string; timezone: string; updated_at: string }>(c.env.DB.prepare('SELECT id, code, name, status, timezone, updated_at FROM stores WHERE id = ?').bind(id))
+    const store = await first<{ id: string; code: string; name: string; status: string; timezone: string; updated_at: string; pending_review: number }>(c.env.DB.prepare('SELECT id, code, name, status, timezone, updated_at, pending_review FROM stores WHERE id = ?').bind(id))
     if (!store) throw new ApiProblem(404, 'STORE_NOT_FOUND', '门店不存在。')
-    if (store.status !== 'pending') throw new ApiProblem(409, 'STORE_NOT_PENDING', '该门店不在待审核状态。')
+    if (store.pending_review !== 1) throw new ApiProblem(409, 'STORE_NOT_PENDING', '该门店不在待审核状态。')
     const nextStatus = approve ? 'active' : 'disabled'
     const stamp = nowIso()
     const audit = prepareConditionalAudit(c.env.DB, {
@@ -462,9 +462,9 @@ export function adminRoutes() {
       businessDate: localBusinessDate(store.timezone),
       summary: `${approve ? '批准' : '拒绝'}门店审核：${store.code} ${store.name}${reason ? `（${reason}）` : ''}`,
       before: { status: 'pending' }, after: { status: nextStatus, reason: reason || undefined }, reversible: false
-    }, 'EXISTS (SELECT 1 FROM stores WHERE id = ? AND status = ? AND updated_at = ?)', [id, nextStatus, stamp])
+    }, 'EXISTS (SELECT 1 FROM stores WHERE id = ? AND status = ? AND pending_review = 0 AND updated_at = ?)', [id, nextStatus, stamp])
     const result = await c.env.DB.batch([
-      c.env.DB.prepare("UPDATE stores SET status = ?, updated_at = ? WHERE id = ? AND status = 'pending'").bind(nextStatus, stamp, id),
+      c.env.DB.prepare('UPDATE stores SET status = ?, pending_review = 0, updated_at = ? WHERE id = ? AND pending_review = 1').bind(nextStatus, stamp, id),
       audit.statement
     ])
     if (result[0]?.meta?.changes !== 1) throw new ApiProblem(409, 'STORE_REVIEW_CONFLICT', '门店审核状态刚刚被其他操作修改。')
