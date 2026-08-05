@@ -99,7 +99,8 @@ async function directoryPayload(db: D1Database, includeDisabled: boolean) {
   }>(db.prepare(`
     SELECT rg.id AS region_id, rg.name AS region_name, rg.status AS region_status,
            ct.id AS city_id, ct.name AS city_name, ct.status AS city_status,
-           st.id AS store_id, st.code AS store_code, st.name AS store_name, st.status AS store_status
+           st.id AS store_id, st.code AS store_code, st.name AS store_name,
+           CASE WHEN st.pending_review = 1 THEN 'pending' ELSE st.status END AS store_status
     FROM regions rg
     LEFT JOIN cities ct ON ct.region_id = rg.id ${includeDisabled ? '' : "AND ct.status = 'active'"}
     LEFT JOIN stores st ON st.city_id = ct.id ${includeDisabled ? '' : "AND st.status = 'active'"}
@@ -359,9 +360,9 @@ export function governanceRoutes() {
       if (!input.parentId || !input.code) throw new ApiProblem(400, 'CITY_AND_CODE_REQUIRED', '请选择城市并填写门店代码。')
       if (!await activeParentExists(c.env.DB, 'cities', input.parentId)) throw new ApiProblem(409, 'CITY_NOT_AVAILABLE', '所属城市不可用。')
       const id = uuid()
-      const audit = prepareAudit(c.env.DB, { context, action: 'create-directory-store', entityType: 'store', entityId: id, businessDate: localBusinessDate(context.storeTimezone), summary: `新增门店（待审核）：${input.code} ${input.name}`, after: { cityId: input.parentId, status: 'pending' }, reversible: false })
+      const audit = prepareAudit(c.env.DB, { context, action: 'create-directory-store', entityType: 'store', entityId: id, businessDate: localBusinessDate(context.storeTimezone), summary: `新增门店（待审核）：${input.code} ${input.name}`, after: { cityId: input.parentId, status: 'disabled', pendingReview: 1 }, reversible: false })
       await c.env.DB.batch([
-        c.env.DB.prepare(`INSERT INTO stores (id, city_id, code, name, timezone, status, created_at, updated_at) VALUES (?, ?, ?, ?, 'Asia/Shanghai', 'pending', ?, ?)`)
+        c.env.DB.prepare(`INSERT INTO stores (id, city_id, code, name, timezone, status, pending_review, created_at, updated_at) VALUES (?, ?, ?, ?, 'Asia/Shanghai', 'disabled', 1, ?, ?)`)
           .bind(id, input.parentId, input.code, input.name, stamp, stamp), audit.statement
       ])
       return c.json({ ok: true, id, status: 'pending', message: '门店已创建为待审核，需平台管理员批准后生效。' }, 201)
@@ -383,9 +384,9 @@ export function governanceRoutes() {
         if (!city || !await activeParentExists(c.env.DB, 'regions', city.region_id)) throw new ApiProblem(409, 'PARENT_DIRECTORY_NOT_ACTIVE', '所属区域未启用，不能启用城市。')
       }
       if (kind === 'stores') {
-        const store = await first<{ city_id: string | null; status: string }>(c.env.DB.prepare('SELECT city_id, status FROM stores WHERE id = ?').bind(id))
+        const store = await first<{ city_id: string | null; status: string; pending_review: number }>(c.env.DB.prepare('SELECT city_id, status, pending_review FROM stores WHERE id = ?').bind(id))
         if (!store) throw new ApiProblem(404, 'DIRECTORY_ENTRY_NOT_FOUND', '目录项不存在。')
-        if (store.status === 'pending') throw new ApiProblem(409, 'PENDING_STORE_REVIEW_REQUIRED', '待审核门店必须由平台管理员在审批队列中处理。')
+        if (store.pending_review === 1) throw new ApiProblem(409, 'PENDING_STORE_REVIEW_REQUIRED', '待审核门店必须由平台管理员在审批队列中处理。')
         if (input.status === 'active') {
           if (!store.city_id || !await activeParentExists(c.env.DB, 'cities', store.city_id)) throw new ApiProblem(409, 'PARENT_DIRECTORY_NOT_ACTIVE', '所属城市未启用，不能启用门店。')
         }
