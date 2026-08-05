@@ -13,6 +13,7 @@ import { healthRoutes } from './routes/health.js'
 import { workItemRoutes } from './routes/work-items.js'
 import { registrationRoutes } from './routes/registration.js'
 import { governanceRoutes } from './routes/governance.js'
+import { adminRoutes } from './routes/admin.js'
 import { ApiProblem } from './services/problems.js'
 import { routeIncomingRequest } from './request-routing.js'
 
@@ -79,6 +80,7 @@ app.route('/', healthRoutes())
 app.route('/', authRoutes())
 app.route('/', registrationRoutes())
 app.route('/', governanceRoutes())
+app.route('/', adminRoutes())
 app.route('/', closingRoutes())
 app.route('/', workItemRoutes())
 app.route('/', auditRoutes())

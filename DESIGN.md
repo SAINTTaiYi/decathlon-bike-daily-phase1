@@ -199,3 +199,12 @@ When modifying an existing screen:
 ## Workshop module navigation
 
 Mobile keeps the normal document flow. At 1024px and above, the reference workbench uses a fixed left rail and displays one selected work board at a time: Overview, Pending, Other, Repair, Sales. The independent Used module and /used route are retired; /used redirects to Overview. Used-car sale and acquisition remain real KPI fields in Overview and Sales. The desktop rail must not rotate, scale, stack, or animate between boards; mobile continues to use ordinary vertical scrolling and reduced-motion-safe navigation.
+
+## Platform Admin Console
+
+The platform administrator (CHU13) surface is a governed console, not a second theme. It reuses the accepted desktop geometry (fixed 90px header, 262px left rail collapsing to an 84px icon rail below 1024px, independently scrolling business region) and the same tokens: warm paper field, black structure, signal yellow reserved for active navigation, pending-count badges, the single yellow approval action, and the single accented KPI lane.
+
+- Sections in order: Overview, Approvals, Directory, Users, Audit. Only the platform administrator may enter via the `#admin` hash; the same login system governs it.
+- Dense operational patterns apply: stat lanes, approval rows with explicit approve/reject decisions, a full directory tree with inline rename and enable/disable, a user table with role/store memberships, and a read-only platform audit with date/module filters and cursor pagination.
+- Data tables stay scannable through spacing, type hierarchy, and row hover; do not reintroduce decorative divider grids or repeated borders.
+- No gradients, glass, decorative color systems, or viewport-scaled type. Green and red remain semantic only. Reduced motion and forced colors apply unchanged.

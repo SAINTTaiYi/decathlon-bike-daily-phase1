@@ -2,6 +2,13 @@
 
 保存时间：2026-07-17 04:31 +08:00
 
+## 当前状态加注（2026-08-06 +08:00）
+
+- Production `workshop.skin` 正式版本 = **V5.8.3**（2026-08-05 22:44 从 V5.8.5 回滚，runtime-only，证据见 `plan/V583-ROLLBACK-FROM-V585-EVIDENCE.md`；V5.8.4/V5.8.5 均已回滚且不再重部署）。
+- Git 分支 `feature/cloudflare-workers-d1` HEAD = `f73ca45`（docs-only 回滚证据）；`version-manifest.json` 仍记 5.8.5（有意未改，待用户决定对账方式）。
+- **平台管理后台（CHU13 Admin Console）**：功能分支 `feat/admin-console` 已实现并通过本地门禁（web 契约 183/183、worker 34/34、worker typecheck、vite build）；含 3 个只读平台端点与 5 个分区。详见 `docs/progress/2026-08-06-admin-console.md`。CodeGraph 前置/后置需在 Termux 执行；Preview 部署与生产发布均需用户同意。
+- 桌面适配未决问题依旧：参考 1536×1024 与用户真实窗口不符，需用户提供真实 innerWidth/innerHeight 或截图后重新定标。
+
 ## 当前正式发布加注（2026-08-04 +08:00）
 
 - Workshop 当前正式线上版本为 **V5.8.0**；发布 PR #132 合并 SHA：`ba86fd33f8f7c5dbc90ce37998a7876d0a0e85b7`。

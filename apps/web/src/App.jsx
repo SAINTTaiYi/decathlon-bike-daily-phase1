@@ -39,6 +39,7 @@ import PickupScene from './scenes/PickupScene.jsx'
 import RepairScene from './scenes/RepairScene.jsx'
 import ResaleScene from './scenes/ResaleScene.jsx'
 import SalesScene from './scenes/SalesScene.jsx'
+import PlatformAdminConsole from './components/admin/PlatformAdminConsole.jsx'
 
 const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员' }
 
@@ -86,6 +87,7 @@ export default function App() {
   const [kpiOpen, setKpiOpen] = useState(false)
   const [migrationOpen, setMigrationOpen] = useState(false)
   const [governanceOpen, setGovernanceOpen] = useState(false)
+  const [adminMode, setAdminMode] = useState(() => /^#admin(?:[/=]|$)/u.test(window.location.hash))
   const [reportImage, setReportImage] = useState(null)
   const [recordEditor, setRecordEditor] = useState(null)
   const [mediaRecord, setMediaRecord] = useState(null)
@@ -104,6 +106,16 @@ export default function App() {
   const currentUser = auth.user?.displayName || ''
   const currentStore = auth.stores.find((store) => store.storeId === auth.currentStoreId) || auth.stores[0] || null
   const role = currentStore?.role || 'operator'
+
+  useEffect(() => {
+    const onHashChange = () => setAdminMode(/^#admin(?:[/=]|$)/u.test(window.location.hash))
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+  const exitAdminMode = () => {
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+    setAdminMode(false)
+  }
   const canReopenClosing = role === 'manager' || role === 'admin'
   const writeLocked = Boolean(workflow.closedAt) || !online || Boolean(workflow.storageError)
 
@@ -504,6 +516,20 @@ export default function App() {
       <UpdateRefreshDialog /><StatusToast notice={toast} /></>
   }
 
+  if (authenticated && adminMode && auth.user?.isPlatformAdmin) {
+    return (
+      <>
+        <PlatformAdminConsole
+          user={currentUser}
+          storeName={currentStore?.storeName || '全国平台'}
+          onExit={exitAdminMode}
+          onNotify={setToast}
+        />
+        <StatusToast notice={toast} />
+      </>
+    )
+  }
+
   if (authenticated && !workflow.hydrated && (auth.source === 'restore' || loginAnimationDone)) {
     return <><main className="hydration-state" role="status" aria-live="polite"><strong>SYNCING DATABASE</strong><span>正在读取门店业务台账…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
@@ -587,7 +613,7 @@ export default function App() {
             <div className="footer-utility-actions" aria-label="日报辅助操作"><button type="button" onClick={() => setMenuOpen(true)}>日报菜单</button><button type="button" onClick={() => setLogOpen(true)}>当日日志</button><button type="button" onClick={() => setPermanentHistoryOpen(true)}>永久历史</button></div>
           </footer>
         </main>
-        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} />
+        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} canAdmin={auth.user?.isPlatformAdmin} onAdmin={() => { setMenuOpen(false); window.location.hash = '#admin' }} />
         <GovernanceDialog open={governanceOpen} onClose={() => setGovernanceOpen(false)} currentStoreId={currentStore?.storeId || auth.currentStoreId} onNotify={setToast} />
         <LogDialog open={logOpen} onClose={() => setLogOpen(false)} events={workflow.events} />
         <PermanentHistoryDialog open={permanentHistoryOpen} onClose={() => setPermanentHistoryOpen(false)} onLoad={workflow.getPermanentHistory} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
