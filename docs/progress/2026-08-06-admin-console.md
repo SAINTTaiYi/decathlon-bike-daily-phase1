@@ -130,3 +130,7 @@ Preview 重新部署 run `31041554495` 成功（工作流自检 attempt 2 命中
 用户复测：移动端仍滑不动。**根因**：<768px 媒体查询把 `.admin-body` 设为 `display:block`，`.admin-region` 高度跟随内容、`overflow-y:auto` 永不生效；`.admin-console`（fixed 全屏 + overflow:hidden）直接裁剪超出内容——无可滚动容器。
 
 修复（PR #170，merge `485a749`）：移动端 `.admin-body` → `flex column + min-height:0`；`.admin-region` → `flex:1 1 auto + min-height:0 + overflow-y:auto`（含 `-webkit-overflow-scrolling:touch`）；新增契约测试断言移动端滚动结构。线上压缩 CSS 复核通过（flex column / region overflow / 无 display:block）。Preview run `31042452176` 成功，meta = 5.8.3 + `485a749`。
+
+### 审批卡片窄屏竖排修复（2026-08-06）
+
+用户截图反馈：审批卡片申请理由竖着一长串。**根因**：<1024px 审批卡片为 2 列 grid（24px 勾选 + 1fr），4 个子元素中「详情」被自动放进 24px 第一列 → 中文逐字换行竖排。修复（PR #171，merge `17fb241`）：身份/详情/操作显式 `grid-column: 2` + `min-width: 0`；契约测试新增。Preview run 成功，meta = 5.8.3 + `17fb241`。
