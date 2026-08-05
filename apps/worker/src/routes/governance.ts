@@ -95,26 +95,27 @@ async function directoryPayload(db: D1Database, includeDisabled: boolean) {
   const rows = await all<{
     region_id: string; region_name: string; region_status: string
     city_id: string | null; city_name: string | null; city_status: string | null
-    store_id: string | null; store_code: string | null; store_name: string | null; store_status: string | null
+    store_id: string | null; store_code: string | null; store_name: string | null; store_status: string | null; store_created_at: string | null; store_updated_at: string | null
   }>(db.prepare(`
     SELECT rg.id AS region_id, rg.name AS region_name, rg.status AS region_status,
            ct.id AS city_id, ct.name AS city_name, ct.status AS city_status,
            st.id AS store_id, st.code AS store_code, st.name AS store_name,
-           CASE WHEN st.pending_review = 1 THEN 'pending' ELSE st.status END AS store_status
+           CASE WHEN st.pending_review = 1 THEN 'pending' ELSE st.status END AS store_status,
+           st.created_at AS store_created_at, st.updated_at AS store_updated_at
     FROM regions rg
     LEFT JOIN cities ct ON ct.region_id = rg.id ${includeDisabled ? '' : "AND ct.status = 'active'"}
     LEFT JOIN stores st ON st.city_id = ct.id ${includeDisabled ? '' : "AND st.status = 'active'"}
     ${includeDisabled ? '' : "WHERE rg.status = 'active'"}
     ORDER BY rg.sort_order, rg.name, ct.sort_order, ct.name, st.code
   `))
-  const regions = new Map<string, { id: string; name: string; status: string; cities: Map<string, { id: string; name: string; status: string; stores: Array<{ id: string; code: string; name: string; status: string }> }> }>()
+  const regions = new Map<string, { id: string; name: string; status: string; cities: Map<string, { id: string; name: string; status: string; stores: Array<{ id: string; code: string; name: string; status: string; createdAt: string | null; updatedAt: string | null }> }> }>()
   for (const row of rows) {
     if (!regions.has(row.region_id)) regions.set(row.region_id, { id: row.region_id, name: row.region_name, status: row.region_status, cities: new Map() })
     if (!row.city_id || !row.city_name || !row.city_status) continue
     const region = regions.get(row.region_id)!
     if (!region.cities.has(row.city_id)) region.cities.set(row.city_id, { id: row.city_id, name: row.city_name, status: row.city_status, stores: [] })
     if (row.store_id && row.store_code && row.store_name && row.store_status) {
-      region.cities.get(row.city_id)!.stores.push({ id: row.store_id, code: row.store_code, name: row.store_name, status: row.store_status })
+      region.cities.get(row.city_id)!.stores.push({ id: row.store_id, code: row.store_code, name: row.store_name, status: row.store_status, createdAt: row.store_created_at, updatedAt: row.store_updated_at })
     }
   }
   return [...regions.values()].map((region) => ({ ...region, cities: [...region.cities.values()] }))

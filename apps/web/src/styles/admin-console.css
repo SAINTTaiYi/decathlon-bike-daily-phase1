@@ -808,71 +808,6 @@
   color: var(--ops-text-muted, #55554f);
 }
 
-@media (max-width: 1023px) {
-  .admin-body {
-    grid-template-columns: 84px minmax(0, 1fr);
-  }
-
-  .admin-rail {
-    padding: 14px 8px;
-  }
-
-  .admin-rail-item {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    gap: 0;
-    padding: 0;
-  }
-
-  .admin-rail-label {
-    display: none;
-  }
-
-  .admin-stat-lanes {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .admin-overview-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-approval-row {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  .admin-directory-form {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-header {
-    grid-template-columns: 1fr auto;
-  }
-
-  .admin-header-context {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .admin-console *,
-  .admin-console *::before,
-  .admin-console *::after {
-    transition: none !important;
-    animation: none !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-@media (forced-colors: active) {
-  .admin-rail-item[data-active='true'],
-  .admin-stat[data-accent='true'],
-  .admin-tabs button[data-active='true'],
-  .admin-platform-badge {
-    border: 1px solid ButtonText;
-  }
-}
-
 /* ---------- v2：门店 / 批量 / 决策 / 移动端 ---------- */
 
 .admin-dock {
@@ -1594,6 +1529,27 @@
   font-weight: 700;
 }
 
+/* Comprehensive remediation: touch, cards, focus and dialog contracts. */
+.admin-mobile-cards { display: none; }
+.admin-directory-actions button,
+.admin-directory-rename,
+.admin-row-actions .secondary-action,
+.admin-tabs button,
+.admin-segmented button,
+.admin-batch-bar .secondary-action { min-height: 44px; }
+.admin-directory-store-name { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.admin-console button:disabled { cursor: not-allowed; opacity: .55; }
+.admin-confirm-dialog .dialog-panel,
+.admin-temp-dialog .dialog-panel,
+.admin-decision-dialog .dialog-panel { width: min(440px, calc(100vw - 32px)); }
+.admin-mobile-card { border-radius: 8px; background: var(--ops-card, #fffdf8); box-shadow: var(--ops-card-shadow, 0 5px 18px rgb(64 55 34 / .055)); padding: 14px; }
+.admin-mobile-card > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.admin-mobile-card dl { display: grid; gap: 8px; margin: 12px 0; }
+.admin-mobile-card dl > div { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 8px; }
+.admin-mobile-card dt { color: var(--ops-text-muted, #55554f); font-size: 12px; }
+.admin-mobile-card dd { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+.admin-audit-card > strong { display: block; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+
 @media (max-width: 1023px) {
   .admin-body {
     grid-template-columns: 84px minmax(0, 1fr);
@@ -1742,11 +1698,6 @@
     display: none;
   }
 
-  .admin-table th:nth-child(6),
-  .admin-table td:nth-child(6) {
-    display: none;
-  }
-
   .admin-tabs {
     max-width: 100%;
     overflow-x: auto;
@@ -1761,6 +1712,19 @@
   .admin-toolbar {
     flex-wrap: wrap;
   }
+
+  .admin-desktop-table { display: none; }
+  .admin-mobile-cards { display: grid; gap: 10px; }
+  .admin-row-actions { margin-top: 12px; }
+  .admin-row-actions .secondary-action { flex: 1 1 0; }
+  .admin-directory-row { grid-template-columns: minmax(0, 1fr) auto; padding: 8px 12px; }
+  .admin-directory-row[data-kind='cities'],
+  .admin-directory-row[data-kind='stores'] { padding-left: 20px; }
+  .admin-directory-actions { grid-column: 1 / -1; flex-wrap: wrap; }
+  .admin-directory-actions button { flex: 1 1 88px; }
+  .admin-batch-bar { flex-wrap: wrap; }
+  .admin-approval-actions { width: 100%; }
+  .admin-approval-actions button { flex: 1 1 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

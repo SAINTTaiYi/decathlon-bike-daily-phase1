@@ -6,6 +6,8 @@ export const getAdminUsers = (filters = {}, signal) => {
   const params = new URLSearchParams()
   if (filters.q) params.set('q', filters.q)
   if (filters.storeId) params.set('storeId', filters.storeId)
+  if (filters.cursor) params.set('cursor', filters.cursor)
+  if (filters.limit) params.set('limit', String(filters.limit))
   const qs = params.toString()
   return api(`/api/v1/admin/users${qs ? `?${qs}` : ''}`, { signal })
 }
@@ -35,11 +37,13 @@ export const getAdminApprovals = (filters = {}, signal) => {
 }
 
 export const getAdminPendingCount = (signal) => api('/api/v1/admin/pending-count', { signal })
-
-export const adminCreateUser = (body) => api('/api/v1/admin/users', { method: 'POST', body })
-
-export const adminToggleUserStatus = (id, status) => api(`/api/v1/admin/users/${encodeURIComponent(id)}`, { method: 'PATCH', body: { status } })
-
-export const adminResetPassword = (id) => api(`/api/v1/admin/users/${encodeURIComponent(id)}/reset-password`, { method: 'POST', body: {} })
-
-export const adminReviewStore = (id, body) => api(`/api/v1/admin/stores/${encodeURIComponent(id)}/decision`, { method: 'POST', body })
+export const adminCreateUser = (body, requestKey) => api('/api/v1/admin/users', { method: 'POST', body, idempotencyKey: requestKey })
+export const adminToggleUserStatus = (user, status) => api(`/api/v1/admin/users/${encodeURIComponent(user.id)}`, {
+  method: 'PATCH', body: { status, expectedStatus: user.status, expectedUpdatedAt: user.updatedAt }
+})
+export const adminResetPassword = (user, resetKey) => api(`/api/v1/admin/users/${encodeURIComponent(user.id)}/reset-password`, {
+  method: 'POST', body: { expectedUpdatedAt: user.updatedAt }, idempotencyKey: resetKey
+})
+export const adminReviewStore = (store, body) => api(`/api/v1/admin/stores/${encodeURIComponent(store.id)}/decision`, {
+  method: 'POST', body: { ...body, expectedUpdatedAt: store.updatedAt }
+})
