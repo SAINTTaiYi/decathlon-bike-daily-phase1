@@ -106,3 +106,10 @@
 - Preview 工作流 run `31038918633` 成功（含迁移 0008 在 Preview D1 应用）；3 轮核验：live/ready 200、`/api/v1/meta/version` = **5.8.3** + gitSha `c3770d17…` + `environment: preview`。
 - admin 端点未登录均 401（overview/users/stores/:id/approvals/pending-count）；线上 JS bundle `index-CIrF9bu5.js` 与本地构建一致，含 admin-dock / 批量批准 / 门店审核 / 创建账号 / 重置密码 / pending-count 等 v2 标记。
 - Production 复核不变：5.8.3 + `3ec28a3…`。待用户在真实 CHU13 登录态验收。
+
+### 验收种子数据（2026-08-06）
+
+- 用户要求生成假数据便于验收。新增 `scripts/ops/seed-preview-admin.mjs`（确定性、幂等、FK 完整、日期相对运行日），经 deploy-cloudflare-preview.yml 可选输入 `seed_preview_data=true` 注入 Preview D1（仅 Preview；Production 不受影响）。
+- 数据：2 区域 / 4 城市 / 8 门店（5 生效 + 1 停用 + 2 待审核）、15 用户 + 成员、16 工单（跨类型/日期）、角色申请 3 待审 / 1 过期 / 2 已处理、调店申请 2 待审 / 1 过期 / 1 已处理、今日闭店 2 家、13 条平台审计事件；今日/7 天/30 天统计均有值（隔离 drill：0 FK 违规）。
+- 顺带修复真实 bug：admin 总览与门店详情的「今日工单」用了不存在的 `work_items.business_date` 列（登录后必 500）→ 改为 `created_at` 业务日窗口（PR #168，merge `6bb55d1`）。
+- 部署+seed：run `31040707148` 成功（merge `6bb55d1` + workflow 修复 `c566bec`，boolean 输入直判）；wrangler rows_written 348、22 表；健康检查通过；Preview = 5.8.3 + `c566bec…`。admin 端点未登录均 401。
