@@ -63,6 +63,17 @@
 3. 用户管理当前为**只读**；账号禁用/改角色等写操作不在本版范围（既有 `POST /api/v1/users` 仅用于门店初始化）。
 4. 平台审计为只读，不提供跨店撤销（与既有「跨日/跨店不可撤销」审计语义一致）。
 
+## Preview 基线对齐 V5.8.3（2026-08-06 用户决定）
+
+用户要求 Preview 与 Production 同为 V5.8.3 代码基线，但保留管理后台。实现方式（可审计、无强推）：
+
+- 分支 `fix/preview-v583-with-admin`（基于 `feature/cloudflare-workers-d1` = `a52ec9d`）执行两次普通 `git revert -m 1`：
+  - Revert PR #161（V5.8.5 响应式工作台，merge `d2c47c7`）
+  - Revert PR #159（V5.8.4 桌面全视口适配，merge `6be00ee`）
+- 结果核验：`git diff 3ec28a3 HEAD` 仅剩管理后台（5 个分区组件 + admin.ts + admin-console.css + App.jsx/MenuDialog/index.css 集成）+ 文档；`package.json` = 5.8.3（root + web）；`version-manifest.json` = 5.8.3（406 文件，V5.8.3 原戳）；`desktop-workbench.css` 与 V5.8.3 字节一致。**版本账本因此与 Production 对齐为 5.8.3，V5.8.4/V5.8.5 在 Git 历史中以 revert 记录留存，不重新部署。**
+- 门禁：web 契约 **180/180**（V5.8.5 专属测试随回退移除，管理后台 9 项保留）、worker **34/34**、worker tsc、`vite build`（JS 449.54 kB / CSS 293.72 kB）、`git diff --check` 均通过。
+- Preview 将在该基线（5.8.3 + 管理后台）重新部署并核验；Production 不受影响（已是 5.8.3）。
+
 ## 恢复入口
 
 先读本文件 → `DESIGN.md`（Platform Admin Console 章节）→ `apps/worker/src/routes/admin.ts` → `apps/web/src/components/admin/PlatformAdminConsole.jsx` → 当前分支 git 状态。以精确代码/CI/Preview 证据为准。
