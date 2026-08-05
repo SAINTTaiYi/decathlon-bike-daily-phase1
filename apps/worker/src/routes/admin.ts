@@ -110,7 +110,7 @@ export function adminRoutes() {
         GROUP BY rr.store_id
         ORDER BY initiated DESC, rr.store_id ASC
         LIMIT 8
-      `).bind(d7, d7, d7, d7)),
+      `).bind(d7, d7, d7, d7, d7)),
       all<{ store_code: string; store_name: string; initiated: number; approved: number; rejected: number }>(c.env.DB.prepare(`
         SELECT st.code AS store_code, st.name AS store_name,
                SUM(CASE WHEN rr.created_at >= ? THEN 1 ELSE 0 END) AS initiated,
@@ -121,7 +121,7 @@ export function adminRoutes() {
         GROUP BY rr.store_id
         ORDER BY initiated DESC, rr.store_id ASC
         LIMIT 8
-      `).bind(d30, d30, d30, d30)),
+      `).bind(d30, d30, d30, d30, d30)),
       all(c.env.DB.prepare(`
         SELECT e.id, e.action, e.entity_type, e.entity_id, e.actor_name_snapshot, e.business_date,
                e.summary, e.reversible, e.audit_module, e.created_at,
