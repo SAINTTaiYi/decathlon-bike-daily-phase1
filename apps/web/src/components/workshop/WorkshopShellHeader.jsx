@@ -13,13 +13,13 @@ function formatDate(dateKey) {
   return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', weekday: 'short' }).format(date)
 }
 
-export default function WorkshopShellHeader({ activeScene, dateKey, storeName, roleLabel, userName, onMenu, onLog, onSearch, hasUnread }) {
+export default function WorkshopShellHeader({ activeScene, dateKey, storeName, roleLabel, userName, onMenu, onLog, onSearch, hasUnread, pendingBadge = 0 }) {
   const scene = sceneById(activeScene)
   const Icon = scene.NavIcon
   return (
     <header className="workshop-shell-header" data-active-module={scene.id}>
       <div className="workshop-global-header">
-        <button type="button" className="workshop-header-action workshop-header-menu" onClick={onMenu} aria-label="打开日报菜单"><IconMenu width={28} height={28} aria-hidden="true" /></button>
+        <button type="button" className="workshop-header-action workshop-header-menu" onClick={onMenu} aria-label="打开日报菜单"><IconMenu width={28} height={28} aria-hidden="true" />{pendingBadge > 0 ? <span className="workshop-pending-badge" aria-label={`${pendingBadge} 项待审批`}>{pendingBadge > 99 ? '99+' : pendingBadge}</span> : null}</button>
         <div className="workshop-header-brand"><span>WORKSHOP LEDGER</span><strong>WORKSHOP OPS</strong><small>V{APP_VERSION}</small></div>
         <div className="workshop-header-desktop-tools">
           <button type="button" className="workshop-header-action" onClick={onSearch} aria-label="搜索待办记录"><IconSearch width={25} height={25} aria-hidden="true" /></button>

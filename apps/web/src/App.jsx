@@ -40,6 +40,7 @@ import RepairScene from './scenes/RepairScene.jsx'
 import ResaleScene from './scenes/ResaleScene.jsx'
 import SalesScene from './scenes/SalesScene.jsx'
 import PlatformAdminConsole from './components/admin/PlatformAdminConsole.jsx'
+import { getAdminPendingCount } from './api/admin.js'
 
 const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员' }
 
@@ -88,6 +89,7 @@ export default function App() {
   const [migrationOpen, setMigrationOpen] = useState(false)
   const [governanceOpen, setGovernanceOpen] = useState(false)
   const [adminMode, setAdminMode] = useState(() => /^#admin(?:[/=]|$)/u.test(window.location.hash))
+  const [adminPending, setAdminPending] = useState(0)
   const [reportImage, setReportImage] = useState(null)
   const [recordEditor, setRecordEditor] = useState(null)
   const [mediaRecord, setMediaRecord] = useState(null)
@@ -116,6 +118,20 @@ export default function App() {
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
     setAdminMode(false)
   }
+
+  useEffect(() => {
+    if (!(authenticated && auth.user?.isPlatformAdmin && !adminMode)) { setAdminPending(0); return undefined }
+    let alive = true
+    const poll = async () => {
+      try {
+        const result = await getAdminPendingCount()
+        if (alive) setAdminPending(result.roleRequests + result.transferRequests + result.storesPending)
+      } catch { /* 轮询失败静默，下次重试 */ }
+    }
+    void poll()
+    const timer = window.setInterval(() => void poll(), 60000)
+    return () => { alive = false; window.clearInterval(timer) }
+  }, [authenticated, auth.user?.isPlatformAdmin, adminMode])
   const canReopenClosing = role === 'manager' || role === 'admin'
   const writeLocked = Boolean(workflow.closedAt) || !online || Boolean(workflow.storageError)
 
@@ -578,6 +594,7 @@ export default function App() {
             onLog={() => setLogOpen(true)}
             onSearch={() => navigateToScene('pickup')}
             hasUnread={Boolean(workflow.events?.length)}
+            pendingBadge={adminPending}
           />
         </div>
         {!online ? <p className="workshop-global-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据；恢复网络后才能修改。</p> : null}
@@ -613,7 +630,7 @@ export default function App() {
             <div className="footer-utility-actions" aria-label="日报辅助操作"><button type="button" onClick={() => setMenuOpen(true)}>日报菜单</button><button type="button" onClick={() => setLogOpen(true)}>当日日志</button><button type="button" onClick={() => setPermanentHistoryOpen(true)}>永久历史</button></div>
           </footer>
         </main>
-        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} canAdmin={auth.user?.isPlatformAdmin} onAdmin={() => { setMenuOpen(false); window.location.hash = '#admin' }} />
+        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} canAdmin={auth.user?.isPlatformAdmin} onAdmin={() => { setMenuOpen(false); window.location.hash = '#admin' }} adminPending={adminPending} />
         <GovernanceDialog open={governanceOpen} onClose={() => setGovernanceOpen(false)} currentStoreId={currentStore?.storeId || auth.currentStoreId} onNotify={setToast} />
         <LogDialog open={logOpen} onClose={() => setLogOpen(false)} events={workflow.events} />
         <PermanentHistoryDialog open={permanentHistoryOpen} onClose={() => setPermanentHistoryOpen(false)} onLoad={workflow.getPermanentHistory} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
