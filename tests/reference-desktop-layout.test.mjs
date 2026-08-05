@@ -9,17 +9,17 @@ const dock = await readFile(new URL('../apps/web/src/components/lookbook/ActionD
 const overview = await readFile(new URL('../apps/web/src/components/overview/WorkshopOverviewPage.jsx', import.meta.url), 'utf8')
 const ledger = await readFile(new URL('../apps/web/src/components/pickup/PickupLedger.jsx', import.meta.url), 'utf8')
 
-test('desktop and tablet reflow at native CSS pixels with fixed chrome and independent business scrolling', () => {
+test('1536x1024 board scales as a single physical-pixel canvas on desktop-mode tablets', () => {
   assert.match(css, /@media \(min-width: 768px\)/u)
-  assert.doesNotMatch(css, /zoom\s*:/u)
-  assert.doesNotMatch(app, /desktop-workbench-fit/u)
-  assert.match(css, /--ops-desktop-rail-width: 84px/u)
-  assert.match(css, /@media \(min-width: 1024px\)[\s\S]*?--ops-desktop-rail-width: 262px/u)
-  assert.match(css, /position: fixed;[\s\S]*?inset: 156px 0 0 var\(--ops-desktop-rail-width\)/u)
-  assert.match(css, /overflow-y: auto/u)
+  assert.match(css, /width: 1536px/u)
+  assert.match(css, /min-height: 1024px/u)
+  assert.match(css, /zoom: calc\(100vw \/ 1536px\)/u)
+  assert.match(css, /grid-template-columns: 84px 230px minmax\(0, 1fr\)/u)
+  assert.match(css, /margin-left: 262px/u)
   assert.match(app, /data-desktop-scene=\{desktopScene\}/u)
   assert.match(app, /min-width: 768px/u)
 })
+
 test('reference navigation retains all six destinations and the lower release card', () => {
   assert.match(scenes, /id: 'resale'/u)
   assert.match(scenes, /LOOK_TOTAL = 6/u)

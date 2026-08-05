@@ -36,8 +36,7 @@ test('mobile sales keeps the established compact KPI summary beneath the hidden 
 })
 
 test('desktop shell and scoped right-region transition remain frozen', () => {
-  assert.match(desktopCss, /\.workshop-runtime \{ width: 100%;[\s\S]*?height: 100dvh;/u)
-  assert.doesNotMatch(desktopCss, /zoom\s*:/u)
+  assert.match(desktopCss, /\.workshop-runtime \{[\s\S]*?width: 1536px;[\s\S]*?zoom: calc\(100vw \/ 1536px\);/u)
   assert.match(desktopCss, /\.desktop-scene-transition-viewport \{\n    position: fixed;\n    inset: 90px 0 0 262px;/u)
   assert.match(desktopCss, /\.look-dock \{[\s\S]*?left: 20px !important;[\s\S]*?top: 112px !important;/u)
 })

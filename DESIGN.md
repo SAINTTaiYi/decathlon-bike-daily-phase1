@@ -147,8 +147,6 @@ Apply the same principle elsewhere: current decision first, supporting evidence 
 ### Desktop
 
 - At `1024px` and above, use the reference workbench: fixed 90px global header, 262px left rail, 66px module bar, and one selected board in the remaining field.
-- Desktop and tablet use native responsive reflow rather than whole-canvas scaling: fixed top/side navigation frame an independently scrolling business region; cards, ledgers, columns, spacing, and type hierarchy adapt at 768, 900, 1024, 1200, 1280, 1360, 1400, and 1500px breakpoints.
-- At 768–1023px the rail collapses to an icon-only 84px strip; at 1024px and above it restores full labels. Content may extend vertically and scroll, but must never be mechanically shrunk below readable size.
 - Overview uses a 5/7 closing-to-sales row, full-width four-operation index, then an 8/4 trend-and-health row; Pending, Other, and Repair use a full-width ledger table.
 - Desktop is a wider workbench, not a different visual theme. Do not revive obsolete desktop-specific art directions.
 
