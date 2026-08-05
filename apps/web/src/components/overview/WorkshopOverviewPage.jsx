@@ -6,6 +6,7 @@ import IconWrench from '@iconoir/Wrench.mjs'
 import IconLabel from '@iconoir/Label.mjs'
 import IconCheck from '@iconoir/Check.mjs'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
+import { RepairRungChart, SalesHairlineChart } from './BusinessTrendCharts.jsx'
 
 const operations = [
   { id: 'pickup', no: '02', en: 'PICKUP', cn: '待取车辆', Icon: IconDelivery },
@@ -159,17 +160,12 @@ function OverviewAnalytics({ workflow }) {
     ['待取车辆', available ? `${pickupCount} 条在册` : '待同步'],
     ['其它交接', available ? `${otherCount} 条在册` : '待同步']
   ]
-  const total = repairCount + pickupCount + otherCount
   const completeness = available ? (workflow.kpiReady ? 100 : 75) : 0
-  const sales = Number(workflow.kpi?.salesVehicles || 0)
-  const chartDates = ['07/29', '07/30', '07/31', '08/01', '08/02', '08/03', '今日']
+  const trendsAvailable = available && Boolean(workflow.trends?.days?.length)
   return <section className="ops-analytics-grid" aria-label="业务趋势与数据健康度">
     <article className="ops-analytics-panel ops-trends-panel">
-      <header><strong>业务趋势概览</strong><span aria-hidden="true">↗</span></header>
-      <div className="ops-trend-grid">
-        <section className="ops-trend-card"><small>销售数据趋势（近7天）</small><div className="ops-trend-value"><b>{available ? String(sales).padStart(2, '0') : '—'}</b><em>UNIT</em></div><div className="ops-trend-bars" aria-hidden="true">{chartDates.map((date, index) => <i key={date} style={{ '--ops-trend-height': index === chartDates.length - 1 ? `${Math.max(12, Math.min(100, sales * 16))}%` : '0%' }} />)}</div><footer>{chartDates.map((date) => <span key={date}>{date}</span>)}</footer></section>
-        <section className="ops-trend-card ops-repair-trend"><small>维修交接趋势（近7天）</small><div className="ops-trend-value"><b>{available ? String(repairCount).padStart(2, '0') : '—'}</b><em>单</em></div><svg viewBox="0 0 420 120" preserveAspectRatio="none" aria-hidden="true"><path className="ops-trend-gridline" d="M0 30H420M0 60H420M0 90H420"/><polyline points={`0,96 70,96 140,96 210,96 280,96 350,96 420,${Math.max(16, 96 - repairCount * 15)}`} /></svg><footer>{chartDates.map((date) => <span key={date}>{date}</span>)}</footer></section>
-      </div>
+      <header><strong>业务趋势概览</strong><span>{trendsAvailable ? 'LIVE · 7D' : 'SYNC'}</span></header>
+      {trendsAvailable ? <div className="ops-trend-grid"><SalesHairlineChart trends={workflow.trends} /><RepairRungChart trends={workflow.trends} /></div> : <div className="ops-trend-unavailable" role="status">七日趋势正在从门店数据库同步…</div>}
     </article>
     <article className="ops-analytics-panel ops-health-panel">
       <header><strong>数据健康度</strong><span>{available ? 'LIVE' : 'SYNC'}</span></header>
