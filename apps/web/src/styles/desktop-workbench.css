@@ -1,8 +1,10 @@
 /*
- * Responsive desktop/tablet workbench.
- * Geometry reflows at native CSS pixels; the ordinary phone UI remains untouched
- * below 768px. Fixed chrome frames an independently scrolling business region.
+ * 1536 × 1024 reference board — final desktop/tablet cascade.
+ * The board is authored in the reference's native coordinate system and zoomed
+ * as one canvas. This keeps physical-pixel geometry stable on high-DPR Android
+ * desktop mode while leaving the existing phone UI untouched below 768 CSS px.
  */
+.desktop-workbench-fit { display: contents; }
 .desktop-scene-transition-viewport, .desktop-scene-transition-wipe { display: none; }
 
 @media (min-width: 768px) {
@@ -14,11 +16,28 @@
     --dock-space: 0px;
   }
 
-  html, body, #root { width: 100%; height: 100%; min-height: 100dvh; overflow: hidden; }
-  body { min-width: 0; }
-  .workshop-runtime { width: 100%; min-width: 0; height: 100dvh; min-height: 0; margin: 0; overflow: hidden; }
-  .workshop-runtime > [data-workspace-layer='navigation'] { width: 100%; box-shadow: none; }
-  .workshop-shell-header { width: 100%; height: 156px; margin: 0; }
+  html { min-height: 100dvh; overflow-x: hidden; scroll-padding-top: 174px; }
+  body { min-width: 0; min-height: 100dvh; overflow-x: hidden; }
+  .desktop-workbench-fit {
+    --ops-desktop-workbench-fit: min(calc(100vw / 1536px), calc(100dvh / 1024px));
+    display: grid;
+    width: 100%;
+    min-height: 100dvh;
+    align-items: safe center;
+    justify-items: safe center;
+  }
+  .workshop-runtime {
+    width: 1536px;
+    min-width: 1536px;
+    min-height: 1024px;
+    margin-inline: auto;
+    zoom: var(--ops-desktop-workbench-fit);
+  }
+  .workshop-runtime > [data-workspace-layer='navigation'] {
+    width: 1536px;
+    box-shadow: none;
+  }
+  .workshop-shell-header { width: 1536px; height: 156px; margin: 0; }
   .workshop-global-header {
     grid-template-columns: 84px 230px minmax(0, 1fr);
     min-height: 90px;
@@ -391,196 +410,4 @@
     .look-dock button { transition: none; }
   }
 
-}
-
-/* V5.8.5 — native responsive reflow for every desktop/tablet business module. */
-@media (min-width: 768px) {
-  :root {
-    --ops-desktop-rail-width: 84px;
-    --ops-desktop-gutter: clamp(18px, 2.2vw, 36px);
-  }
-
-  .workshop-module-header { margin-left: var(--ops-desktop-rail-width); padding-inline: var(--ops-desktop-gutter); }
-  .workshop-shell {
-    position: fixed;
-    inset: 156px 0 0 var(--ops-desktop-rail-width);
-    width: auto;
-    height: auto;
-    min-height: 0;
-    margin: 0;
-    padding: 24px var(--ops-desktop-gutter) 48px;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-  }
-  .workshop-module-stack { width: min(100%, 1600px); margin-inline: auto; }
-  .workshop-module-panel, .look-section, .pickup-ledger, .pickup-operations-section { min-width: 0; }
-
-  .look-dock {
-    position: fixed !important;
-    top: 102px !important;
-    bottom: 12px !important;
-    left: 8px !important;
-    width: 68px !important;
-    max-height: none;
-    padding: 0 !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    overscroll-behavior: contain;
-    scrollbar-width: none;
-  }
-  .look-dock::-webkit-scrollbar { display: none; }
-  .look-dock::after { top: 90px; bottom: 0; left: calc(var(--ops-desktop-rail-width) - 1px); }
-  .look-dock ul { gap: 8px; }
-  .look-dock button {
-    display: grid;
-    grid-template: 1fr / 1fr;
-    place-items: center;
-    width: 60px;
-    min-height: 60px !important;
-    padding: 8px !important;
-  }
-  .look-dock button svg { grid-area: 1 / 1; width: 28px; height: 28px; }
-  .look-dock button span, .look-dock button small { display: none; }
-  .dock-release-card { position: relative; top: auto; left: auto; width: 60px; min-height: 60px; margin-top: 12px; }
-  .dock-release-card > summary { display: grid; width: 60px; min-height: 60px; place-items: center; padding: 6px; }
-  .dock-release-card > summary > strong { padding: 4px 6px; font-size: 11px; }
-  .dock-release-card > summary > :is(span,time,b) { display: none; }
-  .dock-release-details { position: fixed; right: auto; bottom: 12px; left: 84px; width: min(300px, calc(100vw - 104px)); }
-  .dock-status { width: 60px; margin-top: 10px; }
-  .desktop-scene-transition-viewport { inset: 90px 0 0 var(--ops-desktop-rail-width); }
-
-  .workshop-global-header { grid-template-columns: 84px minmax(170px, 220px) minmax(0, 1fr); }
-  .workshop-user-context { grid-template-columns: 42px; min-width: 56px; padding-left: 6px; }
-  .workshop-user-context > :not(:first-child) { display: none; }
-  .workshop-header-desktop-tools { padding-right: 16px; }
-
-  .workshop-overview-panel .ops-mobile-overview { grid-template-columns: minmax(0, 1fr); gap: 16px; margin: 0; }
-  .workshop-overview-panel .ops-mobile-overview > :is(.ops-closing-card, .ops-sales-panel, .ops-index, .ops-analytics-grid) {
-    grid-column: 1;
-    width: 100%;
-    height: auto;
-    margin: 0;
-  }
-  .ops-closing-card, .ops-sales-panel { min-height: 292px; }
-  .ops-index { min-height: 0; }
-  .ops-index ol { grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); height: auto; }
-  .ops-index li, .ops-index button { min-height: 142px; }
-  .ops-analytics-grid { grid-template-columns: minmax(0, 1fr); }
-  .ops-trend-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-
-  .pickup-queue-controls { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .pickup-tool-row { grid-template-columns: repeat(4, minmax(52px, 1fr)); height: auto; }
-  .pickup-tool-row .pickup-search-field { grid-column: 1 / -1; }
-  .pickup-ledger-table-head { display: none; }
-  .pickup-card-summary {
-    grid-template-columns: 72px minmax(0, 1fr) minmax(124px, auto);
-    grid-template-areas: 'index core status' 'index scan status';
-    gap: 8px 14px;
-  }
-  .pickup-card-index { grid-area: index; }
-  .pickup-card-core { grid-area: core; min-width: 0; }
-  .pickup-card-scan { grid-area: scan; }
-  .pickup-card-status { grid-area: status; }
-  .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-card-summary {
-    grid-template-columns: 72px minmax(0, 1fr) minmax(132px, .52fr) 36px;
-    grid-template-areas: 'index core status operation' 'index contact appointment operation';
-    gap: 8px 14px;
-  }
-  .pickup-ledger-board[data-ledger-mode='handover'] .pickup-card-summary {
-    grid-template-columns: 72px minmax(0, 1fr) minmax(120px, auto);
-    grid-template-areas: 'index core status';
-  }
-  .pickup-card-detail { padding: 12px 20px 20px; }
-  .pickup-notification-control { grid-template-columns: minmax(0, 1fr); }
-  .pickup-notification-buttons { grid-column: 1; justify-content: flex-start; }
-
-  .closing-look .sales-input-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: auto;
-    min-height: 0;
-    margin: 0;
-    padding: clamp(20px, 3vw, 34px);
-  }
-  .sales-input-summary > .sales-reference-intro,
-  .sales-input-summary > .sales-reference-submit,
-  .sales-input-summary > .sales-reference-note { grid-column: 1 / -1; }
-  .sales-reference-intro > p br { display: none; }
-
-  .record-ledger-head { grid-template-columns: minmax(0, 1fr) auto; }
-  .ledger-head-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; }
-  .record-row-head { grid-template-columns: 38px minmax(0, 1fr) minmax(130px, 34%) !important; }
-  .record-body { min-width: 0; }
-}
-
-@media (min-width: 900px) {
-  .workshop-user-context { grid-template-columns: 42px minmax(0, 1fr) 18px; min-width: 190px; }
-  .workshop-user-context > :not(:first-child) { display: block; }
-}
-
-@media (min-width: 1024px) {
-  :root { --ops-desktop-rail-width: 262px; }
-  .workshop-global-header { grid-template-columns: 84px 230px minmax(0, 1fr); }
-  .look-dock { left: 20px !important; width: 218px !important; }
-  .look-dock ul { gap: 10px; }
-  .look-dock button {
-    grid-template-columns: 38px minmax(0, 1fr);
-    grid-template-rows: 19px 15px !important;
-    justify-items: start;
-    width: 218px;
-    min-height: 66px !important;
-    padding: 9px 20px !important;
-  }
-  .look-dock button svg { grid-area: 1 / 1 / 3 / 2; }
-  .look-dock button span { display: block; align-self: end; }
-  .look-dock button small { display: block; align-self: start; }
-  .dock-release-card { width: 182px; min-height: 104px; margin: 12px 0 0 18px; }
-  .dock-release-card > summary { width: 100%; min-height: 102px; place-items: initial; padding: 12px; }
-  .dock-release-card > summary > span,
-  .dock-release-card > summary > time,
-  .dock-release-card > summary > b { display: block; }
-  .dock-release-details { left: 232px; }
-  .dock-status { width: 182px; margin-left: 18px; }
-}
-
-@media (min-width: 1200px) {
-  .closing-look .sales-input-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
-
-@media (min-width: 1280px) {
-  .pickup-queue-controls { grid-template-columns: minmax(240px, 28%) minmax(0, 1fr); gap: 16px; }
-  .pickup-tool-row { grid-template-columns: minmax(180px, 1fr) repeat(4, minmax(56px, 70px)); }
-  .pickup-tool-row .pickup-search-field { grid-column: auto; }
-}
-
-@media (min-width: 1360px) {
-  .workshop-overview-panel .ops-mobile-overview { grid-template-columns: minmax(0, .94fr) minmax(0, 1fr); }
-  .workshop-overview-panel .ops-mobile-overview > .ops-closing-card { grid-column: 1; }
-  .workshop-overview-panel .ops-mobile-overview > .ops-sales-panel { grid-column: 2; }
-  .workshop-overview-panel .ops-mobile-overview > :is(.ops-index, .ops-analytics-grid) { grid-column: 1 / -1; }
-  .ops-index ol { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-}
-
-@media (min-width: 1400px) {
-  .ops-analytics-grid { grid-template-columns: minmax(0, 2.1fr) minmax(340px, 1fr); }
-}
-
-@media (min-width: 1500px) {
-  .pickup-ledger-table-head { display: grid; }
-  .pickup-card-summary { grid-template-columns: 96px minmax(310px, 1.5fr) minmax(280px, 1fr) 160px; grid-template-areas: 'index core scan status'; }
-  .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-card-summary { grid-template-columns: 96px 290px 260px 235px minmax(170px, 1fr) 42px; grid-template-areas: 'index core contact appointment status operation'; }
-  .pickup-ledger-board[data-ledger-mode='handover'] .pickup-card-summary { grid-template-columns: 96px minmax(0, 1fr) 180px; grid-template-areas: 'index core status'; }
-  .pickup-card-detail { padding: 10px 20px 20px 110px; }
-}
-
-@media (min-width: 768px) and (max-width: 899px) {
-  .workshop-module-header { grid-template-columns: 26px auto minmax(0, 1fr); }
-  .workshop-module-header > small { display: none; }
-  .ops-trend-grid { grid-template-columns: minmax(0, 1fr); }
-  .ops-trend-card { border-right: 0; border-bottom: 1px solid rgb(28 28 26 / .12); }
-  .ops-closing-next { grid-template-columns: 38px minmax(0, 1fr); height: auto; min-height: 104px; padding-block: 12px; }
-  .ops-closing-next button { grid-column: 1 / -1; width: 100%; }
-  .record-row-head { grid-template-columns: 38px minmax(0, 1fr) !important; }
-  .record-head-meta { grid-column: 2; }
 }

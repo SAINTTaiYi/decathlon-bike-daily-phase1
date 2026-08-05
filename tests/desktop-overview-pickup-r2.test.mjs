@@ -5,9 +5,9 @@ import { readFile } from 'node:fs/promises'
 const css = await readFile(new URL('../apps/web/src/styles/desktop-workbench.css', import.meta.url), 'utf8')
 const ledger = await readFile(new URL('../apps/web/src/components/pickup/PickupLedger.jsx', import.meta.url), 'utf8')
 
-test('desktop workbench uses native responsive pixels and retains a governed two-panel wide row', () => {
+test('desktop reference uses the physical-pixel canvas and stable two-panel first row', () => {
   assert.match(css, /@media \(min-width: 768px\)/u)
-  assert.doesNotMatch(css, /zoom\s*:/u)
+  assert.match(css, /zoom: var\(--ops-desktop-workbench-fit\)/u)
   assert.match(css, /ops-closing-card \{ grid-column: 1;/u)
   assert.match(css, /ops-sales-panel \{ grid-column: 2;/u)
   assert.match(css, /ops-analytics-grid/u)

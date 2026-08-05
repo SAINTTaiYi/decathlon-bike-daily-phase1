@@ -1,37 +1,36 @@
 {
   "kind": "formal-production-release",
-  "version": "5.8.5",
+  "version": "5.8.4",
   "previewRange": {
-    "fromExclusive": "28ae2026ffed13f4f443bad7fb6df0b66b814ff9",
-    "toInclusive": "fac02fdb9c20fc1e089db9a0fb304733e741ee24",
+    "fromExclusive": "856c729b7ab8b0ec930a8f4a56eee4c659f2a46f",
+    "toInclusive": "d9bd96507deea2eb16214521cda5695d8beddbb8",
     "commits": [
       {
-        "sha": "6be00eecc49f87bb7023f232d3d8b008dadd5afb",
-        "subject": "Merge pull request #159 from SAINTTaiYi/fix/v5.8.4-desktop-viewport-fit"
+        "sha": "84735cf1d31dcae2379c6ea116b29e9a97b748c1",
+        "subject": "docs: record real trends Preview acceptance"
       },
       {
-        "sha": "6ceceaa96479d301f17cc861fab6c91985c66d3f",
-        "subject": "docs: record V5.8.4 production release evidence"
+        "sha": "3f034c959461ad1b6235e3c18849630bf847cb33",
+        "subject": "Merge pull request #157 from SAINTTaiYi/docs/real-trends-preview-evidence"
       },
       {
-        "sha": "c38d340100059b37aaf8d2a964f41489318b7443",
-        "subject": "Merge pull request #160 from SAINTTaiYi/docs/v584-production-release-evidence"
+        "sha": "3ec28a321b1f1f02a28a0e4d94abb1be1432065b",
+        "subject": "Merge pull request #158 from SAINTTaiYi/release/v5.8.3-real-trends"
       },
       {
-        "sha": "fac02fdb9c20fc1e089db9a0fb304733e741ee24",
-        "subject": "feat: reflow desktop workbench responsively"
+        "sha": "d9bd96507deea2eb16214521cda5695d8beddbb8",
+        "subject": "fix: fit desktop workbench to full viewport"
       }
     ]
   },
   "announcement": {
-    "title": "桌面与平板工作台响应浏览器尺寸",
-    "summary": "六个桌面与平板业务模块改为原生响应式重排，在常见浏览器窗口中保持可读，并以独立业务区滚动承载更多内容。",
+    "title": "桌面工作台完整适配浏览器视口",
+    "summary": "桌面工作台改为同时依据浏览器可用宽度和高度等比适配，完整显示原生 1536 × 1024 业务画布。",
     "changes": [
-      "移除整张 1536 × 1024 画布机械缩放，卡片、列数、间距与信息层级按窗口宽度原生重排。",
-      "768–1023px 使用图标窄栏，1024px 起恢复完整侧栏；顶栏和侧栏固定，右侧业务区独立纵向滚动。",
-      "总览、待取、其它、维修、二手台账与销售数据统一覆盖七组常用窗口，普通手机布局保持不变。",
-      "用户明确豁免 browser-harness 真实浏览器验收；发布仍通过全量自动化、CI、线上身份和资产一致性门禁。"
+      "桌面缩放由仅按宽度改为宽高比例取较小值，避免矮窗口截断工作台下方内容。",
+      "不同屏幕比例下安全居中并保留留白，维持既有顶栏、侧栏和业务卡片几何。",
+      "手机布局、业务规则、API、数据库和 Cloudflare Worker 行为均保持不变。"
     ]
   },
-  "preparedAt": "2026-08-05T13:11:51.400Z"
+  "preparedAt": "2026-08-05T11:56:13.741Z"
 }
