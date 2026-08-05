@@ -113,3 +113,14 @@
 - 数据：2 区域 / 4 城市 / 8 门店（5 生效 + 1 停用 + 2 待审核）、15 用户 + 成员、16 工单（跨类型/日期）、角色申请 3 待审 / 1 过期 / 2 已处理、调店申请 2 待审 / 1 过期 / 1 已处理、今日闭店 2 家、13 条平台审计事件；今日/7 天/30 天统计均有值（隔离 drill：0 FK 违规）。
 - 顺带修复真实 bug：admin 总览与门店详情的「今日工单」用了不存在的 `work_items.business_date` 列（登录后必 500）→ 改为 `created_at` 业务日窗口（PR #168，merge `6bb55d1`）。
 - 部署+seed：run `31040707148` 成功（merge `6bb55d1` + workflow 修复 `c566bec`，boolean 输入直判）；wrangler rows_written 348、22 表；健康检查通过；Preview = 5.8.3 + `c566bec…`。admin 端点未登录均 401。
+
+### 验收反馈修复（2026-08-06）
+
+用户反馈：页面无法滑动、总览/门店/门店目录无数据。**根因**：`GET /api/v1/admin/overview` 的 7d/30d 权限变更统计 SQL 声明 5 个占位符但只绑定 4 个值 → D1 参数数量不匹配 → overview 500；外壳用 `Promise.all([overview, governance])` 加载，任一失败则两数据源全丢 → 总览/门店/目录全空（审批/审计走独立端点不受影响），空内容也加剧无法滚动观感。
+
+修复（PR #169，merge `cafb943`）：
+1. `roleStats7d/30d` 补第 5 个绑定值
+2. 新增回归契约测试：扫描 admin.ts 全部静态 `prepare().bind()`，断言占位符数 === 绑定数（防同类 500）
+3. `.admin-console` 加 `overflow: hidden`，滚动收敛至 `.admin-region`
+
+Preview 重新部署 run `31041554495` 成功（工作流自检 attempt 2 命中）；线上 meta = 5.8.3 + `cafb943…` + preview。数据无需重新 seed。
