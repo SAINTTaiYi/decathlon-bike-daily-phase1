@@ -1623,12 +1623,18 @@
   }
 
   .admin-approval-row {
-    grid-template-columns: 24px 1fr;
+    grid-template-columns: 24px minmax(0, 1fr);
     gap: 10px;
   }
 
+  .admin-approval-row .admin-approval-identity,
+  .admin-approval-row .admin-approval-detail,
   .admin-approval-row .admin-approval-actions {
     grid-column: 2;
+    min-width: 0;
+  }
+
+  .admin-approval-row .admin-approval-actions {
     justify-content: flex-start;
   }
 
