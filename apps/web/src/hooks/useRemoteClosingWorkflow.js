@@ -8,7 +8,7 @@ import {
 import { buildPickupNotificationUpdate } from '../data/pickupRecord.js'
 import { buildRepairCompletion, normalizeRepairRecord } from '../data/repairRecord.js'
 
-const emptyState = { businessDate: '', day: { kpi: emptyKpi, kpiSavedAt: null, closedAt: null, revision: 0 }, records: [], events: [], store: null }
+const emptyState = { businessDate: '', day: { kpi: emptyKpi, kpiSavedAt: null, closedAt: null, revision: 0 }, records: [], events: [], trends: null, store: null }
 
 export default function useRemoteClosingWorkflow(enabled) {
   const [state, setState] = useState(emptyState)
@@ -187,6 +187,7 @@ export default function useRemoteClosingWorkflow(enabled) {
     lastSyncedAt,
     records: state.records,
     recordsByScene,
+    trends: state.trends,
     kpi: state.day.kpi,
     kpiSavedAt: state.day.kpiSavedAt,
     kpiReady,

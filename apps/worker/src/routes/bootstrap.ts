@@ -6,6 +6,7 @@ import { listWorkItems } from '../repositories/work-items.js'
 import { listAudit } from './audit.js'
 import { getOrCreateDay, mapDay } from '../services/closing.js'
 import { businessDateFor, cleanupPreviousCompleted } from '../services/business.js'
+import { buildBusinessTrends } from '../services/trends.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
 
@@ -22,10 +23,11 @@ export function bootstrapRoutes() {
     const waitUntil = c.executionCtx?.waitUntil?.bind(c.executionCtx)
     if (waitUntil) waitUntil(cleanup)
     else void cleanup
-    const [day, records, events] = await Promise.all([
+    const [day, records, events, trends] = await Promise.all([
       getOrCreateDay(c.env.DB, context.storeId, businessDate),
       listWorkItems(c.env.DB, context.storeId, businessDate, config),
-      listAudit(c.env.DB, context.storeId, undefined, businessDate)
+      listAudit(c.env.DB, context.storeId, undefined, businessDate),
+      buildBusinessTrends(c.env.DB, context.storeId, businessDate)
     ])
     return c.json({
       businessDate,
@@ -38,7 +40,8 @@ export function bootstrapRoutes() {
       },
       day: mapDay(day),
       records,
-      events
+      events,
+      trends
     })
   })
 
