@@ -1,174 +1,48 @@
 {
   "kind": "formal-production-release",
-  "version": "5.8.2",
+  "version": "5.8.3",
   "previewRange": {
-    "fromExclusive": "880ce6c59b2ef2c026a3fba1d0ac0c98fca92aa3",
-    "toInclusive": "8b98bff6a06f6a4778f40f889e4a0a633296af67",
+    "fromExclusive": "be8e0022806a9abe757637ba6b997ce7de5fe558",
+    "toInclusive": "9747dd2774b17abc5050a55d20f6d57595e777c5",
     "commits": [
       {
-        "sha": "bb6451d1328b835448794f0d177cf0bed0e598a9",
-        "subject": "fix(handover): restore persisted titles in Production"
+        "sha": "c451d2b405af7e1e5fe4324282d3b1f498d1bfa2",
+        "subject": "docs: record mobile overflow R8 Preview evidence"
       },
       {
-        "sha": "470aa99b648fb0328f71e378df818e580adebf8d",
-        "subject": "fix(handover): collapse completed cards into yellow stamp"
+        "sha": "56f2f9db10c4ed74b3f284f75982ba205ffd455b",
+        "subject": "Merge pull request #153 from SAINTTaiYi/docs/mobile-overflow-r8-preview-evidence"
       },
       {
-        "sha": "7eeef6e457232466b0a02b48d3d55dc95bb4d3a6",
-        "subject": "fix(handover): collapse completed cards into yellow stamp"
+        "sha": "b29bfc660ce6128f3ae0227686bcb448e82f439e",
+        "subject": "Merge pull request #154 from SAINTTaiYi/release/v5.8.2-mobile-desktop-aggregate"
       },
       {
-        "sha": "8e3705101323adb50015128ad3a7ae061ede6b91",
-        "subject": "docs(workshop): record handover stamp Preview evidence"
+        "sha": "d643eea0665c84ac858e146f1c6e76d6c4e90390",
+        "subject": "docs: record V5.8.2 production release evidence"
       },
       {
-        "sha": "ef7cd82f07cc7991fb7ccb593f65bf74a212eb75",
-        "subject": "docs(workshop): record handover stamp Preview evidence"
+        "sha": "8418439d92099f315a71bf172e14db9e483f715d",
+        "subject": "Merge pull request #155 from SAINTTaiYi/docs/v582-production-release-evidence"
       },
       {
-        "sha": "8ac0d28184ae3bb314fba76fea7d72dc57ce8703",
-        "subject": "fix(handover): match completion stamp reference"
+        "sha": "3d60f8c860740361b530e973c71eb03211bb1810",
+        "subject": "feat: connect desktop trends to real seven-day data"
       },
       {
-        "sha": "aa0c51f90c0c8ad046a044b56f3ce6a528012fad",
-        "subject": "fix(handover): match completion stamp reference"
-      },
-      {
-        "sha": "cd0e12b60f9b18f7e7540c1ecfccbe11ce51fb76",
-        "subject": "fix(handover): compact completion and reveal full detail"
-      },
-      {
-        "sha": "1a1ca41ae78af6cbccf5e294e57959e2b22cc6db",
-        "subject": "Merge pull request #138 from SAINTTaiYi/fix/handover-compact-detail-preview"
-      },
-      {
-        "sha": "e8c5731e8d4ff3a23b4d07c24f712c34b252e706",
-        "subject": "feat(workshop): reconstruct reference desktop workbench"
-      },
-      {
-        "sha": "152e0eaf3a1dad59e3a415e68c78f76d71e88754",
-        "subject": "feat(workshop): reconstruct reference desktop workbench"
-      },
-      {
-        "sha": "1c6abd8c6cabfa73ffe07605c4d3979495f56f3b",
-        "subject": "fix(workshop): pixel-match 1536 reference boards"
-      },
-      {
-        "sha": "6170585385648b7acbd4a281f07851bbdf769245",
-        "subject": "fix(web): use available label icon"
-      },
-      {
-        "sha": "dfbd72b3c9cfe49a7231c86c5d7f2db9693c7c6d",
-        "subject": "Merge pull request #140 from SAINTTaiYi/fix/reference-pixel-r2-v581"
-      },
-      {
-        "sha": "ebea6d17abe2cd9753a8b0cf988673a2516ce785",
-        "subject": "docs(workshop): record pixel R2 Preview evidence"
-      },
-      {
-        "sha": "f0e116f23716bab3ac4467560e3fef53b346ecf6",
-        "subject": "Merge pull request #141 from SAINTTaiYi/docs/reference-pixel-r2-preview-evidence"
-      },
-      {
-        "sha": "0ece00867beb2baae8314e0d277f2300271c1f76",
-        "subject": "fix(web): correct shared desktop card geometry"
-      },
-      {
-        "sha": "f5b9dc140940dcbbf44d0e54293e0e66c6a01a28",
-        "subject": "Merge pull request #142 from SAINTTaiYi/fix/reference-feedback-r3-v581"
-      },
-      {
-        "sha": "b3fe2633354c961c1317efb996454e9c5546afcd",
-        "subject": "docs: record desktop feedback R3 Preview evidence"
-      },
-      {
-        "sha": "87c3b5005271dbc276821257f812d28936a8b7eb",
-        "subject": "Merge pull request #143 from SAINTTaiYi/fix/reference-feedback-r3-v581"
-      },
-      {
-        "sha": "61442a56221f02dae92f66babade01443303664a",
-        "subject": "fix(web): align Pickup board and release notice"
-      },
-      {
-        "sha": "f222f6c2fbed8e63cea094954aafd5b9dda7666d",
-        "subject": "Merge pull request #144 from SAINTTaiYi/fix/reference-pickup-r4-v581"
-      },
-      {
-        "sha": "cc7aeba043221d5ba28cb39c56922e94d9f2ed0e",
-        "subject": "docs: record Pickup R4 Preview evidence"
-      },
-      {
-        "sha": "b69a6a5debb432edd4701501c15c2215a8eee303",
-        "subject": "Merge pull request #145 from SAINTTaiYi/fix/reference-pickup-r4-v581"
-      },
-      {
-        "sha": "a626d5a470ca15192039cf67c32a714a92fc1df5",
-        "subject": "feat(desktop): choreograph bold module transitions"
-      },
-      {
-        "sha": "4f0633c8b0df0ab1aa3b6a0edfbe8a7eb36ae981",
-        "subject": "Merge pull request #146 from SAINTTaiYi/fix/reference-motion-r5-v581"
-      },
-      {
-        "sha": "e9cc2c28010fdc52b89e3c1712e5e410cd234dde",
-        "subject": "docs: record reference motion R5 Preview evidence"
-      },
-      {
-        "sha": "b202b1cf3af7ae8e67a000942e50537c4536b1c8",
-        "subject": "Merge pull request #147 from SAINTTaiYi/docs/reference-motion-r5-preview-evidence"
-      },
-      {
-        "sha": "92141ec6cb385378579704a33c406630404ca04c",
-        "subject": "fix(desktop): confine scene wipe to business region"
-      },
-      {
-        "sha": "ae3ef9e30297183f741971c6d22cbece5fe62a12",
-        "subject": "Merge pull request #148 from SAINTTaiYi/fix/reference-motion-scope-r6-v581"
-      },
-      {
-        "sha": "b63308832ce0bca3b9a62dd6baf995ea7995e4e1",
-        "subject": "docs: record R6 scoped-wipe Preview evidence"
-      },
-      {
-        "sha": "4bfb2b1e6df85061a8f36a6336b51f0f22846ff8",
-        "subject": "Merge pull request #149 from SAINTTaiYi/docs/reference-motion-r6-preview-evidence"
-      },
-      {
-        "sha": "fbf8a3f3c03cd1906cc3fc923393f5e08a1e4fb2",
-        "subject": "fix(mobile): restore compact Workshop UI"
-      },
-      {
-        "sha": "7559375027beb55cecf3fd20d1a40b2b7e8d9ab6",
-        "subject": "Merge pull request #150 from SAINTTaiYi/fix/mobile-reference-recovery-r7-v581"
-      },
-      {
-        "sha": "5aae4109fb9d64c0dc45d756ff4e77d34df71df0",
-        "subject": "docs: record mobile recovery R7 Preview evidence"
-      },
-      {
-        "sha": "24689ef1de16fe1051020363041a9630b1c37378",
-        "subject": "Merge pull request #151 from SAINTTaiYi/docs/mobile-recovery-r7-preview-evidence"
-      },
-      {
-        "sha": "b4866830537e6e94be9c27cce0d65e79d31b7c9e",
-        "subject": "fix(mobile): isolate desktop reference surfaces"
-      },
-      {
-        "sha": "8b98bff6a06f6a4778f40f889e4a0a633296af67",
-        "subject": "Merge pull request #152 from SAINTTaiYi/fix/mobile-overflow-r8-v581"
+        "sha": "9747dd2774b17abc5050a55d20f6d57595e777c5",
+        "subject": "Merge pull request #156 from SAINTTaiYi/feat/real-business-trends-preview"
       }
     ]
   },
   "announcement": {
-    "title": "桌面工作台与移动端体验重构",
-    "summary": "重构固定左栏桌面工作台与场景切换体验，并恢复紧凑、无桌面组件泄漏的五模块手机界面。",
+    "title": "真实七日业务趋势上线",
+    "summary": "桌面总览接入门店隔离的真实七日销售与维修进场趋势，清晰区分已保存零值和缺失数据。",
     "changes": [
-      "桌面端按 1536×1024 参考画布重构固定顶栏、左侧导航和单页业务工作区。",
-      "新增安全黄色场景切换动效，并严格限制在右侧业务区域；支持 reduced-motion。",
-      "统一待取、其它交接和维修台账的列结构、卡片展开、完成操作与记录展示。",
-      "优化其它交接完成态：当天保留、自动收起、紧凑完成标识，并完整显示交接事项。",
-      "恢复移动端紧凑顶栏、五模块连续流程和固定五项底栏，清除桌面台账、公告及销售卡泄漏。"
+      "销售趋势改用 daily_closings 的近七个自然日真实数据，已保存零值与未保存日期保持不同语义。",
+      "维修进场趋势改用永久审计事件统计新增维修单，并排除已撤回事件。",
+      "采用 Lieflat Basics F2 发丝折线与 F1 横档柱，补齐键盘重播、缺失提示和 reduced-motion 降级。"
     ]
   },
-  "preparedAt": "2026-08-04T20:55:20.454Z"
+  "preparedAt": "2026-08-05T10:22:02.898Z"
 }
