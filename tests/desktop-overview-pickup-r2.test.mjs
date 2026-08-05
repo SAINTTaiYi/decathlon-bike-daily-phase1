@@ -7,7 +7,7 @@ const ledger = await readFile(new URL('../apps/web/src/components/pickup/PickupL
 
 test('desktop reference uses the physical-pixel canvas and stable two-panel first row', () => {
   assert.match(css, /@media \(min-width: 768px\)/u)
-  assert.match(css, /zoom: calc\(100vw \/ 1536px\)/u)
+  assert.match(css, /zoom: var\(--ops-desktop-workbench-fit\)/u)
   assert.match(css, /ops-closing-card \{ grid-column: 1;/u)
   assert.match(css, /ops-sales-panel \{ grid-column: 2;/u)
   assert.match(css, /ops-analytics-grid/u)
