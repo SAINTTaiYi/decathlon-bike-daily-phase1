@@ -144,3 +144,11 @@ Preview 重新部署 run `31041554495` 成功（工作流自检 attempt 2 命中
 - 数据加载：总览与治理目录改为独立容错，单一端点失败不再让所有管理分区同时空白；门店详情切换先清旧数据并中止旧请求。
 - 测试治理：恢复既有入口/权限/端点/迁移/移动端全部主题，在此基础上叠加批量目标、去重分页、请求闸门、乐观锁、敏感凭据、卡片化和可访问性回归；不以删测试换绿灯。
 - CodeGraph：恢复时改动已存在，前置仅能如实记为“晚到恢复门禁”；后续修改前后持续 sync，CSS/Markdown 为明确非索引例外，由契约测试、构建与线上资产核验补偿。
+
+### 全面整改 Preview 交付（2026-08-06）
+
+- 实现 PR #172 的 `verify` / `secrets` 成功后普通合并，实际 Preview 身份 `db3ec5c80ae040ce753cebcd7659dc9daf391d26`。
+- Canonical `deploy-cloudflare-preview.yml` run `31049667663` 成功；seed 步骤明确 skipped，保留既有 Preview D1 全部数据与验收种子，未清空、重播种、恢复或变更 migration 文件。
+- 三轮 live/ready/meta 绕缓存核验均为 V5.8.3 + 精确 SHA；未登录后台端点均为 JSON 401；HTTP 308、关键安全头和线上 bundle 标记通过。线上 JS SHA-256：`85c796542958babd7aa44c7967e142329c4b3bd9dd3a8d379b5cfa7052c80615`。
+- Production 独立复核仍为 V5.8.3 + `3ec28a321…`，未部署、未触碰 Production D1。
+- 详细证据：`plan/ADMIN-CONSOLE-COMPREHENSIVE-REMEDIATION-EVIDENCE.md`。等待用户真实 CHU13 登录态验收；不得隐式 Production。
