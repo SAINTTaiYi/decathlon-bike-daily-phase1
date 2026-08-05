@@ -1,13 +1,13 @@
-export const APP_VERSION = "5.8.4"
+export const APP_VERSION = "5.8.3"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.08.05",
-  title: "桌面工作台完整适配浏览器视口",
-  summary: "桌面工作台改为同时依据浏览器可用宽度和高度等比适配，完整显示原生 1536 × 1024 业务画布。",
+  title: "真实七日业务趋势上线",
+  summary: "桌面总览接入门店隔离的真实七日销售与维修进场趋势，清晰区分已保存零值和缺失数据。",
   changes: [
-    "桌面缩放由仅按宽度改为宽高比例取较小值，避免矮窗口截断工作台下方内容。",
-    "不同屏幕比例下安全居中并保留留白，维持既有顶栏、侧栏和业务卡片几何。",
-    "手机布局、业务规则、API、数据库和 Cloudflare Worker 行为均保持不变。"
+    "销售趋势改用 daily_closings 的近七个自然日真实数据，已保存零值与未保存日期保持不同语义。",
+    "维修进场趋势改用永久审计事件统计新增维修单，并排除已撤回事件。",
+    "采用 Lieflat Basics F2 发丝折线与 F1 横档柱，补齐键盘重播、缺失提示和 reduced-motion 降级。"
   ]
 }

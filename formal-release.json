@@ -1,36 +1,48 @@
 {
   "kind": "formal-production-release",
-  "version": "5.8.4",
+  "version": "5.8.3",
   "previewRange": {
-    "fromExclusive": "856c729b7ab8b0ec930a8f4a56eee4c659f2a46f",
-    "toInclusive": "d9bd96507deea2eb16214521cda5695d8beddbb8",
+    "fromExclusive": "be8e0022806a9abe757637ba6b997ce7de5fe558",
+    "toInclusive": "9747dd2774b17abc5050a55d20f6d57595e777c5",
     "commits": [
       {
-        "sha": "84735cf1d31dcae2379c6ea116b29e9a97b748c1",
-        "subject": "docs: record real trends Preview acceptance"
+        "sha": "c451d2b405af7e1e5fe4324282d3b1f498d1bfa2",
+        "subject": "docs: record mobile overflow R8 Preview evidence"
       },
       {
-        "sha": "3f034c959461ad1b6235e3c18849630bf847cb33",
-        "subject": "Merge pull request #157 from SAINTTaiYi/docs/real-trends-preview-evidence"
+        "sha": "56f2f9db10c4ed74b3f284f75982ba205ffd455b",
+        "subject": "Merge pull request #153 from SAINTTaiYi/docs/mobile-overflow-r8-preview-evidence"
       },
       {
-        "sha": "3ec28a321b1f1f02a28a0e4d94abb1be1432065b",
-        "subject": "Merge pull request #158 from SAINTTaiYi/release/v5.8.3-real-trends"
+        "sha": "b29bfc660ce6128f3ae0227686bcb448e82f439e",
+        "subject": "Merge pull request #154 from SAINTTaiYi/release/v5.8.2-mobile-desktop-aggregate"
       },
       {
-        "sha": "d9bd96507deea2eb16214521cda5695d8beddbb8",
-        "subject": "fix: fit desktop workbench to full viewport"
+        "sha": "d643eea0665c84ac858e146f1c6e76d6c4e90390",
+        "subject": "docs: record V5.8.2 production release evidence"
+      },
+      {
+        "sha": "8418439d92099f315a71bf172e14db9e483f715d",
+        "subject": "Merge pull request #155 from SAINTTaiYi/docs/v582-production-release-evidence"
+      },
+      {
+        "sha": "3d60f8c860740361b530e973c71eb03211bb1810",
+        "subject": "feat: connect desktop trends to real seven-day data"
+      },
+      {
+        "sha": "9747dd2774b17abc5050a55d20f6d57595e777c5",
+        "subject": "Merge pull request #156 from SAINTTaiYi/feat/real-business-trends-preview"
       }
     ]
   },
   "announcement": {
-    "title": "桌面工作台完整适配浏览器视口",
-    "summary": "桌面工作台改为同时依据浏览器可用宽度和高度等比适配，完整显示原生 1536 × 1024 业务画布。",
+    "title": "真实七日业务趋势上线",
+    "summary": "桌面总览接入门店隔离的真实七日销售与维修进场趋势，清晰区分已保存零值和缺失数据。",
     "changes": [
-      "桌面缩放由仅按宽度改为宽高比例取较小值，避免矮窗口截断工作台下方内容。",
-      "不同屏幕比例下安全居中并保留留白，维持既有顶栏、侧栏和业务卡片几何。",
-      "手机布局、业务规则、API、数据库和 Cloudflare Worker 行为均保持不变。"
+      "销售趋势改用 daily_closings 的近七个自然日真实数据，已保存零值与未保存日期保持不同语义。",
+      "维修进场趋势改用永久审计事件统计新增维修单，并排除已撤回事件。",
+      "采用 Lieflat Basics F2 发丝折线与 F1 横档柱，补齐键盘重播、缺失提示和 reduced-motion 降级。"
     ]
   },
-  "preparedAt": "2026-08-05T11:56:13.741Z"
+  "preparedAt": "2026-08-05T10:22:02.898Z"
 }
