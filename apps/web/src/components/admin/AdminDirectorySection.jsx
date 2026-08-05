@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 import ProjectSelect from '../ProjectSelect.jsx'
 
 const kindLabels = { regions: '区域', cities: '城市', stores: '门店' }
+const statusLabels = { active: '生效', pending: '待审核', disabled: '停用' }
 
-export default function AdminDirectorySection({ governance, shared }) {
+export default function AdminDirectorySection({ governance, shared, onViewStore }) {
   const [form, setForm] = useState({ kind: 'regions', parentId: '', name: '', code: '' })
   const [editing, setEditing] = useState(null)
   if (!governance) return <section className="admin-panel"><h2>门店目录</h2><p className="admin-empty">暂无数据。</p></section>
@@ -27,7 +28,10 @@ export default function AdminDirectorySection({ governance, shared }) {
     await shared.updateDirectory(kind, item.id, { name, status: item.status })
     setEditing(null)
   }
-  const toggle = (kind, item) => shared.updateDirectory(kind, item.id, { name: item.name, status: item.status === 'active' ? 'disabled' : 'active' })
+  const toggle = (kind, item) => {
+    if (item.status === 'pending') return
+    void shared.updateDirectory(kind, item.id, { name: item.name, status: item.status === 'active' ? 'disabled' : 'active' })
+  }
 
   return (
     <section className="admin-panel">
@@ -39,12 +43,13 @@ export default function AdminDirectorySection({ governance, shared }) {
         <label className="field-row"><span>名称</span><input required maxLength="120" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} /></label>
         <button type="submit" className="primary-action">新增{kindLabels[form.kind]}</button>
       </form>
+      {form.kind === 'stores' ? <p className="admin-inline-status admin-directory-hint">门店创建后为「待审核」，需在审批分区批准后生效。</p> : null}
       <div className="admin-directory-tree">
         {directory.map((region) => (
           <div key={region.id} className="admin-directory-branch">
             <div className="admin-directory-row" data-kind="regions">
               {editing?.id === region.id ? <input className="admin-directory-rename" maxLength="120" value={editing.name} onChange={(event) => setEditing({ id: region.id, name: event.target.value })} onKeyDown={(event) => { if (event.key === 'Enter') void saveRename('regions', region); if (event.key === 'Escape') setEditing(null) }} aria-label="区域名称" /> : <strong>{region.name}</strong>}
-              <span className="admin-status-tag" data-status={region.status}>{region.status === 'active' ? '生效' : '停用'}</span>
+              <span className="admin-status-tag" data-status={region.status}>{statusLabels[region.status] || region.status}</span>
               <div className="admin-directory-actions">
                 <button type="button" onClick={() => setEditing(editing?.id === region.id ? null : { id: region.id, name: region.name })}>{editing?.id === region.id ? '保存' : '重命名'}</button>
                 <button type="button" onClick={() => void toggle('regions', region)}>{region.status === 'active' ? '停用' : '启用'}</button>
@@ -54,7 +59,7 @@ export default function AdminDirectorySection({ governance, shared }) {
               <div key={city.id} className="admin-directory-city">
                 <div className="admin-directory-row" data-kind="cities">
                   {editing?.id === city.id ? <input className="admin-directory-rename" maxLength="120" value={editing.name} onChange={(event) => setEditing({ id: city.id, name: event.target.value })} onKeyDown={(event) => { if (event.key === 'Enter') void saveRename('cities', city); if (event.key === 'Escape') setEditing(null) }} aria-label="城市名称" /> : <strong>{city.name}</strong>}
-                  <span className="admin-status-tag" data-status={city.status}>{city.status === 'active' ? '生效' : '停用'}</span>
+                  <span className="admin-status-tag" data-status={city.status}>{statusLabels[city.status] || city.status}</span>
                   <div className="admin-directory-actions">
                     <button type="button" onClick={() => setEditing(editing?.id === city.id ? null : { id: city.id, name: city.name })}>{editing?.id === city.id ? '保存' : '重命名'}</button>
                     <button type="button" onClick={() => void toggle('cities', city)}>{city.status === 'active' ? '停用' : '启用'}</button>
@@ -63,10 +68,11 @@ export default function AdminDirectorySection({ governance, shared }) {
                 {city.stores.map((store) => (
                   <div key={store.id} className="admin-directory-row" data-kind="stores">
                     {editing?.id === store.id ? <input className="admin-directory-rename" maxLength="120" value={editing.name} onChange={(event) => setEditing({ id: store.id, name: event.target.value })} onKeyDown={(event) => { if (event.key === 'Enter') void saveRename('stores', store); if (event.key === 'Escape') setEditing(null) }} aria-label="门店名称" /> : <><span className="admin-store-code">{store.code}</span><strong>{store.name}</strong></>}
-                    <span className="admin-status-tag" data-status={store.status}>{store.status === 'active' ? '生效' : '停用'}</span>
+                    <span className="admin-status-tag" data-status={store.status}>{statusLabels[store.status] || store.status}</span>
                     <div className="admin-directory-actions">
+                      <button type="button" onClick={() => onViewStore(store.id)}>查看</button>
                       <button type="button" onClick={() => setEditing(editing?.id === store.id ? null : { id: store.id, name: store.name })}>{editing?.id === store.id ? '保存' : '重命名'}</button>
-                      <button type="button" onClick={() => void toggle('stores', store)}>{store.status === 'active' ? '停用' : '启用'}</button>
+                      {store.status !== 'pending' ? <button type="button" onClick={() => void toggle('stores', store)}>{store.status === 'active' ? '停用' : '启用'}</button> : null}
                     </div>
                   </div>
                 ))}

@@ -202,7 +202,9 @@ Mobile keeps the normal document flow. At 1024px and above, the reference workbe
 
 The platform administrator (CHU13) surface is a governed console, not a second theme. It reuses the accepted desktop geometry (fixed 90px header, 262px left rail collapsing to an 84px icon rail below 1024px, independently scrolling business region) and the same tokens: warm paper field, black structure, signal yellow reserved for active navigation, pending-count badges, the single yellow approval action, and the single accented KPI lane.
 
-- Sections in order: Overview, Approvals, Directory, Users, Audit. Only the platform administrator may enter via the `#admin` hash; the same login system governs it.
-- Dense operational patterns apply: stat lanes, approval rows with explicit approve/reject decisions, a full directory tree with inline rename and enable/disable, a user table with role/store memberships, and a read-only platform audit with date/module filters and cursor pagination.
+- Sections in order: Overview, Stores, Approvals, Directory, Users, Audit. Only the platform administrator may enter via the `#admin` hash; the same login system governs it.
+- Dense operational patterns apply: stat lanes, approval rows with explicit approve/reject decisions, a full directory tree with inline rename and enable/disable, a user table with role/store memberships, and a read-only platform audit with date/module/store/actor/action filters and cursor pagination.
+- New stores enter a **pending (待审核)** state and only become active after the platform administrator approves them in the Approvals queue; the directory shows the pending badge and must not offer direct enable/disable for pending stores.
 - Data tables stay scannable through spacing, type hierarchy, and row hover; do not reintroduce decorative divider grids or repeated borders.
+- On phones below 768px the console uses a fixed bottom tab bar (Overview, Stores, Approvals, Directory, Users, Audit) mirroring the workshop dock; ledger tables collapse to card lists with thumb-friendly actions.
 - No gradients, glass, decorative color systems, or viewport-scaled type. Green and red remain semantic only. Reduced motion and forced colors apply unchanged.

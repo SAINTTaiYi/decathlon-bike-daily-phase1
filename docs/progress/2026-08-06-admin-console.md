@@ -84,3 +84,19 @@
 - Preview 工作流 run `31034132691` 成功；3 轮核验：live/ready 200、`/api/v1/meta/version` = **5.8.3** + gitSha `bb41285…` + `environment: preview`。
 - admin 端点未登录均 401；线上 JS bundle `index-Dshle5pS.js` 与本地构建一致，含「平台管理后台」与 `#admin`。
 - Production 复核不变：5.8.3 + `3ec28a3…`。V5.8.4/V5.8.5 代码不再出现在任何部署环境。
+
+## v2 实施记录（2026-08-06，产品经理问答定稿）
+
+需求经 6 轮问答确认（`plan/ADMIN-CONSOLE-IMPLEMENTATION-PLAN.md`），一次迭代完成：
+
+- **移动端**：<768px 底部标签栏 6 项（admin-dock）+ 表格卡片化 + 审批快捷操作；768–1023px 图标栏；桌面不变。
+- **门店分区**：列表（搜索）+ 详情（组织路径/成员/业务概览：今日工单/闭店状态/成员数）；目录树门店行「查看」跳转。
+- **总览驾驶舱**：上排今日变化（新增门店/用户、角色/调店批准、今日工单），下排 7/30 天切换（新增门店/用户、各门店权限变更发起/批准/拒绝 Top8、变化流 10 条）；全部可点击跳转。
+- **审批重构**：角色提权 / 调店申请 / 门店审核 三页签 × 待审批/已过期/已处理 三组；批量批准 + 全部批准；审批理由（拒绝必填）。
+- **门店审核制**：迁移 0008（stores.status 增 `pending`，SQLite 重建，drill 验证 0 FK 违规）；新门店创建即待审核，审批队列批准后生效；目录开关对 pending 门店禁用（409）。
+- **用户写操作**：创建账号（含 manager/admin 直授，登录名规范化、密码 ≥10）、禁用/恢复（禁用即时撤销会话 + 确认弹窗）、重置密码（一次性临时密码 + 强制改密）；平台管理员受保护不可禁用。
+- **审计**：门店 / 操作人 / 动作类型 / 日期 / 模块筛选。
+- **跨界面提醒**：门店工作台头部与菜单显示待审批角标（`/api/v1/admin/pending-count` 60s 轮询，仅平台管理员）。
+- 后端新增/扩展：overview（今日+周期+变化流）、stores/:id、approvals、pending-count、users storeId 过滤、audit 三筛选、用户三写端点、门店审核端点；governance 门店创建强制 pending + pending 开关防护。
+
+门禁：web 契约 **183/183**（管理后台 12 项）、worker **42/42**（新增 8 项）、worker tsc、vite build（JS 473.38 kB / CSS 307.40 kB）、`git diff --check`。CodeGraph 前后置仍待 Termux 或豁免；Preview 部署与验收待用户同意后进行。

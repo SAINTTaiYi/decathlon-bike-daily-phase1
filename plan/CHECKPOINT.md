@@ -9,6 +9,10 @@
 - **平台管理后台（CHU13 Admin Console）**：功能分支 `feat/admin-console` 已实现并通过本地门禁（web 契约 183/183、worker 34/34、worker typecheck、vite build）；含 3 个只读平台端点与 5 个分区。详见 `docs/progress/2026-08-06-admin-console.md`。CodeGraph 前置/后置需在 Termux 执行；Preview 部署与生产发布均需用户同意。
 - 桌面适配未决问题依旧：参考 1536×1024 与用户真实窗口不符，需用户提供真实 innerWidth/innerHeight 或截图后重新定标。
 
+## 当前状态加注（2026-08-06 23:xx +08:00）
+
+- 管理后台 v2（移动端 / 门店审核制 / 总览驾驶舱 / 用户写操作）已在分支 feat/admin-console-v2（PR #166，commit 4a10cb0）实现并通过本地门禁（web 183/183、worker 42/42、tsc、build）；方案见 plan/ADMIN-CONSOLE-IMPLEMENTATION-PLAN.md；迁移 0008（stores pending）随 Preview 部署自动应用。待 CI + Preview 部署 + 用户验收；CodeGraph 前后置待 Termux 或豁免。
+
 ## 当前正式发布加注（2026-08-04 +08:00）
 
 - Workshop 当前正式线上版本为 **V5.8.0**；发布 PR #132 合并 SHA：`ba86fd33f8f7c5dbc90ce37998a7876d0a0e85b7`。
