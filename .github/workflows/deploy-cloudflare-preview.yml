@@ -22,6 +22,11 @@ on:
         required: true
         type: boolean
         default: false
+      seed_preview_data:
+        description: Also inject deterministic admin-console acceptance data into the Preview D1 (scripts/ops/seed-preview-admin.mjs)
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -183,3 +188,14 @@ jobs:
           done
           echo "::error::Preview identity did not converge to $APP_VERSION / $RELEASE_SHA"
           exit 1
+      - name: Seed admin-console acceptance data (opt-in, Preview D1 only)
+        if: ${{ inputs.seed_preview_data == 'true' }}
+        run: |
+          node scripts/ops/seed-preview-admin.mjs > /tmp/seed-preview.sql
+          test -s /tmp/seed-preview.sql
+          wrangler d1 execute bike-ops-preview --remote --config wrangler.preview.jsonc --file=/tmp/seed-preview.sql
+          for i in 1 2 3; do
+            test "$(curl -sS -o /dev/null -w '%{http_code}' "$PREVIEW_BASE_URL/health/live?cb=$i")" = "200" || { echo "::error::preview /health/live failed after seed"; exit 1; }
+            test "$(curl -sS -o /dev/null -w '%{http_code}' "$PREVIEW_BASE_URL/health/ready?cb=$i")" = "200" || { echo "::error::preview /health/ready failed after seed"; exit 1; }
+          done
+          echo "Preview acceptance data seeded"

@@ -21,7 +21,7 @@ test('平台总览统计覆盖目录、账号、待审队列与当日工单', as
   assert.match(source, /FROM store_members WHERE status = 'active' GROUP BY role/u)
   assert.match(source, /FROM role_change_requests WHERE status = 'pending'/u)
   assert.match(source, /FROM store_transfer_requests WHERE status = 'pending'/u)
-  assert.match(source, /FROM work_items WHERE business_date = \? AND deleted_at IS NULL GROUP BY kind/u)
+  assert.match(source, /FROM work_items WHERE created_at >= \? AND created_at < \? AND deleted_at IS NULL GROUP BY kind/u)
 })
 
 test('平台总览 v2 覆盖今日、周期统计与变化流，支持点击跳转', async () => {

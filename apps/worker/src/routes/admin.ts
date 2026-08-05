@@ -36,6 +36,11 @@ function daysAgoIso(days: number): string {
   return new Date(Date.now() - days * 86400000).toISOString()
 }
 
+function tomorrowStartIso(): string {
+  const tomorrow = new Date(Date.parse(todayStartIso()) + 86400000)
+  return tomorrow.toISOString()
+}
+
 function parseHistoryFilters(query: (key: string) => string | undefined): { date: string; module: AuditModule | 'all'; cursor: string; limit: number } {
   const date = query('date') ?? ''
   if (date && !/^\d{4}-\d{2}-\d{2}$/u.test(date)) throw new ApiProblem(400, 'INVALID_HISTORY_FILTER', '日期筛选格式无效。')
@@ -90,7 +95,7 @@ export function adminRoutes() {
       first<{ n: number }>(c.env.DB.prepare('SELECT COUNT(*) AS n FROM users WHERE created_at >= ?').bind(todayStart)),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM role_change_requests WHERE status = 'approved' AND decided_at >= ?").bind(todayStart)),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM store_transfer_requests WHERE status = 'approved' AND decided_at >= ?").bind(todayStart)),
-      all<{ kind: string; n: number }>(c.env.DB.prepare('SELECT kind, COUNT(*) AS n FROM work_items WHERE business_date = ? AND deleted_at IS NULL GROUP BY kind').bind(localBusinessDate('Asia/Shanghai'))),
+      all<{ kind: string; n: number }>(c.env.DB.prepare('SELECT kind, COUNT(*) AS n FROM work_items WHERE created_at >= ? AND created_at < ? AND deleted_at IS NULL GROUP BY kind').bind(todayStart, tomorrowStartIso())),
       first<{ n: number }>(c.env.DB.prepare('SELECT COUNT(*) AS n FROM stores WHERE created_at >= ?').bind(d7)),
       first<{ n: number }>(c.env.DB.prepare('SELECT COUNT(*) AS n FROM stores WHERE created_at >= ?').bind(d30)),
       first<{ n: number }>(c.env.DB.prepare('SELECT COUNT(*) AS n FROM users WHERE created_at >= ?').bind(d7)),
@@ -198,7 +203,7 @@ export function adminRoutes() {
         WHERE sm.store_id = ? AND sm.status = 'active'
         ORDER BY sm.role, u.display_name ASC
       `).bind(storeId)),
-      all<{ kind: string; n: number }>(c.env.DB.prepare('SELECT kind, COUNT(*) AS n FROM work_items WHERE store_id = ? AND business_date = ? AND deleted_at IS NULL GROUP BY kind').bind(storeId, localBusinessDate(store.timezone))),
+      all<{ kind: string; n: number }>(c.env.DB.prepare('SELECT kind, COUNT(*) AS n FROM work_items WHERE store_id = ? AND created_at >= ? AND created_at < ? AND deleted_at IS NULL GROUP BY kind').bind(storeId, todayStartIso(), tomorrowStartIso())),
       first<{ n: number }>(c.env.DB.prepare('SELECT COUNT(*) AS n FROM daily_closings WHERE store_id = ? AND business_date = ?').bind(storeId, localBusinessDate(store.timezone))),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM store_members WHERE store_id = ? AND status = 'active'").bind(storeId))
     ])
