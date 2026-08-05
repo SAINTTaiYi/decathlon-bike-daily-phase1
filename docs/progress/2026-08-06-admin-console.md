@@ -77,3 +77,10 @@
 ## 恢复入口
 
 先读本文件 → `DESIGN.md`（Platform Admin Console 章节）→ `apps/worker/src/routes/admin.ts` → `apps/web/src/components/admin/PlatformAdminConsole.jsx` → 当前分支 git 状态。以精确代码/CI/Preview 证据为准。
+
+### V5.8.3 基线重新部署核验（2026-08-06）
+
+- PR #165 经 verify+secrets 通过后合并：merge SHA `bb41285b456f7e6a7e3f6a3ab1c5a4a02f2b6962`。
+- Preview 工作流 run `31034132691` 成功；3 轮核验：live/ready 200、`/api/v1/meta/version` = **5.8.3** + gitSha `bb41285…` + `environment: preview`。
+- admin 端点未登录均 401；线上 JS bundle `index-Dshle5pS.js` 与本地构建一致，含「平台管理后台」与 `#admin`。
+- Production 复核不变：5.8.3 + `3ec28a3…`。V5.8.4/V5.8.5 代码不再出现在任何部署环境。
