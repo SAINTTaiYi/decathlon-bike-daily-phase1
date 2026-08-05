@@ -46,6 +46,16 @@
 - `git diff --check` 通过。
 - 版本账本未改动（非正式发布）；`version-manifest.json` 保持现状，交由发布流程处理。
 
+## Preview 部署（2026-08-06，用户已同意）
+
+- PR #164（`feat/admin-console`，commit `8a49180`）经 `verify` + `secrets` CI 通过后普通 merge 进 `feature/cloudflare-workers-d1`：merge SHA `0a2f3859d30203fcd09c8d2cb383afdbfdcf1fd4`。
+- Canonical `deploy-cloudflare-preview.yml`（workflow_dispatch，release_sha = `0a2f3859…`，三个 Free/无计费/Preview-only 确认均 true）：run `31033048347` 成功，全部 16 步通过（含 Preview D1 迁移与应用、部署、线上 API/版本身份/Web shell 校验）。
+- Preview 地址：`https://bike-ops-preview.geeklightonefish.workers.dev`（环境 `preview`，平台 cloudflare-workers-d1）。
+- 独立核验：3 轮一致 `/health/live`=200、`/health/ready`=200、`/api/v1/meta/version` = appVersion 5.8.5 + gitSha `0a2f3859…`；安全头（HSTS / frame-ancestors 'none' / DENY / nosniff / referrer / permissions）通过；`HEAD /`=200。
+- 管理台守卫核验：未登录访问 `/api/v1/admin/{overview,users,audit-events}` 均返回 401 UNAUTHENTICATED。
+- 产物核验：线上 JS bundle `index-B3sM3Bit.js` 与本地构建哈希一致，含「平台管理后台」、`#admin`、`/api/v1/admin/overview`。
+- **待办**：用户需以真实 CHU13 登录态在 Preview 完成人工验收（菜单 → 平台管理后台，或直接 `#admin`）。Preview 通过不代表 Production 发布；正式发布仍需用户明确同意。
+
 ## 已知例外与未决项
 
 1. **CodeGraph 前置/后置验证未在本环境执行**（沙箱无 CodeGraph）。新增 JS/TSX/TS 文件会被 CodeGraph 索引；按项目治理要求，合并前需在 Termux 本机执行前置 sync 与后置 sync，或在用户明确同意下记录豁免。
