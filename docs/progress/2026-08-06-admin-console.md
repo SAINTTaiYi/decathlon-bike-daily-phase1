@@ -124,3 +124,9 @@
 3. `.admin-console` 加 `overflow: hidden`，滚动收敛至 `.admin-region`
 
 Preview 重新部署 run `31041554495` 成功（工作流自检 attempt 2 命中）；线上 meta = 5.8.3 + `cafb943…` + preview。数据无需重新 seed。
+
+### 移动端滚动修复（2026-08-06）
+
+用户复测：移动端仍滑不动。**根因**：<768px 媒体查询把 `.admin-body` 设为 `display:block`，`.admin-region` 高度跟随内容、`overflow-y:auto` 永不生效；`.admin-console`（fixed 全屏 + overflow:hidden）直接裁剪超出内容——无可滚动容器。
+
+修复（PR #170，merge `485a749`）：移动端 `.admin-body` → `flex column + min-height:0`；`.admin-region` → `flex:1 1 auto + min-height:0 + overflow-y:auto`（含 `-webkit-overflow-scrolling:touch`）；新增契约测试断言移动端滚动结构。线上压缩 CSS 复核通过（flex column / region overflow / 无 display:block）。Preview run `31042452176` 成功，meta = 5.8.3 + `485a749`。
