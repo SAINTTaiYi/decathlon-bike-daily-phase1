@@ -189,7 +189,7 @@ jobs:
           echo "::error::Preview identity did not converge to $APP_VERSION / $RELEASE_SHA"
           exit 1
       - name: Seed admin-console acceptance data (opt-in, Preview D1 only)
-        if: ${{ inputs.seed_preview_data == 'true' }}
+        if: ${{ inputs.seed_preview_data }}
         run: |
           node scripts/ops/seed-preview-admin.mjs > /tmp/seed-preview.sql
           test -s /tmp/seed-preview.sql
