@@ -147,3 +147,10 @@ test('管理台样式注册且覆盖移动端底部标签栏与卡片化布局',
   assert.doesNotMatch(cssSource, /linear-gradient|backdrop-filter/u)
   assert.match(cssSource, /min-height: 44px/u)
 })
+
+test('移动端滚动结构：admin-body flex column + region 独立滚动容器', () => {
+  const mobileBlock = cssSource.slice(cssSource.indexOf('@media (max-width: 767px)'))
+  assert.match(mobileBlock, /\.admin-body \{\s*\n\s*display: flex;\s*\n\s*flex-direction: column;\s*\n\s*min-height: 0;/u)
+  assert.match(mobileBlock, /\.admin-region \{\s*\n\s*flex: 1 1 auto;\s*\n\s*min-height: 0;\s*\n\s*overflow-y: auto;/u)
+  assert.doesNotMatch(mobileBlock, /\.admin-body \{\s*\n\s*display: block;/u)
+})

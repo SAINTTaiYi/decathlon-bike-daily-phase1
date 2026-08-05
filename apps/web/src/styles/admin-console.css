@@ -1667,7 +1667,9 @@
   }
 
   .admin-body {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
   }
 
   .admin-rail {
@@ -1675,6 +1677,10 @@
   }
 
   .admin-region {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     padding: 16px 12px 96px;
   }
 
