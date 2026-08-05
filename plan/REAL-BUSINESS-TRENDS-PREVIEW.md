@@ -24,3 +24,13 @@ Official source: `larashero3-dotcom/lieflat-charts`, audited commit `e5b369de1d0
 - Worker unit tests: date gap filling, saved zero vs missing, store isolation, repair intake, and undo exclusion.
 - Web contracts: real bootstrap wiring, no hard-coded dates/fake points, F1/F2 template signatures, accessible SVGs, honest units and reduced-motion fallback.
 - Existing desktop/mobile freeze contracts remain mandatory. The analytics DOM stays desktop-only.
+
+## Preview deployment and acceptance evidence
+
+- Candidate source: `3d60f8c860740361b530e973c71eb03211bb1810`; PR #156 merged normally as `9747dd2774b17abc5050a55d20f6d57595e777c5` after CI `verify` and `secrets` succeeded.
+- Canonical Preview workflow: `deploy-cloudflare-preview.yml`, run `30994615001`, success. Free-plan, no-billing and Preview-only confirmations were enforced.
+- Preview URL: <https://bike-ops-preview.geeklightonefish.workers.dev>. Three cache-bypassed rounds of `/health/live`, `/health/ready` and `/api/v1/meta/version` returned public V5.8.2 and deployment identity `9747dd2774b17abc5050a55d20f6d57595e777c5`. Deployed JavaScript contains the F2 Hairline Line and F1 Rung Bars signatures.
+- Human acceptance: the user explicitly replied “通过” on 2026-08-05. This accepts the Preview only; it does not authorize Production or a public version change.
+- Production, `workshop.skin`, and production D1 were not touched.
+- Browser visual automation exception: the required browser-harness CLI was unavailable on this device, so no application-browser or Android-accessibility fallback was used.
+- CodeGraph was run before and after this evidence-only change. Markdown is not indexed; this is an explicit coverage exception compensated by exact Git, Actions, HTTP, deployed-asset and human-acceptance evidence.
