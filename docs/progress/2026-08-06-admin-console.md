@@ -100,3 +100,9 @@
 - 后端新增/扩展：overview（今日+周期+变化流）、stores/:id、approvals、pending-count、users storeId 过滤、audit 三筛选、用户三写端点、门店审核端点；governance 门店创建强制 pending + pending 开关防护。
 
 门禁：web 契约 **183/183**（管理后台 12 项）、worker **42/42**（新增 8 项）、worker tsc、vite build（JS 473.38 kB / CSS 307.40 kB）、`git diff --check`。CodeGraph 前后置仍待 Termux 或豁免；Preview 部署与验收待用户同意后进行。
+### v2 Preview 部署核验（2026-08-06）
+
+- PR #166（v2 主体，merge `7159b8f`）首次 Preview 部署失败：D1 迁移 0008 报 `FOREIGN KEY constraint failed`（父表重建限制）。修复为 pending_review 列方案（PR #167，merge `c3770d17`）。
+- Preview 工作流 run `31038918633` 成功（含迁移 0008 在 Preview D1 应用）；3 轮核验：live/ready 200、`/api/v1/meta/version` = **5.8.3** + gitSha `c3770d17…` + `environment: preview`。
+- admin 端点未登录均 401（overview/users/stores/:id/approvals/pending-count）；线上 JS bundle `index-CIrF9bu5.js` 与本地构建一致，含 admin-dock / 批量批准 / 门店审核 / 创建账号 / 重置密码 / pending-count 等 v2 标记。
+- Production 复核不变：5.8.3 + `3ec28a3…`。待用户在真实 CHU13 登录态验收。
