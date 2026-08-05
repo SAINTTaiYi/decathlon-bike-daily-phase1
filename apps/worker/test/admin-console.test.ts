@@ -130,3 +130,19 @@ test('迁移 0008 以 pending_review 列实现门店待审核（无父表重建�
   assert.match(migration, /CREATE INDEX stores_pending_review_idx ON stores\(pending_review, created_at DESC\) WHERE pending_review = 1;/u)
   assert.doesNotMatch(migration, /RENAME TO stores_legacy/u)
 })
+
+test('admin 路由所有静态 SQL 的占位符与 bind 参数数量一致（防 500 回归）', async () => {
+  const source = await readFile(new URL('../src/routes/admin.ts', import.meta.url), 'utf8')
+  const pattern = /prepare\((`[^`]*`|"[^"]*")\)\.bind\(([^)]*)\)/gu
+  let match
+  let checked = 0
+  while ((match = pattern.exec(source))) {
+    if ((match[2] ?? '').includes('...')) continue
+    const sqlText = match[1].startsWith('`') ? match[1] : JSON.parse(match[1])
+    const placeholders = (sqlText.match(/\?/gu) || []).length
+    const bindArgs = match[2].split(',').map((part) => part.trim()).filter(Boolean)
+    assert.equal(placeholders, bindArgs.length, `prepare().bind() 参数数量不匹配（?=${placeholders} bind=${bindArgs.length}）`)
+    checked++
+  }
+  assert.ok(checked >= 10, `应至少扫描到 10 处静态查询（实际 ${checked}）`)
+})
