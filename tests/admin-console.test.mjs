@@ -154,3 +154,9 @@ test('移动端滚动结构：admin-body flex column + region 独立滚动容器
   assert.match(mobileBlock, /\.admin-region \{\s*\n\s*flex: 1 1 auto;\s*\n\s*min-height: 0;\s*\n\s*overflow-y: auto;/u)
   assert.doesNotMatch(mobileBlock, /\.admin-body \{\s*\n\s*display: block;/u)
 })
+
+test('审批卡片移动端：详情与操作显式占用宽列（防竖排文本）', () => {
+  const tabletBlock = cssSource.slice(cssSource.indexOf('@media (max-width: 1023px)'))
+  assert.match(tabletBlock, /\.admin-approval-row \{\s*\n\s*grid-template-columns: 24px minmax\(0, 1fr\);/u)
+  assert.match(tabletBlock, /\.admin-approval-row \.admin-approval-identity,\s*\n\s*\.admin-approval-row \.admin-approval-detail,\s*\n\s*\.admin-approval-row \.admin-approval-actions \{\s*\n\s*grid-column: 2;/u)
+})
