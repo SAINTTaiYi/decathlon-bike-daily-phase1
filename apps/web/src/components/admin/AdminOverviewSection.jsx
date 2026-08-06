@@ -3,11 +3,26 @@ import { useState } from 'react'
 const kindLabels = { pickup: '待取', handover: '交接', repair: '维修', resale: '二手' }
 const moduleLabels = { sales: '销售', closing: '闭店', pickup: '待取', repair: '维修', resale: '二手', handover: '交接', account: '账号', system: '系统' }
 const changeTypeLabels = { 'new-store': '新增门店', 'new-user': '新增用户', 'role-approved': '角色批准', 'transfer-approved': '调店批准' }
+const changeTones = { 'new-store': 'neutral', 'new-user': 'neutral', 'role-approved': 'success', 'transfer-approved': 'accent' }
 
-function formatTime(value) {
-  if (!value) return '—'
+const dayFormatter = new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' })
+const clockFormatter = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+const fullFormatter = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+
+function startOfDay(value) {
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(date)
+  date.setHours(0, 0, 0, 0)
+  return date
+}
+
+// 近三天用口语日锚点（今天 / 昨天 / 前天），更早回落到 月-日；full 供 title 悬浮读到完整时间。
+function formatStamp(value) {
+  if (!value) return { day: '—', clock: '', full: '' }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return { day: '—', clock: '', full: '' }
+  const distance = Math.round((startOfDay(Date.now()) - startOfDay(date)) / 86400000)
+  const day = distance === 0 ? '今天' : distance === 1 ? '昨天' : distance === 2 ? '前天' : dayFormatter.format(date)
+  return { day, clock: clockFormatter.format(date), full: fullFormatter.format(date) }
 }
 
 export default function AdminOverviewSection({ overview, onJump, roleLabels }) {
@@ -78,23 +93,40 @@ export default function AdminOverviewSection({ overview, onJump, roleLabels }) {
         <section className="admin-card">
           <header><h3>变化流</h3><small>RECENT CHANGES</small></header>
           {recentChanges?.length ? <ol className="admin-change-list">
-            {recentChanges.map((change, index) => (
-              <li key={`${change.type}-${change.id}-${index}`}>
-                <button type="button" onClick={() => onJump(change.type === 'new-user' ? 'users' : change.type === 'new-store' ? 'stores' : 'approvals')}>
-                  <time dateTime={change.at}>{formatTime(change.at)}</time>
-                  <span className="admin-module-tag">{changeTypeLabels[change.type] || change.type}</span>
-                  <span>{change.title}</span>
-                </button>
-              </li>
-            ))}
+            {recentChanges.map((change, index) => {
+              const stamp = formatStamp(change.at)
+              return (
+                <li key={`${change.type}-${change.id}-${index}`}>
+                  <button type="button" onClick={() => onJump(change.type === 'new-user' ? 'users' : change.type === 'new-store' ? 'directory' : 'approvals')}>
+                    <span className="admin-change-summary">{change.title}</span>
+                    <span className="admin-change-meta">
+                      <span className="admin-module-tag" data-tone={changeTones[change.type] || 'neutral'}>{changeTypeLabels[change.type] || change.type}</span>
+                      <time dateTime={change.at} title={stamp.full}>{stamp.day} {stamp.clock}</time>
+                      {change.storeCode ? <span className="admin-change-store">{change.storeCode}</span> : null}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
           </ol> : <p className="admin-empty">暂无变化。</p>}
         </section>
         <section className="admin-card admin-card-wide">
           <header><h3>最近平台事件</h3><small>RECENT AUDIT</small></header>
           {recentAudit?.length ? <ul className="admin-audit-strip">
-            {recentAudit.map((event) => (
-              <li key={event.id}><time dateTime={event.createdAt}>{formatTime(event.createdAt)}</time><span className="admin-module-tag">{moduleLabels[event.auditModule] || event.auditModule}</span><strong>{event.storeCode}</strong><span>{event.summary}</span></li>
-            ))}
+            {recentAudit.map((event) => {
+              const stamp = formatStamp(event.createdAt)
+              return (
+                <li key={event.id}>
+                  <span className="admin-audit-summary">{event.summary || '无摘要'}</span>
+                  <span className="admin-audit-meta">
+                    <span className="admin-module-tag">{moduleLabels[event.auditModule] || event.auditModule}</span>
+                    <time dateTime={event.createdAt} title={stamp.full}>{stamp.day} {stamp.clock}</time>
+                    <span className="admin-audit-store"><strong>{event.storeCode || '—'}</strong>{event.storeName ? <span>{event.storeName}</span> : null}</span>
+                    {event.actorNameSnapshot ? <span className="admin-audit-actor">{event.actorNameSnapshot}</span> : null}
+                  </span>
+                </li>
+              )
+            })}
           </ul> : <p className="admin-empty">暂无事件。</p>}
         </section>
       </div>

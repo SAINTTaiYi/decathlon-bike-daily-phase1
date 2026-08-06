@@ -13,6 +13,14 @@
 
 - 管理后台 v2（移动端 / 门店审核制 / 总览驾驶舱 / 用户写操作）已在分支 feat/admin-console-v2（PR #166，commit 4a10cb0）实现并通过本地门禁（web 183/183、worker 42/42、tsc、build）；方案见 plan/ADMIN-CONSOLE-IMPLEMENTATION-PLAN.md；迁移 0008（stores pending）随 Preview 部署自动应用。待 CI + Preview 部署 + 用户验收；CodeGraph 前后置待 Termux 或豁免。
 
+## 当前状态加注（2026-08-06 18:xx +08:00）
+
+- 本地已同步到 `origin/feature/cloudflare-workers-d1` HEAD `e79c4f90fd22982107b628e3d953c2f84ae0ad3e`（含 PR #172 全面整改、#174 门店统一进目录、#175 证据）；管理后台为 overview / approvals / directory / users / audit 五分区，`AdminStoresSection` 已退役。
+- **总览「变化流 / 最近平台事件」可读性重构**在分支 `fix/admin-overview-readability-20260806` 实现，仅 3 文件（`AdminOverviewSection.jsx`、`admin-console.css`、`tests/admin-console.test.mjs`，+151/-40）。根因为 `.admin-card-wide` 退化成死类导致三卡挤一行 + 单行 `nowrap` 截断 + 缺行高/行分隔/日锚点，非字号问题。详见 `docs/progress/2026-08-06-admin-console.md`。
+- 本地门禁全绿：web 198/198（含新增可读性契约）、worker 50/50、domain 7、database 10、API 21、typecheck、`check:workflows` 88、`git diff --check`、`vite build`，并以 `react-dom/server` SSR 真实渲染核对两块输出结构。
+- Production `workshop.skin` 保持 **V5.8.3 / `3ec28a32…`**，本轮不部署、不触碰 Production D1、不变更公开版本号。Preview 仅供验收。
+- 备忘：`pull` 后须先 `pnpm --filter @bike-ops/contracts build`，否则 worker 测试因旧 dist 缺 `adminCreateUserSchema` 假失败 1 项。CodeGraph 前后置本轮豁免（不在当前 workspace 沙箱）。
+
 ## 当前正式发布加注（2026-08-04 +08:00）
 
 - Workshop 当前正式线上版本为 **V5.8.0**；发布 PR #132 合并 SHA：`ba86fd33f8f7c5dbc90ce37998a7876d0a0e85b7`。

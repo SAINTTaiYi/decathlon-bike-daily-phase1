@@ -152,3 +152,32 @@ Preview 重新部署 run `31041554495` 成功（工作流自检 attempt 2 命中
 - 三轮 live/ready/meta 绕缓存核验均为 V5.8.3 + 精确 SHA；未登录后台端点均为 JSON 401；HTTP 308、关键安全头和线上 bundle 标记通过。线上 JS SHA-256：`85c796542958babd7aa44c7967e142329c4b3bd9dd3a8d379b5cfa7052c80615`。
 - Production 独立复核仍为 V5.8.3 + `3ec28a321…`，未部署、未触碰 Production D1。
 - 详细证据：`plan/ADMIN-CONSOLE-COMPREHENSIVE-REMEDIATION-EVIDENCE.md`。等待用户真实 CHU13 登录态验收；不得隐式 Production。
+
+### 总览「变化流 / 最近平台事件」可读性重构（2026-08-06）
+
+用户反馈：总览的变化流与最近平台事件读不清。**根因三条**（均为布局与信息结构问题，不是字号问题）：
+
+1. `.admin-card-wide` 在 #172 重构中失去全部 CSS 规则，退化为死类；三张卡被 `.admin-overview-grid: 1fr 1fr 1.6fr` 挤在同一行，变化流标题列实际仅约 140px，审计摘要列约 280px。
+2. 两处列表行都是单行 `white-space: nowrap` + `text-overflow: ellipsis`，中文摘要在上述宽度下几乎必被截断。
+3. 行高、行分隔与时间锚点缺失：13px 无 `line-height`，行与行之间无分隔线，时间只有 `08-06 09:10` 形态，无「今天 / 昨天」相对锚点。
+
+修复（改动仅 3 文件，+151/-40）：
+
+- 栅格改为两行：统计卡与变化流并排 `minmax(0,1fr) minmax(0,1.15fr)`，并恢复 `.admin-card-wide { grid-column: 1 / -1 }`，让事件条独占整行，摘要可用宽度由约 280px 提升至约 1140px。
+- 行结构由「单行截断」改为两行阅读结构：摘要 14px / `line-height: 1.5` / `overflow-wrap: anywhere` 可换行；元信息降为 12px 第二行，承载标签、时间、门店与操作人。
+- 新增 `formatStamp()`：近三天返回今天 / 昨天 / 前天，更早回落 `MM/DD`，并把完整年月日时分挂在 `title` 上供悬浮读取；时间统一 `font-variant-numeric: tabular-nums`。
+- `.admin-module-tag[data-tone='success' | 'accent']` 语义色：角色批准为成功绿，调店批准为信号黄低饱和，新增类保持中性。
+- 行间 1px `--ops-line` 分隔、`min-height: 44px` 触摸目标；变化流保留 hover 与 `:focus-visible` 焦点环。
+- 审计行补上后端已返回但界面未使用的 `storeName` 与 `actorNameSnapshot`；操作人用 `border-left` 分隔而非 `::before` 伪元素文本，避免读屏念出装饰字符。
+- 顺带修复死链：变化流中新增门店原先 `onJump('stores')`，该分区已在 #174 合并进目录，改为 `'directory'`。
+
+自动化门禁：
+
+- `pnpm test:web`：**198 / 198 通过**，含新增可读性契约测试（钉住宽卡跨列、两行结构、语义 tone、无 `nowrap` 截断，防止后续重构再退化）。
+- Worker **50 / 50**、domain **7**、database **10**、API **21** 全部通过。
+- `pnpm typecheck`（含 worker）通过；`pnpm check:workflows` 88 条策略通过；`git diff --check` 干净；`vite build` 成功。
+- 额外用 `react-dom/server` 对这两块做真实 SSR 渲染，逐行核对输出 HTML 结构与相对日锚点，而非仅依赖正则断言。
+
+环境备忘：`pull` 之后 `packages/contracts/dist` 为旧产物、缺 `adminCreateUserSchema` 等导出，会让 worker 测试假失败 1 项；须先 `pnpm --filter @bike-ops/contracts build` 再跑 worker 测试。SSR 冒烟入口须放在 `apps/web/`（`react-dom` 在 `apps/web/node_modules`，不在仓库根）。
+
+CodeGraph 前后置本轮记为豁免：CodeGraph 装在 Termux 本机，不在本轮使用的 workspace 沙箱内；CSS 与 Markdown 本身即非索引例外，由契约测试、SSR 渲染核对、构建与线上资产核验补偿。
