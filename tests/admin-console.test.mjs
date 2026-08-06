@@ -154,6 +154,30 @@ test('变化流与最近平台事件为阅读型两行结构：摘要整行换�
   assert.match(cssSource, /\.admin-audit-strip li\s*\{[^}]*border-top/u)
 })
 
+test('审批行为阅读型结构：去向不截断、元信息分项、截止时间带紧迫度', () => {
+  // 身份列此前是单行 nowrap + ellipsis，调店的「源店 → 目标店」两个中文店名必被截断。
+  assert.match(approvalsSource, /admin-approval-move-from/u)
+  assert.match(approvalsSource, /admin-approval-move-to/u)
+  assert.match(cssSource, /\.admin-approval-identity span\s*\{[^}]*overflow-wrap: anywhere/u)
+  assert.doesNotMatch(cssSource, /\.admin-approval-identity span\s*\{[^}]*white-space: nowrap/u)
+  // 元信息原来用「·」串成一行，改为标签 + 值的分项结构。
+  assert.match(approvalsSource, /function ApprovalMeta/u)
+  assert.match(approvalsSource, /admin-approval-meta-label/u)
+  // 审批会过期：截止时间必须显示剩余量并按紧迫度上色，否则容易漏批。
+  assert.match(formatSource, /export function formatDeadline/u)
+  assert.match(formatSource, /'urgent'/u)
+  assert.match(formatSource, /'expired'/u)
+  assert.match(formatSource, /已过期/u)
+  assert.match(cssSource, /\[data-tone='urgent'\] time[\s\S]{0,120}?--ops-danger/u)
+  // 与其余四个分区统一走共享格式化，不再各自实现 formatTime。
+  assert.match(approvalsSource, /from '\.\/admin-format\.js'/u)
+  assert.doesNotMatch(approvalsSource, /function formatTime/u)
+  // 角色/调店申请的终态也要有状态标签，此前只有门店审核显示。
+  assert.match(approvalsSource, /requestStatusLabels/u)
+  // 三列高度不等时顶对齐，避免长理由把身份列压到视觉居中错位。
+  assert.match(cssSource, /\.admin-approval-row\s*\{[^}]*align-items: start/u)
+})
+
 test('目录写操作失败必须可见：四处 catch 不再静默吞掉错误', () => {
   // 此前 createDirectory / updateDirectory(重命名) / updateDirectory(停用) / 成员变更
   // 全是 catch {}，失败后按钮恢复可点但界面无任何提示，用户会以为是自己操作错了。

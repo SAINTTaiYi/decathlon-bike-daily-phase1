@@ -538,7 +538,7 @@
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(0, 1.6fr) auto;
   gap: 18px;
-  align-items: center;
+  align-items: start;
   padding: 14px 18px;
   border-radius: 8px;
   background: var(--ops-card, #fffdf8);
@@ -557,12 +557,110 @@
   font-weight: 700;
 }
 
+/* 身份列不再单行截断：门店名与调店去向都要能完整读到。 */
 .admin-approval-identity span {
   font-size: 13px;
   color: var(--ops-text-muted, #55554f);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-approval-place {
+  line-height: 1.45;
+}
+
+/* 调店去向：源店与目标店各自成段，箭头独立，窄屏可换行而不是挤成一行截断。 */
+.admin-approval-move {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  line-height: 1.45;
+}
+
+.admin-approval-move-arrow {
+  color: var(--ops-text-muted, #55554f);
+}
+
+.admin-approval-move-to {
+  font-weight: 600;
+  color: var(--ops-text, #0a0b0a);
+}
+
+/* 角色变更：目标角色加重，一眼看出要提到哪一级。 */
+.admin-approval-role-shift {
+  line-height: 1.45;
+}
+
+.admin-approval-role-shift strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ops-text, #0a0b0a);
+}
+
+/* 元信息由「·」长串改为分项，标签与值成对出现。 */
+.admin-approval-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  font-size: 12px;
+  color: var(--ops-text-muted, #55554f);
+}
+
+.admin-approval-meta-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+
+.admin-approval-meta-label {
+  color: var(--ops-text-muted, #55554f);
+  opacity: .75;
+}
+
+.admin-approval-meta time {
+  font-family: var(--font-display, 'Barlow Condensed Ops');
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* 截止时间按紧迫度上色：24 小时内或已过期必须显眼，否则容易漏批。 */
+.admin-approval-meta-item[data-tone='urgent'] time,
+.admin-approval-meta-item[data-tone='expired'] time {
+  color: var(--ops-danger, #c63b2e);
+  font-weight: 700;
+}
+
+.admin-approval-meta-item[data-tone='soon'] time {
+  color: #6b4a00;
+  font-weight: 600;
+}
+
+.admin-approval-no-reason {
+  color: var(--ops-text-muted, #55554f);
+}
+
+.admin-approval-decision {
+  margin: 2px 0 0;
+  padding-left: 8px;
+  border-left: 2px solid var(--ops-line, #dedbd2);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ops-text-muted, #55554f);
+  overflow-wrap: anywhere;
+}
+
+.admin-status-tag[data-status='danger'] {
+  background: rgb(198 59 46 / .1);
+  color: var(--ops-danger, #c63b2e);
+}
+
+.admin-status-tag[data-status='pending'] {
+  background: rgb(255 195 26 / .22);
+  color: #6b4a00;
 }
 
 .admin-approval-detail {

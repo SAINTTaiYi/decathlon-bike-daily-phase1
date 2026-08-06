@@ -249,3 +249,22 @@ CodeGraph 前后置本轮仍记豁免（CodeGraph 在 Termux 本机，不在本�
 门禁：web **203/203**、worker 50/50、domain 7、database 10、api 21、typecheck（含 worker）、workflow policy 88、`git diff --check` 干净、构建通过。
 
 **未交付**：GitHub Actions 自 2026-08-06 15:22 UTC 起 major_outage，PR CI 与 Preview 部署工作流均跑在 `ubuntu-latest`，无法获取 runner。本轮改动与 PR #177（目录/用户可读性）同样处于"已完成、待 Actions 恢复后交付 Preview"状态。Production 保持 V5.8.3 / `3ec28a32…` 未触碰。CodeGraph 前后置仍记豁免（不在当前 workspace 沙箱）。
+
+### 审批分区可读性重构（2026-08-07）
+
+五个分区中最后一个未做可读性处理的。**先算过宽度再动手**：审批行 1144px 内容宽下身份列约 365px，调店去向串「CHU07 南京新城科技园店 → CHU13 上海中山公园店」按中文 13px 估算约 300px——宽度本身够用，所以这里的问题不是挤压，而是别的四处：
+
+1. **身份列单行截断**。`.admin-approval-identity span` 是 `white-space: nowrap` + `text-overflow: ellipsis`。宽度虽勉强够，但门店名一旦更长（或窄屏、大字号），调店去向就会被截成「CHU07 南京新城科技…」，看不出要调到哪。改为 `overflow-wrap: anywhere` 可换行，并把去向拆成 `move-from / arrow / move-to` 三段独立元素，目标店加重，窄屏自然换行而不是截断。
+2. **元信息挤成一条「·」串**。原本是 `08-06 21:00 · 修订 2 · 截止 08-09 03:00 · 审批意见…` 全部拼在一个 `<small>` 里。改为 `ApprovalMeta` 组件输出「标签 + 值」分项（提交 / 修订 / 截止），审批意见单独成段并用左边框区隔。
+3. **截止时间看不出紧迫度**——这是功能性缺陷，不只是排版。审批申请会过期（后端按 `expires_at` 判定并单列"已过期"分组），但界面只显示绝对时间「截止 08-09 03:00」，读者得自己算还剩多久，快到期的容易漏批。新增 `formatDeadline()` 输出剩余量与 tone：<1h 显示「剩 40 分钟」、<24h「剩 18 小时」、≤2 天「剩 2 天」、更远「剩 5 天」、已过则「已过期」；`urgent`/`expired` 用 `--ops-danger` 红色加粗，`soon` 用琥珀，完整时间仍在 `title`。
+4. **时间格式与其余分区不一致**，且角色/调店申请的终态没有状态标签（只有门店审核有）。改为复用 `admin-format.js` 的 `formatStamp`（删掉本地 `formatTime`），并为 approved/rejected/cancelled 补 `admin-status-tag`。
+
+另把审批行从 `align-items: center` 改为 `start`：长理由会把详情列拉高，居中会让身份列文字视觉下沉错位。
+
+**SSR 验证**：导出 `ApprovalMeta` 后用 6 组固定时间 fixture 在 `TZ=Asia/Shanghai` 下真实渲染，逐一核对 tone 与文案——40 分钟/18 小时 → `urgent`，2 天 → `soon`，5 天 → `normal`，过期 → `expired`，门店审核无 `expiresAt` 时整个截止项不渲染；日锚点输出今天/昨天/前天/日期均正确。渲染无 React 警告。（首次尝试整行渲染得到 0 行，因为列表数据在 `useEffect` 里异步加载而 `renderToStaticMarkup` 只渲染首帧，故改为直接渲染展示单元。）
+
+**非后台红线复查**：后台样式表仍为 100% admin 作用域锚定（0 条泄漏）。构建产物中主 CSS 仍是 280.33 kB、主 JS 429.05 kB，与上一轮**完全一致**；新增审批样式全部落在后台 chunk（33.63 → 35.12 kB），非后台页面零影响。
+
+门禁：web **204/204**、worker 50/50、domain 7、database 10、api 21、typecheck、workflow policy 88、`git diff --check` 干净、构建通过。
+
+至此五个分区（总览 / 目录 / 用户 / 审批 / 审计）可读性全部处理完毕；审计分区在 #172 已具备桌面表格与移动卡片双形态，本轮核对后无需再改。
