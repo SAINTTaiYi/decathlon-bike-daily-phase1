@@ -272,10 +272,15 @@
   text-overflow: ellipsis;
 }
 
+/* 变化流与平台事件是阅读型列表：统计卡与变化流并排，事件条独占整行拿到全部行宽。 */
 .admin-overview-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
   gap: 14px;
+}
+
+.admin-card-wide {
+  grid-column: 1 / -1;
 }
 
 .admin-card {
@@ -370,34 +375,70 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 事件条：摘要是主行、可换行；模块 / 时间 / 门店 / 操作人退为次行元数据。 */
 .admin-audit-strip {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .admin-audit-strip li {
-  display: grid;
-  grid-template-columns: 88px 58px 64px minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-  min-height: 40px;
-  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 44px;
+  padding: 9px 0;
+  border-top: 1px solid var(--ops-line, #dedbd2);
 }
 
-.admin-audit-strip time {
+.admin-audit-strip li:first-child {
+  border-top: 0;
+  padding-top: 2px;
+}
+
+.admin-audit-summary {
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.admin-audit-meta,
+.admin-change-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 12px;
+  color: var(--ops-text-muted, #55554f);
+}
+
+.admin-audit-strip time,
+.admin-change-list time {
   font-family: var(--font-display, 'Barlow Condensed Ops');
   font-size: 13px;
   color: var(--ops-text-muted, #55554f);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.admin-audit-strip span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.admin-audit-store {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+
+.admin-audit-store strong {
+  font-weight: 600;
+  color: var(--ops-text, #0a0b0a);
+}
+
+.admin-audit-actor {
+  padding-left: 10px;
+  border-left: 1px solid var(--ops-line, #dedbd2);
 }
 
 .admin-module-tag {
@@ -412,6 +453,16 @@
   font-weight: 600;
   color: var(--ops-text, #0a0b0a);
   white-space: nowrap;
+}
+
+.admin-module-tag[data-tone='success'] {
+  background: rgb(23 97 60 / .1);
+  color: var(--ops-success, #17613c);
+}
+
+.admin-module-tag[data-tone='accent'] {
+  background: rgb(255 195 26 / .22);
+  color: #6b4a00;
 }
 
 .admin-tabs {
@@ -1018,6 +1069,7 @@
   font-weight: 600;
 }
 
+/* 变化流：标题升为可换行主行，类型 / 时间 / 门店退为次行元数据。 */
 .admin-change-list {
   list-style: none;
   margin: 0;
@@ -1026,18 +1078,22 @@
   flex-direction: column;
 }
 
+.admin-change-list li + li {
+  border-top: 1px solid var(--ops-line, #dedbd2);
+}
+
 .admin-change-list button {
   width: 100%;
-  display: grid;
-  grid-template-columns: 96px 72px minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
   min-height: 44px;
+  padding: 9px 8px;
   border: 0;
   border-radius: 6px;
   background: transparent;
   font: inherit;
-  font-size: 13px;
   text-align: left;
   cursor: pointer;
 }
@@ -1051,17 +1107,14 @@
   outline-offset: 1px;
 }
 
-.admin-change-list time {
-  font-family: var(--font-display, 'Barlow Condensed Ops');
-  font-size: 12px;
-  color: var(--ops-text-muted, #55554f);
-  font-variant-numeric: tabular-nums;
+.admin-change-summary {
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
-.admin-change-list button > span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.admin-change-store {
+  font-variant-numeric: tabular-nums;
 }
 
 .admin-stores-layout {

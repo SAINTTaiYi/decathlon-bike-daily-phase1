@@ -121,6 +121,32 @@ test('总览为驾驶舱：今日变化、7/30 天切换、权限变更与变化
   assert.match(overviewSource, /today\.items/u)
 })
 
+test('变化流与最近平台事件为阅读型两行结构：摘要整行换行、元信息带日锚点，宽卡真正跨列', () => {
+  // 摘要独占一行且允许换行，元信息（标签/时间/门店/操作人）降为次级行。
+  assert.match(overviewSource, /admin-change-summary/u)
+  assert.match(overviewSource, /admin-change-meta/u)
+  assert.match(overviewSource, /admin-audit-summary/u)
+  assert.match(overviewSource, /admin-audit-meta/u)
+  assert.match(overviewSource, /event\.actorNameSnapshot/u)
+  assert.match(overviewSource, /event\.storeName/u)
+  // 近三天用日锚点，完整时间进 title，避免只剩 月-日 时:分 难以定位。
+  assert.match(overviewSource, /'今天'/u)
+  assert.match(overviewSource, /'昨天'/u)
+  assert.match(overviewSource, /'前天'/u)
+  assert.match(overviewSource, /title=\{stamp\.full\}/u)
+  // 变化流类型标签带语义色调。
+  assert.match(overviewSource, /changeTones/u)
+  assert.match(overviewSource, /data-tone=/u)
+  // 事件条独占整行；两处摘要都不得回到 nowrap 截断。
+  assert.match(cssSource, /\.admin-card-wide\s*\{[^}]*grid-column: 1 \/ -1/u)
+  assert.match(cssSource, /\.admin-change-summary\s*\{[^}]*overflow-wrap: anywhere/u)
+  assert.match(cssSource, /\.admin-audit-summary\s*\{[^}]*overflow-wrap: anywhere/u)
+  assert.doesNotMatch(cssSource, /\.admin-audit-strip span:last-child/u)
+  // 行分隔线让长列表可扫读。
+  assert.match(cssSource, /\.admin-change-list li \+ li\s*\{[^}]*border-top/u)
+  assert.match(cssSource, /\.admin-audit-strip li\s*\{[^}]*border-top/u)
+})
+
 test('目录分区承载门店行、成员详情与四级层级', () => {
   assert.match(directorySource, /admin-directory-major-grid/u)
   assert.match(directorySource, /shared\.getStore/u)
