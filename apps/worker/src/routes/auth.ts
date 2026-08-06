@@ -33,7 +33,11 @@ function mapMemberships(rows: MembershipRow[]) {
 // applied to the failure response only, so a legitimate admin typing the right password is never
 // slowed down.
 export const LOGIN_BACKOFF_THRESHOLD = 5
-export const LOGIN_BACKOFF_MAX_MS = 30_000
+// Capped low on purpose. The edge rate limiting rule caps how fast an attacker can
+// retry at all, so the in-Worker delay only has to make online guessing impractical.
+// A longer sleep would hold a Worker invocation open — the delay itself would become
+// a mild amplification surface — and would strand a legitimate user who mistyped.
+export const LOGIN_BACKOFF_MAX_MS = 8_000
 
 export function loginBackoffMs(failedCount: number): number {
   if (failedCount < LOGIN_BACKOFF_THRESHOLD) return 0

@@ -13,9 +13,10 @@ test('登录退避在阈值前为零，之后指数增长并封顶', () => {
   assert.equal(loginBackoffMs(6), 2000)
   assert.equal(loginBackoffMs(7), 4000)
   assert.equal(loginBackoffMs(8), 8000)
-  assert.equal(loginBackoffMs(9), 16000)
 
-  // Capped so a stuck client cannot hold a Worker invocation open indefinitely.
+  // Capped so a stuck client cannot hold a Worker invocation open indefinitely,
+  // and so a legitimate mistyped password never looks like a frozen page.
+  assert.equal(loginBackoffMs(9), LOGIN_BACKOFF_MAX_MS)
   assert.equal(loginBackoffMs(10), LOGIN_BACKOFF_MAX_MS)
   assert.equal(loginBackoffMs(50), LOGIN_BACKOFF_MAX_MS)
   assert.equal(loginBackoffMs(10_000), LOGIN_BACKOFF_MAX_MS)
