@@ -201,6 +201,53 @@
 .dialog-action { display: grid; grid-template-columns: 1.5rem minmax(0,1fr); align-items: center; gap: .75rem; width: 100%; min-height: 4.5rem; padding: .75rem; border: 1px solid var(--line); text-align: left; }
 .dialog-action > span { display: grid; gap: .2rem; }
 .dialog-action small { color: var(--muted); font-size: .8125rem; line-height: 1.35; }
+
+/* 后台分包加载中的占位提示：此时 admin-console.css 尚未到达，
+   所以样式必须在全局，否则提示会以无样式文本闪现。 */
+.admin-console-loading {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 24px;
+  background: var(--ops-page, #f7f5ef);
+  color: var(--ops-text-muted, #55554f);
+  font-size: 14px;
+}
+
+/* 平台管理员待审批角标：宿主是门店工作台头部与菜单弹窗，均为非后台页面，
+   因此规则必须常驻全局样式，不能跟随后台分包延迟加载。 */
+.workshop-pending-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--ops-yellow, #ffc31a);
+  color: var(--ops-black, #0c0e0c);
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px var(--ops-page, #f7f5ef);
+}
+
+.dialog-action-badge {
+  margin-left: auto;
+  min-width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--ops-yellow, #ffc31a);
+  color: var(--ops-black, #0c0e0c);
+  font-size: 12px;
+  font-weight: 700;
+}
 .signed-in-user { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: .5rem; padding: .75rem; border: 1px solid var(--ink); background: var(--ink); color: #fff; }
 .signed-in-user span { color: rgb(255 255 255 / .72); font-family: var(--font-mono); font-size: .7rem; font-weight: 750; }
 .signed-in-user strong { max-width: 14rem; overflow-wrap: anywhere; text-align: right; }

@@ -71,18 +71,21 @@ test('后台 CSS 只有一组响应式/动效/forced-colors 门禁且补齐 44px
   assert.match(cssSource, /admin-directory-actions button,[\s\S]*min-height: 44px/u)
 })
 
-const [appSource, overviewSource, formatSource, menuSource, headerSource, indexCss] = await Promise.all([
+const [appSource, overviewSource, formatSource, menuSource, headerSource, indexCss, componentsCss, directoryMigration] = await Promise.all([
   read('../apps/web/src/App.jsx'),
   read('../apps/web/src/components/admin/AdminOverviewSection.jsx'),
   read('../apps/web/src/components/admin/admin-format.js'),
   read('../apps/web/src/components/dialogs/MenuDialog.jsx'),
   read('../apps/web/src/components/workshop/WorkshopShellHeader.jsx'),
-  read('../apps/web/src/styles/index.css')
+  read('../apps/web/src/styles/index.css'),
+  read('../apps/web/src/styles/components.css'),
+  read('../migrations/d1/0010_admin_console_query_indexes.sql')
 ])
 
 // Preserved baseline coverage from the accepted admin-console implementation.
 test('平台管理后台仅在平台管理员且 hash 为 #admin 时渲染', () => {
-  assert.match(appSource, /import PlatformAdminConsole from '\.\/components\/admin\/PlatformAdminConsole\.jsx'/u)
+  // 后台改为按需分包，入口由静态 import 变为 lazy 动态 import；权限与 hash 约束不变。
+  assert.match(appSource, /lazy\(\(\) => import\('\.\/components\/admin\/PlatformAdminConsole\.jsx'\)\)/u)
   assert.match(appSource, /adminMode && auth\.user\?\.isPlatformAdmin/u)
   assert.match(appSource, /<PlatformAdminConsole/u)
   assert.match(appSource, /onExit=\{exitAdminMode\}/u)
@@ -102,7 +105,9 @@ test('门店工作台头部为平台管理员显示待审批角标并轮询轻�
   assert.match(appSource, /getAdminPendingCount\(\)/u)
   assert.match(appSource, /setInterval\(\(\) => void poll\(\), 60000\)/u)
   assert.match(appSource, /pendingBadge=\{adminPending\}/u)
-  assert.match(cssSource, /\.workshop-pending-badge/u)
+  // 角标宿主是门店工作台头部（非后台页面），样式已移入常驻 components.css，
+  // 以免随后台分包延迟加载导致无样式闪现。
+  assert.match(componentsCss, /\.workshop-pending-badge/u)
 })
 
 test('管理台外壳包含五个分区与移动 dock', () => {
@@ -147,6 +152,58 @@ test('变化流与最近平台事件为阅读型两行结构：摘要整行换�
   // 行分隔线让长列表可扫读。
   assert.match(cssSource, /\.admin-change-list li \+ li\s*\{[^}]*border-top/u)
   assert.match(cssSource, /\.admin-audit-strip li\s*\{[^}]*border-top/u)
+})
+
+test('目录写操作失败必须可见：四处 catch 不再静默吞掉错误', () => {
+  // 此前 createDirectory / updateDirectory(重命名) / updateDirectory(停用) / 成员变更
+  // 全是 catch {}，失败后按钮恢复可点但界面无任何提示，用户会以为是自己操作错了。
+  assert.doesNotMatch(directorySource, /catch \{\}/u)
+  assert.match(directorySource, /const \[writeError, setWriteError\] = useState\(''\)/u)
+  assert.match(directorySource, /admin-directory-write-error/u)
+  assert.match(directorySource, /role="alert"/u)
+  // 四处写操作都要落到 setWriteError
+  assert.ok((directorySource.match(/setWriteError\(error\.message/gu) || []).length >= 4, '四处写操作都应上报错误原因')
+})
+
+test('后台按需分包：门店用户首屏不加载后台组件与样式，但非后台角标样式必须常驻全局', () => {
+  // 后台入口切成异步 chunk
+  assert.match(appSource, /lazy\(\(\) => import\('\.\/components\/admin\/PlatformAdminConsole\.jsx'\)\)/u)
+  assert.match(appSource, /<Suspense fallback=/u)
+  assert.doesNotMatch(appSource, /^import PlatformAdminConsole from/mu)
+  // 后台样式随后台入口加载，已从全局 index.css 移除
+  assert.doesNotMatch(indexCss, /@import '\.\/admin-console\.css'/u)
+  assert.match(consoleSource, /import '\.\.\/\.\.\/styles\/admin-console\.css'/u)
+  // 关键红线：这两个角标的宿主是门店工作台头部与菜单弹窗（非后台页面），
+  // 规则必须留在常驻样式里，否则平台管理员在非后台页面会看到无样式角标。
+  assert.match(componentsCss, /\.workshop-pending-badge\s*\{/u)
+  assert.match(componentsCss, /\.dialog-action-badge\s*\{/u)
+  assert.doesNotMatch(cssSource, /\.workshop-pending-badge\s*\{/u)
+  assert.doesNotMatch(cssSource, /\.dialog-action-badge\s*\{/u)
+  // 分包加载占位样式同样必须常驻，否则提示会无样式闪现
+  assert.match(componentsCss, /\.admin-console-loading\s*\{/u)
+  // 后台样式表必须 100% 锚定 admin 作用域，否则移出全局会影响其它页面
+  const stripped = cssSource.replace(/\/\*[\s\S]*?\*\//gu, '')
+  const selectors = [...stripped.matchAll(/(^|\})\s*([^{}@]+)\{/gu)].flatMap((m) => m[2].split(','))
+  const leaked = selectors.map((s) => s.trim()).filter((s) => s && !/\.admin[-\w]*/u.test(s))
+  assert.deepEqual(leaked, [], `后台样式表存在非 admin 作用域选择器：${leaked.join(' | ')}`)
+})
+
+test('后台查询索引迁移只保留 EXPLAIN 确认生效的索引', () => {
+  // decided_at 此前完全无索引，总览每次加载都全表扫两张申请表
+  assert.match(directoryMigration, /role_change_requests_status_decided_idx/u)
+  assert.match(directoryMigration, /store_transfer_requests_status_decided_idx/u)
+  assert.match(directoryMigration, /role_change_requests_store_created_idx/u)
+  assert.match(directoryMigration, /users_created_id_idx/u)
+  // 幂等，可安全重放
+  assert.ok((directoryMigration.match(/CREATE INDEX IF NOT EXISTS/gu) || []).length === 4)
+  // 实测未被 planner 选中的索引不得混进迁移：
+  // status IN (三值) 跨值排序时 SQLite 必然走 TEMP B-TREE，加这两条索引无效。
+  assert.doesNotMatch(directoryMigration, /CREATE INDEX IF NOT EXISTS role_change_requests_created_id_idx/u)
+  assert.doesNotMatch(directoryMigration, /CREATE INDEX IF NOT EXISTS store_transfer_requests_created_id_idx/u)
+  // store_members(user_id) 已有唯一分区索引，不得重复建
+  assert.doesNotMatch(directoryMigration, /store_members_active_user_store_idx/u)
+  // 纯追加：不得含任何结构或数据变更
+  assert.doesNotMatch(directoryMigration, /\b(DROP|ALTER|DELETE|UPDATE|INSERT)\b/u)
 })
 
 test('目录展开态独占整行、折叠态标题不与状态操作抢宽度，门店与成员行为可读密度', () => {
@@ -251,7 +308,8 @@ test('管理台 API 客户端覆盖只读与写操作端点', () => {
 })
 
 test('管理台样式注册且覆盖移动端底部标签栏与卡片化布局', () => {
-  assert.match(indexCss, /@import '\.\/admin-console\.css'/u)
+  // 后台样式表改由后台入口引入，从而与后台组件同处一个异步 chunk。
+  assert.match(consoleSource, /import '\.\.\/\.\.\/styles\/admin-console\.css'/u)
   assert.match(cssSource, /\.admin-dock/u)
   assert.match(cssSource, /@media \(max-width: 767px\)/u)
   assert.match(cssSource, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/u)

@@ -208,3 +208,44 @@ CodeGraph 前后置本轮记为豁免：CodeGraph 装在 Termux 本机，不在�
 目录与用户两块也做了真实 SSR 渲染核对（目录用预设展开态副本渲染出四级层级与门店行；用户导出展示组件后用 fixture 渲染配对列与日锚点各分支）。注意沙箱时区为 UTC，日锚点须在 `TZ=Asia/Shanghai` 下核验，否则会看到"昨天"被算成"今天"的环境假象。
 
 CodeGraph 前后置本轮仍记豁免（CodeGraph 在 Termux 本机，不在本轮 workspace 沙箱）。
+
+### 全栈优化补齐（2026-08-07）
+
+在 GitHub Actions 故障期间进行的本地优化。**硬约束：不得改变非后台页面排版**，下文每项都附了守住这条线的验证方式。
+
+先做了一轮全栈审计，结论是项目基础比预期扎实：CSP 与安全响应头齐全（HSTS、nosniff、frame-options、Referrer/Permissions-Policy，HTML 与 API 分别用不同 CSP）、`AppErrorBoundary` 已挂载、写操作已有乐观锁 + 幂等键 + 请求闸门、1 MiB 请求体上限已生效。因此没有做无意义的"全面改造"，只补了四处真实缺口。
+
+**1. 目录写操作静默失败（用户可感知的缺陷）**
+
+`AdminDirectorySection` 有 4 处 `catch {}`：新增目录、重命名、停用/启用、成员更新与移除。失败后 `busy` 被 `finally` 清掉、按钮恢复可点，但界面无任何提示——用户点了没反应，会以为是自己操作错了。对比同层的用户分区，它有完整的 `setError` + `form-error` 反馈。
+
+改为 `catch (error) { setWriteError(...) }`，面板顶部渲染 `role="alert"` 错误条（读屏立即播报），进入写操作时先清空上次错误。错误文案优先用后端返回的 message，缺失时回落到按操作类型区分的中文兜底。
+
+**2. D1 查询索引（先实测再落地，删掉了自己写的无效索引）**
+
+新增 `migrations/d1/0010_admin_console_query_indexes.sql`，纯追加、`IF NOT EXISTS` 幂等、无任何 DROP/ALTER/DELETE/UPDATE/INSERT。
+
+最初写了 7 条索引，用 `node:sqlite` 跑完整 10 个迁移后逐条 `EXPLAIN QUERY PLAN` 验证，**删掉 3 条实测无效的**：
+
+- `role_change_requests(created_at DESC, id DESC)` 与 store_transfer 同构版本：本想消除审批 `decided` 分组的 TEMP B-TREE。实测无效——该查询 `status IN ('approved','rejected','cancelled')` 跨三值排序，SQLite 必然先探 status 索引再排序，加不加都走 TEMP B-TREE。对照试验三种索引组合，结果一致。该排序受 `LIMIT 21` 约束，代价可接受，故放弃。
+- `store_members(user_id, store_id, role)`：与既有 `store_members_one_active_user_idx(user_id)` 唯一分区索引重复，planner 选的是后者。
+
+保留的 4 条全部经 EXPLAIN 确认被选中：`role_change_requests_status_decided_idx`、`store_transfer_requests_status_decided_idx`（均为 COVERING INDEX，`decided_at` 此前完全无索引，总览每次加载全表扫两张申请表）、`role_change_requests_store_created_idx`、`users_created_id_idx`（COVERING 走序，消除了用户列表分页的排序）。已同步 `apps/worker/security/d1-test-adapter.ts` 的迁移清单。
+
+**3. 后台按需分包**
+
+后台约 2500 行组件 + 2026 行 CSS 此前全打进主 bundle，门店用户从不访问却要下载。改为 `lazy(() => import(...))` + `Suspense`，并把 `admin-console.css` 从全局 `index.css` 移到后台入口内引入，使组件与样式落在同一异步边界。
+
+门店用户首屏：JS 480 → 429.1 kB，CSS 306 → 280.3 kB，共减 76.6 kB；gzip 传输 234.4 → 218.0 kB（减 16.4 kB / 7.0%）。后台按需加载 JS 47.15 + CSS 33.63 kB（gzip 18.9 kB）。
+
+**分包前必须先排掉的隐患**：扫描 `admin-console.css` 的 280 条选择器，发现恰好 2 条不属于 admin 作用域——`.workshop-pending-badge`（宿主是 `WorkshopShellHeader`，门店工作台头部）与 `.dialog-action-badge`（宿主是 `MenuDialog`，菜单弹窗）。两者都是**非后台页面**，若随后台分包延迟加载，平台管理员在工作台和菜单里会看到无样式角标。已先将这 2 条规则搬进常驻 `components.css`，`admin-console.css` 随后达到 100% admin 作用域锚定才执行分包。`Suspense` 占位所用的 `.admin-console-loading` 同理放在常驻样式。
+
+**守住红线的验证**：从 `HEAD` 取改动前的样式源，按 `index.css` 的 `@import` 顺序在内存中复原"基线全局 CSS"，与当前全局 CSS 做规则级比对（`@media`/`@supports` 块按块内选择器是否全为 admin 判定，避免误判）。结果：基线 1478 条规则中 270 条为纯 admin 作用域；**基线非 admin 规则在当前缺失 0 条**；移出全局的 270 条**全部**落在后台分包样式表中，无一丢失；全局仅新增 1 条 `.admin-console-loading`。另对构建产物断言：非后台角标与占位样式在主 CSS 中存在，后台专属类名在主 CSS 中为 0、在后台 CSS 中存在，后台组件标识不出现在主 JS。
+
+**4. 契约测试**
+
+新增 3 项并修正 3 项旧断言（旧断言的**意图**仍有效，只是实现形态改变，故改为等价断言而非删除）：入口断言从静态 import 改为 lazy 动态 import；角标样式断言从后台样式表改为常驻 `components.css`；后台样式注册点断言从全局 `index.css` 改为后台入口。新增测试锁住：4 处 `catch {}` 不得回归、错误条带 `role="alert"`、后台样式表必须 100% admin 作用域锚定（含一条动态扫描断言，任何新增的非 admin 选择器都会失败）、迁移只含 EXPLAIN 确认生效的索引且不含已验证无效的那 3 条。
+
+门禁：web **203/203**、worker 50/50、domain 7、database 10、api 21、typecheck（含 worker）、workflow policy 88、`git diff --check` 干净、构建通过。
+
+**未交付**：GitHub Actions 自 2026-08-06 15:22 UTC 起 major_outage，PR CI 与 Preview 部署工作流均跑在 `ubuntu-latest`，无法获取 runner。本轮改动与 PR #177（目录/用户可读性）同样处于"已完成、待 Actions 恢复后交付 Preview"状态。Production 保持 V5.8.3 / `3ec28a32…` 未触碰。CodeGraph 前后置仍记豁免（不在当前 workspace 沙箱）。

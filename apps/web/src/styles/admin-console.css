@@ -1552,36 +1552,6 @@
   gap: 12px;
 }
 
-.workshop-pending-badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  min-width: 18px;
-  height: 18px;
-  display: grid;
-  place-items: center;
-  padding: 0 4px;
-  border-radius: 999px;
-  background: var(--ops-yellow, #ffc31a);
-  color: var(--ops-black, #0c0e0c);
-  font-size: 11px;
-  font-weight: 700;
-  box-shadow: 0 0 0 2px var(--ops-page, #f7f5ef);
-}
-
-.dialog-action-badge {
-  margin-left: auto;
-  min-width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--ops-yellow, #ffc31a);
-  color: var(--ops-black, #0c0e0c);
-  font-size: 12px;
-  font-weight: 700;
-}
 
 /* Comprehensive remediation: touch, cards, focus and dialog contracts. */
 .admin-mobile-cards { display: none; }
