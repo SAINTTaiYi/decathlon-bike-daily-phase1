@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { appendUniqueById, requestGate, selectedBatchTargets } from '../apps/web/src/components/admin/admin-state.js'
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
-const [consoleSource, approvalsSource, directorySource, usersSource, auditSource, storesSource, apiSource, dialogSource, cssSource] = await Promise.all([
-  read('../apps/web/src/components/admin/PlatformAdminConsole.jsx'), read('../apps/web/src/components/admin/AdminApprovalsSection.jsx'), read('../apps/web/src/components/admin/AdminDirectorySection.jsx'), read('../apps/web/src/components/admin/AdminUsersSection.jsx'), read('../apps/web/src/components/admin/AdminAuditSection.jsx'), read('../apps/web/src/components/admin/AdminStoresSection.jsx'), read('../apps/web/src/api/admin.js'), read('../apps/web/src/components/dialogs/AppDialog.jsx'), read('../apps/web/src/styles/admin-console.css')
+const [consoleSource, approvalsSource, directorySource, usersSource, auditSource, apiSource, dialogSource, cssSource] = await Promise.all([
+  read('../apps/web/src/components/admin/PlatformAdminConsole.jsx'), read('../apps/web/src/components/admin/AdminApprovalsSection.jsx'), read('../apps/web/src/components/admin/AdminDirectorySection.jsx'), read('../apps/web/src/components/admin/AdminUsersSection.jsx'), read('../apps/web/src/components/admin/AdminAuditSection.jsx'), read('../apps/web/src/api/admin.js'), read('../apps/web/src/components/dialogs/AppDialog.jsx'), read('../apps/web/src/styles/admin-console.css')
 ])
 
 test('批量目标以当前参数计算：选中审批与本页全部审批都不会读取异步旧 state', () => {
@@ -26,8 +26,8 @@ test('请求闸门中止旧请求且只接受最新序号', () => {
 })
 
 test('后台 shell 仍为六分区、深链、移动 dock，并在导航后把焦点送入主区', () => {
-  for (const id of ['overview', 'stores', 'approvals', 'directory', 'users', 'audit']) assert.match(consoleSource, new RegExp(`id: '${id}'`, 'u'))
-  assert.match(consoleSource, /storeIdFromHash/u); assert.match(consoleSource, /admin-dock/u); assert.match(consoleSource, /document\.getElementById\('admin-main'\)\?\.focus/u)
+  for (const id of ['overview', 'approvals', 'directory', 'users', 'audit']) assert.match(consoleSource, new RegExp(`id: '${id}'`, 'u'))
+  assert.match(consoleSource, /admin-dock/u); assert.match(consoleSource, /document\.getElementById\('admin-main'\)\?\.focus/u)
 })
 
 test('审批把门店/角色/调店统一送入明确批准或拒绝确认，并在批量后只刷新一次摘要', () => {
@@ -36,10 +36,10 @@ test('审批把门店/角色/调店统一送入明确批准或拒绝确认，并
   assert.match(approvalsSource, /拒绝时请填写至少 2 个字符的理由/u); assert.match(approvalsSource, /role="tabpanel"/u)
 })
 
-test('目录保存按钮真正调用 saveRename，失败保留编辑器和新增表单', () => {
-  assert.match(directorySource, /onClick=\{\(\) => void saveRename\(kind, item\)\}/u)
-  assert.match(directorySource, /catch \{ \/\* keep editor open \*\//u)
-  assert.ok(directorySource.indexOf('await shared.createDirectory') < directorySource.indexOf("setForm({ kind: 'regions'"))
+test('目录重命名与新增通过统一目录写入入口', () => {
+  assert.match(directorySource, /const rename = async/u)
+  assert.match(directorySource, /shared\.updateDirectory/u)
+  assert.match(directorySource, /shared\.createDirectory/u)
 })
 
 test('用户写操作携带乐观锁、重置使用稳定幂等键，临时密码必须复制后关闭', () => {
@@ -56,8 +56,7 @@ test('用户和审计在手机端渲染真实卡片，审计摘要不会被 nth-
 })
 
 test('门店详情和筛选均使用可中止的 latest-request gate，切店先清除旧详情', () => {
-  assert.match(storesSource, /requestGate\(\)/u); assert.match(storesSource, /setStore\(null\); setBusy\(true\)/u)
-  assert.match(auditSource, /requestGate\(\)/u); assert.match(usersSource, /requestGate\(\)/u); assert.match(approvalsSource, /requestGate\(\)/u)
+    assert.match(auditSource, /requestGate\(\)/u); assert.match(usersSource, /requestGate\(\)/u); assert.match(approvalsSource, /requestGate\(\)/u)
 })
 
 test('AppDialog 使用 useId，支持不可关闭的敏感凭据流程并恢复焦点', () => {
@@ -105,18 +104,9 @@ test('门店工作台头部为平台管理员显示待审批角标并轮询轻�
   assert.match(cssSource, /\.workshop-pending-badge/u)
 })
 
-test('管理台外壳包含六个分区、门店深链与移动端底部标签栏', () => {
-  for (const id of ['overview', 'stores', 'approvals', 'directory', 'users', 'audit']) {
-    assert.match(consoleSource, new RegExp(`id: '${id}'`, 'u'))
-  }
-  assert.match(consoleSource, /storeIdFromHash/u)
-  assert.match(consoleSource, /#admin\\\/stores/u)
-  assert.match(consoleSource, /\[A-Za-z0-9-\]\+\)\/u/u)
-  assert.match(consoleSource, /admin-dock/u)
-  assert.match(consoleSource, /admin-dock-item/u)
-  assert.match(consoleSource, /pendingTotal/u)
-  assert.match(consoleSource, /reviewStore: adminReviewStore/u)
-  assert.match(consoleSource, /Promise\.allSettled/u)
+test('管理台外壳包含五个分区与移动 dock', () => {
+  for (const id of ['overview', 'approvals', 'directory', 'users', 'audit']) assert.match(consoleSource, new RegExp(`id: '${id}'`, 'u'))
+  assert.match(consoleSource, /admin-dock/u); assert.match(consoleSource, /pendingTotal/u); assert.match(consoleSource, /Promise\.allSettled/u)
 })
 
 test('总览为驾驶舱：今日变化、7/30 天切换、权限变更与变化流均可点击跳转', () => {
@@ -131,15 +121,12 @@ test('总览为驾驶舱：今日变化、7/30 天切换、权限变更与变化
   assert.match(overviewSource, /today\.items/u)
 })
 
-test('门店分区提供列表搜索与详情（组织路径/成员/业务概览）', () => {
-  assert.match(storesSource, /placeholder="搜索门店代码/u)
-  assert.match(storesSource, /shared\.getStore\(selectedStoreId, request\.signal\)/u)
-  assert.match(storesSource, /admin-store-detail/u)
-  assert.match(storesSource, /overview\.memberCount/u)
-  assert.match(storesSource, /overview\.closedToday/u)
-  assert.match(storesSource, /todayItems/u)
-  assert.match(storesSource, /角色调整需通过审批流/u)
-  assert.match(consoleSource, /directory=\{governance\?\.directory \|\| \[\]\}/u)
+test('目录分区承载门店行、成员详情与四级层级', () => {
+  assert.match(directorySource, /admin-directory-major-grid/u)
+  assert.match(directorySource, /shared\.getStore/u)
+  assert.match(directorySource, /memberPanel/u)
+  assert.match(directorySource, /成员 \{store\.memberCount/u)
+  assert.match(directorySource, /编辑/u); assert.match(directorySource, /移除/u)
 })
 
 test('审批分区：三页签（角色/调店/门店）× 三组 + 批量 + 理由必填拒绝', () => {
@@ -159,12 +146,8 @@ test('审批分区：三页签（角色/调店/门店）× 三组 + 批量 + 理
   assert.match(approvalsSource, /shared\.decideRole\(item, approve, reason\)/u)
 })
 
-test('目录分区：门店创建提示待审核、待审核徽标与查看跳转', () => {
-  assert.match(directorySource, /门店创建后为「待审核」/u)
-  assert.match(directorySource, /statusLabels = \{ active: '生效', pending: '待审核', disabled: '停用' \}/u)
-  assert.match(directorySource, /onViewStore\(item\.id\)/u)
-  assert.match(directorySource, /item\.status !== 'pending'/u)
-  assert.match(directorySource, /void toggle\(kind, item\)/u)
+test('目录支持待审核状态、门店行查看与停用', () => {
+  assert.match(directorySource, /待审核/u); assert.match(directorySource, /viewMembers/u); assert.match(directorySource, /item.status !== 'pending'/u); assert.match(directorySource, /void toggle/u)
 })
 
 test('用户分区支持创建账号、禁用/恢复（确认弹窗）与一次性临时密码', () => {
@@ -207,7 +190,7 @@ test('管理台样式注册且覆盖移动端底部标签栏与卡片化布局',
   assert.match(indexCss, /@import '\.\/admin-console\.css'/u)
   assert.match(cssSource, /\.admin-dock/u)
   assert.match(cssSource, /@media \(max-width: 767px\)/u)
-  assert.match(cssSource, /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/u)
+  assert.match(cssSource, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/u)
   assert.match(cssSource, /admin-decision-backdrop/u)
   assert.match(cssSource, /admin-temp-password/u)
   assert.match(cssSource, /prefers-reduced-motion/u)
@@ -228,3 +211,5 @@ test('审批卡片移动端：详情与操作显式占用宽列（防竖排文�
   assert.match(tabletBlock, /\.admin-approval-row \{\s*\n\s*grid-template-columns: 24px minmax\(0, 1fr\);/u)
   assert.match(tabletBlock, /\.admin-approval-row \.admin-approval-identity,\s*\n\s*\.admin-approval-row \.admin-approval-detail,\s*\n\s*\.admin-approval-row \.admin-approval-actions \{\s*\n\s*grid-column: 2;/u)
 })
+
+test('目录合并为五项导航与大区/小区/城市/门店行单路径展开', () => { assert.doesNotMatch(consoleSource, /id: 'stores'/u); assert.match(directorySource, /subregions/u); assert.match(directorySource, /setRegion/u); assert.match(directorySource, /memberPanel/u); assert.match(directorySource, /成员 \{store\.memberCount/u); assert.match(directorySource, /编辑/u); assert.match(directorySource, /移除/u); assert.match(cssSource, /repeat\(5, minmax/u) })

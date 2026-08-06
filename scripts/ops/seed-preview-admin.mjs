@@ -31,6 +31,7 @@ const CLEAN = [
   ['users', "id LIKE 'seed-%'"],
   ['stores', "id LIKE 'seed-%'"],
   ['cities', "id LIKE 'seed-%'"],
+  ['subregions', "id LIKE 'seed-%'"],
   ['regions', "id LIKE 'seed-%'"]
 ]
 for (const [table, predicate] of CLEAN) lines.push(`DELETE FROM ${table} WHERE ${predicate};`)
@@ -40,14 +41,19 @@ const regions = [
   ['seed-r-01', '华东', '华东', iso(-60)],
   ['seed-r-02', '华南', '华南', iso(-50)]
 ]
+const subregions = [
+  ['seed-sr-01', 'seed-r-01', '华东小区', iso(-59)],
+  ['seed-sr-02', 'seed-r-02', '华南小区', iso(-49)]
+]
 const cities = [
-  ['seed-c-01', 'seed-r-01', '上海', iso(-58)],
-  ['seed-c-02', 'seed-r-01', '杭州', iso(-48)],
-  ['seed-c-03', 'seed-r-02', '广州', iso(-46)],
-  ['seed-c-04', 'seed-r-02', '深圳', iso(-44)]
+  ['seed-c-01', 'seed-sr-01', '上海', iso(-58)],
+  ['seed-c-02', 'seed-sr-01', '杭州', iso(-48)],
+  ['seed-c-03', 'seed-sr-02', '广州', iso(-46)],
+  ['seed-c-04', 'seed-sr-02', '深圳', iso(-44)]
 ]
 for (const [id, name, norm, at] of regions) lines.push(`INSERT INTO regions (id, name, normalized_name, status, sort_order, created_at, updated_at) VALUES (${[id, name, norm, 'active', 0, at, at].map(q).join(', ')});`)
-for (const [id, regionId, name, at] of cities) lines.push(`INSERT INTO cities (id, region_id, name, normalized_name, status, sort_order, created_at, updated_at) VALUES (${[id, regionId, name, name, 'active', 0, at, at].map(q).join(', ')});`)
+for (const [id, regionId, name, at] of subregions) lines.push(`INSERT INTO subregions (id, region_id, name, normalized_name, status, sort_order, created_at, updated_at) VALUES (${[id, regionId, name, name, 'active', 0, at, at].map(q).join(', ')});`)
+for (const [id, subregionId, name, at] of cities) lines.push(`INSERT INTO cities (id, region_id, subregion_id, name, normalized_name, status, sort_order, created_at, updated_at) VALUES (${[id, `(SELECT region_id FROM subregions WHERE id = '${subregionId}')`, subregionId, name, name, 'active', 0, at, at].map((value, index) => index === 1 ? value : q(value)).join(', ')});`)
 
 // ---- 门店：5 生效 / 1 停用（审核拒绝）/ 2 待审核 ----
 const stores = [

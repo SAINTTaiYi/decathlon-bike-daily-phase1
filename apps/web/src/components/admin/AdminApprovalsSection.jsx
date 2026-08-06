@@ -10,7 +10,7 @@ export default function AdminApprovalsSection({ shared, directory = [] }) {
   const [tab, setTab] = useState('role'); const [group, setGroup] = useState('pending'); const [data, setData] = useState({ requests: [] }); const [nextCursor, setNextCursor] = useState(null)
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [selected, setSelected] = useState({}); const [decision, setDecision] = useState(null)
   const gateRef = useRef(requestGate())
-  const pendingStores = useMemo(() => directory.flatMap((region) => region.cities.flatMap((city) => city.stores.filter((store) => store.status === 'pending').map((store) => ({ ...store, regionName: region.name, cityName: city.name })))), [directory])
+  const pendingStores = useMemo(() => directory.flatMap((region) => (region.subregions || []).flatMap((subregion) => subregion.cities.flatMap((city) => city.stores.filter((store) => store.status === 'pending').map((store) => ({ ...store, regionName: region.name, subregionName: subregion.name, cityName: city.name }))))), [directory])
   const currentItems = tab === 'store' ? pendingStores : data.requests
   const selectedIds = useMemo(() => new Set(Object.entries(selected).filter(([, on]) => on).map(([id]) => id)), [selected])
 

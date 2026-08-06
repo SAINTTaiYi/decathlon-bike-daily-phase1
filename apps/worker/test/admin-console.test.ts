@@ -51,7 +51,8 @@ test('平台管理后台路由全部要求平台管理员身份；写端点走�
     assert.match(source, new RegExp(`app\\.get\\('${endpoint.replace(/\//g, '\\/')}'`, 'u'))
   }
   assert.match(source, /platformWrite/u)
-  assert.doesNotMatch(source, /app\.(put|delete)\(/u)
+  assert.doesNotMatch(source, /app\.put\(/u)
+  assert.match(source, /app\.delete\('\/api\/v1\/admin\/stores\/:storeId\/members\/:userId'/u)
 })
 
 test('平台总览统计覆盖目录、账号、待审队列与当日工单', async () => {

@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { localBusinessDate } from '@bike-ops/domain'
-import { adminCreateUserSchema, adminPasswordResetSchema, adminStoreDecisionSchema, adminUserStatusSchema } from '@bike-ops/contracts'
+import { adminCreateUserSchema, adminPasswordResetSchema, adminStoreDecisionSchema, adminStoreMemberRemoveSchema, adminStoreMemberUpdateSchema, adminUserStatusSchema } from '@bike-ops/contracts'
 import type { AuthContext } from '../auth/types.js'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import { createAuthMiddleware } from '../auth/middleware.js'
@@ -190,13 +190,13 @@ export function adminRoutes() {
     const store = await first<{ id: string; code: string; name: string; status: string; timezone: string; created_at: string; city_id: string | null; pending_review: number }>(c.env.DB.prepare('SELECT id, code, name, status, timezone, created_at, city_id, pending_review FROM stores WHERE id = ?').bind(storeId))
     if (!store) throw new ApiProblem(404, 'STORE_NOT_FOUND', '门店不存在。')
     const [path, members, todayItems, closing, memberCount] = await Promise.all([
-      first<{ region_id: string; region_name: string; city_id: string; city_name: string }>(c.env.DB.prepare(`
-        SELECT rg.id AS region_id, rg.name AS region_name, ct.id AS city_id, ct.name AS city_name
-        FROM stores st JOIN cities ct ON ct.id = st.city_id JOIN regions rg ON rg.id = ct.region_id
+      first<{ region_id: string; region_name: string; subregion_id: string; subregion_name: string; city_id: string; city_name: string }>(c.env.DB.prepare(`
+        SELECT rg.id AS region_id, rg.name AS region_name, sr.id AS subregion_id, sr.name AS subregion_name, ct.id AS city_id, ct.name AS city_name
+        FROM stores st JOIN cities ct ON ct.id = st.city_id JOIN subregions sr ON sr.id = ct.subregion_id JOIN regions rg ON rg.id = sr.region_id
         WHERE st.id = ?
       `).bind(storeId)),
-      all<{ id: string; display_name: string; username_key: string; role: string; status: string; last_login_at: string | null; is_platform_admin: number }>(c.env.DB.prepare(`
-        SELECT u.id, u.display_name, u.username_key, sm.role, u.status, u.last_login_at, u.is_platform_admin
+      all<{ membership_id: string; id: string; display_name: string; username_key: string; role: string; membership_status: string; user_status: string; user_updated_at: string; last_login_at: string | null; is_platform_admin: number }>(c.env.DB.prepare(`
+        SELECT sm.id AS membership_id, u.id, u.display_name, u.username_key, sm.role, sm.status AS membership_status, u.status AS user_status, u.updated_at AS user_updated_at, u.last_login_at, u.is_platform_admin
         FROM store_members sm JOIN users u ON u.id = sm.user_id
         WHERE sm.store_id = ? AND sm.status = 'active'
         ORDER BY sm.role, u.display_name ASC
@@ -207,8 +207,8 @@ export function adminRoutes() {
     ])
     return c.json({
       store: { id: store.id, code: store.code, name: store.name, status: store.pending_review === 1 ? 'pending' : store.status, timezone: store.timezone, createdAt: store.created_at },
-      path: path ? { regionId: path.region_id, regionName: path.region_name, cityId: path.city_id, cityName: path.city_name } : null,
-      members: members.map((row) => ({ id: row.id, displayName: row.display_name, username: row.username_key, role: row.role, status: row.status, lastLoginAt: row.last_login_at, isPlatformAdmin: row.is_platform_admin === 1 })),
+      path: path ? { regionId: path.region_id, regionName: path.region_name, subregionId: path.subregion_id, subregionName: path.subregion_name, cityId: path.city_id, cityName: path.city_name } : null,
+      members: members.map((row) => ({ id: row.id, userId: row.id, membershipId: row.membership_id, displayName: row.display_name, username: row.username_key, role: row.role, status: row.user_status === 'active' && row.membership_status === 'active' ? 'active' : 'disabled', updatedAt: row.user_updated_at, lastLoginAt: row.last_login_at, isPlatformAdmin: row.is_platform_admin === 1 })),
       overview: {
         todayItems: Object.fromEntries(todayItems.map((row) => [row.kind, row.n])),
         closedToday: Boolean(closing?.n),
@@ -444,6 +444,36 @@ export function adminRoutes() {
       return { status: 200, body: { ok: true, updatedAt: stamp, message: '临时密码已生成；下次登录将强制修改。' } }
     })
     return c.json({ ...(result.body as any), ...(result.status < 400 ? { tempPassword } : {}) }, result.status as any)
+  })
+
+  // ---- 门店成员 inline 编辑 / 移除（保留用户与审计历史）----
+  app.patch('/api/v1/admin/stores/:storeId/members/:userId', ...platformWrite, async (c) => {
+    const context = requireContext(c); const storeId = String(c.req.param('storeId') ?? ''); const userId = String(c.req.param('userId') ?? '')
+    const input = adminStoreMemberUpdateSchema.parse(await c.req.json())
+    const target = await first<any>(c.env.DB.prepare("SELECT u.id, u.display_name, u.updated_at, u.is_platform_admin, sm.id AS membership_id, sm.role FROM users u JOIN store_members sm ON sm.user_id = u.id AND sm.store_id = ? AND sm.status = 'active' WHERE u.id = ?").bind(storeId, userId))
+    if (!target) throw new ApiProblem(404, 'STORE_MEMBER_NOT_FOUND', '门店成员不存在。')
+    if (target.is_platform_admin === 1) throw new ApiProblem(409, 'PLATFORM_ADMIN_PROTECTED', '平台管理员成员受保护。')
+    if (target.updated_at !== input.expectedUpdatedAt) throw new ApiProblem(409, 'STORE_MEMBER_CONFLICT', '成员资料刚刚被其他操作修改，请刷新后重试。')
+    const store = await first<any>(c.env.DB.prepare('SELECT id, code, name, timezone FROM stores WHERE id = ?').bind(storeId)); if (!store) throw new ApiProblem(404, 'STORE_NOT_FOUND', '门店不存在。')
+    const stamp = nowIso(); const nextName = input.displayName ?? target.display_name; const nextRole = input.role ?? target.role
+    const audit = prepareConditionalAudit(c.env.DB, { context: { ...context, storeId, storeCode: store.code, storeName: store.name, storeTimezone: store.timezone }, action: 'admin-update-store-member', entityType: 'account', entityId: userId, businessDate: localBusinessDate(store.timezone), summary: `更新门店成员：${nextName}`, before: { displayName: target.display_name, role: target.role }, after: { displayName: nextName, role: nextRole }, reversible: false }, 'EXISTS (SELECT 1 FROM users WHERE id = ? AND updated_at = ?)', [userId, stamp])
+    const result = await c.env.DB.batch([c.env.DB.prepare('UPDATE users SET display_name = ?, updated_at = ? WHERE id = ? AND updated_at = ? AND is_platform_admin = 0').bind(nextName, stamp, userId, input.expectedUpdatedAt), c.env.DB.prepare("UPDATE store_members SET role = ? WHERE id = ? AND status = 'active'").bind(nextRole, target.membership_id), audit.statement])
+    if (result[0]?.meta?.changes !== 1) throw new ApiProblem(409, 'STORE_MEMBER_CONFLICT', '成员资料刚刚被其他操作修改，请刷新后重试。')
+    return c.json({ ok: true, updatedAt: stamp, message: '成员资料已更新。' })
+  })
+
+  app.delete('/api/v1/admin/stores/:storeId/members/:userId', ...platformWrite, async (c) => {
+    const context = requireContext(c); const storeId = String(c.req.param('storeId') ?? ''); const userId = String(c.req.param('userId') ?? '')
+    const input = adminStoreMemberRemoveSchema.parse(await c.req.json())
+    const target = await first<any>(c.env.DB.prepare("SELECT u.id, u.display_name, u.updated_at, u.is_platform_admin, sm.id AS membership_id, sm.role FROM users u JOIN store_members sm ON sm.user_id = u.id AND sm.store_id = ? AND sm.status = 'active' WHERE u.id = ?").bind(storeId, userId))
+    if (!target) throw new ApiProblem(404, 'STORE_MEMBER_NOT_FOUND', '门店成员不存在。')
+    if (target.is_platform_admin === 1) throw new ApiProblem(409, 'PLATFORM_ADMIN_PROTECTED', '平台管理员成员受保护。')
+    if (target.updated_at !== input.expectedUpdatedAt) throw new ApiProblem(409, 'STORE_MEMBER_CONFLICT', '成员资料刚刚被其他操作修改，请刷新后重试。')
+    const store = await first<any>(c.env.DB.prepare('SELECT id, code, name, timezone FROM stores WHERE id = ?').bind(storeId)); if (!store) throw new ApiProblem(404, 'STORE_NOT_FOUND', '门店不存在。')
+    const stamp = nowIso(); const audit = prepareConditionalAudit(c.env.DB, { context: { ...context, storeId, storeCode: store.code, storeName: store.name, storeTimezone: store.timezone }, action: 'admin-remove-store-member', entityType: 'account', entityId: userId, businessDate: localBusinessDate(store.timezone), summary: `移除门店成员：${target.display_name}`, before: { role: target.role, status: 'active' }, after: { status: 'inactive' }, reversible: false }, 'EXISTS (SELECT 1 FROM store_members WHERE id = ? AND status = \'inactive\' AND effective_to = ?)', [target.membership_id, stamp])
+    const result = await c.env.DB.batch([c.env.DB.prepare("UPDATE store_members SET status = 'inactive', effective_to = ?, ended_by = ?, end_reason = ? WHERE id = ? AND status = 'active'").bind(stamp, context.userId, '平台管理员移除成员', target.membership_id), c.env.DB.prepare('UPDATE users SET updated_at = ? WHERE id = ? AND updated_at = ? AND is_platform_admin = 0').bind(stamp, userId, input.expectedUpdatedAt), c.env.DB.prepare('UPDATE auth_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').bind(stamp, userId), audit.statement])
+    if (result[0]?.meta?.changes !== 1 || result[1]?.meta?.changes !== 1) throw new ApiProblem(409, 'STORE_MEMBER_CONFLICT', '成员刚刚被其他操作处理，请刷新后重试。')
+    return c.json({ ok: true, updatedAt: stamp, message: '成员已从门店移除，其会话已失效。' })
   })
 
   // ---- 门店审核（严格输入 + 乐观锁 + 幂等）----

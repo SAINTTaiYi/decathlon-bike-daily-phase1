@@ -200,3 +200,6 @@ export type WorkItemCreateInput = z.infer<typeof workItemCreateSchema>
 export type CreateUserInput = z.infer<typeof createUserSchema>
 export type RegistrationOtpInput = z.infer<typeof registrationOtpSchema>
 export type RegistrationCompleteInput = z.infer<typeof registrationCompleteSchema>
+
+export const adminStoreMemberUpdateSchema = z.object({ displayName: z.string().trim().min(1).max(24).optional(), role: z.enum(['operator', 'manager', 'admin']).optional(), expectedUpdatedAt: z.string().min(1).max(80) }).strict().refine((value) => Boolean(value.displayName || value.role), { message: '至少提供一个成员字段。' })
+export const adminStoreMemberRemoveSchema = z.object({ expectedUpdatedAt: z.string().min(1).max(80) }).strict()
