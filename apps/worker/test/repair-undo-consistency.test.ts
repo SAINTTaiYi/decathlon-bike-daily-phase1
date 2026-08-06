@@ -41,7 +41,7 @@ const repairSnapshot = {
 
 test('撤回非店修转待取时，快照恢复会原子删除不属于维修态的待取明细', async () => {
   const { db, statements } = fakeDatabase()
-  await restoreSnapshot(db, repairSnapshot)
+  await restoreSnapshot(db, repairSnapshot, 'store-1')
 
   assert.equal(statements.length, 5)
   assert.match(statements[0]?.sql ?? '', /UPDATE work_items SET/u)
@@ -49,6 +49,10 @@ test('撤回非店修转待取时，快照恢复会原子删除不属于维修�
   assert.match(statements[2]?.sql ?? '', /DELETE FROM pickup_details WHERE work_item_id = \?/u)
   assert.match(statements[3]?.sql ?? '', /DELETE FROM resale_details WHERE work_item_id = \?/u)
   assert.match(statements[4]?.sql ?? '', /DELETE FROM handover_details WHERE work_item_id = \?/u)
+  // Detail tables carry no store_id, so tenant scope is asserted through the parent work item.
+  for (const statement of statements) {
+    assert.match(statement?.sql ?? '', /store_id = \?/u, '每条恢复语句都必须限定门店范围')
+  }
 })
 
 test('非店修二次完成会替换遗留待取明细，主记录与维修详情写入相同精确完成状态', async () => {
@@ -61,7 +65,7 @@ test('非店修二次完成会替换遗留待取明细，主记录与维修详�
   assert.match(workItems, /route\.completedStatus/u)
   assert.match(workItems, /validateRepairStatusContext\(fields\.status, completedRepairPickup\)/u)
   assert.doesNotMatch(workItems, /persistedRepairStatus/u)
-  assert.match(workItems, /if \(stateChanged\) await batchWhileDayOpen\(db, context, businessDate, buildRestoreSnapshotStatements\(db, before\)\)/u)
+  assert.match(workItems, /if \(stateChanged\) await batchWhileDayOpen\(db, context, businessDate, buildRestoreSnapshotStatements\(db, before, context\.storeId\)\)/u)
   assert.match(audit, /buildRestoreSnapshotStatements/u)
   assert.match(audit, /await batchWhileDayOpen\(db, context, businessDate, \[\.\.\.restoreStatements, audit\.statement\]\)/u)
 })
