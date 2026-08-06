@@ -22,7 +22,7 @@ export default function AdminOverviewSection({ overview, onJump, roleLabels }) {
     { label: '区域 / 城市', en: 'DIRECTORY', value: `${counts.regions} / ${counts.cities}`, hint: '区域 / 城市', jump: 'directory' }
   ]
   const todayStats = [
-    { label: '今日新增门店', value: today.newStores, jump: 'stores' },
+    { label: '今日新增门店', value: today.newStores, jump: 'directory' },
     { label: '今日新增用户', value: today.newUsers, jump: 'users' },
     { label: '今日角色批准', value: today.roleApproved, jump: 'approvals' },
     { label: '今日调店批准', value: today.transferApproved, jump: 'approvals' }
@@ -69,7 +69,7 @@ export default function AdminOverviewSection({ overview, onJump, roleLabels }) {
           {roleStats.length ? <div className="admin-role-stats">
             <div className="admin-role-stats-head"><span>门店</span><span>发起</span><span>批准</span><span>拒绝</span></div>
             {roleStats.map((row) => (
-              <button key={row.storeCode} type="button" className="admin-role-stat-row" onClick={() => onJump('stores')}>
+              <button key={row.storeCode} type="button" className="admin-role-stat-row" onClick={() => onJump('directory')}>
                 <span>{row.storeCode} {row.storeName}</span><span>{row.initiated}</span><span data-semantic="success">{row.approved}</span><span data-semantic="danger">{row.rejected}</span>
               </button>
             ))}

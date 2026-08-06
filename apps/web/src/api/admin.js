@@ -47,3 +47,6 @@ export const adminResetPassword = (user, resetKey) => api(`/api/v1/admin/users/$
 export const adminReviewStore = (store, body) => api(`/api/v1/admin/stores/${encodeURIComponent(store.id)}/decision`, {
   method: 'POST', body: { ...body, expectedUpdatedAt: store.updatedAt }
 })
+
+export const adminUpdateStoreMember = (storeId, userId, body) => api(`/api/v1/admin/stores/${encodeURIComponent(storeId)}/members/${encodeURIComponent(userId)}`, { method: 'PATCH', body })
+export const adminRemoveStoreMember = (storeId, userId, body) => api(`/api/v1/admin/stores/${encodeURIComponent(storeId)}/members/${encodeURIComponent(userId)}`, { method: 'DELETE', body })

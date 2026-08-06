@@ -1,60 +1,54 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import ProjectSelect from '../ProjectSelect.jsx'
-
-const kindLabels = { regions: '区域', cities: '城市', stores: '门店' }
-const statusLabels = { active: '生效', pending: '待审核', disabled: '停用' }
-
-export default function AdminDirectorySection({ governance, shared, onViewStore }) {
-  const [form, setForm] = useState({ kind: 'regions', parentId: '', name: '', code: '' })
-  const [editing, setEditing] = useState(null)
-  const [busyKey, setBusyKey] = useState('')
-  const directory = governance?.directory || []
-  const regionOptions = useMemo(() => directory.map((region) => ({ value: region.id, label: region.name })), [directory])
-  const cityOptions = useMemo(() => directory.flatMap((region) => region.cities.map((city) => ({ value: city.id, label: `${region.name} / ${city.name}` }))), [directory])
-  if (!governance) return <section className="admin-panel"><h2>门店目录</h2><p className="admin-empty">暂无数据。</p></section>
-
-  const submit = async (event) => {
-    event.preventDefault(); setBusyKey('create')
-    try {
-      await shared.createDirectory(form.kind, { parentId: form.kind === 'regions' ? undefined : form.parentId || undefined, name: form.name, code: form.kind === 'stores' ? form.code || undefined : undefined, status: 'active' })
-      setForm({ kind: 'regions', parentId: '', name: '', code: '' })
-    } catch { /* parent console owns the visible error */ } finally { setBusyKey('') }
-  }
-  const saveRename = async (kind, item) => {
-    const name = (editing?.name || '').trim()
-    if (!name) return
-    setBusyKey(`rename:${item.id}`)
-    try { await shared.updateDirectory(kind, item.id, { name, status: item.status }); setEditing(null) } catch { /* keep editor open */ } finally { setBusyKey('') }
-  }
-  const toggle = async (kind, item) => {
-    if (item.status === 'pending') return
-    setBusyKey(`toggle:${item.id}`)
-    try { await shared.updateDirectory(kind, item.id, { name: item.name, status: item.status === 'active' ? 'disabled' : 'active' }) } catch { /* parent error */ } finally { setBusyKey('') }
-  }
-  const actionButtons = (kind, item) => <div className="admin-directory-actions">
-    {kind === 'stores' ? <button type="button" onClick={() => onViewStore(item.id)}>查看</button> : null}
-    {editing?.id === item.id ? <><button type="button" disabled={busyKey === `rename:${item.id}`} onClick={() => void saveRename(kind, item)}>{busyKey === `rename:${item.id}` ? '保存中…' : '保存'}</button><button type="button" onClick={() => setEditing(null)}>取消</button></> : <button type="button" onClick={() => setEditing({ id: item.id, name: item.name })}>重命名</button>}
-    {item.status !== 'pending' ? <button type="button" disabled={busyKey === `toggle:${item.id}`} onClick={() => void toggle(kind, item)}>{busyKey === `toggle:${item.id}` ? '处理中…' : item.status === 'active' ? '停用' : '启用'}</button> : null}
-  </div>
-  const nameEditor = (kind, item) => editing?.id === item.id
-    ? <input className="admin-directory-rename" autoFocus maxLength="120" value={editing.name} onChange={(event) => setEditing({ id: item.id, name: event.target.value })} onKeyDown={(event) => { if (event.key === 'Enter') void saveRename(kind, item); if (event.key === 'Escape') setEditing(null) }} aria-label={`${kindLabels[kind]}名称`} />
-    : <strong>{item.name}</strong>
-
-  return <section className="admin-panel">
-    <header className="admin-panel-head"><h2>门店目录</h2><small>DIRECTORY · 全国区域 / 城市 / 门店</small></header>
-    <form className="data-form admin-directory-form" onSubmit={submit}>
-      <label className="field-row"><span>类型</span><ProjectSelect value={form.kind} options={Object.entries(kindLabels).map(([value, label]) => ({ value, label }))} onChange={(value) => setForm((current) => ({ ...current, kind: value, parentId: '', code: '' }))} ariaLabel="选择目录类型" /></label>
-      {form.kind === 'cities' ? <label className="field-row"><span>所属区域</span><ProjectSelect value={form.parentId} options={regionOptions} onChange={(value) => setForm((current) => ({ ...current, parentId: value }))} ariaLabel="选择所属区域" placeholder="请选择区域" /></label> : null}
-      {form.kind === 'stores' ? <><label className="field-row"><span>所属城市</span><ProjectSelect value={form.parentId} options={cityOptions} onChange={(value) => setForm((current) => ({ ...current, parentId: value }))} ariaLabel="选择所属城市" placeholder="请选择城市" /></label><label className="field-row"><span>门店代码</span><input required maxLength="32" pattern="[A-Za-z0-9_-]+" value={form.code} onChange={(event) => setForm((current) => ({ ...current, code: event.target.value }))} /></label></> : null}
-      <label className="field-row"><span>名称</span><input required maxLength="120" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} /></label>
-      <button type="submit" className="primary-action" disabled={busyKey === 'create'}>{busyKey === 'create' ? '创建中…' : `新增${kindLabels[form.kind]}`}</button>
-    </form>
-    {form.kind === 'stores' ? <p className="admin-inline-status admin-directory-hint">门店创建后为「待审核」，需在审批分区批准后生效。</p> : null}
-    <div className="admin-directory-tree">{directory.map((region) => <div key={region.id} className="admin-directory-branch">
-      <div className="admin-directory-row" data-kind="regions">{nameEditor('regions', region)}<span className="admin-status-tag" data-status={region.status}>{statusLabels[region.status] || region.status}</span>{actionButtons('regions', region)}</div>
-      {region.cities.map((city) => <div key={city.id} className="admin-directory-city"><div className="admin-directory-row" data-kind="cities">{nameEditor('cities', city)}<span className="admin-status-tag" data-status={city.status}>{statusLabels[city.status] || city.status}</span>{actionButtons('cities', city)}</div>
-        {city.stores.map((store) => <div key={store.id} className="admin-directory-row" data-kind="stores">{editing?.id === store.id ? nameEditor('stores', store) : <span className="admin-directory-store-name"><span className="admin-store-code">{store.code}</span><strong>{store.name}</strong></span>}<span className="admin-status-tag" data-status={store.status}>{statusLabels[store.status] || store.status}</span>{actionButtons('stores', store)}</div>)}
-      </div>)}
-    </div>)}</div>
-  </section>
+import { requestGate } from './admin-state.js'
+const labels = { regions: '大区', subregions: '小区', cities: '城市', stores: '门店' }
+const statuses = { active: '生效', pending: '待审核', disabled: '停用' }
+const roles = { operator: '操作员', manager: '经理', admin: '管理员' }
+const roleOptions = Object.entries(roles).map(([value, label]) => ({ value, label }))
+const subs = (region) => region?.subregions || []
+const cities = (subregion) => subregion?.cities || []
+function Status({ value }) { return <span className="admin-status-tag" data-status={value}>{statuses[value] || value}</span> }
+export default function AdminDirectorySection({ governance, shared }) {
+  const [form, setForm] = useState({ kind: 'regions', parentId: '', name: '', code: '' }); const [editing, setEditing] = useState(null); const [memberEditing, setMemberEditing] = useState(null); const [memberForm, setMemberForm] = useState({ displayName: '', role: 'operator' }); const [busy, setBusy] = useState(''); const [path, setPath] = useState({ region: '', subregion: '', city: '' }); const [openStore, setOpenStore] = useState(''); const [details, setDetails] = useState({}); const gate = useRef(requestGate()); const directory = governance?.directory || []
+  const region = directory.find((item) => item.id === path.region); const subregion = subs(region).find((item) => item.id === path.subregion); const city = cities(subregion).find((item) => item.id === path.city)
+  const regionOptions = useMemo(() => directory.map((item) => ({ value: item.id, label: item.name })), [directory]); const subregionOptions = useMemo(() => directory.flatMap((item) => subs(item).map((child) => ({ value: child.id, label: `${item.name} / ${child.name}` }))), [directory]); const cityOptions = useMemo(() => directory.flatMap((item) => subs(item).flatMap((child) => cities(child).map((leaf) => ({ value: leaf.id, label: `${item.name} / ${child.name} / ${leaf.name}` })))), [directory])
+  if (!governance) return <section className="admin-panel"><h2>目录</h2><p className="admin-empty">暂无数据。</p></section>
+  const setRegion = (id) => { setPath(path.region === id ? { region: '', subregion: '', city: '' } : { region: id, subregion: '', city: '' }); setOpenStore('') }
+  const setSubregion = (id) => { setPath(path.subregion === id ? { region: path.region, subregion: '', city: '' } : { region: path.region, subregion: id, city: '' }); setOpenStore('') }
+  const setCity = (id) => { setPath(path.city === id ? { region: path.region, subregion: path.subregion, city: '' } : { region: path.region, subregion: path.subregion, city: id }); setOpenStore('') }
+  const submit = async (event) => { event.preventDefault(); setBusy('create'); try { await shared.createDirectory(form.kind, { parentId: form.kind === 'regions' ? undefined : form.parentId || undefined, name: form.name, code: form.kind === 'stores' ? form.code : undefined, status: 'active' }); setForm({ kind: 'regions', parentId: '', name: '', code: '' }) } catch {} finally { setBusy('') } }
+  const rename = async (kind, item) => { const name = editing?.name?.trim(); if (!name) return; setBusy(`rename:${item.id}`); try { await shared.updateDirectory(kind, item.id, { name, status: item.status }); setEditing(null) } catch {} finally { setBusy('') } }
+  const toggle = async (kind, item) => { if (item.status === 'pending') return; setBusy(`toggle:${item.id}`); try { await shared.updateDirectory(kind, item.id, { name: item.name, status: item.status === 'active' ? 'disabled' : 'active' }) } catch {} finally { setBusy('') } }
+  const loadMembers = async (storeId) => { const request = gate.current.next(); setDetails((all) => ({ ...all, [storeId]: { busy: true } })); try { const payload = await shared.getStore(storeId, request.signal); if (gate.current.isLatest(request.id)) setDetails((all) => ({ ...all, [storeId]: { payload } })) } catch (error) { if (error.name !== 'AbortError' && gate.current.isLatest(request.id)) setDetails((all) => ({ ...all, [storeId]: { error: error.message } })) } }
+  const viewMembers = (storeId) => { if (openStore === storeId) setOpenStore(''); else { setOpenStore(storeId); if (!details[storeId]) void loadMembers(storeId) } }
+  const memberMutation = async (store, member, remove = false) => { if (remove && !window.confirm(`确认从${store.name}移除成员“${member.displayName}”？`)) return; setBusy(`member:${store.id}`); try { if (remove) await shared.removeMember(store.id, member.userId, { expectedUpdatedAt: member.updatedAt }); else await shared.updateMember(store.id, member.userId, { displayName: memberForm.displayName, role: memberForm.role, expectedUpdatedAt: member.updatedAt }); await loadMembers(store.id); setMemberEditing(null) } catch {} finally { setBusy('') } }
+  const name = (kind, item) => editing?.id === item.id ? <input className="admin-directory-rename" autoFocus value={editing.name} onChange={(event) => setEditing({ id: item.id, name: event.target.value })} onKeyDown={(event) => event.key === 'Enter' && void rename(kind, item)} aria-label={`${labels[kind]}名称`} /> : <strong>{item.name}</strong>
+  const actions = (kind, item) => <div className="admin-directory-actions">{editing?.id === item.id ? <><button type="button" onClick={() => void rename(kind, item)} disabled={busy === `rename:${item.id}`}>保存</button><button type="button" onClick={() => setEditing(null)}>取消</button></> : <button type="button" onClick={() => setEditing({ id: item.id, name: item.name })}>重命名</button>}{item.status !== 'pending' ? <button type="button" onClick={() => void toggle(kind, item)} disabled={busy === `toggle:${item.id}`}>{item.status === 'active' ? '停用' : '启用'}</button> : null}</div>
+  const module = (kind, item, expanded, onClick, body) => <div className={`admin-directory-module admin-directory-module-${kind}`} data-expanded={expanded ? 'true' : 'false'}><div className="admin-directory-module-head"><button type="button" className="admin-directory-module-trigger" aria-expanded={expanded} onClick={onClick}>{name(kind, item)}<span className="admin-directory-module-chevron">{expanded ? '−' : '+'}</span></button><Status value={item.status} />{actions(kind, item)}</div>{expanded ? body : null}</div>
+  const memberPanel = (store) => { const state = details[store.id] || {}; if (state.busy) return <div className="admin-directory-member-panel"><p className="admin-status">正在读取成员…</p></div>; if (state.error) return <div className="admin-directory-member-panel"><p className="form-error">{state.error}</p></div>; const members = state.payload?.members || []; return <div className="admin-directory-member-panel"><div className="admin-directory-member-list">{!members.length ? <p className="admin-empty">暂无已注册成员。</p> : members.map((member) => memberEditing?.userId === member.userId ? <div key={member.userId} className="admin-directory-member-row admin-directory-member-edit"><input value={memberForm.displayName} onChange={(event) => setMemberForm({ ...memberForm, displayName: event.target.value })} aria-label="成员姓名" /><select value={memberForm.role} onChange={(event) => setMemberForm({ ...memberForm, role: event.target.value })} aria-label="成员角色">{roleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><button type="button" onClick={() => void memberMutation(store, member)}>保存</button><button type="button" onClick={() => setMemberEditing(null)}>取消</button></div> : <div key={member.userId} className="admin-directory-member-row"><strong>{member.displayName}</strong><span>{member.username}</span><span>{roles[member.role] || member.role}</span><Status value={member.status} /><button type="button" onClick={() => { setMemberEditing({ userId: member.userId }); setMemberForm({ displayName: member.displayName, role: member.role }) }}>编辑</button><button type="button" onClick={() => void memberMutation(store, member, true)}>移除</button></div>)}</div></div> }
+  const storeRowsFor = (leaf) => (leaf.stores || []).map((store) => (
+    <div key={store.id} className="admin-directory-store-block">
+      <div className="admin-directory-store-row">
+        <span className="admin-directory-store-identity"><span className="admin-store-code">{store.code}</span><strong>{store.name}</strong></span>
+        <Status value={store.status} />
+        <span className="admin-directory-member-count">成员 {store.memberCount || 0} 人</span>
+        <div className="admin-directory-actions">
+          <button type="button" onClick={() => viewMembers(store.id)}>{openStore === store.id ? '收起' : '查看'}</button>
+          {actions('stores', store)}
+        </div>
+      </div>
+      {openStore === store.id ? memberPanel(store) : null}
+    </div>
+  ))
+  const renderCityBody = (leaf) => path.city === leaf.id
+    ? <div className="admin-directory-store-list">{storeRowsFor(leaf)}</div>
+    : null
+  const renderSubregionBody = (child) => path.subregion === child.id
+    ? <div className="admin-directory-child-level"><div className="admin-directory-city-grid">{cities(child).map((leaf) => module('cities', leaf, path.city === leaf.id, () => setCity(leaf.id), renderCityBody(leaf)))}</div></div>
+    : null
+  const renderRegionBody = (item) => path.region === item.id
+    ? <div className="admin-directory-child-level"><div className="admin-directory-child-grid">{subs(item).map((child) => module('subregions', child, path.subregion === child.id, () => setSubregion(child.id), renderSubregionBody(child)))}</div></div>
+    : null
+  const waterfall = directory.map((item) => module('regions', item, path.region === item.id, () => setRegion(item.id), renderRegionBody(item)))
+  return <section className="admin-panel"><header className="admin-panel-head"><h2>目录</h2><small>DIRECTORY · 大区 / 小区 / 城市 / 门店</small></header><form className="data-form admin-directory-form" onSubmit={submit}><label className="field-row"><span>类型</span><ProjectSelect value={form.kind} options={Object.entries(labels).map(([value, label]) => ({ value, label }))} onChange={(kind) => setForm({ kind, parentId: '', name: '', code: '' })} ariaLabel="选择目录类型" /></label>{form.kind === 'subregions' ? <label className="field-row"><span>所属大区</span><ProjectSelect value={form.parentId} options={regionOptions} onChange={(parentId) => setForm({ ...form, parentId })} ariaLabel="选择所属大区" /></label> : null}{form.kind === 'cities' ? <label className="field-row"><span>所属小区</span><ProjectSelect value={form.parentId} options={subregionOptions} onChange={(parentId) => setForm({ ...form, parentId })} ariaLabel="选择所属小区" /></label> : null}{form.kind === 'stores' ? <><label className="field-row"><span>所属城市</span><ProjectSelect value={form.parentId} options={cityOptions} onChange={(parentId) => setForm({ ...form, parentId })} ariaLabel="选择所属城市" /></label><label className="field-row"><span>门店代码</span><input required value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} /></label></> : null}<label className="field-row"><span>名称</span><input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label><button type="submit" className="primary-action" disabled={busy === 'create'}>新增{labels[form.kind]}</button></form><div className="admin-directory-waterfall"><div className="admin-directory-major-grid">{waterfall}</div></div></section>
 }
