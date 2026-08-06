@@ -71,9 +71,10 @@ test('后台 CSS 只有一组响应式/动效/forced-colors 门禁且补齐 44px
   assert.match(cssSource, /admin-directory-actions button,[\s\S]*min-height: 44px/u)
 })
 
-const [appSource, overviewSource, menuSource, headerSource, indexCss] = await Promise.all([
+const [appSource, overviewSource, formatSource, menuSource, headerSource, indexCss] = await Promise.all([
   read('../apps/web/src/App.jsx'),
   read('../apps/web/src/components/admin/AdminOverviewSection.jsx'),
+  read('../apps/web/src/components/admin/admin-format.js'),
   read('../apps/web/src/components/dialogs/MenuDialog.jsx'),
   read('../apps/web/src/components/workshop/WorkshopShellHeader.jsx'),
   read('../apps/web/src/styles/index.css')
@@ -130,9 +131,10 @@ test('变化流与最近平台事件为阅读型两行结构：摘要整行换�
   assert.match(overviewSource, /event\.actorNameSnapshot/u)
   assert.match(overviewSource, /event\.storeName/u)
   // 近三天用日锚点，完整时间进 title，避免只剩 月-日 时:分 难以定位。
-  assert.match(overviewSource, /'今天'/u)
-  assert.match(overviewSource, /'昨天'/u)
-  assert.match(overviewSource, /'前天'/u)
+  assert.match(formatSource, /'今天'/u)
+  assert.match(formatSource, /'昨天'/u)
+  assert.match(formatSource, /'前天'/u)
+  assert.match(overviewSource, /from '\.\/admin-format\.js'/u)
   assert.match(overviewSource, /title=\{stamp\.full\}/u)
   // 变化流类型标签带语义色调。
   assert.match(overviewSource, /changeTones/u)
@@ -145,6 +147,42 @@ test('变化流与最近平台事件为阅读型两行结构：摘要整行换�
   // 行分隔线让长列表可扫读。
   assert.match(cssSource, /\.admin-change-list li \+ li\s*\{[^}]*border-top/u)
   assert.match(cssSource, /\.admin-audit-strip li\s*\{[^}]*border-top/u)
+})
+
+test('目录展开态独占整行、折叠态标题不与状态操作抢宽度，门店与成员行为可读密度', () => {
+  // 折叠态窄列（~260px）容不下「标题 + 状态 + 两个按钮」一行：状态与操作收进 meta 降到第二行。
+  assert.match(directorySource, /admin-directory-module-meta/u)
+  // 展开后必须跨满整行，否则门店行被压在窄列里 min-content 溢出数倍、逐字换行。
+  assert.match(cssSource, /\.admin-directory-major-grid > \.admin-directory-module\[data-expanded='true'\]\s*\{[^}]*grid-column: 1 \/ -1/u)
+  assert.match(cssSource, /\.admin-directory-module-head\s*\{[^}]*flex-wrap: wrap/u)
+  assert.match(cssSource, /\.admin-directory-module-trigger\s*\{[^}]*flex: 1 1 100%/u)
+  assert.match(cssSource, /\[data-expanded='true'\] > \.admin-directory-module-head > \.admin-directory-module-trigger\s*\{[^}]*flex: 1 1 auto/u)
+  // 门店行与成员行提到可读密度并可扫读。
+  assert.match(cssSource, /\.admin-directory-store-row\s*\{[^}]*font-size: 14px/u)
+  assert.match(cssSource, /\.admin-directory-store-row:hover/u)
+  assert.match(cssSource, /\.admin-directory-member-row > strong\s*\{[^}]*font-size: 14px/u)
+  // SSR 暴露：module() 返回的根节点缺 key，React 无法按 id reconcile（重命名/刷新后可能错位）。
+  assert.match(directorySource, /const module = \(kind, item, expanded, onClick, body\) => <div key=\{item\.id\}/u)
+  // 门店行操作是嵌套的两层 .admin-directory-actions，窄屏必须按后代选择器等宽，否则只有「查看」被拉伸。
+  assert.match(cssSource, /\.admin-directory-store-row \.admin-directory-actions>\*\{flex:1 1 80px\}/u)
+})
+
+test('用户表把门店与角色合并为配对列，最近登录带日锚点', () => {
+  // 原先角色、门店各自一列用顿号拼接，多门店用户需要人工按位置对应。
+  assert.match(usersSource, /门店与角色/u)
+  assert.match(usersSource, /MembershipList/u)
+  assert.match(usersSource, /membership\.storeName/u)
+  assert.match(usersSource, /admin-membership-role/u)
+  assert.doesNotMatch(usersSource, /<th>角色<\/th>/u)
+  assert.doesNotMatch(usersSource, /<th>门店<\/th>/u)
+  // 最近登录改日锚点，完整日期进 title；从未登录明确成文案而不是长横线。
+  assert.match(usersSource, /formatDayStamp/u)
+  assert.match(usersSource, /从未登录/u)
+  assert.match(formatSource, /export function formatDayStamp/u)
+  // 配对列样式：每条成员一行，角色用分隔线而非顿号堆叠。
+  assert.match(cssSource, /\.admin-membership-list\s*\{[^}]*flex-direction: column/u)
+  assert.match(cssSource, /\.admin-membership-role\s*\{[^}]*border-left/u)
+  assert.match(cssSource, /\.admin-table td\s*\{[^}]*line-height: 1\.5/u)
 })
 
 test('目录分区承载门店行、成员详情与四级层级', () => {
@@ -238,4 +276,4 @@ test('审批卡片移动端：详情与操作显式占用宽列（防竖排文�
   assert.match(tabletBlock, /\.admin-approval-row \.admin-approval-identity,\s*\n\s*\.admin-approval-row \.admin-approval-detail,\s*\n\s*\.admin-approval-row \.admin-approval-actions \{\s*\n\s*grid-column: 2;/u)
 })
 
-test('目录合并为五项导航与大区/小区/城市/门店行单路径展开', () => { assert.doesNotMatch(consoleSource, /id: 'stores'/u); assert.match(directorySource, /subregions/u); assert.match(directorySource, /setRegion/u); assert.match(directorySource, /memberPanel/u); assert.match(directorySource, /成员 \{store\.memberCount/u); assert.match(directorySource, /编辑/u); assert.match(directorySource, /移除/u); assert.match(cssSource, /repeat\(5, minmax/u) })
+test('目录合并为五项导航与大区/小区/城市/门店行单路径展开', () => { assert.doesNotMatch(consoleSource, /id: 'stores'/u); assert.match(directorySource, /subregions/u); assert.match(directorySource, /setRegion/u); assert.match(directorySource, /memberPanel/u); assert.match(directorySource, /成员 \{store\.memberCount/u); assert.match(directorySource, /编辑/u); assert.match(directorySource, /移除/u); assert.match(cssSource, /\.admin-directory-major-grid\s*\{[^}]*repeat\(auto-fill, minmax\(260px/u) })

@@ -181,3 +181,30 @@ Preview 重新部署 run `31041554495` 成功（工作流自检 attempt 2 命中
 环境备忘：`pull` 之后 `packages/contracts/dist` 为旧产物、缺 `adminCreateUserSchema` 等导出，会让 worker 测试假失败 1 项；须先 `pnpm --filter @bike-ops/contracts build` 再跑 worker 测试。SSR 冒烟入口须放在 `apps/web/`（`react-dom` 在 `apps/web/node_modules`，不在仓库根）。
 
 CodeGraph 前后置本轮记为豁免：CodeGraph 装在 Termux 本机，不在本轮使用的 workspace 沙箱内；CSS 与 Markdown 本身即非索引例外，由契约测试、SSR 渲染核对、构建与线上资产核验补偿。
+
+### 目录与用户可读性重构（2026-08-07）
+
+用户反馈：目录与用户两个界面阅读性差。**根因（按实际宽度算过，不是主观判断）**：
+
+- **目录**：`.admin-directory-major-grid` 固定 `repeat(5, minmax(0,1fr))`，1180px 面板下每列仅 **226px**；大区头部是 `minmax(0,1fr) auto auto` 三列，状态标签加两个按钮吃掉 **199px**，标题列只剩 **1.4px** → 22px 中文大区名逐字竖排。更严重的是展开态仍被关在这条窄列里：门店行嵌在大区→小区→城市三层 padding 内，可用宽 **148px**，而它自身 min-content 需求 **504px** → **溢出 3.4 倍**。这是"目录不可读"的真正来源。
+- **用户**：「角色」「门店」各自成列并用顿号拼接，多门店用户必须人工按位置对应两列；`.admin-table td` 无 `line-height`；最近登录只有 `2026/08/06` 无日锚点。
+
+修复：
+
+- 目录折叠态改 `repeat(auto-fill, minmax(260px, 1fr))`（1180px 下约 4 列，每列 ~277px）；头部改 flex 换行，标题独占首行，状态与操作收进新增 `.admin-directory-module-meta` 降到第二行。
+- 展开态 `.admin-directory-major-grid > .admin-directory-module[data-expanded='true'] { grid-column: 1 / -1 }` 独占整行，门店行可用宽从 148px 变为约 **1078px**，四列（识别 / 状态 / 成员数 / 操作）全部落位；门店行提到 14px 并加 hover，成员姓名提到 14px。
+- 用户表把两列合并为「门店与角色」配对列，每条成员一行 `CHU13 上海中山公园店 · 经理`，表格从 7 列降到 6 列；`.admin-table td` 补 `line-height: 1.5`；最近登录改日锚点（今天 / 昨天 / 前天 / MM-DD，跨年回落完整年月日），完整日期进 `title`，未登录显示"从未登录"而非长横线。
+- 时间格式化抽出 `apps/web/src/components/admin/admin-format.js` 供总览与用户共用，并补跨年处理。
+
+**SSR 暴露的两个真实缺陷（顺带修复）**：
+
+1. `module()` 返回的根 `div` 缺 `key`（PR #174 遗留）。React 报 unique key 警告；目录重命名或刷新后子节点重排会导致展开态与重命名输入框错位。已补 `key={item.id}`，HTML 输出不变（key 只影响 reconcile，已用渲染哈希 `9bd0d8db73d74115` 前后一致证实）。
+2. 门店行 `.admin-directory-actions` 实际嵌套两层（外层含「查看」，内层含「重命名/停用」），≤1023px 的 `>` 直接子选择器只命中「查看」，另两个按钮不参与等分。已改为后代选择器 `.admin-directory-store-row .admin-directory-actions>*`。
+
+验证：web 200/200、worker 50/50、domain 7、database 10、api 21、typecheck（含 worker）、workflow policy 88、`git diff --check` 干净、vite build 成功。
+
+**总览逐字节回归**：因为把 `formatStamp` 搬到共享模块，用 esbuild + `react-dom/server` 在固定时间下分别渲染「已验收版本」与「共享模块版本」，两份 HTML SHA-256 同为 `de272f935e4a37a7480723d099f3c67f3209baaeaeb341dcd0eac8662912c1eb`，**5454 B 逐字节一致**，确认上一轮已验收的总览渲染未被改动。
+
+目录与用户两块也做了真实 SSR 渲染核对（目录用预设展开态副本渲染出四级层级与门店行；用户导出展示组件后用 fixture 渲染配对列与日锚点各分支）。注意沙箱时区为 UTC，日锚点须在 `TZ=Asia/Shanghai` 下核验，否则会看到"昨天"被算成"今天"的环境假象。
+
+CodeGraph 前后置本轮仍记豁免（CodeGraph 在 Termux 本机，不在本轮 workspace 沙箱）。
