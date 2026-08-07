@@ -386,12 +386,19 @@ test('后台目录手机态：图标操作保住 44px 触摸目标且动词留�
   // DESIGN.md：图标操作需要可访问名称与至少 44px 命中区域。
   // 参考稿的图标框是 28px，低于 44px。视觉尺寸照搬参考稿，命中区由 ::after 扩到 44px，
   // 两者解耦——这样既复刻观感又不牺牲触摸目标。
-  assert.match(phone, /\.admin-directory-icon-action \{[^}]*width: 28px;[^}]*min-width: 28px/u)
-  assert.match(phone, /\.admin-directory-icon-action::after \{[^}]*width: 44px;[^}]*height: 44px/u)
+  // 选择器必须是复合形式：802 行 `.admin-directory-actions button` 特异度 (0,1,1) 会压过
+  // 裸类 (0,1,0) 从而保留 padding: 0 12px，border-box 下内容宽只剩 28-2-24=2px，
+  // 再撞上 base.css 的 `svg { max-width: 100% }`，图标被等比压成 2×2 的点。
+  // 断言复合选择器本身，否则裸类写法能在契约全绿的情况下把图标压没。
+  assert.match(phone, /\.admin-directory-actions button\.admin-directory-icon-action \{[^}]*width: 28px;[^}]*min-width: 28px/u)
+  assert.doesNotMatch(phone, /\n  \.admin-directory-icon-action \{/u, 'icon-action 不得用裸类：会被 802 行的 padding 压回从而挤掉图标')
+  // 图标尺寸必须显式钉死，不得依赖「内容宽恰好 >= 图标宽」的余量。
+  assert.match(phone, /button\.admin-directory-icon-action > svg \{[^}]*width: 17px;[^}]*height: 17px/u)
+  assert.match(phone, /\.admin-directory-actions button\.admin-directory-icon-action::after \{[^}]*width: 44px;[^}]*height: 44px/u)
   // 成员卡的编辑/移除是纯文字按钮，必须自身撑满 44px（无 ::after 兜底）。
   assert.match(phone, /\.admin-directory-member-row button \{[^}]*min-width: 44px;[^}]*min-height: 44px/u)
   // 文字标签视觉隐藏但保留在 DOM，动词同时由 aria-label 承载。
-  assert.match(phone, /\.admin-directory-icon-action \.admin-action-label \{[^}]*clip-path: inset\(50%\)/u)
+  assert.match(phone, /button\.admin-directory-icon-action \.admin-action-label \{[^}]*clip-path: inset\(50%\)/u)
   assert.match(directorySource, /aria-label=\{`重命名\$\{labels\[kind\]\}\$\{item\.name\}`\}/u)
   assert.match(directorySource, /aria-label=\{`\$\{item\.status === 'active' \? '停用' : '启用'\}/u)
   assert.match(directorySource, /aria-label=\{`\$\{openStore === store\.id \? '收起' : '查看'\}\$\{store\.name\}成员`\}/u)
