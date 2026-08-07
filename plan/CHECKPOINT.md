@@ -201,3 +201,37 @@ EdgeOne 平台操作若当前网络不可达，停止并提醒开启 VPN；不�
 - Published CSS/JS are byte-identical to the locally verified build. Production and Production D1 remain untouched; public V5.8.1 unchanged.
 - browser-harness is installed but has no local Chrome daemon or logged-in cloud Workshop session; no prohibited browser/accessibility fallback was used.
 - State: waiting for human visual acceptance of the five 1536×1024 boards.
+
+## 当前状态加注（2026-08-07 08:5x +08:00 · 提交延迟优化 + 安全加固已上 Preview）
+
+- **集成分支 `feature/cloudflare-workers-d1` = `e3f15e08b45085476120c5316b82e38cc1eee2cd`**。三个 PR 按序普通合并（非 squash），每步均以 `git fetch` 观察远端 ref 位移独立确认：
+  - PR #177 → `3fd89f85db0847f4e17ae841094008f3235cce19`（后台目录/用户可读性，`fee1b0e..3fd89f8`）
+  - PR #178 → `6380aeb5b3119435dd43cf694cde44438d78d617`（提交延迟优化 + Smart Placement，`3fd89f8..6380aeb`）
+  - PR #179 → `e3f15e08b45085476120c5316b82e38cc1eee2cd`（登录退避 + 租户收敛，`6380aeb..e3f15e0`）
+- **Preview 已部署并三轮绕缓存核验**：run `31163535215`（`workflow_dispatch`，08:52:47Z 起，`completed success`）。`/api/v1/meta/version` 三轮一致返回 `gitSha=e3f15e08b450`、`environment=preview`。部署日志确认 `wrangler d1 migrations apply bike-ops-preview --remote` 应用了 `0010_admin_console_query_indexes.sql`（1 migration），`Current Version ID: 7aff442f-92ae-4b9e-bcda-3353b74f678c`，上传 277.57 KiB / gzip 61.85 KiB。`seed_preview_data=false`，既有验收数据未被覆盖。
+- **Production `workshop.skin` 全程未部署、未触碰**：三轮核验一致 `5.8.3 / 3ec28a321b1f / environment=staging`，与部署前基线逐字一致。
+- **Cloudflare 边缘限流（唯一直接作用于 Production 的改动，经用户明确要求）**：zone `workshop.skin` 新建 `http_ratelimit` entrypoint，规则匹配 `http.request.uri.path eq "/api/v1/auth/login" and http.request.method eq "POST"`，计数 `ip.src + cf.colo.id`，10 次 / 10 秒，Block 10 秒。建规则前确认该 phase 与 `http_request_firewall_custom` 均无既有 entrypoint，属从零新建。Free 套餐实测限制严于官方文档：每 zone 仅 1 条规则、动作仅 `block`（Log 需 Pro+）、`period` 仅接受 10、`characteristics` 必须含 `cf.colo.id`（计数在 colo 本地，分布式攻击实际上限高于标称）。
+
+### 两个判据陷阱（本轮踩到，务必记住）
+
+1. **`/api/v1/meta/version` 的 `schemaVersion` 是硬编码字符串**（`apps/worker/src/routes/health.ts:30` = `'0002_work_item_ticket_numbers'`），与实际应用的迁移**完全无关**，永远不变。不可用它判断迁移是否落库——只能看部署日志里 wrangler 的迁移输出。
+2. **`cf-placement` 响应头在部署后不存在**，因此**无法据此确认 Smart Placement 运行时已生效**。部署日志里那条 `ok 174 - Worker 启用 Smart Placement` 只是契约测试确认配置文件含 `placement.mode=smart`，不等于流量已被重定位。Cloudflare 需要流量学习期后才开始迁移执行位置。
+3. 部署后自检出现短暂版本混合窗口：同一时刻 `/health/live` 返回新 SHA 而 `/health/ready` 返回旧 SHA `fee1b0e7c9ba`。之后三轮 `/api/v1/meta/version` 均为新 SHA，已收敛。
+
+### 实测延迟数据（决定后续优化方向）
+
+- 用 `/health/ready` 减 `/health/live` 量单次 D1 往返成本（后者不碰 D1 也不加载密钥）：**Production ≈ 23.0 ms**，部署前 Preview ≈ 58.6 ms。两者均由 SIN（新加坡）节点服务。
+- 写入路径优化后剩约 6 次串行往返 ≈ 140 ms，而用户体感 **2–4 秒**。**D1 往返最多占体感十分之一，代码层削减往返已接近收益上限。**
+- 剩余九成在国内到 SIN/HKG 的国际出口（RTT 200–800 ms + 丢包重传 + TLS 多轮握手）。
+- 唯一能根本改善体感的方向是**乐观更新**：`RecordLedger.onSubmit` → `App.saveRecord` → `workflow.addRecord` → `run()` → `await createWorkItem()` 全链路 await，提交按钮在整个跨国往返期间 disabled 显示「正在保存…」。改为本地立即落行 + 后台发请求 + 响应回来对账，可使感知延迟趋近零。基建已有 `applyServerResult` / `patchRecordLocal`；难点是工单号由服务端 `work_item_counters` 生成需本地占位再校正、revision 乐观锁、失败回滚，以及重试必须复用同一幂等键（`apps/web/src/api/client.js` 的 `api()` 默认每次新生成 UUID，除非显式传 `options.idempotencyKey`）。**未实施，待用户决定。**
+
+### 本轮发现的真实覆盖缺口（未修，独立任务）
+
+- **`apps/worker/security/security-audit.test.ts` 从未进入 CI**。worker 的 test 脚本是 `node --import tsx --test test/*.test.ts`，只匹配 `test/` 目录；该文件在 `security/` 下，42,800 字节、24 个用例。这解释了为何其中 3 项失败（CSRF 多标签期望 410 实得 403、注册邮箱脱敏、并发平台管理员初始化）从未拦住任何 PR。已用 stash 对照基线确认这 3 项是预先存在、非本轮引入；其中最关键的第 11 项「攻击者不能用五次错误密码锁死唯一平台管理员」在退避改动后仍通过。修法需先修断言再扩 glob，否则接进门禁会立刻变红。
+
+### 未决事项（需用户决定）
+
+- Preview 验收结果；是否上 Production（未获明确同意不得部署或变更正式版本号）。
+- 是否实施乐观更新改造。
+- `version-manifest.json` 记 5.8.5 与 Production 实际 5.8.3 的对账方式（仍未改）。
+- `security-audit.test.ts` 接入 CI 的时机。
