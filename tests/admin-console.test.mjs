@@ -503,3 +503,22 @@ test('后台目录手机态：状态标签压缩必须限定在目录内，不�
   assert.match(phone, /\.admin-directory-module-meta \.admin-status-tag,/u)
   assert.match(phone, /\.admin-directory-store-row \.admin-status-tag,/u)
 })
+
+test('目录分区成员行标出平台管理员，并且不给受保护成员渲染编辑/移除', () => {
+  // 后端两个成员端点都有 is_platform_admin === 1 守卫（409 PLATFORM_ADMIN_PROTECTED），
+  // 但目录分区此前既不显示徽章、又照常渲染按钮：点下去必然吃 409。
+  // 用户分区与门店分区早已显示徽章，这里补齐第三处——否则门店角色「管理员」
+  // 会被误读成平台管理员。
+  assert.match(directorySource, /member\.isPlatformAdmin \? <span className="admin-platform-badge">平台管理员<\/span> : null/u)
+  assert.match(directorySource, /member\.isPlatformAdmin \? <span className="admin-directory-member-protected">受保护<\/span> : <>/u)
+  assert.match(cssSource, /\.admin-directory-member-protected \{/u)
+  // 徽章必须嵌在 <strong> 内。这张栅格桌面态六列，而该行正好六个子元素，
+  // 平级插入会变成第七个，换行撑出一个幻影行。
+  assert.match(directorySource, /<strong>\{member\.displayName\}\{member\.isPlatformAdmin/u)
+  // 两个按钮必须包在 Fragment 里：Fragment 不产生 DOM 节点，普通成员仍是六个子元素，
+  // 手机块按 nth-child 定位的那几条规则因此不受影响。
+  assert.match(directorySource, /<\/>\}<\/div>/u)
+  // 受保护提示不得设 grid-column：手机块把这张栅格收成四列，
+  // 跨到第 5/6 条网格线会撑出隐式列。
+  assert.doesNotMatch(cssSource, /\.admin-directory-member-protected \{[^}]*grid-column/u)
+})
