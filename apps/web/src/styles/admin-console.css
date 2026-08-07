@@ -2330,27 +2330,39 @@
     flex: 0 0 auto;
   }
 
-  .admin-directory-icon-action {
+  /* 选择器必须是复合形式 .admin-directory-actions button.admin-directory-icon-action：
+     802 行的 `.admin-directory-actions button` 特异度 (0,1,1) 会压过裸类 (0,1,0)，
+     从而保留 padding: 0 12px。border-box 下 28 − 2(边框) − 24(内边距) = 内容宽 2px，
+     再撞上 base.css 的 `svg { max-width: 100% }`，17px 图标被等比压成 2×2 的点。
+     42936cc 用 44px 时内容宽恰好 18px ≥ 17px，是靠余量侥幸成立，不是正确写法。
+     同理 1656 行的 min-height: 44px 与 1846 行的 flex: 1 1 88px 也需在此压回。 */
+  .admin-directory-actions button.admin-directory-icon-action {
     position: relative;
     display: inline-flex;
+    flex: 0 0 28px;
     align-items: center;
     justify-content: center;
     width: 28px;
     min-width: 28px;
-    min-height: 28px;
+    max-width: 28px;
     height: 28px;
+    min-height: 28px;
     margin: 0 8px;
     padding: 0;
     border: 1px solid var(--ops-line, #dedbd2);
     border-radius: 8px;
   }
 
-  .admin-directory-store-row .admin-directory-actions button {
-    width: 28px;
+  /* 图标尺寸不再依赖内容宽余量：显式钉死，且 flex 不得压缩。 */
+  .admin-directory-actions button.admin-directory-icon-action > svg {
+    flex: 0 0 17px;
+    width: 17px;
+    height: 17px;
+    max-width: 17px;
   }
 
   /* 视觉框 28px 但命中区补到 44px：44 = 28 + 8×2 外扩。 */
-  .admin-directory-icon-action::after {
+  .admin-directory-actions button.admin-directory-icon-action::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -2360,7 +2372,7 @@
     transform: translate(-50%, -50%);
   }
 
-  .admin-directory-icon-action .admin-action-label {
+  .admin-directory-actions button.admin-directory-icon-action .admin-action-label {
     position: absolute;
     width: 1px;
     height: 1px;
