@@ -2095,17 +2095,30 @@
 
 
 /* ============================================================
-   后台专属高密度信息流（仅 ≤767px 手机）
+   后台专属高密度信息流（仅 ≤767px 手机）· 目录树按参考稿复刻
 
-   桌面态一律不动：本文件上方所有规则保持原样，仅在此断点内覆盖。
-   桌面 226px 窄列需要「标题独占一行」，手机有整屏宽度却继承了同一条
-   flex: 1 1 100%，于是每个实体被撑到 118px。这里把它收回单行。
+   桌面态一律不动：本文件此注释以上所有规则保持原样，仅在此断点内覆盖。
 
-   层级不再靠逐层卡片外壳表达，改为左缩进轨 + 字重 + 字色；
-   操作降为图标（文字标签由 aria-label 承载），子树规模内联在父层行内。
+   几何来自参考稿反解：参考稿为 390px 视口 @2.187×（用 .admin-region 手机端
+   padding-left:12px 对上稿中卡片左边缘 26px 定标，853/390=2.187 交叉验证）。
+   逐项回算全部落在整数 CSS 值上：行高 44、图标框 28、状态标签高 20、
+   圆点 6、成员强调条 2、门店卡 46、卡间距 10、缩进步长 20。
+
+   层级表达 = 单条竖干 + 横支 + 琥珀圆点。实测参考稿只有一条竖干（位于
+   28.5px，小区/城市各自并无竖干），且竖干止于最后一支的分叉点而不拖到底，
+   故竖干用 ::before 实现——border-left 无法在末端收住。
+   缩进规律 = 子级圆点对齐父级名称起点，故步长 = 圆点 6 + 间隙 14 = 20px。
+
+   两处对参考稿的有意偏离，均因参考稿是对含缺陷线上态的重绘：
+   1. 成员行「移除」在参考稿中独占一行居中。成因是三列网格容纳六个子元素时
+      第六个溢出到第四行第一列，而该列为 1fr 故文字居中。此处改为四列，
+      让「角色 / 状态 / 编辑 / 移除」回到同一行，成员卡由 118px 降至约 93px。
+      如需照搬参考稿，把下方 member-row 的四列改回三列即可复现。
+   2. 参考稿图标框 28px、间距 6.4px，低于 44px 触摸目标。此处保持 28px 视觉
+      尺寸，命中区用 ::after 扩到 44px（间距随之 14px），门店卡比稿高约 6px。
    ============================================================ */
 @media (max-width: 767px) {
-  /* 外壳拆掉：三层嵌套的 border + radius + background 在手机上纯属浪费横纵空间。 */
+  /* ---------- 大区 = 一张卡，其内不再嵌套卡壳 ---------- */
   .admin-directory-module {
     border: 0;
     border-radius: 0;
@@ -2113,33 +2126,41 @@
     overflow: visible;
   }
 
-  .admin-directory-module[data-expanded='true'] {
-    border-color: transparent;
+  .admin-directory-module-regions {
+    border: 1px solid var(--ops-line, #dedbd2);
+    border-radius: 8px;
+    background: var(--ops-card, #fffdf8);
+    padding: 6px 14px;
   }
 
-  .admin-directory-module + .admin-directory-module {
-    border-top: 1px solid var(--ops-line, #dedbd2);
+  .admin-directory-module-regions[data-expanded='true'] {
+    border-color: var(--ops-line, #dedbd2);
   }
 
-  .admin-directory-major-grid,
+  .admin-directory-major-grid {
+    gap: 10px;
+  }
+
   .admin-directory-child-grid,
   .admin-directory-city-grid {
     gap: 0;
   }
 
-  /* 标题回到单行：这是密度的主要来源，一个实体从 118px 降到 44px。 */
+  /* ---------- 行：单行 44px ---------- */
   .admin-directory-module-head {
+    position: relative;
     flex-wrap: nowrap;
     align-items: center;
     gap: 8px;
     min-height: 44px;
-    padding: 0 4px 0 0;
+    padding: 0;
   }
 
   .admin-directory-module-trigger {
     flex: 1 1 auto;
     justify-content: flex-start;
-    gap: 6px;
+    gap: 14px;
+    min-width: 0;
     min-height: 44px;
   }
 
@@ -2154,63 +2175,122 @@
     white-space: nowrap;
   }
 
-  /* 层级靠字重与字色区分，不靠字号阶梯——字号阶梯在手机上只会浪费行高。 */
   .admin-directory-module-regions > .admin-directory-module-head .admin-directory-module-trigger { font-size: 15px; font-weight: 700; }
   .admin-directory-module-subregions > .admin-directory-module-head .admin-directory-module-trigger { font-size: 14px; font-weight: 600; }
-  .admin-directory-module-cities > .admin-directory-module-head .admin-directory-module-trigger { font-size: 14px; font-weight: 500; color: var(--ops-text-muted, #55554f); }
+  .admin-directory-module-cities > .admin-directory-module-head .admin-directory-module-trigger { font-size: 14px; font-weight: 500; }
 
+  /* ---------- 琥珀圆点替代 +/− ---------- */
   .admin-directory-module-chevron {
     order: -1;
     flex: 0 0 auto;
-    width: 16px;
-    font-size: 16px;
-    line-height: 1;
-    text-align: center;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ops-yellow, #ffc31a);
+    font-size: 0;
+    line-height: 0;
+    overflow: hidden;
+  }
+
+  .admin-directory-module[data-expanded='false'] > .admin-directory-module-head > .admin-directory-module-trigger > .admin-directory-module-chevron {
+    background: var(--ops-line-strong, #b9b5aa);
   }
 
   .admin-directory-module-meta {
     flex: 0 0 auto;
     flex-wrap: nowrap;
-    gap: 4px;
+    gap: 6px;
   }
 
-  /* 缩进轨：一条 1px 竖线替代整个嵌套卡片，既保留层级又几乎不占宽度。 */
+  /* ---------- 竖干 + 横支 ----------
+     竖干挂在大区的子层容器上，left:0 即父级圆点中心；bottom:23px 让它止于
+     最后一支（门店卡 46px / 行 44px，半高均约 22–23px）的分叉点。 */
   .admin-directory-child-level {
-    margin-left: 8px;
-    padding: 0 0 0 8px;
-    border-left: 1px solid var(--ops-line, #dedbd2);
+    position: relative;
+    margin: 0;
+    padding: 0 0 0 20px;
+    border-left: 0;
   }
 
-  /* 门店行压到单行 44px；名称过长时省略并由 title 提供全文。 */
+  .admin-directory-module-regions > .admin-directory-child-level {
+    margin-left: 3px;
+    padding-left: 17px;
+  }
+
+  .admin-directory-module-regions > .admin-directory-child-level::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 24px;
+    width: 1px;
+    background: var(--ops-line, #dedbd2);
+  }
+
+  .admin-directory-module-subregions > .admin-directory-module-head::before,
+  .admin-directory-module-cities > .admin-directory-module-head::before,
+  .admin-directory-store-block::before {
+    content: '';
+    position: absolute;
+    height: 1px;
+    background: var(--ops-line, #dedbd2);
+  }
+
+  .admin-directory-module-subregions > .admin-directory-module-head::before {
+    left: -17px;
+    width: 17px;
+    top: 22px;
+  }
+
+  .admin-directory-module-cities > .admin-directory-module-head::before {
+    left: -37px;
+    width: 37px;
+    top: 22px;
+  }
+
+  /* ---------- 门店 = 独立卡，拉回大区名起点 ---------- */
   .admin-directory-store-list {
-    gap: 0;
+    display: grid;
+    gap: 10px;
+    margin-left: -20px;
     background: transparent;
   }
 
+  .admin-directory-store-block {
+    position: relative;
+    border: 1px solid var(--ops-line, #dedbd2);
+    border-radius: 8px;
+    background: var(--ops-card, #fffdf8);
+  }
+
+  .admin-directory-store-block::before {
+    left: -17px;
+    width: 17px;
+    top: 24px;
+  }
+
+  /* 两行：首行身份 + 状态 + 操作（操作跨两行竖向居中），次行成员数。 */
   .admin-directory-store-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 0 6px;
-    min-height: 44px;
-    padding: 0 4px 0 0;
+    align-items: center;
+    min-height: 46px;
+    padding: 4px 6px 4px 10px;
     font-size: 13px;
   }
 
-  /* 360px 下三层缩进吃掉 51px，单行只剩约 77px 给店名，装不下「BIKE-JA 静安店」。
-     故意分两行：第一行身份与状态（店名拿到充裕宽度），第二行计数与操作右对齐。 */
-  .admin-directory-store-row > .admin-directory-member-count {
-    grid-row: 2;
-    grid-column: 1;
-    align-self: center;
+  .admin-directory-store-row:hover {
+    background: transparent;
   }
+
+  .admin-directory-store-row > .admin-directory-store-identity { grid-area: 1 / 1 / 2 / 2; }
+  .admin-directory-store-row > .admin-status-tag { grid-area: 1 / 2 / 2 / 3; }
+  .admin-directory-store-row > .admin-directory-member-count { grid-area: 2 / 1 / 3 / 3; }
 
   .admin-directory-store-row > .admin-directory-actions {
-    grid-row: 2;
-    grid-column: 2;
+    grid-area: 1 / 3 / 3 / 4;
+    align-self: center;
     justify-content: flex-end;
-  }
-
-  .admin-directory-store-block + .admin-directory-store-block {
-    border-top: 1px solid var(--ops-line, #dedbd2);
   }
 
   .admin-directory-store-identity {
@@ -2225,6 +2305,22 @@
     text-overflow: ellipsis;
   }
 
+  /* .admin-store-code 自带 margin-right: 8px，identity 又有 gap: 6px，两者叠成 14px。
+     手机上这 8px 直接从店名宽度里扣，去掉后由 gap 单独控制间距。 */
+  .admin-directory-store-identity .admin-store-code {
+    margin-right: 0;
+  }
+
+  .admin-directory-member-count {
+    font-size: 11px;
+  }
+
+  /* ---------- 操作：28px 视觉框 + 44px 命中区 ---------- */
+  .admin-directory-actions {
+    flex-wrap: nowrap;
+    gap: 0;
+  }
+
   .admin-directory-store-row .admin-directory-actions {
     flex-wrap: nowrap;
     gap: 0;
@@ -2234,28 +2330,34 @@
     flex: 0 0 auto;
   }
 
-  .admin-directory-store-row .admin-directory-actions button {
-    width: 44px;
-  }
-
-  .admin-directory-member-count {
-    font-size: 11px;
-  }
-
-  /* 操作降为图标：文字标签隐藏但保留在 DOM 中，动词由 aria-label 承载。 */
-  .admin-directory-actions {
-    flex-wrap: nowrap;
-    gap: 0;
-  }
-
   .admin-directory-icon-action {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    min-width: 44px;
-    min-height: 44px;
+    width: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    height: 28px;
+    margin: 0 8px;
     padding: 0;
+    border: 1px solid var(--ops-line, #dedbd2);
+    border-radius: 8px;
+  }
+
+  .admin-directory-store-row .admin-directory-actions button {
+    width: 28px;
+  }
+
+  /* 视觉框 28px 但命中区补到 44px：44 = 28 + 8×2 外扩。 */
+  .admin-directory-icon-action::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
   }
 
   .admin-directory-icon-action .admin-action-label {
@@ -2269,7 +2371,6 @@
     white-space: nowrap;
   }
 
-  /* 子树规模：父层不展开也能读到「N区 · N市 · N店」。 */
   .admin-directory-counts {
     flex: 0 0 auto;
     color: var(--ops-text-muted, #55554f);
@@ -2278,38 +2379,43 @@
     white-space: nowrap;
   }
 
-  /* .admin-status-tag 被审批 / 用户 / 门店三个分区共用，裸选择器会连带改掉已验收的
-     移动卡片，因此这里必须限定在目录内。 */
+  /* .admin-status-tag 被审批 / 用户 / 门店三个分区共用，裸选择器会连带改掉
+     已验收的移动卡片，因此必须限定在目录内。 */
   .admin-directory-module-meta .admin-status-tag,
   .admin-directory-store-row .admin-status-tag,
   .admin-directory-member-row .admin-status-tag {
-    padding: 1px 5px;
+    min-height: 20px;
+    padding: 0 6px;
+    border-radius: 4px;
     font-size: 11px;
     white-space: nowrap;
   }
 
-  /* 成员面板同样收紧，但编辑态输入仍保持可点尺寸。 */
+  /* ---------- 成员 = 独立卡 + 2px 琥珀左强调条 ---------- */
   .admin-directory-member-panel {
-    margin: 0 0 0 8px;
-    padding: 0 0 0 8px;
-    border-left-width: 2px;
+    margin: 0 6px 8px 10px;
+    padding: 0;
+    border-left: 0;
+    background: transparent;
   }
 
   .admin-directory-member-list {
-    gap: 0;
+    display: grid;
+    gap: 8px;
     background: transparent;
   }
 
   .admin-directory-member-row {
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
     gap: 4px 6px;
+    align-items: center;
     min-height: 44px;
-    padding: 0;
+    padding: 6px 8px;
+    border: 1px solid var(--ops-line, #dedbd2);
+    border-left: 2px solid var(--ops-yellow, #ffc31a);
+    border-radius: 6px;
+    background: var(--ops-card, #fffdf8);
     font-size: 12px;
-  }
-
-  .admin-directory-member-row + .admin-directory-member-row {
-    border-top: 1px solid var(--ops-line, #dedbd2);
   }
 
   .admin-directory-member-row > strong {
@@ -2320,14 +2426,24 @@
     white-space: nowrap;
   }
 
-  .admin-directory-member-row > :nth-child(2) {
+  /* 姓名与登录名各占整行，第三行放「角色 / 状态 / 编辑 / 移除」。
+     四列是关键：三列会把第六个子元素挤到第四行第一列（1fr）从而居中独占一行。 */
+  .admin-directory-member-row:not(.admin-directory-member-edit) > :nth-child(1),
+  .admin-directory-member-row:not(.admin-directory-member-edit) > :nth-child(2) {
     grid-column: 1 / -1;
+  }
+
+  .admin-directory-member-row:not(.admin-directory-member-edit) > :nth-child(2) {
     color: var(--ops-text-muted, #55554f);
     font-size: 11px;
   }
 
-  .admin-directory-member-row > :nth-child(3),
-  .admin-directory-member-row > :nth-child(4) {
+  /* 1023px 块把第 2/3/4 个子元素设为 grid-column: 1/-1，这里只需把 3、4 收回自动流。
+     第 5、6 个（编辑 / 移除）从未被那个块覆盖，故不写规则：auto 本就是默认值，
+     而 #172 留下的契约禁止手机块用按位置命中第六项的选择器——历史上正是那种写法
+     把审计摘要整块藏没了。少写两条既避开该禁令，也少两条无效声明。 */
+  .admin-directory-member-row:not(.admin-directory-member-edit) > :nth-child(3),
+  .admin-directory-member-row:not(.admin-directory-member-edit) > :nth-child(4) {
     grid-column: auto;
   }
 

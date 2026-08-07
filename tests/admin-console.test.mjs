@@ -384,8 +384,12 @@ test('后台目录手机态：标题回到单行，这是密度的主要来源',
 test('后台目录手机态：图标操作保住 44px 触摸目标且动词留在无障碍名称里', () => {
   const phone = cssSource.slice(cssSource.indexOf('后台专属高密度信息流'))
   // DESIGN.md：图标操作需要可访问名称与至少 44px 命中区域。
-  assert.match(phone, /\.admin-directory-icon-action \{[^}]*width: 44px;[^}]*min-width: 44px;[^}]*min-height: 44px/u)
-  assert.doesNotMatch(phone, /width: 40px/u, '手机态不得出现小于 44px 的命中区域')
+  // 参考稿的图标框是 28px，低于 44px。视觉尺寸照搬参考稿，命中区由 ::after 扩到 44px，
+  // 两者解耦——这样既复刻观感又不牺牲触摸目标。
+  assert.match(phone, /\.admin-directory-icon-action \{[^}]*width: 28px;[^}]*min-width: 28px/u)
+  assert.match(phone, /\.admin-directory-icon-action::after \{[^}]*width: 44px;[^}]*height: 44px/u)
+  // 成员卡的编辑/移除是纯文字按钮，必须自身撑满 44px（无 ::after 兜底）。
+  assert.match(phone, /\.admin-directory-member-row button \{[^}]*min-width: 44px;[^}]*min-height: 44px/u)
   // 文字标签视觉隐藏但保留在 DOM，动词同时由 aria-label 承载。
   assert.match(phone, /\.admin-directory-icon-action \.admin-action-label \{[^}]*clip-path: inset\(50%\)/u)
   assert.match(directorySource, /aria-label=\{`重命名\$\{labels\[kind\]\}\$\{item\.name\}`\}/u)
@@ -398,9 +402,10 @@ test('后台目录手机态：门店行两行网格，因为单行放不下三�
   const phone = cssSource.slice(cssSource.indexOf('后台专属高密度信息流'))
   // 360px 三层缩进吃掉约 51px，三个 44px 按钮 132px，状态与计数约 82px，
   // 单行只剩约 77px 给「BIKE-JA 静安店」。故意分两行。
-  assert.match(phone, /\.admin-directory-store-row \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto;/u)
-  assert.match(phone, /\.admin-directory-store-row > \.admin-directory-member-count \{\s*\n\s*grid-row: 2;\s*\n\s*grid-column: 1;/u)
-  assert.match(phone, /\.admin-directory-store-row > \.admin-directory-actions \{\s*\n\s*grid-row: 2;\s*\n\s*grid-column: 2;/u)
+  // 参考稿把操作放在首行右侧并跨两行竖向居中，次行只留成员数——三列网格 + grid-area。
+  assert.match(phone, /\.admin-directory-store-row \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto auto;/u)
+  assert.match(phone, /\.admin-directory-store-row > \.admin-directory-member-count \{ grid-area: 2 \/ 1 \/ 3 \/ 3; \}/u)
+  assert.match(phone, /\.admin-directory-store-row > \.admin-directory-actions \{\s*\n\s*grid-area: 1 \/ 3 \/ 3 \/ 4;/u)
   // 名称过长必须省略且由 title 提供全文，不得竖排。
   assert.match(phone, /\.admin-directory-store-identity strong \{[^}]*text-overflow: ellipsis/u)
   assert.match(directorySource, /<strong title=\{store\.name\}>/u)
@@ -409,7 +414,18 @@ test('后台目录手机态：门店行两行网格，因为单行放不下三�
 test('后台目录手机态：层级靠缩进轨与字重表达，不靠逐层卡片外壳', () => {
   const phone = cssSource.slice(cssSource.indexOf('后台专属高密度信息流'))
   assert.match(phone, /\.admin-directory-module \{[^}]*border: 0;[^}]*background: transparent/u)
-  assert.match(phone, /\.admin-directory-child-level \{[^}]*border-left: 1px solid/u)
+  // 参考稿：大区恢复一张卡壳，其内不再嵌套卡壳；层级由单条竖干 + 横支 + 琥珀圆点表达。
+  assert.match(phone, /\.admin-directory-module-regions \{[^}]*border: 1px solid[^}]*border-radius: 8px/u)
+  // 竖干必须用 ::before 而非 border-left：border-left 只能拉通全高，
+  // 无法在最后一支的分叉点收住（参考稿实测竖干止于末支中心，不拖到底）。
+  assert.match(phone, /\.admin-directory-module-regions > \.admin-directory-child-level::before \{[^}]*bottom: 24px;[^}]*width: 1px/u)
+  assert.match(phone, /\.admin-directory-child-level \{[^}]*border-left: 0/u)
+  // 横支：小区 17px、城市 37px、门店 17px，均从竖干接到该行圆点/卡片左缘。
+  assert.match(phone, /\.admin-directory-module-subregions > \.admin-directory-module-head::before \{[^}]*left: -17px;[^}]*width: 17px/u)
+  assert.match(phone, /\.admin-directory-store-block::before \{[^}]*left: -17px;[^}]*width: 17px/u)
+  // 圆点替代 +/−：折叠态用中性色，展开态用琥珀，状态同时由 aria-expanded 承载。
+  assert.match(phone, /\.admin-directory-module-chevron \{[^}]*border-radius: 50%[^}]*background: var\(--ops-yellow/u)
+  assert.match(directorySource, /aria-expanded=\{expanded\}/u)
   // 字号阶梯换成字重阶梯：手机上字号阶梯只会浪费行高。
   assert.match(phone, /module-regions[^{]*\{ font-size: 15px; font-weight: 700; \}/u)
   assert.match(phone, /module-subregions[^{]*\{ font-size: 14px; font-weight: 600; \}/u)
@@ -421,6 +437,56 @@ test('后台目录：子树规模内联在父层，不展开也能判断规模',
   assert.match(directorySource, /admin-directory-counts/u)
   const phone = cssSource.slice(cssSource.indexOf('后台专属高密度信息流'))
   assert.match(phone, /\.admin-directory-counts \{[^}]*font-variant-numeric: tabular-nums/u)
+})
+
+test('后台目录手机态：树连接线为单竖干加横支，且竖干止于最后一支的分叉点', () => {
+  const phone = cssSource.slice(cssSource.indexOf('后台专属高密度信息流'))
+  // 参考稿实测只有一条竖干（28.5px 处），小区/城市并无各自竖干；用 ::before 而非
+  // border-left，因为 border-left 会一路拖到容器底部，无法止于最后一支的分叉点。
+  assert.match(phone, /\.admin-directory-module-regions > \.admin-directory-child-level::before \{[^}]*bottom: 24px/u)
+  assert.match(phone, /\.admin-directory-module-regions > \.admin-directory-child-level::before \{[^}]*width: 1px/u)
+  // 横支：小区 17px、城市 37px、门店 17px，均自竖干接到该行圆点或卡片左边。
+  assert.match(phone, /\.admin-directory-module-subregions > \.admin-directory-module-head::before \{[^}]*left: -17px/u)
+  assert.match(phone, /\.admin-directory-module-cities > \.admin-directory-module-head::before \{[^}]*left: -37px/u)
+  assert.match(phone, /\.admin-directory-store-block::before \{[^}]*left: -17px/u)
+})
+
+test('后台目录手机态：琥珀圆点承担层级标记，展开态与折叠态靠色值区分', () => {
+  const phone = cssSource.slice(cssSource.indexOf('后台专属高密度信息流'))
+  // 参考稿用 6px 琥珀圆点替代 +/− 文字；文字仍在 DOM 里由 font-size: 0 视觉隐藏，
+  // 展开状态由 aria-expanded 承载，圆点色值只是冗余的视觉提示。
+  assert.match(phone, /\.admin-directory-module-chevron \{[^}]*width: 6px;[^}]*height: 6px;[^}]*border-radius: 50%/u)
+  assert.match(phone, /\.admin-directory-module-chevron \{[^}]*font-size: 0/u)
+  assert.match(phone, /data-expanded='false'\][^{]*\.admin-directory-module-chevron \{[^}]*background: var\(--ops-line-strong/u)
+  assert.match(directorySource, /aria-expanded=\{expanded\}/u)
+})
+
+test('后台目录手机态：门店与成员恢复独立卡，成员卡带 2px 琥珀左强调条', () => {
+  const phone = cssSource.slice(cssSource.indexOf('后台专属高密度信息流'))
+  assert.match(phone, /\.admin-directory-store-block \{[^}]*border: 1px solid[^}]*border-radius: 8px/u)
+  assert.match(phone, /\.admin-directory-member-row \{[^}]*border-left: 2px solid var\(--ops-yellow/u)
+  // 卡片自带完整边框，不得再叠 + 选择器的 border-top，否则卡片顶部出现双线。
+  assert.doesNotMatch(phone, /\.admin-directory-store-block \+ \.admin-directory-store-block \{[^}]*border-top/u)
+  assert.doesNotMatch(phone, /\.admin-directory-member-row \+ \.admin-directory-member-row \{[^}]*border-top/u)
+})
+
+test('后台目录手机态：成员卡四列，避免第六个子元素溢出成独占整行', () => {
+  const phone = cssSource.slice(cssSource.indexOf('后台专属高密度信息流'))
+  // 三列容纳六个子元素时，第六个（移除）落到第四行第一列，而该列为 1fr 故文字居中，
+  // 成员卡被撑到 118px。四列让「角色 / 状态 / 编辑 / 移除」回到同一行。
+  assert.match(phone, /\.admin-directory-member-row \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto auto auto/u)
+  // 编辑态子元素数量与展示态不同，必须排除，否则输入框被塞进四列。
+  assert.match(phone, /:not\(\.admin-directory-member-edit\) > :nth-child\(1\)/u)
+  assert.match(phone, /\.admin-directory-member-edit \{[^}]*grid-template-columns: minmax\(0, 1fr\)/u)
+})
+
+test('后台目录手机态：代码与店名之间只保留一处间距', () => {
+  const phone = cssSource.slice(cssSource.indexOf('后台专属高密度信息流'))
+  // .admin-store-code 自带 margin-right: 8px，identity 又有 gap: 6px，叠成 14px；
+  // 360px 视口下这 8px 直接从店名可用宽度里扣掉。
+  assert.match(phone, /\.admin-directory-store-identity \.admin-store-code \{[^}]*margin-right: 0/u)
+  const desktop = cssSource.slice(0, cssSource.indexOf('后台专属高密度信息流'))
+  assert.match(desktop, /\.admin-store-code \{[^}]*margin-right: 8px/u)
 })
 
 test('后台目录手机态：状态标签压缩必须限定在目录内，不得污染其它分区', () => {
