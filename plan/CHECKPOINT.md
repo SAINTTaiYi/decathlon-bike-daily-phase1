@@ -235,3 +235,61 @@ EdgeOne 平台操作若当前网络不可达，停止并提醒开启 VPN；不�
 - 是否实施乐观更新改造。
 - `version-manifest.json` 记 5.8.5 与 Production 实际 5.8.3 的对账方式（仍未改）。
 - `security-audit.test.ts` 接入 CI 的时机。
+
+## 当前状态加注（2026-08-07 12:1x +08:00 · 后台目录手机复刻已上 Preview 并由用户验收）
+
+**恢复入口**：`docs/progress/2026-08-07-directory-phone-replica.md`（完整证据）。
+
+集成分支 `feature/cloudflare-workers-d1` = **`bfc5196e2056f956f7dff238db46f5fc61503664`**
+（= 已部署 Preview 的 SHA）。#182 → `60cd19f4c628…`（11:41:04Z）；#183 → `bfc5196e2056…`（12:03:04Z）。
+Preview run `31176618036` success，三轮核验 `5.8.3 / bfc5196e2056… / env=preview`。
+CI run `31174340691` / `31176377681` 均 success（18/7 步、verify 89s/84s、日志 125252/125216 字节
+魔数 `PK`、五套件 7/10/220/21/58 全 `fail 0`）。主 CSS `index-Bhb7_Q2B.css` 恒为 280.33 kB 同哈希。
+
+**Production `workshop.skin` 全程未部署未触碰**，三轮一致
+`5.8.3 / 3ec28a321b1f1f02a28a0e4d94abb1be1432065b / env=staging`。
+
+### ⛔ 上 Production 的两个硬阻塞（未获用户明确答复前不得部署）
+
+1. **0009 迁移第 16–17 行硬编码改名**：`WHEN name = '南区' THEN '广西江湖区'`，
+   命中生产库唯一大区。本地同构演练实测结果 `南区 → 广西江湖区 → 广西 → 4 家店`。
+   四层目录需要该中间层，但名字写死在迁移里、非从数据推导，**属业务命名决定，不得代用户决定**。
+   Preview 库已应用到 0010，直接改 0009 会令两边永久不一致；建议新增 0011 改名。
+   补充事实：`0006` 迁移自身即 seed 了 `南区`/`广西`/那 4 家店，故 0009 的改名是当初有意为之。
+2. **版本账本脱钩**：`version-manifest.json` 实为 **5.8.3**（先前记载「仍记 5.8.5」有误，
+   `2e17802` 的 revert 已改回），故 `check:version` 不会拦。但生产工作流先跑 `version:preview`，
+   `check:version` 走 standard 模式通过，结果部署后 Production 报 `appVersion 5.8.3` 而
+   `gitSha` 跳到 `bfc5196`（领先 69 提交）。防这件事的 `--mode production` 分支未被工作流使用。
+
+### 数据安全已实测（用户要求「生产库数据不得受影响、preview 种子不得带过去」）
+
+- **种子隔离是结构性的**：Production `bike-ops-staging`（`91e78387-…`）与
+  Preview `bike-ops-preview`（`e40af8eb-…`）为两个物理库；seed 步骤只在 Preview 工作流、
+  命令硬编码指向 preview 库、且挂 `if: inputs.seed_preview_data`；生产工作流内无 seed 字样。
+- **D1 export 失败**（`signed_url: null`），未取得生产转储；改用本地 SQLite 以**同一份迁移字节**
+  重建同构库后应用 0008/0009/0010。实测：`tables DROPPED 0`、`columns DROPPED 0`、
+  新增 7 条索引、行数仅 `subregions +1`、regions/cities/stores 的 id 与 name 全部 unchanged、
+  `foreign_key_check` 0 违规、`integrity_check ok`、`pending_review` 全 0（无店翻成待审核）。
+- **演练缺口如实记录**：`store_members`/`work_items`/`audit_events` 插入因 CHECK 约束失败而为空，
+  「计数不变」对它们是平凡真。改用静态分析补足：**13 张表从未被三个迁移提及故不可能被修改**；
+  12 条语句逐条分类 `DELETE` 0、`DROP` 0，唯二写数据者为 `INSERT INTO subregions` 与
+  `UPDATE cities SET subregion_id`。
+- **已排除最大风险**：被否决的 V5.8.4/V5.8.5 桌面工作台不会回归——两个 revert
+  （`2e17802`、`01b3834`）均为集成头祖先，且三个桌面 CSS 与 Production 逐字节相同。
+
+### 本轮教训：契约只验「写没写」，不验「是否胜出」
+
+`.admin-directory-actions button` (0,1,1) 压过裸类 `.admin-directory-icon-action` (0,1,0)，
+`padding: 0 12px` 得以保留 → `border-box` 下内容宽 2px → 撞 `svg { max-width: 100% }`
+→ 17px 图标塌成 2×2。上一轮 `width: 44px` 时内容宽 18px ≥ 17px，靠余量侥幸成立。
+45 条契约用子串匹配，`.admin-directory-icon-action {` 是复合选择器的子串，故换选择器后照样通过
+——**这就是 CI 全绿仍把 bug 放到用户手机上的原因**。已把特异度锁进门禁并反向验证
+（改回裸类 → `not ok 36`；恢复 → 45/45）。**后续在此文件写手机覆盖，必须先查块外是否有
+同元素同属性的 (0,1,1) 及以上选择器。**
+
+### 用户实机定标（后续手机端改动基准）
+
+物理 1280×2772。自写 DC-only JPEG 解码器（沙箱无任何 JPEG 库，13920 MCU 全解，
+160×348 亮度网格，±8 物理像素）。三锚点收敛：树行心距 144/44=3.273、
+`.admin-header` 232/72=3.222、退出按钮 ~144–160/48。→ **CSS 视口 ≈ 390px、DPR ≈ 3.28**，
+与参考稿同宽，**无需窄屏断点**。
