@@ -2034,6 +2034,23 @@
   min-height: 40px;
 }
 
+/* 平台管理员成员在目录里不可改角色也不可移除：后端两个端点都会返回
+   PLATFORM_ADMIN_PROTECTED。与用户分区保持一致，用静态提示替换两个按钮，
+   避免读者点下去才发现被拒。不设 grid-column：移动端断点把这张栅格收成
+   两列，跨到第 5 条网格线会撑出隐式列。 */
+.admin-directory-member-protected {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px dashed var(--ops-line, #dedbd2);
+  border-radius: 5px;
+  color: var(--ops-text-muted, #55554f);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .admin-directory-member-edit input,
 .admin-directory-member-edit select {
   width: 100%;
