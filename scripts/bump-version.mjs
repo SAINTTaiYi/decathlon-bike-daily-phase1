@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { formalReleaseManifestPath, projectRoot } from './version-files.mjs'
 import { assertCleanGitWorktree, assertFormalReleaseStart, assertGitAncestor, currentGitSha, resolvePreviewCommits } from './version-git.mjs'
-import { nextInterfaceVersion } from './version-number.mjs'
+import { resolveReleaseVersion } from './version-number.mjs'
 import { assertFormalReleaseInput, buildFormalReleaseManifest, parseNamedArgs } from './version-policy.mjs'
 
 const values = parseNamedArgs(process.argv.slice(2))
@@ -21,7 +21,7 @@ await assertGitAncestor(values['preview-from'], values['preview-to'], '--preview
 await assertFormalReleaseStart(values['preview-from'])
 const previewCommits = await resolvePreviewCommits(values['preview-from'], values['preview-to'])
 
-const nextVersion = nextInterfaceVersion(packageJson.version)
+const nextVersion = resolveReleaseVersion(packageJson.version, values['set-version'])
 const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()).replaceAll('-', '.')
 const quoted = (value) => JSON.stringify(String(value), null, 0)
 const releaseSource = `export const APP_VERSION = ${quoted(nextVersion)}\n\nexport const currentRelease = {\n  version: APP_VERSION,\n  date: ${quoted(date)},\n  title: ${quoted(values.title)},\n  summary: ${quoted(values.summary)},\n  changes: [\n${values.change.map((change) => `    ${quoted(change)}`).join(',\n')}\n  ]\n}\n`
