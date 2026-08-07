@@ -1,258 +1,39 @@
 {
   "kind": "formal-production-release",
-  "version": "5.9.0",
+  "version": "5.9.1",
   "previewRange": {
-    "fromExclusive": "2e17802aa93cd25f22674cade8dab7477c339dbe",
-    "toInclusive": "e4082f1e4b02b56e59821ba866afa270e3ed3d00",
+    "fromExclusive": "8a56cb533e99704840e76d5570879b25e68fed83",
+    "toInclusive": "0de3fa3c0d4b5ec287b0912cdbbb615dacfb2f66",
     "commits": [
       {
-        "sha": "a2513fe05f4ad3d1a0042951320bc221e659c9e6",
-        "subject": "fix(preview): restore V5.8.3 codebase, keep admin console"
+        "sha": "7169fefd1a3cd6d91501827cddae7aa2cafe915f",
+        "subject": "Merge pull request #187 from SAINTTaiYi/release/v5.9.0-20260808"
       },
       {
-        "sha": "bb41285b456f7e6a7e3f6a3ab1c5a4a02f2b6962",
-        "subject": "Merge pull request #165 from SAINTTaiYi/fix/preview-v583-with-admin"
+        "sha": "07b2c2f17f12b4a2fb7e9773209f9eea39fdf4ac",
+        "subject": "docs: archive V5.9.0 production release evidence and correct stale checkpoint claims"
       },
       {
-        "sha": "3e29d02e43b07b53881593572809e40202a24baf",
-        "subject": "docs(admin): record V5.8.3 baseline Preview redeploy evidence"
+        "sha": "2a9c088cf63e818d5116c679779dbf510ac972cd",
+        "subject": "Merge pull request #188 from SAINTTaiYi/docs/v590-production-evidence-20260808"
       },
       {
-        "sha": "4a10cb0a80ef5692781d3a4d86f90df7b4f7bd98",
-        "subject": "feat(admin): v2 console with mobile dock, store review, overview cockpit, user writes"
+        "sha": "8bdcce9e653b5ee4e272467bd9b62ebb50efa81b",
+        "subject": "fix(admin): 目录分区标出平台管理员并停用其成员写操作按钮"
       },
       {
-        "sha": "c7557264001fb0d713fa824d286961b41d2df093",
-        "subject": "docs(admin): checkpoint v2 console annotation"
-      },
-      {
-        "sha": "7159b8f4e286ef4b481f31784e718862d1dc7df5",
-        "subject": "Merge pull request #166 from SAINTTaiYi/feat/admin-console-v2"
-      },
-      {
-        "sha": "2500bd720f694c3a4a3534ffb9a759278b141a91",
-        "subject": "fix(admin): use pending_review column instead of parent-table rebuild for store review"
-      },
-      {
-        "sha": "c3770d1701532230d9d8466079bf3f64cc39f4ef",
-        "subject": "Merge pull request #167 from SAINTTaiYi/feat/admin-console-v2"
-      },
-      {
-        "sha": "28b37509634bafd8f68b77fd9b77a55230ab0e35",
-        "subject": "docs(admin): record v2 Preview deployment evidence"
-      },
-      {
-        "sha": "0fbc6eb0ef12b0d1cbc4be165f92b9ec0b5bd955",
-        "subject": "feat(ops): preview acceptance seed + fix work_items day window"
-      },
-      {
-        "sha": "6bb55d16b116517f488e856f72bac08e91acc015",
-        "subject": "Merge pull request #168 from SAINTTaiYi/feat/admin-seed-data"
-      },
-      {
-        "sha": "c566becec40f54d36cce23a6ad85282ecedfd82a",
-        "subject": "fix(workflow): boolean seed input evaluated directly (typed booleans fail == 'true')"
-      },
-      {
-        "sha": "52d4927dab7463f545763f20a8632ff69ca026c4",
-        "subject": "docs(admin): record acceptance seed data deployment"
-      },
-      {
-        "sha": "e010f4ba8d66cb66313e23b82d0c3ea71e267248",
-        "subject": "fix(admin): role stats SQL bind placeholder count (overview 500 root cause)"
-      },
-      {
-        "sha": "cafb9439efbdd846cee8bf12b1771d142a85bf9a",
-        "subject": "Merge pull request #169 from SAINTTaiYi/fix/admin-overview-bind"
-      },
-      {
-        "sha": "9e8a7781cc298642e9f67c43c1a2162b07329df1",
-        "subject": "docs(admin): record acceptance feedback fix (overview bind)"
-      },
-      {
-        "sha": "5e23fcb10efdcf63005024815be72a837dd1d91a",
-        "subject": "fix(admin): mobile region now a real scroll container"
-      },
-      {
-        "sha": "485a74920c0d114fa61c68d5c20bd96f08cdc904",
-        "subject": "Merge pull request #170 from SAINTTaiYi/fix/admin-mobile-scroll"
-      },
-      {
-        "sha": "2d36b25ce56b05fc11f7ac504288890ae97ec777",
-        "subject": "docs(admin): record mobile scroll fix"
-      },
-      {
-        "sha": "61d7b69673050c4d907e3de08619071c2edb6e29",
-        "subject": "fix(admin): approval card detail on narrow screens stays in the wide grid column"
-      },
-      {
-        "sha": "17fb241107b94d4aaec373e01e452646f7b7315d",
-        "subject": "Merge pull request #171 from SAINTTaiYi/fix/admin-approval-mobile"
-      },
-      {
-        "sha": "59655ed94927826f43a40186aba0b97ef571756a",
-        "subject": "docs(admin): record approval card mobile fix"
-      },
-      {
-        "sha": "0b4cb2bb561bac998f79101e46301a24c126d29a",
-        "subject": "fix(admin): comprehensively harden console workflows"
-      },
-      {
-        "sha": "db3ec5c80ae040ce753cebcd7659dc9daf391d26",
-        "subject": "Merge pull request #172 from SAINTTaiYi/fix/admin-comprehensive-remediation-20260806"
-      },
-      {
-        "sha": "b746d971cd6dd04cee4ec1c717a4927c35943a9e",
-        "subject": "docs(admin): record comprehensive Preview remediation"
-      },
-      {
-        "sha": "02db3d5027628a737938bfb1c2e75cd8c416c331",
-        "subject": "Merge pull request #173 from SAINTTaiYi/docs/admin-comprehensive-remediation-evidence-20260806"
-      },
-      {
-        "sha": "4f16c9aa9852e3aa3d006172a8a277f1399cd0bf",
-        "subject": "feat: unify stores into directory with four-level waterfall"
-      },
-      {
-        "sha": "2fe05d64d59a1b9fe9d837c274210ca1b1961050",
-        "subject": "fix: split directory waterfall JSX rendering"
-      },
-      {
-        "sha": "2dc7147b19015e0b65aa7087922e24ad7e966392",
-        "subject": "feat(admin): unify stores into directory waterfall (#174)"
-      },
-      {
-        "sha": "5efd6a713aa540ef609357b547b6df43ec544400",
-        "subject": "docs: record directory/store Preview deployment evidence"
-      },
-      {
-        "sha": "e79c4f90fd22982107b628e3d953c2f84ae0ad3e",
-        "subject": "docs: record Directory/Stores Preview evidence (#175)"
-      },
-      {
-        "sha": "2628b6aa4e0a789ecdcd9dbe6ed56e2794ff2a29",
-        "subject": "fix(admin): overview change stream and platform events become readable lists"
-      },
-      {
-        "sha": "fee1b0e7c9bafc0c47de1d292fb5edeca1041aaf",
-        "subject": "fix(admin): overview change stream and platform events become readable lists (#176)"
-      },
-      {
-        "sha": "40ec0bd1e6eb9e334a6193d517c29945364742eb",
-        "subject": "fix(admin): directory and users sections become readable at desktop widths"
-      },
-      {
-        "sha": "894ac1ec1e52f3d7cc99969a33d1582692258c08",
-        "subject": "perf(admin): split the console bundle, index its queries, surface write failures"
-      },
-      {
-        "sha": "a6ea72d02ae7026dac0fad91a02514b62182097d",
-        "subject": "fix(admin): make approval rows readable and surface deadline urgency"
-      },
-      {
-        "sha": "397cfbc69ab955cec5e8111348127ba40db7be93",
-        "subject": "docs(plan): add cross-session recovery ledger for the admin console work"
-      },
-      {
-        "sha": "3fd89f85db0847f4e17ae841094008f3235cce19",
-        "subject": "Merge pull request #177 from SAINTTaiYi/fix/admin-directory-users-readability-20260807"
-      },
-      {
-        "sha": "96eef1ccd7ce315ffdb386e602fbae2c14a3857c",
-        "subject": "perf(worker): cut fixed D1 round trips from the interactive write path"
-      },
-      {
-        "sha": "65987b802992c2666b18ec6c4bb2365103082fa0",
-        "subject": "perf: place the Worker next to D1 and stop blocking saves on a full bootstrap"
-      },
-      {
-        "sha": "6380aeb5b3119435dd43cf694cde44438d78d617",
-        "subject": "Merge pull request #178 from SAINTTaiYi/perf/write-path-d1-roundtrips-20260807"
-      },
-      {
-        "sha": "5b46a313b1f82c7896e72cec39fbd9b60359e83e",
-        "subject": "sec: exponential login backoff, failure alerting, tenant-scoped snapshot restore"
-      },
-      {
-        "sha": "ddb4e293e8dc1c2b0a883f4830f3277c6198bdd4",
-        "subject": "sec(worker): lower login backoff ceiling to 8s now that the edge caps login rate"
-      },
-      {
-        "sha": "e3f15e08b45085476120c5316b82e38cc1eee2cd",
-        "subject": "Merge pull request #179 from SAINTTaiYi/sec/hardening-login-backoff-tenant-scope-20260807"
-      },
-      {
-        "sha": "645714b88d5e74321ff168149c07b413876dc7ba",
-        "subject": "docs: record submission-latency and security-hardening Preview evidence"
-      },
-      {
-        "sha": "5bf5e024beddb7fe89562549d3ef8f8ef57df7ac",
-        "subject": "Merge pull request #180 from SAINTTaiYi/docs/submission-latency-security-preview-evidence-20260807"
-      },
-      {
-        "sha": "42936cc06b9ecdb8d2491409f0874c1a744dc64e",
-        "subject": "fix(admin): make the phone Directory a dense information stream"
-      },
-      {
-        "sha": "d6138681515dc3317c4c8b737e2fbca5bd78b3eb",
-        "subject": "Merge pull request #181 from SAINTTaiYi/fix/admin-directory-phone-density-20260807"
-      },
-      {
-        "sha": "c424f11d5f9de6b3f1c3466ecc5e2850d2810cc5",
-        "subject": "fix(admin): rebuild the phone Directory tree from the reference mockup"
-      },
-      {
-        "sha": "60cd19f4c628a1c173716c0f02a3f7dcdbc028ad",
-        "subject": "Merge pull request #182 from SAINTTaiYi/fix/admin-directory-reference-replica-20260807"
-      },
-      {
-        "sha": "347809dd0f19183707b32c8c60ec9f55f923db8d",
-        "subject": "fix(admin): stop the phone Directory icon buttons collapsing to a 2px dot"
-      },
-      {
-        "sha": "bfc5196e2056f956f7dff238db46f5fc61503664",
-        "subject": "Merge pull request #183 from SAINTTaiYi/fix/admin-directory-icon-specificity-20260807"
-      },
-      {
-        "sha": "b5f2288280c5e5a8d1b250783a34de9e84eb7a7b",
-        "subject": "docs: record Directory phone replica evidence and Production blockers"
-      },
-      {
-        "sha": "6a449ba62c3230589f0ac24e3af18d76441845ad",
-        "subject": "Merge pull request #184 from SAINTTaiYi/docs/directory-replica-preview-evidence-20260807"
-      },
-      {
-        "sha": "d1edc20e1021c80e18988444292131a2d3fbe968",
-        "subject": "docs: add recovery ledger for the Guangxi city split and V5.9.0 release"
-      },
-      {
-        "sha": "40a975c815a9add7933dc963b8166fe137cb3be7",
-        "subject": "Merge pull request #185 from SAINTTaiYi/docs/recovery-ledger-directory-cities-20260807"
-      },
-      {
-        "sha": "62fadc86d66539931e59ba2b7af5e5efd99e1683",
-        "subject": "feat(directory): split Guangxi into Nanning/Guilin/Liuzhou and allow explicit release versions"
-      },
-      {
-        "sha": "d37929ee1570a3d728c87b1ba7a92ac57ce85379",
-        "subject": "docs(progress): record phase A delivery for the Guangxi city split"
-      },
-      {
-        "sha": "e4082f1e4b02b56e59821ba866afa270e3ed3d00",
-        "subject": "Merge pull request #186 from SAINTTaiYi/feat/directory-guangxi-cities-set-version-20260807"
+        "sha": "0de3fa3c0d4b5ec287b0912cdbbb615dacfb2f66",
+        "subject": "Merge pull request #189 from SAINTTaiYi/fix/admin-directory-platform-admin-badge-20260808"
       }
     ]
   },
   "announcement": {
-    "title": "管理后台改版与广西三城市目录",
-    "summary": "管理后台改为六分区并补齐桌面与手机可读性，门店目录把广西拆分为南宁、桂林、柳州三个城市，同时缩短提交等待并加固登录安全。",
+    "title": "后台目录标出平台管理员",
+    "summary": "管理后台的目录分区现在会在成员行标出平台管理员，并对受保护成员隐藏编辑与移除按钮，与用户分区保持一致。",
     "changes": [
-      "管理后台改为总览、目录、门店、用户、审批、审计六个分区，桌面与手机各自使用真实卡片形态，长串信息拆为标签与值。",
-      "门店目录把原「广西」拆分为南宁、桂林、柳州：1299 五象店与 1670 民族东店归南宁，994 穿山店归桂林，1249 河东店归柳州。",
-      "提交路径把多次串行数据库往返改为并发，当日销售保存不再等待整份工作台刷新。",
-      "登录连续失败改为指数退避并写入告警审计，边缘新增登录频率限制，跨门店数据读取统一收敛到当前门店。",
-      "审批列表补齐剩余时间提示，即将过期与已过期分别高亮，避免漏批。"
+      "目录分区的成员行标出「平台管理员」徽章，与用户分区、门店分区保持一致，不再只显示门店角色。",
+      "平台管理员成员行不再渲染编辑与移除按钮，改为「受保护」提示；此前点击会被后端拒绝并返回冲突提示。"
     ]
   },
-  "preparedAt": "2026-08-07T17:16:46.732Z"
+  "preparedAt": "2026-08-07T20:45:48.849Z"
 }
