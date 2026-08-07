@@ -359,3 +359,74 @@ test('审批卡片移动端：详情与操作显式占用宽列（防竖排文�
 })
 
 test('目录合并为五项导航与大区/小区/城市/门店行单路径展开', () => { assert.doesNotMatch(consoleSource, /id: 'stores'/u); assert.match(directorySource, /subregions/u); assert.match(directorySource, /setRegion/u); assert.match(directorySource, /memberPanel/u); assert.match(directorySource, /成员 \{store\.memberCount/u); assert.match(directorySource, /编辑/u); assert.match(directorySource, /移除/u); assert.match(cssSource, /\.admin-directory-major-grid\s*\{[^}]*repeat\(auto-fill, minmax\(260px/u) })
+
+test('后台目录手机态：密度规则必须挂在实际渲染的类上，不得再挂死类', () => {
+  // 1842-1846 行那批移动端压缩规则挂在 .admin-directory-row 上，而 #174 换实现后
+  // 渲染的是 .admin-directory-module，于是规则从未生效。这条断言防止再次发生。
+  for (const dead of ['admin-directory-row', 'admin-directory-tree', 'admin-directory-branch']) {
+    assert.doesNotMatch(directorySource, new RegExp(dead, 'u'), `${dead} 已不再渲染，不应有组件引用`)
+  }
+  assert.match(directorySource, /admin-directory-module-head/u)
+  assert.match(directorySource, /admin-directory-store-row/u)
+})
+
+test('后台目录手机态：标题回到单行，这是密度的主要来源', () => {
+  const phone = cssSource.slice(cssSource.indexOf('后台专属高密度信息流'))
+  // 桌面 226px 窄列需要 flex: 1 1 100% 让标题独占一行；手机有整屏宽度，必须收回单行，
+  // 否则每个实体被撑到 44 + 8 + 44 + 上下内边距 = 约 118px。
+  assert.match(phone, /\.admin-directory-module-head \{[^}]*flex-wrap: nowrap;[^}]*min-height: 44px/u)
+  assert.match(phone, /\.admin-directory-module-trigger \{[^}]*flex: 1 1 auto/u)
+  // 桌面那条 flex: 1 1 100% 必须原样保留在断点之外。
+  const desktop = cssSource.slice(0, cssSource.indexOf('后台专属高密度信息流'))
+  assert.match(desktop, /\.admin-directory-module-trigger \{[^}]*flex: 1 1 100%/u)
+})
+
+test('后台目录手机态：图标操作保住 44px 触摸目标且动词留在无障碍名称里', () => {
+  const phone = cssSource.slice(cssSource.indexOf('后台专属高密度信息流'))
+  // DESIGN.md：图标操作需要可访问名称与至少 44px 命中区域。
+  assert.match(phone, /\.admin-directory-icon-action \{[^}]*width: 44px;[^}]*min-width: 44px;[^}]*min-height: 44px/u)
+  assert.doesNotMatch(phone, /width: 40px/u, '手机态不得出现小于 44px 的命中区域')
+  // 文字标签视觉隐藏但保留在 DOM，动词同时由 aria-label 承载。
+  assert.match(phone, /\.admin-directory-icon-action \.admin-action-label \{[^}]*clip-path: inset\(50%\)/u)
+  assert.match(directorySource, /aria-label=\{`重命名\$\{labels\[kind\]\}\$\{item\.name\}`\}/u)
+  assert.match(directorySource, /aria-label=\{`\$\{item\.status === 'active' \? '停用' : '启用'\}/u)
+  assert.match(directorySource, /aria-label=\{`\$\{openStore === store\.id \? '收起' : '查看'\}\$\{store\.name\}成员`\}/u)
+  assert.match(directorySource, /<span className="admin-action-label">/u)
+})
+
+test('后台目录手机态：门店行两行网格，因为单行放不下三层缩进后的店名', () => {
+  const phone = cssSource.slice(cssSource.indexOf('后台专属高密度信息流'))
+  // 360px 三层缩进吃掉约 51px，三个 44px 按钮 132px，状态与计数约 82px，
+  // 单行只剩约 77px 给「BIKE-JA 静安店」。故意分两行。
+  assert.match(phone, /\.admin-directory-store-row \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto;/u)
+  assert.match(phone, /\.admin-directory-store-row > \.admin-directory-member-count \{\s*\n\s*grid-row: 2;\s*\n\s*grid-column: 1;/u)
+  assert.match(phone, /\.admin-directory-store-row > \.admin-directory-actions \{\s*\n\s*grid-row: 2;\s*\n\s*grid-column: 2;/u)
+  // 名称过长必须省略且由 title 提供全文，不得竖排。
+  assert.match(phone, /\.admin-directory-store-identity strong \{[^}]*text-overflow: ellipsis/u)
+  assert.match(directorySource, /<strong title=\{store\.name\}>/u)
+})
+
+test('后台目录手机态：层级靠缩进轨与字重表达，不靠逐层卡片外壳', () => {
+  const phone = cssSource.slice(cssSource.indexOf('后台专属高密度信息流'))
+  assert.match(phone, /\.admin-directory-module \{[^}]*border: 0;[^}]*background: transparent/u)
+  assert.match(phone, /\.admin-directory-child-level \{[^}]*border-left: 1px solid/u)
+  // 字号阶梯换成字重阶梯：手机上字号阶梯只会浪费行高。
+  assert.match(phone, /module-regions[^{]*\{ font-size: 15px; font-weight: 700; \}/u)
+  assert.match(phone, /module-subregions[^{]*\{ font-size: 14px; font-weight: 600; \}/u)
+})
+
+test('后台目录：子树规模内联在父层，不展开也能判断规模', () => {
+  assert.match(directorySource, /function subtreeCounts\(kind, item\)/u)
+  assert.match(directorySource, /\$\{sr\.length\}区 · \$\{ct\.length\}市/u)
+  assert.match(directorySource, /admin-directory-counts/u)
+  const phone = cssSource.slice(cssSource.indexOf('后台专属高密度信息流'))
+  assert.match(phone, /\.admin-directory-counts \{[^}]*font-variant-numeric: tabular-nums/u)
+})
+
+test('后台目录手机态：状态标签压缩必须限定在目录内，不得污染其它分区', () => {
+  const phone = cssSource.slice(cssSource.indexOf('后台专属高密度信息流'))
+  // .admin-status-tag 被审批/用户/门店三个分区共用，裸选择器会连带改掉已验收的移动卡片。
+  assert.doesNotMatch(phone, /\n  \.admin-status-tag \{/u, '不得在手机块内使用裸 .admin-status-tag')
+  assert.match(phone, /\.admin-directory-module-meta \.admin-status-tag,/u)
+  assert.match(phone, /\.admin-directory-store-row \.admin-status-tag,/u)
+})

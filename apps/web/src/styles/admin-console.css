@@ -2092,3 +2092,255 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+
+/* ============================================================
+   后台专属高密度信息流（仅 ≤767px 手机）
+
+   桌面态一律不动：本文件上方所有规则保持原样，仅在此断点内覆盖。
+   桌面 226px 窄列需要「标题独占一行」，手机有整屏宽度却继承了同一条
+   flex: 1 1 100%，于是每个实体被撑到 118px。这里把它收回单行。
+
+   层级不再靠逐层卡片外壳表达，改为左缩进轨 + 字重 + 字色；
+   操作降为图标（文字标签由 aria-label 承载），子树规模内联在父层行内。
+   ============================================================ */
+@media (max-width: 767px) {
+  /* 外壳拆掉：三层嵌套的 border + radius + background 在手机上纯属浪费横纵空间。 */
+  .admin-directory-module {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    overflow: visible;
+  }
+
+  .admin-directory-module[data-expanded='true'] {
+    border-color: transparent;
+  }
+
+  .admin-directory-module + .admin-directory-module {
+    border-top: 1px solid var(--ops-line, #dedbd2);
+  }
+
+  .admin-directory-major-grid,
+  .admin-directory-child-grid,
+  .admin-directory-city-grid {
+    gap: 0;
+  }
+
+  /* 标题回到单行：这是密度的主要来源，一个实体从 118px 降到 44px。 */
+  .admin-directory-module-head {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 4px 0 0;
+  }
+
+  .admin-directory-module-trigger {
+    flex: 1 1 auto;
+    justify-content: flex-start;
+    gap: 6px;
+    min-height: 44px;
+  }
+
+  .admin-directory-module[data-expanded='true'] > .admin-directory-module-head > .admin-directory-module-trigger {
+    flex: 1 1 auto;
+  }
+
+  .admin-directory-module-trigger strong {
+    overflow: hidden;
+    overflow-wrap: normal;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* 层级靠字重与字色区分，不靠字号阶梯——字号阶梯在手机上只会浪费行高。 */
+  .admin-directory-module-regions > .admin-directory-module-head .admin-directory-module-trigger { font-size: 15px; font-weight: 700; }
+  .admin-directory-module-subregions > .admin-directory-module-head .admin-directory-module-trigger { font-size: 14px; font-weight: 600; }
+  .admin-directory-module-cities > .admin-directory-module-head .admin-directory-module-trigger { font-size: 14px; font-weight: 500; color: var(--ops-text-muted, #55554f); }
+
+  .admin-directory-module-chevron {
+    order: -1;
+    flex: 0 0 auto;
+    width: 16px;
+    font-size: 16px;
+    line-height: 1;
+    text-align: center;
+  }
+
+  .admin-directory-module-meta {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+
+  /* 缩进轨：一条 1px 竖线替代整个嵌套卡片，既保留层级又几乎不占宽度。 */
+  .admin-directory-child-level {
+    margin-left: 8px;
+    padding: 0 0 0 8px;
+    border-left: 1px solid var(--ops-line, #dedbd2);
+  }
+
+  /* 门店行压到单行 44px；名称过长时省略并由 title 提供全文。 */
+  .admin-directory-store-list {
+    gap: 0;
+    background: transparent;
+  }
+
+  .admin-directory-store-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0 6px;
+    min-height: 44px;
+    padding: 0 4px 0 0;
+    font-size: 13px;
+  }
+
+  /* 360px 下三层缩进吃掉 51px，单行只剩约 77px 给店名，装不下「BIKE-JA 静安店」。
+     故意分两行：第一行身份与状态（店名拿到充裕宽度），第二行计数与操作右对齐。 */
+  .admin-directory-store-row > .admin-directory-member-count {
+    grid-row: 2;
+    grid-column: 1;
+    align-self: center;
+  }
+
+  .admin-directory-store-row > .admin-directory-actions {
+    grid-row: 2;
+    grid-column: 2;
+    justify-content: flex-end;
+  }
+
+  .admin-directory-store-block + .admin-directory-store-block {
+    border-top: 1px solid var(--ops-line, #dedbd2);
+  }
+
+  .admin-directory-store-identity {
+    overflow: hidden;
+    overflow-wrap: normal;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  .admin-directory-store-identity strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .admin-directory-store-row .admin-directory-actions {
+    flex-wrap: nowrap;
+    gap: 0;
+  }
+
+  .admin-directory-store-row .admin-directory-actions > * {
+    flex: 0 0 auto;
+  }
+
+  .admin-directory-store-row .admin-directory-actions button {
+    width: 44px;
+  }
+
+  .admin-directory-member-count {
+    font-size: 11px;
+  }
+
+  /* 操作降为图标：文字标签隐藏但保留在 DOM 中，动词由 aria-label 承载。 */
+  .admin-directory-actions {
+    flex-wrap: nowrap;
+    gap: 0;
+  }
+
+  .admin-directory-icon-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+  }
+
+  .admin-directory-icon-action .admin-action-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* 子树规模：父层不展开也能读到「N区 · N市 · N店」。 */
+  .admin-directory-counts {
+    flex: 0 0 auto;
+    color: var(--ops-text-muted, #55554f);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* .admin-status-tag 被审批 / 用户 / 门店三个分区共用，裸选择器会连带改掉已验收的
+     移动卡片，因此这里必须限定在目录内。 */
+  .admin-directory-module-meta .admin-status-tag,
+  .admin-directory-store-row .admin-status-tag,
+  .admin-directory-member-row .admin-status-tag {
+    padding: 1px 5px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  /* 成员面板同样收紧，但编辑态输入仍保持可点尺寸。 */
+  .admin-directory-member-panel {
+    margin: 0 0 0 8px;
+    padding: 0 0 0 8px;
+    border-left-width: 2px;
+  }
+
+  .admin-directory-member-list {
+    gap: 0;
+    background: transparent;
+  }
+
+  .admin-directory-member-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 4px 6px;
+    min-height: 44px;
+    padding: 0;
+    font-size: 12px;
+  }
+
+  .admin-directory-member-row + .admin-directory-member-row {
+    border-top: 1px solid var(--ops-line, #dedbd2);
+  }
+
+  .admin-directory-member-row > strong {
+    overflow: hidden;
+    overflow-wrap: normal;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-directory-member-row > :nth-child(2) {
+    grid-column: 1 / -1;
+    color: var(--ops-text-muted, #55554f);
+    font-size: 11px;
+  }
+
+  .admin-directory-member-row > :nth-child(3),
+  .admin-directory-member-row > :nth-child(4) {
+    grid-column: auto;
+  }
+
+  .admin-directory-member-row button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .admin-directory-member-edit {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-directory-member-edit > * {
+    grid-column: 1 / -1;
+  }
+}
