@@ -538,7 +538,7 @@
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(0, 1.6fr) auto;
   gap: 18px;
-  align-items: center;
+  align-items: start;
   padding: 14px 18px;
   border-radius: 8px;
   background: var(--ops-card, #fffdf8);
@@ -557,12 +557,110 @@
   font-weight: 700;
 }
 
+/* 身份列不再单行截断：门店名与调店去向都要能完整读到。 */
 .admin-approval-identity span {
   font-size: 13px;
   color: var(--ops-text-muted, #55554f);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-approval-place {
+  line-height: 1.45;
+}
+
+/* 调店去向：源店与目标店各自成段，箭头独立，窄屏可换行而不是挤成一行截断。 */
+.admin-approval-move {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  line-height: 1.45;
+}
+
+.admin-approval-move-arrow {
+  color: var(--ops-text-muted, #55554f);
+}
+
+.admin-approval-move-to {
+  font-weight: 600;
+  color: var(--ops-text, #0a0b0a);
+}
+
+/* 角色变更：目标角色加重，一眼看出要提到哪一级。 */
+.admin-approval-role-shift {
+  line-height: 1.45;
+}
+
+.admin-approval-role-shift strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ops-text, #0a0b0a);
+}
+
+/* 元信息由「·」长串改为分项，标签与值成对出现。 */
+.admin-approval-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  font-size: 12px;
+  color: var(--ops-text-muted, #55554f);
+}
+
+.admin-approval-meta-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+
+.admin-approval-meta-label {
+  color: var(--ops-text-muted, #55554f);
+  opacity: .75;
+}
+
+.admin-approval-meta time {
+  font-family: var(--font-display, 'Barlow Condensed Ops');
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* 截止时间按紧迫度上色：24 小时内或已过期必须显眼，否则容易漏批。 */
+.admin-approval-meta-item[data-tone='urgent'] time,
+.admin-approval-meta-item[data-tone='expired'] time {
+  color: var(--ops-danger, #c63b2e);
+  font-weight: 700;
+}
+
+.admin-approval-meta-item[data-tone='soon'] time {
+  color: #6b4a00;
+  font-weight: 600;
+}
+
+.admin-approval-no-reason {
+  color: var(--ops-text-muted, #55554f);
+}
+
+.admin-approval-decision {
+  margin: 2px 0 0;
+  padding-left: 8px;
+  border-left: 2px solid var(--ops-line, #dedbd2);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ops-text-muted, #55554f);
+  overflow-wrap: anywhere;
+}
+
+.admin-status-tag[data-status='danger'] {
+  background: rgb(198 59 46 / .1);
+  color: var(--ops-danger, #c63b2e);
+}
+
+.admin-status-tag[data-status='pending'] {
+  background: rgb(255 195 26 / .22);
+  color: #6b4a00;
 }
 
 .admin-approval-detail {
@@ -807,6 +905,7 @@
 .admin-table td {
   padding: 12px 14px;
   vertical-align: top;
+  line-height: 1.5;
   border-top: 1px solid rgb(12 14 12 / .06);
 }
 
@@ -1551,36 +1650,6 @@
   gap: 12px;
 }
 
-.workshop-pending-badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  min-width: 18px;
-  height: 18px;
-  display: grid;
-  place-items: center;
-  padding: 0 4px;
-  border-radius: 999px;
-  background: var(--ops-yellow, #ffc31a);
-  color: var(--ops-black, #0c0e0c);
-  font-size: 11px;
-  font-weight: 700;
-  box-shadow: 0 0 0 2px var(--ops-page, #f7f5ef);
-}
-
-.dialog-action-badge {
-  margin-left: auto;
-  min-width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--ops-yellow, #ffc31a);
-  color: var(--ops-black, #0c0e0c);
-  font-size: 12px;
-  font-weight: 700;
-}
 
 /* Comprehensive remediation: touch, cards, focus and dialog contracts. */
 .admin-mobile-cards { display: none; }
@@ -1800,6 +1869,226 @@
   }
 }
 /* Unified directory: major modules -> subregion modules -> cities -> dense store rows. */
-.admin-directory-major-grid,.admin-directory-child-grid,.admin-directory-city-grid{display:grid;gap:12px}.admin-directory-major-grid{grid-template-columns:repeat(5,minmax(0,1fr))}.admin-directory-module{border:1px solid var(--ops-line,#dedbd2);border-radius:8px;background:var(--ops-card,#fffdf8);overflow:hidden}.admin-directory-module[data-expanded='true']{border-color:var(--ops-yellow,#ffc31a)}.admin-directory-module-head{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;min-height:56px;padding:8px 12px}.admin-directory-module-regions .admin-directory-module-head{min-height:88px}.admin-directory-module-trigger{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;min-height:44px;border:0;background:transparent;color:inherit;font:inherit;text-align:left}.admin-directory-module-trigger strong{overflow-wrap:anywhere}.admin-directory-module-regions .admin-directory-module-trigger{font-size:22px}.admin-directory-module-subregions .admin-directory-module-trigger{font-size:18px}.admin-directory-module-cities .admin-directory-module-trigger{font-size:16px}.admin-directory-module-chevron{font-size:24px;color:var(--ops-yellow,#b97d00)}.admin-directory-child-level{padding:0 12px 12px}.admin-directory-store-list{display:grid;gap:1px;background:var(--ops-line,#dedbd2)}.admin-directory-store-block{background:var(--ops-card,#fffdf8)}.admin-directory-store-row{display:grid;grid-template-columns:minmax(150px,1fr) auto auto auto;gap:12px;align-items:center;min-height:48px;padding:4px 12px}.admin-directory-store-identity{display:flex;align-items:baseline;gap:8px;min-width:0;overflow-wrap:anywhere}.admin-directory-member-count{color:var(--ops-text-muted,#55554f);font-size:13px;white-space:nowrap}.admin-directory-member-panel{margin:0 12px 10px;padding:10px;border-left:3px solid var(--ops-yellow,#ffc31a);background:var(--ops-page,#f7f5ef)}.admin-directory-member-list{display:grid;gap:1px;background:var(--ops-line,#dedbd2)}.admin-directory-member-row{display:grid;grid-template-columns:minmax(110px,1fr) minmax(120px,1fr) auto auto auto auto;gap:10px;align-items:center;min-height:44px;padding:4px 8px;background:var(--ops-card,#fffdf8);font-size:13px}.admin-directory-member-row button,.admin-directory-member-edit input,.admin-directory-member-edit select{min-height:40px}.admin-directory-member-edit input,.admin-directory-member-edit select{width:100%;min-width:0;padding:0 8px;border:1px solid var(--ops-line-strong,#b9b5aa);border-radius:5px;background:var(--ops-card,#fffdf8);font:inherit}
-@media (max-width:1023px){.admin-directory-major-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-directory-store-row{grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;padding:8px 10px}.admin-directory-store-row>.admin-directory-actions{grid-column:1/-1}.admin-directory-store-row>.admin-directory-actions button{flex:1 1 80px}.admin-directory-member-row{grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;padding:8px}.admin-directory-member-row>:nth-child(2),.admin-directory-member-row>:nth-child(3),.admin-directory-member-row>:nth-child(4){grid-column:1/-1}}
-@media (max-width:767px){.admin-directory-major-grid{grid-template-columns:1fr}.admin-directory-module-head{grid-template-columns:minmax(0,1fr) auto}.admin-directory-module-head>.admin-directory-actions{grid-column:1/-1}.admin-directory-child-level{padding:0 8px 8px}}
+/* 目录瀑布：折叠态并排浏览，展开态独占整行——否则子级门店行被压在一个窄列里逐字换行。 */
+.admin-directory-major-grid,
+.admin-directory-child-grid,
+.admin-directory-city-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-directory-major-grid {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.admin-directory-major-grid > .admin-directory-module[data-expanded='true'] {
+  grid-column: 1 / -1;
+}
+
+.admin-directory-module {
+  border: 1px solid var(--ops-line, #dedbd2);
+  border-radius: 8px;
+  background: var(--ops-card, #fffdf8);
+  overflow: hidden;
+}
+
+.admin-directory-module[data-expanded='true'] {
+  border-color: var(--ops-yellow, #ffc31a);
+}
+
+/* 折叠态窄列容不下「标题 + 状态 + 两个按钮」一行：标题独占首行，状态与操作降到第二行。 */
+.admin-directory-module-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  min-height: 56px;
+  padding: 10px 12px;
+}
+
+.admin-directory-module-trigger {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-directory-module-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  min-width: 0;
+}
+
+/* 展开后已拿到整行宽度，标题与状态、操作回到同一行。 */
+.admin-directory-module[data-expanded='true'] > .admin-directory-module-head > .admin-directory-module-trigger {
+  flex: 1 1 auto;
+}
+
+.admin-directory-module-trigger strong {
+  overflow-wrap: anywhere;
+}
+
+.admin-directory-module-regions .admin-directory-module-trigger { font-size: 20px; }
+.admin-directory-module-subregions .admin-directory-module-trigger { font-size: 17px; }
+.admin-directory-module-cities .admin-directory-module-trigger { font-size: 15px; }
+
+.admin-directory-module-chevron {
+  font-size: 24px;
+  color: var(--ops-yellow, #b97d00);
+}
+
+.admin-directory-child-level {
+  padding: 0 12px 12px;
+}
+
+.admin-directory-store-list {
+  display: grid;
+  gap: 1px;
+  background: var(--ops-line, #dedbd2);
+}
+
+.admin-directory-store-block {
+  background: var(--ops-card, #fffdf8);
+}
+
+.admin-directory-store-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 10px 14px;
+  align-items: center;
+  min-height: 48px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.admin-directory-store-row:hover {
+  background: var(--paper-cool, #f0ede4);
+}
+
+.admin-directory-store-identity {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* 门店行操作区是嵌套两层 actions（查看 + 重命名/停用）：统一让内外层都可换行等分。 */
+.admin-directory-store-row .admin-directory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.admin-directory-member-count {
+  color: var(--ops-text-muted, #55554f);
+  font-size: 13px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-directory-member-panel {
+  margin: 0 12px 10px;
+  padding: 10px;
+  border-left: 3px solid var(--ops-yellow, #ffc31a);
+  background: var(--ops-page, #f7f5ef);
+}
+
+.admin-directory-member-list {
+  display: grid;
+  gap: 1px;
+  background: var(--ops-line, #dedbd2);
+}
+
+.admin-directory-member-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(120px, 1fr) auto auto auto auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px;
+  background: var(--ops-card, #fffdf8);
+  font-size: 13px;
+}
+
+.admin-directory-member-row > strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.admin-directory-member-row button,
+.admin-directory-member-edit input,
+.admin-directory-member-edit select {
+  min-height: 40px;
+}
+
+.admin-directory-member-edit input,
+.admin-directory-member-edit select {
+  width: 100%;
+  min-width: 0;
+  padding: 0 8px;
+  border: 1px solid var(--ops-line-strong, #b9b5aa);
+  border-radius: 5px;
+  background: var(--ops-card, #fffdf8);
+  font: inherit;
+}
+
+@media (max-width:1023px){.admin-directory-major-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-directory-store-row{grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;padding:8px 10px}.admin-directory-store-row>.admin-directory-actions{grid-column:1/-1}.admin-directory-store-row .admin-directory-actions>*{flex:1 1 80px}.admin-directory-store-row .admin-directory-actions button{width:100%}.admin-directory-member-row{grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;padding:8px}.admin-directory-member-row>:nth-child(2),.admin-directory-member-row>:nth-child(3),.admin-directory-member-row>:nth-child(4){grid-column:1/-1}}
+@media (max-width:767px){.admin-directory-major-grid{grid-template-columns:1fr}.admin-directory-child-level{padding:0 8px 8px}}
+
+/* 用户分区：门店与角色配对成行，避免读者靠位置在两列之间心算对应关系。 */
+.admin-membership-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-membership-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-width: 0;
+}
+
+.admin-membership-list .admin-store-code {
+  margin-right: 0;
+}
+
+.admin-membership-store {
+  overflow-wrap: anywhere;
+}
+
+.admin-membership-role {
+  padding-left: 8px;
+  border-left: 1px solid var(--ops-line, #dedbd2);
+  color: var(--ops-text-muted, #55554f);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.admin-membership-empty {
+  color: var(--ops-text-muted, #55554f);
+}
+
+.admin-table time {
+  font-family: var(--font-display, 'Barlow Condensed Ops');
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

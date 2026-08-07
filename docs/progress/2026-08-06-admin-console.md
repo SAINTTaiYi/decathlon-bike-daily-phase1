@@ -181,3 +181,90 @@ Preview 重新部署 run `31041554495` 成功（工作流自检 attempt 2 命中
 环境备忘：`pull` 之后 `packages/contracts/dist` 为旧产物、缺 `adminCreateUserSchema` 等导出，会让 worker 测试假失败 1 项；须先 `pnpm --filter @bike-ops/contracts build` 再跑 worker 测试。SSR 冒烟入口须放在 `apps/web/`（`react-dom` 在 `apps/web/node_modules`，不在仓库根）。
 
 CodeGraph 前后置本轮记为豁免：CodeGraph 装在 Termux 本机，不在本轮使用的 workspace 沙箱内；CSS 与 Markdown 本身即非索引例外，由契约测试、SSR 渲染核对、构建与线上资产核验补偿。
+
+### 目录与用户可读性重构（2026-08-07）
+
+用户反馈：目录与用户两个界面阅读性差。**根因（按实际宽度算过，不是主观判断）**：
+
+- **目录**：`.admin-directory-major-grid` 固定 `repeat(5, minmax(0,1fr))`，1180px 面板下每列仅 **226px**；大区头部是 `minmax(0,1fr) auto auto` 三列，状态标签加两个按钮吃掉 **199px**，标题列只剩 **1.4px** → 22px 中文大区名逐字竖排。更严重的是展开态仍被关在这条窄列里：门店行嵌在大区→小区→城市三层 padding 内，可用宽 **148px**，而它自身 min-content 需求 **504px** → **溢出 3.4 倍**。这是"目录不可读"的真正来源。
+- **用户**：「角色」「门店」各自成列并用顿号拼接，多门店用户必须人工按位置对应两列；`.admin-table td` 无 `line-height`；最近登录只有 `2026/08/06` 无日锚点。
+
+修复：
+
+- 目录折叠态改 `repeat(auto-fill, minmax(260px, 1fr))`（1180px 下约 4 列，每列 ~277px）；头部改 flex 换行，标题独占首行，状态与操作收进新增 `.admin-directory-module-meta` 降到第二行。
+- 展开态 `.admin-directory-major-grid > .admin-directory-module[data-expanded='true'] { grid-column: 1 / -1 }` 独占整行，门店行可用宽从 148px 变为约 **1078px**，四列（识别 / 状态 / 成员数 / 操作）全部落位；门店行提到 14px 并加 hover，成员姓名提到 14px。
+- 用户表把两列合并为「门店与角色」配对列，每条成员一行 `CHU13 上海中山公园店 · 经理`，表格从 7 列降到 6 列；`.admin-table td` 补 `line-height: 1.5`；最近登录改日锚点（今天 / 昨天 / 前天 / MM-DD，跨年回落完整年月日），完整日期进 `title`，未登录显示"从未登录"而非长横线。
+- 时间格式化抽出 `apps/web/src/components/admin/admin-format.js` 供总览与用户共用，并补跨年处理。
+
+**SSR 暴露的两个真实缺陷（顺带修复）**：
+
+1. `module()` 返回的根 `div` 缺 `key`（PR #174 遗留）。React 报 unique key 警告；目录重命名或刷新后子节点重排会导致展开态与重命名输入框错位。已补 `key={item.id}`，HTML 输出不变（key 只影响 reconcile，已用渲染哈希 `9bd0d8db73d74115` 前后一致证实）。
+2. 门店行 `.admin-directory-actions` 实际嵌套两层（外层含「查看」，内层含「重命名/停用」），≤1023px 的 `>` 直接子选择器只命中「查看」，另两个按钮不参与等分。已改为后代选择器 `.admin-directory-store-row .admin-directory-actions>*`。
+
+验证：web 200/200、worker 50/50、domain 7、database 10、api 21、typecheck（含 worker）、workflow policy 88、`git diff --check` 干净、vite build 成功。
+
+**总览逐字节回归**：因为把 `formatStamp` 搬到共享模块，用 esbuild + `react-dom/server` 在固定时间下分别渲染「已验收版本」与「共享模块版本」，两份 HTML SHA-256 同为 `de272f935e4a37a7480723d099f3c67f3209baaeaeb341dcd0eac8662912c1eb`，**5454 B 逐字节一致**，确认上一轮已验收的总览渲染未被改动。
+
+目录与用户两块也做了真实 SSR 渲染核对（目录用预设展开态副本渲染出四级层级与门店行；用户导出展示组件后用 fixture 渲染配对列与日锚点各分支）。注意沙箱时区为 UTC，日锚点须在 `TZ=Asia/Shanghai` 下核验，否则会看到"昨天"被算成"今天"的环境假象。
+
+CodeGraph 前后置本轮仍记豁免（CodeGraph 在 Termux 本机，不在本轮 workspace 沙箱）。
+
+### 全栈优化补齐（2026-08-07）
+
+在 GitHub Actions 故障期间进行的本地优化。**硬约束：不得改变非后台页面排版**，下文每项都附了守住这条线的验证方式。
+
+先做了一轮全栈审计，结论是项目基础比预期扎实：CSP 与安全响应头齐全（HSTS、nosniff、frame-options、Referrer/Permissions-Policy，HTML 与 API 分别用不同 CSP）、`AppErrorBoundary` 已挂载、写操作已有乐观锁 + 幂等键 + 请求闸门、1 MiB 请求体上限已生效。因此没有做无意义的"全面改造"，只补了四处真实缺口。
+
+**1. 目录写操作静默失败（用户可感知的缺陷）**
+
+`AdminDirectorySection` 有 4 处 `catch {}`：新增目录、重命名、停用/启用、成员更新与移除。失败后 `busy` 被 `finally` 清掉、按钮恢复可点，但界面无任何提示——用户点了没反应，会以为是自己操作错了。对比同层的用户分区，它有完整的 `setError` + `form-error` 反馈。
+
+改为 `catch (error) { setWriteError(...) }`，面板顶部渲染 `role="alert"` 错误条（读屏立即播报），进入写操作时先清空上次错误。错误文案优先用后端返回的 message，缺失时回落到按操作类型区分的中文兜底。
+
+**2. D1 查询索引（先实测再落地，删掉了自己写的无效索引）**
+
+新增 `migrations/d1/0010_admin_console_query_indexes.sql`，纯追加、`IF NOT EXISTS` 幂等、无任何 DROP/ALTER/DELETE/UPDATE/INSERT。
+
+最初写了 7 条索引，用 `node:sqlite` 跑完整 10 个迁移后逐条 `EXPLAIN QUERY PLAN` 验证，**删掉 3 条实测无效的**：
+
+- `role_change_requests(created_at DESC, id DESC)` 与 store_transfer 同构版本：本想消除审批 `decided` 分组的 TEMP B-TREE。实测无效——该查询 `status IN ('approved','rejected','cancelled')` 跨三值排序，SQLite 必然先探 status 索引再排序，加不加都走 TEMP B-TREE。对照试验三种索引组合，结果一致。该排序受 `LIMIT 21` 约束，代价可接受，故放弃。
+- `store_members(user_id, store_id, role)`：与既有 `store_members_one_active_user_idx(user_id)` 唯一分区索引重复，planner 选的是后者。
+
+保留的 4 条全部经 EXPLAIN 确认被选中：`role_change_requests_status_decided_idx`、`store_transfer_requests_status_decided_idx`（均为 COVERING INDEX，`decided_at` 此前完全无索引，总览每次加载全表扫两张申请表）、`role_change_requests_store_created_idx`、`users_created_id_idx`（COVERING 走序，消除了用户列表分页的排序）。已同步 `apps/worker/security/d1-test-adapter.ts` 的迁移清单。
+
+**3. 后台按需分包**
+
+后台约 2500 行组件 + 2026 行 CSS 此前全打进主 bundle，门店用户从不访问却要下载。改为 `lazy(() => import(...))` + `Suspense`，并把 `admin-console.css` 从全局 `index.css` 移到后台入口内引入，使组件与样式落在同一异步边界。
+
+门店用户首屏：JS 480 → 429.1 kB，CSS 306 → 280.3 kB，共减 76.6 kB；gzip 传输 234.4 → 218.0 kB（减 16.4 kB / 7.0%）。后台按需加载 JS 47.15 + CSS 33.63 kB（gzip 18.9 kB）。
+
+**分包前必须先排掉的隐患**：扫描 `admin-console.css` 的 280 条选择器，发现恰好 2 条不属于 admin 作用域——`.workshop-pending-badge`（宿主是 `WorkshopShellHeader`，门店工作台头部）与 `.dialog-action-badge`（宿主是 `MenuDialog`，菜单弹窗）。两者都是**非后台页面**，若随后台分包延迟加载，平台管理员在工作台和菜单里会看到无样式角标。已先将这 2 条规则搬进常驻 `components.css`，`admin-console.css` 随后达到 100% admin 作用域锚定才执行分包。`Suspense` 占位所用的 `.admin-console-loading` 同理放在常驻样式。
+
+**守住红线的验证**：从 `HEAD` 取改动前的样式源，按 `index.css` 的 `@import` 顺序在内存中复原"基线全局 CSS"，与当前全局 CSS 做规则级比对（`@media`/`@supports` 块按块内选择器是否全为 admin 判定，避免误判）。结果：基线 1478 条规则中 270 条为纯 admin 作用域；**基线非 admin 规则在当前缺失 0 条**；移出全局的 270 条**全部**落在后台分包样式表中，无一丢失；全局仅新增 1 条 `.admin-console-loading`。另对构建产物断言：非后台角标与占位样式在主 CSS 中存在，后台专属类名在主 CSS 中为 0、在后台 CSS 中存在，后台组件标识不出现在主 JS。
+
+**4. 契约测试**
+
+新增 3 项并修正 3 项旧断言（旧断言的**意图**仍有效，只是实现形态改变，故改为等价断言而非删除）：入口断言从静态 import 改为 lazy 动态 import；角标样式断言从后台样式表改为常驻 `components.css`；后台样式注册点断言从全局 `index.css` 改为后台入口。新增测试锁住：4 处 `catch {}` 不得回归、错误条带 `role="alert"`、后台样式表必须 100% admin 作用域锚定（含一条动态扫描断言，任何新增的非 admin 选择器都会失败）、迁移只含 EXPLAIN 确认生效的索引且不含已验证无效的那 3 条。
+
+门禁：web **203/203**、worker 50/50、domain 7、database 10、api 21、typecheck（含 worker）、workflow policy 88、`git diff --check` 干净、构建通过。
+
+**未交付**：GitHub Actions 自 2026-08-06 15:22 UTC 起 major_outage，PR CI 与 Preview 部署工作流均跑在 `ubuntu-latest`，无法获取 runner。本轮改动与 PR #177（目录/用户可读性）同样处于"已完成、待 Actions 恢复后交付 Preview"状态。Production 保持 V5.8.3 / `3ec28a32…` 未触碰。CodeGraph 前后置仍记豁免（不在当前 workspace 沙箱）。
+
+### 审批分区可读性重构（2026-08-07）
+
+五个分区中最后一个未做可读性处理的。**先算过宽度再动手**：审批行 1144px 内容宽下身份列约 365px，调店去向串「CHU07 南京新城科技园店 → CHU13 上海中山公园店」按中文 13px 估算约 300px——宽度本身够用，所以这里的问题不是挤压，而是别的四处：
+
+1. **身份列单行截断**。`.admin-approval-identity span` 是 `white-space: nowrap` + `text-overflow: ellipsis`。宽度虽勉强够，但门店名一旦更长（或窄屏、大字号），调店去向就会被截成「CHU07 南京新城科技…」，看不出要调到哪。改为 `overflow-wrap: anywhere` 可换行，并把去向拆成 `move-from / arrow / move-to` 三段独立元素，目标店加重，窄屏自然换行而不是截断。
+2. **元信息挤成一条「·」串**。原本是 `08-06 21:00 · 修订 2 · 截止 08-09 03:00 · 审批意见…` 全部拼在一个 `<small>` 里。改为 `ApprovalMeta` 组件输出「标签 + 值」分项（提交 / 修订 / 截止），审批意见单独成段并用左边框区隔。
+3. **截止时间看不出紧迫度**——这是功能性缺陷，不只是排版。审批申请会过期（后端按 `expires_at` 判定并单列"已过期"分组），但界面只显示绝对时间「截止 08-09 03:00」，读者得自己算还剩多久，快到期的容易漏批。新增 `formatDeadline()` 输出剩余量与 tone：<1h 显示「剩 40 分钟」、<24h「剩 18 小时」、≤2 天「剩 2 天」、更远「剩 5 天」、已过则「已过期」；`urgent`/`expired` 用 `--ops-danger` 红色加粗，`soon` 用琥珀，完整时间仍在 `title`。
+4. **时间格式与其余分区不一致**，且角色/调店申请的终态没有状态标签（只有门店审核有）。改为复用 `admin-format.js` 的 `formatStamp`（删掉本地 `formatTime`），并为 approved/rejected/cancelled 补 `admin-status-tag`。
+
+另把审批行从 `align-items: center` 改为 `start`：长理由会把详情列拉高，居中会让身份列文字视觉下沉错位。
+
+**SSR 验证**：导出 `ApprovalMeta` 后用 6 组固定时间 fixture 在 `TZ=Asia/Shanghai` 下真实渲染，逐一核对 tone 与文案——40 分钟/18 小时 → `urgent`，2 天 → `soon`，5 天 → `normal`，过期 → `expired`，门店审核无 `expiresAt` 时整个截止项不渲染；日锚点输出今天/昨天/前天/日期均正确。渲染无 React 警告。（首次尝试整行渲染得到 0 行，因为列表数据在 `useEffect` 里异步加载而 `renderToStaticMarkup` 只渲染首帧，故改为直接渲染展示单元。）
+
+**非后台红线复查**：后台样式表仍为 100% admin 作用域锚定（0 条泄漏）。构建产物中主 CSS 仍是 280.33 kB、主 JS 429.05 kB，与上一轮**完全一致**；新增审批样式全部落在后台 chunk（33.63 → 35.12 kB），非后台页面零影响。
+
+门禁：web **204/204**、worker 50/50、domain 7、database 10、api 21、typecheck、workflow policy 88、`git diff --check` 干净、构建通过。
+
+至此五个分区（总览 / 目录 / 用户 / 审批 / 审计）可读性全部处理完毕；审计分区在 #172 已具备桌面表格与移动卡片双形态，本轮核对后无需再改。

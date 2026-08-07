@@ -1,29 +1,10 @@
 import { useState } from 'react'
+import { formatStamp } from './admin-format.js'
 
 const kindLabels = { pickup: '待取', handover: '交接', repair: '维修', resale: '二手' }
 const moduleLabels = { sales: '销售', closing: '闭店', pickup: '待取', repair: '维修', resale: '二手', handover: '交接', account: '账号', system: '系统' }
 const changeTypeLabels = { 'new-store': '新增门店', 'new-user': '新增用户', 'role-approved': '角色批准', 'transfer-approved': '调店批准' }
 const changeTones = { 'new-store': 'neutral', 'new-user': 'neutral', 'role-approved': 'success', 'transfer-approved': 'accent' }
-
-const dayFormatter = new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' })
-const clockFormatter = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
-const fullFormatter = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
-
-function startOfDay(value) {
-  const date = new Date(value)
-  date.setHours(0, 0, 0, 0)
-  return date
-}
-
-// 近三天用口语日锚点（今天 / 昨天 / 前天），更早回落到 月-日；full 供 title 悬浮读到完整时间。
-function formatStamp(value) {
-  if (!value) return { day: '—', clock: '', full: '' }
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return { day: '—', clock: '', full: '' }
-  const distance = Math.round((startOfDay(Date.now()) - startOfDay(date)) / 86400000)
-  const day = distance === 0 ? '今天' : distance === 1 ? '昨天' : distance === 2 ? '前天' : dayFormatter.format(date)
-  return { day, clock: clockFormatter.format(date), full: fullFormatter.format(date) }
-}
 
 export default function AdminOverviewSection({ overview, onJump, roleLabels }) {
   const [period, setPeriod] = useState('d7')

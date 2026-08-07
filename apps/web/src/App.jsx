@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import BootLoader from './components/BootLoader.jsx'
 import InitialSetup from './components/InitialSetup.jsx'
 import PlatformAdminSetup from './components/PlatformAdminSetup.jsx'
@@ -39,8 +39,11 @@ import PickupScene from './scenes/PickupScene.jsx'
 import RepairScene from './scenes/RepairScene.jsx'
 import ResaleScene from './scenes/ResaleScene.jsx'
 import SalesScene from './scenes/SalesScene.jsx'
-import PlatformAdminConsole from './components/admin/PlatformAdminConsole.jsx'
 import { getAdminPendingCount } from './api/admin.js'
+
+// 平台管理后台仅平台管理员在 #admin 下访问：切成异步 chunk，
+// 让门店工作台首屏不必下载后台的组件与样式。
+const PlatformAdminConsole = lazy(() => import('./components/admin/PlatformAdminConsole.jsx'))
 
 const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员' }
 
@@ -535,12 +538,14 @@ export default function App() {
   if (authenticated && adminMode && auth.user?.isPlatformAdmin) {
     return (
       <>
-        <PlatformAdminConsole
-          user={currentUser}
-          storeName={currentStore?.storeName || '全国平台'}
-          onExit={exitAdminMode}
-          onNotify={setToast}
-        />
+        <Suspense fallback={<p className="admin-console-loading" role="status">正在载入平台管理后台…</p>}>
+          <PlatformAdminConsole
+            user={currentUser}
+            storeName={currentStore?.storeName || '全国平台'}
+            onExit={exitAdminMode}
+            onNotify={setToast}
+          />
+        </Suspense>
         <StatusToast notice={toast} />
       </>
     )

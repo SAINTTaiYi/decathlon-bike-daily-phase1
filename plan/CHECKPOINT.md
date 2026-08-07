@@ -21,6 +21,14 @@
 - Production `workshop.skin` 保持 **V5.8.3 / `3ec28a32…`**，本轮不部署、不触碰 Production D1、不变更公开版本号。Preview 仅供验收。
 - 备忘：`pull` 后须先 `pnpm --filter @bike-ops/contracts build`，否则 worker 测试因旧 dist 缺 `adminCreateUserSchema` 假失败 1 项。CodeGraph 前后置本轮豁免（不在当前 workspace 沙箱）。
 
+## 当前状态加注（2026-08-07 +08:00）
+
+- 目录与用户两分区可读性重构完成，等 Preview 验收。根因按实际宽度算出：目录固定 5 列使大区列仅 226px、标题列被状态与按钮压到 1.4px，且展开态仍被关在窄列内导致门店行 min-content 溢出 3.4 倍；用户表「角色」「门店」分列拼接需人工按位置对应。
+- 修复：目录折叠态 `auto-fill minmax(260px)` + 头部两行（新增 `.admin-directory-module-meta`），展开态 `grid-column: 1 / -1` 独占整行；用户表合并为「门店与角色」配对列并加最近登录日锚点；时间格式化抽出 `apps/web/src/components/admin/admin-format.js`。
+- 顺带修 SSR 暴露的两个真实缺陷：目录 `module()` 根节点缺 `key`（PR #174 遗留，影响重排后 reconcile）；门店行嵌套两层 `.admin-directory-actions` 使 ≤1023px 直接子选择器漏掉两个按钮。
+- 门禁：web 200/200、worker 50/50、domain 7、database 10、api 21、typecheck、workflow policy 88、build、diff check 全绿。总览已用 esbuild + react-dom/server 做逐字节回归（SHA-256 `de272f93…`，5454 B 一致），确认上一轮已验收渲染未被改动。
+- Production 仍 V5.8.3 未动。详见 `docs/progress/2026-08-06-admin-console.md`。
+
 ## 当前正式发布加注（2026-08-04 +08:00）
 
 - Workshop 当前正式线上版本为 **V5.8.0**；发布 PR #132 合并 SHA：`ba86fd33f8f7c5dbc90ce37998a7876d0a0e85b7`。

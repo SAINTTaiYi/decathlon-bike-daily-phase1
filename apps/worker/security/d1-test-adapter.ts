@@ -165,7 +165,8 @@ export async function migratedTestDatabase(): Promise<TestD1Database> {
     '0006_store_directory_self_registration.sql',
     '0007_repair_completion_statuses.sql',
     '0008_store_pending_status.sql',
-    '0009_directory_subregions.sql'
+    '0009_directory_subregions.sql',
+    '0010_admin_console_query_indexes.sql'
   ]) {
     const sql = await readFile(new URL(`../../../migrations/d1/${name}`, import.meta.url), 'utf8')
     db.exec(sql)

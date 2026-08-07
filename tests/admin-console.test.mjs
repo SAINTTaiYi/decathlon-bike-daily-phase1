@@ -71,17 +71,21 @@ test('后台 CSS 只有一组响应式/动效/forced-colors 门禁且补齐 44px
   assert.match(cssSource, /admin-directory-actions button,[\s\S]*min-height: 44px/u)
 })
 
-const [appSource, overviewSource, menuSource, headerSource, indexCss] = await Promise.all([
+const [appSource, overviewSource, formatSource, menuSource, headerSource, indexCss, componentsCss, directoryMigration] = await Promise.all([
   read('../apps/web/src/App.jsx'),
   read('../apps/web/src/components/admin/AdminOverviewSection.jsx'),
+  read('../apps/web/src/components/admin/admin-format.js'),
   read('../apps/web/src/components/dialogs/MenuDialog.jsx'),
   read('../apps/web/src/components/workshop/WorkshopShellHeader.jsx'),
-  read('../apps/web/src/styles/index.css')
+  read('../apps/web/src/styles/index.css'),
+  read('../apps/web/src/styles/components.css'),
+  read('../migrations/d1/0010_admin_console_query_indexes.sql')
 ])
 
 // Preserved baseline coverage from the accepted admin-console implementation.
 test('平台管理后台仅在平台管理员且 hash 为 #admin 时渲染', () => {
-  assert.match(appSource, /import PlatformAdminConsole from '\.\/components\/admin\/PlatformAdminConsole\.jsx'/u)
+  // 后台改为按需分包，入口由静态 import 变为 lazy 动态 import；权限与 hash 约束不变。
+  assert.match(appSource, /lazy\(\(\) => import\('\.\/components\/admin\/PlatformAdminConsole\.jsx'\)\)/u)
   assert.match(appSource, /adminMode && auth\.user\?\.isPlatformAdmin/u)
   assert.match(appSource, /<PlatformAdminConsole/u)
   assert.match(appSource, /onExit=\{exitAdminMode\}/u)
@@ -101,7 +105,9 @@ test('门店工作台头部为平台管理员显示待审批角标并轮询轻�
   assert.match(appSource, /getAdminPendingCount\(\)/u)
   assert.match(appSource, /setInterval\(\(\) => void poll\(\), 60000\)/u)
   assert.match(appSource, /pendingBadge=\{adminPending\}/u)
-  assert.match(cssSource, /\.workshop-pending-badge/u)
+  // 角标宿主是门店工作台头部（非后台页面），样式已移入常驻 components.css，
+  // 以免随后台分包延迟加载导致无样式闪现。
+  assert.match(componentsCss, /\.workshop-pending-badge/u)
 })
 
 test('管理台外壳包含五个分区与移动 dock', () => {
@@ -130,9 +136,10 @@ test('变化流与最近平台事件为阅读型两行结构：摘要整行换�
   assert.match(overviewSource, /event\.actorNameSnapshot/u)
   assert.match(overviewSource, /event\.storeName/u)
   // 近三天用日锚点，完整时间进 title，避免只剩 月-日 时:分 难以定位。
-  assert.match(overviewSource, /'今天'/u)
-  assert.match(overviewSource, /'昨天'/u)
-  assert.match(overviewSource, /'前天'/u)
+  assert.match(formatSource, /'今天'/u)
+  assert.match(formatSource, /'昨天'/u)
+  assert.match(formatSource, /'前天'/u)
+  assert.match(overviewSource, /from '\.\/admin-format\.js'/u)
   assert.match(overviewSource, /title=\{stamp\.full\}/u)
   // 变化流类型标签带语义色调。
   assert.match(overviewSource, /changeTones/u)
@@ -145,6 +152,118 @@ test('变化流与最近平台事件为阅读型两行结构：摘要整行换�
   // 行分隔线让长列表可扫读。
   assert.match(cssSource, /\.admin-change-list li \+ li\s*\{[^}]*border-top/u)
   assert.match(cssSource, /\.admin-audit-strip li\s*\{[^}]*border-top/u)
+})
+
+test('审批行为阅读型结构：去向不截断、元信息分项、截止时间带紧迫度', () => {
+  // 身份列此前是单行 nowrap + ellipsis，调店的「源店 → 目标店」两个中文店名必被截断。
+  assert.match(approvalsSource, /admin-approval-move-from/u)
+  assert.match(approvalsSource, /admin-approval-move-to/u)
+  assert.match(cssSource, /\.admin-approval-identity span\s*\{[^}]*overflow-wrap: anywhere/u)
+  assert.doesNotMatch(cssSource, /\.admin-approval-identity span\s*\{[^}]*white-space: nowrap/u)
+  // 元信息原来用「·」串成一行，改为标签 + 值的分项结构。
+  assert.match(approvalsSource, /function ApprovalMeta/u)
+  assert.match(approvalsSource, /admin-approval-meta-label/u)
+  // 审批会过期：截止时间必须显示剩余量并按紧迫度上色，否则容易漏批。
+  assert.match(formatSource, /export function formatDeadline/u)
+  assert.match(formatSource, /'urgent'/u)
+  assert.match(formatSource, /'expired'/u)
+  assert.match(formatSource, /已过期/u)
+  assert.match(cssSource, /\[data-tone='urgent'\] time[\s\S]{0,120}?--ops-danger/u)
+  // 与其余四个分区统一走共享格式化，不再各自实现 formatTime。
+  assert.match(approvalsSource, /from '\.\/admin-format\.js'/u)
+  assert.doesNotMatch(approvalsSource, /function formatTime/u)
+  // 角色/调店申请的终态也要有状态标签，此前只有门店审核显示。
+  assert.match(approvalsSource, /requestStatusLabels/u)
+  // 三列高度不等时顶对齐，避免长理由把身份列压到视觉居中错位。
+  assert.match(cssSource, /\.admin-approval-row\s*\{[^}]*align-items: start/u)
+})
+
+test('目录写操作失败必须可见：四处 catch 不再静默吞掉错误', () => {
+  // 此前 createDirectory / updateDirectory(重命名) / updateDirectory(停用) / 成员变更
+  // 全是 catch {}，失败后按钮恢复可点但界面无任何提示，用户会以为是自己操作错了。
+  assert.doesNotMatch(directorySource, /catch \{\}/u)
+  assert.match(directorySource, /const \[writeError, setWriteError\] = useState\(''\)/u)
+  assert.match(directorySource, /admin-directory-write-error/u)
+  assert.match(directorySource, /role="alert"/u)
+  // 四处写操作都要落到 setWriteError
+  assert.ok((directorySource.match(/setWriteError\(error\.message/gu) || []).length >= 4, '四处写操作都应上报错误原因')
+})
+
+test('后台按需分包：门店用户首屏不加载后台组件与样式，但非后台角标样式必须常驻全局', () => {
+  // 后台入口切成异步 chunk
+  assert.match(appSource, /lazy\(\(\) => import\('\.\/components\/admin\/PlatformAdminConsole\.jsx'\)\)/u)
+  assert.match(appSource, /<Suspense fallback=/u)
+  assert.doesNotMatch(appSource, /^import PlatformAdminConsole from/mu)
+  // 后台样式随后台入口加载，已从全局 index.css 移除
+  assert.doesNotMatch(indexCss, /@import '\.\/admin-console\.css'/u)
+  assert.match(consoleSource, /import '\.\.\/\.\.\/styles\/admin-console\.css'/u)
+  // 关键红线：这两个角标的宿主是门店工作台头部与菜单弹窗（非后台页面），
+  // 规则必须留在常驻样式里，否则平台管理员在非后台页面会看到无样式角标。
+  assert.match(componentsCss, /\.workshop-pending-badge\s*\{/u)
+  assert.match(componentsCss, /\.dialog-action-badge\s*\{/u)
+  assert.doesNotMatch(cssSource, /\.workshop-pending-badge\s*\{/u)
+  assert.doesNotMatch(cssSource, /\.dialog-action-badge\s*\{/u)
+  // 分包加载占位样式同样必须常驻，否则提示会无样式闪现
+  assert.match(componentsCss, /\.admin-console-loading\s*\{/u)
+  // 后台样式表必须 100% 锚定 admin 作用域，否则移出全局会影响其它页面
+  const stripped = cssSource.replace(/\/\*[\s\S]*?\*\//gu, '')
+  const selectors = [...stripped.matchAll(/(^|\})\s*([^{}@]+)\{/gu)].flatMap((m) => m[2].split(','))
+  const leaked = selectors.map((s) => s.trim()).filter((s) => s && !/\.admin[-\w]*/u.test(s))
+  assert.deepEqual(leaked, [], `后台样式表存在非 admin 作用域选择器：${leaked.join(' | ')}`)
+})
+
+test('后台查询索引迁移只保留 EXPLAIN 确认生效的索引', () => {
+  // decided_at 此前完全无索引，总览每次加载都全表扫两张申请表
+  assert.match(directoryMigration, /role_change_requests_status_decided_idx/u)
+  assert.match(directoryMigration, /store_transfer_requests_status_decided_idx/u)
+  assert.match(directoryMigration, /role_change_requests_store_created_idx/u)
+  assert.match(directoryMigration, /users_created_id_idx/u)
+  // 幂等，可安全重放
+  assert.ok((directoryMigration.match(/CREATE INDEX IF NOT EXISTS/gu) || []).length === 4)
+  // 实测未被 planner 选中的索引不得混进迁移：
+  // status IN (三值) 跨值排序时 SQLite 必然走 TEMP B-TREE，加这两条索引无效。
+  assert.doesNotMatch(directoryMigration, /CREATE INDEX IF NOT EXISTS role_change_requests_created_id_idx/u)
+  assert.doesNotMatch(directoryMigration, /CREATE INDEX IF NOT EXISTS store_transfer_requests_created_id_idx/u)
+  // store_members(user_id) 已有唯一分区索引，不得重复建
+  assert.doesNotMatch(directoryMigration, /store_members_active_user_store_idx/u)
+  // 纯追加：不得含任何结构或数据变更
+  assert.doesNotMatch(directoryMigration, /\b(DROP|ALTER|DELETE|UPDATE|INSERT)\b/u)
+})
+
+test('目录展开态独占整行、折叠态标题不与状态操作抢宽度，门店与成员行为可读密度', () => {
+  // 折叠态窄列（~260px）容不下「标题 + 状态 + 两个按钮」一行：状态与操作收进 meta 降到第二行。
+  assert.match(directorySource, /admin-directory-module-meta/u)
+  // 展开后必须跨满整行，否则门店行被压在窄列里 min-content 溢出数倍、逐字换行。
+  assert.match(cssSource, /\.admin-directory-major-grid > \.admin-directory-module\[data-expanded='true'\]\s*\{[^}]*grid-column: 1 \/ -1/u)
+  assert.match(cssSource, /\.admin-directory-module-head\s*\{[^}]*flex-wrap: wrap/u)
+  assert.match(cssSource, /\.admin-directory-module-trigger\s*\{[^}]*flex: 1 1 100%/u)
+  assert.match(cssSource, /\[data-expanded='true'\] > \.admin-directory-module-head > \.admin-directory-module-trigger\s*\{[^}]*flex: 1 1 auto/u)
+  // 门店行与成员行提到可读密度并可扫读。
+  assert.match(cssSource, /\.admin-directory-store-row\s*\{[^}]*font-size: 14px/u)
+  assert.match(cssSource, /\.admin-directory-store-row:hover/u)
+  assert.match(cssSource, /\.admin-directory-member-row > strong\s*\{[^}]*font-size: 14px/u)
+  // SSR 暴露：module() 返回的根节点缺 key，React 无法按 id reconcile（重命名/刷新后可能错位）。
+  assert.match(directorySource, /const module = \(kind, item, expanded, onClick, body\) => <div key=\{item\.id\}/u)
+  // 门店行操作是嵌套的两层 .admin-directory-actions，窄屏必须按后代选择器等宽，否则只有「查看」被拉伸。
+  assert.match(cssSource, /\.admin-directory-store-row \.admin-directory-actions>\*\{flex:1 1 80px\}/u)
+})
+
+test('用户表把门店与角色合并为配对列，最近登录带日锚点', () => {
+  // 原先角色、门店各自一列用顿号拼接，多门店用户需要人工按位置对应。
+  assert.match(usersSource, /门店与角色/u)
+  assert.match(usersSource, /MembershipList/u)
+  assert.match(usersSource, /membership\.storeName/u)
+  assert.match(usersSource, /admin-membership-role/u)
+  assert.doesNotMatch(usersSource, /<th>角色<\/th>/u)
+  assert.doesNotMatch(usersSource, /<th>门店<\/th>/u)
+  // 最近登录改日锚点，完整日期进 title；从未登录明确成文案而不是长横线。
+  assert.match(usersSource, /formatDayStamp/u)
+  assert.match(usersSource, /从未登录/u)
+  assert.match(formatSource, /export function formatDayStamp/u)
+  // 配对列样式：每条成员一行，角色用分隔线而非顿号堆叠。
+  assert.match(cssSource, /\.admin-membership-list\s*\{[^}]*flex-direction: column/u)
+  assert.match(cssSource, /\.admin-membership-role\s*\{[^}]*border-left/u)
+  assert.match(cssSource, /\.admin-table td\s*\{[^}]*line-height: 1\.5/u)
 })
 
 test('目录分区承载门店行、成员详情与四级层级', () => {
@@ -213,7 +332,8 @@ test('管理台 API 客户端覆盖只读与写操作端点', () => {
 })
 
 test('管理台样式注册且覆盖移动端底部标签栏与卡片化布局', () => {
-  assert.match(indexCss, /@import '\.\/admin-console\.css'/u)
+  // 后台样式表改由后台入口引入，从而与后台组件同处一个异步 chunk。
+  assert.match(consoleSource, /import '\.\.\/\.\.\/styles\/admin-console\.css'/u)
   assert.match(cssSource, /\.admin-dock/u)
   assert.match(cssSource, /@media \(max-width: 767px\)/u)
   assert.match(cssSource, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/u)
@@ -238,4 +358,4 @@ test('审批卡片移动端：详情与操作显式占用宽列（防竖排文�
   assert.match(tabletBlock, /\.admin-approval-row \.admin-approval-identity,\s*\n\s*\.admin-approval-row \.admin-approval-detail,\s*\n\s*\.admin-approval-row \.admin-approval-actions \{\s*\n\s*grid-column: 2;/u)
 })
 
-test('目录合并为五项导航与大区/小区/城市/门店行单路径展开', () => { assert.doesNotMatch(consoleSource, /id: 'stores'/u); assert.match(directorySource, /subregions/u); assert.match(directorySource, /setRegion/u); assert.match(directorySource, /memberPanel/u); assert.match(directorySource, /成员 \{store\.memberCount/u); assert.match(directorySource, /编辑/u); assert.match(directorySource, /移除/u); assert.match(cssSource, /repeat\(5, minmax/u) })
+test('目录合并为五项导航与大区/小区/城市/门店行单路径展开', () => { assert.doesNotMatch(consoleSource, /id: 'stores'/u); assert.match(directorySource, /subregions/u); assert.match(directorySource, /setRegion/u); assert.match(directorySource, /memberPanel/u); assert.match(directorySource, /成员 \{store\.memberCount/u); assert.match(directorySource, /编辑/u); assert.match(directorySource, /移除/u); assert.match(cssSource, /\.admin-directory-major-grid\s*\{[^}]*repeat\(auto-fill, minmax\(260px/u) })

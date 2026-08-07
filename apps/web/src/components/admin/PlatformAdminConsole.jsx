@@ -1,3 +1,5 @@
+// 后台样式随本入口一起进入异步 chunk：门店用户不会为管理台样式付流量。
+import '../../styles/admin-console.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import IconOverview from '@iconoir/Home.mjs'
 import IconApprovals from '@iconoir/HandCard.mjs'
