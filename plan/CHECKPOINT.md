@@ -2,6 +2,23 @@
 
 保存时间：2026-07-17 04:31 +08:00
 
+## 当前状态加注（2026-08-08 01:4x +08:00）· V5.9.0 已上 Production
+
+- Production `workshop.skin` 正式版本 = **V5.9.0**，SHA `7169fefd1a3cd6d91501827cddae7aa2cafe915f`，
+  Worker Version ID `700e7704-a543-4301-895b-ab964d124e70`，部署 run `31203413421`（2026-08-07T17:40:47Z）。
+  三轮绕缓存核验一致 `5.9.0 / 7169fefd… / env=staging`。回滚目标（如需）是上一个 Worker 版本
+  `ffccee80-ad9b-446c-99f2-68a9b4093e79`（V5.8.3），走 Cloudflare 原生版本回滚，runtime-only。
+- 生产库 `bike-ops-staging` 迁移已推进到 **0011**（0008/0009/0010/0011 四个，日志内各 `✅`）。
+  目录树 = 南区 → 广西江湖区 → 南宁(1299, 1670) / 桂林(994) / 柳州(1249)。
+  1299 与 1670 `updated_at` 仍是 `2026-07-27T23:18:07.513Z`，**逐字节零写入**。
+  业务行数与部署前基线完全一致：work_items 55 / daily_closings 23 / audit_events 327 / users 12 / store_members 12。
+- **纠正两条旧加注**：`version-manifest.json` 并非"仍记 5.8.5"——V5.8.4 回滚已把它带回 5.8.3，
+  现已被本次发布覆盖为 5.9.0 / 432 files；原"5.8.5 对账"未决项不存在。
+- **新发现（未决）**：全部真实业务数据挂在 `STAGING01`（55 工单 / 23 日结 / 327 审计 / 12 用户），
+  不在 1299 五象店——账本旧述"1299 是唯一承载真实数据的门店"有误。`STAGING01` 的 `city_id` 为 NULL，
+  因此不出现在后台目录树与自助注册列表（5.8.3 起的既有行为，登录路径不经过城市，不影响使用）。
+- 完整证据见 `plan/RECOVERY-LEDGER-DIRECTORY-CITIES.md` 第二部分与 `docs/progress/2026-08-07-directory-guangxi-cities.md`。
+
 ## 当前状态加注（2026-08-06 +08:00）
 
 - Production `workshop.skin` 正式版本 = **V5.8.3**（2026-08-05 22:44 从 V5.8.5 回滚，runtime-only，证据见 `plan/V583-ROLLBACK-FROM-V585-EVIDENCE.md`；V5.8.4/V5.8.5 均已回滚且不再重部署）。
