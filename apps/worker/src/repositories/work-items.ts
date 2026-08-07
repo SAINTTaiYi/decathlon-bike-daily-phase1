@@ -107,12 +107,17 @@ export async function getWorkItem(db: D1Database, storeId: string, id: string, b
 }
 
 export async function internalSnapshot(db: D1Database, storeId: string, id: string): Promise<Record<string, unknown> | null> {
-  const workItem = await first(db.prepare('SELECT * FROM work_items WHERE store_id = ? AND id = ?').bind(storeId, id))
+  // D1 is a network service: every awaited statement costs a full round trip. These five
+  // reads are mutually independent, so they are issued concurrently and cost one round-trip
+  // window instead of five. Row shapes and the returned object are unchanged.
+  const [workItem, repair, pickup, resale, handover] = await Promise.all([
+    first(db.prepare('SELECT * FROM work_items WHERE store_id = ? AND id = ?').bind(storeId, id)),
+    first(db.prepare('SELECT * FROM repair_details WHERE work_item_id = ?').bind(id)),
+    first(db.prepare('SELECT * FROM pickup_details WHERE work_item_id = ?').bind(id)),
+    first(db.prepare('SELECT * FROM resale_details WHERE work_item_id = ?').bind(id)),
+    first(db.prepare('SELECT * FROM handover_details WHERE work_item_id = ?').bind(id))
+  ])
   if (!workItem) return null
-  const repair = await first(db.prepare('SELECT * FROM repair_details WHERE work_item_id = ?').bind(id))
-  const pickup = await first(db.prepare('SELECT * FROM pickup_details WHERE work_item_id = ?').bind(id))
-  const resale = await first(db.prepare('SELECT * FROM resale_details WHERE work_item_id = ?').bind(id))
-  const handover = await first(db.prepare('SELECT * FROM handover_details WHERE work_item_id = ?').bind(id))
   return {
     workItem: camelRow(workItem),
     repair: camelRow(repair),

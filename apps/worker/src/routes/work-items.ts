@@ -138,11 +138,15 @@ export function workItemRoutes() {
       if (!inserted?.meta?.changes) throw new ApiProblem(500, 'TICKET_NUMBER_FAILED', '无法生成维修单号，请稍后重试。')
 
       const after = await internalSnapshot(db, context.storeId, id)
-      const eventId = await writeAudit(db, {
-        context, action: 'add-record', entityType: 'work-item', entityId: id, entityRevision: 1,
-        businessDate, summary: `增加：${title}`, before: null, after, reversible: true
-      })
-      const record = await getWorkItem(db, context.storeId, id, businessDate, config)
+      // The audit insert and the record read-back are independent; issuing them concurrently
+      // removes one D1 round trip from the interactive create path.
+      const [eventId, record] = await Promise.all([
+        writeAudit(db, {
+          context, action: 'add-record', entityType: 'work-item', entityId: id, entityRevision: 1,
+          businessDate, summary: `增加：${title}`, before: null, after, reversible: true
+        }),
+        getWorkItem(db, context.storeId, id, businessDate, config)
+      ])
       return { status: 201, body: { ok: true, record, eventId } }
     })
     return c.json(result.body, result.status as any)
@@ -231,11 +235,13 @@ export function workItemRoutes() {
       if (!updated?.meta?.changes) throw new ApiProblem(409, 'REVISION_CONFLICT', '数据已被其他同事修改，请刷新后重试。')
       const after = await internalSnapshot(db, context.storeId, id)
       const revision = Number((after?.workItem as any)?.revision ?? input.expectedRevision + 1)
-      const eventId = await writeAudit(db, {
-        context, action: 'edit-record', entityType: 'work-item', entityId: id, entityRevision: revision,
-        businessDate, summary: `编辑：${title}`, before, after, reversible: true
-      })
-      const record = await getWorkItem(db, context.storeId, id, businessDate, config)
+      const [eventId, record] = await Promise.all([
+        writeAudit(db, {
+          context, action: 'edit-record', entityType: 'work-item', entityId: id, entityRevision: revision,
+          businessDate, summary: `编辑：${title}`, before, after, reversible: true
+        }),
+        getWorkItem(db, context.storeId, id, businessDate, config)
+      ])
       return { status: 200, body: { ok: true, record, eventId } }
     })
     return c.json(result.body, result.status as any)
@@ -441,13 +447,15 @@ export function workItemRoutes() {
       if (!updated?.meta?.changes) throw new ApiProblem(409, 'INVALID_STATE', '已取车辆或已修改记录不能更新通知状态。')
       const after = await internalSnapshot(db, context.storeId, id)
       const revision = Number((after?.workItem as any)?.revision ?? input.expectedRevision + 1)
-      const eventId = await writeAudit(db, {
-        context, action: 'update-pickup-notification', entityType: 'work-item', entityId: id, entityRevision: revision,
-        businessDate,
-        summary: `${input.notificationStatus === 'notified' ? '已通知' : '等待确认通知'}：${row.title}`,
-        before, after, reversible: true
-      })
-      const record = await getWorkItem(db, context.storeId, id, businessDate, config)
+      const [eventId, record] = await Promise.all([
+        writeAudit(db, {
+          context, action: 'update-pickup-notification', entityType: 'work-item', entityId: id, entityRevision: revision,
+          businessDate,
+          summary: `${input.notificationStatus === 'notified' ? '已通知' : '等待确认通知'}：${row.title}`,
+          before, after, reversible: true
+        }),
+        getWorkItem(db, context.storeId, id, businessDate, config)
+      ])
       return { status: 200, body: { ok: true, record, eventId } }
     })
     return c.json(result.body, result.status as any)
@@ -488,11 +496,13 @@ export function workItemRoutes() {
       if (!updated?.meta?.changes) throw new ApiProblem(409, 'REVISION_CONFLICT', '待取记录已被其他同事修改。')
       const after = await internalSnapshot(db, context.storeId, id)
       const revision = Number((after?.workItem as any)?.revision ?? input.expectedRevision + 1)
-      const eventId = await writeAudit(db, {
-        context, action: 'complete-pickup', entityType: 'work-item', entityId: id, entityRevision: revision,
-        businessDate, summary: `确认取车：${row.title}`, before, after, reversible: true
-      })
-      const record = await getWorkItem(db, context.storeId, id, businessDate, config)
+      const [eventId, record] = await Promise.all([
+        writeAudit(db, {
+          context, action: 'complete-pickup', entityType: 'work-item', entityId: id, entityRevision: revision,
+          businessDate, summary: `确认取车：${row.title}`, before, after, reversible: true
+        }),
+        getWorkItem(db, context.storeId, id, businessDate, config)
+      ])
       return { status: 200, body: { ok: true, record, eventId } }
     })
     return c.json(result.body, result.status as any)

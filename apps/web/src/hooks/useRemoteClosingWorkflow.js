@@ -17,30 +17,42 @@ export default function useRemoteClosingWorkflow(enabled) {
   const [storageError, setError] = useState('')
   const [lastSyncedAt, setLastSyncedAt] = useState('')
   const hasSnapshotRef = useRef(false)
+  const inFlightRef = useRef(null)
 
   const refresh = useCallback(async (signal) => {
     if (!enabled) return null
+    // A submission triggers a background refresh, and the 45s poll plus window focus can land
+    // on top of it. Bootstrap is the heaviest endpoint in the app (day + every record with
+    // per-row contact decryption + audit + seven-day trends), so overlapping calls queued up
+    // on D1 and slowed down the very submission that was waiting. Callers without their own
+    // AbortSignal now join the in-flight refresh instead of starting a competing one.
+    if (!signal && inFlightRef.current) return inFlightRef.current
     setSyncing(true)
-    try {
-      const payload = await getBootstrap(signal)
-      const normalizedPayload = { ...payload, records: (payload.records || []).map(normalizeRepairRecord) }
-      setState(normalizedPayload)
-      hasSnapshotRef.current = true
-      setLastSyncedAt(new Date().toISOString())
-      setError('')
-      setHydrated(true)
-      return normalizedPayload
-    } catch (error) {
-      if (error.name !== 'AbortError') {
-        setError(hasSnapshotRef.current
-          ? `同步失败，当前仅显示最近成功加载的数据：${error.message}`
-          : `无法读取门店数据库：${error.message}`)
+    const task = (async () => {
+      try {
+        const payload = await getBootstrap(signal)
+        const normalizedPayload = { ...payload, records: (payload.records || []).map(normalizeRepairRecord) }
+        setState(normalizedPayload)
+        hasSnapshotRef.current = true
+        setLastSyncedAt(new Date().toISOString())
+        setError('')
         setHydrated(true)
+        return normalizedPayload
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          setError(hasSnapshotRef.current
+            ? `同步失败，当前仅显示最近成功加载的数据：${error.message}`
+            : `无法读取门店数据库：${error.message}`)
+          setHydrated(true)
+        }
+        return null
+      } finally {
+        if (!signal?.aborted) setSyncing(false)
+        if (!signal) inFlightRef.current = null
       }
-      return null
-    } finally {
-      if (!signal?.aborted) setSyncing(false)
-    }
+    })()
+    if (!signal) inFlightRef.current = task
+    return task
   }, [enabled])
 
   useEffect(() => {
@@ -127,8 +139,14 @@ export default function useRemoteClosingWorkflow(enabled) {
   const remainingRequirements = kpiReady ? [] : [{ id: 'daily-kpi', scene: 'pulse', title: '填写当日销售数据', label: '这是唯一的闭店要求' }]
 
   const findRecord = useCallback((id) => state.records.find((record) => record.id === id), [state.records])
-  const saveKpi = useCallback((values) => run(() => saveSales({ ...values, expectedRevision: state.day.revision }), { sync: 'full' }), [run, state.day.revision])
-  const clearKpi = useCallback(() => run(() => clearSales(state.day.revision), { sync: 'full' }), [run, state.day.revision])
+  // saveSales/clearSales return the authoritative `day` (including revision and kpiSavedAt),
+  // which applyServerResult already merges. Awaiting a full bootstrap on top of that made the
+  // user watch an entire records+audit+trends round trip before the form acknowledged the save
+  // — the single slowest interaction in the app. The background refresh still reconciles.
+  // Closing and reopening keep sync: 'full': they change record lifecycle (auto-cleanup of
+  // completed items), which the response body does not describe.
+  const saveKpi = useCallback((values) => run(() => saveSales({ ...values, expectedRevision: state.day.revision }), { sync: 'background' }), [run, state.day.revision])
+  const clearKpi = useCallback(() => run(() => clearSales(state.day.revision), { sync: 'background' }), [run, state.day.revision])
   const addRecord = useCallback((scene, values) => run(() => createWorkItem(scene, values)), [run])
   const editRecord = useCallback((id, values) => { const record = findRecord(id); return record ? run(() => updateWorkItem(record, values)) : Promise.resolve({ ok: false, error: '没有找到这条台账记录。' }) }, [findRecord, run])
   const patchRecordLocal = useCallback((id, patch) => {
@@ -256,7 +274,7 @@ export default function useRemoteClosingWorkflow(enabled) {
     getPermanentHistory,
     completeClosing: () => run(closeDay, { sync: 'full' }),
     reopenClosing: () => run(reopenDay, { sync: 'full' }),
-    resetDay: () => run(() => clearSales(state.day.revision), { sync: 'full' }),
+    resetDay: () => run(() => clearSales(state.day.revision), { sync: 'background' }),
     refresh,
     previewLocalV5,
     planLocalV5Import

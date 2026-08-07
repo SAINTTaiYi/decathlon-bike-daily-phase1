@@ -4,6 +4,12 @@
   "main": "apps/worker/src/index.ts",
   "compatibility_date": "2026-07-17",
   "compatibility_flags": ["nodejs_compat"],
+  // Every interactive write makes several sequential D1 calls. A Worker runs at the edge
+  // closest to the user, but D1 has a single primary location, so each of those calls pays
+  // the full user-to-primary round trip. Smart Placement lets Cloudflare relocate the Worker
+  // next to D1, turning N cross-region round trips into one. Static assets are unaffected:
+  // they are still served from the edge by the assets binding.
+  "placement": { "mode": "smart" },
   "workers_dev": true,
   "preview_urls": true,
   "assets": {
