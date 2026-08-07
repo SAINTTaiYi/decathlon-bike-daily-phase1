@@ -23,6 +23,42 @@ function mapMemberships(rows: MembershipRow[]) {
   }))
 }
 
+// The platform admin is deliberately exempt from account lockout: locking it would let anyone
+// deny service to the only account that can administer the platform with five wrong passwords.
+// That exemption previously left it as the one account open to unlimited online brute force,
+// because failed_login_count was incremented and then never consumed by anything.
+//
+// Exponential backoff closes that gap without reintroducing the lockout DoS: the account always
+// stays reachable, but each successive failure costs the attacker more wall-clock time. Delay is
+// applied to the failure response only, so a legitimate admin typing the right password is never
+// slowed down.
+export const LOGIN_BACKOFF_THRESHOLD = 5
+// Capped low on purpose. The edge rate limiting rule caps how fast an attacker can
+// retry at all, so the in-Worker delay only has to make online guessing impractical.
+// A longer sleep would hold a Worker invocation open — the delay itself would become
+// a mild amplification surface — and would strand a legitimate user who mistyped.
+export const LOGIN_BACKOFF_MAX_MS = 8_000
+
+export function loginBackoffMs(failedCount: number): number {
+  if (failedCount < LOGIN_BACKOFF_THRESHOLD) return 0
+  const steps = failedCount - LOGIN_BACKOFF_THRESHOLD
+  // 1s, 2s, 4s, 8s, 16s, then held at the 30s ceiling.
+  const delay = 1000 * 2 ** Math.min(steps, 10)
+  return Math.min(delay, LOGIN_BACKOFF_MAX_MS)
+}
+
+export function shouldAlertOnFailedLogin(failedCount: number): boolean {
+  // One audit record when the threshold is first crossed, then every tenth attempt, so a
+  // sustained attack stays visible without flooding the account module.
+  if (failedCount < LOGIN_BACKOFF_THRESHOLD) return false
+  return failedCount === LOGIN_BACKOFF_THRESHOLD || (failedCount - LOGIN_BACKOFF_THRESHOLD) % 10 === 0
+}
+
+async function delay(ms: number): Promise<void> {
+  if (ms <= 0) return
+  await new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 export function authRoutes() {
   const app = new Hono<{ Bindings: WorkerEnv; Variables: Vars }>()
   const auth = createAuthMiddleware()
@@ -48,6 +84,7 @@ export function authRoutes() {
     if (!(await verifyPassword(user.password_hash, input.password, config.PASSWORD_PEPPER))) {
       const stamp = nowIso()
       const lockUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+      const nextFailedCount = user.failed_login_count + 1
       await c.env.DB.prepare(`
         UPDATE users
         SET failed_login_count = failed_login_count + 1,
@@ -59,6 +96,36 @@ export function authRoutes() {
             updated_at = ?
         WHERE id = ?
       `).bind(lockUntil, stamp, user.id).run()
+
+      // Sustained failures must be visible after the fact, not only felt as latency.
+      if (shouldAlertOnFailedLogin(nextFailedCount)) {
+        const alertStore = await first<{ store_id: string; store_code: string; store_name: string; timezone: string }>(c.env.DB.prepare(`
+          SELECT st.id AS store_id, st.code AS store_code, st.name AS store_name, st.timezone
+          FROM store_members sm JOIN stores st ON st.id = sm.store_id
+          WHERE sm.user_id = ? AND sm.status = 'active' AND st.status = 'active'
+          ORDER BY sm.effective_from ASC, sm.created_at ASC LIMIT 1
+        `).bind(user.id))
+        if (alertStore) {
+          const alertContext: AuthContext = {
+            userId: user.id, displayName: user.display_name, mustChangePassword: user.must_change_password === 1,
+            storeId: alertStore.store_id, storeCode: alertStore.store_code, storeName: alertStore.store_name,
+            storeTimezone: alertStore.timezone, role: 'admin', isPlatformAdmin: user.is_platform_admin === 1,
+            sessionTokenHash: '', csrfHash: ''
+          }
+          const alert = prepareAudit(c.env.DB, {
+            context: alertContext, action: 'failed-login-threshold', entityType: 'account', entityId: user.id,
+            businessDate: localBusinessDate(alertStore.timezone),
+            summary: `连续登录失败 ${nextFailedCount} 次：${user.display_name}`,
+            after: { failedLoginCount: nextFailedCount, platformAdmin: user.is_platform_admin === 1 },
+            reversible: false, module: 'account'
+          })
+          // Never let alert bookkeeping turn a failed login into a 500.
+          try { await alert.statement.run() } catch { /* the 401 below is what matters */ }
+        }
+      }
+
+      // Backoff is charged on the failure path only; a correct password is never delayed.
+      await delay(loginBackoffMs(nextFailedCount))
       return c.json(genericFailure, 401)
     }
     const memberships = await all<MembershipRow>(c.env.DB.prepare(`

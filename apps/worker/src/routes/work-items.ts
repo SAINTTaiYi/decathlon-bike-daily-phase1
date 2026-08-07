@@ -280,7 +280,7 @@ export function workItemRoutes() {
           })
         } catch (error) {
           // Only roll back after a completed state transition when its audit write fails; validation/conflict failures must not rewrite a concurrent record.
-          if (stateChanged) await batchWhileDayOpen(db, context, businessDate, buildRestoreSnapshotStatements(db, before))
+          if (stateChanged) await batchWhileDayOpen(db, context, businessDate, buildRestoreSnapshotStatements(db, before, context.storeId))
           throw error
         }
         const record = await getWorkItem(db, context.storeId, id, businessDate, config)

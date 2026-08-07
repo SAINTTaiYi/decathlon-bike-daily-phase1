@@ -213,7 +213,7 @@ export function auditRoutes() {
       if (target.entity_type === 'work-item') {
         if (!target.entity_id) throw new ApiProblem(422, 'INVALID_AUDIT_EVENT', '审计事件缺少业务对象。')
         if (beforeState) {
-          restoreStatements = buildRestoreSnapshotStatements(db, beforeState)
+          restoreStatements = buildRestoreSnapshotStatements(db, beforeState, context.storeId)
         } else {
           const stamp = nowIso()
           restoreStatements = [db.prepare(`

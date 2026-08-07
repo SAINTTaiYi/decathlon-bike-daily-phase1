@@ -47,6 +47,6 @@ test('D1 业务写在同一事务中拒绝已闭店日期，避免检查后并�
   assert.match(business, /closing_status = 'closed'/u)
   assert.match(business, /await db\.batch\(\[dayClosedGuard\(db, context, businessDate\), \.\.\.statements\]\)/u)
   assert.match(workItems, /batchWhileDayOpen\(db, context, businessDate/u)
-  assert.match(workItems, /buildRestoreSnapshotStatements\(db, before\)/u)
+  assert.match(workItems, /buildRestoreSnapshotStatements\(db, before, context\.storeId\)/u)
   assert.match(audit, /batchWhileDayOpen\(db, context, businessDate, \[\.\.\.restoreStatements, audit\.statement\]\)/u)
 })
