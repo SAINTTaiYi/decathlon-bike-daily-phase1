@@ -302,7 +302,7 @@ button:disabled { opacity: .48; }
 .scene-note { max-width: 68ch; color: var(--ops-text-muted); font-size: 13px; line-height: 1.55; }
 .scene-actions { display: flex; gap: 8px; }
 
-:is(.ops-closing-card, .ops-sales-panel, .ops-index, .ops-pickup-board, .sales-input-summary, .record-ledger-head, .record-row, .governance-section, .dialog-action, .dialog-empty, .conditional-field-note, .migration-summary, .closing-confirm-mark) {
+:is(.ops-closing-card, .ops-sales-panel, .ops-index, .ops-pickup-board, .sales-input-summary, .record-ledger-head, .record-row, .governance-section, .dialog-action, .dialog-empty, .conditional-field-note, .migration-summary) {
   border: 0 !important;
   border-radius: var(--ops-radius) !important;
   background: var(--ops-card);
@@ -548,6 +548,67 @@ button:disabled { opacity: .48; }
 .governance-request-list > li { padding: 11px; border: 0; border-radius: 6px; background: var(--ops-page); }
 .directory-city { border-color: var(--ops-line-strong); }
 .directory-row { border: 0; border-radius: 6px; background: var(--ops-page); }
+/*
+ * Closing checklist: per-module acknowledgement before the single yellow closing action.
+ * The three gate buttons stay black (structural acknowledgements) so signal yellow keeps
+ * meaning exactly one primary action per decision area — the final 确认闭店.
+ */
+.closing-check-focus {
+  display: grid;
+  grid-template-columns: 22px minmax(0,1fr);
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--ops-radius);
+  background: var(--ops-page);
+}
+.closing-check-focus > div { display: grid; gap: 4px; min-width: 0; }
+.closing-check-focus[data-tone='warn'] { background: var(--ops-yellow-wash); box-shadow: inset 4px 0 0 var(--ops-yellow); }
+.closing-check-focus[data-tone='warn'] > svg { color: var(--ops-yellow-pressed); }
+.closing-check-focus[data-tone='ok'] { box-shadow: inset 4px 0 0 var(--ops-success); }
+.closing-check-focus[data-tone='ok'] > svg { color: var(--ops-success); }
+.closing-check-focus > span,
+.closing-check-focus > div > span { color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 10px; font-weight: 700; }
+.closing-check-focus strong { font-size: 15px; line-height: 1.35; }
+.closing-check-focus p { color: var(--ops-text-muted); font-size: 12px; line-height: 1.5; }
+.closing-check-focus-metrics { font-family: var(--ops-display); font-weight: 700; }
+.closing-check-focus-list { display: grid; gap: 4px; margin-top: 2px; list-style: none; }
+.closing-check-focus-list li { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: baseline; padding: 7px 9px; border-radius: 6px; background: var(--ops-card); }
+.closing-check-focus-list strong { overflow-wrap: anywhere; font-size: 13px; }
+.closing-check-focus-list small { color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 11px; font-weight: 700; white-space: nowrap; }
+
+.closing-check-list { display: grid; gap: 8px; list-style: none; }
+.closing-check-row { display: grid; gap: 8px; padding: 11px; border-radius: 6px; background: var(--ops-page); }
+.closing-check-row[data-confirmed='true'] { box-shadow: inset 4px 0 0 var(--ops-success); }
+.closing-check-head { display: grid; grid-template-columns: 24px minmax(0,1fr) auto; gap: 10px; align-items: center; }
+.closing-check-no { color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 15px; font-weight: 700; }
+.closing-check-title { display: grid; gap: 2px; min-width: 0; }
+.closing-check-title strong { font-size: 15px; }
+.closing-check-title small { color: var(--ops-text-muted); font-size: 11.5px; line-height: 1.4; }
+.closing-check-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 76px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--ops-radius);
+  background: var(--ops-black);
+  color: var(--ops-text-inverse);
+  font-size: 13px;
+  font-weight: 800;
+}
+.closing-check-action[aria-pressed='true'] { background: var(--ops-card); color: var(--ops-success); box-shadow: inset 0 0 0 1px var(--ops-success); }
+.closing-check-tally { color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 12px; font-weight: 700; }
+.closing-check-changes { display: grid; gap: 4px; list-style: none; }
+.closing-check-changes li { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px; align-items: baseline; padding: 7px 9px; border-radius: 6px; background: var(--ops-card); }
+.closing-check-changes span { color: var(--ops-black); font-family: var(--ops-display); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.closing-check-changes small { color: var(--ops-text); font-size: 12.5px; line-height: 1.45; overflow-wrap: anywhere; }
+.closing-check-more { display: block !important; color: var(--ops-text-muted); font-size: 11.5px; }
+.closing-check-carry { color: var(--ops-text-muted); font-size: 12px; line-height: 1.5; }
+.closing-check-gate { padding: 10px 11px; border-radius: 6px; background: var(--ops-page); color: var(--ops-text-muted); font-size: 12.5px; line-height: 1.45; }
+.closing-check-gate[data-ready='true'] { color: var(--ops-success); font-weight: 700; }
+
 @keyframes dialog-panel-in { from { opacity: 0; transform: translateY(12px) scale(.985); } }
 
 /* Login, OTP, setup, security gates and explicit application states. */
@@ -771,7 +832,12 @@ button:disabled { opacity: .48; }
   .module-flow-progress { background: Highlight; }
   .primary-action,
   .ledger-add,
+  .closing-check-action,
   .record-actions .record-primary-action { border: 2px solid ButtonText !important; background: ButtonFace !important; color: ButtonText !important; }
+  /* The confirmed state still reads through its 已确认 label and check icon, never color alone. */
+  .closing-check-focus,
+  .closing-check-row,
+  .closing-check-gate { forced-color-adjust: auto; box-shadow: none !important; border: 1px solid CanvasText !important; }
 }
 
 /* Gesture separation and confirmed completion feedback remain functional. */
