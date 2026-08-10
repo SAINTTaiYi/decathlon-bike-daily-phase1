@@ -606,6 +606,16 @@ button:disabled { opacity: .48; }
 .closing-check-changes small { color: var(--ops-text); font-size: 12.5px; line-height: 1.45; overflow-wrap: anywhere; }
 .closing-check-more { display: block !important; color: var(--ops-text-muted); font-size: 11.5px; }
 .closing-check-carry { color: var(--ops-text-muted); font-size: 12px; line-height: 1.5; }
+/* An untouched ledger holding aging rows is the shape of the missed-pickup incident, so it
+   reads as a warning rather than as reassurance. */
+.closing-check-carry[data-stale='true'] { padding: 7px 9px; border-radius: 6px; background: var(--ops-yellow-wash); box-shadow: inset 3px 0 0 var(--ops-yellow); color: var(--ops-text); font-weight: 700; }
+.closing-check-reconcile { padding: 7px 9px; border-radius: 6px; background: var(--ops-card); color: var(--ops-text) !important; font-weight: 700; }
+.closing-check-group { display: grid; gap: 4px; margin-top: 6px; }
+.closing-check-group h4 { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; color: var(--ops-text); font-family: var(--ops-display); font-size: 12px; font-weight: 800; }
+.closing-check-group h4 small { color: var(--ops-text-muted); font-size: 11px; font-weight: 700; }
+.closing-check-focus-list li[data-stale='true'] { box-shadow: inset 3px 0 0 var(--ops-yellow); }
+.closing-check-crosscheck { padding: 10px 11px; border-radius: 6px; background: var(--ops-page); color: var(--ops-text-muted); font-size: 12.5px; line-height: 1.45; }
+.closing-check-crosscheck[data-tone='warn'] { background: var(--ops-yellow-wash); box-shadow: inset 4px 0 0 var(--ops-yellow); color: var(--ops-text); }
 .closing-check-gate { padding: 10px 11px; border-radius: 6px; background: var(--ops-page); color: var(--ops-text-muted); font-size: 12.5px; line-height: 1.45; }
 .closing-check-gate[data-ready='true'] { color: var(--ops-success); font-weight: 700; }
 
@@ -837,7 +847,13 @@ button:disabled { opacity: .48; }
   /* The confirmed state still reads through its 已确认 label and check icon, never color alone. */
   .closing-check-focus,
   .closing-check-row,
-  .closing-check-gate { forced-color-adjust: auto; box-shadow: none !important; border: 1px solid CanvasText !important; }
+  .closing-check-gate,
+  .closing-check-reconcile,
+  .closing-check-crosscheck { forced-color-adjust: auto; box-shadow: none !important; border: 1px solid CanvasText !important; }
+  /* Aging and shortfall are carried by their 已挂账 N 天 / count text, so dropping the tint
+     loses no information; the border keeps the row separable without color. */
+  .closing-check-focus-list li[data-stale='true'],
+  .closing-check-carry[data-stale='true'] { border: 1px solid CanvasText !important; }
 }
 
 /* Gesture separation and confirmed completion feedback remain functional. */

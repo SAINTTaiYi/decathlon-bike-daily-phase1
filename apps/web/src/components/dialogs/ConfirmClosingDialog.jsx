@@ -12,9 +12,9 @@ import {
 } from '../../data/closingChecklist.js'
 
 const VISIBLE_CHANGES = 3
-const VISIBLE_WAITING = 4
+const VISIBLE_PER_GROUP = 6
 
-export default function ConfirmClosingDialog({ open, onClose, onConfirm, events = [], records = [], dateKey = '' }) {
+export default function ConfirmClosingDialog({ open, onClose, onConfirm, events = [], records = [], dateKey = '', kpi = {} }) {
   const [submitting, setSubmitting] = useState(false)
   const [confirmed, setConfirmed] = useState({})
 
@@ -24,8 +24,8 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
     if (open) setConfirmed({})
   }, [open, dateKey])
 
-  const checklist = useMemo(() => buildClosingChecklist({ events, records, dateKey }), [events, records, dateKey])
-  const { modules, selfPickup } = checklist
+  const checklist = useMemo(() => buildClosingChecklist({ events, records, dateKey, kpi }), [events, records, dateKey, kpi])
+  const { modules, inStore, usedCar } = checklist
   const { pending, gateOpen, message: gateMessage } = closingGateState(modules, confirmed)
 
   const toggle = (module) => setConfirmed((current) => toggleModuleConfirmation(module, current))
@@ -45,32 +45,51 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
       eyebrow="FINAL CHECK · 最终确认"
       description="销售数据已填写。请逐个核对待取、其它交接和维修三个台账，三项都确认后才能完成闭店。"
     >
-      <section className="closing-check-focus" data-tone={selfPickup.tone} aria-labelledby="closing-check-focus-title">
-        {selfPickup.tone === 'warn'
+      <section className="closing-check-focus" data-tone={inStore.tone} aria-labelledby="closing-check-focus-title">
+        {inStore.tone === 'warn'
           ? <IconWarning width={22} height={22} aria-hidden="true" />
           : <IconCheckCircle width={22} height={22} aria-hidden="true" />}
         <div>
-          <span>SELF PICKUP · 今日自提车辆</span>
-          <strong id="closing-check-focus-title">{selfPickup.headline}</strong>
-          <p>{selfPickup.detail}</p>
+          <span>IN STORE · 台账上还在店里的车</span>
+          <strong id="closing-check-focus-title">{inStore.headline}</strong>
+          <p>{inStore.detail}</p>
           <p className="closing-check-focus-metrics">
-            今天已确认取车 {selfPickup.pickedUpTodayCount} 台 · 等待取车 {selfPickup.waitingCount} 台 · 自提在册 {selfPickup.total} 台
+            今天已确认取车 {inStore.pickedUpTodayCount} 台 · 仍在店里 {inStore.waitingCount} 台
+            {inStore.awaitingNotice ? ` · 未通知顾客 ${inStore.awaitingNotice} 台` : ''}
+            {inStore.staleCount ? ` · 挂账偏久 ${inStore.staleCount} 台` : ''}
           </p>
-          {selfPickup.waiting.length ? (
-            <ul className="closing-check-focus-list">
-              {selfPickup.waiting.slice(0, VISIBLE_WAITING).map((item) => (
-                <li key={item.id}>
-                  <strong>{item.title}</strong>
-                  <small>{[item.platform, item.notified ? '已通知' : '未通知'].filter(Boolean).join(' · ')}</small>
-                </li>
-              ))}
-              {selfPickup.waiting.length > VISIBLE_WAITING
-                ? <li className="closing-check-more">另有 {selfPickup.waiting.length - VISIBLE_WAITING} 台，请到待取台账逐台核对</li>
-                : null}
-            </ul>
-          ) : null}
+          {inStore.reconcileLabel
+            ? <p className="closing-check-reconcile" role="status">{inStore.reconcileLabel}</p>
+            : null}
+          {inStore.groups.map((group) => (
+            <section key={group.source} className="closing-check-group" data-source={group.source}>
+              <h4>
+                {group.label}
+                <small>{group.count} 台{group.awaitingNotice ? ` · ${group.awaitingNotice} 台未通知` : ''}</small>
+              </h4>
+              <ul className="closing-check-focus-list">
+                {group.items.slice(0, VISIBLE_PER_GROUP).map((item) => (
+                  <li key={item.id} data-stale={item.stale ? 'true' : 'false'}>
+                    <strong>{item.title}</strong>
+                    <small>
+                      {[item.platform, item.ageLabel, item.notified === null ? '' : item.notified ? '已通知' : '未通知']
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </small>
+                  </li>
+                ))}
+                {group.items.length > VISIBLE_PER_GROUP
+                  ? <li className="closing-check-more">另有 {group.items.length - VISIBLE_PER_GROUP} 台，请到待取台账逐台核对</li>
+                  : null}
+              </ul>
+            </section>
+          ))}
         </div>
       </section>
+
+      {usedCar.applicable ? (
+        <p className="closing-check-crosscheck" data-tone={usedCar.tone} role="status">{usedCar.message}</p>
+      ) : null}
 
       <ol className="closing-check-list">
         {modules.map((module) => {
@@ -81,7 +100,10 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
                 <span className="closing-check-no" aria-hidden="true">{module.no}</span>
                 <span className="closing-check-title">
                   <strong>{module.title}</strong>
-                  <small>{module.code} · {module.changed ? `今天有 ${module.count} 项变动` : '与昨日相同，没有变动'}</small>
+                  <small>
+                    {module.code} · {module.changed ? `今天有 ${module.count} 项变动` : '今天没有变动'}
+                    {module.backlog.openCount ? ` · 未完成 ${module.backlog.openCount} 项` : ''}
+                  </small>
                 </span>
                 <button
                   type="button"
@@ -107,7 +129,7 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
                   </ul>
                 </>
               ) : (
-                <p className="closing-check-carry">没有变动的记录会原样延续到明天。请确认这就是今天的真实情况。</p>
+                <p className="closing-check-carry" data-stale={module.backlog.staleCount ? 'true' : 'false'}>{module.carryMessage}</p>
               )}
             </li>
           )
