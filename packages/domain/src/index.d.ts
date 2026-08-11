@@ -51,3 +51,4 @@ export function validatePickup(values: object): { ok: false; error: string } | {
 export function validatePickupCompletion(record: PickupCompletionRecord, suppliedCode?: string): { ok: boolean; error?: string; warning?: string }
 export function localBusinessDate(timeZone?: string, now?: Date): string
 export function describeChanges(before: Record<string, unknown>, after: Record<string, unknown>, labels?: Record<string, string>): string[]
+export function redactEmail(emailKey: string): string

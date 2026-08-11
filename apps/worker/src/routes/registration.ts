@@ -5,7 +5,7 @@ import {
   registrationOtpSchema,
   registrationVerifyOtpSchema
 } from '@bike-ops/contracts'
-import { localBusinessDate, usernameKey } from '@bike-ops/domain'
+import { localBusinessDate, usernameKey, redactEmail } from '@bike-ops/domain'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
 import { createAuthMiddleware } from '../auth/middleware.js'
@@ -224,7 +224,7 @@ export function registrationRoutes() {
     const audit = prepareConditionalAudit(c.env.DB, {
       context: { ...context, sessionTokenHash: secrets.tokenHash, csrfHash: secrets.csrfHash }, action: 'self-register', entityType: 'account', entityId: userId,
       businessDate: localBusinessDate(store.timezone), summary: `自助注册账号：${challenge.display_name}`,
-      after: { email: challenge.email_key, username: challenge.username_key, storeId: store.id, role: 'operator' }, reversible: false
+      after: { email: redactEmail(challenge.email_key), username: challenge.username_key, storeId: store.id, role: 'operator' }, reversible: false
     }, 'EXISTS (SELECT 1 FROM auth_sessions WHERE token_hash = ? AND user_id = ? AND revoked_at IS NULL)', [secrets.tokenHash, userId])
     // D1 batches run transactionally. Consume the short-lived grant first, then create every
     // account artifact in the same batch so a duplicate/expired grant cannot leave a user behind.

@@ -44,6 +44,16 @@ export function usernameKey(value) {
   return normalizeUsername(value).toLocaleLowerCase('zh-CN')
 }
 
+export function redactEmail(emailKey) {
+  if (!emailKey || typeof emailKey !== 'string') return ''
+  const atIndex = emailKey.indexOf('@')
+  if (atIndex <= 0) return emailKey
+  const localPart = emailKey.slice(0, atIndex)
+  const domain = emailKey.slice(atIndex)
+  if (localPart.length <= 1) return localPart[0] + '***' + domain
+  return localPart[0] + '***' + domain
+}
+
 export function validDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) return false
   const [year, month, day] = value.split('-').map(Number)
@@ -73,8 +83,8 @@ export function validateRepairStatusContext(status, completed = false) {
   return {
     ok: false,
     error: completed
-      ? '维修完成车辆的状态只能在五个“维修完成-*”状态之间选择；如需恢复维修，请在操作记录中撤回“维修完毕”。'
-      : '维修中的车辆不能直接选择“维修完成-*”状态，请使用“维修完毕”操作。'
+      ? '维修完成车辆的状态只能在五个"维修完成-*"状态之间选择；如需恢复维修，请在操作记录中撤回"维修完毕"。'
+      : '维修中的车辆不能直接选择"维修完成-*"状态，请使用"维修完毕"操作。'
   }
 }
 
@@ -109,7 +119,7 @@ export function repairCompletionRoute(record) {
   if (!completedStatus) {
     return {
       ok: false,
-      error: '请先将当前状态选择为“已开付款单”、“已开维修单”、“已开质保维修单”、“已开质保付款单-请过机”或“快速服务免费”，再执行维修完毕。'
+      error: '请先将当前状态选择为"已开付款单"、"已开维修单"、"已开质保维修单"、"已开质保付款单-请过机"或"快速服务免费"，再执行维修完毕。'
     }
   }
   return { ok: true, route: 'pickup', completedStatus, previousStatus: currentStatus }
@@ -157,13 +167,13 @@ export function validatePickupCompletion(record, suppliedCode = '') {
   if (record.pickupSource !== 'repair') return { ok: true }
   const status = normalizeRepairStatus(record.status, { repairType: record.repairType, completed: true })
   if (status === '维修完成-已开维修单') {
-    return { ok: false, error: '当前状态为“维修完成-已开维修单”，请先编辑并变更为“维修完成-已开付款单”后再确认取车。' }
+    return { ok: false, error: '当前状态为"维修完成-已开维修单"，请先编辑并变更为"维修完成-已开付款单"后再确认取车。' }
   }
   if (status === '维修完成-已开质保维修单') {
-    return { ok: false, error: '当前状态为“维修完成-已开质保维修单”，请先编辑并变更为“维修完成-已开质保付款单-请过机”后再确认取车。' }
+    return { ok: false, error: '当前状态为"维修完成-已开质保维修单"，请先编辑并变更为"维修完成-已开质保付款单-请过机"后再确认取车。' }
   }
   if (!REPAIR_PICKUP_READY_STATUSES.includes(status)) {
-    return { ok: false, error: '维修车辆必须先完成维修并选择对应的“维修完成-*”状态后才能确认取车。' }
+    return { ok: false, error: '维修车辆必须先完成维修并选择对应的"维修完成-*"状态后才能确认取车。' }
   }
   return status === REPAIR_POS_REMINDER_STATUS
     ? { ok: true, warning: '请确保顾客已过机核验。' }
