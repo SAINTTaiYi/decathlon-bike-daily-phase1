@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { normalizeLoginUsername, USERNAME_MAX_LENGTH } from '../data/userSession.js'
 
-export default function BootLoader({ onLogin, onComplete, onRegister }) {
+export default function BootLoader({ initialError = '', onLogin, onComplete, onRegister }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -67,6 +67,10 @@ export default function BootLoader({ onLogin, onComplete, onRegister }) {
       .to(seamRef.current, { autoAlpha: 0, scaleY: 2.4, duration: 0.32, ease: 'power4.out' }, 0.34)
       .to(rootRef.current, { autoAlpha: 0, duration: 0.16, ease: 'power2.out' }, 0.72)
   }
+
+  useEffect(() => {
+    if (initialError) setError(initialError)
+  }, [initialError])
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof document === 'undefined') return undefined

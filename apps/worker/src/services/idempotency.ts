@@ -11,6 +11,7 @@ export interface IdempotentResult<T = unknown> {
 }
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
+type IdempotencyOptions = { requestHash?: string }
 
 function readIdempotencyKey(c: Context<{ Bindings: WorkerEnv; Variables: Vars }>): string {
   const value = c.req.header('idempotency-key')
@@ -23,12 +24,14 @@ function readIdempotencyKey(c: Context<{ Bindings: WorkerEnv; Variables: Vars }>
 export async function idempotent<T>(
   c: Context<{ Bindings: WorkerEnv; Variables: Vars }>,
   body: unknown,
-  handler: (db: D1Database) => Promise<IdempotentResult<T>>
+  handler: (db: D1Database) => Promise<IdempotentResult<T>>,
+  options: IdempotencyOptions = {}
 ): Promise<IdempotentResult<T>> {
   const auth = c.get('auth')
   if (!auth) throw new ApiProblem(401, 'UNAUTHENTICATED', '请重新登录。')
   const key = readIdempotencyKey(c)
-  const hash = await sha256(`${c.req.method}\n${new URL(c.req.url).pathname}\n${JSON.stringify(body ?? null)}`)
+  const hash = options.requestHash ?? await sha256(`${c.req.method}\n${new URL(c.req.url).pathname}\n${JSON.stringify(body ?? null)}`)
+  if (!/^[a-f0-9]{64}$/iu.test(hash)) throw new Error('INVALID_IDEMPOTENCY_REQUEST_HASH')
   const stamp = nowIso()
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 

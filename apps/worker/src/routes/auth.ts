@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { loginSchema, passwordSchema } from '@bike-ops/contracts'
+import { loginSchema, passwordChangeSchema } from '@bike-ops/contracts'
 import { localBusinessDate, usernameKey } from '@bike-ops/domain'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
@@ -8,7 +8,8 @@ import { clearSessionCookie, createSessionSecrets, csrfTokenHash, setSessionCook
 import { all, first, nowIso } from '../db.js'
 import { hashPassword, keyedHash, randomToken, verifyPassword } from '../lib/crypto.js'
 import { ApiProblem } from '../services/problems.js'
-import { prepareAudit } from '../services/business.js'
+import { prepareAudit, prepareConditionalAudit } from '../services/business.js'
+import { idempotent } from '../services/idempotency.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
 type MembershipRow = { store_id: string; store_code: string; store_name: string; timezone: string; role: 'operator' | 'manager' | 'admin' }
@@ -183,21 +184,45 @@ export function authRoutes() {
   app.post('/api/v1/auth/change-password', auth.loadSession, auth.requireCsrf, async (c) => {
     const config = c.get('config')
     const context = c.get('auth')!
-    const body = await c.req.json() as { currentPassword?: string; nextPassword?: string }
-    const currentPassword = String(body.currentPassword ?? '')
-    const nextPassword = passwordSchema.parse(String(body.nextPassword ?? ''))
-    const user = await first<{ password_hash: string }>(c.env.DB.prepare('SELECT password_hash FROM users WHERE id = ?').bind(context.userId))
-    if (!user || !(await verifyPassword(user.password_hash, currentPassword, config.PASSWORD_PEPPER))) throw new ApiProblem(400, 'INVALID_CURRENT_PASSWORD', '当前密码不正确。')
-    if (currentPassword === nextPassword) throw new ApiProblem(400, 'PASSWORD_REUSE', '新密码不能与当前密码相同。')
-    const passwordHash = await hashPassword(nextPassword, config.PASSWORD_PEPPER)
-    const stamp = nowIso()
-    const audit = prepareAudit(c.env.DB, { context, action: 'change-password', entityType: 'account', entityId: context.userId, businessDate: localBusinessDate(context.storeTimezone), summary: `修改密码：${context.displayName}`, before: { mustChangePassword: context.mustChangePassword }, after: { mustChangePassword: false }, reversible: false })
-    await c.env.DB.batch([
-      c.env.DB.prepare('UPDATE users SET password_hash = ?, must_change_password = 0, updated_at = ? WHERE id = ?').bind(passwordHash, stamp, context.userId),
-      c.env.DB.prepare('UPDATE auth_sessions SET revoked_at = ? WHERE user_id = ? AND token_hash <> ? AND revoked_at IS NULL').bind(stamp, context.userId, context.sessionTokenHash),
-      audit.statement
-    ])
-    return c.json({ ok: true })
+    const body = passwordChangeSchema.parse(await c.req.json())
+    if (body.currentPassword === body.nextPassword) throw new ApiProblem(400, 'PASSWORD_REUSE', '新密码不能与当前密码相同。')
+
+    // The idempotency table must never contain a plain or unkeyed password-derived value.
+    // A domain-separated keyed proof lets an interrupted client safely retry this exact change.
+    const requestProof = await keyedHash(
+      JSON.stringify(['change-password', body.currentPassword, body.nextPassword]),
+      config.PASSWORD_PEPPER
+    )
+    const result = await idempotent(c, null, async (db) => {
+      const user = await first<{ password_hash: string }>(db.prepare('SELECT password_hash FROM users WHERE id = ?').bind(context.userId))
+      if (!user || !(await verifyPassword(user.password_hash, body.currentPassword, config.PASSWORD_PEPPER))) {
+        throw new ApiProblem(400, 'INVALID_CURRENT_PASSWORD', '当前密码不正确。')
+      }
+
+      const passwordHash = await hashPassword(body.nextPassword, config.PASSWORD_PEPPER)
+      const stamp = nowIso()
+      const audit = prepareConditionalAudit(db, {
+        context, action: 'change-password', entityType: 'account', entityId: context.userId,
+        businessDate: localBusinessDate(context.storeTimezone), summary: `修改密码：${context.displayName}`,
+        before: { mustChangePassword: context.mustChangePassword }, after: { mustChangePassword: false }, reversible: false
+      }, 'EXISTS (SELECT 1 FROM users WHERE id = ? AND password_hash = ?)', [context.userId, passwordHash])
+      const [updated] = await db.batch([
+        db.prepare(`
+          UPDATE users
+          SET password_hash = ?, must_change_password = 0, failed_login_count = 0, locked_until = NULL, updated_at = ?
+          WHERE id = ? AND password_hash = ?
+        `).bind(passwordHash, stamp, context.userId, user.password_hash),
+        db.prepare(`
+          UPDATE auth_sessions SET revoked_at = ?
+          WHERE user_id = ? AND token_hash <> ? AND revoked_at IS NULL
+            AND EXISTS (SELECT 1 FROM users WHERE id = ? AND password_hash = ?)
+        `).bind(stamp, context.userId, context.sessionTokenHash, context.userId, passwordHash),
+        audit.statement
+      ])
+      if (!updated?.meta.changes) throw new ApiProblem(409, 'PASSWORD_CHANGE_CONFLICT', '密码刚被其它设备修改，请使用新密码重新登录后再试。')
+      return { status: 200, body: { ok: true } }
+    }, { requestHash: requestProof })
+    return c.json(result.body, result.status as any)
   })
 
   app.get('/api/v1/auth/session-cookie-name', async (c) => c.json({ cookieName: SESSION_COOKIE }))

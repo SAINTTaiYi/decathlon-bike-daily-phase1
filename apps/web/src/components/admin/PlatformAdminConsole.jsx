@@ -7,6 +7,7 @@ import IconDirectory from '@iconoir/MapPin.mjs'
 import IconUsers from '@iconoir/User.mjs'
 import IconAudit from '@iconoir/Journal.mjs'
 import IconExit from '@iconoir/LogOut.mjs'
+import IconKey from '@iconoir/Key.mjs'
 import { getAdminOverview, getAdminUsers, getAdminAuditHistory, getAdminStore, getAdminApprovals, adminCreateUser, adminToggleUserStatus, adminResetPassword, adminReviewStore, adminUpdateStoreMember, adminRemoveStoreMember } from '../../api/admin.js'
 import { createDirectoryEntry, decideRoleChangeRequest, decideTransferRequest, getGovernanceOverview, updateDirectoryEntry } from '../../api/auth.js'
 import AdminOverviewSection from './AdminOverviewSection.jsx'
@@ -25,7 +26,7 @@ const sections = [
 ]
 function sectionFromHash() { const id = window.location.hash.match(/^#admin(?:\/([a-z]+))?/u)?.[1]; return sections.some((item) => item.id === id) ? id : 'overview' }
 
-export default function PlatformAdminConsole({ user, storeName, onExit, onNotify }) {
+export default function PlatformAdminConsole({ user, storeName, onExit, onChangePassword, onNotify }) {
   const [section, setSectionState] = useState(sectionFromHash)
   const [overview, setOverview] = useState(null)
   const [governance, setGovernance] = useState(null)
@@ -94,7 +95,10 @@ export default function PlatformAdminConsole({ user, storeName, onExit, onNotify
       <header className="admin-header">
         <div className="admin-header-brand"><span>PLATFORM ADMIN</span><strong>CHU13 平台管理</strong></div>
         <div className="admin-header-context"><span>{storeName}</span><strong>{user}</strong></div>
-        <button type="button" className="admin-header-exit" onClick={onExit}><IconExit width={20} height={20} aria-hidden="true" /><span>返回工作台</span></button>
+        <div className="admin-header-actions">
+          <button type="button" className="admin-header-security" onClick={onChangePassword} aria-label="修改当前账号密码"><IconKey width={20} height={20} aria-hidden="true" /><span>修改密码</span></button>
+          <button type="button" className="admin-header-exit" onClick={onExit}><IconExit width={20} height={20} aria-hidden="true" /><span>返回工作台</span></button>
+        </div>
       </header>
       <div className="admin-body">
         <nav className="admin-rail" aria-label="平台管理分区">

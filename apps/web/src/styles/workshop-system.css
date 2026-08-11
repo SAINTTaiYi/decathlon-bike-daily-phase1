@@ -515,6 +515,7 @@ button:disabled { opacity: .48; }
   clip-path: none !important;
 }
 .app-dialog::backdrop { background: rgb(12 14 12 / .58); backdrop-filter: none; }
+.password-change-dialog { width: min(calc(100% - 16px), 560px); }
 .dialog-panel[data-dialog-panel] {
   max-height: min(90dvh,760px);
   padding: 16px;

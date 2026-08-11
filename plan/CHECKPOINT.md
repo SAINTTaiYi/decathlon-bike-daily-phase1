@@ -310,3 +310,16 @@ CI run `31174340691` / `31176377681` 均 success（18/7 步、verify 89s/84s、�
 160×348 亮度网格，±8 物理像素）。三锚点收敛：树行心距 144/44=3.273、
 `.admin-header` 232/72=3.222、退出按钮 ~144–160/48。→ **CSS 视口 ≈ 390px、DPR ≈ 3.28**，
 与参考稿同宽，**无需窄屏断点**。
+
+## 当前状态加注（2026-08-11 21:xx +08:00 · 自助密码修改本地完成待提交）
+
+**恢复入口**：`docs/progress/2026-08-11-self-service-password-change.md`。
+
+- 工作分支：`feat/self-service-password-change-20260811`，基线 `e608e17`（V5.9.2）。本次尚未提交、推送、创建 PR、部署 Preview 或 Production，也未变更正式版本号。
+- 普通用户从日报菜单、CHU13 从平台管理后台头部均可打开同一密码修改对话框；首次登录强制改密页也复用校验和可安全重试的幂等键策略。
+- 改密 API 使用严格共享契约、CSRF、带 Pepper 的 HMAC 请求证明与幂等缓存。记录不含密码明文或普通密码摘要；成功时清除失败计数/锁定、保留当前会话、撤销其它会话并写无敏感账号审计。
+- 两设备并发时，旧密码哈希条件更新只允许一个成功；失败设备不会误撤销其它会话，并在前端清除失效会话、向登录页展示“使用新密码重新登录”的提示。
+- 用户原有未跟踪 `apps/worker/test/registration-e2e.test.ts` 被保留，未修改、未删除，且不纳入本次拟提交范围。
+- 实测 Node 22：`pnpm test` 五套件 `[7,15,262,21,84]`，共 389/389 通过；`pnpm typecheck`、`pnpm -r --if-present build`、`pnpm build:worker-bundle`、`pnpm check:workflows`（5 workflow / 88 policies）通过；本次文件 Gitleaks 0 findings；`git diff --check` 通过。
+- 根 `pnpm build` 仍被既有版本账本阻断：Preview 登记为 5.9.0、当前为 V5.9.2。该问题需在干净工作区执行 Preview 版本登记，不能为未发布功能擅自改版本或账本。
+- CodeGraph 当前沙箱无有效入口，`code/*.json` 快照指向历史 SHA，已按调用链 `MenuDialog/PlatformAdminConsole -> App -> useAuth -> api/auth -> authRoutes -> users/auth_sessions/audit_events` 完成前后人工审计；CSS 的非索引例外已由前端契约、forced-colors 和 Web build 覆盖。

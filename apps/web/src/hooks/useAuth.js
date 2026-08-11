@@ -49,15 +49,20 @@ export default function useAuth() {
     }
   }, [apply])
 
-  const changePassword = useCallback(async (currentPassword, nextPassword) => {
+  const changePassword = useCallback(async (currentPassword, nextPassword, idempotencyKey) => {
     try {
-      await changePasswordAccount(currentPassword, nextPassword)
+      await changePasswordAccount(currentPassword, nextPassword, idempotencyKey)
       setState((current) => ({ ...current, user: current.user ? { ...current.user, mustChangePassword: false } : current.user, error: '' }))
       return { ok: true }
     } catch (error) {
-      return { ok: false, error: error.message }
+      if (error?.code === 'PASSWORD_CHANGE_CONFLICT') {
+        const message = '密码已在其它设备更新，请使用新密码重新登录。'
+        clear(message)
+        return { ok: false, error: message }
+      }
+      return { ok: false, error: error?.message || '密码修改失败，请稍后重试。' }
     }
-  }, [])
+  }, [clear])
 
   const logout = useCallback(async () => {
     try { await logoutAccount() } catch { /* the local session still closes */ }

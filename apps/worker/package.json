@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "pretest": "pnpm --filter @bike-ops/contracts build",
     "test": "node --import tsx --test test/*.test.ts"
   },
   "dependencies": {
