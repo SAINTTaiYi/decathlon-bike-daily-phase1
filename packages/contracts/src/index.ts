@@ -16,6 +16,10 @@ export const contactTypes = ['phone', 'member'] as const
 
 export const usernameSchema = z.string().transform((value) => value.normalize('NFKC').trim().replace(/\s+/gu, ' ')).pipe(z.string().min(1).max(24))
 export const passwordSchema = z.string().min(10).max(128)
+export const passwordChangeSchema = z.object({
+  currentPassword: z.string().min(1).max(128),
+  nextPassword: passwordSchema
+}).strict()
 export const uuidSchema = z.string().uuid()
 export const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/u)
 export const revisionSchema = z.number().int().positive()

@@ -4,6 +4,7 @@ import InitialSetup from './components/InitialSetup.jsx'
 import PlatformAdminSetup from './components/PlatformAdminSetup.jsx'
 import RegistrationWizard from './components/RegistrationWizard.jsx'
 import PasswordChangeGate from './components/PasswordChangeGate.jsx'
+import PasswordChangeDialog from './components/dialogs/PasswordChangeDialog.jsx'
 import StatusToast from './components/StatusToast.jsx'
 import { APP_VERSION } from './data/releaseNotes.js'
 import { buildClosingReportModel, exportClosingReportImage } from './utils/closingReportImage.js'
@@ -85,6 +86,7 @@ export default function App() {
   const deferUpdatePrompt = auth.source === 'login' && !mustChangePassword && !workspaceAssemblyDone
   const workflow = useRemoteClosingWorkflow(authenticated && !mustChangePassword)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [passwordChangeOpen, setPasswordChangeOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
   const [permanentHistoryOpen, setPermanentHistoryOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -171,7 +173,7 @@ export default function App() {
     rootRef: workspaceRootRef,
     onComplete: completeWorkspaceAssembly
   })
-  const taskFocused = Boolean(taskInputFocused || menuOpen || logOpen || permanentHistoryOpen || confirmOpen || kpiOpen || migrationOpen || governanceOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
+  const taskFocused = Boolean(taskInputFocused || menuOpen || passwordChangeOpen || logOpen || permanentHistoryOpen || confirmOpen || kpiOpen || migrationOpen || governanceOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
   const { activeScene, jumpTo } = useActiveScene({
     enabled: introDone && workflow.hydrated && !workspaceLaunching,
     rootRef: workspaceRootRef
@@ -208,6 +210,7 @@ export default function App() {
     if (auth.status === 'anonymous') {
       setLoginAnimationDone(false)
       setWorkspaceAssemblyDone(false)
+      setPasswordChangeOpen(false)
       setAuthMode('login')
     }
   }, [auth.status])
@@ -263,10 +266,16 @@ export default function App() {
 
   const logout = async () => {
     setMenuOpen(false)
+    setPasswordChangeOpen(false)
     setHistoryTarget(null)
     setRecordEditor(null)
     setMediaRecord(null)
     await auth.logout()
+  }
+
+  const completePasswordChange = () => {
+    setPasswordChangeOpen(false)
+    setToast('密码已更新；其它设备上的登录会话已撤销。')
   }
 
   const jumpToRequirement = () => {
@@ -543,9 +552,11 @@ export default function App() {
             user={currentUser}
             storeName={currentStore?.storeName || '全国平台'}
             onExit={exitAdminMode}
+            onChangePassword={() => setPasswordChangeOpen(true)}
             onNotify={setToast}
           />
         </Suspense>
+        <PasswordChangeDialog open={passwordChangeOpen} userName={currentUser} onClose={() => setPasswordChangeOpen(false)} onChangePassword={auth.changePassword} onComplete={completePasswordChange} />
         <StatusToast notice={toast} />
       </>
     )
@@ -583,7 +594,7 @@ export default function App() {
 
   return (
     <>
-      {showBoot ? <BootLoader onLogin={auth.login} onComplete={() => setLoginAnimationDone(true)} onRegister={() => setAuthMode('register')} /> : null}
+      {showBoot ? <BootLoader initialError={auth.error} onLogin={auth.login} onComplete={() => setLoginAnimationDone(true)} onRegister={() => setAuthMode('register')} /> : null}
       {introDone ? <a className="skip-link" href="#closing-summary-anchor">跳到闭店摘要</a> : null}
       <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
@@ -635,7 +646,8 @@ export default function App() {
             <div className="footer-utility-actions" aria-label="日报辅助操作"><button type="button" onClick={() => setMenuOpen(true)}>日报菜单</button><button type="button" onClick={() => setLogOpen(true)}>当日日志</button><button type="button" onClick={() => setPermanentHistoryOpen(true)}>永久历史</button></div>
           </footer>
         </main>
-        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} canAdmin={auth.user?.isPlatformAdmin} onAdmin={() => { setMenuOpen(false); window.location.hash = '#admin' }} adminPending={adminPending} />
+        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} onChangePassword={() => setPasswordChangeOpen(true)} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} canAdmin={auth.user?.isPlatformAdmin} onAdmin={() => { setMenuOpen(false); window.location.hash = '#admin' }} adminPending={adminPending} />
+        <PasswordChangeDialog open={passwordChangeOpen} userName={currentUser} onClose={() => setPasswordChangeOpen(false)} onChangePassword={auth.changePassword} onComplete={completePasswordChange} />
         <GovernanceDialog open={governanceOpen} onClose={() => setGovernanceOpen(false)} currentStoreId={currentStore?.storeId || auth.currentStoreId} onNotify={setToast} />
         <LogDialog open={logOpen} onClose={() => setLogOpen(false)} events={workflow.events} />
         <PermanentHistoryDialog open={permanentHistoryOpen} onClose={() => setPermanentHistoryOpen(false)} onLoad={workflow.getPermanentHistory} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
