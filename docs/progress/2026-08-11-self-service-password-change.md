@@ -1,15 +1,17 @@
-# 2026-08-11 · 自助密码修改 · PR #193 CI 通过待 Preview 决策
+# 2026-08-11 · 自助密码修改 · 已部署 Preview 待验收
 
-状态：实现、全量验证、本地构建、提交、推送、PR 创建与代码头 CI 均已完成；PR 可合并，尚未部署 Preview 或 Production，也未改正式版本号。
+状态：实现、全量验证、PR #193 合并与 Preview 部署均已完成；机器验收通过，等待真实账号人工验收。Production 未部署，正式版本仍为 V5.9.2。
 
 ## 当前身份
 
 | 项 | 值 |
 | --- | --- |
-| 分支 | `feat/self-service-password-change-20260811` |
+| 分支 | 功能分支 `feat/self-service-password-change-20260811`；证据分支 `docs/self-service-password-preview-evidence-20260811` |
 | 基线 | `e608e17` (`chore(release): prepare formal release V5.9.2`) |
-| PR | [#193](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/193)；open、mergeable clean |
-| 功能提交 | `32e1406`；认证竞态修复并验证的代码头 `f7080f4a754f6da7c5ec97163b73a4747938d4f8` |
+| PR | [#193](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/193) 已合并 |
+| 功能提交 | `32e1406`；认证竞态修复代码头 `f7080f4a754f6da7c5ec97163b73a4747938d4f8` |
+| 集成 / Preview SHA | `2cf33d9a087a0c40b817d56cd2b96e6cf3760895` |
+| Preview | `https://bike-ops-preview.geeklightonefish.workers.dev` |
 | 工作树保留项 | `apps/worker/test/registration-e2e.test.ts` 为用户已有未跟踪本地测试；未修改、未删除，且未纳入功能提交 |
 
 ## 已实现范围
@@ -36,8 +38,18 @@
 - Gitleaks 8.30.1 只扫描本次 20 个变更文件：0 findings。
 - `git diff --check`：通过。
 - PR #193 代码头 CI run `31502463869`（head `f7080f4a754f…`）：`verify` 81 秒、`secrets` 10 秒，均 success。日志 ZIP 135,235 字节且魔数为 `PK`；五套件 `[7,15,262,21,67]`、失败 0，新竞态用例按名出现，`##[error]` 为 0。
+- 最终 docs-only CI run `31503086504` 的 `verify` / `secrets` 也均为 success，随后 PR #193 普通合并。GitHub 返回 `merged=true`，并由 `git fetch` 独立观察集成分支 `e608e17..2cf33d9`，PR 头为 merge commit 第二父提交。
 
-`pnpm build` 根门禁仍被既有版本账本阻断，错误为“Preview 登记版本 5.9.0 与当前 V5.9.2 不一致”。该命令在本次改动前已不能通过；修复需要在干净工作区执行 Preview 版本登记，属于提交/Preview 流程，未在此变更中擅自处理。
+## Preview 部署证据
+
+- 部署 run `31503624851`（head `2cf33d9a087a…`）完成 success，`seed_preview_data=false`，第 17 步 seed 明确 skipped，既有 Preview 验收数据未覆盖。
+- 部署日志 ZIP 118,189 字节且魔数为 `PK`；D1 输出 `No migrations to apply!`，说明本次为纯代码发布、数据库零迁移。
+- 上传 `278.92 KiB / gzip 62.20 KiB`，Worker Startup Time 13 ms，Worker Version ID `7d3b4340-bf82-4aa9-af4a-e28845f7114e`；身份在工作流第 6 次探测收敛，日志 `##[error]` 为 0。
+- 三轮绕缓存独立核验 Preview 的 live / ready / meta 均为 HTTP 200，身份一致：`5.9.2 / 2cf33d9a087a… / environment=preview`。
+- 同期三轮核验 Production `workshop.skin` 仍为 `5.9.2 / e608e17b79d… / environment=staging`，未部署、未触碰。
+- Preview 线上产物为 `index-cBGufafr.js`、`index-BItFUlDh.css`、`PlatformAdminConsole-12oJ0wFO.js`；“修改密码”、账号安全标题、成功提示、并发冲突提示和后台入口无障碍标签均在实际部署产物中命中。
+
+`pnpm build` 根门禁在本地未发布工作树上曾被既有 Preview 账本阻断；CI 与 Preview 工作流都会先运行 `pnpm version:preview`，本次两条远端门禁均已成功完成。正式版本号没有变化。
 
 默认 Node 18 会被仓库 `engines.node >=20 <25` 拦截，不能作为 Worker 验证结果；后续 Node/pnpm 命令均显式使用 Node 22。
 
@@ -49,8 +61,11 @@
 
 CSS 是 CodeGraph 非索引对象：`apps/web/src/styles/admin-console.css` 与 `apps/web/src/styles/workshop-system.css` 的新规则受前端契约、forced-colors 覆盖和 Web build 验证。后置调用链审计与前置链路一致，并确认 `PASSWORD_CHANGE_CONFLICT` 会在前端清掉失效会话并传递到登录页。
 
-## 下一步
+## Preview 人工验收
 
-1. 审阅本地验收服务中的普通用户、首次登录与平台管理员三条入口。
-2. 推送、创建 PR、等待 CI 后再由用户决定是否部署 Preview。
-3. Production 不在本次流程内，除非用户另行明确授权。
+1. 普通用户：从“日报菜单”打开“修改密码”，验证错误当前密码、密码复用、两次输入不一致和成功提示。
+2. 会话撤销：另一设备先登录；本设备改密成功后仍保持登录，另一设备刷新应回到登录页，旧密码不能再登录，新密码可以登录。
+3. 首次登录账号：管理员重置出临时密码后登录，必须先完成强制改密才能进入工作台。
+4. 平台管理员：从 `#admin` 顶部钥匙入口打开同一对话框，检查桌面和手机布局。
+
+Production 不在本轮操作范围内；只有 Preview 验收通过并再次获得用户明确授权后，才能安排正式发布。
