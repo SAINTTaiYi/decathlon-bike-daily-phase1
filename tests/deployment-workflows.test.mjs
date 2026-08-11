@@ -40,7 +40,7 @@ test('Cloudflare Staging 仅手动部署固定 SHA 到 Worker、Static Assets �
   assert.match(source, /wrangler@4\.112\.0/u)
   assert.match(source, /pnpm check:workflows && pnpm test && pnpm typecheck && pnpm build/u)
   assert.match(source, /wrangler d1 migrations apply bike-ops-staging --remote --config wrangler\.deploy\.jsonc/u)
-  assert.ok(source.includes('"environment":"staging"'))
+  assert.match(source, /grep -Fq .*environment.*staging/u)
 })
 
 test('Cloudflare Preview 仅手动部署到独立 Worker 和 D1', async () => {
@@ -77,7 +77,7 @@ test('Production 仅手动触发并要求 Staging、备份、恢复演练和资�
   assert.match(source, /bike-ops-production/u)
   assert.match(source, /Production Worker and D1 resources must already exist/u)
   assert.match(source, /pnpm check:version -- --mode production/u)
-  assert.ok(source.includes('"environment":"production"'))
+  assert.match(source, /grep -Fq .*environment.*production/u)
   assert.doesNotMatch(source, /--force/u)
 })
 
