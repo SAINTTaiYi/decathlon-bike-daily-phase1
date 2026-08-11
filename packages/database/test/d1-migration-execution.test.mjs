@@ -46,7 +46,7 @@ test('D1 平面门店迁移移除区域、城市和 city_id，保留业务门店
   const db = new DatabaseSync(':memory:')
   try {
     db.exec('PRAGMA foreign_keys = ON')
-    for (const name of ['0001_initial_sqlite.sql', '0002_work_item_ticket_numbers.sql', '0003_repair_undo_consistency.sql', '0004_permanent_audit_history.sql', '0005_pickup_used_car_source.sql', '0006_store_directory_self_registration.sql', '0007_repair_completion_statuses.sql', '0008_store_pending_status.sql', '0009_directory_subregions.sql', '0010_flat_store_self_registration.sql']) await apply(db, name)
+    for (const name of ['0001_initial_sqlite.sql', '0002_work_item_ticket_numbers.sql', '0003_repair_undo_consistency.sql', '0004_permanent_audit_history.sql', '0005_pickup_used_car_source.sql', '0006_store_directory_self_registration.sql', '0007_repair_completion_statuses.sql', '0008_store_pending_status.sql', '0009_directory_subregions.sql', '0010_admin_console_query_indexes.sql', '0011_directory_guangxi_cities.sql', '0012_flat_store_self_registration.sql']) await apply(db, name)
     const storeColumns = db.prepare('PRAGMA table_info(stores)').all().map((row) => row.name)
     assert.equal(storeColumns.includes('city_id'), false)
     assert.equal(storeColumns.includes('self_registration_pending'), true)
