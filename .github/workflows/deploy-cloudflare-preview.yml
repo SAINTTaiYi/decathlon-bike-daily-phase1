@@ -39,7 +39,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: preview
-    if: github.ref == 'refs/heads/feature/cloudflare-workers-d1' || github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/feature/cloudflare-workers-d1' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/preview/acceptance-20260812'
     env:
       RELEASE_SHA: ${{ inputs.release_sha }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
