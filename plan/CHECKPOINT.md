@@ -311,11 +311,11 @@ CI run `31174340691` / `31176377681` 均 success（18/7 步、verify 89s/84s、�
 `.admin-header` 232/72=3.222、退出按钮 ~144–160/48。→ **CSS 视口 ≈ 390px、DPR ≈ 3.28**，
 与参考稿同宽，**无需窄屏断点**。
 
-## 当前状态加注（2026-08-11 22:1x +08:00 · 自助密码修改 PR #193 等待 CI）
+## 当前状态加注（2026-08-11 22:4x +08:00 · 自助密码修改 PR #193 代码 CI 通过）
 
 **恢复入口**：`docs/progress/2026-08-11-self-service-password-change.md`。
 
-- 工作分支：`feat/self-service-password-change-20260811`，基线 `e608e17`（V5.9.2），功能提交 `32e1406`，恢复检查点 `b6ded35`。PR [#193](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/193) 已创建并核验为 open；CI 等待最终账本检查点推送后重新运行。Preview 与 Production 均未部署，正式版本号未变。
+- 工作分支：`feat/self-service-password-change-20260811`，基线 `e608e17`（V5.9.2），功能提交 `32e1406`，认证竞态修复代码头 `f7080f4a754f6da7c5ec97163b73a4747938d4f8`。PR [#193](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/193) 已核验为 open、mergeable clean；代码头 CI run `31502463869` 的 verify/secrets 均 success。Preview 与 Production 均未部署，正式版本号未变。
 - 普通用户从日报菜单、CHU13 从平台管理后台头部均可打开同一密码修改对话框；首次登录强制改密页也复用校验和可安全重试的幂等键策略。
 - 改密 API 使用严格共享契约、CSRF、带 Pepper 的 HMAC 请求证明与幂等缓存。记录不含密码明文或普通密码摘要；成功时清除失败计数/锁定、保留当前会话、撤销其它会话并写无敏感账号审计。
 - 两设备并发改密时，旧密码哈希条件更新只允许一个成功；失败设备不会误撤销其它会话，并在前端清除失效会话、向登录页展示“使用新密码重新登录”的提示。后续审计又发现并修复“旧密码已验证的登录晚于改密落会话”的竞态：登录会话、失败计数与审计现在同样绑定刚验证的密码哈希，改密先完成时旧登录返回 401 且不留新会话。

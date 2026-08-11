@@ -1,6 +1,6 @@
-# 2026-08-11 · 自助密码修改 · PR #193 等待 CI
+# 2026-08-11 · 自助密码修改 · PR #193 CI 通过待 Preview 决策
 
-状态：实现、全量验证、本地构建、提交、推送与 PR 创建均已完成；CI 正在运行，尚未部署 Preview 或 Production，也未改正式版本号。
+状态：实现、全量验证、本地构建、提交、推送、PR 创建与代码头 CI 均已完成；PR 可合并，尚未部署 Preview 或 Production，也未改正式版本号。
 
 ## 当前身份
 
@@ -8,7 +8,8 @@
 | --- | --- |
 | 分支 | `feat/self-service-password-change-20260811` |
 | 基线 | `e608e17` (`chore(release): prepare formal release V5.9.2`) |
-| 功能提交 | `32e1406` (`feat(auth): add self-service password changes`) |
+| PR | [#193](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/193)；open、mergeable clean |
+| 功能提交 | `32e1406`；认证竞态修复并验证的代码头 `f7080f4a754f6da7c5ec97163b73a4747938d4f8` |
 | 工作树保留项 | `apps/worker/test/registration-e2e.test.ts` 为用户已有未跟踪本地测试；未修改、未删除，且未纳入功能提交 |
 
 ## 已实现范围
@@ -34,6 +35,7 @@
 - `pnpm check:workflows`：通过，5 个 workflow、88 条策略。
 - Gitleaks 8.30.1 只扫描本次 20 个变更文件：0 findings。
 - `git diff --check`：通过。
+- PR #193 代码头 CI run `31502463869`（head `f7080f4a754f…`）：`verify` 81 秒、`secrets` 10 秒，均 success。日志 ZIP 135,235 字节且魔数为 `PK`；五套件 `[7,15,262,21,67]`、失败 0，新竞态用例按名出现，`##[error]` 为 0。
 
 `pnpm build` 根门禁仍被既有版本账本阻断，错误为“Preview 登记版本 5.9.0 与当前 V5.9.2 不一致”。该命令在本次改动前已不能通过；修复需要在干净工作区执行 Preview 版本登记，属于提交/Preview 流程，未在此变更中擅自处理。
 
