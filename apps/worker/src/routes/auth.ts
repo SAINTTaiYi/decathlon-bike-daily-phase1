@@ -143,13 +143,30 @@ export function authRoutes() {
     const stamp = nowIso()
     const primaryStore = memberships[0]!
     const context: AuthContext = { userId: user.id, displayName: user.display_name, mustChangePassword: user.must_change_password === 1, storeId: primaryStore.store_id, storeCode: primaryStore.store_code, storeName: primaryStore.store_name, storeTimezone: primaryStore.timezone, role: primaryStore.role, isPlatformAdmin: user.is_platform_admin === 1, sessionTokenHash: secrets.tokenHash, csrfHash: secrets.csrfHash }
-    const audit = prepareAudit(c.env.DB, { context, action: 'login', entityType: 'account', entityId: user.id, businessDate: localBusinessDate(primaryStore.timezone), summary: `登录工作台：${user.display_name}`, after: { userId: user.id, storeId: primaryStore.store_id }, reversible: false })
-    await c.env.DB.batch([
-      c.env.DB.prepare('INSERT INTO auth_sessions (token_hash, csrf_hash, user_id, expires_at, last_seen_at, created_at, ip_hash, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-        .bind(secrets.tokenHash, secrets.csrfHash, user.id, expiresAt, stamp, stamp, ipHash, (c.req.header('user-agent') ?? '').slice(0, 500) || null),
-      c.env.DB.prepare('UPDATE users SET failed_login_count = 0, locked_until = NULL, last_login_at = ?, updated_at = ? WHERE id = ?').bind(stamp, stamp, user.id),
+    // The credentials were verified before memberships and session secrets were loaded. Bind
+    // the final write transaction to that exact password hash so an overlapping password change
+    // cannot leave a fresh session authenticated by the superseded password.
+    const loginStillValid = "EXISTS (SELECT 1 FROM users WHERE id = ? AND password_hash = ? AND status = 'active')"
+    const audit = prepareConditionalAudit(c.env.DB, {
+      context, action: 'login', entityType: 'account', entityId: user.id, businessDate: localBusinessDate(primaryStore.timezone),
+      summary: `登录工作台：${user.display_name}`, after: { userId: user.id, storeId: primaryStore.store_id }, reversible: false
+    }, loginStillValid, [user.id, user.password_hash])
+    const [sessionCreated] = await c.env.DB.batch([
+      c.env.DB.prepare(`
+        INSERT INTO auth_sessions (token_hash, csrf_hash, user_id, expires_at, last_seen_at, created_at, ip_hash, user_agent)
+        SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE ${loginStillValid}
+      `).bind(
+        secrets.tokenHash, secrets.csrfHash, user.id, expiresAt, stamp, stamp, ipHash,
+        (c.req.header('user-agent') ?? '').slice(0, 500) || null, user.id, user.password_hash
+      ),
+      c.env.DB.prepare(`
+        UPDATE users
+        SET failed_login_count = 0, locked_until = NULL, last_login_at = ?, updated_at = ?
+        WHERE id = ? AND password_hash = ? AND status = 'active'
+      `).bind(stamp, stamp, user.id, user.password_hash),
       audit.statement
     ])
+    if (!sessionCreated?.meta.changes) return c.json(genericFailure, 401)
     setSessionCookie(c, secrets.token, config)
     return c.json({ user: { id: user.id, displayName: user.display_name, mustChangePassword: user.must_change_password === 1, isPlatformAdmin: user.is_platform_admin === 1 }, stores: mapMemberships(memberships), currentStoreId: primaryStore.store_id, csrfToken: secrets.csrfToken })
   })

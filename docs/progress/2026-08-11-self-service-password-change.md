@@ -20,15 +20,17 @@
 - Worker 改密接口使用严格共享契约、CSRF 和幂等键；幂等记录仅保存带 Pepper 的请求证明，不保存密码明文或普通密码摘要。
 - 改密成功时清除历史失败计数与临时锁定，保留当前会话、撤销其它会话并写无敏感内容的账号审计。
 - 两个设备竞争改密时，基于旧密码哈希的条件更新只允许一个写入；冲突设备被安全退出并显示使用新密码重新登录的提示。
+- 登录完成写入同样绑定已验证的密码哈希：改密若先落库，正在完成的旧密码登录将返回普通 401，不能留下晚到的新会话。
 - Worker 测试脚本现在先构建共享 contracts 产物，不依赖被 Git 忽略的本机 `dist` 残留。
 
 ## 验证
 
-- Node 22 (`/workspace/toolchains/node-v22.22.2-linux-arm64/bin`) 下 `pnpm test`：`[7, 15, 262, 21, 84]`，共 **389/389** 通过，失败 0。
-  - 新增 Worker HTTP/D1 覆盖：当前会话保留、其它会话撤销、旧密码失效、新密码登录、失败计数/锁定清除、无敏感内容审计、错误当前密码/复用/缺失 CSRF/缺失幂等键无副作用、同 key 重试、双设备并发竞争。
+- Node 22 (`/workspace/toolchains/node-v22.22.2-linux-arm64/bin`) 下，按 Git 已跟踪测试文件执行 CI 等价测试：`[7, 15, 262, 21, 67]`，共 **372/372** 通过，失败 0。
+  - 本机 `pnpm test` 会额外加载用户保留、未提交的 18 条注册 E2E，因此本地全量为 `[7, 15, 262, 21, 85]`、**390/390**；该组不冒充 PR/CI 计数。
+  - 新增 Worker HTTP/D1 覆盖：当前会话保留、其它会话撤销、旧密码失效、新密码登录、失败计数/锁定清除、无敏感内容审计、错误当前密码/复用/缺失 CSRF/缺失幂等键无副作用、同 key 重试、双设备并发改密，以及改密与已验证旧密码登录的竞争窗口。
 - `pnpm typecheck`：通过。
 - `pnpm -r --if-present build`：通过；Web 产物为 `index-cBGufafr.js` 442.78 kB（gzip 146.52 kB）、`index-BItFUlDh.css` 284.84 kB（gzip 76.63 kB）。
-- `pnpm build:worker-bundle`：通过，生成 394.9 kB 常规和 229.5 kB minified Worker bundle。
+- `pnpm build:worker-bundle`：通过，生成 395.5 kB 常规和 229.8 kB minified Worker bundle。
 - `pnpm check:workflows`：通过，5 个 workflow、88 条策略。
 - Gitleaks 8.30.1 只扫描本次 20 个变更文件：0 findings。
 - `git diff --check`：通过。

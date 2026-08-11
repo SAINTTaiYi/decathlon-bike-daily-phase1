@@ -318,8 +318,8 @@ CI run `31174340691` / `31176377681` 均 success（18/7 步、verify 89s/84s、�
 - 工作分支：`feat/self-service-password-change-20260811`，基线 `e608e17`（V5.9.2），功能提交 `32e1406`，恢复检查点 `b6ded35`。PR [#193](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/193) 已创建并核验为 open；CI 等待最终账本检查点推送后重新运行。Preview 与 Production 均未部署，正式版本号未变。
 - 普通用户从日报菜单、CHU13 从平台管理后台头部均可打开同一密码修改对话框；首次登录强制改密页也复用校验和可安全重试的幂等键策略。
 - 改密 API 使用严格共享契约、CSRF、带 Pepper 的 HMAC 请求证明与幂等缓存。记录不含密码明文或普通密码摘要；成功时清除失败计数/锁定、保留当前会话、撤销其它会话并写无敏感账号审计。
-- 两设备并发时，旧密码哈希条件更新只允许一个成功；失败设备不会误撤销其它会话，并在前端清除失效会话、向登录页展示“使用新密码重新登录”的提示。
+- 两设备并发改密时，旧密码哈希条件更新只允许一个成功；失败设备不会误撤销其它会话，并在前端清除失效会话、向登录页展示“使用新密码重新登录”的提示。后续审计又发现并修复“旧密码已验证的登录晚于改密落会话”的竞态：登录会话、失败计数与审计现在同样绑定刚验证的密码哈希，改密先完成时旧登录返回 401 且不留新会话。
 - 用户原有未跟踪 `apps/worker/test/registration-e2e.test.ts` 被保留，未修改、未删除，且不纳入本次拟提交范围。
-- 实测 Node 22：`pnpm test` 五套件 `[7,15,262,21,84]`，共 389/389 通过；`pnpm typecheck`、`pnpm -r --if-present build`、`pnpm build:worker-bundle`、`pnpm check:workflows`（5 workflow / 88 policies）通过；本次文件 Gitleaks 0 findings；`git diff --check` 通过。
+- 实测 Node 22：按 Git 已跟踪文件的 CI 等价五套件 `[7,15,262,21,67]`，共 372/372 通过；本机 `pnpm test` 额外加载未提交的 18 条注册 E2E，故为 `[7,15,262,21,85]`、390/390，不作为 CI 计数。`pnpm typecheck`、`pnpm -r --if-present build`、`pnpm build:worker-bundle`、`pnpm check:workflows`（5 workflow / 88 policies）通过；本次文件 Gitleaks 0 findings；`git diff --check` 通过。
 - 根 `pnpm build` 仍被既有版本账本阻断：Preview 登记为 5.9.0、当前为 V5.9.2。该问题需在干净工作区执行 Preview 版本登记，不能为未发布功能擅自改版本或账本。
 - CodeGraph 当前沙箱无有效入口，`code/*.json` 快照指向历史 SHA，已按调用链 `MenuDialog/PlatformAdminConsole -> App -> useAuth -> api/auth -> authRoutes -> users/auth_sessions/audit_events` 完成前后人工审计；CSS 的非索引例外已由前端契约、forced-colors 和 Web build 覆盖。

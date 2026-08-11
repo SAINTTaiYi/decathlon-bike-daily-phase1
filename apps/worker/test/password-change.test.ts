@@ -241,6 +241,39 @@ test('两个设备并发改成不同密码时只允许一个写入，失败请�
   } finally { db.close() }
 })
 
+test('改密与已验证的旧密码登录重叠时，不会留下晚到的新会话', async () => {
+  const db = await migratedTestDatabase()
+  try {
+    await seedUser(db)
+    const current = await login(db)
+    assert.ok(current.session)
+
+    const gate = db.readGate(/SELECT st\.id AS store_id, st\.code AS store_code/u)
+    const staleLogin = login(db)
+    await gate.entered
+
+    let changed: Response
+    try {
+      changed = await changePassword(db, current.session!, CURRENT_PASSWORD, NEXT_PASSWORD, {
+        key: '00000000-0000-4000-8000-000000000006'
+      })
+    } finally {
+      gate.release()
+    }
+    assert.equal(changed.status, 200)
+
+    const stale = await staleLogin
+    assert.equal(stale.response.status, 401)
+    assert.equal(stale.response.headers.get('set-cookie'), null)
+    assert.equal(db.one<{ count: number }>(`
+      SELECT COUNT(*) AS count FROM auth_sessions WHERE user_id = ? AND revoked_at IS NULL
+    `, USER_ID)!.count, 1)
+    assert.equal(db.one<{ count: number }>(`
+      SELECT COUNT(*) AS count FROM audit_events WHERE action = 'login' AND actor_user_id = ?
+    `, USER_ID)!.count, 1)
+  } finally { db.close() }
+})
+
 test('缺失幂等键时在任何密码校验和数据库写入之前被拒绝', async () => {
   const db = await migratedTestDatabase()
   try {
