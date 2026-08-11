@@ -38,9 +38,11 @@ jobs:
         run: node scripts/ops/network-guard.mjs npm/pnpm pnpm install --frozen-lockfile
       - name: Validate workflow policy
         run: pnpm check:workflows
+      - name: Record Preview source fingerprint without changing public version
+        run: pnpm version:preview
       - name: Validate checksum migration runner on PostgreSQL 16
         env:
-          DIRECT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/bike_ops_test?sslmode=disable
+          MIGRATION_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/bike_ops_test?sslmode=disable
           PGPASSWORD: postgres
         run: |
           psql -h 127.0.0.1 -U postgres -d bike_ops_test -v ON_ERROR_STOP=1 <<'SQL'
@@ -49,7 +51,7 @@ jobs:
           SQL
           pnpm --filter @bike-ops/database migrate
           pnpm --filter @bike-ops/database migrate
-          test "$(psql -At -h 127.0.0.1 -U postgres -d bike_ops_test -c 'select count(*) from public.bike_ops_schema_migrations')" = "1"
+          test "$(psql -At -h 127.0.0.1 -U postgres -d bike_ops_test -c 'select count(*) from public.bike_ops_schema_migrations')" = "6"
       - run: pnpm test
       - run: pnpm typecheck
       - run: pnpm build

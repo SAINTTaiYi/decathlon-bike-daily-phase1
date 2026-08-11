@@ -1,0 +1,152 @@
+{
+  "step": "16-free-staging-bootstrap",
+  "status": "paused_for_rikkahub_agent_migration",
+  "updatedAt": "2026-07-17T04:31:06+08:00",
+  "pausedByUser": true,
+  "userConfirmation": {
+    "organization": "SAINTTaiYi's Org",
+    "organizationId": "sctiyeyjvaezeofhysfq",
+    "confirmedMonthlyCost": 0,
+    "confirmedPlan": "free",
+    "region": "ap-southeast-1",
+    "regionLabel": "Singapore",
+    "productionApproved": false
+  },
+  "supabase": {
+    "projectId": "xrxmayzwxabmzanwhkmo",
+    "projectRef": "xrxmayzwxabmzanwhkmo",
+    "name": "bike-ops-staging",
+    "url": "https://xrxmayzwxabmzanwhkmo.supabase.co",
+    "status": "ACTIVE_HEALTHY",
+    "region": "ap-southeast-1",
+    "postgresVersion": "17.6.1.141",
+    "postgresEngine": "17",
+    "initialApplicationMigrations": 0,
+    "initialStorageBuckets": 0,
+    "appliedRepositoryMigrations": 3,
+    "bikeOpsTables": 15,
+    "privateStorageBuckets": 1,
+    "databaseBytesAfterBootstrap": 10980499,
+    "securityAdvisorErrors": 0,
+    "securityAdvisorInfo": [
+      "migration history has RLS enabled with intentionally no client policy (deny all)"
+    ],
+    "performanceAdvisorForeignKeyWarnings": 0,
+    "performanceAdvisorInfo": "unused-index notices are expected on an empty database"
+  },
+  "cloudMutation": {
+    "supabaseStagingProjectCreated": true,
+    "edgeOneStagingBranchCreated": true,
+    "edgeOneStagingBranchSha": "766d20db6a952e51a594d504ae240cca86ab5db2",
+    "edgeOneProjectCreated": false,
+    "productionResourcesCreated": false,
+    "paidPlanEnabled": false,
+    "automaticBillingEnabled": false
+  },
+  "security": {
+    "secretValuesStoredInReceipt": false,
+    "publishableKeysStoredInReceipt": false,
+    "databasePasswordStoredInReceipt": false,
+    "databasePasswordEnteredChat": false
+  },
+  "migrationVerification": {
+    "202607150001_initial_fullstack.sql": "54601a10721b0d308d764d3cf7c4dcb08f7c0b720bfe53df8169334e1e93cb9a",
+    "202607150002_supabase_private_storage.sql": "143390ab94807919d5f8d1d5d25522d66bfbe06770408e55d48e05cf71e9ff92",
+    "202607150003_staging_security_indexes.sql": "b1a1873069f26326bc774810877b5da651d5db49a386ba8df114a274a8e667fd",
+    "migrationHistoryRls": true,
+    "anonMigrationHistoryRead": false,
+    "authenticatedMigrationHistoryRead": false,
+    "foreignKeyCoveringIndexes": 14,
+    "bucket": {
+      "id": "bike-ops-media",
+      "public": false,
+      "fileSizeLimit": 10485760,
+      "allowedMimeTypes": [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+      ]
+    }
+  },
+  "repositoryPatch": {
+    "version": "5.3.1",
+    "commit": "eda86f8031aaa749009d0f7560bc719927353115",
+    "githubCiRun": 29391234924,
+    "githubCiConclusion": "success",
+    "tests": "70/70 passed",
+    "cloudCompatibility": "PostgreSQL 16 CI and PostgreSQL 17.6 Staging both passed"
+  },
+  "edgeOneBranch": {
+    "name": "edgeone-staging",
+    "sha": "766d20db6a952e51a594d504ae240cca86ab5db2",
+    "source": "verified develop checkpoint",
+    "pushMode": "ordinary push",
+    "forcePush": false,
+    "githubCiRun": 29391482691,
+    "githubCiConclusion": "success"
+  },
+  "blocker": "User is independently migrating from current RikkaHub to RikkaHub Agent. Step 16 must remain paused until explicit resume.",
+  "next": [
+    "After migration and explicit resume, read plan/RIKKAHUB-AGENT-MIGRATION-HANDOFF.md.",
+    "Privately produce the complete Session Pooler URI and configure GitHub staging MIGRATION_DATABASE_URL directly.",
+    "Collect remaining runtime values, configure EdgeOne Staging, and run exact deployment verification."
+  ],
+  "manualConsoleProgress": {
+    "guidedSetupResumed": true,
+    "projectOverviewHealthyConfirmed": true,
+    "databasePasswordResetConfirmed": true,
+    "databasePasswordStoredOnlyInPasswordManager": true,
+    "sessionPoolerUrlStored": false,
+    "transactionPoolerUrlStored": false,
+    "supabaseServerSecretStored": false,
+    "githubMigrationSecretConfigured": false,
+    "edgeOneProjectConfigured": false,
+    "dopplerMistakenRouteDiscarded": true,
+    "secretPersistedToDoppler": false,
+    "sessionPoolerTemplateCopiedToClipboard": true,
+    "pausedForSkillLibraryCleanup": true
+  },
+  "skillLibraryCleanup": {
+    "completed": true,
+    "beforeActiveSkills": 504,
+    "afterActiveSkills": 121,
+    "archivedSkills": 0,
+    "deletedSkills": 384,
+    "activeMetadataVerification": "120/120 passed",
+    "catalog": "/workspace/SKILLS-CATALOG.md",
+    "installerArtifactsArchive": "/workspace/skill-archive/2026-07-17-install-artifacts",
+    "preDeletionArchiveHashVerification": "384/384 passed",
+    "restoreAvailable": false,
+    "deletionReceipt": "/workspace/skill-archive/2026-07-17-compact/DELETION-RECEIPT.json"
+  },
+  "browserGuidanceInvestigation": {
+    "browserHarness": {
+      "installed": true,
+      "version": "0.1.5",
+      "source": "browser-use/browser-harness",
+      "telemetryEnabled": false,
+      "activeCloudBrowsers": 0,
+      "cloudAuthStored": false,
+      "androidExistingChromeAttachSupported": false
+    },
+    "rikkaHubAgent": {
+      "repository": "ExTV/rikkahub-agent",
+      "commit": "b4dae335293c4a4a3f31fb17d0a3535c78b4accb",
+      "latestRelease": "v2.4.1-agent.2",
+      "applicationId": "excp.rikkahub",
+      "canCoexistWithUpstream": true,
+      "inAppBrowserVerified": true,
+      "accessibilityScreenControlVerified": true,
+      "apkInstalled": false
+    },
+    "recommendedMode": "in-app browser with minimal write tools; manual login/MFA/secret entry; no global Accessibility for this task"
+  },
+  "migrationHandoff": {
+    "target": "ExTV/rikkahub-agent",
+    "userWillMigrateIndependently": true,
+    "handoffFile": "plan/RIKKAHUB-AGENT-MIGRATION-HANDOFF.md",
+    "checkpointTag": "rikkahub-agent-migration-20260717-0431",
+    "secretsIncluded": false,
+    "resumeRequiresExplicitUserRequest": true
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@bike-ops/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "pretest": "pnpm --filter @bike-ops/contracts build",
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@bike-ops/contracts": "workspace:*",
+    "@bike-ops/domain": "workspace:*",
+    "hono": "4.12.32",
+    "zod": "3.24.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20250712.0",
+    "typescript": "5.7.3",
+    "tsx": "4.19.2"
+  }
+}

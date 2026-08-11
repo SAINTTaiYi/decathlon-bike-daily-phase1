@@ -1,4 +1,4 @@
-import { normalizeRepair, validatePickup } from '@bike-ops/domain'
+import { COMPLETED_REPAIR_STATUSES, normalizeRepair, normalizeRepairStatus, validatePickup } from '@bike-ops/domain'
 
 export interface LegacyRecordPlan {
   index: number
@@ -21,7 +21,7 @@ export interface LegacyRecordPlan {
     completedAt: string | null
   }
   pickup: null | {
-    pickupSource: 'self-pickup' | 'repair' | 'customer-storage'
+    pickupSource: 'self-pickup' | 'repair' | 'customer-storage' | 'used-car'
     selfPickupPlatform: 'tmall' | 'jd' | 'mini-program' | null
     notificationStatus: 'pending' | 'notified'
     pickedUpOn: string | null
@@ -41,8 +41,8 @@ function text(value: unknown, max: number): string {
   return String(value ?? '').trim().slice(0, max)
 }
 
-function pickupSource(record: Record<string, unknown>): 'self-pickup' | 'repair' | 'customer-storage' {
-  if (record.pickupSource === 'self-pickup' || record.pickupSource === 'repair' || record.pickupSource === 'customer-storage') return record.pickupSource
+function pickupSource(record: Record<string, unknown>): 'self-pickup' | 'repair' | 'customer-storage' | 'used-car' {
+  if (record.pickupSource === 'self-pickup' || record.pickupSource === 'repair' || record.pickupSource === 'customer-storage' || record.pickupSource === 'used-car') return record.pickupSource
   const legacyText = `${text(record.meta, 240)} ${text(record.detail, 500)}`
   if (record.repairType || record.repairCompletedAt || /维修单|维修完成|付款单|质保单/u.test(legacyText)) return 'repair'
   if (record.kind === 'online' || /线上自提|自提订单/u.test(legacyText)) return 'self-pickup'
@@ -56,6 +56,19 @@ function pickupPlatform(record: Record<string, unknown>): 'tmall' | 'jd' | 'mini
   if (/京东/u.test(legacyText)) return 'jd'
   if (/小程序/u.test(legacyText)) return 'mini-program'
   return ''
+}
+
+
+function legacyCompletedRepairStatus(record: Record<string, unknown>, status: string): string {
+  const repairType = text(record.repairType, 24)
+  const normalized = normalizeRepairStatus(status, { repairType, completed: true })
+  if (COMPLETED_REPAIR_STATUSES.includes(normalized)) return normalized
+  const legacyText = `${text(record.meta, 240)} ${text(record.detail, 500)} ${text(record.repairProject, 500)}`
+  if (/质保付款单/u.test(legacyText)) return '维修完成-已开质保付款单-请过机'
+  if (/质保/u.test(legacyText) || repairType === '质保') return '维修完成-已开质保维修单'
+  if (/付款单/u.test(legacyText)) return '维修完成-已开付款单'
+  if (repairType === '免费') return '维修完成-快速服务免费'
+  return '维修完成-已开维修单'
 }
 
 function validIsoDate(value: unknown): string | null {
@@ -104,7 +117,8 @@ export function planLegacyRecords(records: unknown[]): { accepted: LegacyRecordP
       const pickedUpOn = validIsoDate(record.pickedUpOn)
       const notificationStatus = record.notificationStatus === 'notified' || /已通知/u.test(status) ? 'notified' : 'pending'
       if (source === 'repair') {
-        const normalized = normalizeRepair(record)
+        const completedStatus = legacyCompletedRepairStatus(record, status)
+        const normalized = normalizeRepair({ ...record, status: completedStatus })
         if (!normalized.ok) return rejected.push({ index, sourceId, reason: `维修来源待取：${normalized.error}` })
         accepted.push({
           index, sourceId, kind: 'pickup', title: normalized.fields.title, detail: normalized.fields.repairProject,

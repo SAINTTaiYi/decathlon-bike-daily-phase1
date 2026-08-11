@@ -1,0 +1,72 @@
+{
+  "step": "14-free-deployment-governance",
+  "status": "completed",
+  "completedAt": "2026-07-15T12:50:00+08:00",
+  "implementationCommit": "8f462f2df58743210dea7f0a4ba4dd9c0657741d",
+  "architecture": {
+    "webAndApi": "EdgeOne Makers Free with Vite/React and same-origin Node.js Cloud Functions",
+    "databaseAndMedia": "Supabase Free PostgreSQL and private Storage",
+    "deploymentModel": "GitHub validates and migrates first, then ordinary fast-forward promotion to EdgeOne Git Integration deployment branches",
+    "stagingBranch": "edgeone-staging",
+    "productionBranch": "edgeone-production"
+  },
+  "deleted": [
+    ".github/workflows/bootstrap-infrastructure.yml",
+    "railway.json",
+    "infra/docker/api.Dockerfile",
+    "infra/state/example.json",
+    "scripts/ops/cloudflare.mjs",
+    "scripts/ops/railway.mjs",
+    "scripts/ops/supabase.mjs",
+    "scripts/ops/index.mjs",
+    "scripts/prepare-pages-headers.mjs",
+    "tests/ops-cli.test.mjs",
+    ".dockerignore",
+    ".vercelignore"
+  ],
+  "addedOrRewritten": [
+    ".github/workflows/deploy-staging.yml",
+    ".github/workflows/deploy-production.yml",
+    "scripts/generate-build-metadata.mjs",
+    "scripts/ops/promote-branch.mjs",
+    "scripts/ops/verify-deployment.mjs",
+    "scripts/ops/validate-workflows.mjs",
+    ".env.example",
+    "AUTOMATED-DEPLOYMENT.md",
+    "docs/STAGING-ACCOUNT-SETUP.md",
+    "README.md",
+    "deploy-summary.md",
+    "PRODUCT.md",
+    "DESIGN.md"
+  ],
+  "governance": [
+    "Deploy workflows are manual only and use GitHub Environments.",
+    "Tests, typecheck, and build run before any database mutation.",
+    "Checksum-locked Supabase migration runs before EdgeOne deployment branch promotion.",
+    "Deployment branches reject non-fast-forward movement and never use force push.",
+    "EdgeOne build cannot mutate the database.",
+    "Staging has a database-only bootstrap mode so schema/storage exist before the first EdgeOne project import.",
+    "Production requires accepted Staging SHA, identical source, explicit approval, encrypted export, restore drill, Free-plan confirmation, and no-billing confirmation.",
+    "Paid plans, usage-based billing, automatic upgrades, and retired provider secrets are forbidden."
+  ],
+  "verification": {
+    "workflowPolicies": "61/61 passed",
+    "plainNodeTests": "53/53 passed",
+    "apiTests": "16/16 passed",
+    "contractsDatabaseApiTypecheck": "passed via direct TypeScript binaries",
+    "contractsDatabaseApiBuild": "passed via direct TypeScript binaries",
+    "webBuild": "passed",
+    "edgeOneWrapperImport": "passed",
+    "gitDiffCheck": "passed",
+    "activeRuntimeRetiredProviderVariables": 0,
+    "validationRuntime": "Node 18 compatibility run; canonical Node 22 / pnpm 9.15.9 full root verification is Step 15",
+    "cloudMutationPerformed": false
+  },
+  "freeTierFactsUpdated": {
+    "supabaseDatabase": "500 MB",
+    "supabaseStorage": "1 GB",
+    "supabaseBandwidth": "10 GB aggregate: 5 GB cached + 5 GB uncached",
+    "edgeOne": "40 projects, 500 builds/month, 1M Cloud Functions/month, 3M Edge Functions/month, 5 GB site storage"
+  },
+  "nextStep": "15-free-stack-build-test-push"
+}

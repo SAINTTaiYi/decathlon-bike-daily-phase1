@@ -10,5 +10,11 @@ export const updateWorkItem = (record, values) => api(`/api/v1/work-items/${reco
 export const removeWorkItem = (record) => api(`/api/v1/work-items/${record.id}`, { method: 'DELETE', body: { expectedRevision: record.revision } })
 export const workItemAction = (record, action, extra = {}) => api(`/api/v1/work-items/${record.id}/${action}`, { method: 'POST', body: { expectedRevision: record.revision, ...extra } })
 export const undoAuditEvent = (event) => api(`/api/v1/audit-events/${event.id}/undo`, { method: 'POST', body: {} })
+export const getPermanentAuditHistory = ({ date = '', module = 'all', cursor = '' } = {}) => {
+  const params = new URLSearchParams({ module, limit: '80' })
+  if (date) params.set('date', date)
+  if (cursor) params.set('cursor', cursor)
+  return api(`/api/v1/audit-events/history?${params}`)
+}
 export const previewLocalV5 = (body) => api('/api/v1/migrations/local-v5/preview', { method: 'POST', body })
 export const planLocalV5Import = (body) => api('/api/v1/migrations/local-v5/import', { method: 'POST', body })

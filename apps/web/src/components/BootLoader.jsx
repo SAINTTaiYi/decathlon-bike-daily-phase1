@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { normalizeLoginUsername, USERNAME_MAX_LENGTH } from '../data/userSession.js'
 
-export default function BootLoader({ onLogin, onComplete }) {
+export default function BootLoader({ initialError = '', onLogin, onComplete, onRegister }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -60,13 +60,17 @@ export default function BootLoader({ onLogin, onComplete }) {
       .set(rootRef.current, { pointerEvents: 'none' }, 0)
       .to(loginRef.current, { autoAlpha: 0, y: 18, filter: 'blur(8px)', duration: 0.36, ease: 'power3.out' }, 0)
       .to(seamRef.current, { autoAlpha: 1, scaleY: 1, duration: 0.18, ease: 'power3.out' }, 0.05)
-      .to(decathlonRef.current, { yPercent: -118, filter: 'blur(6px)', duration: 1.02 }, 0.08)
-      .to(bikeOpsRef.current, { yPercent: 118, filter: 'blur(6px)', duration: 1.02 }, 0.08)
-      .to(topHalfRef.current, { yPercent: -104, duration: 1.08 }, 0.1)
-      .to(bottomHalfRef.current, { yPercent: 104, duration: 1.08 }, 0.1)
-      .to(seamRef.current, { autoAlpha: 0, scaleY: 2.4, duration: 0.46, ease: 'power4.out' }, 0.44)
-      .to(rootRef.current, { autoAlpha: 0, duration: 0.2, ease: 'power2.out' }, 1.04)
+      .to(decathlonRef.current, { yPercent: -118, filter: 'blur(6px)', duration: 0.68 }, 0.08)
+      .to(bikeOpsRef.current, { yPercent: 118, filter: 'blur(6px)', duration: 0.68 }, 0.08)
+      .to(topHalfRef.current, { yPercent: -104, duration: 0.74 }, 0.1)
+      .to(bottomHalfRef.current, { yPercent: 104, duration: 0.74 }, 0.1)
+      .to(seamRef.current, { autoAlpha: 0, scaleY: 2.4, duration: 0.32, ease: 'power4.out' }, 0.34)
+      .to(rootRef.current, { autoAlpha: 0, duration: 0.16, ease: 'power2.out' }, 0.72)
   }
+
+  useEffect(() => {
+    if (initialError) setError(initialError)
+  }, [initialError])
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof document === 'undefined') return undefined
@@ -122,7 +126,7 @@ export default function BootLoader({ onLogin, onComplete }) {
         <div className="boot-login-heading">
           <span>SECURE ACCOUNT · 数据库账号</span>
           <strong id="login-title">登录工作台</strong>
-          <p id="login-description">使用管理员创建的账号登录。后续修改会同步到数据库，并以当前账号写入审计记录。</p>
+          <p id="login-description">使用现有账号登录。新同事可使用已登记门店和公司邮箱完成自助注册。</p>
         </div>
         <label className="boot-login-field">
           <span>用户名</span>
@@ -161,8 +165,7 @@ export default function BootLoader({ onLogin, onComplete }) {
           />
         </label>
         {error ? <p className="boot-login-error" id="login-error" role="alert">{error}</p> : null}
-        <button type="submit" className="boot-login-submit" disabled={submitting}>{submitting ? '正在验证…' : '登录并进入'}</button>
-        <small id="login-privacy">账号由管理员创建；密码不会写入浏览器存储或操作日志。</small>
+        <div className="boot-login-actions"><button type="submit" className="boot-login-submit" disabled={submitting}>{submitting ? '正在验证…' : '登录并进入'}</button><button type="button" className="boot-register-link" onClick={onRegister} disabled={submitting}>使用公司邮箱注册</button></div><small id="login-privacy">账号使用公司邮箱验证码注册；密码不会写入浏览器存储或操作日志。</small>
       </form>
     </section>
   )

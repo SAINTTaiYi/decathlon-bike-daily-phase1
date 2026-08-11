@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import type { Database } from '@bike-ops/database'
 import { actionSchema, notificationSchema, pickupCompleteSchema, workItemCreateSchema, workItemUpdateSchema } from '@bike-ops/contracts'
-import { normalizeRepair, repairCompletionRoute, validatePickup, validatePickupCompletion } from '@bike-ops/domain'
+import { normalizeRepair, repairCompletionRoute, validatePickup, validatePickupCompletion, validateRepairStatusContext } from '@bike-ops/domain'
 import type { NormalizedPickupFields, NormalizedRepairFields } from '@bike-ops/domain'
 import { createAuthMiddleware } from '../auth/middleware.js'
 import type { AuthContext } from '../auth/types.js'
@@ -58,6 +58,8 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
       if (input.scene === 'repair') {
         const normalized = normalizeRepair(input.values)
         if (!normalized.ok) throw new ApiProblem(400, 'INVALID_REPAIR', normalized.error)
+        const statusContext = validateRepairStatusContext(normalized.fields.status, false)
+        if (!statusContext.ok) throw new ApiProblem(400, 'INVALID_REPAIR_STATUS', statusContext.error ?? '维修状态不符合当前流程。')
         repairFields = normalized.fields
         title = repairFields.title
         detail = repairFields.repairProject
@@ -120,6 +122,7 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
       const kind = String(workItem.kind)
       const pickup = before.pickup as Record<string, unknown> | null
       const repairLike = kind === 'repair' || (kind === 'pickup' && pickup?.pickupSource === 'repair')
+      const completedRepairPickup = kind === 'pickup' && pickup?.pickupSource === 'repair'
       let title = ''
       let detail = ''
       let meta = ''
@@ -128,6 +131,8 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
         const normalized = normalizeRepair(input.values)
         if (!normalized.ok) throw new ApiProblem(400, 'INVALID_REPAIR', normalized.error)
         const fields = normalized.fields
+        const statusContext = validateRepairStatusContext(fields.status, completedRepairPickup)
+        if (!statusContext.ok) throw new ApiProblem(400, 'INVALID_REPAIR_STATUS', statusContext.error ?? '维修状态不符合当前流程。')
         title = fields.title ?? ''
         detail = fields.repairProject ?? ''
         meta = fields.repairType ?? ''
@@ -143,6 +148,8 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
         const normalized = validatePickup(input.values)
         if (!normalized.ok) throw new ApiProblem(400, 'INVALID_PICKUP', normalized.error)
         const fields = normalized.fields
+        const resaleOriginUsedCar = pickup?.pickupSource === 'used-car' && String((before.resale as Record<string, unknown> | null)?.resaleStage ?? '') === 'sold'
+        if (resaleOriginUsedCar && fields.pickupSource !== 'used-car') throw new ApiProblem(400, 'USED_CAR_SOURCE_LOCKED', '二手车售出后转入待取，来源不能改为其它类型。')
         title = fields.title ?? ''
         detail = fields.detail ?? ''
         meta = fields.meta ?? ''
@@ -208,7 +215,7 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
 
   await actionRoute('/api/v1/work-items/:id/sell-resale', 'sell-resale', async (tx, context, id, revision) => {
     const rows = await tx<{ title: string }[]>`
-      update bike_ops.work_items w set lifecycle = 'sold', revision = revision + 1, updated_by = ${context.userId}, updated_at = now()
+      update bike_ops.work_items w set kind = 'pickup', status = '等待取车', lifecycle = 'active', revision = revision + 1, updated_by = ${context.userId}, updated_at = now()
       from bike_ops.resale_details r
       where w.id = ${id} and w.store_id = ${context.storeId} and w.revision = ${revision}
         and w.lifecycle = 'active' and r.work_item_id = w.id and r.resale_stage = 'listed'
@@ -216,12 +223,13 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
     `
     if (!rows[0]) throw new ApiProblem(409, 'INVALID_STATE', '只有已上架二手车可以标记售出。')
     await tx`update bike_ops.resale_details set resale_stage = 'sold', sold_at = now() where work_item_id = ${id}`
-    return { summary: `已售出：${rows[0].title}` }
+    await tx`insert into bike_ops.pickup_details (work_item_id, pickup_source, self_pickup_platform, notification_status) values (${id}, 'used-car', null, 'pending')`
+    return { summary: `已售出并转入待取（二手车）：${rows[0].title}`, extra: { route: 'pickup' } }
   })
 
   await actionRoute('/api/v1/work-items/:id/complete-repair', 'complete-repair', async (tx, context, id, revision, businessDate) => {
-    const [repair] = await tx<{ title: string; repairType: string }[]>`
-      select w.title, r.repair_type from bike_ops.work_items w join bike_ops.repair_details r on r.work_item_id = w.id
+    const [repair] = await tx<{ title: string; repairType: string; repairStatus: string }[]>`
+      select w.title, r.repair_type, r.repair_status from bike_ops.work_items w join bike_ops.repair_details r on r.work_item_id = w.id
       where w.id = ${id} and w.store_id = ${context.storeId} and w.kind = 'repair' and w.lifecycle = 'active'
     `
     if (!repair) throw new ApiProblem(409, 'INVALID_STATE', '没有找到可完成的维修车辆。')
@@ -238,12 +246,12 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
       return { summary: `门店产品维修已完成：${repair.title}`, extra: { route: 'completed' } }
     }
     const updated = await tx`
-      update bike_ops.work_items set kind = 'pickup', revision = revision + 1, updated_by = ${context.userId}, updated_at = now()
+      update bike_ops.work_items set kind = 'pickup', status = ${route.completedStatus}, revision = revision + 1, updated_by = ${context.userId}, updated_at = now()
       where id = ${id} and store_id = ${context.storeId} and revision = ${revision}
       returning id
     `
     if (!updated.length) throw new ApiProblem(409, 'REVISION_CONFLICT', '维修记录已被其他同事修改。')
-    await tx`update bike_ops.repair_details set repair_completed_at = now() where work_item_id = ${id}`
+    await tx`update bike_ops.repair_details set repair_status = ${route.completedStatus}, repair_completed_at = now() where work_item_id = ${id}`
     await tx`
       insert into bike_ops.pickup_details (work_item_id, pickup_source, self_pickup_platform, notification_status, repair_work_item_id)
       values (${id}, 'repair', null, 'pending', ${id})

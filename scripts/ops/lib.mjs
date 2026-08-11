@@ -1,25 +1,4 @@
 import { spawn } from 'node:child_process'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
-import { randomBytes, createHash } from 'node:crypto'
-
-export function required(name) {
-  const value = process.env[name]?.trim()
-  if (!value) throw new Error(`MISSING_SECRET · ${name}`)
-  return value
-}
-
-export function optional(name, fallback = '') {
-  return process.env[name]?.trim() || fallback
-}
-
-export function secret(bytes = 32) {
-  return randomBytes(bytes).toString('base64url')
-}
-
-export function sha256(value) {
-  return createHash('sha256').update(value).digest('hex')
-}
 
 const networkErrorCodes = new Set([
   'EAI_AGAIN', 'ECONNABORTED', 'ECONNREFUSED', 'ECONNRESET', 'ENETDOWN', 'ENETUNREACH',
@@ -56,44 +35,6 @@ export async function fetchExternal(url, options = {}) {
   }
 }
 
-export async function jsonFetch(url, options = {}) {
-  const response = await fetchExternal(url, {
-    ...options,
-    headers: { accept: 'application/json', ...(options.body ? { 'content-type': 'application/json' } : {}), ...(options.headers || {}) }
-  })
-  const body = await response.json().catch(() => null)
-  if (!response.ok || body?.success === false) {
-    const message = body?.message || body?.errors?.map((error) => error.message).join('; ') || `${response.status} ${response.statusText}`
-    const error = new Error(`HTTP_${response.status} · ${message}`)
-    error.status = response.status
-    error.body = body
-    throw error
-  }
-  return body
-}
-
-export async function loadState(path) {
-  let raw
-  try {
-    raw = await readFile(path, 'utf8')
-  } catch (error) {
-    if (error?.code === 'ENOENT') return {}
-    throw error
-  }
-  try {
-    return JSON.parse(raw)
-  } catch {
-    throw new Error(`STATE_INVALID_JSON · ${path}`)
-  }
-}
-
-export async function saveState(path, state) {
-  await mkdir(dirname(path), { recursive: true })
-  const temporary = `${path}.tmp-${process.pid}`
-  await writeFile(temporary, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 })
-  await rename(temporary, path)
-}
-
 export function redactCommandArgs(args = []) {
   const sensitiveFlags = new Set(['--db-url', '--password', '--token', '--api-token', '--secret'])
   return args.map((value, index) => sensitiveFlags.has(args[index - 1]) ? '[REDACTED]' : value)
@@ -120,15 +61,6 @@ export function run(command, args, { cwd = process.cwd(), env = process.env, inp
   })
 }
 
-export function parseJsonOutput(output) {
-  const trimmed = output.trim()
-  const candidates = [trimmed, ...trimmed.split('\n').reverse()]
-  for (const candidate of candidates) {
-    try { return JSON.parse(candidate) } catch { /* continue */ }
-  }
-  throw new Error(`INVALID_JSON_OUTPUT · ${trimmed.slice(-1000)}`)
-}
-
 export async function waitFor(label, check, { attempts = 60, delayMs = 5000 } = {}) {
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
@@ -137,7 +69,7 @@ export async function waitFor(label, check, { attempts = 60, delayMs = 5000 } = 
     } catch (error) {
       if (error?.noRetry || attempt === attempts) throw error
     }
-    process.stdout.write(`WAIT · ${label} · ${attempt}/${attempts}\n`)
+    process.stderr.write(`WAIT · ${label} · ${attempt}/${attempts}\n`)
     await new Promise((resolve) => setTimeout(resolve, delayMs))
   }
   throw new Error(`TIMEOUT · ${label}`)

@@ -1,0 +1,46 @@
+{
+  "step": "13-supabase-private-storage",
+  "status": "completed",
+  "completedAt": "2026-07-15T11:42:46+08:00",
+  "baselineSha": "a77083447d6724bf1bf1e1e1722014fc70801ab6",
+  "files": [
+    "apps/api/package.json",
+    "apps/api/src/config.ts",
+    "apps/api/src/routes/media.ts",
+    "apps/api/src/storage/supabase.ts",
+    "apps/api/test/supabase-storage.test.ts",
+    "apps/web/src/components/dialogs/AttachmentDialog.jsx",
+    "packages/database/test/migration.test.mjs",
+    "supabase/migrations/202607150002_supabase_private_storage.sql",
+    "pnpm-lock.yaml"
+  ],
+  "deletedFiles": [
+    "apps/api/src/storage/r2.ts",
+    "apps/api/test/r2-signing.test.ts"
+  ],
+  "diffSummary": [
+    "Replaced Cloudflare R2 signing and cleanup with Supabase private Storage using the server-only SUPABASE_SECRET_KEY.",
+    "Preserved browser direct upload through object-scoped signed URLs; the secret key is never returned to the browser.",
+    "Preserved 10 MB, JPEG/PNG/WebP, six-per-record, audit, idempotency, and soft-delete rules.",
+    "Completion verification now checks Storage info and re-downloads the object to compute the actual SHA-256 digest rather than trusting only browser metadata.",
+    "Added a guarded migration for the private bike-ops-media bucket with file-size and MIME restrictions.",
+    "Updated attachment UI copy from R2 to Supabase private Storage."
+  ],
+  "verification": {
+    "node": "22.22.2",
+    "pnpm": "9.15.9",
+    "offlineFrozenInstall": "passed",
+    "apiTypecheck": "passed",
+    "apiTests": "16/16 passed",
+    "databaseTypecheck": "passed",
+    "databaseTests": "2/2 passed",
+    "apiBuild": "passed",
+    "webBuild": "passed",
+    "edgeOneWrapperImport": "passed",
+    "r2RuntimeReferences": 0,
+    "legacyServiceRoleVariableReferences": 0,
+    "cloudMutationPerformed": false
+  },
+  "rationale": "Use the same zero-cost Supabase project for relational data and private media while maintaining object-level authorization and end-to-end integrity checks.",
+  "nextStep": "14-free-deployment-governance"
+}

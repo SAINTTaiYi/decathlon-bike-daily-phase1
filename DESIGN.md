@@ -1,236 +1,211 @@
-# Design
+# Workshop Project Design Baseline
 
-## Direction
+> Status: current and authoritative
+> Effective date: 2026-07-29
+> Accepted reference implementation: Workshop authenticated overview
+> Preview identity: `b3a3413006381115653b0bae942c9a6927f195f1`
 
-**Hard-edge mobile product lookbook for authenticated, database-backed bike operations.**
+## Authority
 
-界面不是普通 Dashboard。外层借鉴产品 Lookbook 的标题、序号、印刷节奏与单一强视觉；内层以连续运营票据承载销售、待取、其它交接、维修和二手车。数据库化不得把界面改造成蓝白企业后台，也不得牺牲现有业务密度和移动端可操作性。
+This file is the only active visual-design source of truth for the project. Every new page, dialog, form, report, navigation surface, responsive layout, and visual refactor must use this baseline.
 
-## Product hierarchy
+Historical design documents, generated-image measurements, previous visual directions, and superseded specifications are obsolete. Git history and audit receipts may retain delivery facts, but they do not define current design behavior. When code and this document differ, treat the accepted overview implementation as evidence, reconcile deliberately, and update this file in the same change.
 
-1. **首次初始化**：一次性 HTTPS Setup 链接创建首位管理员和门店；完成后链接失效。
-2. **安全登录**：黑色品牌开屏内嵌用户名与密码表单；登录成功后由上下分屏动画进入工作台。
-3. **强制改密**：管理员创建的临时密码账号在改密前不能访问业务数据。
-4. **顶部日报刊头**：仅显示 `WORKSHOP OPS` 和当前 V5 版本，不承担模块导航。
-5. **身份条**：持续显示当前门店、角色和数据库用户，菜单提供退出登录而非任意改名。
-6. **全局闭店摘要**：销售数据是唯一闭店门槛；完成闭店/重新打开只对 manager/admin 开放。
-7. **当前版本说明**：摘要下方只展示当前版本，不做历史版本时间线。
-8. **六个 LOOK**：KPI → 待取车辆 → 其它工作交接 → 维修交接 → 二手车台账 → 销售数据。
-9. **操作记录与附件**：模块和记录均可查看审计；业务记录可打开私有图片附件。
-10. **尾部运行状态**：显示当前用户、门店、角色、最后同步时间、闭店操作、日报菜单和当日日志。
-11. **固定 LOOK Dock**：只做场景跳转和闭店状态提示，不复制业务主操作。
+Primary implementation references:
 
-## Runtime truth
+- `apps/web/src/components/overview/WorkshopOverviewPage.jsx`
+- `apps/web/src/styles/mobile-overview.css`
+- `apps/web/src/components/lookbook/ActionDock.jsx`
+- `apps/web/src/styles/index.css`
+- `apps/web/public/fonts/SOURCES.md`
+- `apps/web/public/images/ops/SOURCES.md`
 
-- PostgreSQL 是用户、门店、闭店、台账、审计、导入记录和附件元数据的唯一正式事实源。
-- API 根据 HttpOnly Session、CSRF、门店成员关系和角色执行授权；客户端不能提供可信 actor、role 或业务日期。
-- 服务端按门店时区计算业务日期，默认 `Asia/Shanghai`。
-- 所有正式写入携带 Idempotency-Key；可并发编辑的对象使用 revision，冲突后刷新并让用户重新确认。
-- 业务写入和审计事件在同一数据库事务中提交。
-- 联系方式在服务端使用 AES-256-GCM 加密；取货码不持久化。
-- R2 对象保持私有；浏览器只接收短期签名 URL。
+## Product Character
 
-### Browser state
+The project is a warm, high-contrast workshop operations ledger. It should feel practical, mechanical, immediate, and trustworthy without becoming decorative or theatrical.
 
-- Session Cookie 由浏览器管理但 JavaScript 不可读；CSRF Token 与当前门店 ID 只保存在运行时内存。
-- 成功加载的数据库快照保存在 React 内存中，用于同步失败/离线后的只读展示。
-- 页面聚焦时刷新；在线且页面可见时每 45 秒刷新；写入成功后立即刷新。
-- 首次同步失败时只显示 `DATABASE UNAVAILABLE`，不以空台账冒充真实状态。
-- 旧 localStorage v5 数据只在 manager/admin 打开迁移 Dialog 并确认后提交；它不是运行时事实源。
+The visual hierarchy combines:
 
-## Authentication and permission states
+- warm paper-like page and card surfaces;
+- dense operational information arranged for repeated daily use;
+- condensed English labels and numbers for scanning;
+- clear Simplified Chinese for decisions and actions;
+- black for structure and primary controls;
+- signal yellow for progress, state, numbering, current navigation, and primary action;
+- green and red only for semantic success and failure.
 
-- 登录页必须同时要求用户名和密码，支持 Enter、自动填充、提交中、内联错误与 48px 主按钮。
-- 登录错误使用通用文案，不暴露账号是否存在；连续失败可能触发短时锁定。
-- Session 恢复期间显示 `VERIFYING SESSION`；业务数据同步期间显示 `SYNCING DATABASE`。
-- 首次改密使用独立 gate，不能通过关闭 Dialog 绕过。
-- 离线、同步错误、闭店锁定与角色限制都必须反映到写按钮状态；不能只依赖 Toast。
-- operator 可以执行日常台账动作，但不能闭店/重开或导入旧数据。
-- manager/admin 可闭店、重开和迁移；admin 额外拥有账号创建 API 权限。
+The interface is an operations product, not a marketing page, portfolio, game HUD, cinematic scene, or imitation of another brand.
 
-## Closing requirement
+## Color System
 
-- **唯一必需**：当天销售数据已保存。
-- **闭店权限**：manager/admin。
-- **非必需**：维修、待取、二手车和其它交接是否更新或完成。
-- **闭店后**：全部业务写操作锁定；审计、附件查看、日志和复制报告仍可访问。
-- **离线或数据库同步失败**：闭店按钮禁用，不允许基于过期快照完成闭店。
+The accepted overview palette defines the project baseline.
 
-## Record lifecycle
+| Token | Value | Required use |
+| --- | --- | --- |
+| `--ops-page` | `#f7f5ef` | App background and fixed navigation background |
+| `--ops-card` | `#fffdf8` | Main modules, dialogs, forms, sheets, and raised work surfaces |
+| `--ops-black` | `#0c0e0c` | Primary controls, active navigation, high-emphasis structure |
+| `--ops-text` | `#0a0b0a` | Primary text |
+| `--ops-text-muted` | `#55554f` | Secondary explanations and metadata |
+| `--ops-text-inverse` | `#fffdf8` | Text on black controls |
+| `--ops-yellow` | `#ffc31a` | Primary action, progress, current state, numbering, active navigation |
+| `--ops-yellow-pressed` | `#e7a900` | Yellow pressed state and stronger warning emphasis |
+| `--ops-yellow-glow` | `rgb(255 195 26 / .32)` | Restrained yellow edge diffusion |
+| `--ops-pickup-expanded` | `#fff1dc` | Low-emphasis warm orange fill for the single expanded Pending Pickup card |
+| `--ops-black-glow` | `rgb(12 14 12 / .22)` | Restrained black edge diffusion on major elements |
+| `--ops-card-shadow` | `0 5px 18px rgb(64 55 34 / .055)` | Soft elevation for major modules only |
+| `--ops-danger` | `#c63b2e` | Errors, failed synchronization, destructive warnings |
+| `--ops-success` | `#17613c` | Completed, ready, or closed semantic state |
 
-### Resale
+Rules:
 
-- 新增记录写入 `pending`，显示在黑底白字待上架区。
-- “维修完毕”保留记录 ID，进入 `listed` 浅色在册区。
-- “已售出”退出当前在册，操作历史与可撤回快照保留。
-
-### Repair
-
-- 字段：`contactType / contactValue / repairType / repairProject / pickupDate / status`。
-- 联系方式类型只允许手机号或会员号；维修类型只允许质保、付费、免费、门店产品维修。
-- 状态只允许维修中、等待配件、已开付款单、已开质保单。
-- 质保、付费、免费维修必须选择日期；门店产品维修隐藏并清空日期。
-- 门店产品维修完成后留在维修模块并当日标黑；下一服务端业务日自动清理。
-- 其它维修完成后保留同一记录和完整维修字段，转入待取模块。
-
-### Pickup
-
-- 来源只允许 `self-pickup / repair / customer-storage`。
-- 自提订单必须选择天猫、京东或小程序，说明正文保存为空。
-- 顾客暂存必须填写说明。
-- 通知状态 `pending / notified` 与维修状态独立。
-- 非免费维修仅在已开付款单或已开质保单时通过取车校验；免费维修无需先改状态。
-- 自提取货码只存在于当次确认请求，不显示在票据、附件或审计中。
-- 取车成功后当日整条票据标黑；下一业务日清理当前台账。
-
-### Other handover
-
-- 只在真实完成时执行“完成”。
-- 完成后当日标黑；下一业务日清理当前台账。
-
-## Audit and undo
-
-- 模块记录展示相关场景历史；对象记录只展示同一 entity 的历史。
-- 记录显示操作时用户快照、动作摘要、业务日期、时间和撤回状态。
-- 维修转待取事件同时属于维修和待取场景历史。
-- 只有对象最近一次仍可安全恢复的可逆事件显示“撤回”。
-- 撤回产生新的不可逆审计事件；跨日自动清理和附件增删不可作为普通业务撤回。
-- 闭店时不显示撤回动作。
-
-## Attachments
-
-- 入口位于业务记录操作区，沿用同一按钮与 Dialog 语义。
-- 上传前显示 JPEG/PNG/WebP、10 MB、每条最多 6 张的限制。
-- 上传/删除必须具备明确 loading、success、error 状态。
-- 图片 URL 为短期签名地址；过期后重新请求，不能长期缓存带签名 URL。
-- 删除采用数据库软删除优先，R2 清理失败不得让已删除记录重新显示。
-
-## Legacy migration
-
-- 入口只在 manager/admin 且浏览器检测到 v5 数据时出现。
-- Dialog 明确说明：不会静默上传、会剥离取货码、旧本机数据不会自动删除。
-- 先显示 accepted/rejected/day 数量，再允许确认导入。
-- rejected 记录不进入数据库，不能用空值绕过新结构化字段。
-- 迁移使用 source fingerprint 和服务端幂等逻辑，防止重复导入。
-
-## Palette
-
-- Ink `#08080A`
-- Ink soft `#272729`
-- Paper `#F4F5F0`
-- Cool paper `#E7E9DE`
-- Raised `#FFFFFF`
-- Hairline `#C9CBC3`
-- Hairline strong `#8B8D86`
-- Muted `#62625E`
-- Action blue `#075DFF`
-- Critical `#B53B18`
-- Success `#17613C`
-
-高对比状态必须同时使用文字、图标或票据反转表达，不能只依赖颜色。
+1. Warm off-white must remain the dominant field; do not turn the interface into a black or yellow theme.
+2. Yellow is a signal, not decoration. Use it for one primary action or one dominant status per decision area.
+3. Do not introduce gradients, neon colors, blue accents, decorative multicolor systems, glass effects, or colored background bands.
+4. Semantic green and red must never replace labels, icons, or accessible state text.
+5. New colors require a documented semantic role and must be added here before use.
+6. The pickup expanded-card orange is a contextual focus surface only; it must not become a general status color or decorative band.
 
 ## Typography
 
-- 拉丁、数字与英文 Display：本地 `Albert Sans Local`。
-- 中文字形补全：本地 `Noto Serif SC Variable`。
-- 不使用外链字体；字体文件由 Pages 静态托管。
-- 刊头、KPI 与票据事实可使用 display weight；按钮、表单标签和操作说明保持紧凑、清晰、可扫描。
-- KPI 与目录数字使用 tabular/lining numerals 与固定槽位。
-- 长正文使用 `text-wrap: pretty`，避免窄屏孤行和溢出。
+### Families
 
-## Visual system
+- Operational English labels, dates, version marks, and large numbers: self-hosted `Barlow Condensed Ops` 500/700.
+- Simplified Chinese and general body content: self-hosted `Noto Sans SC Variable` 100–900.
+- The `业务台账` label uses the same self-hosted Noto Sans SC family, visually compressed to align with `OPERATIONS INDEX`.
+- Runtime UI text may use only `Noto Sans SC Variable` or `Barlow Condensed Ops`; system fonts and generic font-family fallbacks are prohibited.
 
-- 冷纸白、黑白高对比、硬边无圆角、移动全宽；桌面内容宽约 760px。
-- 页面背景使用本地低对比纸张纹理；不覆盖 Dialog、黑色 KPI、图片和固定 Dock。
-- 全页只保留一个黑色 KPI 强视觉，不把每个模块做成独立卡片。
-- 业务对象使用连续票据和 1px 分隔线，不使用同构卡片网格或玻璃拟态。
-- 每条票据左侧 Journal 标识是审计入口，不代表完成勾选。
-- 二手车在同一 LOOK 内分为黑色待上架区与浅色在册区。
-- 已取车、已完成交接和已完成门店维修整条反黑；重复写操作隐藏。
-- 维修与维修来源待取共用服务票据骨架：标题带、跨栏说明、右侧日期、左下事实组、右下动作区。
-- 通知状态是待取票据内联选择，不添加到维修票据。
-- 身份、离线、同步与权限状态使用已有条带/票据语言，不引入独立 SaaS 式状态卡。
+All font assets must be self-hosted, licensed, documented in `apps/web/public/fonts/SOURCES.md`, and loaded without runtime third-party requests.
 
-## Interaction
+### Hierarchy
 
-- 所有业务枚举使用 `ProjectSelect`，支持外部点按关闭、Escape、方向键、Home/End、选中态和焦点恢复。
-- 日期继续使用原生日期控件。
-- Dialog 使用原生 `<dialog>`，支持 Escape、焦点圈定/恢复和语义表单。
-- 写操作成功后以 Toast 反馈并刷新数据库快照；失败时保留当前表单数据。
-- revision conflict 需要显示明确冲突信息并刷新，不静默覆盖。
-- 页面离线时显示常驻 banner；写按钮禁用，不能让用户完成后才收到错误。
-- 复制报告只复制当前成功加载的数据库快照，并明确当前门店和用户。
-- 退出登录撤销服务器 Session，即使网络失败也清除本地运行时会话。
+- Large numbers carry the strongest visual weight in KPI and progress surfaces.
+- Chinese action titles are direct and readable; English labels classify the module but do not replace Chinese meaning.
+- Use condensed uppercase English for short operational labels only.
+- Body text remains compact, high contrast, and unglowed.
+- Do not use viewport-width font scaling. Use explicit responsive sizes and stable line heights.
+- Letter spacing is `0` by default. Small positive tracking is allowed only for short uppercase metadata where the accepted implementation already uses it.
+
+### Text effects
+
+- Yellow glow is limited to yellow status numbers, selected icons, and primary yellow controls.
+- Black glow is limited to major headings, large numbers, major icons, and black controls.
+- Small body copy, form labels, help text, error details, and table content must remain crisp without glow.
+
+## Geometry And Surfaces
+
+- The mobile content rail is centered with a maximum overview width of `390px` inside an app shell up to `426px`.
+- Primary module corners use `8px` radius. Avoid larger pill-like cards.
+- Cards must not be nested inside decorative cards. Use one surface per functional module.
+- Major modules use the restrained card shadow. Identity rows, navigation, and lightweight strips should remain flat unless elevation communicates interaction.
+- Internal organization relies on spacing, background contrast, type hierarchy, and alignment. Do not restore decorative divider grids, title rules, or repeated borders.
+- Black controls and yellow primary actions may use `8px` radius and subtle edge diffusion.
+- Icon-only actions require accessible labels and at least `44px` hit targets.
+- Stable grids, fixed metric lanes, and explicit min/max dimensions must prevent layout shifts when values change.
+
+## Information Architecture
+
+The accepted overview establishes the priority order:
+
+1. Product identity, version, business date, and notifications.
+2. Current store, user identity, and menu.
+3. Daily closing status and the single next action.
+4. Sales vehicle total and supporting sales KPIs.
+5. Operations index for Pickup, Other, Repair, and Sales; used-car sale/acquisition remain sales KPIs only.
+6. Pickup work queue.
+7. Release information.
+8. Persistent five-destination navigation (Overview, Pending, Other, Repair, Sales); used-car metrics remain under Sales.
+
+Apply the same principle elsewhere: current decision first, supporting evidence second, history and configuration later. Avoid landing-page heroes, decorative introductions, feature explanations, and oversized editorial headings inside work surfaces.
+
+## Controls And Interaction
+
+- Use familiar icons from the installed icon library for tools and destinations.
+- Use text or icon-plus-text buttons only for explicit commands.
+- Use toggles and checkboxes for binary settings, segmented controls for modes, selects or menus for option sets, and proper fields for numeric input.
+- Primary actions are yellow when they advance the active task. Black is used for structural or menu actions. Secondary actions remain flat and low emphasis.
+- Active navigation uses black background, yellow icon/text emphasis, and clear Chinese plus compact English labels.
+- Press feedback may use a small opacity change and `scale(.985)`; it must not move surrounding layout.
+- Motion is short and functional. Respect `prefers-reduced-motion`; never require animation to understand state.
+- Loading, offline, empty, error, permission, and synchronization states must be explicit. Unknown data must render as unavailable, not as a false zero.
+
+## Responsive Behavior
+
+### Mobile
+
+- Mobile is the primary composition.
+- Support at least `320px` through `430px` widths without horizontal scrolling.
+- Preserve safe areas and dynamic viewport bottom offsets.
+- Keep the six-item navigation fixed and ensure content can scroll fully above it.
+- At narrow widths, reduce secondary metadata before reducing touch targets or primary values.
+
+### Tablet
+
+- At `600px` and above, increase page padding and available media width while preserving the same reading order.
+- Navigation may float with the accepted `8px` radius but must remain operationally dense.
+
+### Desktop
+
+- At `1024px` and above, use the reference workbench: fixed 90px global header, 262px left rail, 66px module bar, and one selected board in the remaining field.
+- Overview uses a 5/7 closing-to-sales row, full-width four-operation index, then an 8/4 trend-and-health row; Pending, Other, and Repair use a full-width ledger table.
+- Desktop is a wider workbench, not a different visual theme. Do not revive obsolete desktop-specific art directions.
 
 ## Accessibility
 
-- WCAG 2.1 AA；正文、placeholder、状态文字均满足对比度要求。
-- 全部触摸目标至少 44px；登录主按钮 48px。
-- 提供 Skip Link、语义 heading、label、button、status/alert 和 `aria-live`。
-- 加载、首次同步失败、离线、权限不足、空台账、提交中和删除确认均有可读状态。
-- 键盘用户可以完成登录、改密、Dialog、ProjectSelect、审计撤回、附件与闭店流程。
-- 支持 Forced Colors 与 200% 缩放，不允许横向页面溢出。
+The minimum baseline is WCAG 2.1 AA:
 
-## Motion governance
+- semantic HTML and meaningful heading order;
+- keyboard access to every command;
+- visible `:focus-visible` treatment using the signal yellow;
+- minimum `44px` interactive targets;
+- native dialog behavior, Escape handling, focus trapping, and focus restoration;
+- `aria-live` for meaningful async state changes;
+- explicit loading, error, empty, offline, and permission states;
+- `prefers-reduced-motion` and forced-colors fallbacks;
+- text alternatives for informative imagery and empty alt text for purely decorative assets;
+- no state conveyed by color alone.
 
-- GSAP `3.13.0`：品牌开屏进入/退出和一次性页面内容编排。
-- anime.js `4.5.0`：按钮按压反馈。
-- Motion 只承担登录过渡、内容进入与即时反馈，不使用 ambient loop。
-- 不动画布局属性；主要过渡 150–250ms，品牌开屏可更长但不得阻塞 reduced-motion 用户。
-- `prefers-reduced-motion: reduce` 下跳过编排并立即展示可操作内容。
+## Asset Policy
 
-## Architecture
+- Prefer real operational content and project-owned, brand-neutral assets.
+- The bicycle workshop blueprint is the accepted restrained technical motif. It must remain secondary to business data.
+- Do not copy proprietary logos, screenshots, character art, fonts, or visual assets from other products.
+- Do not hotlink production assets. Self-host, compress, document source, license, purpose, and SHA-256 where applicable.
+- Do not simulate irregular material texture with noisy CSS or generated ornament when it does not improve task comprehension.
 
-```text
-apps/web/src/
-  api/                    fetch、Cookie/CSRF 会话、业务与附件 API
-  hooks/
-    useAuth.js            Session 恢复、登录、改密、登出
-    useRemoteClosingWorkflow.js
-                          数据库 bootstrap、刷新、离线只读、revision 恢复
-    useClosingWorkflow.js 仅用于旧 v5 迁移/规则回归参考
-  components/
-    dialogs/              KPI、维修/台账、取货码、审计、附件、迁移、菜单、闭店
-    lookbook/             刊头、摘要、版本说明、连续票据、Dock
-  data/                   展示配置、枚举、兼容映射、版本说明
-  scenes/                 六个 LOOK 场景
-  styles/                 tokens/base/layout/components/motion/responsive
+## Migration Rules For Existing Screens
 
-apps/api/src/
-  auth/                   Session、CSRF、密码与角色中间件
-  routes/                 bootstrap、closing、work-items、audit、media、migrations
-  services/               业务事务、幂等、旧数据导入与撤回恢复
-  repositories/           数据库记录映射
-  storage/                R2 SigV4 签名与对象校验
+This baseline governs the full project immediately, but this documentation change does not itself restyle every existing screen.
 
-packages/
-  domain/                 共享业务规则
-  contracts/              Zod 契约
-  database/               PostgreSQL 连接与 migration runner
-```
+When modifying an existing screen:
 
-## Deployment design
+1. Preserve routes, business rules, API contracts, permissions, audit semantics, data states, and event handlers.
+2. Replace obsolete visual tokens and presentation with this baseline in the touched scope.
+3. Keep mobile behavior first, then provide tablet and desktop rearrangement.
+4. Remove obsolete style layers only after regression coverage confirms equivalent behavior.
+5. Validate long Chinese labels, maximum values, empty/error/offline states, keyboard flow, reduced motion, and forced colors.
+6. Update this file only when the accepted project-wide baseline itself changes.
 
-- Staging：`develop`；Production：`main` 且仅手动触发。
-- Production Workflow 必须验证 main HEAD、完整 release SHA、被验收的 Staging SHA 和源码一致性。
-- 发布顺序：migration → Railway API → readiness/version → Cloudflare Pages → final verify。
-- Production release 同时需要 GitHub Environment 审批、`approve_production` 和 `confirm_backup`。
-- Workflow Secret 按 GitHub Environment 隔离；不得同时把一个 Secret 注入 staging/production 变量名。
-- 非敏感 state 分阶段保存，可用 artifact 恢复，并通过自动 Pull Request 进入受保护分支；绝不保存连接串、Token 或密码。
-- 境外 npm、GitHub 或云平台不可达时停止并提示开启 VPN，不盲目重试。
+## Governance
 
-## Version governance
+- `DESIGN.md` is the sole active design specification.
+- `PRODUCT.md` defines product and business truth; it must link here rather than duplicate visual direction.
+- Plans, journals, release notes, and Preview receipts may record historical facts but must not define an alternative visual system.
+- Any proposal to change the project-wide palette, typography, surface geometry, navigation model, or interaction language requires explicit user approval and a Preview acceptance cycle.
+- Preview-only design changes do not increment the public version. Production remains a separate, explicitly approved release action.
 
-- 当前版本：`V5.2.8`。
-- 根 `package.json`、`apps/web/package.json`、`apps/web/src/data/releaseNotes.js` 与 `version-manifest.json` 必须一致。
-- `pnpm version:patch -- ...` 递增 V5 版本并生成当前发布说明。
-- 完成代码与文档后运行 `pnpm version:stamp`；`pnpm build` 先校验版本和源码/部署事实指纹。
-- 指纹覆盖 Web/API/Packages、测试、migrations、Workflow、infra 配置与事实源文档；排除生成物、依赖、真实环境 state 和执行 receipt。
+## Workshop module navigation
 
-## Skill governance
+Mobile keeps the normal document flow. At 1024px and above, the reference workbench uses a fixed left rail and displays one selected work board at a time: Overview, Pending, Other, Repair, Sales. The independent Used module and /used route are retired; /used redirects to Overview. Used-car sale and acquisition remain real KPI fields in Overview and Sales. The desktop rail must not rotate, scale, stack, or animate between boards; mobile continues to use ordinary vertical scrolling and reduced-motion-safe navigation.
 
-- `design-taste-frontend`：保持反模板化 lookbook 语言。
-- `impeccable`：生产状态、错误、性能、可访问性与信息层级。
-- `shadcn-ui`：当前仅有目录条目；继续使用原生语义、Dialog、按钮状态和一致组件契约。
-- `ui-ux-pro-max`：当前仅有目录条目；继续遵循移动触摸、色彩、排版与克制动效原则。
-- `DESIGN.md` 是后续视觉、交互、状态和发布 UI 的事实源。
+## Platform Admin Console
+
+The platform administrator (CHU13) surface is a governed console, not a second theme. It reuses the accepted desktop geometry (fixed 90px header, 262px left rail collapsing to an 84px icon rail below 1024px, independently scrolling business region) and the same tokens: warm paper field, black structure, signal yellow reserved for active navigation, pending-count badges, the single yellow approval action, and the single accented KPI lane.
+
+- Sections in order: Overview, Stores, Approvals, Directory, Users, Audit. Only the platform administrator may enter via the `#admin` hash; the same login system governs it.
+- Dense operational patterns apply: stat lanes, approval rows with explicit approve/reject decisions, a full directory tree with inline rename and enable/disable, a user table with role/store memberships, and a read-only platform audit with date/module/store/actor/action filters and cursor pagination.
+- New stores enter a **pending (待审核)** state and only become active after the platform administrator approves them in the Approvals queue; the directory shows the pending badge and must not offer direct enable/disable for pending stores.
+- Data tables stay scannable through spacing, type hierarchy, and row hover; do not reintroduce decorative divider grids or repeated borders.
+- On phones below 768px the console uses a fixed bottom tab bar (Overview, Stores, Approvals, Directory, Users, Audit) mirroring the workshop dock; ledger tables collapse to card lists with thumb-friendly actions.
+- On phones the Directory is a file tree, not stacked cards. One region card (8px radius, warm-white `#fffdf8`, hairline border) holds the whole subtree. Hierarchy is carried by a single 1px trunk at the region bullet's centre plus 1px horizontal branches into each child row — not by per-level card shells and not by one trunk per level. The trunk stops at the last branch point rather than running to the card floor. Each level is marked by a 6px signal-yellow bullet and indents 20px, so a child bullet aligns with its parent's name. Rows are 44px; store and member entries return to their own bordered cards (store 8px radius, member 6px radius with a 2px signal-yellow left edge). Store cards carry a deliberate two-line grid: identity, status and the icon actions on line one, member count on line two. Icon actions show a 28px box with the hit area expanded to 44px, so adjacent targets never overlap; the verb stays in the DOM and in `aria-label`. Subtree size (`N区 · N市 · N店`) is inlined on parent rows so scale reads without expanding. Long store names ellipsize with the full text in `title`; they must not wrap to vertical text.
+- No gradients, glass, decorative color systems, or viewport-scaled type. Green and red remain semantic only. Reduced motion and forced colors apply unchanged.

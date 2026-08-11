@@ -8,12 +8,12 @@ import IconWrench from '@iconoir/Wrench.mjs'
 export const LOOK_TOTAL = 6
 
 export const lookbookScenes = [
-  { id: 'pulse', no: '01', title: 'WORKSHOP KPI', cn: '今日 KPI', label: 'KPI', NavIcon: IconActivity },
-  { id: 'pickup', no: '02', title: 'PICKUP BOARD', cn: '待取车辆', label: 'Pickup', NavIcon: IconDelivery },
-  { id: 'poster', no: '03', title: 'OTHER HANDOVER', cn: '其它工作交接', label: 'Other', NavIcon: IconShop },
-  { id: 'repair', no: '04', title: 'SERVICE NOTES', cn: '维修交接', label: 'Repair', NavIcon: IconWrench },
-  { id: 'resale', no: '05', title: 'USED BIKE LOG', cn: '二手车交接', label: 'Resale', NavIcon: IconLabel },
-  { id: 'sales', no: '06', title: 'SALES CHECK', cn: '销售核对', label: 'Sales', NavIcon: IconCash }
+  { id: 'pulse', no: '01', title: 'WORKSHOP KPI', cn: '今日 KPI', label: 'KPI', dock: '总览', NavIcon: IconActivity },
+  { id: 'pickup', no: '02', title: 'PICKUP BOARD', cn: '待取车辆', label: 'PICKUP', dock: '待取', NavIcon: IconDelivery },
+  { id: 'poster', no: '03', title: 'OTHER HANDOVER', cn: '其它工作交接', label: 'OTHER', dock: '其它', NavIcon: IconShop },
+  { id: 'repair', no: '04', title: 'SERVICE NOTES', cn: '维修交接', label: 'REPAIR', dock: '维修', NavIcon: IconWrench },
+  { id: 'resale', no: '05', title: 'USED BIKE LOG', cn: '二手车交接', label: 'USED', dock: '二手', NavIcon: IconLabel },
+  { id: 'sales', no: '06', title: 'SALES CHECK', cn: '销售核对', label: 'SALES', dock: '销售', NavIcon: IconCash }
 ]
 
 export function formatLook(no) {

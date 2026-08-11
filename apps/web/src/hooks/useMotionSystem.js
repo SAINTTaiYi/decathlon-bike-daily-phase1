@@ -1,61 +1,133 @@
 import { useEffect, useLayoutEffect } from 'react'
 import { gsap } from 'gsap'
-import { animate } from 'animejs/animation'
 
 const profiles = {
-  header: { x: 0, y: -12, clipPath: 'inset(0 0 100% 0)', duration: .42 },
-  summary: { x: 0, y: 18, clipPath: 'inset(0 0 16% 0)', duration: .52 },
-  photo: { x: -18, y: 0, clipPath: 'inset(0 100% 0 0)', duration: .68 },
-  title: { x: 0, y: 14, clipPath: 'inset(0 0 12% 0)', duration: .46 },
-  data: { x: 0, y: 16, clipPath: 'inset(0 0 14% 0)', duration: .48 },
-  row: { x: 16, y: 0, clipPath: 'inset(0 0 0 10%)', duration: .42 },
-  dock: { x: 0, y: 24, clipPath: 'inset(100% 0 0 0)', duration: .48 }
+  header: { y: -8, duration: .28 },
+  summary: { y: 12, duration: .34 },
+  photo: { y: 14, duration: .36 },
+  title: { y: 10, duration: .3 },
+  data: { y: 12, duration: .32 },
+  row: { y: 10, duration: .3 },
+  dock: { y: 8, duration: .26 }
 }
 
-export default function useMotionSystem(enabled) {
+export default function useMotionSystem({ enabled, rootRef, quiet = false }) {
   useLayoutEffect(() => {
     if (!enabled) return undefined
+    const root = rootRef.current || document
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    const elements = [...document.querySelectorAll('[data-motion]')]
+    const observed = new WeakSet()
+    const animated = new WeakSet()
+    const timelines = new Set()
+
+    const candidates = () => [...root.querySelectorAll('[data-motion]')]
+      .filter((element) => !element.closest('[hidden], [aria-hidden="true"], [data-workspace-priority="true"]'))
+
+    const finish = (targets) => gsap.set(targets, {
+      autoAlpha: 1,
+      x: 0,
+      y: 0,
+      scale: 1,
+      clearProps: 'transform,transformOrigin,opacity,visibility,willChange'
+    })
+
     if (reduced || !('IntersectionObserver' in window)) {
-      gsap.set(elements, { autoAlpha: 1, x: 0, y: 0, clipPath: 'none', filter: 'none' })
+      finish(candidates())
       return undefined
     }
 
-    const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
-      if (!entry.isIntersecting) return
-      const target = entry.target
-      const profile = profiles[target.dataset.motion] || profiles.row
-      const rowDirection = elements.indexOf(target) % 2 && target.dataset.motion === 'row' ? -profile.x : profile.x
-      gsap.fromTo(target,
-        { autoAlpha: .001, x: rowDirection, y: profile.y, clipPath: profile.clipPath, filter: 'blur(6px)' },
-        { autoAlpha: 1, x: 0, y: 0, clipPath: 'inset(0 0 0 0)', filter: 'blur(0px)', duration: profile.duration, ease: 'expo.out', clearProps: 'transform,filter,clipPath,opacity,visibility' }
-      )
-      if (target.dataset.motion === 'photo') gsap.fromTo(target.querySelector('img'), { scale: 1.08 }, { scale: 1.018, duration: .72, ease: 'expo.out', clearProps: 'transform' })
-      observer.unobserve(target)
-    }), { rootMargin: '0px 0px -8% 0px', threshold: .05 })
+    const observer = new IntersectionObserver((entries) => {
+      const entering = entries
+        .filter((entry) => entry.isIntersecting && !animated.has(entry.target))
+        .map((entry) => entry.target)
+      if (!entering.length) return
+      entering.forEach((target) => {
+        animated.add(target)
+        observer.unobserve(target)
+      })
+      const groups = new Map()
+      entering.forEach((target) => {
+        const group = target.dataset.motion === 'row' ? target.closest('[data-reveal-group]') || target : target
+        const items = groups.get(group) || []
+        items.push(target)
+        groups.set(group, items)
+      })
+      groups.forEach((targets) => {
+        const profile = profiles[targets[0].dataset.motion] || profiles.row
+        const timeline = gsap.timeline({
+          defaults: { ease: 'power3.out', overwrite: 'auto' },
+          onComplete: () => {
+            finish(targets)
+            timelines.delete(timeline)
+          }
+        })
+        timelines.add(timeline)
+        timeline.fromTo(targets,
+          { autoAlpha: .001, y: profile.y, scale: .994, willChange: 'transform, opacity' },
+          { autoAlpha: 1, y: 0, scale: 1, duration: profile.duration, stagger: targets.length > 1 ? .045 : 0 }
+        )
+      })
+    }, { rootMargin: '8% 0px -3% 0px', threshold: .04 })
 
-    elements.forEach((element) => observer.observe(element))
-    return () => { observer.disconnect(); gsap.killTweensOf(elements); elements.forEach((element) => gsap.killTweensOf(element.querySelectorAll('*'))) }
-  }, [enabled])
+    const observe = (elements) => elements.forEach((element) => {
+      if (observed.has(element) || animated.has(element)) return
+      observed.add(element)
+      observer.observe(element)
+    })
+    observe(candidates())
+
+    const mutations = new MutationObserver((records) => {
+      const additions = []
+      records.forEach((record) => {
+        if (record.type === 'attributes') {
+          additions.push(...record.target.querySelectorAll?.('[data-motion]') || [])
+          if (record.target.matches?.('[data-motion]')) additions.push(record.target)
+          return
+        }
+        record.addedNodes.forEach((node) => {
+          if (node.nodeType !== Node.ELEMENT_NODE) return
+          if (node.matches?.('[data-motion]')) additions.push(node)
+          additions.push(...node.querySelectorAll?.('[data-motion]') || [])
+        })
+      })
+      observe(additions.filter((element) => !element.closest('[hidden], [aria-hidden="true"], [data-workspace-priority="true"]')))
+    })
+    mutations.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-hidden'] })
+
+    return () => {
+      observer.disconnect()
+      mutations.disconnect()
+      timelines.forEach((timeline) => timeline.kill())
+      finish(candidates())
+    }
+  }, [enabled, rootRef])
 
   useEffect(() => {
-    if (!enabled || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined
-    const selector = 'button:not(:disabled)'
-    const running = new Set()
+    if (!enabled || quiet || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined
+    const root = rootRef.current || document
     let pressed = null
-    const run = (target, scale, duration) => {
-      const instance = animate(target, { scale, duration, ease: 'out(4)', composition: 'replace' })
-      running.add(instance)
-      instance.then(() => running.delete(instance))
+    const down = (event) => {
+      pressed = event.target.closest('button:not(:disabled), summary, [role="option"]')
+      if (!pressed || !root.contains(pressed)) return
+      gsap.to(pressed, { scale: .985, opacity: .9, duration: .09, ease: 'power2.out', overwrite: 'auto' })
     }
-    const down = (event) => { pressed = event.target.closest(selector); if (pressed) run(pressed, .978, 100) }
-    const up = () => { if (pressed) run(pressed, 1, 190); pressed = null }
-    document.addEventListener('pointerdown', down)
-    document.addEventListener('pointerup', up)
-    document.addEventListener('pointercancel', up)
-    document.addEventListener('pointerleave', up)
+    const up = () => {
+      if (!pressed) return
+      gsap.to(pressed, { scale: 1, opacity: 1, duration: .16, ease: 'power3.out', overwrite: 'auto', clearProps: 'transform,opacity' })
+      pressed = null
+    }
+    root.addEventListener('pointerdown', down)
+    root.addEventListener('pointerup', up)
+    root.addEventListener('pointercancel', up)
+    root.addEventListener('pointerleave', up)
     window.addEventListener('blur', up)
-    return () => { document.removeEventListener('pointerdown', down); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up); document.removeEventListener('pointerleave', up); window.removeEventListener('blur', up); running.forEach((instance) => instance.revert()) }
-  }, [enabled])
+    return () => {
+      root.removeEventListener('pointerdown', down)
+      root.removeEventListener('pointerup', up)
+      root.removeEventListener('pointercancel', up)
+      root.removeEventListener('pointerleave', up)
+      window.removeEventListener('blur', up)
+      if (pressed) gsap.set(pressed, { clearProps: 'transform,opacity' })
+    }
+  }, [enabled, quiet, rootRef])
 }

@@ -6,13 +6,13 @@ import { createAuthMiddleware } from '../auth/middleware.js'
 import type { AppConfig } from '../config.js'
 import { businessDateFor, ensureDayOpen, writeAudit } from '../services/business.js'
 import { ApiProblem, idempotent } from '../services/idempotency.js'
-import { createR2, deleteObject, requireR2, signDownload, signUpload, verifyObject } from '../storage/r2.js'
+import { createSupabaseStorage, deleteObject, requireSupabaseStorage, signDownload, signUpload, verifyObject } from '../storage/supabase.js'
 
 const extensions: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
 
 export async function registerMediaRoutes(app: FastifyInstance, sql: Database, config: AppConfig): Promise<void> {
   const auth = createAuthMiddleware(sql, config)
-  const r2 = createR2(config)
+  const mediaStorage = createSupabaseStorage(config)
   const guards = [auth.loadSession, auth.requirePasswordChanged, auth.requireCsrf]
 
   app.post('/api/v1/attachments/prepare', { preHandler: guards }, async (request, reply) => {
@@ -31,9 +31,9 @@ export async function registerMediaRoutes(app: FastifyInstance, sql: Database, c
         insert into bike_ops.attachments (id, store_id, work_item_id, object_key, original_name, mime_type, byte_size, sha256, uploaded_by)
         values (${attachmentId}, ${context.storeId}, ${input.workItemId}, ${objectKey}, ${input.fileName}, ${input.mimeType}, ${input.byteSize}, ${input.sha256}, ${context.userId})
       `
-      const storage = requireR2(r2, config)
-      const uploadUrl = await signUpload(storage.client, storage.bucket, objectKey, input.mimeType, input.byteSize, input.sha256)
-      return { status: 201, body: { attachmentId, objectKey, uploadUrl, expiresIn: 300, requiredHeaders: { 'content-type': input.mimeType, 'x-amz-meta-sha256': input.sha256 } } }
+      const storage = requireSupabaseStorage(mediaStorage)
+      const signed = await signUpload(storage, objectKey, input.mimeType, input.sha256)
+      return { status: 201, body: { attachmentId, objectKey, ...signed } }
     })
     return reply.code(result.status).send(result.body)
   })
@@ -41,14 +41,14 @@ export async function registerMediaRoutes(app: FastifyInstance, sql: Database, c
   app.post('/api/v1/attachments/complete', { preHandler: guards }, async (request, reply) => {
     const context = request.auth!
     const input = attachmentCompleteSchema.parse(request.body)
-    const storage = requireR2(r2, config)
-    const [attachment] = await sql<{ id: string; workItemId: string; objectKey: string; byteSize: number; sha256: string; status: string }[]>`
-      select id, work_item_id, object_key, byte_size, sha256, status from bike_ops.attachments
+    const storage = requireSupabaseStorage(mediaStorage)
+    const [attachment] = await sql<{ id: string; workItemId: string; objectKey: string; byteSize: number; mimeType: string; sha256: string; status: string }[]>`
+      select id, work_item_id, object_key, byte_size, mime_type, sha256, status from bike_ops.attachments
       where id = ${input.attachmentId} and store_id = ${context.storeId}
     `
     if (!attachment) throw new ApiProblem(404, 'NOT_FOUND', '没有找到待确认图片。')
     if (attachment.status === 'ready') return reply.send({ ok: true, attachmentId: attachment.id })
-    await verifyObject(storage.client, storage.bucket, attachment.objectKey, attachment.byteSize, attachment.sha256)
+    await verifyObject(storage, attachment.objectKey, attachment.byteSize, attachment.mimeType, attachment.sha256)
     const result = await idempotent(sql, request, async (tx) => {
       const businessDate = await businessDateFor(context)
       await tx`update bike_ops.attachments set width = ${input.width}, height = ${input.height}, status = 'ready', ready_at = now() where id = ${attachment.id} and status = 'pending'`
@@ -65,8 +65,8 @@ export async function registerMediaRoutes(app: FastifyInstance, sql: Database, c
       select id, object_key, original_name, mime_type, byte_size, width, height, created_at from bike_ops.attachments
       where store_id = ${context.storeId} and work_item_id = ${workItemId} and status = 'ready' order by created_at
     `
-    const storage = requireR2(r2, config)
-    return { attachments: await Promise.all(rows.map(async (row) => ({ ...row, url: await signDownload(storage.client, storage.bucket, row.objectKey), expiresIn: 300 }))) }
+    const storage = requireSupabaseStorage(mediaStorage)
+    return { attachments: await Promise.all(rows.map(async (row) => ({ ...row, url: await signDownload(storage, row.objectKey), expiresIn: 300 }))) }
   })
 
   app.delete('/api/v1/attachments/:id', { preHandler: guards }, async (request, reply) => {
@@ -81,8 +81,8 @@ export async function registerMediaRoutes(app: FastifyInstance, sql: Database, c
       await writeAudit(tx, { context, action: 'remove-attachment', entityType: 'work-item', entityId: attachment.workItemId, businessDate, summary: '删除业务图片', reversible: false, requestId: request.id })
       return { status: 200, body: { ok: true } }
     })
-    const storage = requireR2(r2, config)
-    await deleteObject(storage.client, storage.bucket, attachment.objectKey).catch((error) => app.log.error({ error, attachmentId: id }, 'R2 cleanup failed; database remains soft-deleted'))
+    const storage = requireSupabaseStorage(mediaStorage)
+    await deleteObject(storage, attachment.objectKey).catch((error) => app.log.error({ error, attachmentId: id }, 'Supabase Storage cleanup failed; database remains soft-deleted'))
     return reply.code(result.status).send(result.body)
   })
 }

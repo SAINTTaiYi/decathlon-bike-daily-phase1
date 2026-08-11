@@ -1,0 +1,24 @@
+{
+  "step": "10b-free-no-card-pivot",
+  "status": "completed",
+  "completedAt": "2026-07-15T11:00:00+08:00",
+  "baselineSha": "64106b6b1f3dab9ea719bb90f31d99b6be68384c",
+  "decision": "Replace the unexecuted Cloudflare Pages + Railway + Supabase + R2 staging plan with EdgeOne Makers Free + Supabase Free + GitHub Free.",
+  "verifiedFacts": {
+    "supabaseOrganization": "sctiyeyjvaezeofhysfq",
+    "supabaseProjectCountBefore": 0,
+    "supabaseNewProjectMonthlyCost": 0,
+    "edgeOneFreePlan": "official pricing currently states $0/month and permanently available",
+    "cloudMutationPerformed": false,
+    "productionAllowed": false
+  },
+  "retiredDependencies": [
+    "Railway API runtime",
+    "Cloudflare Pages Direct Upload",
+    "Cloudflare R2",
+    "RAILWAY_* secrets",
+    "CLOUDFLARE_* secrets",
+    "R2_* secrets"
+  ],
+  "nextStep": "12-edgeone-serverless-runtime"
+}

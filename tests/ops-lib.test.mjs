@@ -1,32 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { isNetworkUnavailable, loadState, redactCommandArgs, run, saveState, waitFor } from '../scripts/ops/lib.mjs'
-
-test('部署 state 缺失时为空，损坏 JSON 必须拒绝而不是当成新环境', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'bike-ops-state-'))
-  const path = join(directory, 'staging.json')
-  try {
-    assert.deepEqual(await loadState(path), {})
-    await writeFile(path, '{broken')
-    await assert.rejects(loadState(path), /STATE_INVALID_JSON/u)
-  } finally {
-    await rm(directory, { recursive: true, force: true })
-  }
-})
-
-test('部署 state 使用原子替换并保持可解析', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'bike-ops-state-'))
-  const path = join(directory, 'staging.json')
-  try {
-    await saveState(path, { environment: 'staging', projectId: 'safe-id' })
-    assert.deepEqual(JSON.parse(await readFile(path, 'utf8')), { environment: 'staging', projectId: 'safe-id' })
-  } finally {
-    await rm(directory, { recursive: true, force: true })
-  }
-})
+import { isNetworkUnavailable, redactCommandArgs, run, waitFor } from '../scripts/ops/lib.mjs'
 
 test('命令日志隐藏敏感 flag 后的参数', () => {
   assert.deepEqual(redactCommandArgs(['db', 'push', '--db-url', 'postgresql://user:secret@example/db']), ['db', 'push', '--db-url', '[REDACTED]'])
@@ -55,4 +29,13 @@ test('waitFor 对明确网络不可达错误不盲目重试', async () => {
     throw error
   }, { attempts: 5, delayMs: 1 }), /NETWORK_UNREACHABLE/u)
   assert.equal(attempts, 1)
+})
+
+test('waitFor 在临时未就绪后返回最终结果', async () => {
+  let attempts = 0
+  const result = await waitFor('deployment', async () => {
+    attempts += 1
+    return attempts === 3 ? { ready: true } : false
+  }, { attempts: 3, delayMs: 1 })
+  assert.deepEqual(result, { ready: true })
 })

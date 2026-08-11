@@ -9,9 +9,10 @@
     "start": "node dist/start.js",
     "test": "node --import tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "predev": "pnpm --filter @bike-ops/contracts build && pnpm --filter @bike-ops/database build",
-    "pretest": "pnpm --filter @bike-ops/contracts build && pnpm --filter @bike-ops/database build",
-    "prebuild": "pnpm --filter @bike-ops/contracts build && pnpm --filter @bike-ops/database build"
+    "predev": "node ../../scripts/generate-build-metadata.mjs && pnpm --filter @bike-ops/contracts build && pnpm --filter @bike-ops/database build",
+    "pretest": "node ../../scripts/generate-build-metadata.mjs && pnpm --filter @bike-ops/contracts build && pnpm --filter @bike-ops/database build",
+    "pretypecheck": "node ../../scripts/generate-build-metadata.mjs",
+    "prebuild": "node ../../scripts/generate-build-metadata.mjs && pnpm --filter @bike-ops/contracts build && pnpm --filter @bike-ops/database build"
   },
   "dependencies": {
     "@bike-ops/contracts": "workspace:*",
@@ -22,12 +23,13 @@
     "@fastify/helmet": "11.1.1",
     "@fastify/rate-limit": "9.1.0",
     "@node-rs/argon2": "2.0.2",
+    "@supabase/supabase-js": "2.110.5",
     "fastify": "4.29.1",
     "zod": "3.24.2"
   },
   "devDependencies": {
+    "@types/node": "22.10.2",
     "tsx": "4.19.2",
-    "typescript": "5.7.3",
-    "@types/node": "22.10.2"
+    "typescript": "5.7.3"
   }
 }

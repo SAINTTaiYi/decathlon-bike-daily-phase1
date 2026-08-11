@@ -4,9 +4,8 @@ dist/
 **/dist/
 coverage/
 .vercel/
-.wrangler/
-.railway/
 .supabase/
+apps/api/src/generated/
 .impeccable/
 .env
 .env.*
@@ -16,3 +15,21 @@ coverage/
 tmp_rcrf_images/
 archive-static-v1/
 data/mock-data.json
+
+# Cloudflare / wrangler local state
+.wrangler/
+.dev.vars
+.d1_*
+
+# Local Cloudflare build artifacts
+dist/worker/
+apps/web/dist/
+# Preview-only source fingerprint; public version remains unchanged.
+preview-manifest.json
+
+# Local CodeGraph index (rebuildable; never commit).
+.codegraph/
+
+# Internal documentation and planning (not for public open source)
+docs/
+plan/

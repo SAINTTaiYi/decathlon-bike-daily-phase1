@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import type { Database } from '@bike-ops/database'
-import { loginSchema, passwordSchema, setupAdminSchema, usernameSchema } from '@bike-ops/contracts'
+import { createUserSchema, loginSchema, passwordSchema, setupAdminSchema, usernameSchema } from '@bike-ops/contracts'
 import { usernameKey } from '@bike-ops/domain'
 import type { AppConfig } from '../config.js'
 import { keyedHash, randomToken, safeEqualHex, sha256 } from '../lib/crypto.js'
@@ -15,6 +15,7 @@ interface LoginUserRow {
   mustChangePassword: boolean
   failedLoginCount: number
   lockedUntil: Date | null
+  isPlatformAdmin: boolean
 }
 
 export async function registerAuthRoutes(app: FastifyInstance, sql: Database, config: AppConfig): Promise<void> {
@@ -47,16 +48,21 @@ export async function registerAuthRoutes(app: FastifyInstance, sql: Database, co
   app.post('/api/v1/auth/login', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (request, reply) => {
     const input = loginSchema.parse(request.body)
     const [user] = await sql<LoginUserRow[]>`
-      select id, display_name, password_hash, must_change_password, failed_login_count, locked_until
+      select id, display_name, password_hash, must_change_password, failed_login_count, locked_until, is_platform_admin
       from bike_ops.users where username_key = ${usernameKey(input.username)} and status = 'active' limit 1
     `
     const genericFailure = { error: 'INVALID_CREDENTIALS', message: '用户名或密码不正确。' }
-    if (!user || (user.lockedUntil && user.lockedUntil.getTime() > Date.now())) return reply.code(401).send(genericFailure)
+    const accountLockActive = user && !user.isPlatformAdmin && user.lockedUntil && user.lockedUntil.getTime() > Date.now()
+    if (!user || accountLockActive) return reply.code(401).send(genericFailure)
     const valid = await verifyPassword(user.passwordHash, input.password, config.PASSWORD_PEPPER)
     if (!valid) {
       await sql`
         update bike_ops.users set failed_login_count = failed_login_count + 1,
-          locked_until = case when failed_login_count + 1 >= 5 then now() + interval '15 minutes' else locked_until end,
+          locked_until = case
+            when is_platform_admin then null
+            when failed_login_count + 1 >= 5 then now() + interval '15 minutes'
+            else locked_until
+          end,
           updated_at = now()
         where id = ${user.id}
       `
@@ -121,12 +127,11 @@ export async function registerAuthRoutes(app: FastifyInstance, sql: Database, co
   app.post('/api/v1/users', { preHandler: [auth.loadSession, auth.requireCsrf, auth.requirePasswordChanged, auth.requireRole('admin')] }, async (request, reply) => {
     if (!request.auth) return
     const context = request.auth
-    const body = request.body as Record<string, unknown>
-    const username = usernameSchema.parse(body.username)
-    const displayName = usernameSchema.parse(body.displayName ?? body.username)
-    const password = passwordSchema.parse(body.password)
-    const role = body.role === 'admin' || body.role === 'manager' ? body.role : 'operator'
-    const passwordHash = await hashPassword(password, config.PASSWORD_PEPPER)
+    const input = createUserSchema.parse(request.body)
+    const username = input.username
+    const displayName = input.displayName ?? input.username
+    const role = input.role
+    const passwordHash = await hashPassword(input.password, config.PASSWORD_PEPPER)
     try {
       const user = await sql.begin(async (tx) => {
         const [created] = await tx<{ id: string }[]>`
@@ -137,7 +142,7 @@ export async function registerAuthRoutes(app: FastifyInstance, sql: Database, co
         await tx`insert into bike_ops.store_members (store_id, user_id, role) values (${context.storeId}, ${created.id}, ${role})`
         return created
       })
-      return reply.code(201).send({ id: user.id, displayName, role, mustChangePassword: true })
+      return reply.code(201).send({ ok: true, user: { id: user.id, username, displayName, role, mustChangePassword: true } })
     } catch (error) {
       if (typeof error === 'object' && error && 'code' in error && error.code === '23505') return reply.code(409).send({ error: 'USERNAME_EXISTS', message: '该用户名已存在。' })
       throw error

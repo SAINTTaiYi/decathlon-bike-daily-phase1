@@ -36,6 +36,14 @@ export async function buildServer(config: AppConfig, sql: Database): Promise<Fas
   await app.register(helmet, { contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'same-site' } })
   await app.register(rateLimit, { max: 300, timeWindow: '1 minute' })
 
+  app.addHook('onSend', async (request, reply, payload) => {
+    if (request.url.startsWith('/api/') || request.url.startsWith('/health/')) {
+      reply.header('Cache-Control', 'no-store, private')
+      reply.header('Pragma', 'no-cache')
+    }
+    return payload
+  })
+
   app.get('/health/live', async () => ({ status: 'ok', version: config.APP_VERSION, gitSha: config.GIT_SHA }))
   app.get('/health/ready', async (_request, reply) => {
     try {
@@ -45,7 +53,7 @@ export async function buildServer(config: AppConfig, sql: Database): Promise<Fas
       return reply.code(503).send({ status: 'not-ready' })
     }
   })
-  app.get('/api/v1/meta/version', async () => ({ appVersion: config.APP_VERSION, apiVersion: '1.0.0', schemaVersion: '202607150001_initial_fullstack', gitSha: config.GIT_SHA, environment: config.APP_ENV }))
+  app.get('/api/v1/meta/version', async () => ({ appVersion: config.APP_VERSION, apiVersion: '1.0.0', schemaVersion: '202607150003_staging_security_indexes', gitSha: config.GIT_SHA, environment: config.APP_ENV }))
 
   await registerAuthRoutes(app, sql, config)
   await registerClosingRoutes(app, sql, config)

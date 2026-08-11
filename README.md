@@ -1,215 +1,282 @@
-# Decathlon Bike Ops · Daily Closing Lookbook
+# Workshop Daily Ops
 
-V5.2.8 是数据库驱动的自行车部门闭店与跨日业务工作台。它保留移动端黑白硬边 product lookbook 视觉，同时以 Fastify API、Supabase PostgreSQL、真实账号、服务端业务规则、审计和私有 R2 附件支撑多设备协作。
+一个为自行车门店设计的日常交接管理系统。移动端优先，帮助门店员工记录销售、维修、待取车辆和交接事项，提供闭店确认流程和业务趋势查看。
 
-> 本项目不接入迪卡侬官方业务 API。门店同事仍人工录入数据，但 PostgreSQL 是正式业务事实源；浏览器只保留运行时会话、最近成功加载的内存快照和可选的旧 v5 显式迁移来源。
+[English](#english) | [中文](#中文)
 
-## V5.2.8 current state
+---
 
-已在代码与本地验证中完成：
+## 中文
 
-- pnpm Monorepo：Web、API、Domain、Contracts、Database。
-- 用户名 + 密码、Argon2id、HttpOnly Session、CSRF、登录限流与首次强制改密。
-- `operator / manager / admin` 角色；闭店和旧数据迁移要求 manager/admin。
-- 服务端业务日期、revision 并发控制、Idempotency-Key 和事务化审计/撤回。
-- 销售、闭店、维修、待取、二手车、其它交接的 `/api/v1/*` 接口。
-- 维修联系方式 AES-256-GCM 加密与 HMAC 指纹。
-- R2 私有图片：短期 PUT/GET 签名 URL、SHA-256/大小校验、软删除。
-- Web 初始同步、写后刷新、窗口聚焦刷新、45 秒轮询、离线只读、Session 过期处理。
-- manager/admin 显式预览并导入旧 v5 本机数据；取货码在浏览器端剥离。
-- Cloudflare Pages + Railway + Supabase + R2 的幂等 ops CLI 和 GitHub Actions。
-- CI 使用固定版本并校验 SHA-256 的 Gitleaks 扫描完整 Git 历史；外部 Actions 固定到完整提交 SHA。
-- Staging/Production 完全隔离；Production 要求 Staging 源码验收、main、固定 SHA/version、审批、显式批准和备份确认。
+### 为什么做这个？
 
-尚未执行：
+门店日常交接的三个痛点：
 
-- 未创建任何真实云资源，未连接云账号，未写入真实 Secret。
-- 未进行真实 Supabase/R2/Railway/Cloudflare 端到端测试或手机 Staging 验收。
-- 未执行 Production apply/release。
+- **纸质记录容易丢失、字迹潦草**
+- **待取车辆经常遗漏通知**
+- **闭店时需要翻查多份记录**
 
-## Product rules
+Workshop 提供移动优先的交互界面，让交接变得清晰、可追溯。
 
-- 销售数据已保存是唯一闭店门槛。
-- 只有 manager/admin 可以完成闭店或重新打开。
-- 未变化的维修、待取、二手车和其它交接自然跨日。
-- 门店产品维修原地完成；付费/质保/免费维修完成后转入待取。
-- 非免费维修须已开付款单或质保单才可取车；免费维修可直接取车。
-- 自提取货码只用于当次请求，不保存、不记录。
-- 完成与取车记录当日标黑，下一服务端业务日从当前台账清理，审计历史保留。
-- 闭店后写操作锁定；查看历史仍可用。
+### 核心功能
 
-完整事实源见 [`PRODUCT.md`](./PRODUCT.md) 与 [`DESIGN.md`](./DESIGN.md)。
+- ✅ **日常业务记录**：销售、维修、待取车辆、交接事项
+- ✅ **闭店确认流程**：逐模块确认，自动提醒待取车
+- ✅ **七天业务趋势**：一屏看清本店业务变化
+- ✅ **移动端优先**：44px 触摸目标，WCAG 2.1 AA 可访问性
+- ✅ **自助密码管理**：首次强制改密，登录失败指数退避
+- ✅ **审计日志**：完整操作历史，支持安全撤回
 
-## Architecture
+### 技术栈
 
-```text
-Browser
-  └─ Cloudflare Pages · Vite 5 + React 18
-       └─ credentials: include + CSRF + Idempotency-Key
-            └─ Railway · Node.js 22 + Fastify + TypeScript
-                 ├─ Supabase PostgreSQL 16
-                 └─ Cloudflare R2 private bucket
-```
+- **前端**：React 18 + Vite 5
+- **后端**：Cloudflare Workers (Edge Runtime)
+- **数据库**：Cloudflare D1 (SQLite)
+- **部署**：Cloudflare Pages (静态资源) + Workers (API)
+- **测试**：Node.js `node:test` 模块（372 测试用例）
 
-运行时版本接口：
+### 在线演示
 
-```text
-GET /health/live
-GET /health/ready
-GET /api/v1/meta/version
-```
+🔗 **[workshop.skin](https://workshop.skin)**
 
-## Repository layout
+（如需试用账号，请通过 Issues 联系项目维护者）
 
-```text
-apps/
-  web/                  Vite + React lookbook UI
-  api/                  Fastify auth/business/media API
-packages/
-  domain/               shared business rules
-  contracts/            Zod request/response contracts
-  database/             PostgreSQL client and migration runner
-supabase/
-  migrations/           explicit SQL schema history
-  seed.sql              no users, passwords, contacts, or business data
-infra/
-  docker/               Railway API Dockerfile
-  state/                non-sensitive resource IDs only
-scripts/ops/            plan/preflight/apply/release/verify automation
-.github/workflows/      CI, bootstrap, staging, production
-tests/                  Web, workflow, ops and version regression tests
-plan/                   execution plan, checkpoints and receipts
-```
+### 项目状态
 
-## Requirements
+- **当前版本**：V5.9.2
+- **测试覆盖**：Domain 7 / Database 10 / Web 262 / API 21 / Worker 67
+- **生产运行**：已在真实门店稳定运行
+- **架构**：Cloudflare Workers + D1（从旧 Supabase/EdgeOne 架构迁移而来）
 
-- Node.js 22 (`.nvmrc`)
+### 本地开发
+
+#### 环境要求
+
+- Node.js 22+ (见 `.nvmrc`)
 - pnpm 9.15.9
-- PostgreSQL 16 or local Supabase CLI stack
+- Cloudflare 账号（用于 D1 数据库）
 
-If npm, GitHub or cloud endpoints are unreachable from the current network, stop and enable VPN before continuing. The ops/network guard intentionally does not blindly retry a confirmed network-unreachable error.
-
-## Local setup
+#### 快速开始
 
 ```bash
+# 克隆仓库
+git clone https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1.git
+cd decathlon-bike-daily-phase1
+
+# 安装依赖
 corepack enable
 corepack prepare pnpm@9.15.9 --activate
 pnpm install --frozen-lockfile
+
+# 配置环境变量
 cp .env.example .env
+# 编辑 .env，填入你的配置
+
+# 运行开发服务器
+pnpm dev:web    # Web 界面: http://127.0.0.1:5173
+pnpm dev:worker # Worker API (需要先配置 wrangler)
 ```
 
-Start PostgreSQL/Supabase, fill `.env`, then run migrations:
+#### 测试与构建
 
 ```bash
-pnpm --filter @bike-ops/database migrate
+# 运行所有测试
+pnpm test
+
+# 类型检查
+pnpm typecheck
+
+# 构建生产版本
+pnpm build
 ```
 
-Start API and Web in separate terminals:
+### 部署到 Cloudflare
+
+详细部署文档见 [DEPLOYMENT.md](./DEPLOYMENT.md)。
+
+**快速摘要：**
+
+1. 创建 Cloudflare D1 数据库
+2. 配置 Worker 密钥（SESSION_SECRET, CSRF_SECRET 等）
+3. 运行数据库迁移：`wrangler d1 migrations apply <database>`
+4. 部署：`wrangler deploy`
+
+### 安全注意事项
+
+- ✅ PBKDF2-HMAC-SHA-256 密码哈希（100,000 iterations）
+- ✅ HttpOnly Session Cookies
+- ✅ CSRF 保护
+- ✅ 登录失败指数退避（最高 8 秒）
+- ✅ Idempotency-Key 防重复提交
+- ✅ 联系方式 AES-256-GCM 加密
+- ✅ 审计日志完整记录所有操作
+
+**重要：**
+- 永远不要提交 `.env` 文件
+- 所有密钥必须通过 `wrangler secret put` 设置
+- 生产环境必须启用 `COOKIE_SECURE=true`
+
+### 设计理念
+
+项目遵循 **移动优先、高对比度、暖色工作台** 的设计基准：
+
+- **配色**：暖奶白背景 (`#f7f5ef`) + 黑色结构 (`#0c0e0c`) + 信号黄强调 (`#ffc31a`)
+- **字体**：Noto Sans SC Variable（中文）+ Barlow Condensed（操作英文）
+- **布局**：移动端 320-430px 无横滚，桌面端 1024px+ 工作台模式
+- **可访问性**：WCAG 2.1 AA，44px 触摸目标，键盘导航，forced-colors 支持
+
+完整设计规范见 [DESIGN.md](./DESIGN.md)。
+
+### 项目结构
+
+```
+apps/
+  web/          # Vite/React 前端
+  worker/       # Cloudflare Workers 后端
+packages/
+  domain/       # 共享业务逻辑
+  contracts/    # Zod 契约定义
+migrations/
+  d1/           # D1 数据库迁移脚本
+tests/          # 测试套件
+.github/
+  workflows/    # CI/CD 配置
+```
+
+### 功能模块
+
+#### 1. 日常销售与闭店
+
+- 记录当日车辆销售、安全检查、有效评价、二手车交易
+- 保存销售数据后即可闭店
+- 闭店后锁定写操作，但可查看历史
+
+#### 2. 维修管理
+
+- 维修类型：质保、付费、免费、门店产品维修
+- 状态跟踪：维修中、等待配件、已开单、维修完成
+- 维修完成后自动转入待取队列（门店产品维修除外）
+- 联系方式加密存储
+
+#### 3. 待取车辆
+
+- 来源：自提订单（天猫/京东/小程序）、维修车辆、顾客暂存
+- 取货码验证（仅用于当次请求，不落库）
+- 通知状态管理（等待确认/已通知）
+- 确认取车后自动清理
+
+#### 4. 二手车管理
+
+- 待上架 → 维修完毕 → 已上架在册 → 已售出
+- 完整生命周期跟踪
+
+#### 5. 其它交接事项
+
+- 自由文本记录
+- 完成后自动清理
+
+#### 6. 审计与撤回
+
+- 每个操作生成审计记录
+- 支持安全撤回（最近一次可逆操作）
+- 按日期、模块、操作者筛选
+
+### 用户角色
+
+- **operator**：查看数据，执行日常操作
+- **manager**：包含 operator 权限 + 闭店/重开 + 数据导入
+- **admin**：包含 manager 权限 + 审批调店申请
+- **platform_admin**：维护门店目录，审批所有角色提权（仅限初始化时创建）
+
+### 贡献指南
+
+欢迎提交 Issue 和 Pull Request！
+
+**提交 PR 前请确保：**
+
+1. 所有测试通过：`pnpm test`
+2. 类型检查通过：`pnpm typecheck`
+3. 代码符合项目设计规范（见 `DESIGN.md`）
+4. 提交信息清晰（推荐使用 Conventional Commits）
+
+### 路线图
+
+- [ ] 多语言支持（当前仅支持简体中文）
+- [ ] 导出报表功能
+- [ ] 桌面端原生应用（Tauri）
+- [ ] 移动端 PWA 离线支持增强
+- [ ] 更多数据可视化图表
+
+### 许可证
+
+[MIT License](./LICENSE)
+
+### 致谢
+
+- Cloudflare Workers/D1 提供边缘计算与数据库
+- React 生态提供前端框架
+- Iconoir 提供图标库
+
+---
+
+## English
+
+### Why This Project?
+
+Three pain points in daily bike shop handover:
+
+- **Paper records get lost, handwriting is unclear**
+- **Pending pickups are often forgotten**
+- **Closing requires checking multiple sources**
+
+Workshop provides a mobile-first interface to make handovers clear and traceable.
+
+### Core Features
+
+- ✅ **Daily Operations**: Sales, repairs, pending pickups, handover items
+- ✅ **Closing Workflow**: Module-by-module confirmation with pickup reminders
+- ✅ **7-Day Trends**: Business overview at a glance
+- ✅ **Mobile-First**: 44px touch targets, WCAG 2.1 AA accessibility
+- ✅ **Self-Service Password**: Forced password change on first login, exponential backoff
+- ✅ **Audit Logs**: Complete operation history with safe undo
+
+### Tech Stack
+
+- **Frontend**: React 18 + Vite 5
+- **Backend**: Cloudflare Workers (Edge Runtime)
+- **Database**: Cloudflare D1 (SQLite)
+- **Deployment**: Cloudflare Pages (static) + Workers (API)
+- **Testing**: Node.js `node:test` (372 test cases)
+
+### Live Demo
+
+🔗 **[workshop.skin](https://workshop.skin)**
+
+(Contact maintainers via Issues for demo accounts)
+
+### Project Status
+
+- **Version**: V5.9.2
+- **Test Coverage**: Domain 7 / Database 10 / Web 262 / API 21 / Worker 67
+- **Production**: Running stably in real stores
+- **Architecture**: Cloudflare Workers + D1 (migrated from Supabase/EdgeOne)
+
+### Local Development
+
+See Chinese section above for detailed setup instructions.
+
+Quick start:
 
 ```bash
-pnpm dev:api
+git clone https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1.git
+cd decathlon-bike-daily-phase1
+corepack enable && corepack prepare pnpm@9.15.9 --activate
+pnpm install --frozen-lockfile
+cp .env.example .env  # Configure your environment
 pnpm dev:web
 ```
 
-- Web: `http://127.0.0.1:5173`
-- API: `http://127.0.0.1:8787`
-- Local Supabase PostgreSQL default: `127.0.0.1:54322`
+### License
 
-The seed contains no account. For local first-run, set `ADMIN_SETUP_TOKEN_HASH` to the SHA-256 of a temporary token, then open:
+[MIT License](./LICENSE)
 
-```text
-http://127.0.0.1:5173/#setup=<temporary-token>
-```
-
-After creating the first administrator, rotate the Environment Secret to a new unrecoverable value and re-apply. The current bootstrap preflight still requires this variable; the database user count independently prevents a second setup.
-
-## Environment variables
-
-See [`.env.example`](./.env.example). Important boundaries:
-
-- `VITE_*` may reach the browser.
-- Database URLs, password pepper, Session/CSRF secrets, contact encryption key and R2 credentials are API-only.
-- `DATABASE_URL` is the runtime transaction-pooler URL.
-- `DIRECT_DATABASE_URL` is the direct PostgreSQL URL used by migrations.
-- Production CORS origins must be explicit; `*` is rejected.
-
-## Verification
-
-```bash
-pnpm check:workflows
-pnpm test
-pnpm typecheck
-pnpm build
-```
-
-The root test command runs Domain, Database, Web/Ops and API suites. The build command first enforces version consistency and the source/deployment fingerprint, then builds all packages.
-
-Database schema smoke test can also be run against PostgreSQL 16 using the same steps in `.github/workflows/ci.yml`.
-
-## Version governance
-
-Current version: **V5.2.8**.
-
-Version truth must match across:
-
-- root `package.json`
-- `apps/web/package.json`
-- `apps/web/src/data/releaseNotes.js`
-- `version-manifest.json`
-
-For the next product change:
-
-```bash
-pnpm version:patch -- \
-  --title "更新标题" \
-  --summary "更新摘要" \
-  --change "更新项一" \
-  --change "更新项二"
-
-# complete code and documentation changes first
-pnpm version:stamp
-pnpm build
-```
-
-The fingerprint includes source code, tests, migrations, deployment workflows, infrastructure configuration and product/design documentation; generated `dist`, dependencies, runtime state and execution receipts are excluded.
-
-## Deployment commands
-
-All commands are environment-explicit and fail closed:
-
-```bash
-pnpm ops plan staging
-pnpm ops preflight staging
-pnpm ops apply staging
-pnpm ops verify staging
-
-pnpm ops plan production
-pnpm ops apply production --approve-production
-pnpm ops release production --approve-production --confirm-backup
-pnpm ops verify production
-```
-
-Never run Production before Staging acceptance. Cloud bootstrap requires environment-scoped GitHub Secrets; real tokens must not be committed or pasted into ordinary project files.
-
-Detailed automation and current limitations are in [`AUTOMATED-DEPLOYMENT.md`](./AUTOMATED-DEPLOYMENT.md) and [`deploy-summary.md`](./deploy-summary.md).
-
-## Security notes
-
-- Do not commit `.env`, database passwords, PAT/API tokens, Session/CSRF secrets, contact encryption keys or R2 S3 keys.
-- `infra/state/*.json` may contain only non-sensitive resource IDs, names, domains, phase and release SHA.
-- Production data must never be copied into Staging.
-- Do not treat a successful static build as cloud or disaster-recovery validation.
-- R2 keys must be bucket-scoped and environment-specific.
-
-## Staging acceptance still required
-
-Before any Production action, validate on real Staging:
-
-- first admin setup, login, forced password change and role boundaries
-- CRUD, repair routing, pickup rules, closing/reopen and audit undo
-- revision conflict with two users/devices
-- R2 upload, display and deletion
-- old v5 migration preview/import and idempotency
-- offline read-only and Session expiry
-- Android/iPhone, keyboard, screen reader, 200% zoom and reduced motion
-- backup/recovery-point availability and rollback procedure

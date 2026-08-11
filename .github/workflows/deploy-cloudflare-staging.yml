@@ -92,6 +92,8 @@ jobs:
         run: node scripts/ops/network-guard.mjs npm/pnpm corepack prepare pnpm@9.15.9 --activate
       - name: Install frozen dependencies
         run: node scripts/ops/network-guard.mjs npm/pnpm pnpm install --frozen-lockfile
+      - name: Record Preview source fingerprint without changing public version
+        run: pnpm version:preview
       - name: Validate, test, typecheck, and build before Cloudflare deployment
         run: pnpm check:workflows && pnpm test && pnpm typecheck && pnpm build
       - name: Generate minified Worker bundle from the validated source
@@ -115,7 +117,7 @@ jobs:
               "directory": "apps/web/dist",
               "not_found_handling": "single-page-application",
               "binding": "ASSETS",
-              "run_worker_first": ["/api/*", "/health/*"]
+              "run_worker_first": true
             },
             "d1_databases": [
               {
@@ -130,7 +132,7 @@ jobs:
               "APP_VERSION": "__APP_VERSION__",
               "COOKIE_SECURE": "true",
               "SESSION_TTL_HOURS": "12",
-              "CORS_ALLOWED_ORIGINS": "__STAGING_BASE_URL__",
+              "CORS_ALLOWED_ORIGINS": "__CORS_ALLOWED_ORIGINS__",
               "GIT_SHA": "__RELEASE_SHA__"
             }
           }
@@ -140,12 +142,21 @@ jobs:
             const pkg=require('./package.json');
             const p='wrangler.deploy.jsonc';
             let t=fs.readFileSync(p,'utf8');
+            const base = process.env.STAGING_BASE_URL;
+            const cors = Array.from(new Set([
+              base,
+              'https://workshop.skin',
+              'https://www.workshop.skin',
+              'https://bike-ops-staging.geeklightonefish.workers.dev'
+            ].filter(Boolean))).join(',');
             t=t
               .replace('__APP_VERSION__', pkg.version)
               .replace('__RELEASE_SHA__', process.env.RELEASE_SHA)
-              .replace('__STAGING_BASE_URL__', process.env.STAGING_BASE_URL);
+              .replace('__CORS_ALLOWED_ORIGINS__', cors);
             fs.writeFileSync(p,t);
           "
+      - name: Apply Staging D1 migrations
+        run: wrangler d1 migrations apply bike-ops-staging --remote --config wrangler.deploy.jsonc
       - name: Deploy the Staging Worker with Static Assets and D1
         run: wrangler deploy --config wrangler.deploy.jsonc
       - name: Verify the deployed Staging API, release identity, and Web shell
@@ -153,12 +164,29 @@ jobs:
           set -euo pipefail
           BASE="$STAGING_BASE_URL"
           APP_VERSION="$(node -p "require('./package.json').version")"
-          curl -fsS "$BASE/health/live" | tee /tmp/live.json
-          curl -fsS "$BASE/health/ready" | tee /tmp/ready.json
-          curl -fsS "$BASE/api/v1/meta/version" | tee /tmp/meta.json
-          curl -fsS "$BASE/" | tee /tmp/index.html >/dev/null
-          grep -q '"status":"ok"' /tmp/live.json
-          grep -q '"status":"ready"' /tmp/ready.json
-          grep -Fq "\"appVersion\":\"$APP_VERSION\"" /tmp/meta.json
-          grep -Fq "\"gitSha\":\"$RELEASE_SHA\"" /tmp/meta.json
-          grep -qi '<!doctype html' /tmp/index.html
+          for attempt in $(seq 1 24); do
+            curl -fsS "$BASE/health/live" | tee /tmp/live.json >/dev/null
+            curl -fsS "$BASE/health/ready" | tee /tmp/ready.json >/dev/null
+            curl -fsS "$BASE/api/v1/meta/version" | tee /tmp/meta.json >/dev/null
+            curl -fsS "$BASE/" | tee /tmp/index.html >/dev/null
+            if grep -q '"status":"ok"' /tmp/live.json \
+              && grep -q '"status":"ready"' /tmp/ready.json \
+              && grep -Fq "\"appVersion\":\"$APP_VERSION\"" /tmp/meta.json \
+              && grep -Fq "\"gitSha\":\"$RELEASE_SHA\"" /tmp/meta.json \
+              && grep -Fq "\"version\":\"$APP_VERSION\"" /tmp/live.json \
+              && grep -Fq "\"version\":\"$APP_VERSION\"" /tmp/ready.json \
+              && grep -qi '<!doctype html' /tmp/index.html; then
+              echo "Staging identity matched on attempt $attempt"
+              cat /tmp/live.json; echo
+              cat /tmp/ready.json; echo
+              cat /tmp/meta.json; echo
+              exit 0
+            fi
+            echo "attempt $attempt: waiting for Staging identity to converge"
+            cat /tmp/live.json; echo
+            cat /tmp/ready.json; echo
+            cat /tmp/meta.json; echo
+            sleep 5
+          done
+          echo "::error::Staging identity did not converge to $APP_VERSION / $RELEASE_SHA"
+          exit 1

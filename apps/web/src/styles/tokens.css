@@ -1,30 +1,22 @@
-@font-face {
-  font-family: 'Albert Sans Local';
-  src: url('/fonts/albert-sans-variable.woff2') format('woff2');
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: block;
-}
-
 :root {
   color-scheme: light;
-  --ink: #08080a;
-  --ink-soft: #272729;
-  --paper: #f4f5f0;
-  --paper-cool: #e7e9de;
-  --surface: #fbfbfa;
-  --surface-raised: #ffffff;
-  --line: #c9cbc3;
-  --line-strong: #8b8d86;
-  --muted: #62625e;
-  --accent: #075dff;
-  --critical: #b53b18;
+  --ink: #0c0e0c;
+  --ink-soft: #33342f;
+  --paper: #f7f5ef;
+  --paper-cool: #f0ede4;
+  --surface: #fffdf8;
+  --surface-raised: #fffdf8;
+  --line: #dedbd2;
+  --line-strong: #b9b5aa;
+  --muted: #55554f;
+  --accent: #ffc31a;
+  --critical: #c63b2e;
   --success: #17613c;
-  --font-body: 'Albert Sans Local', 'Noto Serif SC Variable';
-  --font-display: 'Albert Sans Local', 'Noto Serif SC Variable';
-  --font-mono: 'Albert Sans Local', 'Noto Serif SC Variable';
-  --shadow-tight: 0 10px 28px rgb(8 8 10 / .055);
-  --shadow-panel: 0 28px 72px rgb(8 8 10 / .075);
+  --font-body: 'Noto Sans SC Variable';
+  --font-display: 'Barlow Condensed Ops', 'Noto Sans SC Variable';
+  --font-mono: 'Barlow Condensed Ops', 'Noto Sans SC Variable';
+  --shadow-tight: 0 5px 18px rgb(64 55 34 / .055);
+  --shadow-panel: 0 18px 54px rgb(39 34 24 / .12);
   --ease-out: cubic-bezier(.16, 1, .3, 1);
   --page-pad: .75rem;
   --section-air: clamp(4.5rem, 9svh, 6.75rem);

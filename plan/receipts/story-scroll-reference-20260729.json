@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "captured_at": "2026-07-29T12:28:37Z",
+  "requested_reference": "https://21st.dev/community/components/s/scroll-area?qt=horizontal-scroll%2Cinfinite-scroll%2Cscroll%2Cscroll-area%2Cscroll-effect%2Cscroll-trigger&preview=%2F%40boudjadjasamira%2Fcomponents%2Fstory-scroll",
+  "author": "boudjadjasamira",
+  "component": "story-scroll",
+  "registry_url": "https://21st.dev/r/boudjadjasamira/story-scroll",
+  "registry_result": {
+    "status": 403,
+    "content_type": "application/json",
+    "body_prefix": "{\"error\":\"Authentication required\"}"
+  },
+  "immutable_render_snapshot": {
+    "repository": "wundercorp/awesome-components",
+    "commit": "87e9f787c81ce3fc9c73d37f890fb3e8d2d19ef6",
+    "prompt_blob": "c2db07c82debff01bcb7c0e0ad5414ccdc33c2f4",
+    "rendered_html_blob": "cce29a4ee49c22c2a1d5b5710a388aa03619f9bc"
+  },
+  "installed_public_source": {
+    "repository": "nitp-website/coding-club-official-website",
+    "commit": "281c726feea542216fd6c0e5a4aed91b8cefe0e7",
+    "path": "components/ui/story-scroll.tsx",
+    "blob": "efda354222b82334c3665aa7f468741a57dc2731"
+  },
+  "adopted_behavior": [
+    "later sections rotate from 30 degrees to 0 around the bottom-left origin",
+    "rotation progress is scrubbed directly from document scroll position",
+    "preceding sections pin with pinSpacing false",
+    "reverse scrolling reverses the same progress without a direction-specific gesture handler"
+  ],
+  "project_adaptation": {
+    "implementation": "apps/web/src/hooks/useStoryScroll.js",
+    "design_source_of_truth": "DESIGN.md",
+    "assets_copied": false,
+    "visual_copy_copied": false,
+    "business_content_copied": false,
+    "note": "The reference supplied behavior and verification parameters. The Workshop implementation uses existing project components, tokens, navigation, accessibility and GSAP dependency. No upstream license metadata was asserted or imported."
+  }
+}

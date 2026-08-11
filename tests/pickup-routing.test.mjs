@@ -3,10 +3,13 @@ import assert from 'node:assert/strict'
 import { buildRepairCompletion } from '../apps/web/src/data/repairRecord.js'
 import {
   buildPickupNotificationUpdate,
+  decodePickupContact,
+  encodePickupContactMeta,
   inferPickupNotificationStatus,
   inferPickupSource,
   normalizePickupNotificationRecord,
   normalizePickupValues,
+  pickupResultLabel,
   pickupSourceLabel,
   validatePickup
 } from '../apps/web/src/data/pickupRecord.js'
@@ -32,55 +35,59 @@ test('门店产品维修完毕后原地完成并写入跨日清理字段', () =>
   assert.equal(result.record.completedAt, at)
 })
 
-test('付费、质保和免费维修完毕后携带维修字段转入待取', () => {
+test('五种完成前状态一一映射为带开单语义的维修完成状态', () => {
   const cases = [
-    ['付费', '已开付款单'],
-    ['质保', '已开质保单'],
-    ['免费', '维修中']
+    ['付费', '已开付款单', '维修完成-已开付款单'],
+    ['付费', '已开维修单', '维修完成-已开维修单'],
+    ['质保', '已开质保维修单', '维修完成-已开质保维修单'],
+    ['质保', '已开质保付款单-请过机', '维修完成-已开质保付款单-请过机'],
+    ['免费', '快速服务免费', '维修完成-快速服务免费']
   ]
-  for (const [repairType, status] of cases) {
+  for (const [repairType, status, completedStatus] of cases) {
     const original = { ...baseRepair, repairType, contactType: 'phone', contactValue: '0', pickupDate: '2026-07-18', status }
     const result = buildRepairCompletion(original, '2026-07-12', at)
     assert.equal(result.ok, true)
     assert.equal(result.route, 'pickup')
+    assert.equal(result.previousStatus, status)
     assert.equal(result.record.scene, 'pickup')
     assert.equal(result.record.pickupSource, 'repair')
-    assert.equal(result.record.contactValue, '0')
-    assert.equal(result.record.repairType, repairType)
-    assert.equal(result.record.status, status)
-    assert.equal(result.record.pickupDate, '2026-07-18')
+    assert.equal(result.record.status, completedStatus)
   }
 })
 
-test('缺少维修类型时禁止执行维修完毕', () => {
+test('缺少维修类型或未选择五种开单状态时禁止维修完毕', () => {
   assert.deepEqual(buildRepairCompletion(baseRepair, '2026-07-12', at), { ok: false, error: '请先编辑并补齐维修类型，再执行维修完毕。' })
+  const blocked = buildRepairCompletion({ ...baseRepair, repairType: '付费', status: '维修中' }, '2026-07-12', at)
+  assert.equal(blocked.ok, false)
+  assert.match(blocked.error, /请先将当前状态选择为.*已开付款单.*快速服务免费/u)
 })
 
-test('非免费维修车辆只有已开付款单或已开质保单时允许取车', () => {
+test('维修完成取车严格按五状态放行，并返回质保过机非阻断提醒', () => {
   const repairPickup = { scene: 'pickup', pickupSource: 'repair', title: '维修车', repairType: '付费' }
-  for (const status of ['维修中', '等待配件']) {
-    const result = validatePickup({ ...repairPickup, status })
-    assert.equal(result.ok, false)
-    assert.match(result.error, /非免费维修.*已开付款单.*已开质保单/)
-  }
-  assert.deepEqual(validatePickup({ ...repairPickup, status: '已开付款单' }), { ok: true, pickupSource: 'repair' })
-  assert.deepEqual(validatePickup({ ...repairPickup, repairType: '质保', status: '已开质保单' }), { ok: true, pickupSource: 'repair' })
-})
+  assert.deepEqual(validatePickup({ ...repairPickup, status: '维修完成-已开付款单' }), { ok: true, pickupSource: 'repair' })
+  assert.deepEqual(validatePickup({ ...repairPickup, status: '维修完成-快速服务免费' }), { ok: true, pickupSource: 'repair' })
+  assert.deepEqual(validatePickup({ ...repairPickup, repairType: '质保', status: '维修完成-已开质保付款单-请过机' }), {
+    ok: true,
+    pickupSource: 'repair',
+    warning: '请确保顾客已过机核验。'
+  })
 
-test('免费维修完成后无需变更当前状态即可直接取车', () => {
-  const freeRepairPickup = { scene: 'pickup', pickupSource: 'repair', title: '免费维修车', repairType: '免费' }
-  for (const status of ['维修中', '等待配件', '已开付款单', '已开质保单']) {
-    assert.deepEqual(validatePickup({ ...freeRepairPickup, status }), { ok: true, pickupSource: 'repair' })
-  }
+  const paymentBlocked = validatePickup({ ...repairPickup, status: '维修完成-已开维修单' })
+  assert.equal(paymentBlocked.ok, false)
+  assert.match(paymentBlocked.error, /变更为“维修完成-已开付款单”/u)
+
+  const warrantyBlocked = validatePickup({ ...repairPickup, repairType: '质保', status: '维修完成-已开质保维修单' })
+  assert.equal(warrantyBlocked.ok, false)
+  assert.match(warrantyBlocked.error, /变更为“维修完成-已开质保付款单-请过机”/u)
 })
 
 test('待取通知状态可由等待确认切换为已通知且不改变维修状态', () => {
-  const record = { id: 'repair-notice', scene: 'pickup', pickupSource: 'repair', repairType: '免费', status: '维修中', notificationStatus: 'pending' }
+  const record = { id: 'repair-notice', scene: 'pickup', pickupSource: 'repair', repairType: '免费', status: '维修完成-快速服务免费', notificationStatus: 'pending' }
   const result = buildPickupNotificationUpdate(record, 'notified', at)
   assert.equal(result.ok, true)
   assert.equal(result.record.notificationStatus, 'notified')
   assert.equal(result.record.notifiedAt, at)
-  assert.equal(result.record.status, '维修中')
+  assert.equal(result.record.status, '维修完成-快速服务免费')
   assert.equal(inferPickupNotificationStatus(result.record), 'notified')
 })
 
@@ -96,7 +103,7 @@ test('旧待取通知文案迁移到独立通知状态并恢复维修业务状�
   }
   const normalized = normalizePickupNotificationRecord(legacy)
   assert.equal(normalized.notificationStatus, 'notified')
-  assert.equal(normalized.status, '已开付款单')
+  assert.equal(normalized.status, '维修完成-已开付款单')
   assert.equal(normalized.detail, '车辆已调试完成')
 })
 
@@ -120,36 +127,70 @@ test('顾客暂存无需附加校验，可直接取车', () => {
   assert.equal(pickupSourceLabel(storage), '顾客暂存')
 })
 
-test('手动新增待取仅允许自提订单或顾客暂存，取货码不写入台账', () => {
-  const base = { title: '订单车辆', detail: '顾客今日到店', meta: 'ORDER-01', status: '等待取车' }
+test('二手车待取无需取货码或暂存说明，并显示二手车来源', () => {
+  const usedCar = { scene: 'pickup', pickupSource: 'used-car', resaleStage: 'sold' }
+  assert.deepEqual(validatePickup(usedCar), { ok: true, pickupSource: 'used-car' })
+  assert.equal(pickupSourceLabel(usedCar), '二手车')
+  assert.equal(inferPickupSource({ scene: 'pickup', resaleStage: 'sold' }), 'used-car')
+})
+
+test('手动新增待取仅允许自提订单、顾客暂存或二手车；联系方式可空并写入台账', () => {
+  const base = { title: '订单车辆', detail: '顾客今日到店', contactType: 'phone', contactValue: '18172049175', status: '等待取车' }
   assert.equal(normalizePickupValues({ ...base, pickupSource: 'repair' }).ok, false)
+  // 联系方式可空
+  const emptyContact = normalizePickupValues({ ...base, pickupSource: 'self-pickup', selfPickupPlatform: 'tmall', contactValue: '' })
+  assert.equal(emptyContact.ok, true)
+  assert.equal(emptyContact.fields.meta, '')
+  assert.equal(emptyContact.fields.contactValue, '')
   const order = normalizePickupValues({ ...base, pickupSource: 'self-pickup', selfPickupPlatform: 'tmall' })
   assert.equal(order.ok, true)
+  assert.equal(order.fields.meta, '18172049175')
+  assert.equal(order.fields.contactValue, '18172049175')
+  assert.equal(order.fields.contactType, 'phone')
   assert.equal('pickupCode' in order.fields, false)
   const storage = normalizePickupValues({ ...base, pickupSource: 'customer-storage' })
   assert.equal(storage.ok, true)
+  assert.equal(storage.fields.meta, '18172049175')
+  assert.equal(storage.fields.contactValue, '18172049175')
   assert.equal('pickupCode' in storage.fields, false)
+  const member = normalizePickupValues({ ...base, pickupSource: 'customer-storage', contactType: 'member', contactValue: 'M-9' })
+  assert.equal(member.ok, true)
+  assert.equal(member.fields.meta, '会员号：M-9')
+  assert.equal(member.fields.contactType, 'member')
+  const usedCar = normalizePickupValues({ ...base, pickupSource: 'used-car', detail: '', contactValue: '' })
+  assert.equal(usedCar.ok, true)
+  assert.equal(usedCar.fields.pickupSource, 'used-car')
+  assert.equal(usedCar.fields.detail, '')
+  assert.equal(usedCar.fields.selfPickupPlatform, '')
 })
 
-test('自提订单必须选择天猫、京东或小程序且不保存取车说明', () => {
-  const base = { title: '订单车辆', detail: '这段说明不应保存', meta: 'ORDER-02', status: '等待顾客取车', pickupSource: 'self-pickup' }
+test('自提订单必须选择天猫、京东或小程序；联系方式可空且不保存取车说明', () => {
+  const base = { title: '订单车辆', detail: '这段说明不应保存', contactType: 'phone', contactValue: '18172049175', status: '等待顾客取车', pickupSource: 'self-pickup' }
   assert.equal(normalizePickupValues(base).ok, false)
+  assert.equal(normalizePickupValues({ ...base, selfPickupPlatform: 'tmall', contactValue: '' }).ok, true)
   for (const selfPickupPlatform of ['tmall', 'jd', 'mini-program']) {
     const result = normalizePickupValues({ ...base, selfPickupPlatform })
     assert.equal(result.ok, true)
     assert.equal(result.fields.selfPickupPlatform, selfPickupPlatform)
     assert.equal(result.fields.detail, '')
+    assert.equal(result.fields.meta, '18172049175')
+    assert.equal(result.fields.contactValue, '18172049175')
   }
   assert.equal(normalizePickupValues({ ...base, selfPickupPlatform: 'taobao' }).ok, false)
 })
 
-test('顾客暂存仍需填写说明且不会保留自提平台', () => {
-  const base = { title: '暂存车辆', meta: '', status: '等待取车', pickupSource: 'customer-storage', selfPickupPlatform: 'jd' }
+test('顾客暂存仍需填写说明；联系方式可空且不会保留自提平台', () => {
+  const base = { title: '暂存车辆', contactType: 'phone', contactValue: '18172049175', status: '等待取车', pickupSource: 'customer-storage', selfPickupPlatform: 'tmall' }
   assert.equal(normalizePickupValues({ ...base, detail: '' }).ok, false)
-  const result = normalizePickupValues({ ...base, detail: '顾客稍后回来取车' })
+  const emptyContact = normalizePickupValues({ ...base, detail: '暂存说明', contactValue: '' })
+  assert.equal(emptyContact.ok, true)
+  assert.equal(emptyContact.fields.meta, '')
+  const result = normalizePickupValues({ ...base, detail: '暂存说明' })
   assert.equal(result.ok, true)
-  assert.equal(result.fields.detail, '顾客稍后回来取车')
+  assert.equal(result.fields.detail, '暂存说明')
   assert.equal(result.fields.selfPickupPlatform, '')
+  assert.equal(result.fields.meta, '18172049175')
+  assert.equal(result.fields.contactValue, '18172049175')
 })
 
 test('读取旧记录时剥离遗留取货码且不修改原对象', () => {
@@ -163,4 +204,27 @@ test('旧待取记录按维修痕迹或线上自提标记推断来源', () => {
   assert.equal(inferPickupSource({ detail: '维修完成', status: '维修中' }), 'repair')
   assert.equal(inferPickupSource({ kind: 'online', meta: '线上自提' }), 'self-pickup')
   assert.equal(inferPickupSource({ detail: '顾客临时放店内' }), 'customer-storage')
+})
+
+test('联系方式 meta 编解码兼容空值、手机号与会员号', () => {
+  assert.equal(encodePickupContactMeta('phone', ''), '')
+  assert.equal(encodePickupContactMeta('phone', '18172049175'), '18172049175')
+  assert.equal(encodePickupContactMeta('member', 'M-1'), '会员号：M-1')
+  assert.deepEqual(decodePickupContact({ meta: '' }), { contactType: 'phone', contactValue: '' })
+  assert.deepEqual(decodePickupContact({ meta: '18172049175' }), { contactType: 'phone', contactValue: '18172049175' })
+  assert.deepEqual(decodePickupContact({ meta: '会员号：M-1' }), { contactType: 'member', contactValue: 'M-1' })
+  assert.deepEqual(decodePickupContact({ contactType: 'member', contactValue: 'M-2' }), { contactType: 'member', contactValue: 'M-2' })
+})
+
+
+test('待取列表将维修原始状态映射为统一短文案', () => {
+  const repair = { scene: 'pickup', pickupSource: 'repair', repairType: '付费' }
+  assert.equal(pickupResultLabel({ ...repair, status: '维修完成-已开付款单' }), '维修完成')
+  assert.equal(pickupResultLabel({ ...repair, status: '维修完成-已开维修单' }), '待开付款单')
+  assert.equal(pickupResultLabel({ ...repair, repairType: '质保', status: '维修完成-已开质保维修单' }), '待开质保付款单')
+  assert.equal(pickupResultLabel({ ...repair, repairType: '质保', status: '维修完成-已开质保付款单-请过机' }), '待过机核验')
+  assert.equal(pickupResultLabel({ scene: 'pickup', pickupSource: 'self-pickup', status: '等待顾客取车' }), '等待取车')
+  assert.equal(pickupResultLabel({ scene: 'pickup', pickupSource: 'used-car' }), '车辆已售')
+  assert.equal(pickupResultLabel({ scene: 'pickup', pickupSource: 'customer-storage', status: '等待本人取车' }), '等待本人取车')
+  assert.equal(pickupResultLabel({ scene: 'pickup', pickupSource: 'repair', pickedUpToday: true }), '已取车')
 })

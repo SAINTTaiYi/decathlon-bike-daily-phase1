@@ -57,7 +57,7 @@ export default function AttachmentDialog({ record, onClose, locked, onNotify }) 
   }
 
   return (
-    <AppDialog open={open} onClose={onClose} title={`${record?.title || '业务记录'} · 图片`} eyebrow="PRIVATE MEDIA · 私有附件" description="图片保存在私有 R2 Bucket，通过 5 分钟短时链接上传和查看。每条记录最多 6 张，单张最大 10 MB。" className="data-dialog">
+    <AppDialog open={open} onClose={onClose} title={`${record?.title || '业务记录'} · 图片`} eyebrow="PRIVATE MEDIA · 私有附件" description="图片保存在 Supabase 私有存储；上传签名最长 2 小时，查看链接 5 分钟。每条记录最多 6 张，单张最大 10 MB。" className="data-dialog">
       <label className="attachment-upload" aria-disabled={locked || busy || attachments.length >= 6 ? 'true' : undefined}>
         <span>{busy ? '正在处理…' : attachments.length >= 6 ? '已达到 6 张上限' : '上传 JPEG / PNG / WebP'}</span>
         <input type="file" accept="image/jpeg,image/png,image/webp" onChange={upload} disabled={locked || busy || attachments.length >= 6} />
@@ -73,7 +73,7 @@ export default function AttachmentDialog({ record, onClose, locked, onNotify }) 
             </li>
           ))}
         </ul>
-      ) : <div className="dialog-empty"><strong>还没有业务图片</strong><p>选择图片后会直接上传至私有 R2，不经过前端服务器转存。</p></div>}
+      ) : <div className="dialog-empty"><strong>还没有业务图片</strong><p>选择图片后会使用对象级签名直接上传至 Supabase 私有存储，不经过应用服务器转存。</p></div>}
     </AppDialog>
   )
 }

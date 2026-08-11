@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bike-ops-staging",
+  "main": "apps/worker/src/index.ts",
+  "compatibility_date": "2026-07-17",
+  "compatibility_flags": ["nodejs_compat"],
+  // Every interactive write makes several sequential D1 calls. A Worker runs at the edge
+  // closest to the user, but D1 has a single primary location, so each of those calls pays
+  // the full user-to-primary round trip. Smart Placement lets Cloudflare relocate the Worker
+  // next to D1, turning N cross-region round trips into one. Static assets are unaffected:
+  // they are still served from the edge by the assets binding.
+  "placement": { "mode": "smart" },
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    "directory": "apps/web/dist",
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/health/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bike-ops-staging",
+      "database_id": "91e78387-9b24-4126-a5a1-27f9c1792975",
+      "migrations_dir": "migrations/d1"
+    }
+  ],
+  "vars": {
+    "APP_ENV": "staging",
+    "APP_VERSION": "5.3.4",
+    "COOKIE_SECURE": "true",
+    "SESSION_TTL_HOURS": "12",
+    "CORS_ALLOWED_ORIGINS": "https://bike-ops-staging.geeklightonefish.workers.dev"
+  }
+}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { clearApiSession, setApiSession } from '../api/client.js'
-import { changePasswordAccount, loginAccount, logoutAccount, restoreSession } from '../api/auth.js'
+import { changePasswordAccount, completeRegistration, loginAccount, logoutAccount, restoreSession } from '../api/auth.js'
 
 export default function useAuth() {
   const [state, setState] = useState({ status: 'restoring', source: 'restore', user: null, stores: [], currentStoreId: '', error: '' })
@@ -35,20 +35,39 @@ export default function useAuth() {
     }
   }, [apply])
 
-  const changePassword = useCallback(async (currentPassword, nextPassword) => {
+  const acceptRegistration = useCallback((payload) => {
+    apply(payload, 'registration')
+  }, [apply])
+
+  const finishRegistration = useCallback(async (body) => {
     try {
-      await changePasswordAccount(currentPassword, nextPassword)
-      setState((current) => ({ ...current, user: current.user ? { ...current.user, mustChangePassword: false } : current.user, error: '' }))
+      const payload = await completeRegistration(body)
+      apply(payload, 'registration')
       return { ok: true }
     } catch (error) {
       return { ok: false, error: error.message }
     }
-  }, [])
+  }, [apply])
+
+  const changePassword = useCallback(async (currentPassword, nextPassword, idempotencyKey) => {
+    try {
+      await changePasswordAccount(currentPassword, nextPassword, idempotencyKey)
+      setState((current) => ({ ...current, user: current.user ? { ...current.user, mustChangePassword: false } : current.user, error: '' }))
+      return { ok: true }
+    } catch (error) {
+      if (error?.code === 'PASSWORD_CHANGE_CONFLICT') {
+        const message = '密码已在其它设备更新，请使用新密码重新登录。'
+        clear(message)
+        return { ok: false, error: message }
+      }
+      return { ok: false, error: error?.message || '密码修改失败，请稍后重试。' }
+    }
+  }, [clear])
 
   const logout = useCallback(async () => {
     try { await logoutAccount() } catch { /* the local session still closes */ }
     clear('')
   }, [clear])
 
-  return { ...state, login, changePassword, logout }
+  return { ...state, login, changePassword, logout, acceptRegistration, finishRegistration }
 }

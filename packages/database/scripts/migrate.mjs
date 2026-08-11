@@ -3,8 +3,8 @@ import { readdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import postgres from 'postgres'
 
-const databaseUrl = process.env.DIRECT_DATABASE_URL?.trim()
-if (!databaseUrl) throw new Error('MISSING_SECRET · DIRECT_DATABASE_URL')
+const databaseUrl = process.env.MIGRATION_DATABASE_URL?.trim()
+if (!databaseUrl) throw new Error('MISSING_SECRET · MIGRATION_DATABASE_URL')
 
 const migrationsDirectory = resolve(process.cwd(), '../../supabase/migrations')
 const files = (await readdir(migrationsDirectory)).filter((name) => name.endsWith('.sql')).sort()

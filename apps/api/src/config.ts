@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { BUILD_APP_VERSION, BUILD_GIT_SHA } from './generated/build-metadata.js'
 
 const booleanString = z.enum(['true', 'false']).transform((value) => value === 'true')
 
@@ -7,7 +8,9 @@ const environmentSchema = z.object({
   HOST: z.string().default('0.0.0.0'),
   PORT: z.coerce.number().int().positive().max(65535).default(8787),
   DATABASE_URL: z.string().min(1),
-  DIRECT_DATABASE_URL: z.string().min(1).optional(),
+  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(10).default(1),
+  DATABASE_IDLE_TIMEOUT_SECONDS: z.coerce.number().int().min(1).max(60).default(5),
+  DATABASE_CONNECT_TIMEOUT_SECONDS: z.coerce.number().int().min(1).max(60).default(15),
   SESSION_SECRET: z.string().min(32),
   CSRF_SECRET: z.string().min(32),
   PASSWORD_PEPPER: z.string().min(32),
@@ -18,13 +21,11 @@ const environmentSchema = z.object({
   ADMIN_SETUP_TOKEN_HASH: z.string().regex(/^[a-f0-9]{64}$/u).optional(),
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(12),
   TRUST_PROXY: booleanString.default('true'),
-  APP_VERSION: z.string().default('0.0.0'),
-  GIT_SHA: z.string().default('development'),
-  R2_ACCOUNT_ID: z.string().optional(),
-  R2_BUCKET: z.string().optional(),
-  R2_ACCESS_KEY_ID: z.string().optional(),
-  R2_SECRET_ACCESS_KEY: z.string().optional(),
-  R2_ENDPOINT: z.string().url().optional()
+  APP_VERSION: z.string().default(BUILD_APP_VERSION),
+  GIT_SHA: z.string().default(BUILD_GIT_SHA),
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SECRET_KEY: z.string().min(32).optional(),
+  SUPABASE_STORAGE_BUCKET: z.string().min(3).max(63).regex(/^[a-z0-9][a-z0-9._-]*[a-z0-9]$/u).default('bike-ops-media')
 })
 
 export type AppConfig = z.infer<typeof environmentSchema> & { allowedOrigins: string[] }

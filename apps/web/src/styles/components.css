@@ -102,14 +102,14 @@
 .record-copy small { color: var(--muted); font-family: var(--font-mono); font-size: .7rem; line-height: 1.4; }
 .record-state-line { display: flex; align-items: flex-start; justify-content: flex-end; gap: .45rem; min-height: 44px; padding-top: 0; white-space: nowrap; }
 .record-state-line .record-state { align-self: flex-start; padding-top: .05rem; line-height: 1; }
-.record-facts { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: start; gap: .6rem; margin-top: .15rem; }
-.record-date-row { grid-column: 1 / -1; display: grid; justify-items: end; margin-top: .15rem; }
+.record-facts { grid-column: 1 / -1; display: grid; grid-template-columns: auto auto; justify-content: space-between; align-items: start; column-gap: 1rem; row-gap: .5rem; margin-top: .35rem; width: 100%; }
+.record-date-row { display: none; }
 .record-bottom-row { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: .75rem; margin-top: .8rem; }
 .record-bottom-facts { display: grid; align-self: end; justify-items: start; gap: .5rem; min-width: 0; }
 .record-bottom-row .record-actions { grid-column: auto; align-self: end; padding-top: 0; }
 .contact-callout, .pickup-date-callout { display: grid; align-self: start; gap: .08rem; padding: .25rem .35rem .28rem; border: 2px solid var(--ink); background: var(--surface-raised); color: var(--ink); font-variant-numeric: tabular-nums; }
-.contact-callout { justify-items: start; justify-self: start; min-width: 6.75rem; max-width: 100%; }
-.pickup-date-callout { justify-items: end; justify-self: end; }
+.contact-callout { justify-items: start; justify-self: start; min-width: 6.75rem; max-width: min(100%, 14rem); }
+.pickup-date-callout { justify-items: end; justify-self: end; min-width: 7.5rem; }
 .contact-callout span, .pickup-date-callout span { font-family: var(--font-mono); font-size: .58rem; font-weight: 800; letter-spacing: .025em; }
 .contact-callout strong, .pickup-date-callout strong { max-width: 100%; overflow-wrap: anywhere; font-family: var(--font-display); font-size: .78rem; font-weight: 900; line-height: 1; letter-spacing: .01em; }
 .pickup-date-callout strong { white-space: nowrap; }
@@ -201,6 +201,53 @@
 .dialog-action { display: grid; grid-template-columns: 1.5rem minmax(0,1fr); align-items: center; gap: .75rem; width: 100%; min-height: 4.5rem; padding: .75rem; border: 1px solid var(--line); text-align: left; }
 .dialog-action > span { display: grid; gap: .2rem; }
 .dialog-action small { color: var(--muted); font-size: .8125rem; line-height: 1.35; }
+
+/* 后台分包加载中的占位提示：此时 admin-console.css 尚未到达，
+   所以样式必须在全局，否则提示会以无样式文本闪现。 */
+.admin-console-loading {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 24px;
+  background: var(--ops-page, #f7f5ef);
+  color: var(--ops-text-muted, #55554f);
+  font-size: 14px;
+}
+
+/* 平台管理员待审批角标：宿主是门店工作台头部与菜单弹窗，均为非后台页面，
+   因此规则必须常驻全局样式，不能跟随后台分包延迟加载。 */
+.workshop-pending-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--ops-yellow, #ffc31a);
+  color: var(--ops-black, #0c0e0c);
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px var(--ops-page, #f7f5ef);
+}
+
+.dialog-action-badge {
+  margin-left: auto;
+  min-width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--ops-yellow, #ffc31a);
+  color: var(--ops-black, #0c0e0c);
+  font-size: 12px;
+  font-weight: 700;
+}
 .signed-in-user { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: .5rem; padding: .75rem; border: 1px solid var(--ink); background: var(--ink); color: #fff; }
 .signed-in-user span { color: rgb(255 255 255 / .72); font-family: var(--font-mono); font-size: .7rem; font-weight: 750; }
 .signed-in-user strong { max-width: 14rem; overflow-wrap: anywhere; text-align: right; }
@@ -268,9 +315,6 @@
 .migration-summary div { display: grid; gap: .4rem; padding: .75rem; background: #fff; }
 .migration-summary dt { color: var(--muted); font-size: .75rem; }
 .migration-summary dd { margin: 0; font-family: var(--font-display); font-size: 2rem; font-weight: 900; }
-.closing-confirm-mark { display: grid; justify-items: center; gap: .5rem; padding: 1.25rem; border: 1px solid var(--success); color: var(--success); text-align: center; }
-.closing-confirm-mark strong { font-family: var(--font-display); font-size: 2rem; }
-.closing-confirm-mark span { max-width: 32ch; }
 .dialog-footer { margin-top: .4rem; }
 .hydration-state { display: grid; place-content: center; gap: .35rem; min-height: 100dvh; background: var(--paper); text-align: center; }
 .hydration-state strong { font-family: var(--font-display); font-size: clamp(1.8rem,8vw,3rem); }
@@ -291,3 +335,124 @@
 .initial-setup-panel header p, .initial-setup-panel > small { color: var(--muted); font-size: .78rem; line-height: 1.5; }
 .initial-setup-grid { display: grid; grid-template-columns: .72fr 1.28fr; gap: .8rem; }
 @media (max-width: 420px) { .initial-setup-grid { grid-template-columns: 1fr; } }
+
+
+.role-options {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.role-options legend {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.role-option-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.role-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 0.75rem;
+}
+
+.role-option input {
+  margin: 0;
+}
+
+
+.summary-next-closed {
+  align-items: center;
+  gap: 1rem;
+}
+
+.summary-closed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-left: auto;
+}
+
+.summary-closed-actions .primary-action,
+.summary-closed-actions .secondary-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+@media (max-width: 720px) {
+  .summary-next-closed {
+    flex-wrap: wrap;
+  }
+
+  .summary-closed-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .summary-closed-actions .primary-action,
+  .summary-closed-actions .secondary-action {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
+
+.report-image-preview {
+  display: grid;
+  gap: .75rem;
+  max-height: min(68dvh, 40rem);
+  overflow: auto;
+  padding: .25rem;
+  background: var(--paper-cool);
+  border: 1px solid var(--line);
+}
+
+.report-image-preview-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--paper);
+  -webkit-touch-callout: default;
+  user-select: none;
+}
+
+.report-image-preview-tip {
+  margin: 0;
+  padding: 0 .35rem .35rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+
+/* Instant press feedback for all interactive controls (GSAP/anime also apply transform) */
+button:not(:disabled):active,
+button:not(:disabled)[data-pressed='true'] {
+  transform: scale(.98);
+  opacity: .9;
+  transition: transform 90ms var(--ease-out), opacity 90ms var(--ease-out);
+}
+button:not(:disabled) {
+  transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out), background-color .2s var(--ease-out), color .2s var(--ease-out), border-color .2s var(--ease-out);
+}
+.record-row[data-exiting='true'] {
+  pointer-events: none;
+}
+
+.history-filters { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) auto; gap: .6rem; align-items: end; margin-bottom: .8rem; padding-bottom: .8rem; border-bottom: 1px solid var(--line); }
+.history-filters label { display: grid; gap: .3rem; min-width: 0; }
+.history-filters label > span { color: var(--muted); font-family: var(--font-mono); font-size: .7rem; font-weight: 800; }
+.history-filters input, .history-filters select { min-height: 44px; width: 100%; border: 1px solid var(--ink); border-radius: 0; background: var(--surface-raised); color: var(--ink); padding: .5rem; font: inherit; }
+.history-filters .primary-action { white-space: nowrap; }
+.permanent-history time { width: 5.25rem; }
+.history-load-more { width: 100%; margin-top: .8rem; }
+@media (max-width: 620px) { .history-filters { grid-template-columns: 1fr; } .history-filters .primary-action { width: 100%; } }

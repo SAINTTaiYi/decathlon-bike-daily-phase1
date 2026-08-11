@@ -4,9 +4,13 @@ import IconNotes from '@iconoir/Notes.mjs'
 import IconUndo from '@iconoir/UndoAction.mjs'
 import IconLogOut from '@iconoir/LogOut.mjs'
 import IconUpload from '@iconoir/Upload.mjs'
+import IconUserPlus from '@iconoir/UserPlus.mjs'
+import IconJournal from '@iconoir/Journal.mjs'
+import IconShield from '@iconoir/Shield.mjs'
+import IconKey from '@iconoir/Key.mjs'
 import AppDialog from './AppDialog.jsx'
 
-export default function MenuDialog({ open, onClose, onUndo, canUndo, onCopyReport, onReset, locked, currentUser, currentRole, currentStore, onSwitchUser, hasLocalData, onMigrate }) {
+export default function MenuDialog({ open, onClose, onUndo, canUndo, onCopyReport, onReset, locked, currentUser, currentRole, currentStore, onSwitchUser, onChangePassword, hasLocalData, onMigrate, canGovernance, onGovernance, onOpenPermanentHistory, canAdmin, onAdmin, adminPending = 0 }) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [confirmSwitch, setConfirmSwitch] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -42,8 +46,12 @@ export default function MenuDialog({ open, onClose, onUndo, canUndo, onCopyRepor
         <span>{currentStore} · {currentRole}</span>
         <strong>{currentUser}</strong>
       </div>
+      <button type="button" className="dialog-action" onClick={() => { close(); onChangePassword?.() }} disabled={busy}><IconKey width={20} height={20} aria-hidden="true" /><span><strong>修改密码</strong><small>验证当前密码后更新；其它设备上的登录会话将被撤销。</small></span></button>
       <button type="button" className="dialog-action" onClick={undo} disabled={!canUndo || busy}><IconUndo width={20} height={20} aria-hidden="true" /><span><strong>{busy ? '正在处理…' : '撤回最近操作'}</strong><small>仅恢复当前仍可安全撤回的最近一次数据库操作。</small></span></button>
       <button type="button" className="dialog-action" onClick={onCopyReport} disabled={busy}><IconNotes width={20} height={20} aria-hidden="true" /><span><strong>复制当日报告</strong><small>复制销售数据、闭店状态和今天发生的台账操作。</small></span></button>
+      <button type="button" className="dialog-action" onClick={() => { close(); onOpenPermanentHistory?.() }} disabled={busy}><IconJournal width={20} height={20} aria-hidden="true" /><span><strong>永久操作历史</strong><small>按日期和模块查询数据库审计记录，跨日清理不会删除。</small></span></button>
+      {canGovernance ? <button type="button" className="dialog-action" onClick={() => { close(); onGovernance?.() }} disabled={busy}><IconUserPlus width={20} height={20} aria-hidden="true" /><span><strong>门店与权限治理</strong><small>申请提权或调店；CHU13 与目标门店管理员在此审批。</small></span></button> : null}
+      {canAdmin ? <button type="button" className="dialog-action" onClick={() => { close(); onAdmin?.() }} disabled={busy}><IconShield width={20} height={20} aria-hidden="true" /><span><strong>平台管理后台</strong><small>全国目录、审批队列、用户与平台审计。</small></span>{adminPending > 0 ? <b className="dialog-action-badge">{adminPending > 99 ? '99+' : adminPending}</b> : null}</button> : null}
       {hasLocalData ? <button type="button" className="dialog-action" onClick={() => { close(); onMigrate() }} disabled={busy}><IconUpload width={20} height={20} aria-hidden="true" /><span><strong>迁移旧本机数据</strong><small>显式检查当前浏览器的 v5 台账，并创建管理员导入审核。</small></span></button> : null}
       {confirmReset ? (
         <div className="danger-confirm" role="alert"><strong>确认清空今天的销售数据？</strong><div><button type="button" onClick={() => setConfirmReset(false)} disabled={busy}>保留数据</button><button type="button" className="danger-action" disabled={locked || busy} onClick={reset}>{busy ? '正在清空…' : '清空销售数据'}</button></div></div>
