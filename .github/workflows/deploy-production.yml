@@ -1,4 +1,4 @@
-name: Deploy production · free stack
+name: Deploy Cloudflare production · free stack
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       staging_accepted_sha:
-        description: Exact SHA currently deployed and accepted on Staging
+        description: Exact SHA currently accepted on Cloudflare Staging
         required: true
         type: string
       approve_production:
@@ -21,52 +21,53 @@ on:
         type: boolean
         default: false
       confirm_encrypted_backup:
-        description: Confirm a current encrypted export exists outside Supabase
+        description: Confirm a current encrypted D1 export exists outside Cloudflare
         required: true
         type: boolean
         default: false
       confirm_restore_drill:
-        description: Confirm the encrypted export has passed a restore drill
+        description: Confirm the encrypted export passed a restore drill
         required: true
         type: boolean
         default: false
       confirm_free_plan:
-        description: Confirm Supabase and EdgeOne Production projects are on free plans
+        description: Confirm Workers and D1 remain on the Free plan
         required: true
         type: boolean
         default: false
       confirm_no_billing:
-        description: Confirm paid plans, usage-based billing, and automatic upgrades are disabled
-        required: true
-        type: boolean
-        default: false
-      database_only_bootstrap:
-        description: Apply migrations only before the first EdgeOne Production project import
+        description: Confirm paid plans, usage billing, and automatic upgrades are disabled
         required: true
         type: boolean
         default: false
       confirm_aggregated_preview_announcement:
-        description: Confirm the accepted Preview cycle was aggregated into the formal public update announcement and version bump
+        description: Confirm the accepted Preview cycle was included in the formal release announcement
         required: true
         type: boolean
         default: false
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: deploy-production-free-stack
+  group: deploy-cloudflare-production
   cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
+    if: github.ref == 'refs/heads/main'
     env:
-      MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
-      EDGEONE_SITE_URL: ${{ vars.EDGEONE_SITE_URL }}
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      STAGING_ACCEPTED_SHA: ${{ inputs.staging_accepted_sha }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+      PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+      PRODUCTION_D1_DATABASE_ID: ${{ vars.PRODUCTION_D1_DATABASE_ID }}
     steps:
-      - name: Enforce main and Production approvals
+      - name: Enforce main, Production approvals, Free plan, and release confirmations
         env:
           APPROVE_PRODUCTION: ${{ inputs.approve_production }}
           CONFIRM_ENCRYPTED_BACKUP: ${{ inputs.confirm_encrypted_backup }}
@@ -75,72 +76,163 @@ jobs:
           CONFIRM_NO_BILLING: ${{ inputs.confirm_no_billing }}
           CONFIRM_AGGREGATED_PREVIEW_ANNOUNCEMENT: ${{ inputs.confirm_aggregated_preview_announcement }}
         run: |
-          test "$GITHUB_REF" = refs/heads/main || {
-            echo "::error::Production deployment must be dispatched from main."
-            exit 1
-          }
-          test "$APPROVE_PRODUCTION" = true || { echo "::error::approve_production=true is required."; exit 1; }
-          test "$CONFIRM_ENCRYPTED_BACKUP" = true || { echo "::error::confirm_encrypted_backup=true is required."; exit 1; }
-          test "$CONFIRM_RESTORE_DRILL" = true || { echo "::error::confirm_restore_drill=true is required."; exit 1; }
-          test "$CONFIRM_FREE_PLAN" = true || { echo "::error::confirm_free_plan=true is required."; exit 1; }
-          test "$CONFIRM_NO_BILLING" = true || { echo "::error::confirm_no_billing=true is required."; exit 1; }
-          test "$CONFIRM_AGGREGATED_PREVIEW_ANNOUNCEMENT" = true || { echo "::error::confirm_aggregated_preview_announcement=true is required."; exit 1; }
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main || { echo "::error::Production must be dispatched from main."; exit 1; }
+          test "$APPROVE_PRODUCTION" = true || { echo "::error::approve_production=true required"; exit 1; }
+          test "$CONFIRM_ENCRYPTED_BACKUP" = true || { echo "::error::confirm_encrypted_backup=true required"; exit 1; }
+          test "$CONFIRM_RESTORE_DRILL" = true || { echo "::error::confirm_restore_drill=true required"; exit 1; }
+          test "$CONFIRM_FREE_PLAN" = true || { echo "::error::confirm_free_plan=true required"; exit 1; }
+          test "$CONFIRM_NO_BILLING" = true || { echo "::error::confirm_no_billing=true required"; exit 1; }
+          test "$CONFIRM_AGGREGATED_PREVIEW_ANNOUNCEMENT" = true || { echo "::error::confirm_aggregated_preview_announcement=true required"; exit 1; }
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-      - name: Verify immutable Production identity and accepted Staging source
+      - name: Verify immutable release identity and accepted Staging source
         env:
           EXPECTED_VERSION: ${{ inputs.version }}
-          EXPECTED_SHA: ${{ inputs.release_sha }}
-          STAGING_ACCEPTED_SHA: ${{ inputs.staging_accepted_sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::release_sha must be a full SHA."; exit 1; }
-          [[ "$STAGING_ACCEPTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::staging_accepted_sha must be a full SHA."; exit 1; }
-          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA" || { echo "::error::Checked-out SHA differs from release_sha."; exit 1; }
-          test "$(node -p "require('./package.json').version")" = "$EXPECTED_VERSION" || { echo "::error::Requested version does not match package.json."; exit 1; }
-          node scripts/ops/network-guard.mjs GitHub git fetch --no-tags origin \
-            main:refs/remotes/origin/main \
-            develop:refs/remotes/origin/develop \
-            edgeone-staging:refs/remotes/origin/edgeone-staging
-          test "$(git rev-parse origin/main)" = "$EXPECTED_SHA" || { echo "::error::release_sha is not current remote main."; exit 1; }
-          test "$(git rev-parse origin/edgeone-staging)" = "$STAGING_ACCEPTED_SHA" || { echo "::error::Accepted SHA is not the current EdgeOne Staging deployment."; exit 1; }
-          git merge-base --is-ancestor "$STAGING_ACCEPTED_SHA" "$EXPECTED_SHA" || { echo "::error::Accepted Staging SHA is not an ancestor of Production."; exit 1; }
-          git diff --quiet "$STAGING_ACCEPTED_SHA" "$EXPECTED_SHA" -- . || { echo "::error::Production source differs from accepted Staging source."; exit 1; }
+          set -euo pipefail
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::release_sha must be a full lowercase SHA"; exit 1; }
+          [[ "$STAGING_ACCEPTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::staging_accepted_sha must be a full lowercase SHA"; exit 1; }
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA" || { echo "::error::checkout does not match release_sha"; exit 1; }
+          test "$(node -p "require('./package.json').version")" = "$EXPECTED_VERSION" || { echo "::error::version does not match package.json"; exit 1; }
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA" || { echo "::error::release_sha is not current remote main"; exit 1; }
+          git merge-base --is-ancestor "$STAGING_ACCEPTED_SHA" "$RELEASE_SHA" || { echo "::error::accepted Staging SHA is not an ancestor of Production"; exit 1; }
+          git diff --quiet "$STAGING_ACCEPTED_SHA" "$RELEASE_SHA" -- . || { echo "::error::Production source differs from accepted Staging source"; exit 1; }
+      - name: Verify accepted Cloudflare Staging identity
+        run: |
+          set -euo pipefail
+          test -n "$STAGING_BASE_URL" || { echo "::error::STAGING_BASE_URL is missing"; exit 1; }
+          case "$STAGING_BASE_URL" in https://*) ;; *) echo "::error::STAGING_BASE_URL must use HTTPS"; exit 1 ;; esac
+          curl -fsS "$STAGING_BASE_URL/health/ready" -o /tmp/staging-ready.json
+          curl -fsS "$STAGING_BASE_URL/api/v1/meta/version" -o /tmp/staging-meta.json
+          node - <<'NODE'
+          const fs = require('node:fs')
+          const ready = JSON.parse(fs.readFileSync('/tmp/staging-ready.json', 'utf8'))
+          const meta = JSON.parse(fs.readFileSync('/tmp/staging-meta.json', 'utf8'))
+          if (ready.status !== 'ready') throw new Error('STAGING_NOT_READY')
+          if (meta.environment !== 'staging') throw new Error('STAGING_ENVIRONMENT_MISMATCH')
+          if (meta.gitSha !== process.env.STAGING_ACCEPTED_SHA) throw new Error('STAGING_SHA_MISMATCH')
+          NODE
+      - name: Validate Production Worker and D1 resources must already exist
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN is missing"; exit 1; }
+          test "$CLOUDFLARE_ACCOUNT_ID" = "02cb272ad6a5fd7e157a84061c8c5d42" || { echo "::error::unexpected Cloudflare account id"; exit 1; }
+          test -n "$PRODUCTION_BASE_URL" || { echo "::error::PRODUCTION_BASE_URL is missing"; exit 1; }
+          test -n "$PRODUCTION_D1_DATABASE_ID" || { echo "::error::PRODUCTION_D1_DATABASE_ID is missing"; exit 1; }
+          case "$PRODUCTION_BASE_URL" in https://*) ;; *) echo "::error::PRODUCTION_BASE_URL must use HTTPS"; exit 1 ;; esac
+          node scripts/ops/network-guard.mjs Cloudflare curl -fsS \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts-search?name=bike-ops-production&per_page=100" \
+            -o /tmp/production-worker.json
+          node scripts/ops/network-guard.mjs Cloudflare curl -fsS \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$PRODUCTION_D1_DATABASE_ID" \
+            -o /tmp/production-d1.json
+          node - <<'NODE'
+          const fs = require('node:fs')
+          const worker = JSON.parse(fs.readFileSync('/tmp/production-worker.json', 'utf8'))
+          const database = JSON.parse(fs.readFileSync('/tmp/production-d1.json', 'utf8'))
+          if (!worker.success || !worker.result?.some((item) => item.script_name === 'bike-ops-production')) throw new Error('CLOUDFLARE_RESOURCE_NOT_FOUND · bike-ops-production')
+          if (!database.success || !database.result) throw new Error('CLOUDFLARE_RESOURCE_NOT_FOUND · Production D1')
+          NODE
       - run: corepack enable
       - name: Activate pinned pnpm
         run: node scripts/ops/network-guard.mjs npm/pnpm corepack prepare pnpm@9.15.9 --activate
-      - name: Install dependencies
+      - name: Install frozen dependencies
         run: node scripts/ops/network-guard.mjs npm/pnpm pnpm install --frozen-lockfile
       - name: Verify formal Preview-cycle announcement and public version
         run: pnpm check:version -- --mode production
       - name: Validate, test, typecheck, and build before database mutation
         run: pnpm check:workflows && pnpm test && pnpm typecheck && pnpm build
-      - name: Validate Production migration credential and deployment URL
-        env:
-          DATABASE_ONLY_BOOTSTRAP: ${{ inputs.database_only_bootstrap }}
+      - name: Generate minified Worker bundle from the validated source
         run: |
-          test -n "$MIGRATION_DATABASE_URL" || { echo "::error::MIGRATION_DATABASE_URL is missing."; exit 1; }
-          if [ "$DATABASE_ONLY_BOOTSTRAP" != true ]; then
-            test -n "$EDGEONE_SITE_URL" || { echo "::error::EDGEONE_SITE_URL is missing."; exit 1; }
-            node -e "const u=new URL(process.env.EDGEONE_SITE_URL); if(u.protocol!=='https:') throw new Error('EDGEONE_SITE_URL must use HTTPS')"
-          fi
-      - name: Apply checksum-locked Supabase migrations
-        run: node scripts/ops/network-guard.mjs Supabase pnpm --filter @bike-ops/database migrate
-      - name: Fast-forward the EdgeOne Production deployment branch
-        if: inputs.database_only_bootstrap == false
-        run: node scripts/ops/network-guard.mjs GitHub node scripts/ops/promote-branch.mjs "${{ inputs.release_sha }}" edgeone-production
-      - name: Verify the deployed SHA, environment, API, database, and Web
-        if: inputs.database_only_bootstrap == false
-        run: node scripts/ops/verify-deployment.mjs "$EDGEONE_SITE_URL" "${{ inputs.release_sha }}" production | tee production-deployment-receipt.json
-      - name: Preserve non-sensitive Production deployment receipt
-        if: inputs.database_only_bootstrap == false && always() && hashFiles('production-deployment-receipt.json') != ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: production-free-stack-${{ inputs.release_sha }}
-          path: production-deployment-receipt.json
-          if-no-files-found: error
-          retention-days: 90
+          set -euo pipefail
+          pnpm build:worker-bundle
+          cp dist/worker/index.min.js dist/worker/index.js
+          test -s dist/worker/index.js
+          test -s apps/web/dist/index.html
+      - name: Install pinned Wrangler through the network guard
+        run: node scripts/ops/network-guard.mjs npm/pnpm npm install --global wrangler@4.112.0
+      - name: Prepare the Production Worker, Static Assets, and D1 configuration
+        run: |
+          set -euo pipefail
+          cat > wrangler.production.jsonc <<'JSON'
+          {
+            "name": "bike-ops-production",
+            "main": "dist/worker/index.js",
+            "compatibility_date": "2026-07-17",
+            "compatibility_flags": ["nodejs_compat"],
+            "placement": { "mode": "smart" },
+            "workers_dev": true,
+            "assets": {
+              "directory": "apps/web/dist",
+              "not_found_handling": "single-page-application",
+              "binding": "ASSETS",
+              "run_worker_first": true
+            },
+            "d1_databases": [{
+              "binding": "DB",
+              "database_name": "bike-ops-production",
+              "database_id": "__PRODUCTION_D1_DATABASE_ID__",
+              "migrations_dir": "migrations/d1"
+            }],
+            "vars": {
+              "APP_ENV": "production",
+              "APP_VERSION": "__APP_VERSION__",
+              "COOKIE_SECURE": "true",
+              "SESSION_TTL_HOURS": "12",
+              "CORS_ALLOWED_ORIGINS": "__CORS_ALLOWED_ORIGINS__",
+              "GIT_SHA": "__RELEASE_SHA__"
+            }
+          }
+          JSON
+          node - <<'NODE'
+          const fs = require('node:fs')
+          const pkg = require('./package.json')
+          const path = 'wrangler.production.jsonc'
+          let text = fs.readFileSync(path, 'utf8')
+          const origins = Array.from(new Set([process.env.PRODUCTION_BASE_URL, 'https://www.workshop.skin'].filter(Boolean))).join(',')
+          text = text.replace('__APP_VERSION__', pkg.version)
+            .replace('__RELEASE_SHA__', process.env.RELEASE_SHA)
+            .replace('__PRODUCTION_D1_DATABASE_ID__', process.env.PRODUCTION_D1_DATABASE_ID)
+            .replace('__CORS_ALLOWED_ORIGINS__', origins)
+          fs.writeFileSync(path, text)
+          NODE
+      - name: Apply Production D1 migrations
+        run: wrangler d1 migrations apply bike-ops-production --remote --config wrangler.production.jsonc
+      - name: Deploy the Production Worker with Static Assets and D1
+        run: wrangler deploy --config wrangler.production.jsonc
+      - name: Verify the deployed Production API, release identity, and Web shell
+        run: |
+          set -euo pipefail
+          APP_VERSION="$(node -p "require('./package.json').version")"
+          for attempt in $(seq 1 24); do
+            curl -fsS "$PRODUCTION_BASE_URL/health/live" | tee /tmp/live.json >/dev/null
+            curl -fsS "$PRODUCTION_BASE_URL/health/ready" | tee /tmp/ready.json >/dev/null
+            curl -fsS "$PRODUCTION_BASE_URL/api/v1/meta/version" | tee /tmp/meta.json >/dev/null
+            curl -fsS "$PRODUCTION_BASE_URL/" | tee /tmp/index.html >/dev/null
+            if grep -q '"status":"ok"' /tmp/live.json \
+              && grep -q '"status":"ready"' /tmp/ready.json \
+              && grep -Fq "\"appVersion\":\"$APP_VERSION\"" /tmp/meta.json \
+              && grep -Fq "\"gitSha\":\"$RELEASE_SHA\"" /tmp/meta.json \
+              && grep -Fq "\"environment\":\"production\"" /tmp/meta.json \
+              && grep -qi '<!doctype html' /tmp/index.html; then
+              echo "Production identity matched on attempt $attempt"
+              exit 0
+            fi
+            echo "attempt $attempt: waiting for Production identity to converge"
+            sleep 5
+          done
+          echo "::error::Production identity did not converge to $APP_VERSION / $RELEASE_SHA"
+          exit 1

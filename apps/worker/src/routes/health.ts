@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
+import { SCHEMA_VERSION } from '../schema-version.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
 
@@ -27,7 +28,7 @@ export function healthRoutes() {
     return c.json({
       appVersion: config.APP_VERSION,
       apiVersion: '1.0.0',
-      schemaVersion: '0002_work_item_ticket_numbers',
+      schemaVersion: SCHEMA_VERSION,
       gitSha: config.GIT_SHA,
       environment: config.APP_ENV,
       platform: 'cloudflare-workers-d1'
