@@ -29,3 +29,7 @@ preview-manifest.json
 
 # Local CodeGraph index (rebuildable; never commit).
 .codegraph/
+
+# Internal documentation and planning (not for public open source)
+docs/
+plan/
