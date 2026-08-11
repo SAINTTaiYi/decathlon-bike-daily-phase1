@@ -127,7 +127,8 @@ assert(/PRODUCTION_D1_DATABASE_ID: \$\{\{ vars\.PRODUCTION_D1_DATABASE_ID \}\}/u
 assert(/wrangler d1 migrations apply bike-ops-production/u.test(production), 'production: D1 migrations must run before Worker deployment')
 assert(/pnpm check:version -- --mode production/u.test(production), 'production: formal release version gate is required')
 assert(/git rev-parse origin\/main/u.test(production), 'production: release SHA must equal current remote main')
-assert(/git rev-parse origin\/edgeone-staging/u.test(production) || /Cloudflare staging/u.test(production), 'production: accepted Staging SHA must be checked')
+assert(/git merge-base --is-ancestor/u.test(production), 'production: accepted Staging SHA ancestry must be checked')
+assert(/git diff --quiet "\$STAGING_ACCEPTED_SHA" "\$RELEASE_SHA" -- \./u.test(production), 'production: accepted Staging source must exactly match Production source')
 assert(/wrangler@4\.112\.0/u.test(production), 'production: Wrangler version must be pinned')
 assert(/confirm_encrypted_backup/u.test(production) && /confirm_restore_drill/u.test(production), 'production: backup and restore confirmations are required')
 includesInOrder(production, [
