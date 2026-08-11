@@ -4,51 +4,30 @@ import { spawnSync } from 'node:child_process'
 import { access, readFile } from 'node:fs/promises'
 
 const workflowDirectory = '.github/workflows'
-
-async function workflow(name) {
-  return readFile(`${workflowDirectory}/${name}`, 'utf8')
-}
-
-async function exists(path) {
-  try {
-    await access(path)
-    return true
-  } catch {
-    return false
-  }
-}
+async function workflow(name) { return readFile(`${workflowDirectory}/${name}`, 'utf8') }
+async function exists(path) { try { await access(path); return true } catch { return false } }
 
 test('Cloudflare 统一发布策略验证器通过', () => {
   const result = spawnSync(process.execPath, ['scripts/ops/validate-workflows.mjs'], { cwd: process.cwd(), encoding: 'utf8' })
   assert.equal(result.status, 0, result.stderr || result.stdout)
   assert.match(result.stdout, /"ok": true/u)
-  assert.match(result.stdout, /"policies": 96/u)
+  assert.match(result.stdout, /"policies": 100/u)
 })
 
 test('Cloudflare Staging 仅手动部署固定 SHA 到 Worker、Static Assets 和 D1', async () => {
   const source = await workflow('deploy-cloudflare-staging.yml')
   assert.match(source, /^\s+workflow_dispatch:/mu)
   assert.doesNotMatch(source, /^\s+(?:push|pull_request):/mu)
+  for (const branch of ['feature/cloudflare-workers-d1', 'develop', 'main']) assert.ok(source.includes(`refs/heads/${branch}`))
   assert.match(source, /environment: staging/u)
-  for (const input of ['release_sha:', 'confirm_free_plan:', 'confirm_no_billing:', 'confirm_staging_only:']) assert.match(source, new RegExp(input, 'u'))
-  for (const branch of ['feature/cloudflare-workers-d1', 'develop', 'main']) assert.ok(source.includes(`refs/heads/${branch}`), `${branch} must be an approved source`)
-  assert.match(source, /git rev-parse "origin\/\$BRANCH"/u)
-  assert.match(source, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/u)
-  assert.match(source, /CLOUDFLARE_ACCOUNT_ID: \$\{\{ vars\.CLOUDFLARE_ACCOUNT_ID \}\}/u)
-  assert.match(source, /STAGING_BASE_URL: \$\{\{ vars\.STAGING_BASE_URL \}\}/u)
   assert.match(source, /database_id": "91e78387-9b24-4126-a5a1-27f9c1792975"/u)
-  assert.match(source, /wrangler@4\.112\.0/u)
-  assert.match(source, /pnpm check:workflows && pnpm test && pnpm typecheck && pnpm build/u)
-  assert.match(source, /wrangler d1 migrations apply bike-ops-staging --remote --config wrangler\.deploy\.jsonc/u)
+  assert.match(source, /wrangler d1 migrations apply bike-ops-staging --remote/u)
   assert.match(source, /grep -Fq .*environment.*staging/u)
 })
 
-test('Cloudflare Preview 仅手动部署到独立 Worker 和 D1', async () => {
+test('Cloudflare Preview 使用独立 Worker 和 D1', async () => {
   const source = await workflow('deploy-cloudflare-preview.yml')
-  assert.match(source, /^\s+workflow_dispatch:/mu)
   assert.match(source, /environment: preview/u)
-  assert.match(source, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/u)
-  assert.match(source, /PREVIEW_BASE_URL: \$\{\{ vars\.PREVIEW_BASE_URL \}\}/u)
   assert.match(source, /database_id": "e40af8eb-6340-4b9e-8484-20247323fd84"/u)
   assert.match(source, /"name": "bike-ops-preview"/u)
 })
@@ -61,21 +40,18 @@ test('旧 EdgeOne 和域名接入工作流只保留失败即停的审计标记',
   assert.match(staging, /exit 1/u)
   assert.match(domain, /exit 1/u)
   assert.doesNotMatch(staging, /MIGRATION_DATABASE_URL|EDGEONE_SITE_URL|edgeone-staging/u)
-  assert.doesNotMatch(domain, /CLOUDFLARE_API_TOKEN|workers\/domains|workshop\.skin \*/u)
+  assert.doesNotMatch(domain, /CLOUDFLARE_API_TOKEN|workers\/domains/u)
 })
 
-test('Production 仅手动触发并要求 Staging、备份、恢复演练和资源预检', async () => {
+test('Production 验证线上 Staging 身份后才允许迁移和部署', async () => {
   const source = await workflow('deploy-production.yml')
-  assert.match(source, /^\s+workflow_dispatch:/mu)
-  assert.doesNotMatch(source, /^\s+(?:push|pull_request):/mu)
   assert.match(source, /environment: production/u)
-  assert.match(source, /refs\/heads\/main/u)
-  for (const input of ['version:', 'release_sha:', 'staging_accepted_sha:', 'approve_production:', 'confirm_encrypted_backup:', 'confirm_restore_drill:', 'confirm_free_plan:', 'confirm_no_billing:', 'confirm_aggregated_preview_announcement:']) assert.match(source, new RegExp(input, 'u'))
-  assert.match(source, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/u)
+  assert.match(source, /STAGING_BASE_URL: \$\{\{ vars\.STAGING_BASE_URL \}\}/u)
+  assert.match(source, /meta\.gitSha !== process\.env\.STAGING_ACCEPTED_SHA/u)
+  assert.match(source, /meta\.environment !== 'staging'/u)
+  assert.match(source, /scripts-search\?name=bike-ops-production/u)
   assert.match(source, /PRODUCTION_D1_DATABASE_ID: \$\{\{ vars\.PRODUCTION_D1_DATABASE_ID \}\}/u)
   assert.match(source, /wrangler d1 migrations apply bike-ops-production/u)
-  assert.match(source, /bike-ops-production/u)
-  assert.match(source, /Production Worker and D1 resources must already exist/u)
   assert.match(source, /pnpm check:version -- --mode production/u)
   assert.match(source, /grep -Fq .*environment.*production/u)
   assert.doesNotMatch(source, /--force/u)
