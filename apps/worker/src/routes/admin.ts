@@ -77,9 +77,7 @@ export function adminRoutes() {
     const d7 = daysAgoIso(7)
     const d30 = daysAgoIso(30)
     const todayStart = todayStartIso()
-    const [regionCount, cityCount, storeCount, storeDisabledCount, storePendingCount, userCount, members, pendingRoles, pendingTransfers, todayNewStores, todayNewUsers, todayRoleApproved, todayTransferApproved, todayItems, newStores7d, newStores30d, newUsers7d, newUsers30d, roleTotal7d, roleTotal30d, roleStats7d, roleStats30d, recentAudit] = await Promise.all([
-      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM regions WHERE status = 'active'")),
-      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM cities WHERE status = 'active'")),
+    const [storeCount, storeDisabledCount, storePendingCount, userCount, members, pendingRoles, pendingTransfers, todayNewStores, todayNewUsers, todayRoleApproved, todayTransferApproved, todayItems, newStores7d, newStores30d, newUsers7d, newUsers30d, roleTotal7d, roleTotal30d, roleStats7d, roleStats30d, recentAudit] = await Promise.all([
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE status = 'active' AND pending_review = 0")),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE status = 'disabled' AND pending_review = 0")),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE pending_review = 1")),
@@ -155,8 +153,6 @@ export function adminRoutes() {
 
     return c.json({
       counts: {
-        regions: regionCount?.n ?? 0,
-        cities: cityCount?.n ?? 0,
         stores: storeCount?.n ?? 0,
         storesDisabled: storeDisabledCount?.n ?? 0,
         storesPending: storePendingCount?.n ?? 0,
@@ -187,14 +183,9 @@ export function adminRoutes() {
   // ---- 门店详情（组织路径 / 成员 / 业务概览）----
   app.get('/api/v1/admin/stores/:storeId', ...platformRead, async (c) => {
     const storeId = String(c.req.param('storeId') ?? '')
-    const store = await first<{ id: string; code: string; name: string; status: string; timezone: string; created_at: string; city_id: string | null; pending_review: number }>(c.env.DB.prepare('SELECT id, code, name, status, timezone, created_at, city_id, pending_review FROM stores WHERE id = ?').bind(storeId))
+    const store = await first<{ id: string; code: string; name: string; status: string; timezone: string; created_at: string; pending_review: number }>(c.env.DB.prepare('SELECT id, code, name, status, timezone, created_at, pending_review FROM stores WHERE id = ?').bind(storeId))
     if (!store) throw new ApiProblem(404, 'STORE_NOT_FOUND', '门店不存在。')
-    const [path, members, todayItems, closing, memberCount] = await Promise.all([
-      first<{ region_id: string; region_name: string; subregion_id: string; subregion_name: string; city_id: string; city_name: string }>(c.env.DB.prepare(`
-        SELECT rg.id AS region_id, rg.name AS region_name, sr.id AS subregion_id, sr.name AS subregion_name, ct.id AS city_id, ct.name AS city_name
-        FROM stores st JOIN cities ct ON ct.id = st.city_id JOIN subregions sr ON sr.id = ct.subregion_id JOIN regions rg ON rg.id = sr.region_id
-        WHERE st.id = ?
-      `).bind(storeId)),
+    const [members, todayItems, closing, memberCount] = await Promise.all([
       all<{ membership_id: string; id: string; display_name: string; username_key: string; role: string; membership_status: string; user_status: string; user_updated_at: string; last_login_at: string | null; is_platform_admin: number }>(c.env.DB.prepare(`
         SELECT sm.id AS membership_id, u.id, u.display_name, u.username_key, sm.role, sm.status AS membership_status, u.status AS user_status, u.updated_at AS user_updated_at, u.last_login_at, u.is_platform_admin
         FROM store_members sm JOIN users u ON u.id = sm.user_id
@@ -207,7 +198,7 @@ export function adminRoutes() {
     ])
     return c.json({
       store: { id: store.id, code: store.code, name: store.name, status: store.pending_review === 1 ? 'pending' : store.status, timezone: store.timezone, createdAt: store.created_at },
-      path: path ? { regionId: path.region_id, regionName: path.region_name, subregionId: path.subregion_id, subregionName: path.subregion_name, cityId: path.city_id, cityName: path.city_name } : null,
+      path: null,
       members: members.map((row) => ({ id: row.id, userId: row.id, membershipId: row.membership_id, displayName: row.display_name, username: row.username_key, role: row.role, status: row.user_status === 'active' && row.membership_status === 'active' ? 'active' : 'disabled', updatedAt: row.user_updated_at, lastLoginAt: row.last_login_at, isPlatformAdmin: row.is_platform_admin === 1 })),
       overview: {
         todayItems: Object.fromEntries(todayItems.map((row) => [row.kind, row.n])),

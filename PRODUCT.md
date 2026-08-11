@@ -12,7 +12,7 @@ Decathlon Bike Ops 是自行车部门的移动端优先闭店与跨日业务工�
 
 ## Users and roles
 
-- `platform_admin`：平台作用域，不是普通门店角色；当前唯一主体是 Profile `CHU13`。它维护全国 `区域 → 城市 → 门店` 目录，并审批所有角色提权。
+- `platform_admin`：平台作用域，不是普通门店角色；当前唯一主体是 Profile `CHU13`。它维护门店编码/名称目录，并审批所有角色提权。
 - `operator`：查看所属门店数据；新增、编辑并执行日常台账动作。
 - `manager`：包含 operator 权限；完成/重新打开闭店；执行旧 v5 数据导入；不能审批角色提权。
 - `admin`：包含 manager 权限；只能审批“本门店作为目标门店”的跨店调动，不能维护全国目录、直接建号或改变角色。
@@ -22,8 +22,8 @@ Decathlon Bike Ops 是自行车部门的移动端优先闭店与跨日业务工�
 ## Authentication and first-run
 
 - CHU13 仅通过一次性 `#platform-admin=<token>` HTTPS 链接初始化；服务器只比较 `PLATFORM_ADMIN_SETUP_TOKEN_HASH` 的 SHA-256 指纹，数据库以唯一平台权限约束作为最终防线。
-- 同事只能从启用目录依次选择区域、城市和门店，再以规范化 `@decathlon.com` 邮箱完成 OTP；OTP 验证前不得创建用户、会话或成员关系。
-- OTP 验证后签发短生命周期、一次性的 completion grant；设置密码时在同一原子批次内创建用户、初始 `operator` 成员关系、会话和审计。
+- 门店可通过门店编码、门店名称和规范化 `@decathlon.com` 邮箱自助注册；首位注册人自动成为门店管理员，后续员工加入已有门店并以操作员身份进入。OTP 验证前不得创建用户、会话或成员关系。
+- OTP 验证后签发短生命周期、一次性的 completion grant；设置密码时在同一原子批次内创建用户、首位注册人 `admin` 或后续注册人 `operator` 成员关系、会话和审计。
 - 密码使用 Cloudflare Workers 兼容的 PBKDF2-HMAC-SHA-256（100,000 iterations）加服务端 pepper；密码、OTP、completion grant 和 Cookie 原值均不写入审计或浏览器存储。
 - Session 原值只存在 HttpOnly Cookie；数据库仅保存 Session/CSRF 哈希。登录失败累计达到阈值后短时锁定；登出、提权、调店、账号禁用和密码变更会撤销受影响会话。
 - 写请求必须携带 CSRF Token 和 Idempotency-Key；匿名注册端点额外按邮箱和边缘客户端标识限流。
