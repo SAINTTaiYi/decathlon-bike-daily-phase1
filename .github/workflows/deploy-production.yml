@@ -119,7 +119,7 @@ jobs:
           case "$PRODUCTION_BASE_URL" in https://*) ;; *) echo "::error::PRODUCTION_BASE_URL must use HTTPS"; exit 1 ;; esac
           node scripts/ops/network-guard.mjs Cloudflare curl -fsS \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/bike-ops-production" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts-search?name=bike-ops-production&per_page=100" \
             -o /tmp/production-worker.json
           node scripts/ops/network-guard.mjs Cloudflare curl -fsS \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
@@ -127,9 +127,13 @@ jobs:
             -o /tmp/production-d1.json
           node - <<'NODE'
           const fs = require('node:fs')
-          for (const file of ['/tmp/production-worker.json', '/tmp/production-d1.json']) {
-            const body = JSON.parse(fs.readFileSync(file, 'utf8'))
-            if (!body.success || !body.result) throw new Error(`CLOUDFLARE_RESOURCE_NOT_FOUND · ${file}`)
+          const worker = JSON.parse(fs.readFileSync('/tmp/production-worker.json', 'utf8'))
+          const database = JSON.parse(fs.readFileSync('/tmp/production-d1.json', 'utf8'))
+          if (!worker.success || !worker.result?.some((item) => item.script_name === 'bike-ops-production')) {
+            throw new Error('CLOUDFLARE_RESOURCE_NOT_FOUND · bike-ops-production')
+          }
+          if (!database.success || !database.result) {
+            throw new Error('CLOUDFLARE_RESOURCE_NOT_FOUND · Production D1')
           }
           NODE
       - run: corepack enable
