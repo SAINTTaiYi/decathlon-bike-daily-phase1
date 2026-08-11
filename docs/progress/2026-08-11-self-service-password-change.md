@@ -8,9 +8,9 @@
 | --- | --- |
 | 分支 | 功能分支 `feat/self-service-password-change-20260811`；证据分支 `docs/self-service-password-preview-evidence-20260811` |
 | 基线 | `e608e17` (`chore(release): prepare formal release V5.9.2`) |
-| PR | [#193](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/193) 已合并 |
+| PR | 功能 [#193](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/193) 与证据 [#194](https://github.com/SAINTTaiYi/decathlon-bike-daily-phase1/pull/194) 均已合并 |
 | 功能提交 | `32e1406`；认证竞态修复代码头 `f7080f4a754f6da7c5ec97163b73a4747938d4f8` |
-| 集成 / Preview SHA | `2cf33d9a087a0c40b817d56cd2b96e6cf3760895` |
+| 功能合并 / 已部署 Preview SHA | `2cf33d9a087a0c40b817d56cd2b96e6cf3760895` |
 | Preview | `https://bike-ops-preview.geeklightonefish.workers.dev` |
 | 工作树保留项 | `apps/worker/test/registration-e2e.test.ts` 为用户已有未跟踪本地测试；未修改、未删除，且未纳入功能提交 |
 
