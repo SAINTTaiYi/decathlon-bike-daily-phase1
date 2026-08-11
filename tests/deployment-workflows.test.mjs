@@ -31,7 +31,7 @@ test('Cloudflare Staging 仅手动部署固定 SHA 到 Worker、Static Assets �
   assert.doesNotMatch(source, /^\s+(?:push|pull_request):/mu)
   assert.match(source, /environment: staging/u)
   for (const input of ['release_sha:', 'confirm_free_plan:', 'confirm_no_billing:', 'confirm_staging_only:']) assert.match(source, new RegExp(input, 'u'))
-  for (const branch of ['feature\/cloudflare-workers-d1', 'develop', 'main']) assert.match(source, new RegExp(`refs\\/heads\\/${branch}`, 'u'))
+  for (const branch of ['feature/cloudflare-workers-d1', 'develop', 'main']) assert.ok(source.includes(`refs/heads/${branch}`), `${branch} must be an approved source`)
   assert.match(source, /git rev-parse "origin\/\$BRANCH"/u)
   assert.match(source, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/u)
   assert.match(source, /CLOUDFLARE_ACCOUNT_ID: \$\{\{ vars\.CLOUDFLARE_ACCOUNT_ID \}\}/u)
@@ -40,7 +40,7 @@ test('Cloudflare Staging 仅手动部署固定 SHA 到 Worker、Static Assets �
   assert.match(source, /wrangler@4\.112\.0/u)
   assert.match(source, /pnpm check:workflows && pnpm test && pnpm typecheck && pnpm build/u)
   assert.match(source, /wrangler d1 migrations apply bike-ops-staging --remote --config wrangler\.deploy\.jsonc/u)
-  assert.match(source, /environment\":\"staging\"/u)
+  assert.ok(source.includes('"environment":"staging"'))
 })
 
 test('Cloudflare Preview 仅手动部署到独立 Worker 和 D1', async () => {
@@ -77,7 +77,7 @@ test('Production 仅手动触发并要求 Staging、备份、恢复演练和资�
   assert.match(source, /bike-ops-production/u)
   assert.match(source, /Production Worker and D1 resources must already exist/u)
   assert.match(source, /pnpm check:version -- --mode production/u)
-  assert.match(source, /environment\":\"production\"/u)
+  assert.ok(source.includes('"environment":"production"'))
   assert.doesNotMatch(source, /--force/u)
 })
 
