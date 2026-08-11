@@ -15,7 +15,6 @@ export default function AdminOverviewSection({ overview, onJump, roleLabels }) {
     { label: '生效门店', en: 'STORES', value: counts.stores, hint: `待审核 ${counts.storesPending} · 停用 ${counts.storesDisabled}`, jump: 'directory' },
     { label: '待审批', en: 'PENDING', value: pending.roleRequests + pending.transferRequests + pending.stores, hint: `提权 ${pending.roleRequests} · 调店 ${pending.transferRequests} · 门店 ${pending.stores}`, accent: true, jump: 'approvals' },
     { label: '生效用户', en: 'USERS', value: counts.users, hint: counts.membersByRole ? Object.entries(counts.membersByRole).map(([role, n]) => `${roleLabels?.[role] || role} ${n}`).join(' · ') : '', jump: 'users' },
-    { label: '区域 / 城市', en: 'DIRECTORY', value: `${counts.regions} / ${counts.cities}`, hint: '区域 / 城市', jump: 'directory' }
   ]
   const todayStats = [
     { label: '今日新增门店', value: today.newStores, jump: 'directory' },

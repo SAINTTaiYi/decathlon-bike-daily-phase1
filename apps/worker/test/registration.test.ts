@@ -33,3 +33,13 @@ test('OTP 请求对有效、已注册、限速与不可用门店统一返回 cha
   assert.match(source, /registrationOtpResponse\(syntheticChallengeId\)/u)
   assert.match(source, /registrationOtpResponse\(id\)/u)
 })
+
+
+test('门店注册已切换为平面门店编码，首位注册人管理员规则由服务端执行', async () => {
+  const source = await (await import('node:fs/promises')).readFile(new URL('../src/routes/registration.ts', import.meta.url), 'utf8')
+  assert.match(source, /storeCode/u)
+  assert.match(source, /storeName/u)
+  assert.match(source, /self_registration_pending/u)
+  assert.match(source, /THEN 'operator' ELSE 'admin'/u)
+  assert.doesNotMatch(source, /JOIN cities|JOIN regions|activeDirectoryStore/u)
+})

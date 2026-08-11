@@ -42,6 +42,22 @@ test('D1 目录注册迁移可从旧 schema 顺序执行，并把多门店旧成
   }
 })
 
+test('D1 平面门店迁移移除区域、城市和 city_id，保留业务门店表', async () => {
+  const db = new DatabaseSync(':memory:')
+  try {
+    db.exec('PRAGMA foreign_keys = ON')
+    for (const name of ['0001_initial_sqlite.sql', '0002_work_item_ticket_numbers.sql', '0003_repair_undo_consistency.sql', '0004_permanent_audit_history.sql', '0005_pickup_used_car_source.sql', '0006_store_directory_self_registration.sql', '0007_repair_completion_statuses.sql', '0008_store_pending_status.sql', '0009_directory_subregions.sql', '0010_admin_console_query_indexes.sql', '0011_directory_guangxi_cities.sql', '0012_flat_store_self_registration.sql']) await apply(db, name)
+    const storeColumns = db.prepare('PRAGMA table_info(stores)').all().map((row) => row.name)
+    assert.equal(storeColumns.includes('city_id'), false)
+    assert.equal(storeColumns.includes('self_registration_pending'), true)
+    assert.equal(db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('regions', 'cities')").get().count, 0)
+    assert.equal(db.prepare('SELECT count(*) AS count FROM stores').get().count, 4)
+    assert.equal(db.prepare('PRAGMA foreign_key_check').all().length, 0)
+  } finally {
+    db.close()
+  }
+})
+
 test('D1 维修完成状态迁移执行后同步主记录和维修详情，并保守处理旧统一完成状态', async () => {
   const db = new DatabaseSync(':memory:')
   try {

@@ -126,7 +126,7 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
         <div className="boot-login-heading">
           <span>SECURE ACCOUNT · 数据库账号</span>
           <strong id="login-title">登录工作台</strong>
-          <p id="login-description">使用现有账号登录。新同事可使用已登记门店和公司邮箱完成自助注册。</p>
+          <p id="login-description">使用现有账号登录。新同事可使用门店编码和公司邮箱完成自助注册。</p>
         </div>
         <label className="boot-login-field">
           <span>用户名</span>

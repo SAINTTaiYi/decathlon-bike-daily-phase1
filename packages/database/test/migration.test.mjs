@@ -120,3 +120,18 @@ test('维修完成状态迁移同步扩展 D1 与 Supabase 约束并保守迁移
   assert.match(supabase, /validate constraint repair_details_repair_status_check/u)
   assert.match(supabase, /set status = r\.repair_status/u)
 })
+
+
+test('平面门店迁移移除区域、城市和 city_id', async () => {
+  const [d1, supabase] = await Promise.all([
+    readFile(new URL('../../../migrations/d1/0012_flat_store_self_registration.sql', import.meta.url), 'utf8'),
+    readFile(new URL('../../../supabase/migrations/202607280001_flat_store_self_registration.sql', import.meta.url), 'utf8')
+  ])
+  for (const sql of [d1, supabase]) {
+    assert.match(sql, /drop table.*cities/isu)
+    assert.match(sql, /drop table.*regions/isu)
+    assert.match(sql, /drop table.*subregions/isu)
+    assert.match(sql, /drop column.*city_id/isu)
+    assert.match(sql, /self_registration_pending/iu)
+  }
+})

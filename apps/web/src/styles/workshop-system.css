@@ -547,7 +547,6 @@ button:disabled { opacity: .48; }
 .governance-section { padding: 14px; }
 .governance-request-list { border: 0; }
 .governance-request-list > li { padding: 11px; border: 0; border-radius: 6px; background: var(--ops-page); }
-.directory-city { border-color: var(--ops-line-strong); }
 .directory-row { border: 0; border-radius: 6px; background: var(--ops-page); }
 /*
  * Closing checklist: per-module acknowledgement before the single yellow closing action.

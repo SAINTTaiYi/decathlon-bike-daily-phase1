@@ -29,45 +29,23 @@ const CLEAN = [
   ['work_item_counters', "store_id LIKE 'seed-%'"],
   ['store_members', "id LIKE 'seed-%'"],
   ['users', "id LIKE 'seed-%'"],
-  ['stores', "id LIKE 'seed-%'"],
-  ['cities', "id LIKE 'seed-%'"],
-  ['subregions', "id LIKE 'seed-%'"],
-  ['regions', "id LIKE 'seed-%'"]
+  ['stores', "id LIKE 'seed-%'"]
 ]
 for (const [table, predicate] of CLEAN) lines.push(`DELETE FROM ${table} WHERE ${predicate};`)
 
-// ---- 区域 / 城市 ----
-const regions = [
-  ['seed-r-01', '华东', '华东', iso(-60)],
-  ['seed-r-02', '华南', '华南', iso(-50)]
-]
-const subregions = [
-  ['seed-sr-01', 'seed-r-01', '华东小区', iso(-59)],
-  ['seed-sr-02', 'seed-r-02', '华南小区', iso(-49)]
-]
-const cities = [
-  ['seed-c-01', 'seed-sr-01', '上海', iso(-58)],
-  ['seed-c-02', 'seed-sr-01', '杭州', iso(-48)],
-  ['seed-c-03', 'seed-sr-02', '广州', iso(-46)],
-  ['seed-c-04', 'seed-sr-02', '深圳', iso(-44)]
-]
-for (const [id, name, norm, at] of regions) lines.push(`INSERT INTO regions (id, name, normalized_name, status, sort_order, created_at, updated_at) VALUES (${[id, name, norm, 'active', 0, at, at].map(q).join(', ')});`)
-for (const [id, regionId, name, at] of subregions) lines.push(`INSERT INTO subregions (id, region_id, name, normalized_name, status, sort_order, created_at, updated_at) VALUES (${[id, regionId, name, name, 'active', 0, at, at].map(q).join(', ')});`)
-for (const [id, subregionId, name, at] of cities) lines.push(`INSERT INTO cities (id, region_id, subregion_id, name, normalized_name, status, sort_order, created_at, updated_at) VALUES (${[id, `(SELECT region_id FROM subregions WHERE id = '${subregionId}')`, subregionId, name, name, 'active', 0, at, at].map((value, index) => index === 1 ? value : q(value)).join(', ')});`)
-
 // ---- 门店：5 生效 / 1 停用（审核拒绝）/ 2 待审核 ----
 const stores = [
-  ['seed-st-01', 'seed-c-01', 'BIKE-XH', '徐汇店', 'active', 0, iso(-25)],
-  ['seed-st-02', 'seed-c-01', 'BIKE-JA', '静安店', 'active', 0, iso(-10)],
-  ['seed-st-03', 'seed-c-02', 'BIKE-XZ', '西湖店', 'active', 0, iso(-3)],
-  ['seed-st-04', 'seed-c-03', 'BIKE-GZ', '天河店', 'active', 0, iso(-8)],
-  ['seed-st-05', 'seed-c-04', 'BIKE-SZ', '南山店', 'active', 0, iso(0, 8)],
-  ['seed-st-06', 'seed-c-01', 'BIKE-PD', '浦东店', 'disabled', 0, iso(-15)],
-  ['seed-st-07', 'seed-c-02', 'BIKE-BJ', '滨江店', 'disabled', 1, iso(-2)],
-  ['seed-st-08', 'seed-c-03', 'BIKE-PY', '番禺店', 'disabled', 1, iso(0, 7)]
+  ['seed-st-01', 'BIKE-XH', '徐汇店', 'active', 0, iso(-25)],
+  ['seed-st-02', 'BIKE-JA', '静安店', 'active', 0, iso(-10)],
+  ['seed-st-03', 'BIKE-XZ', '西湖店', 'active', 0, iso(-3)],
+  ['seed-st-04', 'BIKE-GZ', '天河店', 'active', 0, iso(-8)],
+  ['seed-st-05', 'BIKE-SZ', '南山店', 'active', 0, iso(0, 8)],
+  ['seed-st-06', 'BIKE-PD', '浦东店', 'disabled', 0, iso(-15)],
+  ['seed-st-07', 'BIKE-BJ', '滨江店', 'disabled', 1, iso(-2)],
+  ['seed-st-08', 'BIKE-PY', '番禺店', 'disabled', 1, iso(0, 7)]
 ]
-for (const [id, cityId, code, name, status, pending, at] of stores) {
-  lines.push(`INSERT INTO stores (id, city_id, code, name, timezone, status, pending_review, created_at, updated_at) VALUES (${[id, cityId, code, name, 'Asia/Shanghai', status, pending, at, at].map(q).join(', ')});`)
+for (const [id, code, name, status, pending, at] of stores) {
+  lines.push(`INSERT INTO stores (id, code, name, timezone, status, pending_review, created_at, updated_at) VALUES (${[id, code, name, 'Asia/Shanghai', status, pending, at, at].map(q).join(', ')});`)
 }
 
 // ---- 用户 + 成员（5 家生效门店，共 15 人；密码占位不可登录）----

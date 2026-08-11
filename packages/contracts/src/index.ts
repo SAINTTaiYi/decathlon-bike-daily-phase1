@@ -84,7 +84,8 @@ export const registrationOtpSchema = z.object({
   username: usernameSchema,
   displayName: usernameSchema.optional(),
   email: corporateEmailSchema,
-  storeId: uuidSchema
+  storeCode: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/u),
+  storeName: z.string().trim().min(1).max(120)
 }).strict()
 export const registrationVerifyOtpSchema = z.object({
   challengeId: uuidSchema,
@@ -116,11 +117,9 @@ export const storeTransferRequestSchema = z.object({
 }).strict()
 export const directoryEntitySchema = z.object({
   name: z.string().trim().min(1).max(120),
-  parentId: uuidSchema.optional(),
   code: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/u).optional(),
   status: directoryStatusSchema.optional()
 }).strict()
-
 export const kpiSchema = z.object({
   salesVehicles: z.coerce.number().int().min(0).max(9999),
   safetyChecks: z.coerce.number().int().min(0).max(9999),

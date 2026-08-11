@@ -55,9 +55,10 @@ test('平台管理后台路由全部要求平台管理员身份；写端点走�
   assert.match(source, /app\.delete\('\/api\/v1\/admin\/stores\/:storeId\/members\/:userId'/u)
 })
 
-test('平台总览统计覆盖目录、账号、待审队列与当日工单', async () => {
+test('平台总览统计覆盖门店、账号、待审队列与当日工单', async () => {
   const source = await readFile(new URL('../src/routes/admin.ts', import.meta.url), 'utf8')
-  assert.match(source, /SELECT COUNT\(\*\) AS n FROM regions WHERE status = 'active'/u)
+  assert.doesNotMatch(source, /FROM regions WHERE status = 'active'/u)
+  assert.doesNotMatch(source, /FROM cities WHERE status = 'active'/u)
   assert.match(source, /SELECT COUNT\(\*\) AS n FROM stores WHERE status = 'disabled'/u)
   assert.match(source, /SELECT COUNT\(\*\) AS n FROM stores WHERE pending_review = 1/u)
   assert.match(source, /FROM users WHERE status = 'active'/u)
@@ -157,12 +158,11 @@ test('门店审核端点只处理待审核门店且受审计', async () => {
   assert.match(source, /pending_review = 1 AND updated_at = \?/u)
 })
 
-test('门店创建进入待审核，待审核门店不可被目录开关绕过', async () => {
+test('门店目录为平面列表，新建门店直接生效且可启停用', async () => {
   const governanceSource = await readFile(new URL('../src/routes/governance.ts', import.meta.url), 'utf8')
-  assert.match(governanceSource, /VALUES \(\?, \?, \?, \?, 'Asia\/Shanghai', 'disabled', 1, \?, \?\)`\)\n\s*\.bind\(id, input\.parentId, input\.code, input\.name, stamp, stamp\)/u)
-  assert.match(governanceSource, /新增门店（待审核）/u)
-  assert.match(governanceSource, /PENDING_STORE_REVIEW_REQUIRED/u)
-  assert.match(governanceSource, /待审核门店必须由平台管理员在审批队列中处理/u)
+  assert.match(governanceSource, /INSERT INTO stores \(id, code, name, timezone, status, pending_review, created_at, updated_at\) VALUES \(\?, \?, \?, 'Asia\/Shanghai', 'active', 0, \?, \?\)/u)
+  assert.match(governanceSource, /STORE_CODE_REQUIRED/u)
+  assert.doesNotMatch(governanceSource, /FROM regions|FROM cities|FROM subregions/u)
 })
 
 test('迁移 0008 以 pending_review 列实现门店待审核（无父表重建）', async () => {

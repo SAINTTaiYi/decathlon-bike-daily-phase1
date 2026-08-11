@@ -526,7 +526,7 @@ export default function App() {
   }
 
   if (!authenticated && authMode === 'register') {
-    return <><RegistrationWizard onBack={() => setAuthMode('login')} onComplete={(payload) => { auth.acceptRegistration(payload); setToast('注册完成，已加入所选门店。') }} /><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
+    return <><RegistrationWizard onBack={() => setAuthMode('login')} onComplete={(payload) => { auth.acceptRegistration(payload); setToast('注册完成，门店已开通。') }} /><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
 
   if (auth.status === 'restoring') {

@@ -17,7 +17,7 @@ import { normalizeCorporateEmail, randomOtp, requestClientHash, sendRegistration
 import { ApiProblem } from '../services/problems.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
-type StoreRow = { id: string; code: string; name: string; timezone: string; city_id: string; city_name: string; region_id: string; region_name: string }
+type StoreRow = { id: string; code: string; name: string; timezone: string; status: 'active' | 'disabled'; self_registration_pending: number }
 
 type ChallengeRow = {
   id: string
@@ -51,16 +51,26 @@ function requireRegistrationConfig(config: AppConfig): asserts config is AppConf
   }
 }
 
-async function activeDirectoryStore(db: D1Database, storeId: string): Promise<StoreRow | null> {
+async function registrationStore(db: D1Database, storeId: string): Promise<StoreRow | null> {
   return first<StoreRow>(db.prepare(`
-    SELECT st.id, st.code, st.name, st.timezone, ct.id AS city_id, ct.name AS city_name, rg.id AS region_id, rg.name AS region_name
-    FROM stores st
-    JOIN cities ct ON ct.id = st.city_id AND ct.status = 'active'
-    JOIN regions rg ON rg.id = ct.region_id AND rg.status = 'active'
-    WHERE st.id = ? AND st.status = 'active'
+    SELECT id, code, name, timezone, status, self_registration_pending
+    FROM stores
+    WHERE id = ?
   `).bind(storeId))
 }
 
+async function findStoreByCode(db: D1Database, code: string): Promise<StoreRow | null> {
+  return first<StoreRow>(db.prepare(`
+    SELECT id, code, name, timezone, status, self_registration_pending
+    FROM stores
+    WHERE code = ?
+    LIMIT 1
+  `).bind(code))
+}
+
+async function hasActiveMembership(db: D1Database, storeId: string): Promise<boolean> {
+  return Boolean(await first<{ id: string }>(db.prepare(`SELECT id FROM store_members WHERE store_id = ? AND status = 'active' LIMIT 1`).bind(storeId)))
+}
 function registrationAuditContext(userId: string, displayName: string, store: Pick<StoreRow, 'id' | 'code' | 'name' | 'timezone'>): AuthContext {
   return {
     userId,
@@ -82,24 +92,14 @@ export function registrationRoutes() {
   const auth = createAuthMiddleware()
 
   app.get('/api/v1/registration/directory', async (c) => {
-    const rows = await all<StoreRow>(c.env.DB.prepare(`
-      SELECT st.id, st.code, st.name, st.timezone, ct.id AS city_id, ct.name AS city_name, rg.id AS region_id, rg.name AS region_name
-      FROM stores st
-      JOIN cities ct ON ct.id = st.city_id AND ct.status = 'active'
-      JOIN regions rg ON rg.id = ct.region_id AND rg.status = 'active'
-      WHERE st.status = 'active'
-      ORDER BY rg.sort_order, rg.name, ct.sort_order, ct.name, st.code
+    const stores = await all<{ id: string; code: string; name: string; timezone: string }>(c.env.DB.prepare(`
+      SELECT id, code, name, timezone
+      FROM stores
+      WHERE status = 'active'
+      ORDER BY code, name
     `))
-    const regionMap = new Map<string, { id: string; name: string; cities: Map<string, { id: string; name: string; stores: Array<{ id: string; code: string; name: string }> }> }>()
-    for (const row of rows) {
-      if (!regionMap.has(row.region_id)) regionMap.set(row.region_id, { id: row.region_id, name: row.region_name, cities: new Map() })
-      const region = regionMap.get(row.region_id)!
-      if (!region.cities.has(row.city_id)) region.cities.set(row.city_id, { id: row.city_id, name: row.city_name, stores: [] })
-      region.cities.get(row.city_id)!.stores.push({ id: row.id, code: row.code, name: row.name })
-    }
-    return c.json({ regions: [...regionMap.values()].map((region) => ({ id: region.id, name: region.name, cities: [...region.cities.values()] })) })
+    return c.json({ stores })
   })
-
   app.post('/api/v1/registration/otp', async (c) => {
     const config = c.get('config')
     requireRegistrationConfig(config)
@@ -130,12 +130,29 @@ export function registrationRoutes() {
       return c.json(registrationOtpResponse(reusableChallengeId, Math.ceil((RESEND_COOLDOWN_MS - (now - Date.parse(recentByEmail.created_at))) / 1000)))
     }
 
-    const [existingEmail, existingUsername, store] = await Promise.all([
+    const [existingEmail, existingUsername, existingStore] = await Promise.all([
       first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE email_key = ? LIMIT 1').bind(emailKey)),
       first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE username_key = ? LIMIT 1').bind(userKey)),
-      activeDirectoryStore(c.env.DB, input.storeId)
+      findStoreByCode(c.env.DB, input.storeCode)
     ])
-    if (existingEmail || existingUsername || !store) return c.json(registrationOtpResponse(syntheticChallengeId))
+    if (existingEmail || existingUsername) return c.json(registrationOtpResponse(syntheticChallengeId))
+
+    let store = existingStore
+    if (store && store.status === 'disabled' && store.self_registration_pending !== 1) {
+      return c.json(registrationOtpResponse(syntheticChallengeId))
+    }
+    if (!store) {
+      const storeId = uuid()
+      try {
+        await c.env.DB.prepare(`
+          INSERT INTO stores (id, code, name, timezone, status, self_registration_pending, created_at, updated_at)
+          VALUES (?, ?, ?, 'Asia/Shanghai', 'disabled', 1, ?, ?)
+        `).bind(storeId, input.storeCode, input.storeName, stamp, stamp).run()
+        store = { id: storeId, code: input.storeCode, name: input.storeName, timezone: 'Asia/Shanghai', status: 'disabled', self_registration_pending: 1 }
+      } catch {
+        return c.json(registrationOtpResponse(syntheticChallengeId))
+      }
+    }
 
     const otp = randomOtp()
     const id = uuid()
@@ -205,8 +222,8 @@ export function registrationRoutes() {
     if (!challenge || challenge.status !== 'verified' || Date.parse(challenge.expires_at) <= Date.now() || !safeEqualHex(providedHash, challenge.completion_token_hash ?? undefined)) {
       throw new ApiProblem(400, 'REGISTRATION_GRANT_INVALID', '注册验证已失效，请重新获取验证码。')
     }
-    const store = await activeDirectoryStore(c.env.DB, challenge.store_id)
-    if (!store) throw new ApiProblem(409, 'STORE_NOT_AVAILABLE', '所选门店已不可注册，请重新选择。')
+    const store = await registrationStore(c.env.DB, challenge.store_id)
+    if (!store || (store.status === 'disabled' && (store.self_registration_pending !== 1 || await hasActiveMembership(c.env.DB, store.id)))) throw new ApiProblem(409, 'STORE_NOT_AVAILABLE', '门店已不可注册，请重新开始。')
     const [existingEmail, existingUsername] = await Promise.all([
       first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE email_key = ? LIMIT 1').bind(challenge.email_key)),
       first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE username_key = ? LIMIT 1').bind(challenge.username_key))
@@ -241,9 +258,10 @@ export function registrationRoutes() {
       `).bind(userId, challenge.username_key, challenge.display_name, challenge.email_key, passwordHash, stamp, stamp, challenge.id, consumptionMarker, stamp),
       c.env.DB.prepare(`
         INSERT INTO store_members (id, store_id, user_id, role, status, effective_from, created_at)
-        SELECT ?, ?, ?, 'operator', 'active', ?, ?
+        SELECT ?, ?, ?, CASE WHEN EXISTS (SELECT 1 FROM store_members WHERE store_id = ? AND status = 'active') THEN 'operator' ELSE 'admin' END, 'active', ?, ?
         WHERE EXISTS (SELECT 1 FROM users WHERE id = ?)
-      `).bind(membershipId, store.id, userId, stamp, stamp, userId),
+      `).bind(membershipId, store.id, userId, store.id, stamp, stamp, userId),
+      c.env.DB.prepare(`UPDATE stores SET status = 'active', self_registration_pending = 0, updated_at = ? WHERE id = ?`).bind(stamp, store.id),
       c.env.DB.prepare(`
         INSERT INTO auth_sessions (token_hash, csrf_hash, user_id, expires_at, last_seen_at, created_at, user_agent)
         SELECT ?, ?, ?, ?, ?, ?, ?
@@ -251,13 +269,15 @@ export function registrationRoutes() {
       `).bind(secrets.tokenHash, secrets.csrfHash, userId, new Date(Date.now() + config.SESSION_TTL_HOURS * 60 * 60 * 1000).toISOString(), stamp, stamp, (c.req.header('user-agent') ?? '').slice(0, 500) || null, membershipId),
       audit.statement
     ])
-    if (result[0]?.meta?.changes !== 1 || result[1]?.meta?.changes !== 1 || result[2]?.meta?.changes !== 1 || result[3]?.meta?.changes !== 1) {
+    if (result[0]?.meta?.changes !== 1 || result[1]?.meta?.changes !== 1 || result[2]?.meta?.changes !== 1 || result[3]?.meta?.changes !== 1 || result[4]?.meta?.changes !== 1 || result[5]?.meta?.changes !== 1) {
       throw new ApiProblem(409, 'REGISTRATION_GRANT_INVALID', '注册验证已失效，请重新获取验证码。')
     }
+    const assignedMembership = await first<{ role: 'operator' | 'manager' | 'admin' }>(c.env.DB.prepare("SELECT role FROM store_members WHERE id = ? AND user_id = ? AND status = 'active'").bind(membershipId, userId))
+    const assignedRole = assignedMembership?.role ?? 'operator'
     setSessionCookie(c, secrets.token, config)
     return c.json({
       user: { id: userId, displayName: challenge.display_name, mustChangePassword: false, isPlatformAdmin: false },
-      stores: [{ storeId: store.id, storeCode: store.code, storeName: store.name, timezone: store.timezone, role: 'operator' }],
+      stores: [{ storeId: store.id, storeCode: store.code, storeName: store.name, timezone: store.timezone, role: assignedRole }],
       currentStoreId: store.id,
       csrfToken: secrets.csrfToken
     }, 201)
@@ -270,8 +290,8 @@ export function registrationRoutes() {
     if (!safeEqualHex(await sha256(input.token), config.PLATFORM_ADMIN_SETUP_TOKEN_HASH)) throw new ApiProblem(403, 'INVALID_PLATFORM_SETUP_TOKEN', '平台管理员初始化链接无效或已过期。')
     const exists = await first<{ count: number }>(c.env.DB.prepare('SELECT COUNT(*) AS count FROM users WHERE is_platform_admin = 1'))
     if ((exists?.count ?? 0) > 0) throw new ApiProblem(409, 'PLATFORM_ADMIN_ALREADY_EXISTS', '平台管理员已初始化。')
-    const store = await activeDirectoryStore(c.env.DB, input.storeId)
-    if (!store) throw new ApiProblem(409, 'STORE_NOT_AVAILABLE', '所选门店暂不可用。')
+    const store = await registrationStore(c.env.DB, input.storeId)
+    if (!store || store.status !== 'active') throw new ApiProblem(409, 'STORE_NOT_AVAILABLE', '所选门店暂不可用。')
     const profile = await first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE username_key = ?').bind('chu13'))
     if (profile) throw new ApiProblem(409, 'PLATFORM_PROFILE_EXISTS', 'CHU13 Profile 已存在，无法安全接管。')
     const userId = uuid()
@@ -279,14 +299,20 @@ export function registrationRoutes() {
     const passwordHash = await hashPassword(input.password, config.PASSWORD_PEPPER)
     const context: AuthContext = { ...registrationAuditContext(userId, 'CHU13', store), role: 'admin', isPlatformAdmin: true }
     const audit = prepareAudit(c.env.DB, { context, action: 'platform-admin-setup', entityType: 'account', entityId: userId, businessDate: localBusinessDate(store.timezone), summary: '初始化平台管理员：CHU13', after: { username: 'CHU13', platformAdmin: true, storeId: store.id }, reversible: false })
-    await c.env.DB.batch([
+    try {
+      await c.env.DB.batch([
       c.env.DB.prepare(`INSERT INTO users (id, username_key, display_name, password_hash, status, must_change_password, failed_login_count, is_platform_admin, created_at, updated_at) VALUES (?, 'chu13', 'CHU13', ?, 'active', 0, 0, 1, ?, ?)`)
         .bind(userId, passwordHash, stamp, stamp),
       c.env.DB.prepare(`INSERT INTO store_members (id, store_id, user_id, role, status, effective_from, created_at) VALUES (?, ?, ?, 'admin', 'active', ?, ?)`)
         .bind(uuid(), store.id, userId, stamp, stamp),
       audit.statement
-    ])
-    return c.json({ ok: true, message: '平台管理员 CHU13 已初始化，请使用 CHU13 登录。' }, 201)
+      ])
+      return c.json({ ok: true, message: '平台管理员 CHU13 已初始化，请使用 CHU13 登录。' }, 201)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (/unique|constraint/iu.test(message)) throw new ApiProblem(409, 'PLATFORM_ADMIN_ALREADY_EXISTS', '平台管理员已初始化。')
+      throw error
+    }
   })
 
   app.get('/api/v1/registration/status', auth.loadSession, async (c) => c.json({ isPlatformAdmin: c.get('auth')!.isPlatformAdmin }))
