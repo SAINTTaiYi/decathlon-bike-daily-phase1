@@ -1,6 +1,6 @@
-# 2026-08-11 · 自助密码修改 · 本地实现完成待提交
+# 2026-08-11 · 自助密码修改 · 已提交待 PR
 
-状态：实现、全量验证和本地构建已完成；尚未提交、未推送、未创建 PR、未部署 Preview 或 Production，也未改正式版本号。
+状态：实现、全量验证和本地构建已完成，本地功能提交已创建；尚未推送、未创建 PR、未部署 Preview 或 Production，也未改正式版本号。
 
 ## 当前身份
 
@@ -8,7 +8,8 @@
 | --- | --- |
 | 分支 | `feat/self-service-password-change-20260811` |
 | 基线 | `e608e17` (`chore(release): prepare formal release V5.9.2`) |
-| 工作树保留项 | `apps/worker/test/registration-e2e.test.ts` 为用户已有未跟踪本地测试；未修改、未删除，且不纳入本次提交 |
+| 功能提交 | `32e1406` (`feat(auth): add self-service password changes`) |
+| 工作树保留项 | `apps/worker/test/registration-e2e.test.ts` 为用户已有未跟踪本地测试；未修改、未删除，且未纳入功能提交 |
 
 ## 已实现范围
 
@@ -47,5 +48,5 @@ CSS 是 CodeGraph 非索引对象：`apps/web/src/styles/admin-console.css` 与 
 ## 下一步
 
 1. 审阅本地验收服务中的普通用户、首次登录与平台管理员三条入口。
-2. 将**除**用户保留的 `apps/worker/test/registration-e2e.test.ts` 外的本次文件提交到特性分支。
-3. 推送、创建 PR、等待 CI 后再由用户决定是否部署 Preview；Production 不在本次流程内。
+2. 推送、创建 PR、等待 CI 后再由用户决定是否部署 Preview。
+3. Production 不在本次流程内，除非用户另行明确授权。
