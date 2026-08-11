@@ -11,14 +11,14 @@ Workshop Daily Ops 是自行车部门的移动端优先闭店与跨日业务工�
 - `operator`：查看所属门店并执行日常台账操作。
 - `manager`：包含 operator 权限，可执行闭店治理、重新打开和旧数据导入。
 - `admin`：包含 manager 权限，只能审批以本门店为目标的调店申请。
-- `platform_admin`：平台作用域，维护区域、城市、门店目录并审批角色提权。
+- `platform_admin`：平台作用域，维护扁平门店目录并审批角色提权。
 
 每位用户只有一条当前有效门店成员关系。调店后旧关系进入历史、目标门店建立新的 operator 关系；管理角色必须单独审批。权限由 Worker 根据 HttpOnly Session、当前有效成员关系和数据库平台权限判定，前端隐藏按钮不是授权边界。
 
 ## Authentication
 
 - 平台管理员使用一次性 HTTPS setup token 初始化，服务端只持有 token 哈希。
-- 同事从启用目录选择区域、城市和门店，以规范化 `@decathlon.com` 邮箱完成 OTP 注册。
+- 同事注册时必须填写唯一门店编号和门店名称；门店编号已存在时注册失败，以规范化 `@decathlon.com` 邮箱完成 OTP 验证。首位用户自动成为新门店管理员。
 - OTP 验证后使用短生命周期 completion grant 原子创建账号、成员、会话和审计。
 - 密码使用 PBKDF2-HMAC-SHA-256 与服务端 pepper。
 - Session 原值只存在 HttpOnly Cookie；数据库保存 Session/CSRF 哈希。

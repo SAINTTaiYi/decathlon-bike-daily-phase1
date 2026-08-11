@@ -75,8 +75,8 @@ export default function PlatformAdminConsole({ user, storeName, onExit, onChange
   }, [onNotify, refresh])
 
   const pendingTotal = (overview?.pending?.roleRequests || 0) + (overview?.pending?.transferRequests || 0) + (overview?.pending?.stores || 0)
-  const activeStoreOptions = useMemo(() => (governance?.directory || []).flatMap((region) => (region.subregions || []).flatMap((subregion) => subregion.cities.flatMap((city) => city.stores.filter((store) => store.status === 'active').map((store) => ({ value: store.id, label: `${region.name} / ${subregion.name} / ${city.name} / ${store.code} ${store.name}` }))))), [governance])
-  const auditStoreOptions = useMemo(() => (governance?.directory || []).flatMap((region) => (region.subregions || []).flatMap((subregion) => subregion.cities.flatMap((city) => city.stores.map((store) => ({ value: store.id, label: `${region.name} / ${subregion.name} / ${city.name} / ${store.code} ${store.name}${store.status === 'pending' ? '（待审核）' : ''}` }))))), [governance])
+  const activeStoreOptions = useMemo(() => (governance?.directory || []).filter((store) => store.status === 'active').map((store) => ({ value: store.id, label: `${store.code} ${store.name}` })), [governance])
+  const auditStoreOptions = useMemo(() => (governance?.directory || []).map((store) => ({ value: store.id, label: `${store.code} ${store.name}${store.status === 'pending' ? '（待审核）' : ''}` })), [governance])
   const shared = useMemo(() => ({
     roleLabels,
     decideRole: (item, approve, reason) => decideRoleChangeRequest(item.id, { approve, reason: reason || (approve ? 'CHU13 已批准' : 'CHU13 已拒绝'), expectedRevision: item.revision }),
