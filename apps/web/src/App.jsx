@@ -137,6 +137,7 @@ export default function App() {
     const timer = window.setInterval(() => void poll(), 60000)
     return () => { alive = false; window.clearInterval(timer) }
   }, [authenticated, auth.user?.isPlatformAdmin, adminMode])
+  const canManageClosing = role === 'manager' || role === 'admin'
   const canReopenClosing = role === 'manager' || role === 'admin'
   const writeLocked = Boolean(workflow.closedAt) || !online || Boolean(workflow.storageError)
 
@@ -304,6 +305,7 @@ export default function App() {
   }
 
   const requestClose = () => {
+    if (!canManageClosing) return setToast({ message: '只有经理或管理员可以执行闭店。', tone: 'error' })
     if (!online) return setToast({ message: '当前离线，不能执行闭店。', tone: 'error' })
     if (workflow.storageError) return setToast({ message: '数据库同步尚未恢复，请先重新同步。', tone: 'error' })
     if (!workflow.kpiReady) {
@@ -642,7 +644,7 @@ export default function App() {
             <div className="footer-identity"><span>{currentStore?.storeName || 'ACTIVE USER'} · {roleLabels[role]}</span><strong>{currentUser}</strong></div>
             <span>LAST SYNC · 最后同步</span>
             <strong>{workflow.lastSyncedAt ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(workflow.lastSyncedAt)) : '尚未同步'}</strong>
-            <button type="button" className="primary-action" onClick={requestClose} disabled={writeLocked}>{workflow.closedAt ? '今日已闭店' : workflow.kpiReady ? '完成闭店' : '填写销售数据'}</button>
+            {canManageClosing ? <button type="button" className="primary-action" onClick={requestClose} disabled={writeLocked}>{workflow.closedAt ? '今日已闭店' : workflow.kpiReady ? '完成闭店' : '填写销售数据'}</button> : null}
             <div className="footer-utility-actions" aria-label="日报辅助操作"><button type="button" onClick={() => setMenuOpen(true)}>日报菜单</button><button type="button" onClick={() => setLogOpen(true)}>当日日志</button><button type="button" onClick={() => setPermanentHistoryOpen(true)}>永久历史</button></div>
           </footer>
         </main>

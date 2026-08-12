@@ -5,15 +5,15 @@ import { readFile } from 'node:fs/promises'
 const root = new URL('../', import.meta.url)
 const read = (path) => readFile(new URL(path, root), 'utf8')
 
-test('所有登录用户都可请求闭店，但重新打开仍由经理或管理员保护', async () => {
+test('闭店与重开均由经理或管理员角色保护（operator 不得闭店）', async () => {
   const [app, closing] = await Promise.all([
     read('apps/web/src/App.jsx'),
     read('apps/worker/src/routes/closing.ts')
   ])
-  assert.doesNotMatch(app, /canManageClosing/u)
+  assert.match(app, /const canManageClosing = role === 'manager' \|\| role === 'admin'/u)
   assert.match(app, /const canReopenClosing = role === 'manager' \|\| role === 'admin'/u)
   assert.match(app, /onClick=\{requestClose\} disabled=\{writeLocked\}/u)
-  assert.match(closing, /app\.post\('\/api\/v1\/daily-closing\/current\/close', \.\.\.write, async/u)
+  assert.match(closing, /current\/close', \.\.\.write, auth\.requireRole\('manager', 'admin'\)/u)
   assert.match(closing, /current\/reopen', \.\.\.write, auth\.requireRole\('manager', 'admin'\)/u)
 })
 
