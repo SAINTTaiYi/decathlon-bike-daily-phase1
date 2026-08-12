@@ -159,16 +159,24 @@ export const pickupInputSchema = z.object({
   status: z.string().trim().min(1).max(80)
 }).strict()
 
+export const handoverInputSchema = genericWorkItem.extend({
+  contactValue: z.string().trim().max(80).default('')
+}).strict()
+
+const handoverUpdateInputSchema = genericWorkItem.extend({
+  contactValue: z.string().trim().max(80).optional()
+}).strict()
+
 export const workItemCreateSchema = z.discriminatedUnion('scene', [
   z.object({ scene: z.literal('repair'), values: repairInputSchema }),
   z.object({ scene: z.literal('pickup'), values: pickupInputSchema }),
-  z.object({ scene: z.literal('poster'), values: genericWorkItem.strict() }),
+  z.object({ scene: z.literal('poster'), values: handoverInputSchema }),
   z.object({ scene: z.literal('resale'), values: genericWorkItem.strict() })
 ])
 
 export const workItemUpdateSchema = z.object({
   expectedRevision: revisionSchema,
-  values: z.union([repairInputSchema, pickupInputSchema, genericWorkItem.strict()])
+  values: z.union([repairInputSchema, pickupInputSchema, handoverUpdateInputSchema, genericWorkItem.strict()])
 }).strict()
 
 export const actionSchema = z.object({ expectedRevision: revisionSchema }).strict()

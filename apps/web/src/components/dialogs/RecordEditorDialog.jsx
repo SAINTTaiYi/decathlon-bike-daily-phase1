@@ -34,7 +34,11 @@ function genericRecordToDraft(record) {
 
 function handoverRecordToDraft(record) {
   const draft = genericRecordToDraft(record)
-  return { ...draft, status: HANDOVER_STATUSES.some(({ value }) => value === draft.status) ? draft.status : '继续跟进' }
+  return {
+    ...draft,
+    contactValue: record?.contactValue || '',
+    status: HANDOVER_STATUSES.some(({ value }) => value === draft.status) ? draft.status : '继续跟进'
+  }
 }
 
 function HandoverFields({ draft, setDraft }) {
@@ -43,6 +47,17 @@ function HandoverFields({ draft, setDraft }) {
   const updateItem = (value) => setDraft((current) => ({ ...current, title: value.slice(0, 80), detail: value }))
   return <>
     <label className="field-row"><span>交接事项</span><textarea required rows="6" maxLength="240" value={item} onChange={(event) => updateItem(event.target.value)} /></label>
+    <label className="field-row">
+      <span>电话号码（选填）</span>
+      <input
+        maxLength="80"
+        inputMode="tel"
+        autoComplete="tel"
+        placeholder="可不填"
+        value={draft.contactValue || ''}
+        onChange={(event) => set('contactValue', event.target.value)}
+      />
+    </label>
     <div className="field-row"><span>当前状态</span><ProjectSelect value={draft.status || '继续跟进'} options={HANDOVER_STATUSES} onChange={(value) => set('status', value)} ariaLabel="选择交接事项当前状态" /></div>
   </>
 }
@@ -237,7 +252,7 @@ export default function RecordEditorDialog({ open, onClose, config, record, onSa
     : pickupForm
       ? '请选择自提订单车辆或顾客暂存，并按需登记联系方式（手机号或会员号，可留空）。自提订单需选择天猫、京东或小程序，不填写取车说明；确认取车时再输入取货码。'
       : handoverForm
-        ? '交接事项会跨日期保留。只需填写交接事项，并从“继续跟进”或“已处理”中选择当前状态。'
+        ? '交接事项会跨日期保留。填写交接事项并选择当前状态；电话号码可按需录入，不填写也可以保存。'
         : '这条记录会跨日期保留；当天没有编辑时会原样延续到下一日期。新增、编辑和删除都会写入操作记录。'
 
   return (

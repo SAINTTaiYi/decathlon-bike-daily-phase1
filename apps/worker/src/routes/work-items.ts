@@ -65,6 +65,7 @@ export function workItemRoutes() {
       let status = ''
       let repairFields: any = null
       let pickupFields: any = null
+      let handoverContactValue = ''
       if (input.scene === 'repair') {
         const normalized = normalizeRepair(input.values)
         if (!normalized.ok) throw new ApiProblem(400, 'INVALID_REPAIR', normalized.error)
@@ -85,6 +86,7 @@ export function workItemRoutes() {
         status = pickupFields.status
       } else {
         ;({ title, detail, meta, status } = input.values as any)
+        if (input.scene === 'poster') handoverContactValue = input.values.contactValue
       }
       const id = uuid()
       const stamp = nowIso()
@@ -114,7 +116,15 @@ export function workItemRoutes() {
       } else if (input.scene === 'resale') {
         detailStatement = db.prepare(`INSERT INTO resale_details (work_item_id, resale_stage) VALUES (?, 'pending')`).bind(id)
       } else {
-        detailStatement = db.prepare(`INSERT INTO handover_details (work_item_id) VALUES (?)`).bind(id)
+        const key = handoverContactValue ? requireContactKey(config) : null
+        detailStatement = db.prepare(`
+          INSERT INTO handover_details (work_item_id, contact_ciphertext, contact_fingerprint)
+          VALUES (?, ?, ?)
+        `).bind(
+          id,
+          key ? await encryptContact(handoverContactValue, key) : null,
+          key ? await contactFingerprint(handoverContactValue, key) : null
+        )
       }
       const [, inserted] = await batchWhileDayOpen(db, context, businessDate, [
         db.prepare(`
@@ -217,12 +227,24 @@ export function workItemRoutes() {
           WHERE work_item_id = ? AND changes() = 1
         `).bind(fields.pickupSource, fields.selfPickupPlatform || null, id)
       } else {
-        const values = input.values as { title?: string; detail?: string; meta?: string; status?: string }
+        const values = input.values as { title?: string; detail?: string; meta?: string; status?: string; contactValue?: string }
         title = values.title?.trim() ?? ''
         detail = values.detail?.trim() ?? ''
         meta = values.meta?.trim() ?? ''
         status = values.status?.trim() ?? ''
         if (!title || !detail || !status) throw new ApiProblem(400, 'VALIDATION_ERROR', '请填写名称、事项说明和当前状态。')
+        if (kind === 'handover' && Object.prototype.hasOwnProperty.call(values, 'contactValue')) {
+          const contactValue = values.contactValue?.trim() ?? ''
+          const key = contactValue ? requireContactKey(config) : null
+          detailStatement = db.prepare(`
+            UPDATE handover_details SET contact_ciphertext = ?, contact_fingerprint = ?
+            WHERE work_item_id = ? AND changes() = 1
+          `).bind(
+            key ? await encryptContact(contactValue, key) : null,
+            key ? await contactFingerprint(contactValue, key) : null,
+            id
+          )
+        }
       }
       const stamp = nowIso()
       const [updated] = await batchWhileDayOpen(db, context, businessDate, [

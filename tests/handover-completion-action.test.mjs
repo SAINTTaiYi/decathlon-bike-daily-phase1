@@ -25,7 +25,7 @@ test('expanded handovers reveal their full item while the completed marker stays
   assert.match(ledger, /const newlyCompletedOpenRecord = records\.find\(\(record\) => completionById\.get\(record\.id\) && !handoverCompletionByIdRef\.current\.get\(record\.id\) && expandedId === record\.id\)/u)
   assert.match(ledger, /setExpandedId\(''\)\n    setHandoverStampMotionId\(newlyCompletedOpenRecord\.id\)/u)
   assert.match(ledger, /\{!handoverComplete \? <b data-repair=/u)
-  assert.match(ledger, /handoverMode \? <section className="pickup-detail-wide handover-detail-full"><h4>HANDOVER <span>\/ 交接事项/u)
+  assert.match(ledger, /handoverMode \? <>?<section className="pickup-detail-wide handover-detail-full"><h4>HANDOVER <span>\/ 交接事项/u)
   assert.match(ledger, /<Highlight query=\{query\}>\{handoverDetail\}<\/Highlight>/u)
   assert.doesNotMatch(ledger, /<h4>STATUS <span>\/ 当前状态<\/span><\/h4>/u)
   assert.match(ledger, /handover-complete-stamp-stage/u)

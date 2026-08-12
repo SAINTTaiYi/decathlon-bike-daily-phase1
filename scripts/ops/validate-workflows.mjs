@@ -107,8 +107,8 @@ assert(/git diff --quiet "\$STAGING_ACCEPTED_SHA" "\$RELEASE_SHA" -- \./u.test(p
 assert(/wrangler@4\.112\.0/u.test(production), 'production: Wrangler version must be pinned')
 includesInOrder(production, ['Validate, test, typecheck, and build before database mutation', 'Apply Production D1 migrations', 'Deploy the Production Worker with Static Assets and D1', 'Verify the deployed Production API, release identity, and Web shell'], 'production')
 
-assert(/0012_flat_store_self_registration/u.test(schemaVersion), 'schema version: latest D1 migration must be reflected in runtime metadata')
-assert(migrationNames.at(-1)?.startsWith('0012_'), 'schema version: latest committed D1 migration must be 0012')
+assert(/0013_optional_handover_phone/u.test(schemaVersion), 'schema version: latest D1 migration must be reflected in runtime metadata')
+assert(migrationNames.at(-1)?.startsWith('0013_'), 'schema version: latest committed D1 migration must be 0013')
 for (const variable of ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_STORAGE_BUCKET']) assert(envExample.includes(variable), `.env.example: missing ${variable}`)
 assert(!/(?:CLOUDFLARE|RAILWAY|R2_)/u.test(envExample), '.env.example: retired provider variables are forbidden')
 for (const path of ['.github/workflows/bootstrap-infrastructure.yml', 'railway.json', 'infra/docker/api.Dockerfile', 'scripts/ops/cloudflare.mjs', 'scripts/ops/railway.mjs', 'scripts/ops/supabase.mjs', 'scripts/ops/index.mjs', 'scripts/prepare-pages-headers.mjs']) assert(await missing(path), `cleanup: retired file must be deleted: ${path}`)

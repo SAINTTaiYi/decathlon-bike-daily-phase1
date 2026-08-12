@@ -63,6 +63,7 @@ interface JoinedItemRow {
   soldAt: Date | null
   handoverCompletedOn: string | null
   handoverCompletedAt: Date | null
+  handoverContactCiphertext: string | null
 }
 
 const joinedSelect = `
@@ -71,7 +72,8 @@ const joinedSelect = `
          r.repair_completed_at, r.completed_on as repair_completed_on, r.completed_at as repair_completed_at_final,
          p.pickup_source, p.self_pickup_platform, p.notification_status, p.picked_up_on, p.picked_up_at,
          rs.resale_stage, rs.listed_at, rs.sold_at,
-         h.completed_on as handover_completed_on, h.completed_at as handover_completed_at
+         h.completed_on as handover_completed_on, h.completed_at as handover_completed_at,
+         h.contact_ciphertext as handover_contact_ciphertext
   from bike_ops.work_items w
   left join bike_ops.repair_details r on r.work_item_id = w.id
   left join bike_ops.pickup_details p on p.work_item_id = w.id
@@ -86,6 +88,15 @@ function sceneFor(kind: JoinedItemRow['kind']): WorkItemRecord['scene'] {
 export function mapWorkItem(row: JoinedItemRow, businessDate: string, config: AppConfig): WorkItemRecord {
   const completedOn = row.handoverCompletedOn ?? row.repairCompletedOn ?? undefined
   const completedAt = row.handoverCompletedAt ?? row.repairCompletedAtFinal ?? undefined
+  const contactCiphertext = row.contactCiphertext ?? row.handoverContactCiphertext
+  let contactValue: string | undefined
+  if (contactCiphertext && config.CONTACT_ENCRYPTION_KEY) {
+    try {
+      contactValue = decryptContact(contactCiphertext, config.CONTACT_ENCRYPTION_KEY)
+    } catch {
+      contactValue = undefined
+    }
+  }
   return {
     id: row.id,
     scene: sceneFor(row.kind),
@@ -99,7 +110,7 @@ export function mapWorkItem(row: JoinedItemRow, businessDate: string, config: Ap
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     ...(row.contactType ? { contactType: row.contactType } : {}),
-    ...(row.contactCiphertext && config.CONTACT_ENCRYPTION_KEY ? { contactValue: decryptContact(row.contactCiphertext, config.CONTACT_ENCRYPTION_KEY) } : {}),
+    ...(contactValue !== undefined ? { contactValue } : {}),
     ...(row.repairType ? { repairType: row.repairType } : {}),
     ...(row.repairProject ? { repairProject: row.repairProject } : {}),
     ...(row.pickupDate ? { pickupDate: row.pickupDate } : {}),
