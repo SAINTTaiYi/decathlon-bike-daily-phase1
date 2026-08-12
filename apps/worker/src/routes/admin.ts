@@ -370,7 +370,13 @@ export function adminRoutes() {
     const result = await idempotent(c, rawBody, async (db) => {
       const [existing, store] = await Promise.all([
         first<{ id: string }>(db.prepare('SELECT id FROM users WHERE username_key = ?').bind(username)),
-        first<{ id: string; code: string; name: string; timezone: string }>(db.prepare("SELECT id, code, name, timezone FROM stores WHERE id = ? AND status = 'active' AND pending_review = 0").bind(input.storeId))
+        (async () => {
+          const existing = await first<{ id: string; code: string; name: string; timezone: string }>(db.prepare("SELECT id, code, name, timezone FROM stores WHERE code = ? AND status = 'active' AND pending_review = 0").bind(input.storeCode))
+          if (existing) return existing
+          const storeId = uuid()
+          await db.prepare('INSERT INTO stores (id, code, name, status, timezone, pending_review, created_at) VALUES (?, ?, ?, ?, ?, 1, ?)').bind(storeId, input.storeCode, input.storeName, 'active', 'Asia/Shanghai', nowIso()).run()
+          return { id: storeId, code: input.storeCode, name: input.storeName, timezone: 'Asia/Shanghai' }
+        })()
       ])
       if (existing) throw new ApiProblem(409, 'USERNAME_TAKEN', '该登录名已被占用。')
       if (!store) throw new ApiProblem(409, 'STORE_NOT_ACTIVE', '目标门店不存在、待审核或未生效。')

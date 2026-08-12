@@ -280,7 +280,13 @@ export function registrationRoutes() {
     if (!safeEqualHex(await sha256(input.token), config.PLATFORM_ADMIN_SETUP_TOKEN_HASH)) throw new ApiProblem(403, 'INVALID_PLATFORM_SETUP_TOKEN', '平台管理员初始化链接无效或已过期。')
     const exists = await first<{ count: number }>(c.env.DB.prepare('SELECT COUNT(*) AS count FROM users WHERE is_platform_admin = 1'))
     if ((exists?.count ?? 0) > 0) throw new ApiProblem(409, 'PLATFORM_ADMIN_ALREADY_EXISTS', '平台管理员已初始化。')
-    const store = await activeDirectoryStore(c.env.DB, input.storeId)
+    // 根据 storeCode 查找或创建门店
+    let store = await first<{ id: string; code: string; name: string; timezone: string }>(c.env.DB.prepare("SELECT id, code, name, timezone FROM stores WHERE code = ? AND status = 'active' AND pending_review = 0").bind(input.storeCode))
+    if (!store) {
+      const storeId = uuid()
+      await c.env.DB.prepare('INSERT INTO stores (id, code, name, status, timezone, pending_review, created_at) VALUES (?, ?, ?, ?, ?, 1, ?)').bind(storeId, input.storeCode, input.storeName, 'active', 'Asia/Shanghai', nowIso()).run()
+      store = { id: storeId, code: input.storeCode, name: input.storeName, timezone: 'Asia/Shanghai' }
+    }
     if (!store) throw new ApiProblem(409, 'STORE_NOT_AVAILABLE', '所选门店暂不可用。')
     const profile = await first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE username_key = ?').bind('chu13'))
     if (profile) throw new ApiProblem(409, 'PLATFORM_PROFILE_EXISTS', 'CHU13 Profile 已存在，无法安全接管。')
