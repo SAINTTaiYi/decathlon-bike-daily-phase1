@@ -102,7 +102,7 @@ export function closingRoutes() {
     return c.json(result.body, result.status as any)
   })
 
-  app.post('/api/v1/daily-closing/current/close', ...write, async (c) => {
+  app.post('/api/v1/daily-closing/current/close', ...write, auth.requireRole('manager', 'admin'), async (c) => {
     const context = c.get('auth')!
     let body: unknown = {}
     try { body = await c.req.json() } catch { body = {} }

@@ -10,6 +10,7 @@ import { hashPassword, keyedHash, randomToken, verifyPassword } from '../lib/cry
 import { ApiProblem } from '../services/problems.js'
 import { prepareAudit, prepareConditionalAudit } from '../services/business.js'
 import { idempotent } from '../services/idempotency.js'
+import { requireJsonBody } from '../lib/json.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
 type MembershipRow = { store_id: string; store_code: string; store_name: string; timezone: string; role: 'operator' | 'manager' | 'admin' }
@@ -33,6 +34,11 @@ function mapMemberships(rows: MembershipRow[]) {
 // stays reachable, but each successive failure costs the attacker more wall-clock time. Delay is
 // applied to the failure response only, so a legitimate admin typing the right password is never
 // slowed down.
+// Valid-format PBKDF2 hash used to equalize login latency: when the username
+// does not exist (or is temporarily locked), we still run one PBKDF2 round so
+// response timing does not reveal account existence.
+const DUMMY_PASSWORD_HASH = 'pbkdf2$sha256$100000$AAECAwQFBgcICQoLDA0ODw$0000000000000000000000000000000000000000000000000000000000000000'
+
 export const LOGIN_BACKOFF_THRESHOLD = 5
 // Capped low on purpose. The edge rate limiting rule caps how fast an attacker can
 // retry at all, so the in-Worker delay only has to make online guessing impractical.
@@ -72,7 +78,7 @@ export function authRoutes() {
   })
 
 
-  app.post('/api/v1/auth/login', async (c) => {
+  app.post('/api/v1/auth/login', requireJsonBody, async (c) => {
     const config = c.get('config')
     const input = loginSchema.parse(await c.req.json())
     const genericFailure = { error: 'INVALID_CREDENTIALS', message: '用户名或密码不正确。' }
@@ -81,7 +87,12 @@ export function authRoutes() {
       FROM users WHERE username_key = ? AND status = 'active' LIMIT 1
     `).bind(usernameKey(input.username)))
     const accountLockActive = user?.is_platform_admin !== 1 && Boolean(user?.locked_until && Date.parse(user.locked_until) > Date.now())
-    if (!user || accountLockActive) return c.json(genericFailure, 401)
+    if (!user || accountLockActive) {
+      // Timing equalization: perform one dummy PBKDF2 before responding so the
+      // not-found / locked path costs roughly the same as a wrong password.
+      await verifyPassword(DUMMY_PASSWORD_HASH, input.password, config.PASSWORD_PEPPER)
+      return c.json(genericFailure, 401)
+    }
     if (!(await verifyPassword(user.password_hash, input.password, config.PASSWORD_PEPPER))) {
       const stamp = nowIso()
       const lockUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString()
