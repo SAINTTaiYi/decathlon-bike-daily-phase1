@@ -130,13 +130,15 @@ export function registrationRoutes() {
       return c.json(registrationOtpResponse(reusableChallengeId, Math.ceil((RESEND_COOLDOWN_MS - (now - Date.parse(recentByEmail.created_at))) / 1000)))
     }
 
-    const [existingEmail, existingUsername, store] = await Promise.all([
-      first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE email_key = ? LIMIT 1').bind(emailKey)),
-      first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE username_key = ? LIMIT 1').bind(userKey)),
-      activeDirectoryStore(c.env.DB, input.storeId)
+    const [existingEmail, existingUsername, existingStoreCode] = await Promise.all([
+      first<{ id: string }>(c.env.DB.prepare("SELECT id FROM users WHERE email_key = ? LIMIT 1").bind(emailKey)),
+      first<{ id: string }>(c.env.DB.prepare("SELECT id FROM users WHERE username_key = ? LIMIT 1").bind(userKey)),
+      first<{ id: string }>(c.env.DB.prepare("SELECT id FROM stores WHERE code = ? LIMIT 1").bind(input.storeCode))
     ])
-    if (existingEmail || existingUsername || !store) return c.json(registrationOtpResponse(syntheticChallengeId))
+    if (existingEmail || existingUsername || existingStoreCode) return c.json(registrationOtpResponse(syntheticChallengeId))
 
+    const storeId = uuid()
+    const store = { id: storeId, code: input.storeCode, name: input.storeName, timezone: "Asia/Shanghai" }
     const otp = randomOtp()
     const id = uuid()
     const expiresAt = new Date(now + CHALLENGE_TTL_MS).toISOString()
@@ -205,8 +207,11 @@ export function registrationRoutes() {
     if (!challenge || challenge.status !== 'verified' || Date.parse(challenge.expires_at) <= Date.now() || !safeEqualHex(providedHash, challenge.completion_token_hash ?? undefined)) {
       throw new ApiProblem(400, 'REGISTRATION_GRANT_INVALID', '注册验证已失效，请重新获取验证码。')
     }
-    const store = await activeDirectoryStore(c.env.DB, challenge.store_id)
-    if (!store) throw new ApiProblem(409, 'STORE_NOT_AVAILABLE', '所选门店已不可注册，请重新选择。')
+    const storeInfo = await first<{ code: string; name: string }>(c.env.DB.prepare(
+      "SELECT code, name FROM stores WHERE id = ? LIMIT 1"
+    ).bind(challenge.store_id))
+    if (!storeInfo) throw new ApiProblem(409, "STORE_NOT_AVAILABLE", "门店信息已失效，请重新注册。")
+    const store = { id: challenge.store_id, code: storeInfo.code, name: storeInfo.name, timezone: "Asia/Shanghai" }
     const [existingEmail, existingUsername] = await Promise.all([
       first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE email_key = ? LIMIT 1').bind(challenge.email_key)),
       first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE username_key = ? LIMIT 1').bind(challenge.username_key))
@@ -229,6 +234,11 @@ export function registrationRoutes() {
     // D1 batches run transactionally. Consume the short-lived grant first, then create every
     // account artifact in the same batch so a duplicate/expired grant cannot leave a user behind.
     const result = await c.env.DB.batch([
+      c.env.DB.prepare(`
+        INSERT INTO stores (id, code, name, status, timezone, created_at, updated_at)
+        SELECT ?, ?, ?, "active", "Asia/Shanghai", ?, ?
+        WHERE NOT EXISTS (SELECT 1 FROM stores WHERE id = ?)
+      `).bind(store.id, store.code, store.name, stamp, stamp, store.id),
       c.env.DB.prepare(`
         UPDATE registration_challenges
         SET status = 'completed', completed_at = ?, completion_token_hash = ?, updated_at = ?

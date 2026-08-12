@@ -48,7 +48,8 @@ export const createUserSchema = z.object({
 export const adminCreateUserSchema = z.object({
   username: usernameSchema,
   displayName: usernameSchema,
-  storeId: uuidSchema,
+  storeCode: z.string().trim().min(1).max(32),
+  storeName: z.string().trim().min(1).max(120),
   role: z.enum(appRoles),
   password: passwordSchema
 }).strict()
@@ -84,7 +85,8 @@ export const registrationOtpSchema = z.object({
   username: usernameSchema,
   displayName: usernameSchema.optional(),
   email: corporateEmailSchema,
-  storeId: uuidSchema
+  storeCode: z.string().trim().min(1).max(32),
+  storeName: z.string().trim().min(1).max(120)
 }).strict()
 export const registrationVerifyOtpSchema = z.object({
   challengeId: uuidSchema,
@@ -98,7 +100,8 @@ export const registrationCompleteSchema = z.object({
 export const platformAdminSetupSchema = z.object({
   token: z.string().min(32).max(512),
   password: passwordSchema,
-  storeId: uuidSchema
+  storeCode: z.string().trim().min(1).max(32),
+  storeName: z.string().trim().min(1).max(120)
 }).strict()
 export const roleChangeRequestSchema = z.object({
   userId: uuidSchema.optional(),
