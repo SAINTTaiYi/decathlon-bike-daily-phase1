@@ -51,9 +51,9 @@ test('退避只作用于失败路径，且不引入用户名枚举侧信道', as
   const successIndex = loginBlock.indexOf('setSessionCookie')
   assert.ok(delayIndex < successIndex, '退避必须位于成功签发会话之前的失败分支中')
 
-  // Unknown user and locked account must still short-circuit to the same generic failure, so the
-  // backoff cannot be used to distinguish "account exists" from "account does not exist".
-  assert.match(loginBlock, /if \(!user \|\| accountLockActive\) return c\.json\(genericFailure, 401\)/u)
+  // Unknown user and locked account must still answer the same generic failure. A dummy PBKDF2
+  // equalizes latency so the backoff cannot be used to distinguish account existence.
+  assert.match(loginBlock, /if \(!user \|\| accountLockActive\) \{[\s\S]*?await verifyPassword\(DUMMY_PASSWORD_HASH, input\.password, config\.PASSWORD_PEPPER\)[\s\S]*?return c\.json\(genericFailure, 401\)/u)
 
   // Alert bookkeeping must never turn a failed login into a 500.
   assert.match(loginBlock, /try \{ await alert\.statement\.run\(\) \} catch \{/u, '告警写入失败不得影响登录响应')
