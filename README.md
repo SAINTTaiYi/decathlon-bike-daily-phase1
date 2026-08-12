@@ -74,6 +74,7 @@ pnpm build
 
 ### 部署
 
+- 运行环境与防回归手册：[docs/OPERATIONAL-SAFETY-RUNBOOK.md](./docs/OPERATIONAL-SAFETY-RUNBOOK.md)
 - 通用 Cloudflare 部署说明：[DEPLOYMENT.md](./DEPLOYMENT.md)
 - GitHub 发布治理：[AUTOMATED-DEPLOYMENT.md](./AUTOMATED-DEPLOYMENT.md)
 - Staging 配置：[docs/STAGING-ACCOUNT-SETUP.md](./docs/STAGING-ACCOUNT-SETUP.md)
