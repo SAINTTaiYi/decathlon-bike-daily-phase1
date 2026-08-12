@@ -143,25 +143,11 @@ function OperationsIndex({ workflow, onJump, showUsed = false }) {
         if (id === 'sales') {
           value = !available ? '—' : workflow.closedAt ? 'DONE' : workflow.kpiReady ? 'READY' : 'DUE'
         }
-        return (
-          <li key={id} className="ops-index-module">
-            <div className="ops-index-module-head">
-              <Icon width={20} height={20} strokeWidth={1.7} aria-hidden="true" />
-              <h3>{cn}</h3>
-              <small>{no} {en}</small>
-            </div>
-            <button type="button" onClick={() => onJump(id)} aria-label={`查看${cn}`}>
-              <b data-value={String(value).toLowerCase()}>{value}</b>
-              <ArrowGlyph />
-            </button>
-          </li>
-        )
+        return <li key={id}><button type="button" onClick={() => onJump(id)}><small>{no}</small><span><Icon width={18} height={18} strokeWidth={1.7} aria-hidden="true" /><strong>{en}</strong></span><em>{cn}</em><b data-value={String(value).toLowerCase()}>{value}</b><ArrowGlyph /></button></li>
       })}</ol>
     </nav>
   )
 }
-
-
 
 function OverviewAnalytics({ workflow }) {
   const available = workflow.hydrated && workflow.hasSnapshot && !workflow.storageError
