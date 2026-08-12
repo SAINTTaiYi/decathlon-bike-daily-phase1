@@ -48,8 +48,7 @@ export const createUserSchema = z.object({
 export const adminCreateUserSchema = z.object({
   username: usernameSchema,
   displayName: usernameSchema,
-  storeCode: z.string().trim().min(1).max(32),
-  storeName: z.string().trim().min(1).max(120),
+  storeId: uuidSchema,
   role: z.enum(appRoles),
   password: passwordSchema
 }).strict()
@@ -85,7 +84,7 @@ export const registrationOtpSchema = z.object({
   username: usernameSchema,
   displayName: usernameSchema.optional(),
   email: corporateEmailSchema,
-  storeCode: z.string().trim().min(1).max(32),
+  storeCode: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/u),
   storeName: z.string().trim().min(1).max(120)
 }).strict()
 export const registrationVerifyOtpSchema = z.object({
@@ -100,8 +99,7 @@ export const registrationCompleteSchema = z.object({
 export const platformAdminSetupSchema = z.object({
   token: z.string().min(32).max(512),
   password: passwordSchema,
-  storeCode: z.string().trim().min(1).max(32),
-  storeName: z.string().trim().min(1).max(120)
+  storeId: uuidSchema
 }).strict()
 export const roleChangeRequestSchema = z.object({
   userId: uuidSchema.optional(),
@@ -119,11 +117,9 @@ export const storeTransferRequestSchema = z.object({
 }).strict()
 export const directoryEntitySchema = z.object({
   name: z.string().trim().min(1).max(120),
-  parentId: uuidSchema.optional(),
   code: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/u).optional(),
   status: directoryStatusSchema.optional()
 }).strict()
-
 export const kpiSchema = z.object({
   salesVehicles: z.coerce.number().int().min(0).max(9999),
   safetyChecks: z.coerce.number().int().min(0).max(9999),
@@ -163,16 +159,24 @@ export const pickupInputSchema = z.object({
   status: z.string().trim().min(1).max(80)
 }).strict()
 
+export const handoverInputSchema = genericWorkItem.extend({
+  contactValue: z.string().trim().max(80).default('')
+}).strict()
+
+const handoverUpdateInputSchema = genericWorkItem.extend({
+  contactValue: z.string().trim().max(80).optional()
+}).strict()
+
 export const workItemCreateSchema = z.discriminatedUnion('scene', [
   z.object({ scene: z.literal('repair'), values: repairInputSchema }),
   z.object({ scene: z.literal('pickup'), values: pickupInputSchema }),
-  z.object({ scene: z.literal('poster'), values: genericWorkItem.strict() }),
+  z.object({ scene: z.literal('poster'), values: handoverInputSchema }),
   z.object({ scene: z.literal('resale'), values: genericWorkItem.strict() })
 ])
 
 export const workItemUpdateSchema = z.object({
   expectedRevision: revisionSchema,
-  values: z.union([repairInputSchema, pickupInputSchema, genericWorkItem.strict()])
+  values: z.union([repairInputSchema, pickupInputSchema, handoverUpdateInputSchema, genericWorkItem.strict()])
 }).strict()
 
 export const actionSchema = z.object({ expectedRevision: revisionSchema }).strict()

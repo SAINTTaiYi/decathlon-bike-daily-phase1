@@ -1,45 +1,175 @@
 {
   "kind": "formal-production-release",
-  "version": "5.9.2",
+  "version": "5.9.3",
   "previewRange": {
-    "fromExclusive": "d5f6636657e60669645de2a1b310e7f15f0b7e3f",
-    "toInclusive": "6fffb796d22f8cf2a3801a544f632b3d27f3485c",
+    "fromExclusive": "e608e17b79d2901f78a92e4693724a8c01181136",
+    "toInclusive": "cf3dde02bd94ac348d42bae6e53778001060176b",
     "commits": [
       {
-        "sha": "2475bf13b8be7c3972a5d2da135f84cb6cb63c94",
-        "subject": "Merge pull request #190 from SAINTTaiYi/release/v5.9.1-20260808"
+        "sha": "b4bbffc2bd4b96de729f0db2b996550891257d5c",
+        "subject": "ci(cloudflare): register free staging deploy workflow on default branch"
       },
       {
-        "sha": "c55341bbb7b1dad567bc499998ca3f57a830159b",
-        "subject": "feat(closing): require per-module review before the day can be closed"
+        "sha": "492cdf02caf22a3c9add9c2ddce487a2329b970f",
+        "subject": "Merge pull request #3 from SAINTTaiYi/ci/register-cloudflare-staging-workflow"
       },
       {
-        "sha": "f7bea21c58d17ec9e3229391dc699fd2455f3876",
-        "subject": "Merge pull request #191 from SAINTTaiYi/feat/closing-module-confirmation-20260809"
+        "sha": "4a89f1227719b894ac5c5a9e767bccdfb32fa827",
+        "subject": "fix(ci): allow private-repo staging head verification"
       },
       {
-        "sha": "3de7b8335d5ab24bbc35071b71d44deb888499ad",
-        "subject": "feat(closing): roll-call every in-store bike before the day can be closed"
+        "sha": "864ea401f9c6830ad2cd08ac1d9824fbee518ce0",
+        "subject": "Merge pull request #4 from SAINTTaiYi/ci/fix-staging-deploy-head-check"
       },
       {
-        "sha": "d1e7a32ac0d4a4613e73dd3cd4903c332e206fb5",
-        "subject": "Merge pull request #192 from SAINTTaiYi/feat/closing-inventory-safeguards-20260811"
+        "sha": "8b8d513337d8ee400085582efc3c6752c1dc3b0c",
+        "subject": "ci(cloudflare): register free preview deploy workflow on default branch"
       },
       {
-        "sha": "6fffb796d22f8cf2a3801a544f632b3d27f3485c",
-        "subject": "feat: enable production registration + redact email in audit"
+        "sha": "76e074f23e0f3ee420e716736c280a676b32aca3",
+        "subject": "Merge pull request #5 from SAINTTaiYi/ci/register-cloudflare-preview-workflow"
+      },
+      {
+        "sha": "74025ccea19aecb696d48dd63cb7ec39bdf9051e",
+        "subject": "ci: register workshop.skin staging onboard workflow"
+      },
+      {
+        "sha": "7f87b947c0e6e4193e36faa76ae9febbcbbb9ef5",
+        "subject": "Merge pull request #6 from SAINTTaiYi/ci/register-workshop-skin-onboard"
+      },
+      {
+        "sha": "32e14064486fe90b2e0c5b07f5a254e3fdf1f290",
+        "subject": "feat(auth): add self-service password changes"
+      },
+      {
+        "sha": "b6ded35a1725d41b5716a255dc8fd2a0fb721416",
+        "subject": "docs: checkpoint password change submission"
+      },
+      {
+        "sha": "b746bf88f8c7fc31529682d85183ae83e6781f86",
+        "subject": "docs: record password change pull request"
+      },
+      {
+        "sha": "f7080f4a754f6da7c5ec97163b73a4747938d4f8",
+        "subject": "fix(auth): close password-change login race"
+      },
+      {
+        "sha": "f763c654f8b29e4e5c0dc06a0b367f005ebf3868",
+        "subject": "docs: record password change CI evidence"
+      },
+      {
+        "sha": "2cf33d9a087a0c40b817d56cd2b96e6cf3760895",
+        "subject": "Merge pull request #193 from SAINTTaiYi/feat/self-service-password-change-20260811"
+      },
+      {
+        "sha": "1b5f09f7dccb3c76bd9742a2199c765255f18e18",
+        "subject": "docs: record password change preview evidence"
+      },
+      {
+        "sha": "117cb0a8174ee8964b87e2c5032ee77f8821cf71",
+        "subject": "Merge pull request #194 from SAINTTaiYi/docs/self-service-password-preview-evidence-20260811"
+      },
+      {
+        "sha": "352e6500698c1b035eb6a25771fa06a54cac01a3",
+        "subject": "docs: clarify deployed Preview source SHA"
+      },
+      {
+        "sha": "23c003806f53fd9dda186c193120664b8d3c2fff",
+        "subject": "Merge pull request #195 from SAINTTaiYi/docs/fix-password-preview-sha-label-20260811"
+      },
+      {
+        "sha": "e3880ab54300724ce1d6f57f15b59ee0a4c10f73",
+        "subject": "chore: prepare for open source"
+      },
+      {
+        "sha": "170adfcc837c9f4bee50209403d3549fce485dd9",
+        "subject": "chore: merge Cloudflare Workers/D1 architecture and open source preparation"
+      },
+      {
+        "sha": "b747d10fd78209f4beef3e5567df8398e361e9ce",
+        "subject": "chore: make Cloudflare the canonical release path"
+      },
+      {
+        "sha": "4ab90878ff089528888ead2fec396e0e8a323b12",
+        "subject": "chore: retire conflicting legacy deployment workflows"
+      },
+      {
+        "sha": "98525b0a74a08aed6c4d9c3105f4cd4f923b9bc4",
+        "subject": "test: accept Cloudflare Staging release check"
+      },
+      {
+        "sha": "42f69425fba659bdc474dcedd933e9e3721d1e56",
+        "subject": "test: fix deployment environment assertions"
+      },
+      {
+        "sha": "e255daebab22d3c22dc48a9d5612fa0f8673614d",
+        "subject": "test: match escaped environment verification"
+      },
+      {
+        "sha": "1fc431effc071a9eb2912c2ff4f36cdcdf27f993",
+        "subject": "fix: validate production Worker with JSON search API"
+      },
+      {
+        "sha": "773298b8e60293a9114fe391b9853437b920d607",
+        "subject": "docs: align deployment facts with Workers and D1"
+      },
+      {
+        "sha": "561ef2585610fe3d8b76833622589ea01dfcdb90",
+        "subject": "chore: require live Staging identity before Production"
+      },
+      {
+        "sha": "7c45ead34e1e088cd12c97ed953dca8c4b514969",
+        "subject": "docs: correct public runtime and release status"
+      },
+      {
+        "sha": "07bdebef2bad60f301771d79672d6445756bc724",
+        "subject": "Merge pull request #196 from SAINTTaiYi/chore/cloudflare-release-governance-20260812"
+      },
+      {
+        "sha": "51bbdf3dd52718d0ca828406d3035bfe1cca2e81",
+        "subject": "取消区域层级，开放门店自主注册，门店编号唯一性服务端强制"
+      },
+      {
+        "sha": "cab19d420b02850dbaa1ad2740c0a12f2c88989d",
+        "subject": "临时：允许任意分支触发 preview 部署"
+      },
+      {
+        "sha": "67c2fa2a426c7381af69031bf29928362a31d32a",
+        "subject": "test: update expectations for 0012 migration and store registration flow"
+      },
+      {
+        "sha": "7a472ff004fabdf658abe5c5a979e4ffd5f2c7b0",
+        "subject": "fix: update PlatformAdminSetup to match new flat store registration API"
+      },
+      {
+        "sha": "be3b6eb12c9cc3353bd048811f6c8ac88a09dad8",
+        "subject": "fix: keep closing actions inside overview card"
+      },
+      {
+        "sha": "9857e4ef48be812da8af0dfa8388543e97cd8119",
+        "subject": "feat: add optional phone to handover items"
+      },
+      {
+        "sha": "23a3d9a5d3543ac1bcfe52ecce2a11d086328f44",
+        "subject": "ci: count optional handover migration"
+      },
+      {
+        "sha": "cf3dde02bd94ac348d42bae6e53778001060176b",
+        "subject": "feat(web): match desktop vehicle editor references"
       }
     ]
   },
   "announcement": {
-    "title": "广西多门店内测就绪：闭店防漏 + 自助注册上线",
-    "summary": "自 V5.9.1 后合并 3 组改动：闭店前逐模块确认并逐台盘点在店车辆（PR #191/#192），Production 自助注册开通且注册审计邮箱脱敏。覆盖广西四店（南宁 1299/1670、桂林 994、柳州 1249）。",
+    "title": "门店注册平铺化与桌面编辑页复刻上线",
+    "summary": "自 V5.9.2 后聚合 38 个已验收 Preview 提交：门店自助注册取消区域层级、编号唯一性服务端强制；交接事项支持可选电话号码；闭店操作修复卡片溢出；待取车与维修车桌面编辑页按参考图一比一复刻。同步并入员工自助改密与 Cloudflare 发布治理。覆盖广西四店（南宁 1299/1670、桂林 994、柳州 1249）。",
     "changes": [
-      "闭店弹窗新增待取/维修/交接三模块确认，三项确认后才能最终确认闭店；有变动显示变动项，无变动提示与昨日一致",
-      "闭店前逐台核对在店车辆，覆盖全部四个待取来源，防止漏清车辆",
-      "Production 自助注册开通：REGISTRATION_SECRET/Resend 三密钥上线，1670/994/1249 员工可自助建号",
-      "注册审计邮箱脱敏：完整邮箱改为 a***@domain 格式，不再永久留存明文"
+      "门店自助注册平铺化：取消大区/小区/城市层级，注册改为先选门店，编号唯一性服务端强制（D1 迁移 0012）",
+      "交接事项新增可选电话号码，跨日期保留并随记录流转（D1 迁移 0013）",
+      "闭店操作保留在总览卡片内，不再溢出遮挡（移动端与桌面端）",
+      "桌面端「编辑待取车辆」「编辑维修车辆」按参考图一比一复刻：三列布局、填写提示、完成后可人工干预提示与固定底栏；移动端保持不变",
+      "员工可自助修改密码，并修复改密登录竞态、审计邮箱脱敏",
+      "Cloudflare Workers/D1 成为正式发布路径：Staging 身份前置校验、正式发布版本策略落地、旧部署工作流退役"
     ]
   },
-  "preparedAt": "2026-08-11T09:15:30.342Z"
+  "preparedAt": "2026-08-12T18:08:48.833Z"
 }

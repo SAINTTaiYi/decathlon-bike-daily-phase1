@@ -55,6 +55,7 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
       let status = ''
       let repairFields: NormalizedRepairFields | null = null
       let pickupFields: NormalizedPickupFields | null = null
+      let handoverContactValue = ''
       if (input.scene === 'repair') {
         const normalized = normalizeRepair(input.values)
         if (!normalized.ok) throw new ApiProblem(400, 'INVALID_REPAIR', normalized.error)
@@ -75,6 +76,7 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
         status = pickupFields.status
       } else {
         ;({ title, detail, meta, status } = input.values)
+        if (input.scene === 'poster') handoverContactValue = input.values.contactValue
       }
       const [created] = await tx<{ id: string; revision: number }[]>`
         insert into bike_ops.work_items (store_id, kind, title, detail, meta, status, created_by, updated_by)
@@ -97,7 +99,11 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
       } else if (input.scene === 'resale') {
         await tx`insert into bike_ops.resale_details (work_item_id, resale_stage) values (${created.id}, 'pending')`
       } else {
-        await tx`insert into bike_ops.handover_details (work_item_id) values (${created.id})`
+        const key = handoverContactValue ? requireContactKey(config) : null
+        await tx`
+          insert into bike_ops.handover_details (work_item_id, contact_ciphertext, contact_fingerprint)
+          values (${created.id}, ${key ? encryptContact(handoverContactValue, key) : null}, ${key ? contactFingerprint(handoverContactValue, key) : null})
+        `
       }
       const after = await internalSnapshot(tx, context.storeId, created.id)
       const eventId = await writeAudit(tx, { context, action: 'add-record', entityType: 'work-item', entityId: created.id, entityRevision: created.revision, businessDate, summary: `增加：${title}`, before: null, after, reversible: true, requestId: request.id })
@@ -156,12 +162,22 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
         status = fields.status ?? ''
         await tx`update bike_ops.pickup_details set pickup_source = ${fields.pickupSource}, self_pickup_platform = ${fields.selfPickupPlatform || null} where work_item_id = ${id}`
       } else {
-        const values = input.values as { title?: string; detail?: string; meta?: string; status?: string }
+        const values = input.values as { title?: string; detail?: string; meta?: string; status?: string; contactValue?: string }
         title = values.title?.trim() ?? ''
         detail = values.detail?.trim() ?? ''
         meta = values.meta?.trim() ?? ''
         status = values.status?.trim() ?? ''
         if (!title || !detail || !status) throw new ApiProblem(400, 'VALIDATION_ERROR', '请填写名称、事项说明和当前状态。')
+        if (kind === 'handover' && Object.prototype.hasOwnProperty.call(values, 'contactValue')) {
+          const contactValue = values.contactValue?.trim() ?? ''
+          const key = contactValue ? requireContactKey(config) : null
+          await tx`
+            update bike_ops.handover_details set
+              contact_ciphertext = ${key ? encryptContact(contactValue, key) : null},
+              contact_fingerprint = ${key ? contactFingerprint(contactValue, key) : null}
+            where work_item_id = ${id}
+          `
+        }
       }
       const updated = await tx<{ revision: number }[]>`
         update bike_ops.work_items set title = ${title}, detail = ${detail}, meta = ${meta}, status = ${status}, updated_by = ${context.userId}, revision = revision + 1, updated_at = now()

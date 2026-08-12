@@ -47,8 +47,9 @@ export async function restoreSnapshot(sql: Database, snapshot: Record<string, un
   await sql`delete from bike_ops.handover_details where work_item_id = ${id}`
   const handover = snapshot.handover as Record<string, unknown> | null | undefined
   if (handover) await sql`
-    insert into bike_ops.handover_details (work_item_id, completed_on, completed_at, completed_by)
-    values (${id}, ${rowValue(handover, 'completedOn')}, ${rowValue(handover, 'completedAt')}, ${rowValue(handover, 'completedBy')})
+    insert into bike_ops.handover_details (work_item_id, completed_on, completed_at, completed_by, contact_ciphertext, contact_fingerprint)
+    values (${id}, ${rowValue(handover, 'completedOn')}, ${rowValue(handover, 'completedAt')}, ${rowValue(handover, 'completedBy')},
+      ${rowValue(handover, 'contactCiphertext')}, ${rowValue(handover, 'contactFingerprint')})
   `
   return id
 }

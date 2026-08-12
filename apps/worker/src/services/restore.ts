@@ -134,17 +134,21 @@ export function buildRestoreSnapshotStatements(
       : db.prepare(`DELETE FROM resale_details WHERE work_item_id = ? AND ${OWNED}`).bind(id, id, storeId),
     handover
       ? db.prepare(`
-          INSERT INTO handover_details (work_item_id, completed_on, completed_at, completed_by)
-          SELECT ?, ?, ?, ? WHERE ${OWNED}
+          INSERT INTO handover_details (work_item_id, completed_on, completed_at, completed_by, contact_ciphertext, contact_fingerprint)
+          SELECT ?, ?, ?, ?, ?, ? WHERE ${OWNED}
           ON CONFLICT(work_item_id) DO UPDATE SET
             completed_on = excluded.completed_on,
             completed_at = excluded.completed_at,
-            completed_by = excluded.completed_by
+            completed_by = excluded.completed_by,
+            contact_ciphertext = excluded.contact_ciphertext,
+            contact_fingerprint = excluded.contact_fingerprint
         `).bind(
           id,
           handover.completedOn ?? handover.completed_on ?? null,
           handover.completedAt ?? handover.completed_at ?? null,
           handover.completedBy ?? handover.completed_by ?? null,
+          handover.contactCiphertext ?? handover.contact_ciphertext ?? null,
+          handover.contactFingerprint ?? handover.contact_fingerprint ?? null,
           id,
           storeId
         )

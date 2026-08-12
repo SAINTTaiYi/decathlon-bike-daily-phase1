@@ -83,6 +83,7 @@ export default function ProjectSelect({
       ref={rootRef}
       className="project-select"
       data-open={open ? 'true' : undefined}
+      data-value={value || undefined}
       data-compact={compact ? 'true' : undefined}
     >
       <button
@@ -109,6 +110,7 @@ export default function ProjectSelect({
               type="button"
               className="project-select-option"
               role="option"
+              data-value={option.value}
               aria-selected={option.value === value}
               data-selected={option.value === value ? 'true' : undefined}
               onClick={() => choose(option.value)}

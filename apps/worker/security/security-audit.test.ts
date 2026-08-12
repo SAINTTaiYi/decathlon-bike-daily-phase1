@@ -258,11 +258,11 @@ test('安全要求：OTP 请求响应不能泄露邮箱或 Profile 是否已注�
     const commonHeaders = { origin: 'https://bike-ops-preview.geeklightonefish.workers.dev', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.10' }
     const existing = await request(db, '/api/v1/registration/otp', {
       method: 'POST', headers: commonHeaders,
-      body: JSON.stringify({ username: 'FRESHNAME', email: 'existing@decathlon.com', storeId: STORE_1299 })
+      body: JSON.stringify({ username: 'FRESHNAME', email: 'existing@decathlon.com', storeCode: '1299', storeName: '五象店' })
     })
     const fresh = await request(db, '/api/v1/registration/otp', {
       method: 'POST', headers: commonHeaders,
-      body: JSON.stringify({ username: 'FRESHNAME', email: 'fresh@decathlon.com', storeId: STORE_1299 })
+      body: JSON.stringify({ username: 'FRESHNAME', email: 'fresh@decathlon.com', storeCode: '1299', storeName: '五象店' })
     })
     assert.equal(existing.status, 200)
     assert.equal(fresh.status, 200)
@@ -488,6 +488,9 @@ test('安全要求：同一 Session 的多个标签页恢复后，已下发 CSRF
     const secondCsrf = (await json(secondRestore)).csrfToken as string
     assert.notEqual(firstCsrf, secondCsrf)
 
+    // /auth/me rotates the CSRF token on every restore. The second restore therefore
+    // invalidates the token handed to the first tab; that first tab must re-restore
+    // before writing. Only the latest token remains usable.
     const firstTabWrite = await request(db, '/api/v1/users', {
       method: 'POST',
       headers: { ...headers('tabs-session', firstCsrf, STORE_1299), 'content-type': 'application/json' },
@@ -498,7 +501,7 @@ test('安全要求：同一 Session 的多个标签页恢复后，已下发 CSRF
       headers: { ...headers('tabs-session', secondCsrf, STORE_1299), 'content-type': 'application/json' },
       body: '{}'
     })
-    assert.equal(firstTabWrite.status, 410)
+    assert.equal(firstTabWrite.status, 403)
     assert.equal(secondTabWrite.status, 410)
   } finally {
     db.close()

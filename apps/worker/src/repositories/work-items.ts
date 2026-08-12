@@ -41,7 +41,8 @@ const joinedSelect = `
          r.repair_completed_at, r.completed_on AS repair_completed_on, r.completed_at AS repair_completed_at_final,
          p.pickup_source, p.self_pickup_platform, p.notification_status, p.picked_up_on, p.picked_up_at,
          rs.resale_stage, rs.listed_at, rs.sold_at,
-         h.completed_on AS handover_completed_on, h.completed_at AS handover_completed_at
+         h.completed_on AS handover_completed_on, h.completed_at AS handover_completed_at,
+         h.contact_ciphertext AS handover_contact_ciphertext
   FROM work_items w
   LEFT JOIN repair_details r ON r.work_item_id = w.id
   LEFT JOIN pickup_details p ON p.work_item_id = w.id
@@ -53,17 +54,22 @@ function sceneFor(kind: string): WorkItemRecord['scene'] {
   return kind === 'handover' ? 'poster' : kind as WorkItemRecord['scene']
 }
 
+async function optionalContactValue(payload: string | null, key: string | undefined): Promise<string | undefined> {
+  if (!payload || !key) return undefined
+  try {
+    return await decryptContact(payload, key)
+  } catch {
+    return undefined
+  }
+}
+
 export async function mapWorkItem(row: any, businessDate: string, config: AppConfig): Promise<WorkItemRecord> {
   const completedOn = row.handover_completed_on ?? row.repair_completed_on ?? undefined
   const completedAt = row.handover_completed_at ?? row.repair_completed_at_final ?? undefined
-  let contactValue: string | undefined
-  if (row.contact_ciphertext && config.CONTACT_ENCRYPTION_KEY) {
-    try {
-      contactValue = await decryptContact(row.contact_ciphertext, config.CONTACT_ENCRYPTION_KEY)
-    } catch {
-      contactValue = undefined
-    }
-  }
+  const contactValue = await optionalContactValue(
+    row.contact_ciphertext ?? row.handover_contact_ciphertext,
+    config.CONTACT_ENCRYPTION_KEY
+  )
   return {
     id: row.id,
     ticketNo: Number(row.ticket_no),

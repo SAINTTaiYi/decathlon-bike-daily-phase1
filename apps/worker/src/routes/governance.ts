@@ -41,101 +41,46 @@ function normalizedName(value: string): string {
   return value.normalize('NFKC').trim().toLocaleLowerCase('zh-CN')
 }
 
-async function activeParentExists(db: D1Database, table: 'regions' | 'subregions' | 'cities', id: string): Promise<boolean> {
-  return Boolean(await first<{ id: string }>(db.prepare(`SELECT id FROM ${table} WHERE id = ? AND status = 'active'`).bind(id)))
-}
-
-
-function platformAdminPathGuard(kind: 'regions' | 'subregions' | 'cities' | 'stores'): string {
-  if (kind === 'stores') {
-    return `NOT (? = 'disabled' AND EXISTS (
-      SELECT 1 FROM store_members sm
-      JOIN users u ON u.id = sm.user_id AND u.is_platform_admin = 1 AND u.status = 'active'
-      WHERE sm.status = 'active' AND sm.role = 'admin' AND sm.store_id = stores.id
-    ))`
-  }
-  if (kind === 'subregions') {
-    return `NOT (? = 'disabled' AND EXISTS (
-      SELECT 1 FROM store_members sm
-      JOIN users u ON u.id = sm.user_id AND u.is_platform_admin = 1 AND u.status = 'active'
-      JOIN stores platform_store ON platform_store.id = sm.store_id
-      JOIN cities platform_city ON platform_city.id = platform_store.city_id
-      WHERE sm.status = 'active' AND sm.role = 'admin' AND platform_city.subregion_id = subregions.id
-    ))`
-  }
-  if (kind === 'cities') {
-    return `NOT (? = 'disabled' AND EXISTS (
-      SELECT 1 FROM store_members sm
-      JOIN users u ON u.id = sm.user_id AND u.is_platform_admin = 1 AND u.status = 'active'
-      JOIN stores platform_store ON platform_store.id = sm.store_id
-      WHERE sm.status = 'active' AND sm.role = 'admin' AND platform_store.city_id = cities.id
-    ))`
-  }
+function platformAdminPathGuard(kind: 'stores'): string {
+  if (kind !== 'stores') throw new Error('DIRECTORY_KIND_NOT_FOUND')
   return `NOT (? = 'disabled' AND EXISTS (
     SELECT 1 FROM store_members sm
     JOIN users u ON u.id = sm.user_id AND u.is_platform_admin = 1 AND u.status = 'active'
-    JOIN stores platform_store ON platform_store.id = sm.store_id
-    JOIN cities platform_city ON platform_city.id = platform_store.city_id
-    WHERE sm.status = 'active' AND sm.role = 'admin' AND platform_city.region_id = regions.id
+    WHERE sm.status = 'active' AND sm.role = 'admin' AND sm.store_id = stores.id
   ))`
 }
 
-async function platformAdminUsesDirectoryEntry(db: D1Database, kind: 'regions' | 'subregions' | 'cities' | 'stores', id: string): Promise<boolean> {
-  const predicate = kind === 'stores'
-    ? 'st.id = ?'
-    : kind === 'cities'
-      ? 'ct.id = ?'
-      : kind === 'subregions'
-        ? 'sr.id = ?'
-        : 'rg.id = ?'
+async function platformAdminUsesDirectoryEntry(db: D1Database, kind: 'stores', id: string): Promise<boolean> {
+  if (kind !== 'stores') return false
   return Boolean(await first<{ id: string }>(db.prepare(`
     SELECT u.id
     FROM users u
     JOIN store_members sm ON sm.user_id = u.id AND sm.status = 'active' AND sm.role = 'admin'
-    JOIN stores st ON st.id = sm.store_id
-    JOIN cities ct ON ct.id = st.city_id
-    JOIN subregions sr ON sr.id = ct.subregion_id
-    JOIN regions rg ON rg.id = sr.region_id
-    WHERE u.is_platform_admin = 1 AND u.status = 'active' AND ${predicate}
+    WHERE u.is_platform_admin = 1 AND u.status = 'active' AND sm.store_id = ?
     LIMIT 1
   `).bind(id)))
 }
-
 async function directoryPayload(db: D1Database, includeDisabled: boolean) {
-  const rows = await all<{
-    region_id: string; region_name: string; region_status: string
-    subregion_id: string | null; subregion_name: string | null; subregion_status: string | null
-    city_id: string | null; city_name: string | null; city_status: string | null
-    store_id: string | null; store_code: string | null; store_name: string | null; store_status: string | null
-    store_created_at: string | null; store_updated_at: string | null; member_count: number | null
-  }>(db.prepare(`
-    SELECT rg.id AS region_id, rg.name AS region_name, rg.status AS region_status,
-           sr.id AS subregion_id, sr.name AS subregion_name, sr.status AS subregion_status,
-           ct.id AS city_id, ct.name AS city_name, ct.status AS city_status,
-           st.id AS store_id, st.code AS store_code, st.name AS store_name,
-           CASE WHEN st.pending_review = 1 THEN 'pending' ELSE st.status END AS store_status,
-           st.created_at AS store_created_at, st.updated_at AS store_updated_at,
+  // Flat store directory. pending_review is preserved from the store-review model so the
+  // platform console can still show stores awaiting approval without a region hierarchy.
+  const rows = await all<{ id: string; code: string; name: string; timezone: string; status: string; pending_review: number; created_at: string; updated_at: string; member_count: number }>(db.prepare(`
+    SELECT st.id, st.code, st.name, st.timezone, st.status, st.pending_review, st.created_at, st.updated_at,
            (SELECT COUNT(*) FROM store_members sm WHERE sm.store_id = st.id AND sm.status = 'active') AS member_count
-    FROM regions rg
-    LEFT JOIN subregions sr ON sr.region_id = rg.id ${includeDisabled ? '' : "AND sr.status = 'active'"}
-    LEFT JOIN cities ct ON ct.subregion_id = sr.id ${includeDisabled ? '' : "AND ct.status = 'active'"}
-    LEFT JOIN stores st ON st.city_id = ct.id ${includeDisabled ? '' : "AND st.status = 'active'"}
-    ${includeDisabled ? '' : "WHERE rg.status = 'active'"}
-    ORDER BY rg.sort_order, rg.name, sr.sort_order, sr.name, ct.sort_order, ct.name, st.code
+    FROM stores st
+    WHERE ${includeDisabled ? '1 = 1' : "st.status = 'active'"}
+    ORDER BY st.code, st.name
   `))
-  const regions = new Map<string, any>()
-  for (const row of rows) {
-    if (!regions.has(row.region_id)) regions.set(row.region_id, { id: row.region_id, name: row.region_name, status: row.region_status, subregions: new Map() })
-    const region = regions.get(row.region_id)!
-    if (!row.subregion_id || !row.subregion_name || !row.subregion_status || !row.city_id || !row.city_name || !row.city_status) continue
-    if (!region.subregions.has(row.subregion_id)) region.subregions.set(row.subregion_id, { id: row.subregion_id, name: row.subregion_name, status: row.subregion_status, cities: new Map() })
-    const subregion = region.subregions.get(row.subregion_id)!
-    if (!subregion.cities.has(row.city_id)) subregion.cities.set(row.city_id, { id: row.city_id, name: row.city_name, status: row.city_status, stores: [] })
-    if (row.store_id && row.store_code && row.store_name && row.store_status) subregion.cities.get(row.city_id).stores.push({ id: row.store_id, code: row.store_code, name: row.store_name, status: row.store_status, createdAt: row.store_created_at, updatedAt: row.store_updated_at, memberCount: row.member_count ?? 0 })
-  }
-  return [...regions.values()].map((region) => { const subregionList = [...region.subregions.values()].map((subregion) => ({ ...subregion, cities: [...subregion.cities.values()] })); return { ...region, subregions: subregionList, cities: subregionList.flatMap((subregion) => subregion.cities) } })
+  return rows.map((row) => ({
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    timezone: row.timezone,
+    status: row.pending_review === 1 ? 'pending' : row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    memberCount: row.member_count ?? 0
+  }))
 }
-
 export function governanceRoutes() {
   const app = new Hono<{ Bindings: WorkerEnv; Variables: Vars }>()
   const auth = createAuthMiddleware()
@@ -351,52 +296,25 @@ export function governanceRoutes() {
     const context = requireContext(c)
     const kind = c.req.param('kind')
     const input = directoryEntitySchema.parse(await c.req.json())
+    if (kind !== 'stores' || !input.code) throw new ApiProblem(400, 'STORE_CODE_REQUIRED', '请填写门店代码。')
+    const id = uuid()
     const stamp = nowIso()
-    if (kind === 'regions') {
-      const id = uuid()
-      const audit = prepareAudit(c.env.DB, { context, action: 'create-directory-region', entityType: 'region', entityId: id, businessDate: localBusinessDate(context.storeTimezone), summary: `新增区域：${input.name}`, after: { status: input.status ?? 'active' }, reversible: false })
-      await c.env.DB.batch([
-        c.env.DB.prepare(`INSERT INTO regions (id, name, normalized_name, status, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?)`)
-          .bind(id, input.name, input.name.normalize('NFKC').trim().toLocaleLowerCase('zh-CN'), input.status ?? 'active', stamp, stamp), audit.statement
-      ])
-      return c.json({ ok: true, id }, 201)
-    }
-    if (kind === 'subregions') {
-      if (!input.parentId || !await activeParentExists(c.env.DB, 'regions', input.parentId)) throw new ApiProblem(409, 'REGION_NOT_AVAILABLE', '所属大区不可用。')
-      const id = uuid()
-      const audit = prepareAudit(c.env.DB, { context, action: 'create-directory-subregion', entityType: 'subregion', entityId: id, businessDate: localBusinessDate(context.storeTimezone), summary: `新增小区：${input.name}`, after: { subregionId: input.parentId, status: input.status ?? 'active' }, reversible: false })
-      await c.env.DB.batch([
-        c.env.DB.prepare(`INSERT INTO subregions (id, region_id, name, normalized_name, status, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?)`)
-          .bind(id, input.parentId, input.name, normalizedName(input.name), input.status ?? 'active', stamp, stamp), audit.statement
-      ])
-      return c.json({ ok: true, id }, 201)
-    }
-    if (kind === 'cities') {
-      if (!input.parentId) throw new ApiProblem(400, 'SUBREGION_REQUIRED', '请选择所属小区。')
-      const subregion = await first<{ id: string }>(c.env.DB.prepare("SELECT id FROM subregions WHERE id = ? AND status = 'active'").bind(input.parentId))
-      if (!subregion) throw new ApiProblem(409, 'SUBREGION_NOT_AVAILABLE', '所属小区不可用。')
-      const parentRegion = await first<{ region_id: string }>(c.env.DB.prepare("SELECT region_id FROM subregions WHERE id = ? AND status = 'active'").bind(input.parentId))
-      if (!parentRegion || !await activeParentExists(c.env.DB, 'regions', parentRegion.region_id)) throw new ApiProblem(409, 'REGION_NOT_AVAILABLE', '所属大区不可用。')
-      const id = uuid()
-      const audit = prepareAudit(c.env.DB, { context, action: 'create-directory-city', entityType: 'city', entityId: id, businessDate: localBusinessDate(context.storeTimezone), summary: `新增城市：${input.name}`, after: { subregionId: input.parentId, status: input.status ?? 'active' }, reversible: false })
-      await c.env.DB.batch([
-        c.env.DB.prepare(`INSERT INTO cities (id, region_id, subregion_id, name, normalized_name, status, sort_order, created_at, updated_at) VALUES (?, (SELECT region_id FROM subregions WHERE id = ?), ?, ?, ?, ?, 0, ?, ?)`)
-          .bind(id, input.parentId, input.parentId, input.name, normalizedName(input.name), input.status ?? 'active', stamp, stamp), audit.statement
-      ])
-      return c.json({ ok: true, id }, 201)
-    }
-    if (kind === 'stores') {
-      if (!input.parentId || !input.code) throw new ApiProblem(400, 'CITY_AND_CODE_REQUIRED', '请选择城市并填写门店代码。')
-      if (!await activeParentExists(c.env.DB, 'cities', input.parentId)) throw new ApiProblem(409, 'CITY_NOT_AVAILABLE', '所属城市不可用。')
-      const id = uuid()
-      const audit = prepareAudit(c.env.DB, { context, action: 'create-directory-store', entityType: 'store', entityId: id, businessDate: localBusinessDate(context.storeTimezone), summary: `新增门店（待审核）：${input.code} ${input.name}`, after: { cityId: input.parentId, status: 'disabled', pendingReview: 1 }, reversible: false })
-      await c.env.DB.batch([
-        c.env.DB.prepare(`INSERT INTO stores (id, city_id, code, name, timezone, status, pending_review, created_at, updated_at) VALUES (?, ?, ?, ?, 'Asia/Shanghai', 'disabled', 1, ?, ?)`)
-          .bind(id, input.parentId, input.code, input.name, stamp, stamp), audit.statement
-      ])
-      return c.json({ ok: true, id, status: 'pending', message: '门店已创建为待审核，需平台管理员批准后生效。' }, 201)
-    }
-    throw new ApiProblem(404, 'DIRECTORY_KIND_NOT_FOUND', '目录类型不存在。')
+    const audit = prepareAudit(c.env.DB, {
+      context,
+      action: 'create-directory-store',
+      entityType: 'store',
+      entityId: id,
+      businessDate: localBusinessDate(context.storeTimezone),
+      summary: `新增门店：${input.code} ${input.name}`,
+      after: { code: input.code, name: input.name, status: 'active' },
+      reversible: false
+    })
+    await c.env.DB.batch([
+      c.env.DB.prepare(`INSERT INTO stores (id, code, name, timezone, status, pending_review, created_at, updated_at) VALUES (?, ?, ?, 'Asia/Shanghai', 'active', 0, ?, ?)`)
+        .bind(id, input.code, input.name, stamp, stamp),
+      audit.statement
+    ])
+    return c.json({ ok: true, id }, 201)
   })
 
   app.patch('/api/v1/governance/directory/:kind/:id', ...protectedWrite, auth.requirePlatformAdmin, async (c) => {
@@ -404,42 +322,32 @@ export function governanceRoutes() {
     const input = directoryEntitySchema.parse(await c.req.json())
     const kind = String(c.req.param('kind') ?? '')
     const id = String(c.req.param('id') ?? '')
-    const table = kind === 'regions' ? 'regions' : kind === 'subregions' ? 'subregions' : kind === 'cities' ? 'cities' : kind === 'stores' ? 'stores' : null
-    if (!table || !input.status) throw new ApiProblem(400, 'DIRECTORY_STATUS_REQUIRED', '请提供有效目录状态。')
-    const typedKind = kind as 'regions' | 'subregions' | 'cities' | 'stores'
-    if (input.status === 'active') {
-      if (kind === 'subregions') {
-        const subregion = await first<{ region_id: string }>(c.env.DB.prepare('SELECT region_id FROM subregions WHERE id = ?').bind(id))
-        if (!subregion || !await activeParentExists(c.env.DB, 'regions', subregion.region_id)) throw new ApiProblem(409, 'PARENT_DIRECTORY_NOT_ACTIVE', '所属大区未启用，不能启用小区。')
-      }
-      if (kind === 'cities') {
-        const city = await first<{ region_id: string; subregion_id: string }>(c.env.DB.prepare('SELECT region_id, subregion_id FROM cities WHERE id = ?').bind(id))
-        if (!city || !await activeParentExists(c.env.DB, 'regions', city.region_id) || !await activeParentExists(c.env.DB, 'subregions', city.subregion_id)) throw new ApiProblem(409, 'PARENT_DIRECTORY_NOT_ACTIVE', '所属区域未启用，不能启用城市。')
-      }
-      if (kind === 'stores') {
-        const store = await first<{ city_id: string | null; status: string; pending_review: number }>(c.env.DB.prepare('SELECT city_id, status, pending_review FROM stores WHERE id = ?').bind(id))
-        if (!store) throw new ApiProblem(404, 'DIRECTORY_ENTRY_NOT_FOUND', '目录项不存在。')
-        if (store.pending_review === 1) throw new ApiProblem(409, 'PENDING_STORE_REVIEW_REQUIRED', '待审核门店必须由平台管理员在审批队列中处理。')
-        if (input.status === 'active') {
-          if (!store.city_id || !await activeParentExists(c.env.DB, 'cities', store.city_id)) throw new ApiProblem(409, 'PARENT_DIRECTORY_NOT_ACTIVE', '所属城市未启用，不能启用门店。')
-        }
-      }
-    }
+    if (kind !== 'stores' || !input.status) throw new ApiProblem(400, 'DIRECTORY_STATUS_REQUIRED', '请提供有效门店状态。')
     const stamp = nowIso()
-    const audit = prepareConditionalAudit(c.env.DB, { context, action: 'update-directory-status', entityType: kind.slice(0, -1), entityId: id, businessDate: localBusinessDate(context.storeTimezone), summary: `更新目录状态：${kind}`, after: { status: input.status }, reversible: false }, `EXISTS (SELECT 1 FROM ${table} WHERE id = ? AND status = ? AND updated_at = ?)`, [id, input.status, stamp])
+    const audit = prepareAudit(c.env.DB, {
+      context,
+      action: 'update-store-status',
+      entityType: 'store',
+      entityId: id,
+      businessDate: localBusinessDate(context.storeTimezone),
+      summary: `更新门店状态：${input.status}`,
+      after: { status: input.status },
+      reversible: false
+    })
     const result = await c.env.DB.batch([
-      c.env.DB.prepare(`UPDATE ${table} SET status = ?, updated_at = ? WHERE id = ? AND ${platformAdminPathGuard(typedKind)}`)
+      c.env.DB.prepare(`UPDATE stores SET status = ?, updated_at = ? WHERE id = ? AND ${platformAdminPathGuard('stores')}`)
         .bind(input.status, stamp, id, input.status),
       audit.statement
     ])
     if (result[0]?.meta?.changes !== 1) {
-      if (input.status === 'disabled' && await platformAdminUsesDirectoryEntry(c.env.DB, typedKind, id)) {
+      if (input.status === 'disabled' && await platformAdminUsesDirectoryEntry(c.env.DB, 'stores', id)) {
         throw new ApiProblem(409, 'PLATFORM_ADMIN_DIRECTORY_LOCKOUT', '不能停用平台管理员当前唯一有效的管理路径，请先完成安全迁移。')
       }
-      throw new ApiProblem(404, 'DIRECTORY_ENTRY_NOT_FOUND', '目录项不存在。')
+      throw new ApiProblem(404, 'DIRECTORY_ENTRY_NOT_FOUND', '门店不存在。')
     }
     return c.json({ ok: true })
   })
+
 
 
   return app

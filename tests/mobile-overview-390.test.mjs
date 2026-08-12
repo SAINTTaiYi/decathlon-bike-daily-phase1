@@ -75,3 +75,13 @@ test('bottom navigation remains five-item on mobile and exposes Used only in the
   assert.match(scenes, /LOOK_TOTAL = 6/u)
   assert.match(scenes, /id: 'resale'/u)
 })
+
+test('closed closing actions reserve their own row instead of overlapping the sales card', async () => {
+  const [overview, mobileCss, desktopCss, systemCss] = await Promise.all([read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'), read('apps/web/src/styles/mobile-overview.css'), read('apps/web/src/styles/desktop-workbench.css'), read('apps/web/src/styles/workshop-system.css')])
+  assert.match(overview, /data-closed=\{closed \? 'true' : 'false'\}/u)
+  assert.match(overview, /className="ops-closing-actions"/u)
+  assert.match(mobileCss, /\.ops-closing-card \{ height: 154px;/u)
+  assert.match(mobileCss, /\.ops-closing-card\[data-closed='true'\] \{ height: 206px; \}/u)
+  assert.match(systemCss, /\.ops-closing-actions button \{ min-height: 42px;/u)
+  assert.match(desktopCss, /\.ops-closing-card\[data-closed='true'\] \{ grid-template-rows: minmax\(0, 1fr\) 104px 52px; \}/u)
+})

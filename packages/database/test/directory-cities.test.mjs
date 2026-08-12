@@ -25,9 +25,11 @@ function executableSql(sql) {
 }
 
 async function baselineMigrationNames() {
+  // 0012_flat_store_self_registration removes the directory tables (regions/cities/subregions).
+  // 0011 tests the pre-flat chain (0001..0010 -> 0011) as a deployable forward migration.
   const files = await readdir(new URL('../../../migrations/d1/', import.meta.url))
   return files
-    .filter((name) => name.endsWith('.sql') && name !== MIGRATION_0011)
+    .filter((name) => name.endsWith('.sql') && name !== MIGRATION_0011 && !name.startsWith('0012_'))
     .sort()
 }
 

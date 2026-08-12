@@ -87,7 +87,7 @@ function ClosingStatusCard({ workflow, online, onEditKpi, onCompleteClosing, onH
     try { await onExportReport() } finally { setExporting(false) }
   }
   return (
-    <section className="ops-closing-card" aria-labelledby="ops-closing-title">
+    <section className="ops-closing-card" data-closed={closed ? 'true' : 'false'} aria-labelledby="ops-closing-title">
       <div className="ops-closing-main">
         <div className="ops-closing-title"><span>Daily closing</span><h2 id="ops-closing-title">今日闭店进度</h2><small>销售数据是唯一闭店要求</small></div>
         <StatusValue value={progress} available={available && !error} />
