@@ -2517,3 +2517,23 @@
     grid-column: 1 / -1;
   }
 }
+
+/* 修复移动端门店管理按钮显示错乱 */
+@media (max-width: 1023px) {
+  .admin-directory-store-row .admin-directory-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  
+  .admin-directory-store-row .admin-directory-actions button.admin-directory-icon-action {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 44px;
+  }
+  
+  .admin-directory-store-row .admin-directory-actions button:not(.admin-directory-icon-action) {
+    flex: 1 1 auto;
+    min-width: 60px;
+  }
+}
