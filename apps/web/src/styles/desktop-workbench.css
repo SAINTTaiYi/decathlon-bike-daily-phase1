@@ -402,3 +402,316 @@
   }
 
 }
+/* Record editors retain their original single-column phone flow by default. */
+.record-editor-copy-desktop,
+.record-editor-desktop-only { display: none; }
+.record-editor-copy-mobile { display: inline; }
+.record-editor-layout,
+.record-editor-column { display: grid; gap: 1rem; min-width: 0; }
+.record-editor-mobile-only { display: grid; }
+.record-editor-conditional-note > svg { display: none; }
+
+@media (min-width: 768px) {
+  /* 1536 x 1024 reference modal: centred over the work area, not the left rail. */
+  dialog.record-editor-dialog {
+    max-width: none;
+    height: 812px;
+    max-height: none;
+    border-radius: 15px !important;
+    translate: 50px 12px;
+  }
+  dialog.record-editor-dialog-pickup { width: 1220px; }
+  dialog.record-editor-dialog-repair { width: 1196px; translate: 49px 8px; }
+  .record-editor-dialog::backdrop { background: rgb(30 31 29 / .58); }
+  .record-editor-dialog .dialog-panel[data-dialog-panel] {
+    position: relative;
+    width: 100%;
+    height: 812px;
+    max-height: none;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid rgb(12 14 12 / .12);
+    border-radius: 15px;
+    background: #fffefa;
+    box-shadow: 0 24px 58px rgb(12 14 12 / .2);
+  }
+  .record-editor-dialog .dialog-header {
+    padding: 36px 30px 0 44px;
+  }
+  .record-editor-dialog .dialog-header p {
+    color: var(--ops-yellow-pressed);
+    font-family: var(--ops-body);
+    font-size: 16px;
+    font-weight: 750;
+    line-height: 20px;
+  }
+  .record-editor-dialog .dialog-header h2,
+  .record-editor-dialog.data-dialog .dialog-header h2 {
+    max-width: none;
+    margin-top: 7px;
+    font-family: var(--ops-body);
+    font-size: 40px;
+    font-weight: 800;
+    line-height: 44px;
+  }
+  .record-editor-dialog .dialog-header .icon-button {
+    flex-basis: 54px;
+    width: 54px;
+    height: 54px;
+    border-radius: 8px;
+  }
+  .record-editor-dialog .dialog-header .icon-button > svg { width: 27px; height: 27px; }
+  .record-editor-dialog .dialog-description {
+    max-width: none;
+    margin: 19px 44px 0;
+    color: #565750;
+    font-size: 15px;
+    line-height: 24px;
+  }
+  .record-editor-dialog .dialog-content {
+    display: block;
+    margin-top: 35px;
+  }
+  .record-editor-copy-mobile,
+  .record-editor-mobile-only,
+  .record-editor-status-input { display: none !important; }
+  .record-editor-copy-desktop { display: inline; }
+  .record-editor-desktop-only { display: block; }
+  .record-editor-status-select.record-editor-desktop-only { display: grid; }
+
+  .record-editor-form { display: block; }
+  .record-editor-layout {
+    display: grid;
+    align-items: start;
+    gap: 0;
+  }
+  .record-editor-dialog .field-row { gap: 9px; }
+  .record-editor-dialog .field-row > span,
+  .record-editor-dialog .field-group legend {
+    color: #11120f;
+    font-size: 16px;
+    font-weight: 750;
+    line-height: 20px;
+  }
+  .record-editor-dialog .field-row :is(input, textarea),
+  .record-editor-dialog .project-select-trigger {
+    min-height: 56px;
+    padding: 13px 14px;
+    border: 1px solid #c9c8c2 !important;
+    border-radius: 8px !important;
+    background: #fffefa !important;
+    box-shadow: none;
+    font-size: 18px;
+    line-height: 28px;
+  }
+  .record-editor-dialog .project-select-trigger span { font-size: 18px; font-weight: 500; }
+  .record-editor-dialog .field-row :is(input, textarea):focus,
+  .record-editor-dialog .project-select-trigger:focus-visible {
+    border-color: var(--ops-black) !important;
+    box-shadow: 0 0 0 3px var(--ops-yellow-glow);
+  }
+  .record-editor-dialog .project-select-menu { z-index: 80; }
+  .record-editor-dialog .project-select-option { font-size: 15px; }
+
+  .pickup-editor-layout {
+    grid-template-columns: 340px 424px 330px;
+    column-gap: 24px;
+    margin-right: 34px;
+    margin-left: 44px;
+  }
+  .record-editor-pickup-source {
+    align-content: start;
+    gap: 31px;
+    padding-top: 10px;
+  }
+  .record-editor-pickup-source .project-select-trigger,
+  .record-editor-pickup-source .field-row input { min-height: 60px; }
+  .record-editor-pickup-contact {
+    display: block;
+    width: 424px;
+    height: 470px;
+    padding: 23px 24px;
+    border: 1px solid #dad8d1;
+    border-radius: 8px;
+  }
+  .record-editor-pickup-contact .field-group {
+    display: block;
+    margin: 0;
+    padding: 0;
+    border: 0 !important;
+    background: transparent;
+  }
+  .record-editor-pickup-contact .field-group legend { padding: 0; font-size: 17px; }
+  .record-editor-pickup-contact .contact-field-grid {
+    grid-template-columns: 153px minmax(0, 1fr);
+    gap: 26px;
+    margin-top: 17px;
+  }
+  .record-editor-pickup-contact .field-help {
+    display: block;
+    margin-top: 14px;
+    color: #676861;
+    font-size: 13px;
+    line-height: 21px;
+  }
+  .record-editor-pickup-contact .record-editor-conditional-note {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: 9px;
+    row-gap: 7px;
+    min-height: 109px;
+    margin-top: 25px;
+    padding: 16px;
+    border: 0;
+    border-radius: 8px;
+    background: #fff2bd;
+    box-shadow: none;
+  }
+  .record-editor-conditional-note > svg {
+    display: block;
+    grid-row: 1;
+    align-self: center;
+    color: var(--ops-yellow-pressed);
+  }
+  .record-editor-conditional-note > strong { grid-column: 2; font-size: 15px; line-height: 21px; }
+  .record-editor-conditional-note > span { grid-column: 1 / -1; color: #65665f; font-size: 13px; line-height: 21px; }
+  .record-editor-status-select { margin-top: 21px; }
+  .record-editor-status-select .project-select-trigger { min-height: 56px; }
+  .record-editor-guidance {
+    width: 330px;
+    height: 470px;
+    padding: 25px 23px;
+    border: 1px solid #dad8d1;
+    border-radius: 8px;
+    color: #171815;
+  }
+  .record-editor-guidance h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 17px;
+    line-height: 24px;
+  }
+  .record-editor-guidance h3 > svg { color: var(--ops-yellow-pressed); }
+  .record-editor-guidance ul {
+    display: grid;
+    gap: 17px;
+    margin: 24px 0 0;
+    padding-left: 19px;
+    color: #595a54;
+    font-size: 13px;
+    line-height: 21px;
+  }
+
+  .repair-editor-layout {
+    grid-template-columns: 354px 354px 370px;
+    column-gap: 21px;
+    margin-right: 42px;
+    margin-left: 34px;
+  }
+  .record-editor-card {
+    display: block;
+    width: 354px;
+    height: 488px;
+    overflow: visible;
+    border: 1px solid #dad8d1;
+    border-radius: 8px;
+  }
+  .record-editor-card .record-editor-section {
+    margin: 0;
+    padding: 21px 22px;
+    border: 0 !important;
+    border-bottom: 1px solid #e4e2dc !important;
+    border-radius: 0;
+    background: transparent;
+  }
+  .record-editor-card .record-editor-section:last-child { border-bottom: 0 !important; }
+  .record-editor-repair-profile .record-editor-vehicle-field { height: 130px; }
+  .record-editor-repair-profile > fieldset.record-editor-section {
+    display: block;
+    height: 205px;
+  }
+  .record-editor-repair-profile > fieldset legend { padding: 0; font-size: 17px; }
+  .record-editor-repair-profile .contact-field-grid {
+    grid-template-columns: 131px minmax(0, 1fr);
+    gap: 19px;
+    margin-top: 17px;
+  }
+  .record-editor-repair-profile .field-help {
+    display: block;
+    margin-top: 14px;
+    color: #666760;
+    font-size: 13px;
+    line-height: 20px;
+  }
+  .record-editor-repair-profile > .field-row:last-child { height: 151px; padding-top: 25px; }
+  .record-editor-repair-project { height: 241px; }
+  .record-editor-repair-project textarea { height: 160px; min-height: 160px; resize: none; }
+  .record-editor-repair-work .record-editor-pickup-date { height: 128px; }
+  .record-editor-repair-work .record-editor-status-field { height: 117px; }
+  .record-editor-repair-work .conditional-field-note.record-editor-section { height: 128px; }
+  .record-editor-guidance-repair {
+    width: 370px;
+    height: 145px;
+    padding: 25px 24px;
+    border-color: #f0dca1;
+    background: #fff5d4;
+  }
+  .record-editor-guidance-repair p {
+    margin-top: 14px;
+    color: #5e5f58;
+    font-size: 15px;
+    line-height: 27px;
+  }
+
+  .record-editor-form > .form-error {
+    position: absolute;
+    right: 44px;
+    bottom: 106px;
+    left: 44px;
+    z-index: 90;
+  }
+  .record-editor-footer {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    height: 100px;
+    margin: 0;
+    padding: 20px 42px;
+    border-top: 1px solid #e2e0d9;
+    background: #fffefa;
+  }
+  .record-editor-footer > button {
+    width: 184px;
+    height: 60px;
+    min-height: 60px;
+    padding: 0 20px;
+    font-size: 16px;
+  }
+  .record-editor-footer > .primary-action { width: 214px; box-shadow: none; }
+
+  .record-editor-dialog-repair .dialog-header { padding-left: 34px; }
+  .record-editor-dialog-repair .dialog-description { margin-left: 34px; }
+  .record-editor-dialog-repair .record-editor-footer { height: 92px; }
+  .record-editor-dialog-repair .record-editor-footer > button { height: 53px; min-height: 53px; }
+  .record-editor-dialog-repair .record-editor-status-field .project-select[data-value^='维修完成-'] .project-select-trigger > span { font-size: 0; }
+  .record-editor-dialog-repair .record-editor-status-field .project-select[data-value='维修完成-已开付款单'] .project-select-trigger > span::after { content: '维修完成 · 已开付款单'; }
+  .record-editor-dialog-repair .record-editor-status-field .project-select[data-value='维修完成-已开维修单'] .project-select-trigger > span::after { content: '维修完成 · 已开维修单'; }
+  .record-editor-dialog-repair .record-editor-status-field .project-select[data-value='维修完成-已开质保维修单'] .project-select-trigger > span::after { content: '维修完成 · 已开质保维修单'; }
+  .record-editor-dialog-repair .record-editor-status-field .project-select[data-value='维修完成-已开质保付款单-请过机'] .project-select-trigger > span::after { content: '维修完成 · 已开质保付款单-请过机'; }
+  .record-editor-dialog-repair .record-editor-status-field .project-select[data-value='维修完成-快速服务免费'] .project-select-trigger > span::after { content: '维修完成 · 快速服务免费'; }
+  .record-editor-dialog-repair .record-editor-status-field .project-select[data-value^='维修完成-'] .project-select-trigger > span::after { font-size: 18px; }
+  .record-editor-dialog-repair .record-editor-status-field .project-select-option[data-value^='维修完成-'] > span { font-size: 0; }
+  .record-editor-dialog-repair .record-editor-status-field .project-select-option[data-value='维修完成-已开付款单'] > span::after { content: '维修完成 · 已开付款单'; }
+  .record-editor-dialog-repair .record-editor-status-field .project-select-option[data-value='维修完成-已开维修单'] > span::after { content: '维修完成 · 已开维修单'; }
+  .record-editor-dialog-repair .record-editor-status-field .project-select-option[data-value='维修完成-已开质保维修单'] > span::after { content: '维修完成 · 已开质保维修单'; }
+  .record-editor-dialog-repair .record-editor-status-field .project-select-option[data-value='维修完成-已开质保付款单-请过机'] > span::after { content: '维修完成 · 已开质保付款单-请过机'; }
+  .record-editor-dialog-repair .record-editor-status-field .project-select-option[data-value='维修完成-快速服务免费'] > span::after { content: '维修完成 · 快速服务免费'; }
+  .record-editor-dialog-repair .record-editor-status-field .project-select-option[data-value^='维修完成-'] > span::after { font-size: 15px; }
+}
