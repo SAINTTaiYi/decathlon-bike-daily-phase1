@@ -163,6 +163,7 @@
   .workshop-overview-panel .ops-mobile-overview > .ops-analytics-grid { grid-column: 1 / -1; }
   .workshop-overview-panel .ops-mobile-overview > :is(.ops-release-strip, .ops-first-screen-spacer) { display: none; }
   .ops-closing-card { display: grid; grid-template-rows: 1fr 104px; overflow: hidden; }
+  .ops-closing-card[data-closed='true'] { grid-template-rows: minmax(0, 1fr) 104px 52px; }
   .ops-closing-main { height: auto; padding: 26px 26px 12px; }
   .ops-closing-title > span { font-size: 14px; }
   .ops-closing-title h2 { margin-top: 10px; font-size: 36px; line-height: .95; }

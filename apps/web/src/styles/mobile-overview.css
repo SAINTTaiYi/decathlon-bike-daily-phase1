@@ -306,6 +306,7 @@
 .ops-index,
 .ops-pickup-board { overflow: hidden; border-radius: 8px; border: 0; box-shadow: var(--ops-card-shadow); }
 .ops-closing-card { height: 154px; margin-top: 16px; }
+.ops-closing-card[data-closed='true'] { height: 206px; }
 .ops-closing-main {
   grid-template-columns: minmax(0,1fr) auto;
   gap: 8px;
