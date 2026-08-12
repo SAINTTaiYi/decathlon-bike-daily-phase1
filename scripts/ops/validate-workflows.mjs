@@ -65,7 +65,7 @@ const actionReferences = Object.values(workflows).flatMap((source) => [...source
 assert(actionReferences.length > 0 && actionReferences.every((reference) => /^[0-9a-f]{40}$/u.test(reference)), 'workflows: every external action must be pinned to a full commit SHA')
 assert((ci.match(/pnpm --filter @bike-ops\/database migrate/gu) || []).length >= 2, 'ci: checksum migration runner must execute twice')
 assert(/count\(\*\).*bike_ops_schema_migrations/u.test(ci), 'ci: migration history count must be verified')
-assert(/= "7"/u.test(ci), 'ci: all seven PostgreSQL compatibility migrations must be recorded')
+assert(/= "8"/u.test(ci), 'ci: all eight PostgreSQL compatibility migrations must be recorded')
 assert(/GITLEAKS_VERSION: 8\.30\.1/u.test(ci), 'ci: Gitleaks version must be pinned')
 assert(/551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb/u.test(ci), 'ci: Gitleaks archive checksum must be pinned')
 assert(/--log-opts="--all --full-history --no-merges"/u.test(ci), 'ci: Gitleaks must scan complete Git history')
