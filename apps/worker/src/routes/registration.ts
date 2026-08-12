@@ -15,6 +15,7 @@ import { hashPassword, keyedHash, randomToken, safeEqualHex, sha256 } from '../l
 import { prepareAudit, prepareConditionalAudit } from '../services/business.js'
 import { normalizeCorporateEmail, randomOtp, requestClientHash, sendRegistrationOtp } from '../services/registration.js'
 import { ApiProblem } from '../services/problems.js'
+import { requireJsonBody } from '../lib/json.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
 type StoreRow = { id: string; code: string; name: string; timezone: string; status: 'active' | 'disabled'; self_registration_pending: number }
@@ -36,6 +37,10 @@ const CHALLENGE_TTL_MS = 10 * 60 * 1000
 const COMPLETION_TTL_MS = 10 * 60 * 1000
 const RESEND_COOLDOWN_MS = 60 * 1000
 const HOUR_MS = 60 * 60 * 1000
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 function genericRegistrationMessage() {
   return '如邮箱与门店信息有效，验证码会发送到公司邮箱。请检查收件箱后继续。'
@@ -112,7 +117,7 @@ export function registrationRoutes() {
   const app = new Hono<{ Bindings: WorkerEnv; Variables: Vars }>()
   const auth = createAuthMiddleware()
 
-  app.post('/api/v1/registration/otp', async (c) => {
+  app.post('/api/v1/registration/otp', requireJsonBody, async (c) => {
     const config = c.get('config')
     requireRegistrationConfig(config)
     const input = registrationOtpSchema.parse(await c.req.json())
@@ -163,7 +168,12 @@ export function registrationRoutes() {
       first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE email_key = ? LIMIT 1').bind(emailKey)),
       first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE username_key = ? LIMIT 1').bind(userKey))
     ])
-    if (existingEmail || existingUsername) return c.json(registrationOtpResponse(syntheticChallengeId))
+    if (existingEmail || existingUsername) {
+      // Timing equalization: keep the anti-enumeration branch within the same
+      // latency band as the store-reservation + email-send path.
+      await delay(300 + Math.floor(Math.random() * 400))
+      return c.json(registrationOtpResponse(syntheticChallengeId))
+    }
 
     let store = existingStore
     if (!store) {
@@ -211,7 +221,7 @@ export function registrationRoutes() {
     return c.json(registrationOtpResponse(id))
   })
 
-  app.post('/api/v1/registration/verify-otp', async (c) => {
+  app.post('/api/v1/registration/verify-otp', requireJsonBody, async (c) => {
     const config = c.get('config')
     requireRegistrationConfig(config)
     const input = registrationVerifyOtpSchema.parse(await c.req.json())
@@ -246,7 +256,7 @@ export function registrationRoutes() {
     return c.json({ ok: true, challengeId: challenge.id, completionToken, message: '邮箱已验证，请设置密码完成注册。' })
   })
 
-  app.post('/api/v1/registration/complete', async (c) => {
+  app.post('/api/v1/registration/complete', requireJsonBody, async (c) => {
     const config = c.get('config')
     requireRegistrationConfig(config)
     const input = registrationCompleteSchema.parse(await c.req.json())
@@ -294,7 +304,7 @@ export function registrationRoutes() {
       `).bind(userId, challenge.username_key, challenge.display_name, challenge.email_key, passwordHash, stamp, stamp, challenge.id, consumptionMarker, stamp),
       c.env.DB.prepare(`
         UPDATE stores
-        SET status = 'active', self_registration_pending = 0, updated_at = ?
+        SET status = 'active', self_registration_pending = 0, pending_review = 1, updated_at = ?
         WHERE id = ? AND status = 'disabled' AND self_registration_pending = 1
           AND NOT EXISTS (SELECT 1 FROM store_members WHERE store_id = stores.id AND status = 'active')
       `).bind(stamp, store.id),
@@ -325,7 +335,7 @@ export function registrationRoutes() {
     }, 201)
   })
 
-  app.post('/api/v1/registration/platform-admin', async (c) => {
+  app.post('/api/v1/registration/platform-admin', requireJsonBody, async (c) => {
     const config = c.get('config')
     if (!config.PLATFORM_ADMIN_SETUP_TOKEN_HASH) throw new ApiProblem(404, 'PLATFORM_SETUP_DISABLED', '平台管理员初始化未开启。')
     const input = platformAdminSetupSchema.parse(await c.req.json())

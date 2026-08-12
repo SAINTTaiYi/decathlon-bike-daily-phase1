@@ -98,6 +98,9 @@ app.onError((error, c) => {
   if (error instanceof ZodError) {
     return c.json({ error: 'VALIDATION_ERROR', message: '提交内容不完整或格式不正确。', details: error.issues }, 400)
   }
+  if (error instanceof SyntaxError) {
+    return c.json({ error: 'INVALID_JSON', message: '请求内容不是有效的 JSON。' }, 400)
+  }
   if (error instanceof HTTPException) {
     return error.getResponse()
   }
