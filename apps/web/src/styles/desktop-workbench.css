@@ -325,6 +325,7 @@
   .pickup-card-actions > .pickup-card-more { flex: 0 0 auto; width: auto; min-width: 148px; max-width: 220px; }
   .pickup-card-actions button { min-height: 44px; padding-inline: 18px; }
   .pickup-card-actions .pickup-primary-action { grid-column: auto; min-width: 190px; }
+  .pickup-assignee-change { min-height: 44px; padding-inline: 18px; font-size: 13px; }
   .pickup-notification-control { grid-template-columns: auto minmax(0, 1fr) auto; }
   .pickup-notification-buttons { grid-column: 3; display: flex; justify-content: flex-end; gap: 10px; width: auto; }
   .pickup-notification-buttons button { flex: 0 0 auto; width: auto; min-width: 142px; max-width: 170px; padding-inline: 18px; }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import IconCalendar from '@iconoir/Calendar.mjs'
 
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
@@ -64,7 +65,7 @@ export default function DatePickerField({ value = '', onChange, placeholder = '�
     const rect = triggerRef.current?.getBoundingClientRect()
     const coarse = window.matchMedia('(max-width: 640px)').matches
     if (rect && !coarse) {
-      const width = 296
+      const width = Math.max(296, Math.min(rect.width, window.innerWidth - 16))
       setAnchor({ left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)), top: rect.bottom + 8, width })
     } else {
       setAnchor(null)
@@ -81,7 +82,10 @@ export default function DatePickerField({ value = '', onChange, placeholder = '�
     } else if (!open && dialog.open) {
       dialog.close()
     }
-    return undefined
+    if (!open) return undefined
+    const onScroll = () => closePanel()
+    window.addEventListener('scroll', onScroll, true)
+    return () => window.removeEventListener('scroll', onScroll, true)
   }, [open])
 
   const grid = buildGrid(view.year, view.month)
@@ -106,7 +110,7 @@ export default function DatePickerField({ value = '', onChange, placeholder = '�
         <span data-empty={!value ? 'true' : undefined}>{triggerText}</span>
         {required ? <em className="date-picker-required" aria-hidden="true">*</em> : null}
       </button>
-      <dialog
+      {createPortal(<dialog
         ref={dialogRef}
         className="date-picker-panel"
         style={anchor ? { position: 'fixed', left: `${anchor.left}px`, top: `${anchor.top}px`, width: `${anchor.width}px` } : undefined}
@@ -143,7 +147,7 @@ export default function DatePickerField({ value = '', onChange, placeholder = '�
           <button type="button" className="date-picker-today" onClick={() => select(today.key)} disabled={!inRange(today.key)}>今天</button>
           {clearable ? <button type="button" className="date-picker-clear" onClick={() => { onChange?.(''); closePanel() }}>清除</button> : null}
         </footer>
-      </dialog>
+      </dialog>, document.body)}
     </span>
   )
 }
