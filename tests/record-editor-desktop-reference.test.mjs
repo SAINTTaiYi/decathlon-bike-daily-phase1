@@ -9,11 +9,22 @@ const css = await readFile(new URL('../apps/web/src/styles/desktop-workbench.css
 test('desktop record editors reproduce the separate pickup and repair reference canvases', () => {
   assert.match(editor, /record-editor-dialog record-editor-dialog-\$\{config\.formKind\}/u)
   assert.match(css, /dialog\.record-editor-dialog-pickup \{ width: 1220px; \}/u)
-  assert.match(css, /dialog\.record-editor-dialog-repair \{ width: 1196px; translate: 49px 8px; \}/u)
-  assert.match(css, /height: 812px/u)
+  assert.match(css, /dialog\.record-editor-dialog-repair \{ width: 1196px;/u)
+  assert.match(css, /height: min\(812px, calc\(var\(--visual-viewport-height\) - 16px\)\)/u)
   assert.match(css, /\.pickup-editor-layout \{[\s\S]*grid-template-columns: 340px 424px 330px/u)
   assert.match(css, /\.repair-editor-layout \{[\s\S]*grid-template-columns: 354px 354px 370px/u)
-  assert.match(css, /\.record-editor-footer \{[\s\S]*position: absolute;[\s\S]*bottom: 0/u)
+  assert.match(css, /\.record-editor-footer \{[^}]*position: static;[^}]*flex: 0 0 auto;/u)
+})
+
+test('record editor actions stay visible while fields scroll on short desktop and mobile viewports', () => {
+  assert.match(editor, /const editorForm = repairForm \|\| pickupForm/u)
+  assert.match(editor, /<div className="record-editor-scroll">[\s\S]*<div className=\{`dialog-footer/u)
+  const sharedStart = css.indexOf('.record-editor-scroll')
+  const sharedRules = css.slice(sharedStart, css.indexOf('@media (min-width: 768px)', sharedStart))
+  assert.match(sharedRules, /\.record-editor-dialog \.dialog-panel\[data-dialog-panel\] \{[^}]*display: flex;[^}]*height: min\(calc\(var\(--visual-viewport-height\) - 16px\), 760px\);[^}]*overflow: hidden;/u)
+  assert.match(sharedRules, /\.record-editor-dialog \.record-editor-scroll \{[^}]*min-height: 0;[^}]*flex: 1 1 auto;[^}]*overflow-y: auto;/u)
+  assert.match(sharedRules, /\.record-editor-dialog \.record-editor-footer \{[^}]*padding-bottom: max\(2px, env\(safe-area-inset-bottom\)\);/u)
+  assert.doesNotMatch(css, /\.record-editor-footer \{[^}]*position: absolute;/u)
 })
 
 test('pickup editor retains all reference sections and copy', () => {
