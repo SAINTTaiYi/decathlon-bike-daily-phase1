@@ -28,12 +28,12 @@
 
 ### 在线环境
 
-[workshop.skin](https://workshop.skin) 当前运行 `V5.9.2`，环境标识为 **Staging**。独立 Production Worker 和 Production D1 尚未创建。
+[workshop.skin](https://workshop.skin) 当前运行 `V5.9.4`，环境标识为 **Staging**。独立 Production Worker 和 Production D1 尚未创建。
 
 ### 项目状态
 
-- 当前版本：`V5.9.2`
-- 当前 D1 schema：`0011_directory_guangxi_cities`
+- 当前版本：`V5.9.4`
+- 当前 D1 schema：`0013_optional_handover_phone`
 - 本地验证：Domain 7 / Database 15 / Web 260 / API 21 / Worker 68，共 371 条测试
 - Preview 与 Staging 使用独立 Worker 和 D1
 - Production 发布工作流已迁移到 Cloudflare，但仍受 Staging 验收、独立资源、加密备份和恢复演练门禁约束
@@ -81,6 +81,8 @@ pnpm build
 - Production 准备：[docs/PRODUCTION-BOOTSTRAP.md](./docs/PRODUCTION-BOOTSTRAP.md)
 
 发布顺序固定为：源码身份校验、冻结依赖安装、测试/类型检查/构建、D1 迁移、Worker 与静态资源部署、线上版本/SHA/环境/readiness 验证。
+
+**发布版本规则**：每次向 workshop.skin / Production 推送更新前，必须递增公开版本号，并把本次 PR 的更新内容逐条写入更新公告（见 [AUTOMATED-DEPLOYMENT.md](./AUTOMATED-DEPLOYMENT.md) 的 Release versioning rule）。禁止未 bump 版本号直接推送。
 
 ### 安全边界
 
