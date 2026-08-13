@@ -149,6 +149,40 @@
   .dock-release-details ul { display: grid !important; grid-template-columns: 1fr !important; gap: 6px; margin: 0; padding-left: 16px; }
   .dock-release-details li { font-size: 10px; line-height: 15px; }
 
+  /* Short desktop viewports keep the release card in flow and the complete rail reachable. */
+  .look-dock[data-short-viewport='true'] .dock-scroll-region {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 12px;
+    width: 100%;
+    height: var(--dock-available-height, 880px);
+    overflow: hidden;
+    padding-right: 6px;
+  }
+  .look-dock[data-short-viewport='true'] .dock-scroll-region > ul {
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+  }
+  .look-dock[data-short-viewport='true'] .dock-release-card {
+    position: relative;
+    top: auto;
+    left: auto;
+    justify-self: center;
+    margin: 0;
+  }
+  .look-dock[data-short-viewport='true'] .dock-release-details {
+    position: static;
+    width: auto;
+    max-height: min(310px, calc(var(--dock-available-height, 880px) - 160px));
+    margin: 0 10px 10px;
+    overflow-y: auto;
+  }
+
   /* Overview begins flush below the module bar, matching the reference. */
   .workshop-overview-panel .ops-mobile-overview {
     display: grid;
