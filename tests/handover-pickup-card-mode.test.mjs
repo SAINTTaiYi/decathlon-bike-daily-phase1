@@ -22,7 +22,7 @@ test('handover uses the shared PickupLedger card design and exposes complete tex
   assert.match(ledger, /handoverMode \? handoverCardDetail\(record\)/u)
   assert.match(ledger, /repairPickup \|\| handoverMode[\s\S]*?record\.contactValue/u)
   assert.match(ledger, /CONTACT <span>\/ 联系方式<\/span>/u)
-  assert.match(ledger, /<dt>电话号码<\/dt><dd>\{contactValue \|\| '无'\}<\/dd>/u)
+  assert.match(ledger, /<dt>手机号<\/dt><dd>\{contactValue \|\| '无'\}<\/dd>/u)
 })
 
 test('handover form keeps one required item, adds an optional phone, and uses an explicit status select', () => {
@@ -31,8 +31,8 @@ test('handover form keeps one required item, adds an optional phone, and uses an
   assert.ok(dialog.includes("HANDOVER_STATUSES = [{ value: '继续跟进', label: '继续跟进' }, { value: '已处理', label: '已处理' }]"))
   assert.match(dialog, /function HandoverFields/u)
   assert.match(dialog, /<span>交接事项<\/span><textarea required/u)
-  assert.match(dialog, /<span>电话号码（选填）<\/span>[\s\S]*?inputMode="tel"[\s\S]*?placeholder="可不填"/u)
-  const phoneStart = dialog.indexOf('电话号码（选填）')
+  assert.match(dialog, /<span>手机号<\/span>[\s\S]*?inputMode="tel"[\s\S]*?placeholder="可不填"/u)
+  const phoneStart = dialog.indexOf('<span>手机号</span>')
   const phoneField = dialog.slice(phoneStart, dialog.indexOf('</label>', phoneStart))
   assert.doesNotMatch(phoneField, /required/u)
   assert.match(dialog, /contactValue: record\?\.contactValue \|\| ''/u)
