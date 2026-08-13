@@ -410,24 +410,61 @@
 .record-editor-column { display: grid; gap: 1rem; min-width: 0; }
 .record-editor-mobile-only { display: grid; }
 .record-editor-conditional-note > svg { display: none; }
+.record-editor-scroll { display: grid; gap: 1rem; min-width: 0; }
+.record-editor-dialog .dialog-panel[data-dialog-panel] {
+  display: flex;
+  flex-direction: column;
+  height: min(calc(var(--visual-viewport-height) - 16px), 760px);
+  overflow: hidden;
+}
+.record-editor-dialog .dialog-header,
+.record-editor-dialog .dialog-description,
+.record-editor-dialog .record-editor-footer { flex: 0 0 auto; }
+.record-editor-dialog .dialog-content {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.record-editor-dialog .record-editor-form {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+.record-editor-dialog .record-editor-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-inline-end: 2px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+.record-editor-dialog .record-editor-footer {
+  margin-top: 0;
+  padding-bottom: max(2px, env(safe-area-inset-bottom));
+}
 
 @media (min-width: 768px) {
   /* 1536 x 1024 reference modal: centred over the work area, not the left rail. */
   dialog.record-editor-dialog {
     max-width: none;
-    height: 812px;
-    max-height: none;
+    height: min(812px, calc(var(--visual-viewport-height) - 16px));
+    max-height: min(812px, calc(var(--visual-viewport-height) - 16px));
     border-radius: 15px !important;
-    translate: 50px 12px;
+    translate: 50px clamp(0px, calc((var(--visual-viewport-height) - 812px) / 2), 12px);
   }
   dialog.record-editor-dialog-pickup { width: 1220px; }
-  dialog.record-editor-dialog-repair { width: 1196px; translate: 49px 8px; }
+  dialog.record-editor-dialog-repair { width: 1196px; translate: 49px clamp(0px, calc((var(--visual-viewport-height) - 812px) / 2), 8px); }
   .record-editor-dialog::backdrop { background: rgb(30 31 29 / .58); }
   .record-editor-dialog .dialog-panel[data-dialog-panel] {
     position: relative;
     width: 100%;
-    height: 812px;
-    max-height: none;
+    height: 100%;
+    max-height: 100%;
     padding: 0;
     overflow: hidden;
     border: 1px solid rgb(12 14 12 / .12);
@@ -469,8 +506,11 @@
     line-height: 24px;
   }
   .record-editor-dialog .dialog-content {
-    display: block;
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
     margin-top: 35px;
+    overflow: hidden;
   }
   .record-editor-copy-mobile,
   .record-editor-mobile-only,
@@ -479,7 +519,13 @@
   .record-editor-desktop-only { display: block; }
   .record-editor-status-select.record-editor-desktop-only { display: grid; }
 
-  .record-editor-form { display: block; }
+  .record-editor-form {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    overflow: hidden;
+  }
   .record-editor-layout {
     display: grid;
     align-items: start;
@@ -666,18 +712,13 @@
   }
 
   .record-editor-form > .form-error {
-    position: absolute;
-    right: 44px;
-    bottom: 106px;
-    left: 44px;
-    z-index: 90;
+    flex: 0 0 auto;
+    margin: 0 44px;
   }
   .record-editor-footer {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    left: 0;
+    position: static;
     display: flex;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: flex-end;
     gap: 14px;

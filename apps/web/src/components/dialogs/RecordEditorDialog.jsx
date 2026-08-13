@@ -301,14 +301,16 @@ export default function RecordEditorDialog({ open, onClose, config, record, onSa
   return (
     <AppDialog open={open} onClose={onClose} title={editing ? `编辑${config.singular}` : config.addLabel} eyebrow={editorForm ? <><span className="record-editor-copy-mobile">LEDGER · 长期台账</span><span className="record-editor-copy-desktop">LEDGER · 车辆台账</span></> : 'LEDGER · 长期台账'} description={editorForm ? <><span className="record-editor-copy-mobile">{description}</span><span className="record-editor-copy-desktop">{desktopDescription}</span></> : description} className={`data-dialog${editorForm ? ` record-editor-dialog record-editor-dialog-${config.formKind}` : ''}`}>
       <form className={`data-form${editorForm ? ' record-editor-form' : ''}`} onSubmit={submit}>
-        {repairForm ? <RepairFields draft={draft} setDraft={setDraft} /> : pickupForm ? <PickupFields draft={draft} setDraft={setDraft} record={record} /> : handoverForm ? <HandoverFields draft={draft} setDraft={setDraft} /> : (
-          <>
-            <label className="field-row"><span>{config.titleLabel}</span><input required maxLength="80" value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label>
-            <label className="field-row"><span>{config.detailLabel}</span><textarea required rows="4" maxLength="240" value={draft.detail} onChange={(event) => setDraft((current) => ({ ...current, detail: event.target.value }))} /></label>
-            <label className="field-row"><span>{config.metaLabel}</span><input maxLength="120" value={draft.meta} onChange={(event) => setDraft((current) => ({ ...current, meta: event.target.value }))} /></label>
-            <label className="field-row"><span>{config.statusLabel}</span><input required maxLength="80" placeholder={config.statusPlaceholder} value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value }))} /></label>
-          </>
-        )}
+        <div className="record-editor-scroll">
+          {repairForm ? <RepairFields draft={draft} setDraft={setDraft} /> : pickupForm ? <PickupFields draft={draft} setDraft={setDraft} record={record} /> : handoverForm ? <HandoverFields draft={draft} setDraft={setDraft} /> : (
+            <>
+              <label className="field-row"><span>{config.titleLabel}</span><input required maxLength="80" value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label>
+              <label className="field-row"><span>{config.detailLabel}</span><textarea required rows="4" maxLength="240" value={draft.detail} onChange={(event) => setDraft((current) => ({ ...current, detail: event.target.value }))} /></label>
+              <label className="field-row"><span>{config.metaLabel}</span><input maxLength="120" value={draft.meta} onChange={(event) => setDraft((current) => ({ ...current, meta: event.target.value }))} /></label>
+              <label className="field-row"><span>{config.statusLabel}</span><input required maxLength="80" placeholder={config.statusPlaceholder} value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value }))} /></label>
+            </>
+          )}
+        </div>
         {error ? <p className="form-error" role="alert">{error}</p> : null}
         <div className={`dialog-footer${editorForm ? ' record-editor-footer' : ''}`}><button type="button" className="secondary-action" onClick={onClose}>取消</button><button type="submit" className="primary-action" disabled={submitting}>{submitting ? '正在保存…' : editing ? '保存修改' : '增加台账'}</button></div>
       </form>
