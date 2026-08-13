@@ -667,3 +667,19 @@ button:not(:disabled) { transition-duration: 150ms; }
   .update-refresh-card { grid-template-columns: 1fr; }
   .update-refresh-actions { grid-template-columns: 1fr; }
 }
+
+/* Update announcement bullet list (release notes fetched from /api/release/info) */
+.update-refresh-changes {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: .35rem;
+}
+.update-refresh-changes li {
+  color: var(--ink-soft);
+  font-size: .8rem;
+  line-height: 1.45;
+}
+.update-refresh-changes li::marker {
+  color: var(--accent, #2f6bff);
+}

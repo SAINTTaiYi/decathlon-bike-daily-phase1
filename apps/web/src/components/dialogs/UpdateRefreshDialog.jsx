@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import AppDialog from './AppDialog.jsx'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
+import { fetchReleaseInfo, onServerVersion } from '../../api/client.js'
 
 const STORAGE_KEY = 'workshop.ledger.seen-app-version'
 const DISMISSED_REMOTE_KEY = 'workshop.ledger.dismissed-remote-version'
@@ -57,13 +58,25 @@ export default function UpdateRefreshDialog({ enabled = true }) {
   const [previousVersion, setPreviousVersion] = useState('')
   const [availableVersion, setAvailableVersion] = useState(APP_VERSION)
   const [remoteUpdate, setRemoteUpdate] = useState(false)
+  const [releaseInfo, setReleaseInfo] = useState(null)
   const openRef = useRef(false)
   const lastRemoteCheckAtRef = useRef(0)
   const inFlightRef = useRef(false)
+  const releaseInfoAbortRef = useRef(null)
 
   useEffect(() => {
     openRef.current = open
   }, [open])
+
+  // 拉取服务端发布的公告正文。失败时静默降级：弹窗仍显示版本号对比。
+  const loadReleaseInfo = useCallback(async () => {
+    releaseInfoAbortRef.current?.abort()
+    const controller = new AbortController()
+    releaseInfoAbortRef.current = controller
+    const info = await fetchReleaseInfo({ signal: controller.signal })
+    if (controller.signal.aborted) return
+    if (info) setReleaseInfo(info)
+  }, [])
 
   const openLocalPrompt = useCallback(() => {
     const seen = readSeenVersion()
@@ -72,19 +85,29 @@ export default function UpdateRefreshDialog({ enabled = true }) {
     setPreviousVersion(seen)
     setAvailableVersion(APP_VERSION)
     setRemoteUpdate(false)
+    setReleaseInfo({
+      version: APP_VERSION,
+      date: currentRelease.date,
+      title: currentRelease.title,
+      summary: currentRelease.summary,
+      changes: currentRelease.changes
+    })
     setOpen(true)
     return true
   }, [])
 
   const openRemotePrompt = useCallback((remoteVersion) => {
-    if (!remoteVersion || remoteVersion === APP_VERSION) return false
+    if (!remoteVersion || !isValidVersion(remoteVersion)) return false
+    if (remoteVersion === APP_VERSION) return false
     if (readStorage(DISMISSED_REMOTE_KEY) === remoteVersion) return false
     setPreviousVersion(APP_VERSION)
     setAvailableVersion(remoteVersion)
     setRemoteUpdate(true)
+    setReleaseInfo(null)
     setOpen(true)
+    void loadReleaseInfo()
     return true
-  }, [])
+  }, [loadReleaseInfo])
 
   const checkRemoteVersion = useCallback(async ({ force = false, signal } = {}) => {
     if (typeof window === 'undefined') return
@@ -116,7 +139,15 @@ export default function UpdateRefreshDialog({ enabled = true }) {
     // 1) Existing first-load behaviour against the bundled APP_VERSION.
     openLocalPrompt()
 
-    // 2) Continuous remote checks: focus/visibility, timer, and user interaction.
+    // 2) 业务请求快通道：任意 API 响应头 X-App-Version 变化立即触发弹窗。
+    const handleServerVersion = (version) => {
+      if (typeof version !== 'string' || !version) return
+      if (document.visibilityState === 'hidden') return
+      openRemotePrompt(version)
+    }
+    onServerVersion(handleServerVersion)
+
+    // 3) Continuous remote checks: focus/visibility, timer, and user interaction.
     let controller = new AbortController()
     const runRemoteCheck = (options = {}) => {
       controller.abort()
@@ -149,6 +180,8 @@ export default function UpdateRefreshDialog({ enabled = true }) {
 
     return () => {
       controller.abort()
+      onServerVersion(null)
+      releaseInfoAbortRef.current?.abort()
       window.clearInterval(pollTimer)
       for (const eventName of interactionEvents) {
         window.removeEventListener(eventName, onInteraction, { capture: true })
@@ -156,7 +189,7 @@ export default function UpdateRefreshDialog({ enabled = true }) {
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [checkRemoteVersion, enabled, openLocalPrompt])
+  }, [checkRemoteVersion, enabled, openLocalPrompt, openRemotePrompt])
 
   const dismiss = () => {
     if (remoteUpdate) {
@@ -172,9 +205,14 @@ export default function UpdateRefreshDialog({ enabled = true }) {
     if (remoteUpdate) {
       writeStorage(DISMISSED_REMOTE_KEY, availableVersion)
     }
-    writeSeenVersion(APP_VERSION)
+    // Mark the version being loaded as seen, so the fresh bundle after reload
+    // does not prompt again for the same release.
+    writeSeenVersion(availableVersion)
     window.location.reload()
   }
+
+  const notes = releaseInfo
+  const notesLoading = remoteUpdate && !notes
 
   return (
     <AppDialog
@@ -199,10 +237,14 @@ export default function UpdateRefreshDialog({ enabled = true }) {
       </div>
 
       <div className="update-refresh-copy">
-        <p><strong>{remoteUpdate ? `已发布 V${availableVersion}` : currentRelease.title}</strong></p>
-        <p>{remoteUpdate
-          ? '刷新后才会加载新页面、新校验与新界面。继续使用旧页面可能导致录入与版本不一致。'
-          : currentRelease.summary}</p>
+        {notes?.title && <p><strong>{notes.title}</strong></p>}
+        {notes?.summary && <p>{notes.summary}</p>}
+        {Array.isArray(notes?.changes) && notes.changes.length > 0 && (
+          <ul className="update-refresh-changes">
+            {notes.changes.map((change) => <li key={change}>{change}</li>)}
+          </ul>
+        )}
+        {notesLoading && <p>已发布 V{availableVersion}，更新详情即将显示。</p>}
         <ol>
           <li>点“立即刷新”加载最新页面。</li>
           <li>若按钮无效，请手动强制刷新：iPhone 用 Safari 重新打开；Android Chrome 可下拉刷新或清除站点数据后重进。</li>

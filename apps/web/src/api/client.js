@@ -1,6 +1,7 @@
 const API_BASE = String(import.meta.env?.VITE_API_BASE_URL || '').replace(/\/$/u, '')
 let csrfToken = ''
 let storeId = ''
+let serverVersionListener = null
 
 export class ApiError extends Error {
   constructor(message, { status = 0, code = 'NETWORK_ERROR', details = null } = {}) {
@@ -20,6 +21,22 @@ export function setApiSession({ csrf = '', store = '' } = {}) {
 export function clearApiSession() {
   csrfToken = ''
   storeId = ''
+}
+
+// 服务端版本快通道：任意业务 API 响应头的 X-App-Version 都会推给监听者
+// （更新弹窗），让门店端在下一个业务请求上就发现新版本，不必等轮询。
+export function onServerVersion(listener) {
+  serverVersionListener = listener
+}
+
+function emitServerVersion(version) {
+  if (typeof serverVersionListener !== 'function') return
+  if (typeof version !== 'string' || !version) return
+  try {
+    serverVersionListener(version)
+  } catch {
+    // 监听者异常绝不能打断业务请求。
+  }
 }
 
 function uuidV4FromBytes(bytes) {
@@ -63,10 +80,33 @@ export async function api(path, options = {}) {
     if (error?.name === 'AbortError') throw error
     throw new ApiError(navigator.onLine ? '无法连接服务器，请稍后重试。' : '当前离线，只能查看最近加载的数据。', { code: 'NETWORK_ERROR', details: error })
   }
+  const serverVersion = response.headers.get('x-app-version')
+  if (serverVersion) emitServerVersion(serverVersion)
   const payload = response.status === 204 ? null : await response.json().catch(() => null)
   if (!response.ok) {
     if (response.status === 401) window.dispatchEvent(new CustomEvent('bike-ops:session-expired'))
     throw new ApiError(payload?.message || `请求失败（${response.status}）`, { status: response.status, code: payload?.error || 'REQUEST_FAILED', details: payload?.details })
   }
   return payload
+}
+
+// 拉取本次发布的公告内容（版本、标题、摘要、逐条更新）。内容在构建期烘焙进
+// Worker，旧版本页面也能正确渲染新公告。
+export async function fetchReleaseInfo({ signal } = {}) {
+  try {
+    const response = await fetch(`${API_BASE}/api/release/info?_=${Date.now()}`, {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { accept: 'application/json' },
+      signal
+    })
+    if (!response.ok) return null
+    const payload = await response.json().catch(() => null)
+    if (!payload || typeof payload.version !== 'string' || !Array.isArray(payload.changes)) return null
+    return payload
+  } catch (error) {
+    if (error?.name === 'AbortError') return null
+    return null
+  }
 }
