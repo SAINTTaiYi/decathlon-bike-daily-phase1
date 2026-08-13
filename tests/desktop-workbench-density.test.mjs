@@ -20,3 +20,13 @@ test('desktop handover details retain one independent content row without overla
   assert.match(css, /pickup-ledger-board\[data-ledger-mode='handover'\] \.pickup-card-summary/u)
   assert.match(css, /pickup-card-detail > \.pickup-detail-wide:not\(\.pickup-notification-control\) \{ grid-column: 1 \/ -1; grid-row: auto;/u)
 })
+
+test('desktop handover shares the compact pickup and repair control geometry', () => {
+  assert.match(css, /\.pickup-queue-summary \{ min-height: 72px;/u)
+  assert.match(css, /\.pickup-tool-row \{[\s\S]*?min-height: 72px;/u)
+  assert.match(css, /\.pickup-tool-row \.pickup-search-field \{ min-height: 60px;/u)
+  assert.match(css, /\.pickup-tool-row > button \{ height: 60px;/u)
+  assert.doesNotMatch(css, /data-desktop-scene='poster'\] \.pickup-queue-controls/u)
+  assert.doesNotMatch(css, /data-desktop-scene='poster'\] :is\(\.pickup-queue-summary, \.pickup-tool-row\)/u)
+  assert.doesNotMatch(css, /data-desktop-scene='poster'\] \.pickup-tool-row (?:\.pickup-search-field|> button)/u)
+})

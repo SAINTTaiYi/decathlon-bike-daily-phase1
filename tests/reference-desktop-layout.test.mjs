@@ -30,6 +30,18 @@ test('reference navigation retains all six destinations and the lower release ca
   assert.match(overview, /id: 'resale'/u)
 })
 
+test('short desktop viewports keep the release announcement in a scrollable navigation flow', () => {
+  assert.match(dock, /className="dock-scroll-region"/u)
+  assert.match(dock, /firstButton\.getBoundingClientRect\(\)\.height \/ 72/u)
+  assert.match(dock, /releaseBottom = dockTop \+ \(764 \+ 116\) \* scale/u)
+  assert.match(dock, /dock\.dataset\.shortViewport = releaseBottom > viewportBottom - 12/u)
+  assert.match(css, /\.look-dock\[data-short-viewport='true'\] \.dock-scroll-region \{[\s\S]*?grid-template-rows: minmax\(0, 1fr\) auto;[\s\S]*?height: var\(--dock-available-height, 880px\);[\s\S]*?overflow: hidden;/u)
+  assert.match(css, /\.look-dock\[data-short-viewport='true'\] \.dock-scroll-region > ul \{[\s\S]*?overflow-y: auto;/u)
+  assert.match(css, /\.look-dock\[data-short-viewport='true'\] \.dock-release-card \{[\s\S]*?position: relative;[\s\S]*?top: auto;[\s\S]*?left: auto;/u)
+  assert.match(css, /\.look-dock\[data-short-viewport='true'\] \.dock-release-details \{[\s\S]*?position: static;[\s\S]*?max-height: min\(310px, calc\(var\(--dock-available-height, 880px\) - 160px\)\);[\s\S]*?overflow-y: auto;/u)
+  assert.match(css, /\.dock-release-card \{[\s\S]*?position: absolute;[\s\S]*?top: 764px;/u)
+})
+
 test('five target pages expose reference geometry without replacing live components', () => {
   assert.match(css, /grid-template-columns: minmax\(0, \.94fr\) minmax\(0, 1fr\)/u)
   assert.match(css, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/u)

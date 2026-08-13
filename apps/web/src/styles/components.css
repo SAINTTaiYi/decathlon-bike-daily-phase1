@@ -180,6 +180,7 @@
 .pickup-folio strong { color: var(--critical); font-size: .8125rem; font-weight: 800; text-align: right; }
 
 .look-dock { position: fixed; left: 50%; bottom: max(.6rem, env(safe-area-inset-bottom)); z-index: 70; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: .45rem; width: min(calc(100% - 1rem), 728px); padding: .38rem; border: 1px solid rgb(8 8 10 / .14); background: rgb(255 255 255 / .975); box-shadow: 0 14px 44px rgb(8 8 10 / .1); transform: translateX(-50%); }
+.dock-scroll-region { display: contents; }
 .look-dock ul { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); list-style: none; }
 .look-dock li { min-width: 0; }
 .look-dock button { position: relative; display: grid; place-items: center; width: 100%; min-width: 44px; min-height: 48px; color: var(--muted); }

@@ -149,6 +149,40 @@
   .dock-release-details ul { display: grid !important; grid-template-columns: 1fr !important; gap: 6px; margin: 0; padding-left: 16px; }
   .dock-release-details li { font-size: 10px; line-height: 15px; }
 
+  /* Short desktop viewports keep the release card in flow and the complete rail reachable. */
+  .look-dock[data-short-viewport='true'] .dock-scroll-region {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 12px;
+    width: 100%;
+    height: var(--dock-available-height, 880px);
+    overflow: hidden;
+    padding-right: 6px;
+  }
+  .look-dock[data-short-viewport='true'] .dock-scroll-region > ul {
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+  }
+  .look-dock[data-short-viewport='true'] .dock-release-card {
+    position: relative;
+    top: auto;
+    left: auto;
+    justify-self: center;
+    margin: 0;
+  }
+  .look-dock[data-short-viewport='true'] .dock-release-details {
+    position: static;
+    width: auto;
+    max-height: min(310px, calc(var(--dock-available-height, 880px) - 160px));
+    margin: 0 10px 10px;
+    overflow-y: auto;
+  }
+
   /* Overview begins flush below the module bar, matching the reference. */
   .workshop-overview-panel .ops-mobile-overview {
     display: grid;
@@ -295,11 +329,7 @@
   .pickup-notification-buttons button { flex: 0 0 auto; width: auto; min-width: 142px; max-width: 170px; padding-inline: 18px; }
   .handover-complete-stamp-stage { right: 112px; }
 
-  /* Other Handover's reference deliberately uses a taller control row and cards. */
-  .workshop-shell[data-desktop-scene='poster'] .pickup-queue-controls { margin-top: 25px; }
-  .workshop-shell[data-desktop-scene='poster'] :is(.pickup-queue-summary, .pickup-tool-row) { min-height: 105px; }
-  .workshop-shell[data-desktop-scene='poster'] .pickup-tool-row .pickup-search-field { min-height: 93px; }
-  .workshop-shell[data-desktop-scene='poster'] .pickup-tool-row > button { height: 93px; }
+  /* Other Handover keeps its ledger treatment but shares the compact Pickup/Repair controls. */
   .workshop-shell[data-desktop-scene='poster'] .pickup-ledger-board { margin-top: 20px; }
   .workshop-shell[data-desktop-scene='poster'] .pickup-ledger-intro { min-height: 104px; }
   .workshop-shell[data-desktop-scene='poster'] .pickup-ledger-table-head { min-height: 61px; }
