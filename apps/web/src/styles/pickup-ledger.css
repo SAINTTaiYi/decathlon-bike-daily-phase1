@@ -493,3 +493,37 @@
   .handover-complete-stamp { border-color: CanvasText; background: Canvas; box-shadow: none; color: CanvasText; text-shadow: none; }
   .handover-complete-stamp::before { border-color: CanvasText; }
 }
+
+/* Handover assignee: card chip and expanded-detail control */
+.pickup-card-assignee {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 7px;
+  border: 1px solid rgb(12 14 12 / .2);
+  border-radius: 999px;
+  background: var(--pickup-black);
+  color: var(--pickup-yellow);
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 14px;
+  white-space: nowrap;
+}
+.pickup-assignee-control { border-top: 1px dashed var(--pickup-line); padding-top: 8px; }
+.pickup-assignee-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pickup-assignee-current { min-width: 0; overflow: hidden; color: var(--pickup-black); font-size: 12px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.pickup-assignee-current[data-empty='true'] { color: var(--pickup-muted); }
+.pickup-assignee-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  border: 1px solid rgb(12 14 12 / .28);
+  border-radius: 999px;
+  background: var(--pickup-card);
+  padding: 0 11px;
+  color: var(--pickup-black);
+  font-size: 10px;
+  font-weight: 750;
+}
+.pickup-assignee-change:disabled { opacity: .45; }

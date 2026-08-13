@@ -22,6 +22,7 @@ import ReportImageDialog from './components/dialogs/ReportImageDialog.jsx'
 import UpdateRefreshDialog from './components/dialogs/UpdateRefreshDialog.jsx'
 import MenuDialog from './components/dialogs/MenuDialog.jsx'
 import OperationHistoryDialog from './components/dialogs/OperationHistoryDialog.jsx'
+import HandoverTodoDialog from './components/dialogs/HandoverTodoDialog.jsx'
 import PickupConfirmDialog from './components/dialogs/PickupConfirmDialog.jsx'
 import RecordEditorDialog from './components/dialogs/RecordEditorDialog.jsx'
 import { sceneRecordConfig } from './data/operationsData.js'
@@ -107,6 +108,8 @@ export default function App() {
   const deferredPickupResultRef = useRef(null)
   const deferredRepairResultRef = useRef(null)
   const [historyTarget, setHistoryTarget] = useState(null)
+  const [handoverTodoOpen, setHandoverTodoOpen] = useState(false)
+  const handoverTodoCheckedRef = useRef(false)
   const [toast, setToast] = useState('')
   const [online, setOnline] = useState(() => navigator.onLine)
 
@@ -119,6 +122,20 @@ export default function App() {
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
+
+  // Handover todo: after a fresh login, surface active items that colleagues @-assigned to the current user.
+  useEffect(() => {
+    if (!authenticated || auth.source !== 'login' || !workflow.hydrated || !introDone) return undefined
+    if (handoverTodoCheckedRef.current) return undefined
+    handoverTodoCheckedRef.current = true
+    const items = workflow.assignedToMe || []
+    if (!items.length) return undefined
+    if (window.localStorage.getItem(`handover-todo-dismissed-${workflow.dateKey}`) === '1') return undefined
+    setHandoverTodoOpen(true)
+  }, [authenticated, auth.source, introDone, workflow.assignedToMe, workflow.dateKey, workflow.hydrated])
+  useEffect(() => {
+    if (!authenticated) handoverTodoCheckedRef.current = false
+  }, [authenticated])
   const exitAdminMode = () => {
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
     setAdminMode(false)
@@ -486,6 +503,14 @@ export default function App() {
 
   const recordProps = (scene) => ({
     records: workflow.recordsByScene[scene] || [],
+    members: workflow.members || [],
+    onAssign: async (id, assignedTo) => {
+      const record = workflow.records.find((item) => item.id === id)
+      const result = await workflow.assignRecord(id, assignedTo)
+      if (!result.ok) { setToast({ message: result.error, tone: 'error' }); return }
+      const target = assignedTo ? (workflow.members || []).find((member) => member.id === assignedTo) : null
+      setToast(assignedTo ? `${record?.title || '事项'} 已 @ 交接人 ${target?.displayName || ''}` : `已清除交接人：${record?.title || '事项'}`)
+    },
     closedAt: writeLocked,
     onAdd: () => setRecordEditor({ scene, record: null }),
     onEdit: (record) => setRecordEditor({ scene, record }),
@@ -665,6 +690,7 @@ export default function App() {
         <ConfirmClosingDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={confirmClose} events={workflow.events} records={workflow.records} dateKey={workflow.dateKey} kpi={workflow.kpi} />
         <KpiDialog open={kpiOpen} onClose={() => setKpiOpen(false)} values={workflow.kpi} savedAt={workflow.kpiSavedAt} onSave={workflow.saveKpi} onClear={workflow.clearKpi} onNotify={setToast} />
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
+        <HandoverTodoDialog open={handoverTodoOpen} items={(workflow.assignedToMe || []).map((item) => ({ ...item, sceneLabel: sceneById(item.scene)?.cn || item.scene }))} onJump={(item) => { setHandoverTodoOpen(false); navigateToScene(item.scene) }} onClose={() => { setHandoverTodoOpen(false); window.localStorage.setItem(`handover-todo-dismissed-${workflow.dateKey}`, '1') }} />
         {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={visibleScene} onJump={jumpFromOverview} closedAt={workflow.closedAt} desktopLayout={desktopLayout} /></div> : null}
       </div>
       {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button></div> : null}

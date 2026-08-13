@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import {
   actionSchema,
+  assignSchema,
   notificationSchema,
   pickupCompleteSchema,
   workItemCreateSchema,
@@ -18,7 +19,7 @@ import type { AuthContext } from '../auth/types.js'
 import { createAuthMiddleware } from '../auth/middleware.js'
 import { first, nowIso, uuid } from '../db.js'
 import { contactFingerprint, encryptContact } from '../lib/contact-crypto.js'
-import { getWorkItem, internalSnapshot, listWorkItems } from '../repositories/work-items.js'
+import { getWorkItem, internalSnapshot, listStoreMembers, listWorkItems } from '../repositories/work-items.js'
 import { buildRestoreSnapshotStatements } from '../services/restore.js'
 import { batchWhileDayOpen, businessDateFor, ensureDayOpen, runWhileDayOpen, writeAudit } from '../services/business.js'
 import { idempotent } from '../services/idempotency.js'
@@ -33,6 +34,19 @@ function requireContactKey(config: AppConfig): string {
 
 function kindForScene(scene: string): 'pickup' | 'handover' | 'repair' | 'resale' {
   return scene === 'poster' ? 'handover' : scene as 'pickup' | 'repair' | 'resale'
+}
+
+async function resolveAssignee(db: D1Database, context: AuthContext, assignedTo: unknown): Promise<string | null> {
+  if (assignedTo === null || assignedTo === undefined) return null
+  if (typeof assignedTo !== 'string') throw new ApiProblem(400, 'INVALID_ASSIGNEE', '交接人必须是门店成员。')
+  const members = await listStoreMembers(db, context.storeId)
+  if (!members.some((member) => member.id === assignedTo)) throw new ApiProblem(400, 'INVALID_ASSIGNEE', '交接人必须是本店在职成员。')
+  return assignedTo
+}
+
+function assigneeNameFor(members: Array<{ id: string; displayName: string; role: string }>, userId: string | null): string {
+  if (!userId) return ''
+  return members.find((member) => member.id === userId)?.displayName ?? '同事'
 }
 
 export function workItemRoutes() {
@@ -66,6 +80,9 @@ export function workItemRoutes() {
       let repairFields: any = null
       let pickupFields: any = null
       let handoverContactValue = ''
+      const stampNow = nowIso()
+      const assignedTo = await resolveAssignee(db, context, (input.values as any)?.assignedTo ?? null)
+      const assignedAt = assignedTo ? stampNow : null
       if (input.scene === 'repair') {
         const normalized = normalizeRepair(input.values)
         if (!normalized.ok) throw new ApiProblem(400, 'INVALID_REPAIR', normalized.error)
@@ -89,7 +106,7 @@ export function workItemRoutes() {
         if (input.scene === 'poster') handoverContactValue = input.values.contactValue
       }
       const id = uuid()
-      const stamp = nowIso()
+      const stamp = stampNow
       let detailStatement: D1PreparedStatement
       if (input.scene === 'repair' && repairFields) {
         const key = requireContactKey(config)
@@ -135,13 +152,13 @@ export function workItemRoutes() {
         db.prepare(`
           INSERT INTO work_items (
             id, store_id, ticket_no, kind, title, detail, meta, status, lifecycle, revision,
-            created_by, updated_by, created_at, updated_at
+            created_by, updated_by, created_at, updated_at, assigned_to, assigned_at
           )
-          SELECT ?, ?, last_value, ?, ?, ?, ?, ?, 'active', 1, ?, ?, ?, ?
+          SELECT ?, ?, last_value, ?, ?, ?, ?, ?, 'active', 1, ?, ?, ?, ?, ?, ?
           FROM work_item_counters WHERE store_id = ?
         `).bind(
           id, context.storeId, kindForScene(input.scene), title, detail, meta, status,
-          context.userId, context.userId, stamp, stamp, context.storeId
+          context.userId, context.userId, stamp, stamp, assignedTo, assignedAt, context.storeId
         ),
         detailStatement
       ])
@@ -185,6 +202,16 @@ export function workItemRoutes() {
       let meta = ''
       let status = ''
       let detailStatement: D1PreparedStatement | null = null
+      const values = input.values as Record<string, unknown>
+      const hasAssignedTo = Object.prototype.hasOwnProperty.call(values, 'assignedTo')
+      const assignedTo = hasAssignedTo ? await resolveAssignee(db, context, values.assignedTo) : undefined
+      let assignStatement: D1PreparedStatement | null = null
+      if (hasAssignedTo) {
+        assignStatement = db.prepare(`
+          UPDATE work_items SET assigned_to = ?, assigned_at = ?
+          WHERE id = ? AND store_id = ? AND deleted_at IS NULL AND lifecycle = 'active'
+        `).bind(assignedTo, assignedTo ? nowIso() : null, id, context.storeId)
+      }
       if (repairLike) {
         const normalized = normalizeRepair(input.values)
         if (!normalized.ok) throw new ApiProblem(400, 'INVALID_REPAIR', normalized.error)
@@ -252,7 +279,8 @@ export function workItemRoutes() {
           UPDATE work_items SET title = ?, detail = ?, meta = ?, status = ?, updated_by = ?, revision = revision + 1, updated_at = ?
           WHERE id = ? AND store_id = ? AND revision = ? AND deleted_at IS NULL AND lifecycle = 'active'
         `).bind(title, detail, meta, status, context.userId, stamp, id, context.storeId, input.expectedRevision),
-        ...(detailStatement ? [detailStatement] : [])
+        ...(detailStatement ? [detailStatement] : []),
+        ...(assignStatement ? [assignStatement] : [])
       ])
       if (!updated?.meta?.changes) throw new ApiProblem(409, 'REVISION_CONFLICT', '数据已被其他同事修改，请刷新后重试。')
       const after = await internalSnapshot(db, context.storeId, id)
@@ -272,7 +300,8 @@ export function workItemRoutes() {
   function actionRoute(
     path: string,
     action: string,
-    handler: (db: D1Database, context: AuthContext, id: string, revision: number, businessDate: string) => Promise<{ summary: string; extra?: Record<string, unknown> }>
+    handler: (db: D1Database, context: AuthContext, id: string, revision: number, businessDate: string, input: any) => Promise<{ summary: string; extra?: Record<string, unknown> }>,
+    schema = actionSchema
   ) {
     app.post(path, ...write, async (c) => {
       const context = c.get('auth')!
@@ -280,7 +309,7 @@ export function workItemRoutes() {
       const id = String(c.req.param('id') ?? '')
       if (!id) throw new ApiProblem(400, 'VALIDATION_ERROR', '缺少业务记录标识。')
       const body = await c.req.json()
-      const input = actionSchema.parse(body)
+      const input = schema.parse(body)
       const result = await idempotent(c, body, async (db) => {
         const businessDate = await businessDateFor(context)
         await ensureDayOpen(db, context, businessDate)
@@ -292,7 +321,7 @@ export function workItemRoutes() {
         let eventId: string
         let stateChanged = false
         try {
-          outcome = await handler(db, context, id, input.expectedRevision, businessDate)
+          outcome = await handler(db, context, id, input.expectedRevision, businessDate, input)
           stateChanged = true
           const after = await internalSnapshot(db, context.storeId, id)
           const revision = Number((after?.workItem as any)?.revision ?? input.expectedRevision + 1)
@@ -362,6 +391,21 @@ export function workItemRoutes() {
     const row = await first<{ title: string }>(db.prepare('SELECT title FROM work_items WHERE id = ? AND store_id = ?').bind(id, context.storeId))
     return { summary: `已售出并转入待取（二手车）：${row?.title ?? ''}`, extra: { route: 'pickup' } }
   })
+
+  actionRoute('/api/v1/work-items/:id/assign', 'assign-handover', async (db, context, id, revision, businessDate, input) => {
+    const assignedTo = await resolveAssignee(db, context, input.assignedTo)
+    const stamp = nowIso()
+    const [updated] = await batchWhileDayOpen(db, context, businessDate, [
+      db.prepare(`
+        UPDATE work_items SET assigned_to = ?, assigned_at = ?, revision = revision + 1, updated_by = ?, updated_at = ?
+        WHERE id = ? AND store_id = ? AND revision = ? AND deleted_at IS NULL AND lifecycle = 'active'
+      `).bind(assignedTo, assignedTo ? stamp : null, context.userId, stamp, id, context.storeId, revision)
+    ])
+    if (!updated?.meta?.changes) throw new ApiProblem(409, 'REVISION_CONFLICT', '数据已被其他同事修改，请刷新后重试。')
+    if (!assignedTo) return { summary: '清除交接人' }
+    const members = await listStoreMembers(db, context.storeId)
+    return { summary: `指定交接人：${assigneeNameFor(members, assignedTo)}` }
+  }, assignSchema)
 
   actionRoute('/api/v1/work-items/:id/complete-repair', 'complete-repair', async (db, context, id, revision, businessDate) => {
     const repair = await first<{ title: string; repair_type: string; repair_status: string }>(db.prepare(`

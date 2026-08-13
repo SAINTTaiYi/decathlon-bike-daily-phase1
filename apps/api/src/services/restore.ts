@@ -16,6 +16,7 @@ export async function restoreSnapshot(sql: Database, snapshot: Record<string, un
       kind = ${rowValue(workItem, 'kind')}, title = ${rowValue(workItem, 'title')}, detail = ${rowValue(workItem, 'detail')}, meta = ${rowValue(workItem, 'meta')},
       status = ${rowValue(workItem, 'status')}, lifecycle = ${rowValue(workItem, 'lifecycle')}, revision = revision + 1,
       updated_by = ${rowValue(workItem, 'updatedBy')}, deleted_by = ${rowValue(workItem, 'deletedBy')},
+      assigned_to = ${rowValue(workItem, 'assignedTo')}, assigned_at = ${rowValue(workItem, 'assignedAt')},
       updated_at = now(), deleted_at = ${rowValue(workItem, 'deletedAt')}
     where id = ${id}
   `

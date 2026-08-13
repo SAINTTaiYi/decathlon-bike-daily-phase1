@@ -9,6 +9,7 @@ export const createWorkItem = (scene, values) => api('/api/v1/work-items', { met
 export const updateWorkItem = (record, values) => api(`/api/v1/work-items/${record.id}`, { method: 'PATCH', body: { expectedRevision: record.revision, values } })
 export const removeWorkItem = (record) => api(`/api/v1/work-items/${record.id}`, { method: 'DELETE', body: { expectedRevision: record.revision } })
 export const workItemAction = (record, action, extra = {}) => api(`/api/v1/work-items/${record.id}/${action}`, { method: 'POST', body: { expectedRevision: record.revision, ...extra } })
+export const assignWorkItem = (record, assignedTo) => api(`/api/v1/work-items/${record.id}/assign`, { method: 'POST', body: { expectedRevision: record.revision, assignedTo } })
 export const undoAuditEvent = (event) => api(`/api/v1/audit-events/${event.id}/undo`, { method: 'POST', body: {} })
 export const getPermanentAuditHistory = ({ date = '', module = 'all', cursor = '' } = {}) => {
   const params = new URLSearchParams({ module, limit: '80' })

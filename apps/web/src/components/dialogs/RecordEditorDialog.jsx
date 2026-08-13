@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import IconLightBulb from '@iconoir/LightBulb.mjs'
 import IconSmartphoneDevice from '@iconoir/SmartphoneDevice.mjs'
 import ProjectSelect from '../ProjectSelect.jsx'
+import DatePickerField from '../fields/DatePickerField.jsx'
 import AppDialog from './AppDialog.jsx'
 import {
   emptyPickupDraft,
@@ -237,7 +238,7 @@ function RepairFields({ draft, setDraft }) {
         ) : (
           <label className="field-row record-editor-section record-editor-pickup-date">
             <span><span className="record-editor-copy-mobile">取车时间</span><span className="record-editor-copy-desktop">预约时间</span></span>
-            <input required type="date" value={draft.pickupDate} onChange={(event) => set('pickupDate', event.target.value)} />
+            <DatePickerField required value={draft.pickupDate || ''} onChange={(value) => set('pickupDate', value)} placeholder="选择日期" ariaLabel="选择取车时间" />
           </label>
         )}
 

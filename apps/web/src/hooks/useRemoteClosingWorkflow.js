@@ -3,12 +3,12 @@ import { auditEventBelongsToScene, currentBusinessDayEvents } from '../data/audi
 import { emptyKpi } from '../data/operationsData.js'
 import {
   clearSales, closeDay, createWorkItem, getBootstrap, planLocalV5Import, previewLocalV5,
-  removeWorkItem, reopenDay, saveSales, undoAuditEvent, updateWorkItem, workItemAction, getPermanentAuditHistory
+  assignWorkItem, removeWorkItem, reopenDay, saveSales, undoAuditEvent, updateWorkItem, workItemAction, getPermanentAuditHistory
 } from '../api/workflow.js'
 import { buildPickupNotificationUpdate } from '../data/pickupRecord.js'
 import { buildRepairCompletion, normalizeRepairRecord } from '../data/repairRecord.js'
 
-const emptyState = { businessDate: '', day: { kpi: emptyKpi, kpiSavedAt: null, closedAt: null, revision: 0 }, records: [], events: [], trends: null, store: null }
+const emptyState = { businessDate: '', day: { kpi: emptyKpi, kpiSavedAt: null, closedAt: null, revision: 0 }, records: [], events: [], trends: null, store: null, members: [], assignedToMe: [] }
 
 export default function useRemoteClosingWorkflow(enabled) {
   const [state, setState] = useState(emptyState)
@@ -149,6 +149,11 @@ export default function useRemoteClosingWorkflow(enabled) {
   const clearKpi = useCallback(() => run(() => clearSales(state.day.revision), { sync: 'background' }), [run, state.day.revision])
   const addRecord = useCallback((scene, values) => run(() => createWorkItem(scene, values)), [run])
   const editRecord = useCallback((id, values) => { const record = findRecord(id); return record ? run(() => updateWorkItem(record, values)) : Promise.resolve({ ok: false, error: '没有找到这条台账记录。' }) }, [findRecord, run])
+  const assignRecord = useCallback((id, assignedTo) => {
+    const record = findRecord(id)
+    if (!record) return Promise.resolve({ ok: false, error: '没有找到这条台账记录。' })
+    return run(() => assignWorkItem(record, assignedTo))
+  }, [findRecord, run])
   const patchRecordLocal = useCallback((id, patch) => {
     setState((current) => {
       const index = current.records.findIndex((item) => item.id === id)
@@ -205,6 +210,9 @@ export default function useRemoteClosingWorkflow(enabled) {
     lastSyncedAt,
     records: state.records,
     recordsByScene,
+    members: state.members || [],
+    assignedToMe: state.assignedToMe || [],
+    assignRecord,
     trends: state.trends,
     kpi: state.day.kpi,
     kpiSavedAt: state.day.kpiSavedAt,

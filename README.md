@@ -33,7 +33,7 @@
 ### 项目状态
 
 - 当前版本：`V5.9.4`
-- 当前 D1 schema：`0013_optional_handover_phone`
+- 当前 D1 schema：`0014_handover_assignee`
 - 本地验证：Domain 7 / Database 15 / Web 260 / API 21 / Worker 68，共 371 条测试
 - Preview 与 Staging 使用独立 Worker 和 D1
 - Production 发布工作流已迁移到 Cloudflare，但仍受 Staging 验收、独立资源、加密备份和恢复演练门禁约束

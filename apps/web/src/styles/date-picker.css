@@ -1,0 +1,139 @@
+/* Brand date picker — replaces the native system date control. */
+
+.date-picker-field { position: relative; display: block; min-width: 0; }
+
+.date-picker-trigger {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--line-strong);
+  border-bottom: 2px solid var(--ink);
+  background: var(--surface-raised);
+  padding: .65rem .7rem;
+  font: inherit;
+  font-size: .92rem;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+.date-picker-trigger svg { color: var(--muted); flex: 0 0 auto; }
+.date-picker-trigger span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.date-picker-trigger span[data-empty='true'] { color: var(--muted); }
+.date-picker-trigger:focus-visible { outline: 2px solid var(--ops-yellow, #ffc31a); outline-offset: 1px; }
+.date-picker-required { margin-left: auto; color: var(--ops-danger, #c63b2e); font-style: normal; font-weight: 800; }
+
+.date-picker-panel {
+  margin: 0;
+  border: 1px solid rgb(12 14 12 / .1);
+  border-radius: 12px;
+  background: var(--ops-card, #fffdf8);
+  box-shadow: 0 0 0 1px rgb(12 14 12 / .04), 0 18px 44px rgb(12 14 12 / .18);
+  padding: 0;
+  color: var(--ops-black, #0c0e0c);
+  overflow: hidden;
+}
+.date-picker-panel::backdrop { background: rgb(12 14 12 / .28); }
+
+.date-picker-head {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px 6px;
+}
+.date-picker-head strong {
+  font-family: var(--ops-display, var(--font-display));
+  font-size: 15px;
+  font-weight: 800;
+  text-align: center;
+}
+.date-picker-nav {
+  height: 34px;
+  border: 1px solid rgb(12 14 12 / .12);
+  border-radius: 8px;
+  background: var(--ops-card, #fffdf8);
+  color: var(--ops-black, #0c0e0c);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.date-picker-nav:hover { background: var(--ops-yellow-wash, #fff2cf); }
+
+.date-picker-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 6px 12px 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.date-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  padding: 0 12px 8px;
+}
+.date-picker-day {
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ops-black, #0c0e0c);
+  font-family: var(--ops-display, var(--font-display));
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.date-picker-day:hover:not([data-disabled='true']) { background: var(--ops-yellow-wash, #fff2cf); }
+.date-picker-day[data-today='true'] { box-shadow: inset 0 0 0 1.5px var(--ops-black, #0c0e0c); }
+.date-picker-day[data-selected='true'],
+.date-picker-day[data-selected='true']:hover {
+  background: var(--ops-black, #0c0e0c);
+  color: var(--ops-yellow, #ffc31a);
+}
+.date-picker-day[data-disabled='true'] { color: rgb(12 14 12 / .3); cursor: default; }
+
+.date-picker-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px 12px;
+}
+.date-picker-today,
+.date-picker-clear {
+  min-height: 36px;
+  border: 1px solid rgb(12 14 12 / .14);
+  border-radius: 8px;
+  background: var(--ops-card, #fffdf8);
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ops-black, #0c0e0c);
+  cursor: pointer;
+}
+.date-picker-today { background: var(--ops-black, #0c0e0c); color: var(--ops-yellow, #ffc31a); border-color: var(--ops-black, #0c0e0c); }
+.date-picker-today:disabled { opacity: .4; cursor: default; }
+.date-picker-clear { color: var(--muted); }
+
+/* Mobile: full-width bottom sheet. */
+@media (max-width: 640px) {
+  .date-picker-panel {
+    left: 0 !important;
+    right: 0;
+    top: auto !important;
+    bottom: 0;
+    width: auto !important;
+    max-width: none;
+    border-radius: 18px 18px 0 0;
+    border-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .date-picker-panel::backdrop { background: rgb(12 14 12 / .4); }
+  .date-picker-day { height: 42px; }
+  .date-picker-head { padding-top: 14px; }
+}
