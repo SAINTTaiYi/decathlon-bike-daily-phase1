@@ -10,6 +10,7 @@ import { auditRoutes } from './routes/audit.js'
 import { bootstrapRoutes } from './routes/bootstrap.js'
 import { closingRoutes } from './routes/closing.js'
 import { healthRoutes } from './routes/health.js'
+import { releaseRoutes } from './routes/release.js'
 import { workItemRoutes } from './routes/work-items.js'
 import { registrationRoutes } from './routes/registration.js'
 import { governanceRoutes } from './routes/governance.js'
@@ -36,6 +37,7 @@ function needsSecrets(path: string): boolean {
   if (path === '/health/live') return false
   if (path === '/health/ready') return false
   if (path === '/api/v1/meta/version') return false
+  if (path === '/api/release/info') return false
   if (path.startsWith('/health/') || path.startsWith('/api/')) return true
   return false
 }
@@ -76,7 +78,19 @@ app.use('*', async (c, next) => {
   return next()
 })
 
+// 所有 /api/* 响应携带当前部署版本头。门店端在任意业务请求上即可第一时间
+// 发现服务端版本变化，无需等待轮询心跳。
+app.use('/api/*', async (c, next) => {
+  await next()
+  const config = c.get('config')
+  if (config) {
+    c.header('X-App-Version', config.APP_VERSION)
+    c.header('Access-Control-Expose-Headers', 'x-app-version')
+  }
+})
+
 app.route('/', healthRoutes())
+app.route('/', releaseRoutes())
 app.route('/', authRoutes())
 app.route('/', registrationRoutes())
 app.route('/', governanceRoutes())

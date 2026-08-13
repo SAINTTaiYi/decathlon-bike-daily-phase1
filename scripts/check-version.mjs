@@ -25,6 +25,15 @@ for (const [label, path, assign] of [
   }
 }
 
+try {
+  const generatedReleaseInfo = await readFile(`${projectRoot}/apps/worker/src/generated/release-info.ts`, 'utf8')
+  const generatedVersion = generatedReleaseInfo.match(/version: "([^"]+)"/u)?.[1]
+  if (generatedVersion && generatedVersion !== APP_VERSION) {
+    errors.push(`apps/worker/src/generated/release-info.ts (${generatedVersion}) 与 releaseNotes.js APP_VERSION (${APP_VERSION}) 不一致；请运行 pnpm generate:build-metadata`)
+  }
+} catch {
+  // 生成文件缺失时由 prebuild 钩子重建，这里不视为版本错误。
+}
 if (!semverPattern.test(APP_VERSION)) errors.push(`APP_VERSION 必须是三段式版本号，当前为 ${APP_VERSION}`)
 if (packageJson.version !== APP_VERSION) errors.push(`package.json ${packageJson.version} 与 APP_VERSION ${APP_VERSION} 不一致`)
 if (webPackageJson.version !== APP_VERSION) errors.push(`apps/web/package.json ${webPackageJson.version} 与 APP_VERSION ${APP_VERSION} 不一致`)
