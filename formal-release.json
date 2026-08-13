@@ -1,175 +1,108 @@
 {
   "kind": "formal-production-release",
-  "version": "5.9.3",
+  "version": "5.9.4",
   "previewRange": {
-    "fromExclusive": "e608e17b79d2901f78a92e4693724a8c01181136",
-    "toInclusive": "cf3dde02bd94ac348d42bae6e53778001060176b",
+    "fromExclusive": "75ea8770a40ec6069206eb42f4f24f22edb8e045",
+    "toInclusive": "04a021c12f4f45c1069ca5fd2888627307c0b1cd",
     "commits": [
       {
-        "sha": "b4bbffc2bd4b96de729f0db2b996550891257d5c",
-        "subject": "ci(cloudflare): register free staging deploy workflow on default branch"
+        "sha": "595124be1e72fb2796e22e70f2be8ac29fecd3b9",
+        "subject": "fix: 门店注册流程改为先选门店再注册"
       },
       {
-        "sha": "492cdf02caf22a3c9add9c2ddce487a2329b970f",
-        "subject": "Merge pull request #3 from SAINTTaiYi/ci/register-cloudflare-staging-workflow"
+        "sha": "1e5f0a3196b23a0a380d6b74c4ca9f0b0e2276e6",
+        "subject": "fix: 后端支持门店自助注册流程"
       },
       {
-        "sha": "4a89f1227719b894ac5c5a9e767bccdfb32fa827",
-        "subject": "fix(ci): allow private-repo staging head verification"
+        "sha": "d3c443162841d06f3bdd399586cc2d282f30f700",
+        "subject": "修复 UI 显示问题"
       },
       {
-        "sha": "864ea401f9c6830ad2cd08ac1d9824fbee518ce0",
-        "subject": "Merge pull request #4 from SAINTTaiYi/ci/fix-staging-deploy-head-check"
+        "sha": "87e88e27f7b28f2b65a3edcb757f313d63b310fc",
+        "subject": "fix: 合并重复的移动端媒体查询块以通过 CSS 测试"
       },
       {
-        "sha": "8b8d513337d8ee400085582efc3c6752c1dc3b0c",
-        "subject": "ci(cloudflare): register free preview deploy workflow on default branch"
+        "sha": "bfc0c3ece8db1f3e212148a4449cb796fa75cef5",
+        "subject": "fix: 修复 TypeScript 类型错误 - 将 storeId 改为 storeCode + storeName"
       },
       {
-        "sha": "76e074f23e0f3ee420e716736c280a676b32aca3",
-        "subject": "Merge pull request #5 from SAINTTaiYi/ci/register-cloudflare-preview-workflow"
+        "sha": "e69de6da4b6f16ca9e434d96eafa0b5a2fd9d0c5",
+        "subject": "revert: restore pre-layout registration baseline"
       },
       {
-        "sha": "74025ccea19aecb696d48dd63cb7ec39bdf9051e",
-        "subject": "ci: register workshop.skin staging onboard workflow"
+        "sha": "93bced6d85cfc61dba8a5222f212460678636afa",
+        "subject": "docs: record operational safety lessons (#200)"
       },
       {
-        "sha": "7f87b947c0e6e4193e36faa76ae9febbcbbb9ef5",
-        "subject": "Merge pull request #6 from SAINTTaiYi/ci/register-workshop-skin-onboard"
+        "sha": "2ffc22d3f3758db4add2a32ec9f26bf0fe95941c",
+        "subject": "Merge accepted Preview cycle V5.9.3 into main"
       },
       {
-        "sha": "32e14064486fe90b2e0c5b07f5a254e3fdf1f290",
-        "subject": "feat(auth): add self-service password changes"
+        "sha": "09ec269f8ebcc02481e3f3581bce78ebcedbea4b",
+        "subject": "chore(release): stamp V5.9.3 on merged main source"
       },
       {
-        "sha": "b6ded35a1725d41b5716a255dc8fd2a0fb721416",
-        "subject": "docs: checkpoint password change submission"
+        "sha": "1c3cf48aea9fb17b19dfd70ad0628466bcbb53b0",
+        "subject": "release: keep accepted preview runtime for admin create-user path"
       },
       {
-        "sha": "b746bf88f8c7fc31529682d85183ae83e6781f86",
-        "subject": "docs: record password change pull request"
+        "sha": "bf5519bf87c79ade7a4a173eb32fdd73be5f7c41",
+        "subject": "chore(release): restamp V5.9.3 on accepted preview runtime"
       },
       {
-        "sha": "f7080f4a754f6da7c5ec97163b73a4747938d4f8",
-        "subject": "fix(auth): close password-change login race"
+        "sha": "144c987f05a127c531c95151aa08b4f17ad748a2",
+        "subject": "security: fix pentest findings M-1/L-1/L-2/L-4/L-5/L-6/L-7"
       },
       {
-        "sha": "f763c654f8b29e4e5c0dc06a0b367f005ebf3868",
-        "subject": "docs: record password change CI evidence"
+        "sha": "10984c5427c937575130314341de4839f4462c9d",
+        "subject": "security: gate close action behind manager/admin role in frontend too"
       },
       {
-        "sha": "2cf33d9a087a0c40b817d56cd2b96e6cf3760895",
-        "subject": "Merge pull request #193 from SAINTTaiYi/feat/self-service-password-change-20260811"
+        "sha": "a77d8fed5ca3342f02f04008ba4753fd2f8ace1a",
+        "subject": "test: align login-backoff assertion with dummy PBKDF2 timing equalization"
       },
       {
-        "sha": "1b5f09f7dccb3c76bd9742a2199c765255f18e18",
-        "subject": "docs: record password change preview evidence"
+        "sha": "cffec1860926f442c37fcb1ecc70377f73a65c50",
+        "subject": "revert M-1: closing is available to all logged-in users by design"
       },
       {
-        "sha": "117cb0a8174ee8964b87e2c5032ee77f8821cf71",
-        "subject": "Merge pull request #194 from SAINTTaiYi/docs/self-service-password-preview-evidence-20260811"
+        "sha": "cea548c988314b11cae5dac95f830140f4f2a683",
+        "subject": "Merge pull request #202 from SAINTTaiYi/security/pentest-fixes-2026-08-13"
       },
       {
-        "sha": "352e6500698c1b035eb6a25771fa06a54cac01a3",
-        "subject": "docs: clarify deployed Preview source SHA"
+        "sha": "b5c2f8c7c6692584b3001e735165fc286cca8c6d",
+        "subject": "fix(web): keep record editor actions visible on short screens"
       },
       {
-        "sha": "23c003806f53fd9dda186c193120664b8d3c2fff",
-        "subject": "Merge pull request #195 from SAINTTaiYi/docs/fix-password-preview-sha-label-20260811"
+        "sha": "01fa353053b37aa4232464c7c96666e8be10faa7",
+        "subject": "Merge pull request #203 from SAINTTaiYi/fix/record-editor-short-viewport-20260813"
       },
       {
-        "sha": "e3880ab54300724ce1d6f57f15b59ee0a4c10f73",
-        "subject": "chore: prepare for open source"
+        "sha": "bb7e669af421aeb40b691e92b5790358775c7370",
+        "subject": "fix(web): compact desktop handover toolbar"
       },
       {
-        "sha": "170adfcc837c9f4bee50209403d3549fce485dd9",
-        "subject": "chore: merge Cloudflare Workers/D1 architecture and open source preparation"
+        "sha": "752fac81b9df9d10862c9bb4cc9d20c4020ff42a",
+        "subject": "fix(web): keep release notice visible on short desktops"
       },
       {
-        "sha": "b747d10fd78209f4beef3e5567df8398e361e9ce",
-        "subject": "chore: make Cloudflare the canonical release path"
+        "sha": "bc08cda765f1aa42a246a01f8195eb564a00ff9c",
+        "subject": "Merge pull request #204 from SAINTTaiYi/fix/other-handover-toolbar-height-20260813"
       },
       {
-        "sha": "4ab90878ff089528888ead2fec396e0e8a323b12",
-        "subject": "chore: retire conflicting legacy deployment workflows"
-      },
-      {
-        "sha": "98525b0a74a08aed6c4d9c3105f4cd4f923b9bc4",
-        "subject": "test: accept Cloudflare Staging release check"
-      },
-      {
-        "sha": "42f69425fba659bdc474dcedd933e9e3721d1e56",
-        "subject": "test: fix deployment environment assertions"
-      },
-      {
-        "sha": "e255daebab22d3c22dc48a9d5612fa0f8673614d",
-        "subject": "test: match escaped environment verification"
-      },
-      {
-        "sha": "1fc431effc071a9eb2912c2ff4f36cdcdf27f993",
-        "subject": "fix: validate production Worker with JSON search API"
-      },
-      {
-        "sha": "773298b8e60293a9114fe391b9853437b920d607",
-        "subject": "docs: align deployment facts with Workers and D1"
-      },
-      {
-        "sha": "561ef2585610fe3d8b76833622589ea01dfcdb90",
-        "subject": "chore: require live Staging identity before Production"
-      },
-      {
-        "sha": "7c45ead34e1e088cd12c97ed953dca8c4b514969",
-        "subject": "docs: correct public runtime and release status"
-      },
-      {
-        "sha": "07bdebef2bad60f301771d79672d6445756bc724",
-        "subject": "Merge pull request #196 from SAINTTaiYi/chore/cloudflare-release-governance-20260812"
-      },
-      {
-        "sha": "51bbdf3dd52718d0ca828406d3035bfe1cca2e81",
-        "subject": "取消区域层级，开放门店自主注册，门店编号唯一性服务端强制"
-      },
-      {
-        "sha": "cab19d420b02850dbaa1ad2740c0a12f2c88989d",
-        "subject": "临时：允许任意分支触发 preview 部署"
-      },
-      {
-        "sha": "67c2fa2a426c7381af69031bf29928362a31d32a",
-        "subject": "test: update expectations for 0012 migration and store registration flow"
-      },
-      {
-        "sha": "7a472ff004fabdf658abe5c5a979e4ffd5f2c7b0",
-        "subject": "fix: update PlatformAdminSetup to match new flat store registration API"
-      },
-      {
-        "sha": "be3b6eb12c9cc3353bd048811f6c8ac88a09dad8",
-        "subject": "fix: keep closing actions inside overview card"
-      },
-      {
-        "sha": "9857e4ef48be812da8af0dfa8388543e97cd8119",
-        "subject": "feat: add optional phone to handover items"
-      },
-      {
-        "sha": "23a3d9a5d3543ac1bcfe52ecce2a11d086328f44",
-        "subject": "ci: count optional handover migration"
-      },
-      {
-        "sha": "cf3dde02bd94ac348d42bae6e53778001060176b",
-        "subject": "feat(web): match desktop vehicle editor references"
+        "sha": "04a021c12f4f45c1069ca5fd2888627307c0b1cd",
+        "subject": "docs: require version bump and PR content in release notes on every push"
       }
     ]
   },
   "announcement": {
-    "title": "门店注册平铺化与桌面编辑页复刻上线",
-    "summary": "自 V5.9.2 后聚合 38 个已验收 Preview 提交：门店自助注册取消区域层级、编号唯一性服务端强制；交接事项支持可选电话号码；闭店操作修复卡片溢出；待取车与维修车桌面编辑页按参考图一比一复刻。同步并入员工自助改密与 Cloudflare 发布治理。覆盖广西四店（南宁 1299/1670、桂林 994、柳州 1249）。",
+    "title": "桌面工作台修复：交接工具栏紧凑统一与更新公告短屏可达",
+    "summary": "自 V5.9.3 后聚合 2 项已验收修复：桌面端「其它工作交接」搜索工具栏恢复与待取/维修一致的紧凑尺寸；低高度显示器上左侧更新公告不再被遮挡，六模块列表在剩余空间内独立滚动，公告固定保留在左栏底部。同步把发布版本规则写入项目文档。",
     "changes": [
-      "门店自助注册平铺化：取消大区/小区/城市层级，注册改为先选门店，编号唯一性服务端强制（D1 迁移 0012）",
-      "交接事项新增可选电话号码，跨日期保留并随记录流转（D1 迁移 0013）",
-      "闭店操作保留在总览卡片内，不再溢出遮挡（移动端与桌面端）",
-      "桌面端「编辑待取车辆」「编辑维修车辆」按参考图一比一复刻：三列布局、填写提示、完成后可人工干预提示与固定底栏；移动端保持不变",
-      "员工可自助修改密码，并修复改密登录竞态、审计邮箱脱敏",
-      "Cloudflare Workers/D1 成为正式发布路径：Staging 身份前置校验、正式发布版本策略落地、旧部署工作流退役"
+      "桌面端「其它工作交接」工具栏与待取/维修统一为 72px 行高与 60px 控件，移除放大特例（PR #204）",
+      "低高度显示器上更新公告固定于左侧导航底部且始终可达：六模块列表在剩余空间内独立滚动，展开详情自身滚动（PR #204）",
+      "新增发布版本规则文档：每次推送必须递增公开版本号并把 PR 更新内容写入发布公告（AUTOMATED-DEPLOYMENT.md / README.md）"
     ]
   },
-  "preparedAt": "2026-08-12T18:08:48.833Z"
+  "preparedAt": "2026-08-13T15:31:56.975Z"
 }
