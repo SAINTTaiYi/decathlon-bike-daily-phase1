@@ -1,108 +1,61 @@
 {
   "kind": "formal-production-release",
-  "version": "5.9.4",
+  "version": "5.9.5",
   "previewRange": {
-    "fromExclusive": "75ea8770a40ec6069206eb42f4f24f22edb8e045",
-    "toInclusive": "04a021c12f4f45c1069ca5fd2888627307c0b1cd",
+    "fromExclusive": "98dc720e6318aa1657c04b9fb349c40acdb2e9f8",
+    "toInclusive": "6d7587df4b771daa2a12f0ea162db59a2a0080fa",
     "commits": [
       {
-        "sha": "595124be1e72fb2796e22e70f2be8ac29fecd3b9",
-        "subject": "fix: 门店注册流程改为先选门店再注册"
+        "sha": "9c9d97b2576365745b847b96b2a29cb64bcb104b",
+        "subject": "Merge pull request #205 from SAINTTaiYi/fix/release-v5-9-4-20260813"
       },
       {
-        "sha": "1e5f0a3196b23a0a380d6b74c4ca9f0b0e2276e6",
-        "subject": "fix: 后端支持门店自助注册流程"
+        "sha": "cf2436d5a35c8f5fee5b27ba78b5e322ada70ced",
+        "subject": "feat: 实时更新公告——/api/release/info 公告内容端点 + X-App-Version 快通道"
       },
       {
-        "sha": "d3c443162841d06f3bdd399586cc2d282f30f700",
-        "subject": "修复 UI 显示问题"
+        "sha": "4cc327b5822db757c7d61e923b19f0eac09da8c2",
+        "subject": "Merge pull request #207 from SAINTTaiYi/feat/release-popup-announcement"
       },
       {
-        "sha": "87e88e27f7b28f2b65a3edcb757f313d63b310fc",
-        "subject": "fix: 合并重复的移动端媒体查询块以通过 CSS 测试"
+        "sha": "db2a98ab07b4aa5df92c4a79462e6e74c002e741",
+        "subject": "fix(web): sync other-handover card phone column and editor phone field with other modules"
       },
       {
-        "sha": "bfc0c3ece8db1f3e212148a4449cb796fa75cef5",
-        "subject": "fix: 修复 TypeScript 类型错误 - 将 storeId 改为 storeCode + storeName"
+        "sha": "9ca9f1234346084a3387106a5067a6f8471aa7ae",
+        "subject": "feat: custom date picker and handover assignee with login todo popup"
       },
       {
-        "sha": "e69de6da4b6f16ca9e434d96eafa0b5a2fd9d0c5",
-        "subject": "revert: restore pre-layout registration baseline"
+        "sha": "4ef782b3f4fac9b60d8d937ce2810f6a5c05785c",
+        "subject": "fix(web): anchor date picker popover under its input and restyle assignee button"
       },
       {
-        "sha": "93bced6d85cfc61dba8a5222f212460678636afa",
-        "subject": "docs: record operational safety lessons (#200)"
+        "sha": "aca67d77c8ca7545d1b8aa9993aa7537b9436960",
+        "subject": "test(web): fix date picker portal assertion syntax"
       },
       {
-        "sha": "2ffc22d3f3758db4add2a32ec9f26bf0fe95941c",
-        "subject": "Merge accepted Preview cycle V5.9.3 into main"
+        "sha": "7ac8e08379522f21032c806d6a5d0da3f7fc5f16",
+        "subject": "fix(web): handover assign button joins the shared card action row"
       },
       {
-        "sha": "09ec269f8ebcc02481e3f3581bce78ebcedbea4b",
-        "subject": "chore(release): stamp V5.9.3 on merged main source"
-      },
-      {
-        "sha": "1c3cf48aea9fb17b19dfd70ad0628466bcbb53b0",
-        "subject": "release: keep accepted preview runtime for admin create-user path"
-      },
-      {
-        "sha": "bf5519bf87c79ade7a4a173eb32fdd73be5f7c41",
-        "subject": "chore(release): restamp V5.9.3 on accepted preview runtime"
-      },
-      {
-        "sha": "144c987f05a127c531c95151aa08b4f17ad748a2",
-        "subject": "security: fix pentest findings M-1/L-1/L-2/L-4/L-5/L-6/L-7"
-      },
-      {
-        "sha": "10984c5427c937575130314341de4839f4462c9d",
-        "subject": "security: gate close action behind manager/admin role in frontend too"
-      },
-      {
-        "sha": "a77d8fed5ca3342f02f04008ba4753fd2f8ace1a",
-        "subject": "test: align login-backoff assertion with dummy PBKDF2 timing equalization"
-      },
-      {
-        "sha": "cffec1860926f442c37fcb1ecc70377f73a65c50",
-        "subject": "revert M-1: closing is available to all logged-in users by design"
-      },
-      {
-        "sha": "cea548c988314b11cae5dac95f830140f4f2a683",
-        "subject": "Merge pull request #202 from SAINTTaiYi/security/pentest-fixes-2026-08-13"
-      },
-      {
-        "sha": "b5c2f8c7c6692584b3001e735165fc286cca8c6d",
-        "subject": "fix(web): keep record editor actions visible on short screens"
-      },
-      {
-        "sha": "01fa353053b37aa4232464c7c96666e8be10faa7",
-        "subject": "Merge pull request #203 from SAINTTaiYi/fix/record-editor-short-viewport-20260813"
-      },
-      {
-        "sha": "bb7e669af421aeb40b691e92b5790358775c7370",
-        "subject": "fix(web): compact desktop handover toolbar"
-      },
-      {
-        "sha": "752fac81b9df9d10862c9bb4cc9d20c4020ff42a",
-        "subject": "fix(web): keep release notice visible on short desktops"
-      },
-      {
-        "sha": "bc08cda765f1aa42a246a01f8195eb564a00ff9c",
-        "subject": "Merge pull request #204 from SAINTTaiYi/fix/other-handover-toolbar-height-20260813"
-      },
-      {
-        "sha": "04a021c12f4f45c1069ca5fd2888627307c0b1cd",
-        "subject": "docs: require version bump and PR content in release notes on every push"
+        "sha": "6d7587df4b771daa2a12f0ea162db59a2a0080fa",
+        "subject": "Merge pull request #206 from SAINTTaiYi/fix/other-handover-phone-consistency-20260814"
       }
     ]
   },
   "announcement": {
-    "title": "桌面工作台修复：交接工具栏紧凑统一与更新公告短屏可达",
-    "summary": "自 V5.9.3 后聚合 2 项已验收修复：桌面端「其它工作交接」搜索工具栏恢复与待取/维修一致的紧凑尺寸；低高度显示器上左侧更新公告不再被遮挡，六模块列表在剩余空间内独立滚动，公告固定保留在左栏底部。同步把发布版本规则写入项目文档。",
+    "title": "实时更新公告 + 交接人待办与品牌日期选择器",
+    "summary": "自 V5.9.4 后聚合 2 组已验收改进（PR #207、#206）：①更新公告实时弹出——部署完成即向已打开的门店页面推送更新弹窗，展示本次版本标题、摘要与逐条更新，业务请求响应头携带版本号实现秒级发现；②交接与录入体验——其它工作交接支持 @ 指定交接人并生成待办、登录弹出交接待办、自研品牌日期选择器替换原生日期控件、交接卡片新增联系电话列。schema 升级 0014（expand-contract）。",
     "changes": [
-      "桌面端「其它工作交接」工具栏与待取/维修统一为 72px 行高与 60px 控件，移除放大特例（PR #204）",
-      "低高度显示器上更新公告固定于左侧导航底部且始终可达：六模块列表在剩余空间内独立滚动，展开详情自身滚动（PR #204）",
-      "新增发布版本规则文档：每次推送必须递增公开版本号并把 PR 更新内容写入发布公告（AUTOMATED-DEPLOYMENT.md / README.md）"
+      "部署完成即向已打开的门店页面实时弹出更新公告：展示本次版本标题、摘要与逐条更新，无需手动刷新（PR #207）",
+      "新增发布公告端点 /api/release/info：公告内容在构建期烘焙进 Worker，旧版本页面也能渲染新公告（PR #207）",
+      "所有业务 API 响应携带 X-App-Version 版本头，门店端在任意业务请求上秒级发现新版本（PR #207）",
+      "修复「立即刷新」后同版本更新弹窗重复出现的问题（PR #207）",
+      "其它工作交接新增 @ 指定交接人：卡片显示交接人 chip、生成交接待办、登录时弹出「交接待办」弹窗（PR #206）",
+      "新增品牌日期选择器（桌面锚定弹出、移动底部弹层），替换维修、历史与平台审计的原生日期控件（PR #206）",
+      "其它交接桌面卡片新增联系电话列，电话字段文案与样式对齐共享规范（PR #206）",
+      "D1 schema 升级至 0014_handover_assignee（expand-contract，存量数据不受影响）（PR #206）"
     ]
   },
-  "preparedAt": "2026-08-13T15:31:56.975Z"
+  "preparedAt": "2026-08-13T19:27:37.147Z"
 }
