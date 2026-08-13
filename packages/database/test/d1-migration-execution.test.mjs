@@ -126,6 +126,7 @@ test('D1 交接电话号码迁移保留旧记录并新增可空加密列', async
     db.prepare(`INSERT INTO handover_details (work_item_id, completed_on, completed_at, completed_by) VALUES ('legacy-handover', '2026-08-12', ?, 'handover-migration-user')`).run(stamp)
 
     await apply(db, '0013_optional_handover_phone.sql')
+    await apply(db, '0014_handover_assignee.sql')
 
     const columns = db.prepare('PRAGMA table_info(handover_details)').all().map((row) => row.name)
     assert.equal(columns.includes('contact_ciphertext'), true)

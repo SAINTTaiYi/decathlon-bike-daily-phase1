@@ -32,6 +32,9 @@ export interface WorkItemRecord {
   soldAt?: string | Date | null
   pickedUpToday?: boolean
   completedToday?: boolean
+  assignedTo?: string | null
+  assignedAt?: string | Date | null
+  assigneeName?: string
 }
 
 interface JoinedItemRow {
@@ -64,10 +67,14 @@ interface JoinedItemRow {
   handoverCompletedOn: string | null
   handoverCompletedAt: Date | null
   handoverContactCiphertext: string | null
+  assignedTo: string | null
+  assignedAt: Date | null
+  assigneeName: string | null
 }
 
 const joinedSelect = `
   select w.id, w.kind, w.title, w.detail, w.meta, w.status, w.lifecycle, w.revision, w.created_at, w.updated_at,
+         w.assigned_to, w.assigned_at, u.display_name as assignee_name,
          r.contact_type, r.contact_ciphertext, r.repair_type, r.repair_project, r.pickup_date,
          r.repair_completed_at, r.completed_on as repair_completed_on, r.completed_at as repair_completed_at_final,
          p.pickup_source, p.self_pickup_platform, p.notification_status, p.picked_up_on, p.picked_up_at,
@@ -79,6 +86,7 @@ const joinedSelect = `
   left join bike_ops.pickup_details p on p.work_item_id = w.id
   left join bike_ops.resale_details rs on rs.work_item_id = w.id
   left join bike_ops.handover_details h on h.work_item_id = w.id
+  left join bike_ops.users u on u.id = w.assigned_to
 `
 
 function sceneFor(kind: JoinedItemRow['kind']): WorkItemRecord['scene'] {
@@ -124,8 +132,27 @@ export function mapWorkItem(row: JoinedItemRow, businessDate: string, config: Ap
     ...(row.pickedUpAt ? { pickedUpAt: row.pickedUpAt } : {}),
     ...(row.resaleStage ? { resaleStage: row.resaleStage } : {}),
     ...(row.listedAt ? { listedAt: row.listedAt } : {}),
-    ...(row.soldAt ? { soldAt: row.soldAt } : {})
+    ...(row.soldAt ? { soldAt: row.soldAt } : {}),
+    ...(row.assignedTo ? { assignedTo: row.assignedTo } : {}),
+    ...(row.assignedAt ? { assignedAt: row.assignedAt } : {}),
+    ...(row.assigneeName ? { assigneeName: row.assigneeName } : {})
   }
+}
+
+export async function listStoreMembers(sql: Database, storeId: string): Promise<Array<{ id: string; displayName: string; role: string }>> {
+  const rows = await sql.unsafe<Array<{ id: string; display_name: string; role: string }>>(`
+    select u.id, u.display_name, sm.role
+    from bike_ops.store_members sm
+    join bike_ops.users u on u.id = sm.user_id
+    where sm.store_id = $1 and sm.status = 'active' and u.status = 'active'
+    order by case sm.role when 'admin' then 0 when 'manager' then 1 else 2 end, u.display_name asc
+  `, [storeId])
+  return rows.map((row) => ({ id: row.id, displayName: row.display_name, role: row.role }))
+}
+
+export async function listAssignedToMe(sql: Database, storeId: string, userId: string, businessDate: string, config: AppConfig): Promise<WorkItemRecord[]> {
+  const rows = await sql.unsafe<JoinedItemRow[]>(`${joinedSelect} where w.store_id = $1 and w.assigned_to = $2 and w.deleted_at is null and w.lifecycle = 'active' order by w.updated_at desc`, [storeId, userId])
+  return rows.map((row) => mapWorkItem(row, businessDate, config))
 }
 
 export async function listWorkItems(sql: Database, storeId: string, businessDate: string, config: AppConfig): Promise<WorkItemRecord[]> {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import IconLightBulb from '@iconoir/LightBulb.mjs'
 import IconSmartphoneDevice from '@iconoir/SmartphoneDevice.mjs'
 import ProjectSelect from '../ProjectSelect.jsx'
+import DatePickerField from '../fields/DatePickerField.jsx'
 import AppDialog from './AppDialog.jsx'
 import {
   emptyPickupDraft,
@@ -72,7 +73,7 @@ function HandoverFields({ draft, setDraft }) {
   return <>
     <label className="field-row"><span>交接事项</span><textarea required rows="6" maxLength="240" value={item} onChange={(event) => updateItem(event.target.value)} /></label>
     <label className="field-row">
-      <span>电话号码（选填）</span>
+      <span>手机号</span>
       <input
         maxLength="80"
         inputMode="tel"
@@ -80,7 +81,9 @@ function HandoverFields({ draft, setDraft }) {
         placeholder="可不填"
         value={draft.contactValue || ''}
         onChange={(event) => set('contactValue', event.target.value)}
+        aria-describedby="handover-contact-help"
       />
+      <small id="handover-contact-help" className="field-help">可不填；留空时卡片显示「无」。填写 0 也会作为有效联系方式保存。</small>
     </label>
     <div className="field-row"><span>当前状态</span><ProjectSelect value={draft.status || '继续跟进'} options={HANDOVER_STATUSES} onChange={(value) => set('status', value)} ariaLabel="选择交接事项当前状态" /></div>
   </>
@@ -235,7 +238,7 @@ function RepairFields({ draft, setDraft }) {
         ) : (
           <label className="field-row record-editor-section record-editor-pickup-date">
             <span><span className="record-editor-copy-mobile">取车时间</span><span className="record-editor-copy-desktop">预约时间</span></span>
-            <input required type="date" value={draft.pickupDate} onChange={(event) => set('pickupDate', event.target.value)} />
+            <DatePickerField required value={draft.pickupDate || ''} onChange={(value) => set('pickupDate', value)} placeholder="选择日期" ariaLabel="选择取车时间" />
           </label>
         )}
 
@@ -291,7 +294,7 @@ export default function RecordEditorDialog({ open, onClose, config, record, onSa
     : pickupForm
       ? '请选择自提订单车辆或顾客暂存，并按需登记联系方式（手机号或会员号，可留空）。自提订单需选择天猫、京东或小程序，不填写取车说明；确认取车时再输入取货码。'
       : handoverForm
-        ? '交接事项会跨日期保留。填写交接事项并选择当前状态；电话号码可按需录入，不填写也可以保存。'
+        ? '交接事项会跨日期保留。填写交接事项并选择当前状态；手机号可按需录入，不填写也可以保存。'
         : '这条记录会跨日期保留；当天没有编辑时会原样延续到下一日期。新增、编辑和删除都会写入操作记录。'
   const desktopDescription = repairForm
     ? <>请填写维修车辆详细信息；提交后将不可自由更改。门店提供联系信息仅作为沟通，<br />待办、地址与完成记录将在台账中永久保存。</>

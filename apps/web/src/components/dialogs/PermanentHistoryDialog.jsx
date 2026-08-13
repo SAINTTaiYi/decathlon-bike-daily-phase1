@@ -3,6 +3,7 @@ import IconJournal from '@iconoir/Journal.mjs'
 import EventAuditMeta from '../EventAuditMeta.jsx'
 import ProjectSelect from '../ProjectSelect.jsx'
 import AppDialog from './AppDialog.jsx'
+import DatePickerField from '../fields/DatePickerField.jsx'
 
 const moduleOptions = [
   { value: 'all', label: '全部模块' },
@@ -63,7 +64,7 @@ export default function PermanentHistoryDialog({ open, onClose, onLoad, onUndo, 
   return (
     <AppDialog open={open} onClose={onClose} title="永久操作历史" eyebrow="ARCHIVE · 永久审计" description="所有模块的正式操作永久保存在数据库中。跨日后主界面会清理已完成业务，但这里的审计记录不会被删除。" className="history-archive-dialog">
       <form className="history-filters" onSubmit={submit}>
-        <label><span>日期</span><input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
+        <div className="field-row"><span>日期</span><DatePickerField value={date} onChange={setDate} placeholder="全部日期" clearable ariaLabel="按日期筛选操作记录" /></div>
         <label><span>模块</span><ProjectSelect value={module} options={moduleOptions} onChange={setModule} ariaLabel="选择审计模块" compact /></label>
         <button type="submit" className="primary-action" disabled={busy}>{busy ? '查询中…' : '筛选记录'}</button>
       </form>

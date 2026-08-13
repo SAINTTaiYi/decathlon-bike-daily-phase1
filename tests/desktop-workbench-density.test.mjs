@@ -18,6 +18,9 @@ test('desktop handover details retain one independent content row without overla
   assert.match(ledger, /data-card-mode=\{handoverMode \? 'handover' : repairMode \? 'repair' : 'pickup'\}/u)
   assert.match(ledger, /const ledgerMode = handoverMode \? 'handover' : repairMode \? 'repair' : 'pickup'/u)
   assert.match(css, /pickup-ledger-board\[data-ledger-mode='handover'\] \.pickup-card-summary/u)
+  assert.match(css, /pickup-ledger-board\[data-ledger-mode='handover'\] \.pickup-ledger-table-head \{ grid-template-columns: 96px minmax\(0, 1fr\) 240px 180px 42px;/u)
+  assert.match(css, /pickup-ledger-board\[data-ledger-mode='handover'\] \.pickup-card-summary \{ grid-template-columns: 96px minmax\(0, 1fr\) 240px 180px; grid-template-areas: 'index core scan status';/u)
+  assert.match(ledger, /\['队列号', '交接事项', '联系电话', '状态', '操作'\]/u)
   assert.match(css, /pickup-card-detail > \.pickup-detail-wide:not\(\.pickup-notification-control\) \{ grid-column: 1 \/ -1; grid-row: auto;/u)
 })
 

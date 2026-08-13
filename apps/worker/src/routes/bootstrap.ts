@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
 import { createAuthMiddleware } from '../auth/middleware.js'
-import { listWorkItems } from '../repositories/work-items.js'
+import { listAssignedToMe, listStoreMembers, listWorkItems } from '../repositories/work-items.js'
 import { listAudit } from './audit.js'
 import { getOrCreateDay, mapDay } from '../services/closing.js'
 import { businessDateFor, cleanupPreviousCompleted } from '../services/business.js'
@@ -23,11 +23,13 @@ export function bootstrapRoutes() {
     const waitUntil = c.executionCtx?.waitUntil?.bind(c.executionCtx)
     if (waitUntil) waitUntil(cleanup)
     else void cleanup
-    const [day, records, events, trends] = await Promise.all([
+    const [day, records, events, trends, members, assignedToMe] = await Promise.all([
       getOrCreateDay(c.env.DB, context.storeId, businessDate),
       listWorkItems(c.env.DB, context.storeId, businessDate, config),
       listAudit(c.env.DB, context.storeId, undefined, businessDate),
-      buildBusinessTrends(c.env.DB, context.storeId, businessDate)
+      buildBusinessTrends(c.env.DB, context.storeId, businessDate),
+      listStoreMembers(c.env.DB, context.storeId),
+      listAssignedToMe(c.env.DB, context.storeId, context.userId, businessDate, config)
     ])
     return c.json({
       businessDate,
@@ -41,7 +43,9 @@ export function bootstrapRoutes() {
       day: mapDay(day),
       records,
       events,
-      trends
+      trends,
+      members,
+      assignedToMe
     })
   })
 

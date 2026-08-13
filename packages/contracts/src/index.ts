@@ -134,7 +134,8 @@ const genericWorkItem = z.object({
   title: z.string().trim().min(1).max(120),
   detail: z.string().trim().min(1).max(500),
   meta: z.string().trim().max(240).default(''),
-  status: z.string().trim().min(1).max(80)
+  status: z.string().trim().min(1).max(80),
+  assignedTo: z.string().uuid().or(z.null()).optional()
 })
 
 export const repairInputSchema = z.object({
@@ -144,7 +145,8 @@ export const repairInputSchema = z.object({
   repairType: z.enum(repairTypes),
   repairProject: z.string().trim().min(1).max(500),
   pickupDate: z.string().max(10).default(''),
-  status: z.enum(repairStatuses)
+  status: z.enum(repairStatuses),
+  assignedTo: z.string().uuid().or(z.null()).optional()
 }).strict()
 
 export const pickupInputSchema = z.object({
@@ -156,7 +158,8 @@ export const pickupInputSchema = z.object({
   meta: z.string().trim().max(80).default(''),
   contactType: z.enum(contactTypes).default('phone'),
   contactValue: z.string().trim().max(80).default(''),
-  status: z.string().trim().min(1).max(80)
+  status: z.string().trim().min(1).max(80),
+  assignedTo: z.string().uuid().or(z.null()).optional()
 }).strict()
 
 export const handoverInputSchema = genericWorkItem.extend({
@@ -182,6 +185,7 @@ export const workItemUpdateSchema = z.object({
 export const actionSchema = z.object({ expectedRevision: revisionSchema }).strict()
 export const notificationSchema = actionSchema.extend({ notificationStatus: z.enum(notificationStatuses) }).strict()
 export const pickupCompleteSchema = actionSchema.extend({ pickupCode: z.string().trim().max(120).default('') }).strict()
+export const assignSchema = z.object({ expectedRevision: revisionSchema, assignedTo: z.string().uuid().or(z.null()) }).strict()
 
 export const localV5ImportSchema = z.object({
   sourceFingerprint: z.string().regex(/^[a-f0-9]{64}$/u),
@@ -208,6 +212,8 @@ export type AppRole = typeof appRoles[number]
 export type LoginInput = z.infer<typeof loginSchema>
 export type KpiInput = z.infer<typeof kpiSchema>
 export type WorkItemCreateInput = z.infer<typeof workItemCreateSchema>
+export type AssignInput = z.infer<typeof assignSchema>
+export type StoreMemberDto = { id: string; displayName: string; role: 'operator' | 'manager' | 'admin' }
 export type CreateUserInput = z.infer<typeof createUserSchema>
 export type RegistrationOtpInput = z.infer<typeof registrationOtpSchema>
 export type RegistrationCompleteInput = z.infer<typeof registrationCompleteSchema>

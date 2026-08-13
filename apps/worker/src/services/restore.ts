@@ -36,7 +36,8 @@ export function buildRestoreSnapshotStatements(
     db.prepare(`
       UPDATE work_items SET
         kind = ?, title = ?, detail = ?, meta = ?, status = ?, lifecycle = ?,
-        revision = ?, updated_by = ?, deleted_by = ?, deleted_at = ?, updated_at = ?
+        revision = ?, updated_by = ?, deleted_by = ?, deleted_at = ?, updated_at = ?,
+        assigned_to = ?, assigned_at = ?
       WHERE id = ? AND store_id = ?
     `).bind(
       String(workItem.kind),
@@ -50,6 +51,8 @@ export function buildRestoreSnapshotStatements(
       workItem.deletedBy ?? workItem.deleted_by ?? null,
       workItem.deletedAt ?? workItem.deleted_at ?? null,
       stamp,
+      workItem.assignedTo ?? workItem.assigned_to ?? null,
+      workItem.assignedAt ?? workItem.assigned_at ?? null,
       id,
       storeId
     ),

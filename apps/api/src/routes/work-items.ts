@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import type { Database } from '@bike-ops/database'
-import { actionSchema, notificationSchema, pickupCompleteSchema, workItemCreateSchema, workItemUpdateSchema } from '@bike-ops/contracts'
+import { actionSchema, assignSchema, notificationSchema, pickupCompleteSchema, workItemCreateSchema, workItemUpdateSchema } from '@bike-ops/contracts'
 import { normalizeRepair, repairCompletionRoute, validatePickup, validatePickupCompletion, validateRepairStatusContext } from '@bike-ops/domain'
 import type { NormalizedPickupFields, NormalizedRepairFields } from '@bike-ops/domain'
 import { createAuthMiddleware } from '../auth/middleware.js'
@@ -9,7 +9,7 @@ import type { AppConfig } from '../config.js'
 import { contactFingerprint, encryptContact } from '../lib/contact-crypto.js'
 import { businessDateFor, ensureDayOpen, writeAudit } from '../services/business.js'
 import { ApiProblem, idempotent } from '../services/idempotency.js'
-import { getWorkItem, internalSnapshot, listWorkItems } from '../repositories/work-items.js'
+import { getWorkItem, internalSnapshot, listStoreMembers, listWorkItems } from '../repositories/work-items.js'
 
 function requireContactKey(config: AppConfig): string {
   if (!config.CONTACT_ENCRYPTION_KEY) throw new ApiProblem(503, 'CONTACT_ENCRYPTION_NOT_CONFIGURED', '联系方式加密尚未配置。')
@@ -18,6 +18,19 @@ function requireContactKey(config: AppConfig): string {
 
 function kindForScene(scene: string): 'pickup' | 'handover' | 'repair' | 'resale' {
   return scene === 'poster' ? 'handover' : scene as 'pickup' | 'repair' | 'resale'
+}
+
+async function resolveAssignee(sql: Database, context: AuthContext, assignedTo: unknown): Promise<string | null> {
+  if (assignedTo === null || assignedTo === undefined) return null
+  if (typeof assignedTo !== 'string') throw new ApiProblem(400, 'INVALID_ASSIGNEE', '交接人必须是门店成员。')
+  const members = await listStoreMembers(sql, context.storeId)
+  if (!members.some((member) => member.id === assignedTo)) throw new ApiProblem(400, 'INVALID_ASSIGNEE', '交接人必须是本店在职成员。')
+  return assignedTo
+}
+
+function assigneeNameFor(members: Array<{ id: string; displayName: string; role: string }>, userId: string | null): string {
+  if (!userId) return ''
+  return members.find((member) => member.id === userId)?.displayName ?? '同事'
 }
 
 interface ActionOutcome {
@@ -78,9 +91,10 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
         ;({ title, detail, meta, status } = input.values)
         if (input.scene === 'poster') handoverContactValue = input.values.contactValue
       }
+      const assignedTo = await resolveAssignee(tx, context, (input.values as any)?.assignedTo ?? null)
       const [created] = await tx<{ id: string; revision: number }[]>`
-        insert into bike_ops.work_items (store_id, kind, title, detail, meta, status, created_by, updated_by)
-        values (${context.storeId}, ${kindForScene(input.scene)}, ${title}, ${detail}, ${meta}, ${status}, ${context.userId}, ${context.userId})
+        insert into bike_ops.work_items (store_id, kind, title, detail, meta, status, created_by, updated_by, assigned_to, assigned_at)
+        values (${context.storeId}, ${kindForScene(input.scene)}, ${title}, ${detail}, ${meta}, ${status}, ${context.userId}, ${context.userId}, ${assignedTo}, ${assignedTo ? new Date() : null})
         returning id, revision
       `
       if (!created) throw new Error('WORK_ITEM_INSERT_FAILED')
@@ -179,11 +193,20 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
           `
         }
       }
+      const values = input.values as Record<string, unknown>
+      const hasAssignedTo = Object.prototype.hasOwnProperty.call(values, 'assignedTo')
+      const assignedTo = hasAssignedTo ? await resolveAssignee(tx, context, values.assignedTo) : undefined
       const updated = await tx<{ revision: number }[]>`
         update bike_ops.work_items set title = ${title}, detail = ${detail}, meta = ${meta}, status = ${status}, updated_by = ${context.userId}, revision = revision + 1, updated_at = now()
         where id = ${id} and store_id = ${context.storeId} and revision = ${input.expectedRevision} and deleted_at is null
         returning revision
       `
+      if (hasAssignedTo) {
+        await tx`
+          update bike_ops.work_items set assigned_to = ${assignedTo ?? null}, assigned_at = ${assignedTo ? new Date() : null}
+          where id = ${id} and store_id = ${context.storeId} and deleted_at is null and lifecycle = 'active'
+        `
+      }
       if (!updated[0]) throw new ApiProblem(409, 'REVISION_CONFLICT', '数据已被其他同事修改，请刷新后重试。')
       const after = await internalSnapshot(tx, context.storeId, id)
       const eventId = await writeAudit(tx, { context, action: 'edit-record', entityType: 'work-item', entityId: id, entityRevision: updated[0].revision, businessDate, summary: `编辑：${title}`, before, after, reversible: true, requestId: request.id })
@@ -284,6 +307,35 @@ export async function registerWorkItemRoutes(app: FastifyInstance, sql: Database
     if (!rows[0]) throw new ApiProblem(409, 'INVALID_STATE', '没有找到可完成的交接事项。')
     await tx`update bike_ops.handover_details set completed_on = ${businessDate}, completed_at = now(), completed_by = ${context.userId} where work_item_id = ${id}`
     return { summary: `完成交接：${rows[0].title}` }
+  })
+
+  app.post('/api/v1/work-items/:id/assign', { preHandler: guards }, async (request, reply) => {
+    const context = request.auth!
+    const id = (request.params as { id: string }).id
+    const input = assignSchema.parse(request.body)
+    const result = await idempotent(sql, request, async (tx) => {
+      const businessDate = await businessDateFor(context)
+      await ensureDayOpen(tx, context, businessDate)
+      const before = await internalSnapshot(tx, context.storeId, id)
+      if (!before) throw new ApiProblem(404, 'NOT_FOUND', '没有找到这条台账记录。')
+      const item = before.workItem as Record<string, unknown>
+      if (item.revision !== input.expectedRevision) throw new ApiProblem(409, 'REVISION_CONFLICT', '数据已被其他同事修改。')
+      if (item.lifecycle !== 'active') throw new ApiProblem(409, 'ITEM_RESOLVED', '已完成记录不能变更交接人。')
+      const assignedTo = await resolveAssignee(tx, context, input.assignedTo)
+      const rows = await tx<{ revision: number }[]>`
+        update bike_ops.work_items set assigned_to = ${assignedTo}, assigned_at = ${assignedTo ? new Date() : null}, revision = revision + 1, updated_by = ${context.userId}, updated_at = now()
+        where id = ${id} and store_id = ${context.storeId} and revision = ${input.expectedRevision} and deleted_at is null
+        returning revision
+      `
+      if (!rows[0]) throw new ApiProblem(409, 'REVISION_CONFLICT', '数据已被其他同事修改，请刷新后重试。')
+      const after = await internalSnapshot(tx, context.storeId, id)
+      const members = assignedTo ? await listStoreMembers(tx, context.storeId) : []
+      const summary = assignedTo ? `指定交接人：${assigneeNameFor(members, assignedTo)}` : '清除交接人'
+      const eventId = await writeAudit(tx, { context, action: 'assign-handover', entityType: 'work-item', entityId: id, entityRevision: rows[0].revision, businessDate, summary, before, after, reversible: true, requestId: request.id })
+      const record = await getWorkItem(tx, context.storeId, id, businessDate, config)
+      return { status: 200, body: { ok: true, record, eventId, summary, action: 'assign-handover' } }
+    })
+    return reply.code(result.status).send(result.body)
   })
 
   app.post('/api/v1/work-items/:id/notification', { preHandler: guards }, async (request, reply) => {

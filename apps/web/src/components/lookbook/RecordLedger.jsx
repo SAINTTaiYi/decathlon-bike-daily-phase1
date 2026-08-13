@@ -5,6 +5,8 @@ import IconCheck from '@iconoir/Check.mjs'
 import IconEdit from '@iconoir/EditPencil.mjs'
 import IconJournal from '@iconoir/Journal.mjs'
 import IconPhone from '@iconoir/Phone.mjs'
+import IconUser from '@iconoir/User.mjs'
+import MemberSelectSheet from '../dialogs/MemberSelectSheet.jsx'
 import IconPlus from '@iconoir/Plus.mjs'
 import IconTrash from '@iconoir/Trash.mjs'
 import ProjectSelect from '../ProjectSelect.jsx'
@@ -346,8 +348,10 @@ export default function RecordLedger({
   onRepairComplete, onPickupNotificationChange, pickupErrors = {},
   primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete,
   repairPixelDissolveId = '', onRepairPixelDissolveComplete,
-  heading = 'ACTIVE LEDGER / 在册台账', dark = false, showAdd = true
+  heading = 'ACTIVE LEDGER / 在册台账', dark = false, showAdd = true,
+  members = [], onAssign = null
 }) {
+  const [assignRecord, setAssignRecord] = useState(null)
   const hasSwipeDelete = !closedAt && records.some((record) => !record.pickedUpToday && !record.completedToday)
 
   return (
@@ -480,6 +484,10 @@ export default function RecordLedger({
                     <time dateTime={record.pickupDate}>{formatScanDate(record.pickupDate)}</time>
                   </span>
                 ) : null}
+                <button type="button" className="record-scan-item record-assignee-chip" data-empty={record.assigneeName ? 'false' : 'true'} disabled={Boolean(closedAt)} onClick={() => setAssignRecord(record)} aria-label={`交接人：${record.assigneeName || '未指定'}，点击指定`}>
+                  <IconUser width={14} height={14} aria-hidden="true" />
+                  <span>{record.assigneeName ? `@${record.assigneeName}` : '指定交接人'}</span>
+                </button>
               </div>
 
               {pickupError ? <p className="record-inline-error" role="alert">{pickupError}</p> : null}
@@ -493,6 +501,7 @@ export default function RecordLedger({
           ? <SwipeDeleteRecord key={record.id} record={record} disabled={Boolean(closedAt) || primaryProcessing} onRemove={onRemove}>{row}</SwipeDeleteRecord>
           : <div key={record.id}>{row}</div>
       }) : <p className="empty-inline">当前没有记录。{showAdd ? `使用“${config.addLabel}”开始录入。` : ''}</p>}
+      <MemberSelectSheet open={Boolean(assignRecord)} members={members} currentId={assignRecord?.assignedTo || ''} title={assignRecord ? assignRecord.title : ''} onClose={() => setAssignRecord(null)} onPick={(userId) => { if (onAssign && assignRecord) void onAssign(assignRecord.id, userId) }} onClear={() => { if (onAssign && assignRecord) void onAssign(assignRecord.id, null) }} />
     </div>
   )
 }
