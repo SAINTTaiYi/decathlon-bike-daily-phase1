@@ -3,10 +3,6 @@ import IconCheck from '@iconoir/Check.mjs'
 import IconCheckCircle from '@iconoir/CheckCircle.mjs'
 import IconWarning from '@iconoir/WarningTriangle.mjs'
 import IconClose from '@iconoir/Xmark.mjs'
-import IconUser from '@iconoir/User.mjs'
-import IconShoppingCart from '@iconoir/ShoppingCart.mjs'
-import IconWarningCircle from '@iconoir/WarningCircle.mjs'
-import IconTools from '@iconoir/Tools.mjs'
 import {
   buildClosingChecklist,
   closingGateState,
@@ -40,15 +36,6 @@ export default function ClosingCheckPage({ onClose, onConfirm, events = [], reco
   }
 
   const isSubmitting = submitting || externalSubmitting
-
-  const getModuleIcon = (moduleId) => {
-    switch (moduleId) {
-      case 'pickup': return IconShoppingCart
-      case 'poster': return IconUser
-      case 'repair': return IconTools
-      default: return IconWarningCircle
-    }
-  }
 
   return (
     <div className="closing-check-page">
@@ -121,13 +108,10 @@ export default function ClosingCheckPage({ onClose, onConfirm, events = [], reco
         <ol className="closing-check-list">
           {modules.map((module) => {
             const isConfirmed = isModuleConfirmed(module, confirmed)
-            const ModuleIcon = getModuleIcon(module.id)
             return (
               <li key={module.id} className="closing-check-row" data-confirmed={isConfirmed ? 'true' : 'false'} data-changed={module.changed ? 'true' : 'false'}>
                 <div className="closing-check-head">
-                  <span className="closing-check-no" aria-hidden="true">
-                    <ModuleIcon width={22} height={22} />
-                  </span>
+                  <span className="closing-check-no" aria-hidden="true">{module.no}</span>
                   <span className="closing-check-title">
                     <strong>{module.title}</strong>
                     <small>
