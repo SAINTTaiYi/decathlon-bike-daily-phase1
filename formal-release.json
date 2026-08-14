@@ -1,52 +1,62 @@
 {
   "kind": "formal-production-release",
-  "version": "5.9.7",
+  "version": "5.9.8",
   "previewRange": {
-    "fromExclusive": "36bf50177a6b666762d6ca92c5a4098bad5f120a",
-    "toInclusive": "6a25cb073865be83a79d06685cdd70862d1969bd",
+    "fromExclusive": "d4231fc1e89236750ebce28c44d306ce00aece0e",
+    "toInclusive": "1ac9025aa551c0607fcb6120c819f3d42412d454",
     "commits": [
       {
-        "sha": "da833949b46e066195e7950e3c3b2039a6e0132c",
-        "subject": "Merge pull request #210 from SAINTTaiYi/fix/release-v5-9-6-20260814"
+        "sha": "740c14ba980772f02915755af8d1196371172d54",
+        "subject": "Merge pull request #212 from SAINTTaiYi/fix/pickup-assignee-action-layout-20260814"
       },
       {
-        "sha": "bcbae7c3cfd6fa489cdd96327e91c1e9587305be",
-        "subject": "fix: 日期面板弃用嵌套 dialog 防移动端闪现关闭 + 展开区改 grid 插值防重叠"
+        "sha": "5d2832792adddc274785b5a7da5ca0d322a4bb06",
+        "subject": "feat(web): 将闭店确认改为全页面展示"
       },
       {
-        "sha": "fef18af7437b21d42f923740dce4a086569fd957",
-        "subject": "Merge pull request #211 from SAINTTaiYi/fix/mobile-datepicker-assignee-v2"
+        "sha": "69fc5aff25828d57e567e251c946dab7237801a5",
+        "subject": "fix(web): correct iconoir import paths in ClosingCheckPage"
       },
       {
-        "sha": "4afab4e826f3e63ce5eef578e1b52b29a15e0b66",
-        "subject": "fix(web): keep pickup confirmation at card edge"
+        "sha": "8201e22a1d38f0ab6fd46a97aa5bcef9e80e7e75",
+        "subject": "fix(web): use correct .mjs icon imports in ClosingCheckPage"
       },
       {
-        "sha": "b7a026e8f2bda227c53d54b026ad9e21babc0fe7",
-        "subject": "fix(pickup): 确认按钮移至卡片最右侧并修复指定交接人后的页面跳顶"
+        "sha": "04098131635133e46786a544a6eedfe2f8880049",
+        "subject": "fix(web): remove custom icons, use module numbers in ClosingCheckPage"
       },
       {
-        "sha": "ed53fc5b907b8285d2d8c7417fdc33bb470a010f",
-        "subject": "fix(pickup): 移除卡片内重复的操作记录按钮，保留顶部全局按钮"
+        "sha": "bacb0987bf99b043d2ccee27a093f70306bed5c6",
+        "subject": "test(web): update closing dialog test to expect ClosingCheckPage"
       },
       {
-        "sha": "6a25cb073865be83a79d06685cdd70862d1969bd",
-        "subject": "fix(pickup): eliminate search bar jitter with transform-based hide + scroll debounce"
+        "sha": "395dc7f97f097747bb2a01818630f8dc5e663fa9",
+        "subject": "test(web): fix ClosingCheckPage component reference in test"
+      },
+      {
+        "sha": "fa9d0ff2083c25384c1c269f9646ede66a514b3a",
+        "subject": "feat(web): match mobile closing page reference"
+      },
+      {
+        "sha": "7633bea381d51dec199839fc055a567221e2c4fe",
+        "subject": "fix(web): reset closing page mobile grid placement"
+      },
+      {
+        "sha": "1ac9025aa551c0607fcb6120c819f3d42412d454",
+        "subject": "feat(web): 将闭店确认改为全页面展示"
       }
     ]
   },
   "announcement": {
-    "title": "待取/维修卡操作区与搜索栏滚动修复",
-    "summary": "自 V5.9.6 后修复移动端多项 UI 回归（PR #211 + 本次操作区布局批次）：①日期选择面板闪现关闭——弃用嵌套 dialog 改为 portal 浮层，关闭仅由点背景/Escape/选中日期触发；②待取卡展开区高度定格、内容裁切重叠——改 CSS grid 插值动画，高度始终等于内容；③卡片操作区布局——确认取车按钮固定吸附最右侧，维修/备注与交接人信息独占整行不再重叠，移除卡片内重复的操作记录按钮；④指定交接人弹窗关闭后页面跳顶——滚动恢复改为即时执行；⑤移动端搜索栏滚动时上下抽搐——隐藏动画改用平移不改变文档流，滚动检测增加防抖与更高阈值。",
+    "title": "移动端闭店确认页按参考图重构",
+    "summary": "将闭店确认改为移动端全页面，按参考图重排信息、车辆清单、台账确认卡和底部操作栏。",
     "changes": [
-      "修复移动端日期选择面板闪现关闭：弃用嵌套 dialog，改为 portal 浮层，关闭仅由点背景/Escape/选中日期触发（PR #211）",
-      "待取卡展开区弃用 JS 测量高度，改 CSS grid-template-rows 0fr/1fr 插值动画，高度始终等于内容，不再高度定格或内容重叠（PR #211）",
-      "确认取车按钮固定吸附在卡片操作区最右侧，移动端与桌面端统一 flex + margin-left:auto，不再被挤到下一行或超出卡片",
-      "维修/备注详情与交接人信息改为独占整行，不再互相重叠",
-      "修复点击“指定交接人”后页面跳到顶部：弹窗关闭时的滚动恢复改为即时执行",
-      "移除卡片内重复的“操作记录”按钮，保留模块顶部的全局入口",
-      "修复移动端搜索栏滚动时上下抽搐：隐藏动画改用 translateY 平移不改变文档流，滚动检测增加 80ms 防抖与更高阈值"
+      "新增移动端闭店确认全页面，替换旧确认弹窗并保持原有闭店业务逻辑。",
+      "按参考图重做顶部标题、黄色店内车辆核对区、车辆分组和 CSS 清单车辆插图。",
+      "重排 02/03/04 三个台账确认卡，保留动态变动摘要和逐项确认 gate。",
+      "修复移动端网格继承导致的正文挤压、车辆列表覆盖和底部按钮顺序错误。",
+      "底部返回检查与确认闭店操作栏固定并排显示，适配安全区域和滚动内容。"
     ]
   },
-  "preparedAt": "2026-08-14T10:51:16.916Z"
+  "preparedAt": "2026-08-14T20:38:54.185Z"
 }
