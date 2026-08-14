@@ -6,28 +6,32 @@ const root = new URL('../apps/web/src/', import.meta.url)
 const read = async (path) => readFile(new URL(path, root), 'utf8')
 
 const picker = await read('components/fields/DatePickerField.jsx')
+const pickupLedger = await read('components/pickup/PickupLedger.jsx')
 const dateCss = await read('styles/date-picker.css')
 const pickupCss = await read('styles/pickup-ledger.css')
 
-test('移动端日期面板打开后不因任何滚动事件被立即关闭（防界面闪退）', () => {
-  // 移动端（≤640px 底部分层）完全不注册滚动关闭监听。
-  assert.match(picker, /if \(window\.matchMedia\('\(max-width: 640px\)'\)\.matches\) return undefined/u)
-  // 桌面锚定浮层仍可滚动关闭，但必须忽略面板内部滚动。
-  assert.match(picker, /dialogRef\.current\?\.contains\(event\.target\)/u)
-  assert.match(picker, /window\.addEventListener\('scroll', onScroll, true\)/u)
+test('日期面板不使用嵌套 dialog/showModal，关闭只由点背景/Escape/选中日期触发（防移动端闪现关闭）', () => {
+  assert.doesNotMatch(picker, /\.showModal\(/u)
+  assert.doesNotMatch(picker, /window\.addEventListener\('scroll'/u)
+  assert.match(picker, /date-picker-backdrop/u)
+  assert.match(picker, /event\.key === 'Escape'/u)
+  assert.match(picker, /closest\('dialog'\)/u)
+  assert.match(picker, /select\(cell\.key\)/u)
 })
 
-test('日期单元格用最小高度而不是固定高度，系统字体放大时数字不溢出重叠', () => {
+test('展开高度由 CSS grid-template-rows 0fr/1fr 驱动，不再用 JS 测量 px 高度', () => {
+  assert.doesNotMatch(pickupLedger, /scrollHeight/u)
+  assert.doesNotMatch(pickupLedger, /transitionend/u)
+  assert.match(pickupLedger, /pickup-card-reveal-inner/u)
+  assert.match(pickupCss, /grid-template-rows: 0fr/u)
+  assert.match(pickupCss, /grid-template-rows: 1fr/u)
+  assert.match(pickupCss, /\.pickup-card-reveal-inner \{[\s\S]*?min-height: 0;/u)
+  assert.match(pickupCss, /\.pickup-card-reveal-inner \{[\s\S]*?overflow: hidden;/u)
+})
+
+test('日期单元格用最小高度与无单位行高，系统字体放大时数字不溢出重叠', () => {
   assert.match(dateCss, /\.date-picker-day \{\s*min-height: 36px;/u)
   assert.doesNotMatch(dateCss, /\.date-picker-day \{\s*height: 36px;/u)
   assert.match(dateCss, /line-height: 1\.25;/u)
   assert.match(dateCss, /\.date-picker-day \{ min-height: 42px; \}/u)
-})
-
-test('维修卡状态标签与交接人 chip 使用随字体缩放的无单位行高，不再互相重叠', () => {
-  assert.match(pickupCss, /line-height: 1\.45; text-align: center; overflow-wrap: anywhere;/u)
-  assert.match(pickupCss, /\.pickup-card-assignee \{[\s\S]*?max-width: 140px;/u)
-  assert.match(pickupCss, /\.pickup-card-assignee \{[\s\S]*?overflow: hidden;/u)
-  assert.match(pickupCss, /line-height: 1\.5;\s*white-space: nowrap;/u)
-  assert.doesNotMatch(pickupCss, /line-height: 12px;\s*text-align: center/u)
 })

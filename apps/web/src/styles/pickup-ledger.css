@@ -326,18 +326,24 @@
 }
 
 .pickup-card-reveal {
-  height: 0;
-  overflow: hidden;
+  display: grid;
+  grid-template-rows: 0fr;
   opacity: 0;
   transform: translateY(-5px);
-  will-change: height, opacity, transform;
+  will-change: grid-template-rows, opacity, transform;
   transition:
-    height 420ms cubic-bezier(.2, .8, .2, 1),
+    grid-template-rows 420ms cubic-bezier(.2, .8, .2, 1),
     opacity 180ms ease-out,
     transform 360ms cubic-bezier(.2, .8, .2, 1);
 }
 
+.pickup-card-reveal-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
 .pickup-card-reveal[data-expanded='true'] {
+  grid-template-rows: 1fr;
   opacity: 1;
   transform: translateY(0);
   transition-delay: 0ms, 35ms, 0ms;

@@ -44,12 +44,16 @@ function displayValue(value) {
 
 /**
  * Brand-styled date picker replacing the native <input type="date">.
- * Desktop: a small anchored popover. Mobile: a bottom sheet. Both live in the
- * dialog top layer, so they are never clipped by scrolling editors or dialogs.
+ * Desktop: a small anchored popover. Mobile: a bottom sheet.
+ *
+ * 实现要点：不使用嵌套模态对话框——嵌套模态在 iOS Safari 与 Android
+ * Chrome 上会在打开瞬间触发关闭（面板闪现即消失）。改为与 MemberSelectSheet
+ * 一致的 portal 浮层：portal 进最近的 dialog（盖住编辑弹窗的内容）或 body，
+ * 关闭只由三个明确动作触发：点背景、Escape、选中日期。
  */
 export default function DatePickerField({ value = '', onChange, placeholder = '选择日期', min = '', max = '', clearable = false, required = false, disabled = false, ariaLabel = '选择日期', id }) {
   const triggerRef = useRef(null)
-  const dialogRef = useRef(null)
+  const panelRef = useRef(null)
   const [open, setOpen] = useState(false)
   const [anchor, setAnchor] = useState(null)
   const today = useMemo(() => {
@@ -75,24 +79,18 @@ export default function DatePickerField({ value = '', onChange, placeholder = '�
   const closePanel = () => setOpen(false)
 
   useEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return undefined
-    if (open && !dialog.open) {
-      dialog.showModal()
-    } else if (!open && dialog.open) {
-      dialog.close()
-    }
     if (!open) return undefined
-    // 桌面锚定浮层：页面滚动时关闭，但忽略面板内部的滚动。
-    // 移动端底部分层：不监听滚动——iOS 惯性滚动或打开瞬间触发的滚动事件
-    // 会立刻把刚打开的面板关掉（界面闪退）。
-    if (window.matchMedia('(max-width: 640px)').matches) return undefined
-    const onScroll = (event) => {
-      if (dialogRef.current?.contains(event.target)) return
-      closePanel()
+    const previous = document.activeElement
+    const timer = window.setTimeout(() => panelRef.current?.focus({ preventScroll: true }), 0)
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') closePanel()
     }
-    window.addEventListener('scroll', onScroll, true)
-    return () => window.removeEventListener('scroll', onScroll, true)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.clearTimeout(timer)
+      document.removeEventListener('keydown', onKeyDown)
+      previous?.focus?.({ preventScroll: true })
+    }
   }, [open])
 
   const grid = buildGrid(view.year, view.month)
@@ -110,6 +108,9 @@ export default function DatePickerField({ value = '', onChange, placeholder = '�
   }
   const triggerText = value ? displayValue(value) : placeholder
 
+  // 在编辑弹窗等 <dialog> 内使用时，浮层要渲染进 dialog 自身才能盖住顶层内容。
+  const portalTarget = typeof document === 'undefined' ? null : (triggerRef.current?.closest('dialog') || document.body)
+
   return (
     <span className="date-picker-field" data-open={open ? 'true' : undefined} data-disabled={disabled ? 'true' : undefined}>
       <button type="button" ref={triggerRef} className="date-picker-trigger" id={id} aria-haspopup="dialog" aria-expanded={open} aria-label={ariaLabel} disabled={disabled} onClick={openPanel}>
@@ -117,44 +118,50 @@ export default function DatePickerField({ value = '', onChange, placeholder = '�
         <span data-empty={!value ? 'true' : undefined}>{triggerText}</span>
         {required ? <em className="date-picker-required" aria-hidden="true">*</em> : null}
       </button>
-      {createPortal(<dialog
-        ref={dialogRef}
-        className="date-picker-panel"
-        style={anchor ? { position: 'fixed', left: `${anchor.left}px`, top: `${anchor.top}px`, width: `${anchor.width}px` } : undefined}
-        aria-label={ariaLabel}
-        onCancel={(event) => { event.preventDefault(); closePanel() }}
-        onClose={() => { if (open) closePanel() }}
-        onClick={(event) => { if (event.target === dialogRef.current) closePanel() }}
-      >
-        <header className="date-picker-head">
-          <button type="button" className="date-picker-nav" onClick={() => shift(-1)} aria-label="上一个月">‹</button>
-          <strong>{view.year} 年 {MONTH_NAMES[view.month - 1]}</strong>
-          <button type="button" className="date-picker-nav" onClick={() => shift(1)} aria-label="下一个月">›</button>
-        </header>
-        <div className="date-picker-weekdays" aria-hidden="true">{WEEKDAYS.map((day) => <span key={day}>{day}</span>)}</div>
-        <div className="date-picker-grid">
-          {grid.map((cell, index) => (cell ? (
-            <button
-              type="button"
-              key={cell.key}
-              className="date-picker-day"
-              data-today={cell.key === today.key ? 'true' : undefined}
-              data-selected={cell.key === value ? 'true' : undefined}
-              data-disabled={!inRange(cell.key) ? 'true' : undefined}
-              disabled={!inRange(cell.key)}
-              onClick={() => select(cell.key)}
-              aria-label={`${view.year}年${view.month}月${cell.day}日`}
-              aria-pressed={cell.key === value}
-            >
-              {cell.day}
-            </button>
-          ) : <span key={`blank-${index}`} className="date-picker-blank" aria-hidden="true" />))}
-        </div>
-        <footer className="date-picker-foot">
-          <button type="button" className="date-picker-today" onClick={() => select(today.key)} disabled={!inRange(today.key)}>今天</button>
-          {clearable ? <button type="button" className="date-picker-clear" onClick={() => { onChange?.(''); closePanel() }}>清除</button> : null}
-        </footer>
-      </dialog>, document.body)}
+      {open && portalTarget ? createPortal(
+        <div className="date-picker-layer">
+          <div className="date-picker-backdrop" aria-hidden="true" onClick={closePanel} />
+          <section
+            ref={panelRef}
+            className="date-picker-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label={ariaLabel}
+            tabIndex={-1}
+            style={anchor ? { position: 'fixed', left: `${anchor.left}px`, top: `${anchor.top}px`, width: `${anchor.width}px` } : undefined}
+          >
+            <header className="date-picker-head">
+              <button type="button" className="date-picker-nav" onClick={() => shift(-1)} aria-label="上一个月">‹</button>
+              <strong>{view.year} 年 {MONTH_NAMES[view.month - 1]}</strong>
+              <button type="button" className="date-picker-nav" onClick={() => shift(1)} aria-label="下一个月">›</button>
+            </header>
+            <div className="date-picker-weekdays" aria-hidden="true">{WEEKDAYS.map((day) => <span key={day}>{day}</span>)}</div>
+            <div className="date-picker-grid">
+              {grid.map((cell, index) => (cell ? (
+                <button
+                  type="button"
+                  key={cell.key}
+                  className="date-picker-day"
+                  data-today={cell.key === today.key ? 'true' : undefined}
+                  data-selected={cell.key === value ? 'true' : undefined}
+                  data-disabled={!inRange(cell.key) ? 'true' : undefined}
+                  disabled={!inRange(cell.key)}
+                  onClick={() => select(cell.key)}
+                  aria-label={`${view.year}年${view.month}月${cell.day}日`}
+                  aria-pressed={cell.key === value}
+                >
+                  {cell.day}
+                </button>
+              ) : <span key={`blank-${index}`} className="date-picker-blank" aria-hidden="true" />))}
+            </div>
+            <footer className="date-picker-foot">
+              <button type="button" className="date-picker-today" onClick={() => select(today.key)} disabled={!inRange(today.key)}>今天</button>
+              {clearable ? <button type="button" className="date-picker-clear" onClick={() => { onChange?.(''); closePanel() }}>清除</button> : null}
+            </footer>
+          </section>
+        </div>,
+        portalTarget
+      ) : null}
     </span>
   )
 }

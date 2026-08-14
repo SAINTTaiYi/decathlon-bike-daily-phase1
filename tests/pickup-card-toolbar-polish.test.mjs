@@ -12,12 +12,14 @@ test('Add Pickup and the entire expanded card share one opaque action yellow', (
   assert.match(css, /0 0 22px var\(--pickup-glow\), 0 7px 18px rgb\(64 55 34 \/ \.1\)/)
 })
 
-test('pickup detail uses measured pixel height instead of intrinsic grid interpolation', () => {
-  assert.match(jsx, /useLayoutEffect\(\(\) => \{[\s\S]*detail\.scrollHeight[\s\S]*transitionend/)
+test('pickup detail uses intrinsic grid interpolation instead of measured pixel height', () => {
+  assert.doesNotMatch(jsx, /detail\.scrollHeight/)
+  assert.doesNotMatch(jsx, /transitionend/)
   assert.match(jsx, /ref=\{revealRef\} className="pickup-card-reveal"/)
+  assert.match(jsx, /className="pickup-card-reveal-inner"/)
   assert.match(jsx, /ref=\{detailRef\} className="pickup-card-detail"/)
-  assert.match(css, /height 420ms cubic-bezier\(\.2, \.8, \.2, 1\)/)
-  assert.doesNotMatch(css, /grid-template-rows 520ms/)
+  assert.match(css, /grid-template-rows 420ms cubic-bezier\(\.2, \.8, \.2, 1\)/)
+  assert.match(css, /\.pickup-card-reveal \{[\s\S]*?grid-template-rows: 0fr;/)
   assert.match(css, /prefers-reduced-motion: reduce/)
 })
 

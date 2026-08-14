@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import MemberSelectSheet from '../dialogs/MemberSelectSheet.jsx'
 import IconArchive from '@iconoir/Archive.mjs'
@@ -153,39 +153,9 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
     return () => observer.disconnect()
   }, [])
 
-  useLayoutEffect(() => {
-    const reveal = revealRef.current
-    const detail = detailRef.current
-    if (!reveal || !detail) return undefined
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    let frame = 0
-    const measure = () => {
-      window.cancelAnimationFrame(frame)
-      if (reduced) {
-        reveal.style.height = expanded ? 'auto' : '0px'
-        return
-      }
-      const currentHeight = reveal.getBoundingClientRect().height
-      reveal.style.height = `${currentHeight}px`
-      frame = window.requestAnimationFrame(() => {
-        reveal.style.height = expanded ? `${detail.scrollHeight}px` : '0px'
-      })
-    }
-    const onTransitionEnd = (event) => {
-      if (event.target === reveal && event.propertyName === 'height' && expanded) reveal.style.height = 'auto'
-    }
-    measure()
-    reveal.addEventListener('transitionend', onTransitionEnd)
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
-      if (expanded && reveal.style.height !== 'auto') reveal.style.height = `${detail.scrollHeight}px`
-    })
-    observer?.observe(detail)
-    return () => {
-      window.cancelAnimationFrame(frame)
-      observer?.disconnect()
-      reveal.removeEventListener('transitionend', onTransitionEnd)
-    }
-  }, [expanded])
+  // 展开高度由 CSS grid-template-rows 0fr/1fr 动画驱动（pickup-ledger.css），
+  // 高度始终等于内容，不再用 JS 测量 px——测量竞态会让固定高度裁切内容、
+  // 造成展开区段落重叠。
 
   const onPointerDown = (event) => { if (!pickedUp && !closedAt && event.pointerType !== 'mouse') startXRef.current = event.clientX }
   const onPointerUp = (event) => {
@@ -208,6 +178,7 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
       </button>
       {handoverComplete ? <span className="handover-complete-stamp-stage" data-entering={handoverStampEntering ? 'true' : undefined}><span className="handover-complete-stamp" role="status" aria-label="交接已完成">已完成</span></span> : null}
       <div ref={revealRef} className="pickup-card-reveal" data-expanded={expanded ? 'true' : undefined} aria-hidden={!expanded} inert={!expanded}>
+      <div className="pickup-card-reveal-inner">
       <div ref={detailRef} className="pickup-card-detail" id={`pickup-detail-${record.id}`}>
         {handoverMode ? <><section className="pickup-detail-wide handover-detail-full"><h4>HANDOVER <span>/ 交接事项</span></h4><p><Highlight query={query}>{handoverDetail}</Highlight></p></section><section><h4>CONTACT <span>/ 联系方式</span></h4><dl><div><dt>手机号</dt><dd>{contactValue || '无'}</dd></div><div><dt>业务编号</dt><dd>{ticketNumber}</dd></div></dl></section></> : <section><h4>CUSTOMER <span>/ 顾客</span></h4><dl><div><dt>车辆标识</dt><dd>{record.title}</dd></div><div><dt>{contact.contactType === 'member' ? '会员号' : '手机号'}</dt><dd>{contactValue || '无'}</dd></div><div><dt>{repairMode ? '预计取车' : '取车日期'}</dt><dd>{record.pickupDate ? formatScanDate(record.pickupDate) : '未指定'}</dd></div><div><dt>业务编号</dt><dd>{ticketNumber}</dd></div></dl></section>}
         {handoverMode ? null : <section><h4>{repairMode ? 'SERVICE' : 'ORIGIN'} <span>/ {repairMode ? '维修' : '来源'}</span></h4><dl><div><dt>{repairMode ? '维修类型' : '待取来源'}</dt><dd>{repairMode ? (record.repairType || '未指定') : `${pickupSourceLabel(record)}${platform ? ` · ${platform}` : ''}`}</dd></div><div><dt>{repairMode ? '当前状态' : '业务结果'}</dt><dd>{resultLabel}</dd></div></dl></section>}
@@ -217,6 +188,7 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
         {pickupError ? <p className="pickup-card-error" role="alert">{pickupError}</p> : null}
         {pickedUp && !handoverMode ? <p className="pickup-card-resolved">{repairMode ? '维修完成后将转入待取车辆。' : '本条今日保留，下一业务日自动移除。'}</p> : null}
         <footer className="pickup-card-actions">{!pickedUp ? <button type="button" className="pickup-secondary-action" onClick={() => onEdit(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconEdit width={16} height={16} aria-hidden="true" />编辑记录</button> : null}{!pickedUp ? <button type="button" className="pickup-secondary-action" onClick={() => onAssignClick(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconUser width={16} height={16} aria-hidden="true" />{record.assigneeName ? '更换交接人' : '指定交接人'}</button> : null}<button type="button" className="pickup-history-action" onClick={() => onHistory(record)}><IconJournal width={16} height={16} aria-hidden="true" />操作记录</button>{!pickedUp ? <details className="pickup-card-more"><summary>更多</summary><button type="button" onClick={() => onRemove(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconTrash width={15} height={15} aria-hidden="true" />删除记录</button></details> : null}{!pickedUp ? <button type="button" className="pickup-primary-action" onClick={() => handoverMode ? onHandoverComplete(record) : repairMode ? onRepairComplete(record) : onPickup(record)} disabled={locked} aria-busy={primaryProcessing || undefined}><IconCheck width={17} height={17} aria-hidden="true" />{primaryProcessing ? '确认中…' : handoverMode ? '完成交接' : repairMode ? '维修完成' : '确认取车'}</button> : null}</footer>
+      </div>
       </div>
     </div>
     </article>

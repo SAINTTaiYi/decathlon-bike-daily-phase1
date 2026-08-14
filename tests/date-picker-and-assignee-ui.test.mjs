@@ -20,8 +20,10 @@ const dateCss = await read('styles/date-picker.css')
 
 test('brand date picker replaces native date inputs everywhere', () => {
   assert.match(picker, /buildGrid|date-picker-grid/u)
-  assert.match(picker, /showModal/u)
-  assert.match(picker, /createPortal\(<dialog/u)
+  assert.doesNotMatch(picker, /\.showModal\(/u)
+  assert.match(picker, /createPortal\(/u)
+  assert.match(picker, /date-picker-layer/u)
+  assert.match(picker, /date-picker-backdrop/u)
   assert.doesNotMatch(repairEditor, /type="date"/u)
   assert.doesNotMatch(historyDialog, /type="date"/u)
   assert.doesNotMatch(adminAudit, /type="date"/u)
