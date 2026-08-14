@@ -394,7 +394,7 @@ test('闭店弹窗三个模块都确认后才放开最终确认闭店按钮', as
 test('闭店弹窗对无变动模块给出挂账文案，对有变动模块列出简短变动项', async () => {
   const dialog = await read('apps/web/src/components/dialogs/ConfirmClosingDialog.jsx')
   assert.match(dialog, /module\.carryMessage/u)
-  assert.match(dialog, /closing-check-carry/u)
+  assert.match(dialog, /closing-module-carry/u)
   assert.match(dialog, /formatChangeTally\(module\.tally\)/u)
   assert.match(dialog, /entries\.slice\(0, VISIBLE_CHANGES\)/u)
   assert.match(dialog, /另有 \{module\.entries\.length - VISIBLE_CHANGES\} 项变动/u)
@@ -408,9 +408,9 @@ test('闭店弹窗渲染在店车辆分组、现场对账与二手车交叉校�
   assert.match(dialog, /inStore\.pickedUpTodayCount/u)
   assert.match(dialog, /inStore\.groups\.map/u)
   assert.match(dialog, /inStore\.reconcileLabel/u)
-  assert.match(dialog, /closing-check-reconcile/u)
+  assert.match(dialog, /closing-warning-reconcile/u)
   assert.match(dialog, /usedCar\.applicable/u)
-  assert.match(dialog, /closing-check-crosscheck/u)
+  assert.match(dialog, /closing-usedcar-notice/u)
   // Aging must be visible per vehicle: that is what tells an operator a bike probably left.
   assert.match(dialog, /item\.ageLabel/u)
   assert.match(dialog, /data-stale=\{item\.stale \? 'true' : 'false'\}/u)
