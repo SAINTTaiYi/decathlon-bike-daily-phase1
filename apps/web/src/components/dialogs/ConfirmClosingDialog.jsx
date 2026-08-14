@@ -202,7 +202,7 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
           className="closing-btn-confirm"
           onClick={confirm}
           disabled={submitting || !gateOpen}
-          data-processing={submitting ? "true" : undefined}
+          data-processing={submitting ? 'true' : undefined}
           aria-busy={submitting || undefined}
         >
           {submitting ? '确认中…' : '确认闭店'}
