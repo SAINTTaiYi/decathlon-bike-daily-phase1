@@ -3,7 +3,7 @@ import IconCheck from '@iconoir/Check.mjs'
 import IconWarning from '@iconoir/WarningTriangle.mjs'
 import IconCheckCircle from '@iconoir/CheckCircle.mjs'
 import IconBicycle from '@iconoir/Bicycle.mjs'
-import IconUserCard from '@iconoir/UserCard.mjs'
+import IconUser from '@iconoir/User.mjs'
 import IconTools from '@iconoir/Tools.mjs'
 import AppDialog from './AppDialog.jsx'
 import {
@@ -40,7 +40,7 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
 
   const moduleIcons = {
     pickup: IconBicycle,
-    poster: IconUserCard,
+    poster: IconUser,
     repair: IconTools
   }
 
