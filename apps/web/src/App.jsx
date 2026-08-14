@@ -12,7 +12,7 @@ import ActionDock from './components/lookbook/ActionDock.jsx'
 import WorkshopShellHeader from './components/workshop/WorkshopShellHeader.jsx'
 import WorkshopOverviewPage from './components/overview/WorkshopOverviewPage.jsx'
 import AttachmentDialog from './components/dialogs/AttachmentDialog.jsx'
-import ConfirmClosingDialog from './components/dialogs/ConfirmClosingDialog.jsx'
+import ClosingCheckPage from './pages/ClosingCheckPage.jsx'
 import KpiDialog from './components/dialogs/KpiDialog.jsx'
 import LocalMigrationDialog, { hasLocalV5Data } from './components/dialogs/LocalMigrationDialog.jsx'
 import LogDialog from './components/dialogs/LogDialog.jsx'
@@ -687,7 +687,7 @@ export default function App() {
           }
           return result
         }} />
-        <ConfirmClosingDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={confirmClose} events={workflow.events} records={workflow.records} dateKey={workflow.dateKey} kpi={workflow.kpi} />
+        {confirmOpen ? <ClosingCheckPage onClose={() => setConfirmOpen(false)} onConfirm={confirmClose} events={workflow.events} records={workflow.records} dateKey={workflow.dateKey} kpi={workflow.kpi} /> : null}
         <KpiDialog open={kpiOpen} onClose={() => setKpiOpen(false)} values={workflow.kpi} savedAt={workflow.kpiSavedAt} onSave={workflow.saveKpi} onClear={workflow.clearKpi} onNotify={setToast} />
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
         <HandoverTodoDialog open={handoverTodoOpen} items={(workflow.assignedToMe || []).map((item) => ({ ...item, sceneLabel: sceneById(item.scene)?.cn || item.scene }))} onJump={(item) => { setHandoverTodoOpen(false); navigateToScene(item.scene) }} onClose={() => { setHandoverTodoOpen(false); window.localStorage.setItem(`handover-todo-dismissed-${workflow.dateKey}`, '1') }} />

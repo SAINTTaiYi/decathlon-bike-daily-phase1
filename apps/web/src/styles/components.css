@@ -528,3 +528,208 @@ button:not(:disabled) {
   .member-select-backdrop { align-items: center; justify-items: center; }
   .member-select-sheet { border-radius: 12px; }
 }
+
+/* ========================================
+   Closing Check Full Page
+   像素级复刻参考图的闭店二级页面
+   ======================================== */
+.closing-check-page {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  background: #fff;
+  overflow: hidden;
+}
+
+.closing-check-page-scroll {
+  overflow-y: auto;
+  padding: 0 16px 24px;
+}
+
+.closing-check-page-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 0 12px;
+  background: #fff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  margin-bottom: 16px;
+}
+
+.closing-check-page-header > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.closing-check-page-eyebrow {
+  color: #E9A568;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.closing-check-page-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: #0b0b0c;
+}
+
+.closing-check-page-close {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #0b0b0c;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.closing-check-page-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.closing-check-page-close:active {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.closing-check-page-description {
+  margin: 0 0 20px;
+  color: #55554f;
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 52ch;
+}
+
+/* 样式继承自 workshop-system.css 但需要在页面上下文中调整 */
+.closing-check-page .closing-check-focus {
+  margin-bottom: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.closing-check-page .closing-check-crosscheck {
+  margin-bottom: 16px;
+}
+
+.closing-check-page .closing-check-list {
+  margin: 0 0 16px;
+  padding: 0;
+}
+
+.closing-check-page .closing-check-row {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.closing-check-page .closing-check-no {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+  color: #55554f;
+}
+
+.closing-check-page .closing-check-gate {
+  margin: 0 0 8px;
+}
+
+.closing-check-page-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fff;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.closing-check-page-secondary,
+.closing-check-page-primary {
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 8px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.closing-check-page-secondary {
+  border: 1.5px solid #0b0b0c;
+  background: #fff;
+  color: #0b0b0c;
+}
+
+.closing-check-page-secondary:hover {
+  background: rgba(11, 11, 12, 0.04);
+}
+
+.closing-check-page-secondary:active {
+  transform: scale(0.98);
+}
+
+.closing-check-page-secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.closing-check-page-primary {
+  background: #FFC31A;
+  color: #0b0b0c;
+  box-shadow: 0 2px 8px rgba(255, 195, 26, 0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.closing-check-page-primary:hover {
+  background: #FFD04D;
+  box-shadow: 0 4px 12px rgba(255, 195, 26, 0.4);
+}
+
+.closing-check-page-primary:active {
+  transform: scale(0.98);
+}
+
+.closing-check-page-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.closing-check-page-primary[data-processing='true'] {
+  opacity: 0.7;
+}
+
+@media (max-width: 640px) {
+  .closing-check-page-footer {
+    grid-template-columns: 1fr;
+  }
+  
+  .closing-check-page-secondary {
+    order: 2;
+  }
+  
+  .closing-check-page-primary {
+    order: 1;
+  }
+}
