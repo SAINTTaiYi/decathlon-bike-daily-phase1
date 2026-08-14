@@ -82,7 +82,7 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
               </h4>
               <ul className="closing-vehicle-list">
                 {group.items.slice(0, VISIBLE_PER_GROUP).map((item) => (
-                  <li key={item.id} className="closing-vehicle-item">
+                  <li key={item.id} className="closing-vehicle-item" data-stale={item.stale ? 'true' : 'false'}>
                     <span className="closing-vehicle-emoji">{getSourceEmoji(group.source)}</span>
                     <div className="closing-vehicle-info">
                       <strong className="closing-vehicle-title">{item.title}</strong>
@@ -202,6 +202,7 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
           className="closing-btn-confirm"
           onClick={confirm}
           disabled={submitting || !gateOpen}
+          data-processing={submitting ? "true" : undefined}
           aria-busy={submitting || undefined}
         >
           {submitting ? '确认中…' : '确认闭店'}
