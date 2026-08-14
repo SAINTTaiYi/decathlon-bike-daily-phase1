@@ -5,6 +5,7 @@ import IconCheckCircle from '@iconoir/CheckCircle.mjs'
 import IconBicycle from '@iconoir/Bicycle.mjs'
 import IconUser from '@iconoir/User.mjs'
 import IconTools from '@iconoir/Tools.mjs'
+import '../../styles/closing-dialog.css'
 import AppDialog from './AppDialog.jsx'
 import {
   buildClosingChecklist,
