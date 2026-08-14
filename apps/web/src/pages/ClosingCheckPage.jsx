@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
+import IconArchive from '@iconoir/Archive.mjs'
+import IconBicycle from '@iconoir/Bicycle.mjs'
+import IconBox from '@iconoir/Box.mjs'
 import IconCheck from '@iconoir/Check.mjs'
 import IconCheckCircle from '@iconoir/CheckCircle.mjs'
+import IconUser from '@iconoir/User.mjs'
 import IconWarning from '@iconoir/WarningTriangle.mjs'
+import IconWrench from '@iconoir/Wrench.mjs'
 import IconClose from '@iconoir/Xmark.mjs'
 import {
   buildClosingChecklist,
@@ -13,6 +18,19 @@ import {
 
 const VISIBLE_CHANGES = 3
 const VISIBLE_PER_GROUP = 6
+
+const MODULE_ICONS = {
+  pickup: IconBicycle,
+  poster: IconUser,
+  repair: IconWrench
+}
+
+const SOURCE_ICONS = {
+  'self-pickup': IconBox,
+  'used-car': IconBicycle,
+  'customer-storage': IconUser,
+  repair: IconWrench
+}
 
 export default function ClosingCheckPage({ onClose, onConfirm, events = [], records = [], dateKey = '', kpi = {}, submitting: externalSubmitting = false }) {
   const [submitting, setSubmitting] = useState(false)
@@ -39,7 +57,8 @@ export default function ClosingCheckPage({ onClose, onConfirm, events = [], reco
 
   return (
     <div className="closing-check-page">
-      <div className="closing-check-page-scroll">
+      <div className="closing-check-page-surface">
+        <div className="closing-check-page-scroll">
         <header className="closing-check-page-header">
           <div>
             <span className="closing-check-page-eyebrow">FINAL CHECK · 最终确认</span>
@@ -56,48 +75,76 @@ export default function ClosingCheckPage({ onClose, onConfirm, events = [], reco
         </header>
 
         <p className="closing-check-page-description">
-          销售数据已填写。请逐个核对待取、其它交接和维修三个台账,三项都确认后才能完成闭店。
+          销售数据已填写。请逐个核对待取、其它交接和维修三个台账，三项都确认后才能完成闭店。
         </p>
 
         <section className="closing-check-focus" data-tone={inStore.tone} aria-labelledby="closing-check-focus-title">
-          {inStore.tone === 'warn'
-            ? <IconWarning width={22} height={22} aria-hidden="true" />
-            : <IconCheckCircle width={22} height={22} aria-hidden="true" />}
-          <div>
-            <span>IN STORE · 台账上还在店里的车</span>
-            <strong id="closing-check-focus-title">{inStore.headline}</strong>
-            <p>{inStore.detail}</p>
-            <p className="closing-check-focus-metrics">
-              今天已确认取车 {inStore.pickedUpTodayCount} 台 · 仍在店里 {inStore.waitingCount} 台
-              {inStore.awaitingNotice ? ` · 未通知顾客 ${inStore.awaitingNotice} 台` : ''}
-              {inStore.staleCount ? ` · 挂账偏久 ${inStore.staleCount} 台` : ''}
-            </p>
-            {inStore.reconcileLabel
-              ? <p className="closing-check-reconcile" role="status">{inStore.reconcileLabel}</p>
-              : null}
-            {inStore.groups.map((group) => (
-              <section key={group.source} className="closing-check-group" data-source={group.source}>
-                <h4>
-                  {group.label}
-                  <small>{group.count} 台{group.awaitingNotice ? ` · ${group.awaitingNotice} 台未通知` : ''}</small>
-                </h4>
-                <ul className="closing-check-focus-list">
-                  {group.items.slice(0, VISIBLE_PER_GROUP).map((item) => (
-                    <li key={item.id} data-stale={item.stale ? 'true' : 'false'}>
-                      <strong>{item.title}</strong>
-                      <small>
-                        {[item.platform, item.ageLabel, item.notified === null ? '' : item.notified ? '已通知' : '未通知']
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </small>
-                    </li>
-                  ))}
-                  {group.items.length > VISIBLE_PER_GROUP
-                    ? <li className="closing-check-more">另有 {group.items.length - VISIBLE_PER_GROUP} 台,请到待取台账逐台核对</li>
-                    : null}
-                </ul>
-              </section>
-            ))}
+          <div className="closing-check-focus-top">
+            <div className="closing-check-focus-copy">
+              <div className="closing-check-focus-heading">
+                <span className="closing-check-focus-sign" aria-hidden="true">
+                  {inStore.tone === 'warn'
+                    ? <IconWarning width={25} height={25} aria-hidden="true" />
+                    : <IconCheckCircle width={25} height={25} aria-hidden="true" />}
+                </span>
+                <div className="closing-check-focus-text">
+                  <span>IN STORE · 台账上还在店里的车</span>
+                  <strong id="closing-check-focus-title">{inStore.headline}</strong>
+                </div>
+              </div>
+              <p className="closing-check-focus-detail">{inStore.detail}</p>
+              <p className="closing-check-focus-metrics">
+                今天已确认取车 {inStore.pickedUpTodayCount} 台 · 仍在店里 {inStore.waitingCount} 台
+                {inStore.awaitingNotice ? ' · 未通知顾客 ' + inStore.awaitingNotice + ' 台' : ''}
+                {inStore.staleCount ? ' · 挂账偏久 ' + inStore.staleCount + ' 台' : ''}
+              </p>
+              {inStore.reconcileLabel
+                ? <p className="closing-check-reconcile" role="status">{inStore.reconcileLabel}</p>
+                : null}
+            </div>
+            <div className="closing-check-page-illustration" aria-hidden="true">
+              <div className="closing-check-page-sun" />
+              <div className="closing-check-page-clipboard">
+                <i className="closing-check-page-clip" />
+                <i className="closing-check-page-mark mark-one">✓</i><i className="closing-check-page-line line-one" />
+                <i className="closing-check-page-mark mark-two">✓</i><i className="closing-check-page-line line-two" />
+                <i className="closing-check-page-mark mark-three">✓</i><i className="closing-check-page-line line-three" />
+              </div>
+              <div className="closing-check-page-car"><i /></div>
+              <div className="closing-check-page-ground" />
+            </div>
+          </div>
+          <div className="closing-check-groups">
+            {inStore.groups.map((group) => {
+              const GroupIcon = SOURCE_ICONS[group.source] || IconArchive
+              return (
+                <section key={group.source} className="closing-check-group" data-source={group.source}>
+                  <h4>
+                    {group.label}
+                    <small>{group.count} 台{group.awaitingNotice ? ' · ' + group.awaitingNotice + ' 台未通知' : ''}</small>
+                  </h4>
+                  <ul className="closing-check-focus-list">
+                    {group.items.slice(0, VISIBLE_PER_GROUP).map((item) => {
+                      const ItemIcon = SOURCE_ICONS[item.source] || GroupIcon
+                      return (
+                        <li key={item.id} data-stale={item.stale ? 'true' : 'false'}>
+                          <span className="closing-check-focus-item-icon" aria-hidden="true"><ItemIcon width={17} height={17} /></span>
+                          <strong>{item.title}</strong>
+                          <small>
+                            {[item.platform, item.ageLabel, item.notified === null ? '' : item.notified ? '已通知' : '未通知']
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </small>
+                        </li>
+                      )
+                    })}
+                    {group.items.length > VISIBLE_PER_GROUP
+                      ? <li className="closing-check-more">另有 {group.items.length - VISIBLE_PER_GROUP} 台，请到待取台账逐台核对</li>
+                      : null}
+                  </ul>
+                </section>
+              )
+            })}
           </div>
         </section>
 
@@ -108,23 +155,34 @@ export default function ClosingCheckPage({ onClose, onConfirm, events = [], reco
         <ol className="closing-check-list">
           {modules.map((module) => {
             const isConfirmed = isModuleConfirmed(module, confirmed)
+            const ModuleIcon = MODULE_ICONS[module.id] || IconArchive
             return (
-              <li key={module.id} className="closing-check-row" data-confirmed={isConfirmed ? 'true' : 'false'} data-changed={module.changed ? 'true' : 'false'}>
+              <li key={module.id} className="closing-check-row" data-module={module.id} data-confirmed={isConfirmed ? 'true' : 'false'} data-changed={module.changed ? 'true' : 'false'}>
                 <div className="closing-check-head">
                   <span className="closing-check-no" aria-hidden="true">{module.no}</span>
+                  <span className="closing-check-module-icon" aria-hidden="true"><ModuleIcon width={23} height={23} /></span>
                   <span className="closing-check-title">
                     <strong>{module.title}</strong>
                     <small>
-                      {module.code} · {module.changed ? `今天有 ${module.count} 项变动` : '今天没有变动'}
-                      {module.backlog.openCount ? ` · 未完成 ${module.backlog.openCount} 项` : ''}
+                      {module.code} · {module.changed ? '今天有 ' + module.count + ' 项变动' : '今天没有变动'}
+                      {module.backlog.openCount ? ' · 未完成 ' + module.backlog.openCount + ' 项' : ''}
                     </small>
+                    {module.changed ? (
+                      <span className="closing-check-title-detail">
+                        {formatChangeTally(module.tally)} · {module.entries[0]?.label || '已记录变动'}
+                      </span>
+                    ) : (
+                      <span className="closing-check-title-detail">
+                        {module.backlog.openCount ? '今天没有变动 · 未完成 ' + module.backlog.openCount + ' 项' : '今天没有变动'}
+                      </span>
+                    )}
                   </span>
                   <button
                     type="button"
                     className="closing-check-action"
                     onClick={() => toggle(module)}
                     aria-pressed={isConfirmed}
-                    aria-label={`确认已核对${module.title}`}
+                    aria-label={'确认已核对' + module.title}
                     disabled={isSubmitting}
                   >
                     {isConfirmed ? <><IconCheck width={15} height={15} aria-hidden="true" />已确认</> : '确认'}
@@ -138,7 +196,7 @@ export default function ClosingCheckPage({ onClose, onConfirm, events = [], reco
                         <li key={entry.id}><span>{entry.actionLabel}</span><small>{entry.label}</small></li>
                       ))}
                       {module.entries.length > VISIBLE_CHANGES
-                        ? <li className="closing-check-more">另有 {module.entries.length - VISIBLE_CHANGES} 项变动,可在当日日志查看</li>
+                        ? <li className="closing-check-more">另有 {module.entries.length - VISIBLE_CHANGES} 项变动，可在当日日志查看</li>
                         : null}
                     </ul>
                   </>
@@ -167,6 +225,7 @@ export default function ClosingCheckPage({ onClose, onConfirm, events = [], reco
         >
           {isSubmitting ? <><IconCheck width={15} height={15} aria-hidden="true" />确认中…</> : '确认闭店'}
         </button>
+        </div>
       </div>
     </div>
   )
