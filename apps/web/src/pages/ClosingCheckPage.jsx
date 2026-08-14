@@ -3,10 +3,10 @@ import IconCheck from '@iconoir/Check.mjs'
 import IconCheckCircle from '@iconoir/CheckCircle.mjs'
 import IconWarning from '@iconoir/WarningTriangle.mjs'
 import IconClose from '@iconoir/Xmark.mjs'
-import IconUser from '@iconoir/User.mjs'
-import IconShoppingCart from '@iconoir/ShoppingCart.mjs'
-import IconWarningCircle from '@iconoir/WarningCircle.mjs'
-import IconTools from '@iconoir/Tools.mjs'
+import IconUser from '@iconoir/react/User'
+import IconShoppingCart from '@iconoir/react/ShoppingCart'
+import IconWarningCircle from '@iconoir/react/WarningCircle'
+import IconTools from '@iconoir/react/Tools'
 import {
   buildClosingChecklist,
   closingGateState,
