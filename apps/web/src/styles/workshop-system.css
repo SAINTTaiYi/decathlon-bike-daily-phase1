@@ -997,51 +997,6 @@ button:disabled { opacity: .48; }
   .pickup-pixel-fill i,
   .repair-pixel-dissolve i { visibility: hidden; }
 }
-/*
- Normal vertical module flow: no transforms, pinning, stacking or snap.
- */
-.workshop-module-stack {
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  min-height: 0;
-  height: auto;
-  overflow: visible;
-  perspective: none;
-  transform: none;
-  scroll-snap-type: none;
-}
-.workshop-module-panel {
-  display: block;
-  position: relative;
-  inset: auto;
-  width: 100%;
-  min-height: 0;
-  height: auto;
-  overflow: visible;
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  transform: none;
-  filter: none;
-  clip-path: none;
-  scroll-snap-align: none;
-  scroll-margin-top: calc(var(--ops-header-height, 72px) + 8px);
-}
-.workshop-module-flow-inner {
-  position: relative;
-  inset: auto;
-  width: 100%;
-  min-height: 0;
-  height: auto;
-  opacity: 1;
-  visibility: visible;
-  transform: none;
-  transform-origin: center;
-  will-change: auto;
-}
-
-
 /* Closing confirmation reference layout: 911 x 1726 desktop baseline. */
 .confirm-closing-dialog {
   width: min(calc(100% - 108px), 803px);
@@ -1510,4 +1465,48 @@ button:disabled { opacity: .48; }
   .confirm-closing-dialog .closing-check-module-icon { width: 48px; height: 48px; }
   .confirm-closing-dialog .closing-check-action { grid-column: 3; grid-row: 2; justify-self: end; width: 92px; min-width: 92px; min-height: 44px; font-size: 15px; }
   .confirm-closing-dialog .dialog-footer button { min-height: 58px; font-size: 17px; }
+}
+
+/*
+ Normal vertical module flow: no transforms, pinning, stacking or snap.
+ */
+.workshop-module-stack {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-height: 0;
+  height: auto;
+  overflow: visible;
+  perspective: none;
+  transform: none;
+  scroll-snap-type: none;
+}
+.workshop-module-panel {
+  display: block;
+  position: relative;
+  inset: auto;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  overflow: visible;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+  filter: none;
+  clip-path: none;
+  scroll-snap-align: none;
+  scroll-margin-top: calc(var(--ops-header-height, 72px) + 8px);
+}
+.workshop-module-flow-inner {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transform-origin: center;
+  will-change: auto;
 }
