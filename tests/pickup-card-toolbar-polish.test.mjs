@@ -18,7 +18,7 @@ test('pickup detail uses intrinsic grid interpolation instead of measured pixel 
   assert.match(jsx, /ref=\{revealRef\} className="pickup-card-reveal"/)
   assert.match(jsx, /className="pickup-card-reveal-inner"/)
   assert.match(jsx, /ref=\{detailRef\} className="pickup-card-detail"/)
-  assert.match(css, /grid-template-rows 420ms cubic-bezier\(\.2, \.8, \.2, 1\)/)
+  assert.match(css, /grid-template-rows 360ms cubic-bezier\(\.16, 1, \.3, 1\)/)
   assert.match(css, /\.pickup-card-reveal \{[\s\S]*?grid-template-rows: 0fr;/)
   assert.match(css, /prefers-reduced-motion: reduce/)
 })
@@ -32,7 +32,7 @@ test('collapse keeps detail composition stable and synchronizes summary geometry
   assert.ok(css.includes('nth-child(-n + 2)'))
   assert.ok(css.includes('section:nth-child(2) { display: none; }'))
   assert.doesNotMatch(css, /data-expanded='true'\] \.pickup-card-detail section:first-child/)
-  assert.match(css, /\.pickup-card-summary \{[^}]*min-height 420ms cubic-bezier\(\.2, \.8, \.2, 1\)[^}]*padding-bottom 420ms/s)
+  assert.match(css, /\.pickup-card-summary \{[^}]*min-height 360ms cubic-bezier\(\.16, 1, \.3, 1\)[^}]*padding-bottom 360ms cubic-bezier\(\.16, 1, \.3, 1\)/s)
 })
 
 
