@@ -206,12 +206,9 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   const [sheet, setSheet] = useState(null)
   const [assignRecord, setAssignRecord] = useState(null)
   const [debouncedQuery, setDebouncedQuery] = useState('')
-  const [toolsVisible, setToolsVisible] = useState(true)
   const [handoverStampMotionId, setHandoverStampMotionId] = useState('')
   const handoverCompletionByIdRef = useRef(new Map())
   const handoverCompletionReadyRef = useRef(false)
-  const ledgerRef = useRef(null)
-  const lastScrollYRef = useRef(0)
   const waitingRecords = handoverMode ? records : repairMode ? records.filter((record) => !record.completedToday && !record.completedOn) : records.filter((record) => !isPickedUpToday(record.pickedUpToday))
   const pickedRecords = handoverMode ? [] : repairMode ? records.filter((record) => record.completedToday || record.completedOn) : records.filter((record) => isPickedUpToday(record.pickedUpToday))
   const autoDensity = waitingRecords.length > 12 ? 'compact' : density
@@ -242,22 +239,6 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
     return () => window.clearTimeout(timer)
   }, [handoverStampMotionId])
   useEffect(() => { const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 250); return () => window.clearTimeout(timer) }, [query])
-  useEffect(() => {
-    let debounceTimer = null
-    const onScroll = () => {
-      if (debounceTimer) return
-      debounceTimer = window.setTimeout(() => { debounceTimer = null }, 80)
-      const current = window.scrollY
-      const delta = current - lastScrollYRef.current
-      lastScrollYRef.current = current
-      if (!ledgerRef.current || ledgerRef.current.getBoundingClientRect().top > 96 || sheet || query) return setToolsVisible(true)
-      if (delta > 18) setToolsVisible(false)
-      else if (delta < -10) setToolsVisible(true)
-    }
-    lastScrollYRef.current = window.scrollY
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => { window.removeEventListener('scroll', onScroll); if (debounceTimer) window.clearTimeout(debounceTimer) }
-  }, [query, sheet])
   const visible = useMemo(() => {
     const term = debouncedQuery.toLocaleLowerCase('zh-CN')
     return sortRecords(waitingRecords.filter((record) => (repairMode || handoverMode || !sources.length || sources.includes(inferPickupSource(record))) && (!term || normalizedSearch(record).includes(term))), sort)
@@ -266,8 +247,8 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   const closeSheet = useCallback(() => setSheet(null), [])
   const applySheet = useCallback(({ sources: nextSources, sort: nextSort }) => { setSources(nextSources); setSort(nextSort); setSheet(null) }, [])
 
-  const queueControls = <div className="pickup-queue-controls" data-tools-visible={toolsVisible ? 'true' : undefined}>
-    <div className="pickup-queue-summary"><h2 id={handoverMode ? 'poster-title' : repairMode ? 'repair-title' : 'pickup-title'} className="sr-only">{handoverMode ? '交接事项' : repairMode ? '维修车辆' : '待取车辆'}</h2><span>{handoverMode ? 'HANDOVER STATUS' : repairMode ? 'REPAIR STATUS' : 'QUEUE STATUS'}</span><div className="pickup-module-count"><span><b>{String(waitingRecords.length).padStart(2, '0')}</b>{handoverMode ? '事项' : repairMode ? '待完成' : '待取'}</span>{!repairMode && !handoverMode ? <span><b>{String(pickedRecords.length).padStart(2, '0')}</b>今日已取</span> : null}</div><button type="button" className="pickup-header-search" onClick={() => { setToolsVisible(true); window.setTimeout(() => document.getElementById(searchId)?.focus({ preventScroll: true }), 0) }} aria-label={handoverMode ? '搜索交接事项' : repairMode ? '搜索维修车辆' : '搜索待取车辆'}><IconSearch width={19} height={19} aria-hidden="true" /></button></div>
+  const queueControls = <div className="pickup-queue-controls">
+    <div className="pickup-queue-summary"><h2 id={handoverMode ? 'poster-title' : repairMode ? 'repair-title' : 'pickup-title'} className="sr-only">{handoverMode ? '交接事项' : repairMode ? '维修车辆' : '待取车辆'}</h2><span>{handoverMode ? 'HANDOVER STATUS' : repairMode ? 'REPAIR STATUS' : 'QUEUE STATUS'}</span><div className="pickup-module-count"><span><b>{String(waitingRecords.length).padStart(2, '0')}</b>{handoverMode ? '事项' : repairMode ? '待完成' : '待取'}</span>{!repairMode && !handoverMode ? <span><b>{String(pickedRecords.length).padStart(2, '0')}</b>今日已取</span> : null}</div><button type="button" className="pickup-header-search" onClick={() => { window.setTimeout(() => document.getElementById(searchId)?.focus({ preventScroll: true }), 0) }} aria-label={handoverMode ? '搜索交接事项' : repairMode ? '搜索维修车辆' : '搜索待取车辆'}><IconSearch width={19} height={19} aria-hidden="true" /></button></div>
     <div className="pickup-tools-area"><div className="pickup-tool-row"><label className="pickup-search-field" htmlFor={searchId}><IconSearch width={17} height={17} aria-hidden="true" /><input id={searchId} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={handoverMode ? '搜索交接事项…' : repairMode ? '搜索车型、电话、维修单号…' : '搜索车型、电话、车主姓名…'} /></label>{!repairMode && !handoverMode ? <button type="button" onClick={() => setSheet('filter')} data-active={sources.length ? 'true' : undefined}><IconFilter width={17} height={17} aria-hidden="true" /><span>筛选</span>{sources.length ? <b>{sources.length}</b> : null}</button> : null}<button type="button" onClick={() => setSheet('sort')} data-active={sort !== 'default' ? 'true' : undefined}><IconSort width={17} height={17} aria-hidden="true" /><span>排序</span></button><button type="button" onClick={() => setDensity((current) => current === 'balanced' ? 'compact' : 'balanced')} aria-label={`切换为${density === 'balanced' ? '紧凑' : '平衡'}密度`}>{density === 'balanced' ? <IconList width={17} height={17} aria-hidden="true" /> : <IconViewColumns width={17} height={17} aria-hidden="true" />}<span>密度</span></button><button type="button" className="pickup-collapse-all" onClick={() => setExpandedId('')} disabled={!expandedId} aria-label="全部收起"><IconNavArrowDown width={17} height={17} aria-hidden="true" /><span>收起</span></button></div>
     {appliedLabels.length ? <div className="pickup-applied-filters" aria-label="已应用规则">{appliedLabels.map((label) => <span key={label}>{label}</span>)}<button type="button" onClick={() => { setSources([]); setSort('default') }}>清除</button></div> : null}</div>
   </div>
@@ -279,7 +260,7 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
       ? ['队列号', '维修事项', '联系电话 / 预约时间', '状态', '操作']
       : ['队列号', '车辆 / 业务类型', '联系方式', '预约时间', '状态', '操作']
 
-  return <div ref={ledgerRef} className="pickup-ledger" data-density={autoDensity} data-tools-visible={toolsVisible ? 'true' : undefined} aria-label={`${handoverMode ? '交接事项' : repairMode ? '维修车辆' : '待取车辆'}台账，共 ${records.length} 条`}>
+  return <div className="pickup-ledger" data-density={autoDensity} aria-label={`${handoverMode ? '交接事项' : repairMode ? '维修车辆' : '待取车辆'}台账，共 ${records.length} 条`}>
     {queueControls}
     <section className="pickup-ledger-board" data-ledger-mode={ledgerMode}>
     <div className="pickup-ledger-intro"><div><span>{handoverMode ? 'ACTIVE HANDOVER' : repairMode ? 'ACTIVE REPAIR' : 'ACTIVE PICKUP'}</span><strong>{visible.length ? (handoverMode ? `当前显示 ${visible.length} 项，按列表顺序完成交接。` : repairMode ? `当前显示 ${visible.length} 台，按列表顺序核对并完成维修。` : `当前显示 ${visible.length} 台，按列表顺序核对并交付。`) : (handoverMode ? '当前没有交接事项。' : repairMode ? '当前规则下没有维修车辆。' : '当前规则下没有待取车辆。')}</strong></div><div className="pickup-ledger-global-actions"><button type="button" onClick={() => onHistory()}><IconJournal width={17} height={17} aria-hidden="true" />操作记录</button><button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />{handoverMode ? '增加交接事项' : repairMode ? '增加维修' : '增加待取'}</button></div></div>
