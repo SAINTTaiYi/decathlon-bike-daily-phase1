@@ -25,8 +25,8 @@ test('queue metrics have independent number and label rows', () => {
 test('shared desktop ledger cards use compact actions and a continuous collapsed-row frame', () => {
   assert.match(css, /\.pickup-card-frame:not\(\[data-expanded='true'\]\) \{ overflow: hidden; border: 1px solid[^}]*border-radius: 8px; \}/u)
   assert.match(css, /\.pickup-card-frame:not\(\[data-expanded='true'\]\) \.pickup-card \{ height: auto; border: 0; border-radius: 0;/u)
-  assert.match(css, /\.pickup-card-actions \{ display: flex; flex-wrap: wrap;[^}]*justify-content: flex-end;/u)
-  assert.match(css, /\.pickup-card-actions > \.pickup-card-more \{ flex: 0 0 auto; width: auto; min-width: 148px; max-width: 220px; \}/u)
-  assert.match(css, /\.pickup-card-actions \.pickup-primary-action \{ grid-column: auto; min-width: 190px; \}/u)
+  assert.match(css, /\.pickup-card-actions \{ display: flex; flex-wrap: nowrap;[^}]*justify-content: flex-start;/u)
+  assert.ok(css.includes(".pickup-card-actions > .pickup-card-more { flex: 0 0 auto; width: auto; min-width: 148px; max-width: 220px; }"))
+  assert.ok(css.includes(".pickup-card-actions .pickup-primary-action { margin-left: auto; min-width: 190px; }"))
   assert.match(css, /\.pickup-notification-buttons \{ grid-column: 3; display: flex; justify-content: flex-end;/u)
 })

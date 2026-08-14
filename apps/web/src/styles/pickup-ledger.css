@@ -243,7 +243,7 @@
 .pickup-card-detail dd { font-size: 10px; }
 .pickup-card-detail p { font-size: 10px; line-height: 14px; }
 .pickup-detail-wide, .pickup-card-error, .pickup-card-resolved, .pickup-card-actions { grid-column: 1 / -1; }
-.pickup-card-detail > .pickup-detail-wide:not(.pickup-notification-control) { grid-column: 2; grid-row: 1; align-self: start; }
+.pickup-card-detail > .pickup-detail-wide:not(.pickup-notification-control) { grid-column: 1 / -1; grid-row: auto; align-self: start; }
 .pickup-notification-control { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; }
 .pickup-notification-control h4 { margin: 0; }
 .pickup-notification-buttons { gap: 4px; }
