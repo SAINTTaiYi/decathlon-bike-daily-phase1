@@ -419,7 +419,7 @@ test('闭店弹窗渲染在店车辆分组、现场对账与二手车交叉校�
 test('App 向闭店弹窗传入当日审计事件、台账记录、业务日期与销售数据', async () => {
   const app = await read('apps/web/src/App.jsx')
   const line = app.split('\n').find((row) => row.includes('<ConfirmClosingDialog'))
-  assert.ok(line, '必须渲染 ConfirmClosingDialog')
+  assert.ok(line, '必须渲染 ClosingCheckPage')
   assert.match(line, /events=\{workflow\.events\}/u)
   assert.match(line, /records=\{workflow\.records\}/u)
   assert.match(line, /dateKey=\{workflow\.dateKey\}/u)
