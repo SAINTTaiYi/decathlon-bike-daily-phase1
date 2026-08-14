@@ -52,134 +52,158 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
       eyebrow="FINAL CHECK · 最终确认"
       description="销售数据已填写。请逐个核对待取，其它交接和维修三个台账，三项都确认后才能完成闭店。"
     >
-      <section className="closing-focus-card" data-tone={inStore.tone}>
-        <div className="closing-focus-icon">
-          {inStore.tone === 'warn'
-            ? <IconWarning width={28} height={28} aria-hidden="true" />
-            : <IconCheckCircle width={28} height={28} aria-hidden="true" />}
+      {/* 黄色警告大卡片 */}
+      <section className="closing-warning-card" data-tone={inStore.tone}>
+        <div className="closing-warning-icon">
+          <IconWarning width={32} height={32} strokeWidth={2.5} aria-hidden="true" />
         </div>
-        <div className="closing-focus-content">
-          <span className="closing-focus-eyebrow">IN STORE · 台账上还在店里的车</span>
-          <h3 className="closing-focus-headline">{inStore.headline}</h3>
-          <p className="closing-focus-detail">{inStore.detail}</p>
-          <p className="closing-focus-metrics">
-            今天已确认取车 <b>{inStore.pickedUpTodayCount}</b> 台 · 仍在店里 <b>{inStore.waitingCount}</b> 台
+        
+        <div className="closing-warning-content">
+          <span className="closing-warning-eyebrow">IN STORE · 台账上还在店里的车</span>
+          <h3 className="closing-warning-headline">{inStore.headline}</h3>
+          <p className="closing-warning-detail">{inStore.detail}</p>
+          
+          <p className="closing-warning-metrics">
+            今天已确认取车 <strong>{inStore.pickedUpTodayCount}</strong> 台 · 仍在店里 <strong>{inStore.waitingCount}</strong> 台
             {inStore.awaitingNotice ? ` · 未通知顾客 ${inStore.awaitingNotice} 台` : ''}
             {inStore.staleCount ? ` · 挂账偏久 ${inStore.staleCount} 台` : ''}
           </p>
+          
           {inStore.reconcileLabel ? (
-            <p className="closing-check-reconcile">{inStore.reconcileLabel}</p>
+            <p className="closing-warning-reconcile">{inStore.reconcileLabel}</p>
           ) : null}
           
+          {/* 自提订单车辆列表 */}
           {inStore.groups.map((group) => (
             <div key={group.source} className="closing-vehicle-group">
-              <h4 className="closing-group-title">
-                {group.label} <span>{group.count} 台{group.awaitingNotice ? ` · ${group.awaitingNotice} 台未通知` : ''}</span>
+              <h4 className="closing-vehicle-group-title">
+                {group.label} <span className="closing-vehicle-group-count">{group.count} 台{group.awaitingNotice ? ` · ${group.awaitingNotice} 台未通知` : ''}</span>
               </h4>
               <ul className="closing-vehicle-list">
                 {group.items.slice(0, VISIBLE_PER_GROUP).map((item) => (
-                  <li key={item.id} className="closing-vehicle-item" data-stale={item.stale ? 'true' : 'false'}>
-                    <span className="closing-vehicle-icon">{getSourceEmoji(group.source)}</span>
+                  <li key={item.id} className="closing-vehicle-item">
+                    <span className="closing-vehicle-emoji">{getSourceEmoji(group.source)}</span>
                     <div className="closing-vehicle-info">
-                      <strong>{item.title}</strong>
-                      <small>
+                      <strong className="closing-vehicle-title">{item.title}</strong>
+                      <span className="closing-vehicle-meta">
                         {[item.platform, item.ageLabel, item.notified === null ? '' : item.notified ? '已通知' : '未通知']
                           .filter(Boolean)
                           .join(' · ')}
-                      </small>
+                      </span>
                     </div>
                   </li>
                 ))}
                 {group.items.length > VISIBLE_PER_GROUP ? (
-                  <li className="closing-check-more">另有 {group.items.length - VISIBLE_PER_GROUP} 台，请到待取台账逐台核对</li>
+                  <li className="closing-vehicle-more">另有 {group.items.length - VISIBLE_PER_GROUP} 台，请到待取台账逐台核对</li>
                 ) : null}
               </ul>
             </div>
           ))}
         </div>
-        <div className="closing-focus-illustration" aria-hidden="true">
-          <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
-            <rect x="20" y="15" width="70" height="85" rx="4" fill="#FFF9E6" stroke="#F5C842" strokeWidth="2"/>
-            <circle cx="35" cy="35" r="4" fill="#F5C842"/>
-            <rect x="42" y="32" width="40" height="6" rx="3" fill="#F5C842" opacity="0.3"/>
-            <circle cx="35" cy="50" r="4" fill="#F5C842"/>
-            <rect x="42" y="47" width="40" height="6" rx="3" fill="#F5C842" opacity="0.3"/>
-            <circle cx="35" cy="65" r="4" fill="#F5C842"/>
-            <rect x="42" y="62" width="40" height="6" rx="3" fill="#F5C842" opacity="0.3"/>
-            <rect x="55" y="85" width="35" height="20" rx="3" fill="#F5C842"/>
-            <circle cx="60" cy="110" r="5" fill="#2D2D2D"/>
-            <circle cx="85" cy="110" r="5" fill="#2D2D2D"/>
-            <rect x="58" y="90" width="30" height="15" rx="2" fill="#FFF"/>
+
+        {/* 插图占位（右侧） */}
+        <div className="closing-warning-illustration" aria-hidden="true">
+          <svg width="140" height="140" viewBox="0 0 140 140" fill="none">
+            <rect x="30" y="20" width="80" height="95" rx="6" fill="#FFF9E6" stroke="#F5C842" strokeWidth="2.5"/>
+            <circle cx="45" cy="40" r="5" fill="#F5C842"/>
+            <rect x="54" y="36" width="45" height="8" rx="4" fill="#F5C842" opacity="0.35"/>
+            <circle cx="45" cy="60" r="5" fill="#F5C842"/>
+            <rect x="54" y="56" width="45" height="8" rx="4" fill="#F5C842" opacity="0.35"/>
+            <circle cx="45" cy="80" r="5" fill="#F5C842"/>
+            <rect x="54" y="76" width="45" height="8" rx="4" fill="#F5C842" opacity="0.35"/>
+            <rect x="65" y="100" width="38" height="22" rx="4" fill="#F5C842"/>
+            <circle cx="70" cy="130" r="6" fill="#2D2D2D"/>
+            <circle cx="98" cy="130" r="6" fill="#2D2D2D"/>
+            <rect x="68" y="105" width="32" height="16" rx="3" fill="#FFF"/>
           </svg>
         </div>
       </section>
 
+      {/* 顾客暂存提示（如果适用） */}
       {usedCar.applicable ? (
-        <p className="closing-check-crosscheck" data-tone={usedCar.tone}>{usedCar.message}</p>
+        <p className="closing-usedcar-notice" data-tone={usedCar.tone}>{usedCar.message}</p>
       ) : null}
 
-      <ol className="closing-module-list">
+      {/* 三个模块确认卡片 */}
+      <div className="closing-modules-grid">
         {modules.map((module) => {
           const isConfirmed = isModuleConfirmed(module, confirmed)
           const ModuleIcon = moduleIcons[module.id] || IconBicycle
+          
           return (
-            <li key={module.id} className="closing-module-row" data-confirmed={isConfirmed ? 'true' : 'false'} data-changed={module.changed ? 'true' : 'false'}>
-              <span className="closing-module-number">{module.no}</span>
-              <span className="closing-module-icon">
-                <ModuleIcon width={20} height={20} aria-hidden="true" />
-              </span>
-              <div className="closing-module-info">
-                <strong>{module.title}</strong>
-                <small>
-                  {module.code} · {module.changed ? `今天有 ${module.count} 项变动` : '今天没有变动'}
-                  {module.backlog.openCount ? ` · 未完成 ${module.backlog.openCount} 项` : ''}
-                </small>
-                {module.changed ? (
-                  <>
-                    <p className="closing-module-tally">{formatChangeTally(module.tally)}</p>
-                    <ul className="closing-module-changes">
-                      {module.entries.slice(0, VISIBLE_CHANGES).map((entry) => (
-                        <li key={entry.id}><span>{entry.actionLabel}</span><small>{entry.label}</small></li>
-                      ))}
-                      {module.entries.length > VISIBLE_CHANGES ? (
-                        <li className="closing-check-more">另有 {module.entries.length - VISIBLE_CHANGES} 项变动，可在当日日志查看</li>
-                      ) : null}
-                    </ul>
-                  </>
-                ) : (
-                  <p className="closing-check-carry" data-stale={module.backlog.staleCount ? 'true' : 'false'}>{module.carryMessage}</p>
-                )}
+            <article key={module.id} className="closing-module-card" data-confirmed={isConfirmed ? 'true' : 'false'}>
+              <div className="closing-module-header">
+                <span className="closing-module-number">{module.no}</span>
+                <div className="closing-module-icon-box">
+                  <ModuleIcon width={22} height={22} strokeWidth={2} aria-hidden="true" />
+                </div>
+                <div className="closing-module-title-group">
+                  <h3 className="closing-module-title">{module.title}</h3>
+                  <p className="closing-module-meta">
+                    {module.code} · {module.changed ? `今天有 ${module.count} 项变动` : '今天没有变动'}
+                    {module.backlog.openCount ? ` · 未完成 ${module.backlog.openCount} 项` : ''}
+                  </p>
+                </div>
               </div>
+
+              {module.changed ? (
+                <div className="closing-module-body">
+                  <p className="closing-module-tally">{formatChangeTally(module.tally)}</p>
+                  <ul className="closing-module-changes">
+                    {module.entries.slice(0, VISIBLE_CHANGES).map((entry) => (
+                      <li key={entry.id} className="closing-module-change-item">
+                        <span className="closing-module-change-action">{entry.actionLabel}</span>
+                        <span className="closing-module-change-label">{entry.label}</span>
+                      </li>
+                    ))}
+                    {module.entries.length > VISIBLE_CHANGES ? (
+                      <li className="closing-module-change-more">另有 {module.entries.length - VISIBLE_CHANGES} 项变动，可在当日日志查看</li>
+                    ) : null}
+                  </ul>
+                </div>
+              ) : (
+                <div className="closing-module-body">
+                  <p className="closing-module-carry">{module.carryMessage}</p>
+                </div>
+              )}
+
               <button
                 type="button"
-                className="closing-module-confirm"
+                className="closing-module-confirm-btn"
                 onClick={() => toggle(module)}
                 aria-pressed={isConfirmed}
                 disabled={submitting}
-                data-processing={submitting ? 'true' : undefined}
               >
-                {isConfirmed ? <><IconCheck width={15} height={15} aria-hidden="true" />已确认</> : '确认'}
+                {isConfirmed ? <><IconCheck width={16} height={16} aria-hidden="true" />已确认</> : '确认'}
               </button>
-            </li>
+            </article>
           )
         })}
-      </ol>
+      </div>
 
-      <p className="closing-gate-status" data-ready={gateOpen ? 'true' : 'false'}>{gateMessage}</p>
+      {/* 底部状态提示 */}
+      <p className="closing-gate-message" data-ready={gateOpen ? 'true' : 'false'}>
+        {gateMessage}
+      </p>
 
-      <div className="dialog-footer">
-        <button type="button" className="closing-btn-secondary" onClick={onClose} disabled={submitting}>
+      {/* 底部按钮 */}
+      <div className="closing-dialog-footer">
+        <button 
+          type="button" 
+          className="closing-btn-back" 
+          onClick={onClose} 
+          disabled={submitting}
+        >
           返回检查
         </button>
         <button
           type="button"
-          className="closing-btn-primary"
+          className="closing-btn-confirm"
           onClick={confirm}
           disabled={submitting || !gateOpen}
-          data-processing={submitting ? 'true' : undefined}
           aria-busy={submitting || undefined}
         >
-          {submitting ? <><IconCheck width={15} height={15} aria-hidden="true" />确认中…</> : '确认闭店'}
+          {submitting ? '确认中…' : '确认闭店'}
         </button>
       </div>
     </AppDialog>

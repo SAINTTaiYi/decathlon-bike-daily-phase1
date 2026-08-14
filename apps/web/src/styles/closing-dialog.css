@@ -1,0 +1,460 @@
+/* ========================================
+   闭店确认弹窗 - 参考图像素级复刻
+   ======================================== */
+
+/* 黄色警告大卡片 */
+.closing-warning-card {
+  position: relative;
+  background: linear-gradient(135deg, #FFF9E6 0%, #FFFBF0 100%);
+  border: 2px solid #F5C842;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.closing-warning-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: #F5C842;
+  border-radius: 12px;
+  flex-shrink: 0;
+  color: #1A1A1A;
+}
+
+.closing-warning-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.closing-warning-eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #C29D2E;
+  margin-bottom: 8px;
+}
+
+.closing-warning-headline {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #1A1A1A;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.02em;
+}
+
+.closing-warning-detail {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #4A4A4A;
+  margin: 0 0 16px 0;
+}
+
+.closing-warning-metrics {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1A1A1A;
+  margin: 0 0 20px 0;
+  padding: 12px 16px;
+  background: rgba(245, 200, 66, 0.15);
+  border-radius: 8px;
+  border-left: 3px solid #F5C842;
+}
+
+.closing-warning-metrics strong {
+  font-weight: 700;
+  color: #1A1A1A;
+}
+
+.closing-warning-reconcile {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #1A1A1A;
+  margin: 20px 0;
+  padding: 16px;
+  background: #FFF;
+  border-radius: 8px;
+  border: 1.5px solid #F5C842;
+}
+
+.closing-warning-illustration {
+  display: none;
+  flex-shrink: 0;
+}
+
+/* 车辆分组 */
+.closing-vehicle-group {
+  margin-top: 24px;
+}
+
+.closing-vehicle-group:first-of-type {
+  margin-top: 20px;
+}
+
+.closing-vehicle-group-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1A1A1A;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.closing-vehicle-group-count {
+  font-size: 13px;
+  font-weight: 500;
+  color: #666;
+}
+
+.closing-vehicle-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.closing-vehicle-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(245, 200, 66, 0.3);
+  border-left: 3px solid #F5C842;
+  border-radius: 8px;
+}
+
+.closing-vehicle-emoji {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #F5C842 0%, #E8B92E 100%);
+  border-radius: 10px;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.closing-vehicle-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.closing-vehicle-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1A1A1A;
+  line-height: 1.3;
+}
+
+.closing-vehicle-meta {
+  font-size: 13px;
+  font-weight: 400;
+  color: #666;
+  line-height: 1.4;
+}
+
+.closing-vehicle-more {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #666;
+  background: rgba(245, 200, 66, 0.08);
+  border-radius: 6px;
+  text-align: center;
+}
+
+/* 顾客暂存提示 */
+.closing-usedcar-notice {
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #FFF9E6 0%, #FFFBF0 100%);
+  border-left: 4px solid #F5C842;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #4A4A4A;
+  margin-bottom: 20px;
+}
+
+/* 三个模块卡片网格 */
+.closing-modules-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.closing-module-card {
+  background: #FAFAFA;
+  border: 1.5px solid #E0E0E0;
+  border-radius: 12px;
+  padding: 18px;
+  transition: all 0.2s ease;
+}
+
+.closing-module-card[data-confirmed="true"] {
+  background: #F0F9F4;
+  border-color: #8BC34A;
+}
+
+.closing-module-header {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.closing-module-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: #1A1A1A;
+  color: #FFF;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.closing-module-icon-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #F5C842 0%, #E8B92E 100%);
+  border-radius: 12px;
+  color: #1A1A1A;
+  flex-shrink: 0;
+}
+
+.closing-module-title-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.closing-module-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1A1A1A;
+  margin: 0 0 4px 0;
+  line-height: 1.3;
+}
+
+.closing-module-meta {
+  font-size: 13px;
+  font-weight: 400;
+  color: #666;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.closing-module-body {
+  margin-bottom: 14px;
+  padding-left: 48px;
+}
+
+.closing-module-tally {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1A1A1A;
+  margin: 0 0 10px 0;
+  line-height: 1.5;
+}
+
+.closing-module-changes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.closing-module-change-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: rgba(245, 200, 66, 0.1);
+  border-left: 2px solid #F5C842;
+  border-radius: 6px;
+}
+
+.closing-module-change-action {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1A1A1A;
+}
+
+.closing-module-change-label {
+  font-size: 12px;
+  font-weight: 400;
+  color: #666;
+}
+
+.closing-module-change-more {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #666;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.closing-module-carry {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.closing-module-confirm-btn {
+  width: 100%;
+  padding: 13px 20px;
+  background: #1A1A1A;
+  color: #FFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.closing-module-confirm-btn:hover:not(:disabled) {
+  background: #2D2D2D;
+  transform: translateY(-1px);
+}
+
+.closing-module-confirm-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.closing-module-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.closing-module-card[data-confirmed="true"] .closing-module-confirm-btn {
+  background: #8BC34A;
+  color: #FFF;
+}
+
+/* 底部门槛提示 */
+.closing-gate-message {
+  padding: 14px 18px;
+  background: rgba(245, 200, 66, 0.1);
+  border-left: 4px solid #F5C842;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #4A4A4A;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.closing-gate-message[data-ready="true"] {
+  background: rgba(139, 195, 74, 0.1);
+  border-left-color: #8BC34A;
+  color: #2E7D32;
+}
+
+/* 底部按钮 */
+.closing-dialog-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.closing-btn-back {
+  padding: 14px 24px;
+  background: #FFF;
+  color: #1A1A1A;
+  border: 2px solid #E0E0E0;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.closing-btn-back:hover:not(:disabled) {
+  background: #F5F5F5;
+  border-color: #BDBDBD;
+}
+
+.closing-btn-back:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.closing-btn-confirm {
+  padding: 14px 24px;
+  background: linear-gradient(135deg, #F5C842 0%, #E8B92E 100%);
+  color: #1A1A1A;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.closing-btn-confirm:hover:not(:disabled) {
+  background: linear-gradient(135deg, #E8B92E 0%, #D9A61F 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 200, 66, 0.3);
+}
+
+.closing-btn-confirm:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.closing-btn-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 桌面端优化 */
+@media (min-width: 768px) {
+  .closing-warning-card {
+    padding: 28px;
+  }
+  
+  .closing-warning-illustration {
+    display: block;
+  }
+  
+  .closing-module-card {
+    padding: 20px;
+  }
+  
+  .closing-modules-grid {
+    gap: 18px;
+  }
+}
