@@ -1076,6 +1076,7 @@ button:disabled { opacity: .48; }
 }
 .closing-check-page .closing-check-focus {
   display: grid;
+  grid-template-columns: minmax(0,1fr);
   gap: 0;
   min-width: 0;
   margin: 0 0 12px;
@@ -1499,6 +1500,7 @@ button:disabled { opacity: .48; }
 .closing-check-page-footer {
   display: grid;
   grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  grid-template-areas: 'secondary primary';
   gap: 10px;
   padding: 10px 16px max(10px,env(safe-area-inset-bottom));
   border-top: 1px solid #e2dfd7;
@@ -1520,11 +1522,15 @@ button:disabled { opacity: .48; }
   line-height: 1.1;
 }
 .closing-check-page-secondary {
+  order: 0;
+  grid-area: secondary;
   border: 1.5px solid #151511;
   background: #fffefa;
   color: #151511;
 }
 .closing-check-page-primary {
+  order: 0;
+  grid-area: primary;
   gap: 5px;
   border: 1.5px solid #f2bd00;
   background: #ffc400;
