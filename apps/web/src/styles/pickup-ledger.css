@@ -66,7 +66,7 @@
 .pickup-source-line small { padding-left: 3px; font-size: 9px; font-weight: 600; }
 .pickup-storage-summary { overflow: hidden; color: var(--pickup-muted); font-size: 10px; line-height: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .pickup-card-status { grid-area: status; display: grid; justify-items: end; align-content: space-between; min-height: 42px; }
-.pickup-card-status b { max-width: 112px; padding: 3px 6px; border: 1px solid rgb(12 14 12 / .38); border-radius: 999px; color: var(--pickup-muted); font-size: 9px; font-weight: 750; line-height: 12px; text-align: center; }
+.pickup-card-status b { max-width: 112px; padding: 3px 6px; border: 1px solid rgb(12 14 12 / .38); border-radius: 999px; color: var(--pickup-muted); font-size: 9px; font-weight: 750; line-height: 1.45; text-align: center; overflow-wrap: anywhere; }
 .pickup-card-status b[data-repair='true'] { border-color: var(--pickup-black); color: var(--pickup-black); }
 .pickup-card-status svg { transition: transform 180ms ease; }
 .pickup-card[data-expanded='true'] .pickup-card-status svg { transform: rotate(180deg); }
@@ -499,14 +499,17 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding: 1px 7px;
   border: 1px solid rgb(12 14 12 / .2);
   border-radius: 999px;
   background: var(--pickup-black);
   color: var(--pickup-yellow);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 750;
-  line-height: 14px;
+  line-height: 1.5;
   white-space: nowrap;
 }
 .pickup-assignee-control { border-top: 1px dashed var(--pickup-line); padding-top: 8px; }

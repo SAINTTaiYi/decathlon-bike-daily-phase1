@@ -83,7 +83,14 @@ export default function DatePickerField({ value = '', onChange, placeholder = '�
       dialog.close()
     }
     if (!open) return undefined
-    const onScroll = () => closePanel()
+    // 桌面锚定浮层：页面滚动时关闭，但忽略面板内部的滚动。
+    // 移动端底部分层：不监听滚动——iOS 惯性滚动或打开瞬间触发的滚动事件
+    // 会立刻把刚打开的面板关掉（界面闪退）。
+    if (window.matchMedia('(max-width: 640px)').matches) return undefined
+    const onScroll = (event) => {
+      if (dialogRef.current?.contains(event.target)) return
+      closePanel()
+    }
     window.addEventListener('scroll', onScroll, true)
     return () => window.removeEventListener('scroll', onScroll, true)
   }, [open])
