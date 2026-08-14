@@ -1,34 +1,52 @@
 {
   "kind": "formal-production-release",
-  "version": "5.9.6",
+  "version": "5.9.7",
   "previewRange": {
-    "fromExclusive": "c1e24e7ddc3664bb9a5dca92f2e6ee81401aaa62",
-    "toInclusive": "e09f4eabea5b815779b38f1c9dfd3735b621172d",
+    "fromExclusive": "36bf50177a6b666762d6ca92c5a4098bad5f120a",
+    "toInclusive": "6a25cb073865be83a79d06685cdd70862d1969bd",
     "commits": [
       {
-        "sha": "ce0482a7b385e4c3627b254778bee4472e2a8ac6",
-        "subject": "Merge pull request #208 from SAINTTaiYi/fix/release-v5-9-5-20260814"
+        "sha": "da833949b46e066195e7950e3c3b2039a6e0132c",
+        "subject": "Merge pull request #210 from SAINTTaiYi/fix/release-v5-9-6-20260814"
       },
       {
-        "sha": "ef31c1a1400813b027f6e5ce0c36b9eb121facc8",
-        "subject": "fix: 移动端日期选择闪退 + 维修卡交接人重叠"
+        "sha": "bcbae7c3cfd6fa489cdd96327e91c1e9587305be",
+        "subject": "fix: 日期面板弃用嵌套 dialog 防移动端闪现关闭 + 展开区改 grid 插值防重叠"
       },
       {
-        "sha": "e09f4eabea5b815779b38f1c9dfd3735b621172d",
-        "subject": "Merge pull request #209 from SAINTTaiYi/fix/mobile-datepicker-assignee-20260814"
+        "sha": "fef18af7437b21d42f923740dce4a086569fd957",
+        "subject": "Merge pull request #211 from SAINTTaiYi/fix/mobile-datepicker-assignee-v2"
+      },
+      {
+        "sha": "4afab4e826f3e63ce5eef578e1b52b29a15e0b66",
+        "subject": "fix(web): keep pickup confirmation at card edge"
+      },
+      {
+        "sha": "b7a026e8f2bda227c53d54b026ad9e21babc0fe7",
+        "subject": "fix(pickup): 确认按钮移至卡片最右侧并修复指定交接人后的页面跳顶"
+      },
+      {
+        "sha": "ed53fc5b907b8285d2d8c7417fdc33bb470a010f",
+        "subject": "fix(pickup): 移除卡片内重复的操作记录按钮，保留顶部全局按钮"
+      },
+      {
+        "sha": "6a25cb073865be83a79d06685cdd70862d1969bd",
+        "subject": "fix(pickup): eliminate search bar jitter with transform-based hide + scroll debounce"
       }
     ]
   },
   "announcement": {
-    "title": "移动端日期选择闪退与维修卡交接人重叠修复",
-    "summary": "自 V5.9.5 后修复 2 项移动端回归（PR #209）：①选择日期时界面闪退——日期面板打开瞬间被滚动事件关闭的问题已修复，移动端底部分层不再响应滚动关闭，桌面浮层忽略面板内部滚动；②维修车辆卡片上维修状态与交接人 chip 重叠——状态标签与 chip 改用随系统字体缩放的无单位行高并增加溢出保护，系统字体放大时不再互相重叠。日期单元格同步改为最小高度，防止字体放大时数字溢出。新增 3 条回归测试。",
+    "title": "待取/维修卡操作区与搜索栏滚动修复",
+    "summary": "自 V5.9.6 后修复移动端多项 UI 回归（PR #211 + 本次操作区布局批次）：①日期选择面板闪现关闭——弃用嵌套 dialog 改为 portal 浮层，关闭仅由点背景/Escape/选中日期触发；②待取卡展开区高度定格、内容裁切重叠——改 CSS grid 插值动画，高度始终等于内容；③卡片操作区布局——确认取车按钮固定吸附最右侧，维修/备注与交接人信息独占整行不再重叠，移除卡片内重复的操作记录按钮；④指定交接人弹窗关闭后页面跳顶——滚动恢复改为即时执行；⑤移动端搜索栏滚动时上下抽搐——隐藏动画改用平移不改变文档流，滚动检测增加防抖与更高阈值。",
     "changes": [
-      "修复移动端选择日期时界面闪退：日期面板不再因滚动事件（iOS 惯性滚动/打开瞬间滚动）被立即关闭（PR #209）",
-      "桌面端日期浮层保留滚动关闭，但忽略面板内部的滚动（PR #209）",
-      "修复移动端维修车辆卡维修状态与交接人 chip 重叠：状态标签与 chip 改用随系统字体缩放的无单位行高，chip 增加宽度上限与省略号（PR #209）",
-      "日期选择器单元格与月份按钮改为最小高度，系统字体放大时数字不再溢出（PR #209）",
-      "新增 3 条移动端回归测试，覆盖日期面板滚动关闭与卡片重叠场景（PR #209）"
+      "修复移动端日期选择面板闪现关闭：弃用嵌套 dialog，改为 portal 浮层，关闭仅由点背景/Escape/选中日期触发（PR #211）",
+      "待取卡展开区弃用 JS 测量高度，改 CSS grid-template-rows 0fr/1fr 插值动画，高度始终等于内容，不再高度定格或内容重叠（PR #211）",
+      "确认取车按钮固定吸附在卡片操作区最右侧，移动端与桌面端统一 flex + margin-left:auto，不再被挤到下一行或超出卡片",
+      "维修/备注详情与交接人信息改为独占整行，不再互相重叠",
+      "修复点击“指定交接人”后页面跳到顶部：弹窗关闭时的滚动恢复改为即时执行",
+      "移除卡片内重复的“操作记录”按钮，保留模块顶部的全局入口",
+      "修复移动端搜索栏滚动时上下抽搐：隐藏动画改用 translateY 平移不改变文档流，滚动检测增加 80ms 防抖与更高阈值"
     ]
   },
-  "preparedAt": "2026-08-14T07:31:17.777Z"
+  "preparedAt": "2026-08-14T10:51:16.916Z"
 }

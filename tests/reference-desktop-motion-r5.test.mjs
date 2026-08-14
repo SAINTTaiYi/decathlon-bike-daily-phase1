@@ -35,7 +35,7 @@ test('desktop motion is reduced-motion safe and the mobile scroll path remains d
 })
 
 test('every desktop card action row and both notice controls are compact at the far right', () => {
-  assert.match(css, /\.pickup-card-actions \{ display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;/u)
+  assert.match(css, /\.pickup-card-actions \{ display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-start;/u)
   assert.match(css, /\.pickup-notification-buttons \{ grid-column: 3; display: flex; justify-content: flex-end;/u)
   assert.match(css, /\.pickup-notification-buttons button \{ flex: 0 0 auto; width: auto; min-width: 142px; max-width: 170px;/u)
 })

@@ -23,7 +23,7 @@ export default function MemberSelectSheet({ open, members = [], currentId = '', 
       window.clearTimeout(timer)
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.cssText = bodyStyle
-      window.scrollTo({ top: scrollY, behavior: 'auto' })
+      window.scrollTo({ top: scrollY, behavior: 'instant' })
       previous?.focus?.({ preventScroll: true })
     }
   }, [onClose, open])

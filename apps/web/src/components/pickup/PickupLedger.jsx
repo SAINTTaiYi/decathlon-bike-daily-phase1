@@ -187,7 +187,7 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
         <section className="pickup-detail-wide pickup-assignee-control"><h4>HANDOVER TO <span>/ 交接人</span></h4><div className="pickup-assignee-row"><span className="pickup-assignee-current" data-empty={record.assigneeName ? 'false' : 'true'}>{record.assigneeName ? `@${record.assigneeName}` : '未指定'}</span></div></section>
         {pickupError ? <p className="pickup-card-error" role="alert">{pickupError}</p> : null}
         {pickedUp && !handoverMode ? <p className="pickup-card-resolved">{repairMode ? '维修完成后将转入待取车辆。' : '本条今日保留，下一业务日自动移除。'}</p> : null}
-        <footer className="pickup-card-actions">{!pickedUp ? <button type="button" className="pickup-secondary-action" onClick={() => onEdit(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconEdit width={16} height={16} aria-hidden="true" />编辑记录</button> : null}{!pickedUp ? <button type="button" className="pickup-secondary-action" onClick={() => onAssignClick(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconUser width={16} height={16} aria-hidden="true" />{record.assigneeName ? '更换交接人' : '指定交接人'}</button> : null}<button type="button" className="pickup-history-action" onClick={() => onHistory(record)}><IconJournal width={16} height={16} aria-hidden="true" />操作记录</button>{!pickedUp ? <details className="pickup-card-more"><summary>更多</summary><button type="button" onClick={() => onRemove(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconTrash width={15} height={15} aria-hidden="true" />删除记录</button></details> : null}{!pickedUp ? <button type="button" className="pickup-primary-action" onClick={() => handoverMode ? onHandoverComplete(record) : repairMode ? onRepairComplete(record) : onPickup(record)} disabled={locked} aria-busy={primaryProcessing || undefined}><IconCheck width={17} height={17} aria-hidden="true" />{primaryProcessing ? '确认中…' : handoverMode ? '完成交接' : repairMode ? '维修完成' : '确认取车'}</button> : null}</footer>
+        <footer className="pickup-card-actions">{!pickedUp ? <button type="button" className="pickup-secondary-action" onClick={() => onEdit(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconEdit width={16} height={16} aria-hidden="true" />编辑记录</button> : null}{!pickedUp ? <button type="button" className="pickup-secondary-action" onClick={() => onAssignClick(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconUser width={16} height={16} aria-hidden="true" />{record.assigneeName ? '更换交接人' : '指定交接人'}</button> : null}{!pickedUp ? <details className="pickup-card-more"><summary>更多</summary><button type="button" onClick={() => onRemove(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconTrash width={15} height={15} aria-hidden="true" />删除记录</button></details> : null}{!pickedUp ? <button type="button" className="pickup-primary-action" onClick={() => handoverMode ? onHandoverComplete(record) : repairMode ? onRepairComplete(record) : onPickup(record)} disabled={locked} aria-busy={primaryProcessing || undefined}><IconCheck width={17} height={17} aria-hidden="true" />{primaryProcessing ? '确认中…' : handoverMode ? '完成交接' : repairMode ? '维修完成' : '确认取车'}</button> : null}</footer>
       </div>
       </div>
     </div>
@@ -243,17 +243,20 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   }, [handoverStampMotionId])
   useEffect(() => { const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 250); return () => window.clearTimeout(timer) }, [query])
   useEffect(() => {
+    let debounceTimer = null
     const onScroll = () => {
+      if (debounceTimer) return
+      debounceTimer = window.setTimeout(() => { debounceTimer = null }, 80)
       const current = window.scrollY
       const delta = current - lastScrollYRef.current
       lastScrollYRef.current = current
       if (!ledgerRef.current || ledgerRef.current.getBoundingClientRect().top > 96 || sheet || query) return setToolsVisible(true)
-      if (delta > 14) setToolsVisible(false)
-      else if (delta < -8) setToolsVisible(true)
+      if (delta > 18) setToolsVisible(false)
+      else if (delta < -10) setToolsVisible(true)
     }
     lastScrollYRef.current = window.scrollY
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    return () => { window.removeEventListener('scroll', onScroll); if (debounceTimer) window.clearTimeout(debounceTimer) }
   }, [query, sheet])
   const visible = useMemo(() => {
     const term = debouncedQuery.toLocaleLowerCase('zh-CN')

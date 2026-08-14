@@ -35,3 +35,9 @@ test('日期单元格用最小高度与无单位行高，系统字体放大时�
   assert.match(dateCss, /line-height: 1\.25;/u)
   assert.match(dateCss, /\.date-picker-day \{ min-height: 42px; \}/u)
 })
+
+test('移动端操作区同样用 flex + margin-left:auto，主按钮在所有断点都吸附到最右侧', () => {
+  assert.match(pickupCss, /\.pickup-card-actions \{ display: flex; flex-wrap: nowrap;/u)
+  assert.match(pickupCss, /\.pickup-card-actions .pickup-primary-action \{ margin-left: auto;/u)
+  assert.match(pickupCss, /\.pickup-card-actions button \{[^}]*flex: 0 0 auto;[^}]*width: auto;/u)
+})
