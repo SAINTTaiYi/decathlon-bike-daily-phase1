@@ -243,17 +243,20 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   }, [handoverStampMotionId])
   useEffect(() => { const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 250); return () => window.clearTimeout(timer) }, [query])
   useEffect(() => {
+    let debounceTimer = null
     const onScroll = () => {
+      if (debounceTimer) return
+      debounceTimer = window.setTimeout(() => { debounceTimer = null }, 80)
       const current = window.scrollY
       const delta = current - lastScrollYRef.current
       lastScrollYRef.current = current
       if (!ledgerRef.current || ledgerRef.current.getBoundingClientRect().top > 96 || sheet || query) return setToolsVisible(true)
-      if (delta > 14) setToolsVisible(false)
-      else if (delta < -8) setToolsVisible(true)
+      if (delta > 18) setToolsVisible(false)
+      else if (delta < -10) setToolsVisible(true)
     }
     lastScrollYRef.current = window.scrollY
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    return () => { window.removeEventListener('scroll', onScroll); if (debounceTimer) window.clearTimeout(debounceTimer) }
   }, [query, sheet])
   const visible = useMemo(() => {
     const term = debouncedQuery.toLocaleLowerCase('zh-CN')
