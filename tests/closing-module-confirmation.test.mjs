@@ -418,12 +418,28 @@ test('闭店弹窗渲染在店车辆分组、现场对账与二手车交叉校�
 
 test('App 向闭店弹窗传入当日审计事件、台账记录、业务日期与销售数据', async () => {
   const app = await read('apps/web/src/App.jsx')
-  const line = app.split('\n').find((row) => row.includes('<ConfirmClosingDialog'))
-  assert.ok(line, '必须渲染 ConfirmClosingDialog')
+  const line = app.split('\n').find((row) => row.includes('<ClosingCheckPage'))
+  assert.ok(line, '必须渲染 ClosingCheckPage')
   assert.match(line, /events=\{workflow\.events\}/u)
   assert.match(line, /records=\{workflow\.records\}/u)
   assert.match(line, /dateKey=\{workflow\.dateKey\}/u)
   assert.match(line, /kpi=\{workflow\.kpi\}/u)
+})
+
+test('移动闭店页面保留参考图的全屏结构、插图、模块卡和并排底栏', async () => {
+  const page = await read('apps/web/src/pages/ClosingCheckPage.jsx')
+  const css = await read('apps/web/src/styles/workshop-system.css')
+  assert.match(page, /className="closing-check-page"/u)
+  assert.match(page, /closing-check-page-illustration/u)
+  assert.match(page, /closing-check-page-clipboard/u)
+  assert.match(page, /closing-check-page-car/u)
+  assert.match(page, /closing-check-module-icon/u)
+  assert.match(page, /data-module=\{module\.id\}/u)
+  assert.match(page, /closing-check-page-footer/u)
+  assert.match(css, /\.closing-check-page \{[\s\S]*position: fixed;/u)
+  assert.match(css, /\.closing-check-focus-top \{[\s\S]*grid-template-columns: minmax\(0,1fr\) 116px;/u)
+  assert.match(css, /\.closing-check-page-footer \{[\s\S]*grid-template-columns: minmax\(0,1fr\) minmax\(0,1fr\);/u)
+  assert.match(css, /\.closing-check-page-primary/u)
 })
 
 test('闭店核对视觉沿用 DESIGN.md token，黄色仍只留给唯一主动作', async () => {
