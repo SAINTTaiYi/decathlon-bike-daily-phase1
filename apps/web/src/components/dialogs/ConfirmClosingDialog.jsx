@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import IconCheck from '@iconoir/Check.mjs'
 import IconWarning from '@iconoir/WarningTriangle.mjs'
+import IconCheckCircle from '@iconoir/CheckCircle.mjs'
 import IconBicycle from '@iconoir/Bicycle.mjs'
 import IconUserCard from '@iconoir/UserCard.mjs'
 import IconTools from '@iconoir/Tools.mjs'
@@ -8,10 +9,12 @@ import AppDialog from './AppDialog.jsx'
 import {
   buildClosingChecklist,
   closingGateState,
+  formatChangeTally,
   isModuleConfirmed,
   toggleModuleConfirmation
 } from '../../data/closingChecklist.js'
 
+const VISIBLE_CHANGES = 3
 const VISIBLE_PER_GROUP = 6
 
 export default function ConfirmClosingDialog({ open, onClose, onConfirm, events = [], records = [], dateKey = '', kpi = {} }) {
@@ -23,7 +26,7 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
   }, [open, dateKey])
 
   const checklist = useMemo(() => buildClosingChecklist({ events, records, dateKey, kpi }), [events, records, dateKey, kpi])
-  const { modules, inStore } = checklist
+  const { modules, inStore, usedCar } = checklist
   const { pending, gateOpen, message: gateMessage } = closingGateState(modules, confirmed)
 
   const toggle = (module) => setConfirmed((current) => toggleModuleConfirmation(module, current))
@@ -51,7 +54,9 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
     >
       <section className="closing-focus-card" data-tone={inStore.tone}>
         <div className="closing-focus-icon">
-          <IconWarning width={28} height={28} aria-hidden="true" />
+          {inStore.tone === 'warn'
+            ? <IconWarning width={28} height={28} aria-hidden="true" />
+            : <IconCheckCircle width={28} height={28} aria-hidden="true" />}
         </div>
         <div className="closing-focus-content">
           <span className="closing-focus-eyebrow">IN STORE · 台账上还在店里的车</span>
@@ -63,7 +68,7 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
             {inStore.staleCount ? ` · 挂账偏久 ${inStore.staleCount} 台` : ''}
           </p>
           {inStore.reconcileLabel ? (
-            <p className="closing-focus-prompt">{inStore.reconcileLabel}</p>
+            <p className="closing-check-reconcile">{inStore.reconcileLabel}</p>
           ) : null}
           
           {inStore.groups.map((group) => (
@@ -85,6 +90,9 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
                     </div>
                   </li>
                 ))}
+                {group.items.length > VISIBLE_PER_GROUP ? (
+                  <li className="closing-check-more">另有 {group.items.length - VISIBLE_PER_GROUP} 台，请到待取台账逐台核对</li>
+                ) : null}
               </ul>
             </div>
           ))}
@@ -106,12 +114,16 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
         </div>
       </section>
 
+      {usedCar.applicable ? (
+        <p className="closing-check-crosscheck" data-tone={usedCar.tone}>{usedCar.message}</p>
+      ) : null}
+
       <ol className="closing-module-list">
         {modules.map((module) => {
           const isConfirmed = isModuleConfirmed(module, confirmed)
           const ModuleIcon = moduleIcons[module.id] || IconBicycle
           return (
-            <li key={module.id} className="closing-module-row" data-confirmed={isConfirmed ? 'true' : 'false'}>
+            <li key={module.id} className="closing-module-row" data-confirmed={isConfirmed ? 'true' : 'false'} data-changed={module.changed ? 'true' : 'false'}>
               <span className="closing-module-number">{module.no}</span>
               <span className="closing-module-icon">
                 <ModuleIcon width={20} height={20} aria-hidden="true" />
@@ -122,13 +134,21 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
                   {module.code} · {module.changed ? `今天有 ${module.count} 项变动` : '今天没有变动'}
                   {module.backlog.openCount ? ` · 未完成 ${module.backlog.openCount} 项` : ''}
                 </small>
-                {module.changed && module.entries.length > 0 ? (
-                  <p className="closing-module-changes">
-                    {module.entries.slice(0, 1).map((entry) => (
-                      <span key={entry.id}>编辑 {entry.label}</span>
-                    ))}
-                  </p>
-                ) : null}
+                {module.changed ? (
+                  <>
+                    <p className="closing-module-tally">{formatChangeTally(module.tally)}</p>
+                    <ul className="closing-module-changes">
+                      {module.entries.slice(0, VISIBLE_CHANGES).map((entry) => (
+                        <li key={entry.id}><span>{entry.actionLabel}</span><small>{entry.label}</small></li>
+                      ))}
+                      {module.entries.length > VISIBLE_CHANGES ? (
+                        <li className="closing-check-more">另有 {module.entries.length - VISIBLE_CHANGES} 项变动，可在当日日志查看</li>
+                      ) : null}
+                    </ul>
+                  </>
+                ) : (
+                  <p className="closing-check-carry" data-stale={module.backlog.staleCount ? 'true' : 'false'}>{module.carryMessage}</p>
+                )}
               </div>
               <button
                 type="button"
@@ -136,23 +156,16 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
                 onClick={() => toggle(module)}
                 aria-pressed={isConfirmed}
                 disabled={submitting}
+                data-processing={submitting ? 'true' : undefined}
               >
-                确认
+                {isConfirmed ? <><IconCheck width={15} height={15} aria-hidden="true" />已确认</> : '确认'}
               </button>
             </li>
           )
         })}
       </ol>
 
-      {!gateOpen && pending.length > 0 ? (
-        <div className="closing-gate-warning">
-          <p>{gateMessage}</p>
-        </div>
-      ) : null}
-
-      {gateOpen ? (
-        <p className="closing-gate-ready">还有 {pending.length} 个台账待确认：{pending.join('、')}。</p>
-      ) : null}
+      <p className="closing-gate-status" data-ready={gateOpen ? 'true' : 'false'}>{gateMessage}</p>
 
       <div className="dialog-footer">
         <button type="button" className="closing-btn-secondary" onClick={onClose} disabled={submitting}>
@@ -163,8 +176,10 @@ export default function ConfirmClosingDialog({ open, onClose, onConfirm, events 
           className="closing-btn-primary"
           onClick={confirm}
           disabled={submitting || !gateOpen}
+          data-processing={submitting ? 'true' : undefined}
+          aria-busy={submitting || undefined}
         >
-          确认闭店
+          {submitting ? <><IconCheck width={15} height={15} aria-hidden="true" />确认中…</> : '确认闭店'}
         </button>
       </div>
     </AppDialog>
