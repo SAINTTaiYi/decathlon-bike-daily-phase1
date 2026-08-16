@@ -1,206 +1,373 @@
-# Shiphub 数据接入设计（待交接 / 待收货 / 待发货）
+# Shiphub 数据接入与网站整合方案
 
-> 版本：v1.1 | 日期：2026-08-16 | 状态：设计基线（待评审）
-> 关联：`SAINTTaiYi/decathlon-bike-daily-phase1`（workshop.skin）
-> 数据源：Shiphub（`shiphub-asia-cn.decathlon.com.cn`）｜账号 CHU13｜门店 南宁五象店（NANNI1299 / partyNumber `0070129901299`）
+> 版本：v1.2  
+> 日期：2026-08-17  
+> 状态：评审后实施基线  
+> 适用项目：Workshop Daily Ops  
+> 文档属性：公开仓库脱敏版，不包含账号、门店外部标识、真实端点、令牌或网络位置
 
----
+## 1. 目标与边界
 
-## 1. 背景与目标
+Workshop Daily Ops 从 Shiphub 只读同步三类门店订单：
 
-Workshop Daily Ops 需要把迪卡侬 Shiphub 的三类门店订单数据自动同步进网站：
-
-| 类别 | 含义 | workshop 对应 |
+| 类别 | 业务含义 | 网站挂载位置 |
 |---|---|---|
-| **hand**（待交接） | C&C 自提订单，顾客到店取货 | 待取模块「自提订单」来源 |
-| **receive**（待收货） | 快递/仓配到店的待收货订单 | 新「待收货」视图 |
-| **ship**（待发货） | 待发出给顾客/承运商的订单 | 新「待发货」视图 |
+| `hand` | 待交接的到店自提订单 | 现有「待取车辆」中的 Shiphub 自提来源 |
+| `receive` | 待收货订单 | 现有「其它交接」中的「待收货」标签 |
+| `ship` | 待发货订单 | 现有「其它交接」中的「待发货」标签 |
 
-约束：
-- **只读**：仅拉取数据，不反向写 Shiphub（取车/收货/发货确认在 workshop 本地闭环）
-- **令牌不进浏览器**：OAuth2 令牌只存在于 Worker 侧（Cloudflare Secret / D1）
-- **API 调用最小化**：与用户数、页面打开次数解耦，控制在常数级
-- **尽量低调**：请求量小、营业时段、随机抖动、免登录续期
+本期不包含：
 
-## 2. 决策基线（已确认）
+- 向 Shiphub 回写取车、收货或发货状态。
+- 自动创建现有 `work_items` 手工台账记录。
+- 新增一级导航模块或改变移动端现有六模块布局。
+- 在 Preview 环境访问真实 Shiphub。
+- 保存 Shiphub 账号密码。
 
-| 项 | 决策 |
+## 2. 实施前提
+
+以下条件未验证前，不得启用真实同步：
+
+1. 已获得数据所有者对 API、账号和目标门店数据使用的明确授权。
+2. 已确认 OAuth2 授权端点、回调地址、scope、PKCE/state 要求、refresh token 有效期及轮换行为。
+3. 已用独立测试 Worker 验证 DNS、TLS、上游访问策略和 Cloudflare 出网兼容性。
+4. 已取得脱敏的 count、list、detail 响应样例，确认分页、订单主键、明细行主键、时间字段和状态字段。
+5. 已确认上游限流规则及允许的最大 `page_size`。
+
+Cloudflare Scheduled Worker 不保证固定地区或固定出口 IP。若上游只允许企业网络、门店网络或固定 IP，应改用经过授权的企业 API 网关或固定出口，不得假定普通 Worker 可以直连。
+
+## 3. 设计原则
+
+- **Pull once, serve many**：Worker 拉取一次写入 D1，所有浏览器只读本站 API。
+- **最小上游负载**：页面打开、切换标签和普通刷新不调用 Shiphub。
+- **多门店隔离**：连接、令牌、同步状态、订单和操作状态都以 `store_id` 隔离。
+- **一致性优先**：count 只用于轻量门控，定期完整列表对账负责发现总数不变的订单替换。
+- **本地动作与上游状态分离**：店员本地确认不覆盖上游待处理状态。
+- **失败保留旧缓存**：同步失败时继续展示最后成功缓存，并明确标记缓存年龄和错误状态。
+- **可审计**：同步运行、人工触发和本地确认均有结构化审计；日志不记录令牌或完整个人数据。
+
+## 4. 总体架构
+
+```text
+Shiphub
+   |
+   | OAuth2 + read-only API
+   v
+Cloudflare Worker scheduled handler
+   |-- connection/token service
+   |-- per-store sync lease
+   |-- category reconciliation
+   |-- normalized field mapping
+   v
+D1 cache and local action overlay
+   |
+   | authenticated Workshop API
+   v
+Existing Workshop pages
+   |-- 待取车辆：全部 / 手工台账 / Shiphub 自提
+   |-- 其它交接：其它交接 / 待收货 / 待发货
+   `-- 总览：复用 summary 计数，不新增一级模块
+```
+
+浏览器永不获得 OAuth token，也不直接访问 Shiphub。
+
+## 5. 最小调用策略
+
+### 5.1 营业活跃时段
+
+| 类别 | 轻量 count | 强制完整 list 对账 |
+|---|---:|---:|
+| `hand` | 每 5 分钟 | 每 15 分钟 |
+| `receive` | 每 10 分钟 | 每 30 分钟 |
+| `ship` | 每 10 分钟 | 每 30 分钟 |
+
+执行规则：
+
+1. 非强制对账轮次先请求 count。
+2. count 与上次不同，立即读取全部 list 分页。
+3. count 相同则跳过 list，但到达强制对账时间仍必须读取全部 list 分页。
+4. 新订单首次出现时读取 detail；已有订单仅在上游提供可靠变更标识且标识变化时重读 detail。
+5. 使用上游允许的最大 `page_size`，减少分页请求。
+6. 所有类别默认串行或限制为极低并发，避免短时突发。
+
+不能只依赖 count。订单一进一出时总数可能不变，只有定期完整对账才能避免漏单。
+
+### 5.2 页面和人工操作
+
+| 用户行为 | 上游调用 |
+|---|---:|
+| 打开网站、切换模块、普通页面刷新 | 0 |
+| 查看订单和商品明细 | 0，读取 D1 |
+| 本地取车、收货、发货确认 | 0，写本地状态和审计 |
+| 明确点击「同步」 | 缓存未超过 2 分钟时为 0；超过阈值时排队一次后台同步 |
+
+人工同步立即返回当前缓存，不阻塞页面等待上游结果。所有用户共享同一门店级限频和同步租约，因此多人同时操作不会放大调用量。
+
+### 5.3 低活跃降频
+
+若门店连续 20 分钟没有已认证的业务 API 活动，三类统一降为每 15 分钟检查一次；重新出现业务活动后恢复正常频率。无论是否低活跃，完整对账的最大间隔不得超过：
+
+- `hand`：15 分钟。
+- `receive` / `ship`：30 分钟。
+
+### 5.4 Token、重试和熔断
+
+- 仅在下一次真实请求前检查 access token；临近过期才刷新。
+- refresh token 轮换必须原子保存，防止旧 token 覆盖新 token。
+- 同一轮遇到 `401` 时只允许刷新并重试一次。
+- `429` 和可重试 `5xx` 最多重试一次，遵守 `Retry-After`；随后进入短时熔断。
+- 非可重试 `4xx` 不重试，记录脱敏错误码并保留旧缓存。
+- 不使用随机请求伪装，不模拟浏览器流量。
+
+### 5.5 预计调用量
+
+按营业 12 小时、页面较活跃估算：
+
+| 类型 | 预计日调用 |
+|---|---:|
+| count / list 基础轮次 | 约 288 |
+| count 变化后的追加 list | 约 30 |
+| 新订单 detail | 约 60 |
+| token 刷新 | 约 6 |
+| 合计 | 约 380 |
+
+低活跃时通常约 300 至 340 次/天。最终预算以真实分页数、订单量和上游 token 有效期为准。
+
+## 6. 同步一致性模型
+
+每个门店、每个类别独立执行以下状态机：
+
+```text
+检查功能开关和营业时段
+  -> 获取门店级同步租约
+  -> 判断 count 轮次或强制完整对账轮次
+  -> 读取全部分页到内存中的本轮集合
+  -> 仅在全部分页成功后写入订单和明细
+  -> 仅在完整对账成功后标记本轮未出现订单为 upstream_absent
+  -> 更新 last_success_at / next_reconcile_at
+  -> 释放租约
+```
+
+关键约束：
+
+- list 任一分页失败时，本轮不得标记任何订单为上游消失。
+- 每轮使用唯一 `sync_run_id`，订单保存 `last_seen_run_id`。
+- D1 写入必须幂等，主键至少包含 `store_id + category + upstream_order_id`。
+- `upstream_state` 与 `local_action_state` 分开保存。
+- 本地已确认但上游仍存在时，UI 显示「本地已处理，等待上游对齐」，不得静默复活或隐藏异常。
+- 上游订单重新出现时更新 `upstream_state`，保留本地操作历史。
+
+D1 不是长事务锁服务。同步互斥采用带过期时间的租约和条件更新；必须允许 Worker 异常退出后自动恢复。
+
+## 7. D1 数据模型
+
+迁移建议为纯新增 `0015_shiphub_sync.sql`，不修改现有表和约束，以符合 expand-contract 发布策略。
+
+### `shiphub_connections`
+
+- `store_id`：主键并关联 `stores(id)`。
+- `location_ref`：外部门店标识的加密值或受控配置引用。
+- `enabled`、`mode`：连接开关和 `fixture/live` 模式。
+- `access_token_ciphertext`、`refresh_token_ciphertext`。
+- `token_expires_at`、`token_updated_at`。
+- `authorization_status`、`last_auth_error_code`。
+- `created_at`、`updated_at`。
+
+### `shiphub_category_state`
+
+主键：`store_id + category`。
+
+保存 `last_count`、`last_attempt_at`、`last_success_at`、`last_full_reconcile_at`、`next_reconcile_at`、`last_error_code`、`consecutive_failures`。
+
+### `shiphub_sync_leases`
+
+主键：`store_id`。
+
+保存 `lease_owner`、`lease_expires_at`、`updated_at`。租约只控制上游同步，不阻塞 D1 只读 API。
+
+### `shiphub_sync_runs`
+
+保存门店、触发来源、类别、开始/结束时间、状态、分页数、订单数、detail 数和脱敏错误码，用于运行审计与排障。
+
+### `shiphub_orders`
+
+主键：`store_id + category + upstream_order_id`。
+
+保存经过白名单规范化的业务字段、`upstream_state`、`first_seen_at`、`last_seen_at`、`last_seen_run_id`、`upstream_absent_at` 和可选的上游变更标识。
+
+默认不保存完整 `raw_json`。若排障确需短期保存，必须加密、限制访问并设置自动清理期限。
+
+### `shiphub_order_items`
+
+主键优先使用经验证的上游行项目 ID；若上游没有稳定行 ID，则使用经过验证的复合键。不能假设同一订单中的 `sku_id` 唯一。
+
+### `shiphub_order_actions`
+
+保存 `store_id`、订单键、动作类型、当前本地状态、操作人、操作时间、撤销信息和关联审计事件。它是本地流程覆盖层，不改变 Shiphub 数据。
+
+## 8. 凭据与配置
+
+- OAuth client secret、token 加密主密钥通过 Cloudflare Secret 注入。
+- access token 和 refresh token 使用独立密钥加密后存 D1，支持轮换。
+- 不保存 Shiphub 用户名和密码。
+- 不在日志、API 响应、审计摘要或错误信息中输出 token、Authorization header、外部门店标识或完整上游响应。
+- 首次授权使用经过审核的 OAuth2 authorization code 流程，并验证 `state`；上游要求时启用 PKCE。
+- 授权回调只允许平台管理员操作，并使用一次性短期状态记录。
+
+建议环境配置名仅表达用途，不在仓库提供真实值：
+
+```text
+SHIPHUB_ENABLED=false
+SHIPHUB_MODE=fixture|live
+SHIPHUB_BASE_URL=<secret-or-controlled-var>
+SHIPHUB_CLIENT_ID=<secret>
+SHIPHUB_CLIENT_SECRET=<secret>
+SHIPHUB_TOKEN_ENCRYPTION_KEY=<secret>
+```
+
+Preview 必须固定为 `SHIPHUB_ENABLED=false` 或 `SHIPHUB_MODE=fixture`。只有经过授权和连通性验证的目标环境可以使用 `live`。
+
+## 9. Worker 落地
+
+建议文件边界：
+
+| 文件 | 职责 |
 |---|---|
-| 后台同步频率 | **5 分钟**（营业时段 09:00-21:00，±30s 随机抖动） |
-| 部署形态 | **全托管**（Cloudflare Worker cron，无需本地机器） |
-| 同步范围 | hand / receive / ship 三类 |
-| 事件驱动 | 店员打开待取页 / 刷新 Dashboard / 确认操作时触发（限频 ≥2~3 分钟） |
+| `apps/worker/src/lib/shiphub-client.ts` | OAuth2、超时、错误分类、count/list/detail 传输封装 |
+| `apps/worker/src/lib/shiphub-token.ts` | token 加解密、过期检查和原子轮换 |
+| `apps/worker/src/repositories/shiphub.ts` | D1 查询、幂等写入、分页批次和本地动作覆盖层 |
+| `apps/worker/src/services/shiphub-sync.ts` | 多门店调度、租约、最小调用策略和完整对账 |
+| `apps/worker/src/routes/shiphub.ts` | 鉴权后的 summary、列表、详情、操作和人工同步 API |
+| `apps/worker/src/env.ts` | 可选配置和功能降级，不把 Shiphub 设为全站启动必需项 |
+| `apps/worker/src/index.ts` | 注册路由并导出 `scheduled` handler |
 
-## 3. 上游接口清单（Shiphub API）
+Cloudflare Cron 按 UTC 执行。Cron 可每 5 分钟触发一次，代码再根据 `stores.timezone`、门店连接状态、业务活跃度和类别频率决定是否访问上游。不要把北京时间小时范围直接写入 UTC Cron。
 
-公共参数：`location_num=0070129901299`；分页 `page_num` / `page_size`；请求头 `Authorization: Bearer <access_token>`。
+## 10. Workshop API
 
-| 类别 | count（门控） | list | detail（商品明细） |
-|---|---|---|---|
-| hand | `/shiphub_web/stores/orders/count/to_hand_count` | `/shiphub_web/stores/orders/hand/list` | `/shiphub_web/stores/orders/hand/detail` |
-| receive | `/shiphub_web/stores/orders/count/to_receive_count` | `/shiphub_web/stores/orders/receive/list` | `/shiphub_web/stores/orders/receive/detail` |
-| ship | `/shiphub_web/stores/orders/count/to_ship_count` | `/shiphub_web/stores/orders/ship/list` | 商品明细用 `/shiphub_web/stores/orders/pick/detail`（发货视图本身不含明细） |
+所有接口复用现有 session、`x-store-id`、密码变更门禁、CSRF 和审计机制。
 
-认证：OAuth2 authorization_code + refresh_token（PingFederate `idpdecathlon.decathlon.com.cn`），token 交换走 HTTP Basic（client_id:client_secret）。
-
-## 4. 架构：Pull-Once-Serve-Many
-
-```
-┌─────────────────┐   cron */5 9-21 * * *（+抖动）   ┌──────────────────────┐
-│  workshop.skin   │ ─────────────────────────────► │ Cloudflare Worker    │
-│  React 前端       │        零 Shiphub 调用          │  Hono + D1           │
-└────────┬────────┘                                  └──────────┬───────────┘
-         │ 只读 D1（毫秒级）                                    │ ① refresh_token 续期（免登录）
-         ▼                                                     │ ② 每类别 count（1 个最轻请求）
-┌─────────────────┐   ←── 写缓存 ───  ③ count 变化才拉 list     │ ④ 只对新 ship_group_id 拉 detail
-│  D1 (SQLite)     │                    ⑤ 消失的单标记 resolved  │
-└─────────────────┘                                            ▼
-                                                    Shiphub API（PingFederate OAuth2）
-```
-
-核心原则：**浏览器永不直连 Shiphub；令牌只在 Worker 侧；前端永远读本地缓存。**
-
-## 5. 同步引擎（每类别状态机）
-
-```
-每轮 / 每类别（hand, receive, ship 并行执行）：
-  ① GET <category>_count                        （1 个请求）
-       │
-       ├── count == 上次 → 本轮跳过该类别（仅 1 个请求）
-       │
-       └── count 变化 → GET <category>/list      （1 次）
-              │
-              ├── 新 ship_group_id → GET <category>/detail（1 单 1 次）
-              ├── 已有且未变 → 只更新 last_seen_at（零请求）
-              └── 列表消失 → status = resolved（保留历史）
-```
-
-- **事件触发**：待取页打开 / 刷新 / 确认操作时调用同一同步函数，D1 互斥锁保证同一时刻只有一个同步在跑，且距上次同步 <2 分钟则跳过（返回缓存年龄）。
-- **幂等**：`INSERT ... ON CONFLICT DO UPDATE`；全量替换语义由 `first_seen_at` / `last_seen_at` 承载。
-
-## 6. 令牌生命周期（免登录）
-
-```
-引导（仅一次，必须在门店网络执行）：
-  账号密码 → POST /as/token.oauth2（authorization_code）→ refresh_token → 存 D1
-运行期（永不登录）：
-  每次同步前检查 access_token 过期时间
-  剩 <10 分钟 → POST /as/token.oauth2（grant_type=refresh_token）→ 换新 access_token
-  refresh_token 失效 → sync_state 标记错误 + 人工重新引导（门店网络）
-```
-
-- client_id / client_secret / 初始账号密码：Cloudflare Secrets（`wrangler secret put`），不进仓库、不进浏览器。
-- 目标：**登录动作只发生一次**，之后全部为静默刷新（IdP 审计中最不显眼的一类）。
-
-## 7. 数据模型（D1 迁移 `0015_shiphub_sync.sql`）
-
-```sql
--- 令牌与全局状态（单行）
-CREATE TABLE shiphub_sync_state (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  refresh_token TEXT NOT NULL,
-  access_token TEXT,
-  token_expires_at INTEGER,
-  updated_at TEXT NOT NULL
-);
-
--- 每类别同步门控
-CREATE TABLE shiphub_category_state (
-  category TEXT PRIMARY KEY CHECK (category IN ('hand','receive','ship')),
-  last_count INTEGER NOT NULL DEFAULT -1,   -- -1 = 从未同步
-  last_sync_at TEXT,
-  last_error TEXT
-);
-
--- 订单缓存（三类统一表，category 区分）
-CREATE TABLE shiphub_order (
-  category TEXT NOT NULL CHECK (category IN ('hand','receive','ship')),
-  ship_group_id TEXT NOT NULL,
-  b2c_order_id TEXT NOT NULL,
-  mail_no TEXT,
-  order_platform TEXT, order_type TEXT,
-  shelves TEXT, carrier_arrive_time TEXT,
-  expect_pick_time_start TEXT, expect_pick_time_end TEXT,
-  carrier_name TEXT, receipt_logistics_type TEXT,
-  order_latest_status INTEGER,
-  raw_json TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending',    -- pending | resolved
-  first_seen_at TEXT NOT NULL,
-  last_seen_at TEXT NOT NULL,
-  resolved_at TEXT,
-  PRIMARY KEY (category, ship_group_id)
-);
-CREATE INDEX idx_shiphub_order ON shiphub_order(category, status, last_seen_at);
-
--- 商品明细（SKU / 码数 / 颜色）
-CREATE TABLE shiphub_order_item (
-  category TEXT NOT NULL,
-  ship_group_id TEXT NOT NULL,
-  sku_id TEXT NOT NULL,
-  sku_name TEXT NOT NULL,
-  sku_size TEXT, sku_color TEXT, model_code TEXT,
-  purchase_qty INTEGER, store_price TEXT, image_url TEXT,
-  PRIMARY KEY (category, ship_group_id, sku_id),
-  FOREIGN KEY (category, ship_group_id)
-    REFERENCES shiphub_order(category, ship_group_id) ON DELETE CASCADE
-);
-```
-
-## 8. Worker 落地清单
-
-| 文件 | 内容 |
-|---|---|
-| `apps/worker/src/lib/shiphub-client.ts` | OAuth2 客户端：refresh_token 续期、Basic 认证、count/list/detail 封装、重试与超时 |
-| `apps/worker/src/services/shiphub-sync.ts` | 三类状态机同步引擎 + D1 互斥锁 + 抖动 + 事件入口 |
-| `apps/worker/src/routes/shiphub.ts` | `GET /api/v1/shiphub/orders?category=`（读 D1）、`GET .../orders/:category/:shipGroupId`、`POST .../orders/sync`（限频） |
-| `apps/worker/src/env.ts` | 追加 `SHIPHUB_LOCATION_NUM / SHIPHUB_CLIENT_ID / SHIPHUB_CLIENT_SECRET / SHIPHUB_REFRESH_TOKEN / SHIPHUB_USERNAME / SHIPHUB_PASSWORD`（均可选，未配置时功能降级禁用） |
-| `wrangler.jsonc` | `"triggers": { "crons": ["*/5 9-21 * * *"] }` |
-
-## 9. 前端接入（apps/web）
-
-- 待取模块：「自提订单 (Shiphub)」来源 = hand 类数据（`/api/v1/shiphub/orders?category=hand`）
-- 新视图：待收货（receive）、待发货（ship）列表页，展示订单 + 商品明细
-- Dashboard：三模块计数 badge 直接读 D1 缓存
-- 确认操作（取车/收货/发货完成）：写入 workshop 本地流程 + 标记本地 `resolved`；下次同步若上游已移除则自动对齐
-
-## 10. API 调用量预算（营业 12 小时，5 分钟频率，三模块）
-
-| 类型 | 频率 | 日调用 |
+| 方法与路径 | 用途 | 权限 |
 |---|---|---|
-| count × 3 类 | 每 5 分钟 = 144 轮 × 3 | ~432 |
-| list（仅 count 变化时） | ~10 × 3 | ~30 |
-| detail（仅新单） | ~20 × 3 | ~60 |
-| token 刷新 | 每 2 小时 | ~6 |
-| **合计** | | **~530 次/天** |
+| `GET /api/v1/shiphub/summary` | 三类计数、缓存年龄、同步健康状态 | 当前门店成员 |
+| `GET /api/v1/shiphub/orders?category=&cursor=` | 当前门店订单分页 | 当前门店成员 |
+| `GET /api/v1/shiphub/orders/:category/:id` | 订单和商品明细 | 当前门店成员 |
+| `POST /api/v1/shiphub/orders/:category/:id/actions` | 本地确认或撤销 | 登录、CSRF、角色规则、幂等键 |
+| `POST /api/v1/shiphub/sync` | 排队一次受限后台同步 | manager / admin、CSRF、全店限频 |
 
-> 与用户数、页面打开次数完全解耦；浏览器直连方案（5 店员 × 每 10 分钟刷）可达数千次/天。530 次/天在平台百万级请求中不可见。
+API 不返回 token、真实上游 URL、原始响应或其他门店数据。列表使用游标分页，summary 由一个请求提供三类状态，避免前端分别请求三个计数接口。
 
-## 11. 隐藏评估（链路痕迹）
+## 11. 前端整合
 
-| 环节 | 痕迹 | 暴露概率 | 缓解 |
-|---|---|---|---|
-| PingFederate 登录 | 1 次登录（用户名/IP/UA） | 🟢 低（同省内） | 仅 1 次，之后 refresh_token 免登录 |
-| PingFederate 刷新 | 每 2h 静默刷新 | 🟢 极低 | 正常集成行为 |
-| CDN / 网关 | 每次请求（IP/路径/request-id） | 🟢 极低 | ~530/天、只读、营业时段 |
-| 应用后端 | 业务日志 | 🟢 极低 | 只读自己门店数据 |
-| Dynatrace / 浏览器 | 无（Worker 不执行前端 JS） | ⚪ 无 | — |
-| 网络层 IP | Worker 固定出口 IP | 🟢 低 | 广西柳州 ↔ 南宁门店，同省 230km，正常移动范围 |
+### 待取车辆
 
-信号强度：量级 🟢 不可见｜地域 🟢 同省弱信号｜节律 🟡（±30s 抖动 + 事件驱动弱化）｜登录频率 🟢 仅 1 次｜脚本指纹 🟡 仅人工深查可见（**不做伪装**）。
+在现有 `PickupScene` / `PickupLedger` 内增加分段控制：
 
-结论：**整体隐藏评级 🟢 低风险**。量级、地域、节律、登录频率四个维度均无强信号；剩余风险仅"人工主动深查账号"，无触发动机，概率极低。
+- 全部。
+- 手工台账。
+- Shiphub 自提。
 
-## 12. 实施步骤
+Shiphub 订单使用独立展示模型，不转换为普通 `work_items`，避免现有台账生命周期、撤销和闭店逻辑被外部状态污染。
 
-| 步骤 | 内容 | 交付物 |
-|---|---|---|
-| 1 | 0015 迁移 + shiphub-client + 同步引擎 + 路由 + 测试 | PR（沿用 371 条测试体系） |
-| 2 | 引导脚本（门店网络执行一次换 refresh_token） | 本地脚本，跑完即弃 |
-| 3 | 前端三模块接入 + Dashboard badge | PR |
-| 4 | Secrets + cron 配置，Staging 验证 | 走现有发布门禁（版本 bump 规则） |
+### 其它交接
 
-## 13. 未决事项
+在现有 `OpeningScene` 内增加标签：
 
-1. 待收货 / 待发货在 workshop 中挂载方式：独立新视图，还是并入现有「其它交接」模块？（默认：新视图）
-2. 取车/收货/发货确认是否需要在 workshop 中人工确认后才标记完成？（默认：确认操作 = 本地 resolved + 上游自动对齐）
-3. 是否把隐藏评估章节从本公开文档中拆出？（当前仓库为公开可见）
+- 其它交接。
+- 待收货。
+- 待发货。
+
+不新增一级导航，不改变现有六模块顺序和移动端紧凑 dock。
+
+### 总览
+
+`WorkshopOverviewPage` 只调用一次 summary：
+
+- 「待取车辆」摘要包含 Shiphub 自提待处理数。
+- 「其它交接」摘要包含手工交接、待收货和待发货数。
+- 保持现有模块尺寸和横向紧凑布局。
+
+### 状态与交互
+
+- 所有 Shiphub 视图显示最后成功同步时间。
+- 缓存超出类别最大对账间隔时显示「数据可能已过期」，但继续展示旧缓存。
+- 同步失败不得显示成空列表。
+- 人工同步为后台动作，按钮不进入持续等待状态。
+- 本地确认后显示操作人、时间以及「等待上游对齐」状态。
+- 商品图片只有在确认 URL 可由浏览器公开读取且不泄露凭据时才直连；否则使用受控代理或不展示。
+
+## 12. 测试要求
+
+后端至少覆盖：
+
+- count 不变但订单集合发生替换。
+- 多页列表中途失败时不误标上游消失。
+- 新订单 detail 只拉一次，可靠变更标识变化后才重拉。
+- refresh token 轮换并发和旧 token 不覆盖新 token。
+- `401`、`429`、可重试 `5xx`、超时和熔断。
+- 租约过期恢复和并发触发只产生一轮上游调用。
+- 本地完成状态不被下一轮同步复活。
+- 多门店查询、写入和同步完全隔离。
+- Preview fixture 测试中真实网络调用为零。
+- 日志和 API 响应脱敏。
+
+前端至少覆盖：
+
+- 现有六模块导航顺序和移动端紧凑布局不变。
+- `hand` 分段筛选以及 `receive/ship` 标签切换。
+- 缓存新鲜、过期、同步失败和未配置状态。
+- 本地确认、重复提交幂等和权限失败。
+- Dashboard summary 计数与详情列表一致。
+- 动态状态行进入正常文档流，不被固定高度或 overflow 隐藏。
+
+## 13. 分阶段交付
+
+### Phase 0：授权与技术探针
+
+- 确认授权和 OAuth2 合约。
+- 通过独立测试 Worker 验证连通性、TLS、出口限制和脱敏响应样例。
+- 不修改生产数据，不启用持续同步。
+
+### Phase 1：后端与 fixture
+
+- 新增 `0015_shiphub_sync.sql`。
+- 完成客户端、token 服务、同步引擎、API 和测试。
+- Preview 仅使用脱敏 fixture。
+
+### Phase 2：前端整合
+
+- 接入待取车辆、其它交接和总览 summary。
+- 完成移动端和桌面端回归测试。
+- 部署 Preview 供视觉验收，不启用真实 Shiphub。
+
+### Phase 3：受控上线
+
+- 用户验收 Preview 后，按项目规则执行公开版本 bump、发布说明和正式部署。
+- 首次部署保持 `SHIPHUB_ENABLED=false`。
+- 配置 Secrets 和授权连接后，仅启用 `hand` 观察同步质量。
+- 稳定后再启用 `receive` 和 `ship`。
+
+每一阶段都必须可通过功能开关回退为「隐藏 Shiphub UI、停止上游同步、保留本地缓存」，不得影响现有手工台账。
+
+## 14. 验收标准
+
+- 页面打开和普通刷新不会产生 Shiphub 请求。
+- 活跃营业时段调用量符合第 5 节预算，用户数量不会放大上游调用。
+- `hand` 缓存最大完整对账间隔 15 分钟；`receive/ship` 最大 30 分钟。
+- 同步失败时现有手工台账和闭店流程可正常使用。
+- Preview 对真实 Shiphub 的调用数为零。
+- 任一门店不能读取或触发其他门店的连接与订单。
+- Git、Worker 日志、浏览器和 API 响应中不存在凭据或真实外部门店标识。
+- 生产启用前已完成授权、连通性、分页和 OAuth2 轮换验证。
+
+## 15. 公开文档脱敏规则
+
+本文件及后续 PR 描述、测试 fixture 和部署证据不得包含：
+
+- Shiphub 账号、用户名、密码、client secret、token。
+- 真实外部门店代码、party number 或内部 location number。
+- 未公开的真实 API 主机名、认证端点和完整请求头。
+- 顾客姓名、电话、地址、订单号、运单号或原始响应。
+- 规避审计、隐藏流量或模拟人工行为的实现说明。
+
+真实配置只能进入经过授权的 Cloudflare Secret 或受控运维记录；测试数据必须为不可逆脱敏或人工构造的 fixture。
