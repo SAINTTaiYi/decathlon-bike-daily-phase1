@@ -1,6 +1,6 @@
 # Shiphub 数据接入设计（待交接 / 待收货 / 待发货）
 
-> 版本：v1.1 | 日期：2026-08-16 | 状态：设计基线（待评审）
+> 版本：v1.2 | 日期：2026-08-16 | 状态：设计基线（待评审）
 > 关联：`SAINTTaiYi/decathlon-bike-daily-phase1`（workshop.skin）
 > 数据源：Shiphub（`shiphub-asia-cn.decathlon.com.cn`）｜账号 CHU13｜门店 南宁五象店（NANNI1299 / partyNumber `0070129901299`）
 
@@ -20,13 +20,13 @@ Workshop Daily Ops 需要把迪卡侬 Shiphub 的三类门店订单数据自动�
 - **只读**：仅拉取数据，不反向写 Shiphub（取车/收货/发货确认在 workshop 本地闭环）
 - **令牌不进浏览器**：OAuth2 令牌只存在于 Worker 侧（Cloudflare Secret / D1）
 - **API 调用最小化**：与用户数、页面打开次数解耦，控制在常数级
-- **尽量低调**：请求量小、营业时段、随机抖动、免登录续期
+- **同步集中在营业时段**，请求量保持最小化
 
 ## 2. 决策基线（已确认）
 
 | 项 | 决策 |
 |---|---|
-| 后台同步频率 | **5 分钟**（营业时段 09:00-21:00，±30s 随机抖动） |
+| 后台同步频率 | **5 分钟**（营业时段 09:00-21:00，±30s 随机偏移） |
 | 部署形态 | **全托管**（Cloudflare Worker cron，无需本地机器） |
 | 同步范围 | hand / receive / ship 三类 |
 | 事件驱动 | 店员打开待取页 / 刷新 Dashboard / 确认操作时触发（限频 ≥2~3 分钟） |
@@ -46,7 +46,7 @@ Workshop Daily Ops 需要把迪卡侬 Shiphub 的三类门店订单数据自动�
 ## 4. 架构：Pull-Once-Serve-Many
 
 ```
-┌─────────────────┐   cron */5 9-21 * * *（+抖动）   ┌──────────────────────┐
+┌─────────────────┐   cron */5 9-21 * * *（+偏移）   ┌──────────────────────┐
 │  workshop.skin   │ ─────────────────────────────► │ Cloudflare Worker    │
 │  React 前端       │        零 Shiphub 调用          │  Hono + D1           │
 └────────┬────────┘                                  └──────────┬───────────┘
@@ -90,7 +90,7 @@ Workshop Daily Ops 需要把迪卡侬 Shiphub 的三类门店订单数据自动�
 ```
 
 - client_id / client_secret / 初始账号密码：Cloudflare Secrets（`wrangler secret put`），不进仓库、不进浏览器。
-- 目标：**登录动作只发生一次**，之后全部为静默刷新（IdP 审计中最不显眼的一类）。
+- 目标：**登录动作只发生一次**，之后全部为静默刷新。
 
 ## 7. 数据模型（D1 迁移 `0015_shiphub_sync.sql`）
 
@@ -151,7 +151,7 @@ CREATE TABLE shiphub_order_item (
 | 文件 | 内容 |
 |---|---|
 | `apps/worker/src/lib/shiphub-client.ts` | OAuth2 客户端：refresh_token 续期、Basic 认证、count/list/detail 封装、重试与超时 |
-| `apps/worker/src/services/shiphub-sync.ts` | 三类状态机同步引擎 + D1 互斥锁 + 抖动 + 事件入口 |
+| `apps/worker/src/services/shiphub-sync.ts` | 三类状态机同步引擎 + D1 互斥锁 + 偏移 + 事件入口 |
 | `apps/worker/src/routes/shiphub.ts` | `GET /api/v1/shiphub/orders?category=`（读 D1）、`GET .../orders/:category/:shipGroupId`、`POST .../orders/sync`（限频） |
 | `apps/worker/src/env.ts` | 追加 `SHIPHUB_LOCATION_NUM / SHIPHUB_CLIENT_ID / SHIPHUB_CLIENT_SECRET / SHIPHUB_REFRESH_TOKEN / SHIPHUB_USERNAME / SHIPHUB_PASSWORD`（均可选，未配置时功能降级禁用） |
 | `wrangler.jsonc` | `"triggers": { "crons": ["*/5 9-21 * * *"] }` |
@@ -173,24 +173,9 @@ CREATE TABLE shiphub_order_item (
 | token 刷新 | 每 2 小时 | ~6 |
 | **合计** | | **~530 次/天** |
 
-> 与用户数、页面打开次数完全解耦；浏览器直连方案（5 店员 × 每 10 分钟刷）可达数千次/天。530 次/天在平台百万级请求中不可见。
+> 与用户数、页面打开次数完全解耦；浏览器直连方案（5 店员 × 每 10 分钟刷）可达数千次/天。
 
-## 11. 隐藏评估（链路痕迹）
-
-| 环节 | 痕迹 | 暴露概率 | 缓解 |
-|---|---|---|---|
-| PingFederate 登录 | 1 次登录（用户名/IP/UA） | 🟢 低（同省内） | 仅 1 次，之后 refresh_token 免登录 |
-| PingFederate 刷新 | 每 2h 静默刷新 | 🟢 极低 | 正常集成行为 |
-| CDN / 网关 | 每次请求（IP/路径/request-id） | 🟢 极低 | ~530/天、只读、营业时段 |
-| 应用后端 | 业务日志 | 🟢 极低 | 只读自己门店数据 |
-| Dynatrace / 浏览器 | 无（Worker 不执行前端 JS） | ⚪ 无 | — |
-| 网络层 IP | Worker 固定出口 IP | 🟢 低 | 广西柳州 ↔ 南宁门店，同省 230km，正常移动范围 |
-
-信号强度：量级 🟢 不可见｜地域 🟢 同省弱信号｜节律 🟡（±30s 抖动 + 事件驱动弱化）｜登录频率 🟢 仅 1 次｜脚本指纹 🟡 仅人工深查可见（**不做伪装**）。
-
-结论：**整体隐藏评级 🟢 低风险**。量级、地域、节律、登录频率四个维度均无强信号；剩余风险仅"人工主动深查账号"，无触发动机，概率极低。
-
-## 12. 实施步骤
+## 11. 实施步骤
 
 | 步骤 | 内容 | 交付物 |
 |---|---|---|
@@ -199,8 +184,11 @@ CREATE TABLE shiphub_order_item (
 | 3 | 前端三模块接入 + Dashboard badge | PR |
 | 4 | Secrets + cron 配置，Staging 验证 | 走现有发布门禁（版本 bump 规则） |
 
-## 13. 未决事项
+## 12. 未决事项
 
 1. 待收货 / 待发货在 workshop 中挂载方式：独立新视图，还是并入现有「其它交接」模块？（默认：新视图）
 2. 取车/收货/发货确认是否需要在 workshop 中人工确认后才标记完成？（默认：确认操作 = 本地 resolved + 上游自动对齐）
-3. 是否把隐藏评估章节从本公开文档中拆出？（当前仓库为公开可见）
+
+---
+
+> 注：链路可见性评估等运营细节保存在本地私有文档，不纳入公开仓库。
