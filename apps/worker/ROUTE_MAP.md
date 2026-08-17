@@ -60,3 +60,17 @@
 
 ## Deferred
 - Legacy local V5 import (`/api/v1/migrations/*`)
+
+## Shiphub integration (v1.3, feature-gated)
+
+- GET `/api/v1/settings/shiphub`
+- POST `/api/v1/settings/shiphub/connect/start`
+- GET `/api/v1/settings/shiphub/callback`
+- POST `/api/v1/settings/shiphub/disconnect`
+- GET `/api/v1/shiphub/summary`
+- GET `/api/v1/shiphub/orders?category=&cursor=`
+- GET `/api/v1/shiphub/orders/:category/:id`
+- POST `/api/v1/shiphub/orders/:category/:id/actions`
+- POST `/api/v1/shiphub/sync`
+
+All Shiphub routes reuse the existing session, store selection, password-change gate, CSRF and idempotency controls. Preview remains disabled and fixture/live access is independently guarded.
