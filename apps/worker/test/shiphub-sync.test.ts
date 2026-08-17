@@ -126,3 +126,16 @@ test('人工同步批次串行覆盖三类，同时门店级两分钟冷却阻�
     db.close()
   }
 })
+
+test('Preview fixture 在没有连接和 token 时仍只读加载人工构造数据', async () => {
+  const db = await database()
+  try {
+    const result = await syncStoreCategory(db as unknown as D1Database, config, STORE, 'hand', {
+      trigger: 'manual', batchId: 'preview-fixture-batch', now: NOW
+    })
+    assert.equal(result.status, 'succeeded')
+    assert.equal(db.one<{ id: string }>('SELECT upstream_order_id AS id FROM shiphub_orders WHERE store_id = ? AND category = ?', STORE, 'hand')?.id, 'fixture-hand-001')
+  } finally {
+    db.close()
+  }
+})

@@ -124,6 +124,7 @@ export async function getShipHubSummary(db: D1Database, config: AppConfig, store
   const stateMap = new Map(states.map((row) => [row.category, row]))
   return {
     enabled: config.SHIPHUB.enabled,
+    mode: config.SHIPHUB.mode,
     connection: connection ? {
       enabled: connection.enabled,
       mode: connection.mode,
@@ -224,12 +225,13 @@ export async function getShipHubOrder(db: D1Database, storeId: string, category:
 }
 
 async function connectionForSync(db: D1Database, config: AppConfig, storeId: string): Promise<{ client: ShipHubClient; refresh?: { ciphertext: string; nonce: string } }> {
+  if (config.SHIPHUB.mode === 'fixture') return { client: createShipHubClient(config.SHIPHUB) }
   const row = await first<any>(db.prepare(`
     SELECT enabled, mode, refresh_token_ciphertext, refresh_token_nonce
     FROM shiphub_connections WHERE store_id = ?
   `).bind(storeId))
   if (!row || !(row.enabled === 1 || row.enabled === true)) throw new ShipHubUpstreamError('CONNECTION_DISABLED')
-  if (config.SHIPHUB.mode === 'fixture' || row.mode === 'fixture') return { client: createShipHubClient({ ...config.SHIPHUB, mode: 'fixture' }) }
+  if (row.mode === 'fixture') return { client: createShipHubClient({ ...config.SHIPHUB, mode: 'fixture' }) }
   if (!row.refresh_token_ciphertext || !row.refresh_token_nonce) throw new ShipHubUpstreamError('REFRESH_TOKEN_MISSING')
   const refreshToken = await readRefreshToken(config, row)
   const token = await refreshShipHubAccessToken(config.SHIPHUB, refreshToken)

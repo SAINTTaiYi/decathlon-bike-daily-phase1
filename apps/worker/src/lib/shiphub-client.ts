@@ -47,8 +47,14 @@ function assertCategory(value: string): asserts value is ShipHubCategory {
   if (!SHIPHUB_CATEGORIES.includes(value as ShipHubCategory)) throw new ShipHubUpstreamError('INVALID_CATEGORY')
 }
 
+const DEFAULT_FIXTURE: ShipHubOrder[] = [
+  { id: 'fixture-hand-001', category: 'hand', displayLabel: 'FIXTURE-HAND-001', sourceLabel: 'Shiphub fixture', status: 'pending', scheduledAt: '2026-08-18T10:30:00.000Z', updatedAt: '2026-08-18T01:00:00.000Z', items: [{ id: 'fixture-hand-item-001', productLabel: 'Synthetic city bike', sku: 'FIXTURE-CITY-BIKE', quantity: 1, serialNumberMasked: '***0001' }] },
+  { id: 'fixture-receive-001', category: 'receive', displayLabel: 'FIXTURE-RECEIVE-001', sourceLabel: 'Shiphub fixture', status: 'pending', updatedAt: '2026-08-18T01:00:00.000Z', items: [{ id: 'fixture-receive-item-001', productLabel: 'Synthetic spare-parts box', sku: 'FIXTURE-PARTS', quantity: 2 }] },
+  { id: 'fixture-ship-001', category: 'ship', displayLabel: 'FIXTURE-SHIP-001', sourceLabel: 'Shiphub fixture', status: 'pending', updatedAt: '2026-08-18T01:00:00.000Z', items: [{ id: 'fixture-ship-item-001', productLabel: 'Synthetic prepared bike', sku: 'FIXTURE-SHIP-BIKE', quantity: 1, serialNumberMasked: '***0002' }] }
+]
+
 function parseFixture(value: string | undefined): ShipHubOrder[] {
-  if (!value) return []
+  if (!value) return DEFAULT_FIXTURE.map(normalizeOrder)
   try {
     const parsed: unknown = JSON.parse(value)
     if (!Array.isArray(parsed)) throw new Error('not-array')

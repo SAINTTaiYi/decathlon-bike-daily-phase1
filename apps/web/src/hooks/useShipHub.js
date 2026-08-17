@@ -71,8 +71,12 @@ export default function useShipHub(enabled) {
     requestRef.current = requestShipHubSync()
     const result = await requestRef.current
     await refreshSummary()
+    window.setTimeout(() => {
+      void refreshSummary()
+      for (const category of ['hand', 'receive', 'ship']) void loadOrders(category)
+    }, 1200)
     return result
-  }, [refreshSummary])
+  }, [loadOrders, refreshSummary])
 
   return {
     enabled: Boolean(enabled && summary?.enabled),
