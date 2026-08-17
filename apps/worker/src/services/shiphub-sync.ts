@@ -217,8 +217,6 @@ export async function getShipHubOrder(db: D1Database, storeId: string, category:
       productLabel: item.product_label,
       vehicleInfo: item.vehicle_info,
       sku: item.sku,
-      productLabel: item.product_label,
-      vehicleInfo: item.vehicle_info,
       quantity: item.quantity,
       serialNumberMasked: item.serial_number_masked,
       imageUrl: item.image_url
