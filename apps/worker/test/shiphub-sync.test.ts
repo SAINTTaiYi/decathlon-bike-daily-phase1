@@ -33,11 +33,14 @@ function order(id: string, updatedAt: string, category: 'hand' | 'receive' | 'sh
     id,
     category,
     displayLabel: `fixture-${id}`,
+    orderNumber: `ORD-${id.toUpperCase()}`,
     sourceLabel: 'Shiphub fixture',
+    customerPhone: '13800138000',
+    vehicleInfo: '测试车辆·黑色·M码',
     status: 'pending',
     scheduledAt: '2026-08-18T12:00:00.000Z',
     updatedAt,
-    items: [{ id: `${id}-item`, productLabel: 'Synthetic bike', sku: 'FIXTURE-SKU', quantity: 1, serialNumberMasked: '***123' }]
+    items: [{ id: `${id}-item`, productLabel: 'Synthetic bike', vehicleInfo: '测试车辆·黑色·M码', sku: 'FIXTURE-SKU', quantity: 1, serialNumberMasked: '***123' }]
   }
 }
 
