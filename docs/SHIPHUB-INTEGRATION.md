@@ -1,8 +1,8 @@
 # Shiphub 数据接入与网站整合方案
 
-> 版本：v1.2
-> 日期：2026-08-17
-> 状态：评审后实施基线
+> 版本：v1.3
+> 日期：2026-08-18
+> 状态：单门店 SSO 安全实施基线
 > 适用项目：Workshop Daily Ops
 > 文档属性：公开仓库脱敏版，不包含账号、门店外部标识、真实端点、令牌或网络位置
 
@@ -23,6 +23,8 @@ Workshop Daily Ops 从 Shiphub 只读同步三类门店订单：
 - 新增一级导航模块或改变移动端现有六模块布局。
 - 在 Preview 环境访问真实 Shiphub。
 - 保存 Shiphub 账号密码。
+
+本期采用**单门店、账号持有人主动授权**模式：仅服务当前已授权账号对应的门店，不做组织级多租户授权，也不以此绕过 Shiphub 的身份认证或服务条款。设置中心提供「连接 Shiphub」按钮，不提供 Shiphub 用户名和密码输入框。
 
 ## 2. 实施前提
 
@@ -54,6 +56,7 @@ Shiphub
    | OAuth2 + read-only API
    v
 Cloudflare Worker scheduled handler
+   |-- settings center: user-initiated SSO/PKCE connection
    |-- connection/token service
    |-- per-store sync lease
    |-- category reconciliation
@@ -69,7 +72,7 @@ Existing Workshop pages
    `-- 总览：复用 summary 计数，不新增一级模块
 ```
 
-浏览器永不获得 OAuth token，也不直接访问 Shiphub。
+浏览器永不获得 Shiphub access token 或 refresh token，也不直接调用 Shiphub API。密码只在 Shiphub/Decathlon IdP 页面提交，Workshop 不接收密码。
 
 ## 5. 最小调用策略
 
@@ -168,7 +171,7 @@ D1 不是长事务锁服务。同步互斥采用带过期时间的租约和条�
 - `store_id`：主键并关联 `stores(id)`。
 - `location_ref`：外部门店标识的加密值或受控配置引用。
 - `enabled`、`mode`：连接开关和 `fixture/live` 模式。
-- `access_token_ciphertext`、`refresh_token_ciphertext`。
+- `refresh_token_ciphertext` 及其 nonce、密钥版本；access token 不持久化。
 - `token_expires_at`、`token_updated_at`。
 - `authorization_status`、`last_auth_error_code`。
 - `created_at`、`updated_at`。
@@ -207,21 +210,36 @@ D1 不是长事务锁服务。同步互斥采用带过期时间的租约和条�
 
 ## 8. 凭据与配置
 
-- OAuth client secret、token 加密主密钥通过 Cloudflare Secret 注入。
-- access token 和 refresh token 使用独立密钥加密后存 D1，支持轮换。
-- 不保存 Shiphub 用户名和密码。
-- 不在日志、API 响应、审计摘要或错误信息中输出 token、Authorization header、外部门店标识或完整上游响应。
-- 首次授权使用经过审核的 OAuth2 authorization code 流程，并验证 `state`；上游要求时启用 PKCE。
-- 授权回调只允许平台管理员操作，并使用一次性短期状态记录。
+- 正式 OAuth broker 的 client credential（如确需）和 token 加密主密钥通过 Cloudflare Secret 注入；不把公开前端 JS 中的 Basic 值当作机密。
+- 只把 refresh token 使用信封加密后存 D1，access token 仅在 Worker 内存中短暂存在；密钥支持版本轮换。
+- 不保存、不接收、不转发 Shiphub 用户名和密码。
+- 不在日志、API 响应、审计摘要或错误信息中输出 token、Authorization header、OAuth code、外部门店标识或完整上游响应。
+- 首次连接使用用户主动发起的 OAuth2 authorization code 流程，校验 `state` 并优先启用 PKCE S256。
+- 回调使用一次性、短期、绑定门店和会话的状态记录；code 交换完成后立即失效。
+- 连接成功前必须校验 IdP 返回的用户身份和门店绑定关系，拒绝跨门店连接。
+
+### 8.1 设置中心连接模型
+
+设置中心只提供连接状态和操作，不提供 Shiphub 账密表单：
+
+1. 用户点击「连接 Shiphub」，Worker 生成一次性 `state`、PKCE verifier 和短期连接记录。
+2. 浏览器跳转到 Shiphub/Decathlon IdP；密码只提交到 IdP 的登录页面。
+3. 回调只接收 authorization code，Worker 校验 `state`、PKCE 和目标门店。
+4. Worker 在服务端交换 token，立即丢弃 code；refresh token 加密后写入当前 `store_id` 的连接记录。
+5. 设置中心只显示 `connected`、`reauth_required`、最后同步时间和脱敏错误码，不显示 token、账号密码或完整外部门店标识。
+6. 用户点击断开时撤销或删除本地 refresh token，并清理连接状态；不得提供密码找回或密码导出。
+
+如果未来确实需要账密输入框，必须改为独立隔离的 Credential Broker/HSM 方案；主网站 Worker 和 D1 不得解密或处理明文密码，本方案默认不启用该路径。
 
 建议环境配置名仅表达用途，不在仓库提供真实值：
 
 ```text
 SHIPHUB_ENABLED=false
 SHIPHUB_MODE=fixture|live
-SHIPHUB_BASE_URL=<secret-or-controlled-var>
-SHIPHUB_CLIENT_ID=<secret>
-SHIPHUB_CLIENT_SECRET=<secret>
+SHIPHUB_BASE_URL=<controlled-var>
+SHIPHUB_OAUTH_CLIENT_ID=<controlled-var>
+SHIPHUB_OAUTH_CLIENT_SECRET=<approved-confidential-secret-only>
+SHIPHUB_OAUTH_REDIRECT_URI=<controlled-var>
 SHIPHUB_TOKEN_ENCRYPTION_KEY=<secret>
 ```
 
@@ -233,8 +251,9 @@ Preview 必须固定为 `SHIPHUB_ENABLED=false` 或 `SHIPHUB_MODE=fixture`。只
 
 | 文件 | 职责 |
 |---|---|
-| `apps/worker/src/lib/shiphub-client.ts` | OAuth2、超时、错误分类、count/list/detail 传输封装 |
-| `apps/worker/src/lib/shiphub-token.ts` | token 加解密、过期检查和原子轮换 |
+| `apps/worker/src/lib/shiphub-client.ts` | 超时、错误分类、count/list/detail 传输封装 |
+| `apps/worker/src/lib/shiphub-oauth.ts` | state/PKCE、授权回调、code 交换和连接状态 |
+| `apps/worker/src/lib/shiphub-token.ts` | refresh token 加解密、过期检查和原子轮换 |
 | `apps/worker/src/repositories/shiphub.ts` | D1 查询、幂等写入、分页批次和本地动作覆盖层 |
 | `apps/worker/src/services/shiphub-sync.ts` | 多门店调度、租约、最小调用策略和完整对账 |
 | `apps/worker/src/routes/shiphub.ts` | 鉴权后的 summary、列表、详情、操作和人工同步 API |
@@ -249,6 +268,10 @@ Cloudflare Cron 按 UTC 执行。Cron 可每 5 分钟触发一次，代码再根
 
 | 方法与路径 | 用途 | 权限 |
 |---|---|---|
+| `GET /api/v1/settings/shiphub` | 当前门店连接状态、授权状态、最近错误和同步时间 | 当前门店 manager / admin |
+| `POST /api/v1/settings/shiphub/connect/start` | 创建短期 state/PKCE 并开始 SSO 连接 | 当前门店 manager / admin、CSRF |
+| `GET /api/v1/settings/shiphub/callback` | 校验回调并保存加密 refresh token | 一次性 state，不接受账密 |
+| `POST /api/v1/settings/shiphub/disconnect` | 撤销/删除当前门店连接 | 当前门店 manager / admin、CSRF |
 | `GET /api/v1/shiphub/summary` | 三类计数、缓存年龄、同步健康状态 | 当前门店成员 |
 | `GET /api/v1/shiphub/orders?category=&cursor=` | 当前门店订单分页 | 当前门店成员 |
 | `GET /api/v1/shiphub/orders/:category/:id` | 订单和商品明细 | 当前门店成员 |
@@ -258,6 +281,17 @@ Cloudflare Cron 按 UTC 执行。Cron 可每 5 分钟触发一次，代码再根
 API 不返回 token、真实上游 URL、原始响应或其他门店数据。列表使用游标分页，summary 由一个请求提供三类状态，避免前端分别请求三个计数接口。
 
 ## 11. 前端整合
+
+### 设置中心
+
+设置中心增加 Shiphub 连接卡片，但不增加账号密码表单：
+
+- 未连接：显示「连接 Shiphub」按钮和单门店授权说明。
+- 连接中：显示一次性授权流程状态，不显示 authorization code 或 token。
+- 已连接：显示连接状态、绑定门店的脱敏名称、最近成功同步时间和缓存状态。
+- 需要重新授权：显示「重新连接」按钮和脱敏错误原因。
+- 已断开：删除本地加密 refresh token 和连接状态，不影响手工台账。
+- 所有连接、断开和重新授权动作写入脱敏审计事件。
 
 ### 待取车辆
 
@@ -324,14 +358,17 @@ Shiphub 订单使用独立展示模型，不转换为普通 `work_items`，避�
 
 ### Phase 0：授权与技术探针
 
-- 确认授权和 OAuth2 合约。
+- 确认账号持有人对单个目标门店数据的授权和使用范围；不要求组织级多门店授权。
+- 确认 OAuth2 授权端点、回调、scope、state/PKCE、refresh token 有效期和轮换行为。
 - 通过独立测试 Worker 验证连通性、TLS、出口限制和脱敏响应样例。
+- 验证设置中心 SSO 连接不会接收或记录 Shiphub 密码。
 - 不修改生产数据，不启用持续同步。
 
 ### Phase 1：后端与 fixture
 
 - 新增 `0015_shiphub_sync.sql`。
-- 完成客户端、token 服务、同步引擎、API 和测试。
+- 完成设置中心 SSO/PKCE 连接、token 服务、同步引擎、API 和测试。
+- refresh token 加密落库，access token 不持久化；连接断开和重新授权可回退。
 - Preview 仅使用脱敏 fixture。
 
 ### Phase 2：前端整合
@@ -357,7 +394,8 @@ Shiphub 订单使用独立展示模型，不转换为普通 `work_items`，避�
 - 同步失败时现有手工台账和闭店流程可正常使用。
 - Preview 对真实 Shiphub 的调用数为零。
 - 任一门店不能读取或触发其他门店的连接与订单。
-- Git、Worker 日志、浏览器和 API 响应中不存在凭据或真实外部门店标识。
+- Git、Worker 日志、浏览器和 API 响应中不存在密码、OAuth code、token 或真实外部门店标识。
+- 设置中心连接流程中，Shiphub 密码只出现在 IdP 登录页面，不经过 Workshop 请求。
 - 生产启用前已完成授权、连通性、分页和 OAuth2 轮换验证。
 
 ## 15. 公开文档脱敏规则
