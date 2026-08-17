@@ -344,7 +344,7 @@ export async function syncStoreCategory(
           store_id, category, upstream_order_id, display_label, source_label, order_status, order_number, customer_phone, vehicle_info,
           scheduled_at, upstream_updated_at, first_seen_at, last_seen_at, last_seen_run_id,
           upstream_absent_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
         ON CONFLICT(store_id, category, upstream_order_id) DO UPDATE SET
           display_label = excluded.display_label, source_label = excluded.source_label, order_status = excluded.order_status, order_number = excluded.order_number, customer_phone = excluded.customer_phone, vehicle_info = excluded.vehicle_info,
           scheduled_at = excluded.scheduled_at, upstream_updated_at = excluded.upstream_updated_at,
