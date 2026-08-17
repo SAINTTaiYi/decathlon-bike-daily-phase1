@@ -276,12 +276,20 @@ export async function syncStoreCategory(
   config: AppConfig,
   storeId: string,
   category: ShipHubCategory,
-  options: { trigger?: 'scheduled' | 'manual' | 'authorization'; client?: ShipHubClient; now?: Date } = {}
+  options: { trigger?: 'scheduled' | 'manual' | 'authorization'; batchId?: string; client?: ShipHubClient; now?: Date } = {}
 ): Promise<{ status: 'succeeded' | 'skipped' | 'failed'; reason?: string; runId?: string }> {
   requireEnabled(config)
   const trigger = options.trigger ?? 'scheduled'
   const now = options.now ?? new Date()
   const stamp = now.toISOString()
+  if (trigger === 'manual' && !options.batchId) {
+    const recent = await first<{ id: string }>(db.prepare(`
+      SELECT id FROM shiphub_sync_runs
+      WHERE store_id = ? AND trigger_source = 'manual' AND started_at > ?
+      ORDER BY started_at DESC LIMIT 1
+    `).bind(storeId, new Date(now.getTime() - MANUAL_FRESH_MS).toISOString()))
+    if (recent) return { status: 'skipped', reason: 'MANUAL_COOLDOWN' }
+  }
   const state = await ensureState(db, storeId, category)
   const lastSuccess = state.last_success_at ? Date.parse(state.last_success_at) : 0
   if (trigger === 'manual' && lastSuccess && now.getTime() - lastSuccess < MANUAL_FRESH_MS) return { status: 'skipped', reason: 'CACHE_FRESH' }
@@ -292,7 +300,7 @@ export async function syncStoreCategory(
   const owner = uuid()
   if (!(await acquireLease(db, storeId, owner, stamp))) return { status: 'skipped', reason: 'LEASE_BUSY' }
   const runId = uuid()
-  await db.prepare(`INSERT INTO shiphub_sync_runs (id, store_id, category, trigger_source, started_at, status) VALUES (?, ?, ?, ?, ?, 'running')`).bind(runId, storeId, category, trigger, stamp).run()
+  await db.prepare(`INSERT INTO shiphub_sync_runs (id, store_id, category, trigger_source, batch_id, started_at, status) VALUES (?, ?, ?, ?, ?, ?, 'running')`).bind(runId, storeId, category, trigger, options.batchId ?? null, stamp).run()
   try {
     const { client } = options.client ? { client: options.client } : await connectionForSync(db, config, storeId)
     const count = await client.count(category)

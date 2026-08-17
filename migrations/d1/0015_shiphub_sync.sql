@@ -61,6 +61,7 @@ CREATE TABLE shiphub_sync_runs (
   store_id TEXT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   category TEXT NOT NULL CHECK (category IN ('hand', 'receive', 'ship')),
   trigger_source TEXT NOT NULL CHECK (trigger_source IN ('scheduled', 'manual', 'authorization')),
+  batch_id TEXT,
   started_at TEXT NOT NULL,
   finished_at TEXT,
   status TEXT NOT NULL CHECK (status IN ('running', 'succeeded', 'skipped', 'failed')),

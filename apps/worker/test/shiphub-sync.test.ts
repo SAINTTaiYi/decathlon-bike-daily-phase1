@@ -107,3 +107,22 @@ test('summary 按门店和 category 隔离，并保留三类固定输出', async
     db.close()
   }
 })
+
+test('人工同步批次串行覆盖三类，同时门店级两分钟冷却阻止下一次人工放大调用', async () => {
+  const db = await database()
+  try {
+    const batchId = 'manual-batch-1'
+    assert.equal((await syncStoreCategory(db as unknown as D1Database, config, STORE, 'hand', {
+      trigger: 'manual', batchId, client: new FixtureShipHubClient([order('manual-hand', '2026-08-18T09:00:00.000Z')]), now: NOW
+    })).status, 'succeeded')
+    assert.equal((await syncStoreCategory(db as unknown as D1Database, config, STORE, 'receive', {
+      trigger: 'manual', batchId, client: new FixtureShipHubClient([order('manual-receive', '2026-08-18T09:00:00.000Z', 'receive')]), now: NOW
+    })).status, 'succeeded')
+    const cooldown = await syncStoreCategory(db as unknown as D1Database, config, STORE, 'ship', {
+      trigger: 'manual', client: new FixtureShipHubClient([order('must-not-run', '2026-08-18T09:00:00.000Z', 'ship')]), now: new Date(NOW.getTime() + 60_000)
+    })
+    assert.deepEqual(cooldown, { status: 'skipped', reason: 'MANUAL_COOLDOWN' })
+  } finally {
+    db.close()
+  }
+})

@@ -90,7 +90,9 @@ export function shipHubRoutes() {
         c.req.query('state') ?? '',
         c.req.query('code') ?? ''
       )
-      return c.json({ connected: true, returnTo: result.returnTo })
+      const target = new URL(result.returnTo, c.req.url)
+      target.searchParams.set('shiphub', 'connected')
+      return c.redirect(target.toString(), 302)
     } catch (error) {
       throw mapUpstreamError(error)
     }
@@ -185,10 +187,15 @@ export function shipHubRoutes() {
     const body = await c.req.json().catch(() => ({}))
     const result = await idempotent(c, body, async (db) => {
       const now = new Date()
-      const jobs = (['hand', 'receive', 'ship'] as const).map((selected) => syncStoreCategory(db, config, context.storeId, selected, { trigger: 'manual', now }))
+      const batchId = crypto.randomUUID()
+      const job = (async () => {
+        for (const selected of ['hand', 'receive', 'ship'] as const) {
+          await syncStoreCategory(db, config, context.storeId, selected, { trigger: 'manual', batchId, now })
+        }
+      })()
       const waitUntil = c.executionCtx?.waitUntil?.bind(c.executionCtx)
-      if (waitUntil) waitUntil(Promise.all(jobs))
-      else void Promise.all(jobs)
+      if (waitUntil) waitUntil(job)
+      else void job
       return { status: 202, body: { queued: true, summary: await getShipHubSummary(db, config, context.storeId) } }
     })
     return c.json(result.body, result.status as any)

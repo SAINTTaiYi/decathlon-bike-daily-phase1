@@ -18,6 +18,7 @@ import LocalMigrationDialog, { hasLocalV5Data } from './components/dialogs/Local
 import LogDialog from './components/dialogs/LogDialog.jsx'
 import PermanentHistoryDialog from './components/dialogs/PermanentHistoryDialog.jsx'
 import GovernanceDialog from './components/dialogs/GovernanceDialog.jsx'
+import ShipHubSettingsDialog from './components/dialogs/ShipHubSettingsDialog.jsx'
 import ReportImageDialog from './components/dialogs/ReportImageDialog.jsx'
 import UpdateRefreshDialog from './components/dialogs/UpdateRefreshDialog.jsx'
 import MenuDialog from './components/dialogs/MenuDialog.jsx'
@@ -36,6 +37,7 @@ import useDesktopSceneTransition from './hooks/useDesktopSceneTransition.js'
 import useMotionSystem from './hooks/useMotionSystem.js'
 import useWorkspaceMotion from './hooks/useWorkspaceMotion.js'
 import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
+import useShipHub from './hooks/useShipHub.js'
 import OpeningScene from './scenes/OpeningScene.jsx'
 import PickupScene from './scenes/PickupScene.jsx'
 import RepairScene from './scenes/RepairScene.jsx'
@@ -86,6 +88,7 @@ export default function App() {
   const mustChangePassword = Boolean(auth.user?.mustChangePassword)
   const deferUpdatePrompt = auth.source === 'login' && !mustChangePassword && !workspaceAssemblyDone
   const workflow = useRemoteClosingWorkflow(authenticated && !mustChangePassword)
+  const shiphub = useShipHub(authenticated && !mustChangePassword)
   const [menuOpen, setMenuOpen] = useState(false)
   const [passwordChangeOpen, setPasswordChangeOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
@@ -94,6 +97,7 @@ export default function App() {
   const [kpiOpen, setKpiOpen] = useState(false)
   const [migrationOpen, setMigrationOpen] = useState(false)
   const [governanceOpen, setGovernanceOpen] = useState(false)
+  const [shiphubSettingsOpen, setShiphubSettingsOpen] = useState(false)
   const [adminMode, setAdminMode] = useState(() => /^#admin(?:[/=]|$)/u.test(window.location.hash))
   const [adminPending, setAdminPending] = useState(0)
   const [reportImage, setReportImage] = useState(null)
@@ -503,6 +507,7 @@ export default function App() {
 
   const recordProps = (scene) => ({
     records: workflow.recordsByScene[scene] || [],
+    shiphub,
     members: workflow.members || [],
     onAssign: async (id, assignedTo) => {
       const record = workflow.records.find((item) => item.id === id)
@@ -645,6 +650,7 @@ export default function App() {
               <span className="closing-summary-anchor" id="closing-summary-anchor" aria-hidden="true" />
               <WorkshopOverviewPage
                 workflow={workflow}
+                shiphubSummary={shiphub.summary}
                 online={online}
                 onEditKpi={() => setKpiOpen(true)}
                 onCompleteClosing={requestClose}
@@ -671,9 +677,10 @@ export default function App() {
             <div className="footer-utility-actions" aria-label="日报辅助操作"><button type="button" onClick={() => setMenuOpen(true)}>日报菜单</button><button type="button" onClick={() => setLogOpen(true)}>当日日志</button><button type="button" onClick={() => setPermanentHistoryOpen(true)}>永久历史</button></div>
           </footer>
         </main>
-        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} onChangePassword={() => setPasswordChangeOpen(true)} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} canAdmin={auth.user?.isPlatformAdmin} onAdmin={() => { setMenuOpen(false); window.location.hash = '#admin' }} adminPending={adminPending} />
+        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} onChangePassword={() => setPasswordChangeOpen(true)} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} canShipHub={Boolean(shiphub.summary?.enabled && (role === 'manager' || role === 'admin'))} onShipHubSettings={() => setShiphubSettingsOpen(true)} canAdmin={auth.user?.isPlatformAdmin} onAdmin={() => { setMenuOpen(false); window.location.hash = '#admin' }} adminPending={adminPending} />
         <PasswordChangeDialog open={passwordChangeOpen} userName={currentUser} onClose={() => setPasswordChangeOpen(false)} onChangePassword={auth.changePassword} onComplete={completePasswordChange} />
         <GovernanceDialog open={governanceOpen} onClose={() => setGovernanceOpen(false)} currentStoreId={currentStore?.storeId || auth.currentStoreId} onNotify={setToast} />
+        <ShipHubSettingsDialog open={shiphubSettingsOpen} onClose={() => setShiphubSettingsOpen(false)} shiphub={shiphub} onNotify={setToast} />
         <LogDialog open={logOpen} onClose={() => setLogOpen(false)} events={workflow.events} />
         <PermanentHistoryDialog open={permanentHistoryOpen} onClose={() => setPermanentHistoryOpen(false)} onLoad={workflow.getPermanentHistory} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
         <OperationHistoryDialog open={Boolean(historyTarget)} onClose={() => setHistoryTarget(null)} title={historyTitle} events={historyEvents} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
