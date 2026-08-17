@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, Fragment } from 'react'
 import IconCheck from '@iconoir/Check.mjs'
 import IconRefresh from '@iconoir/Refresh.mjs'
 import IconBox from '@iconoir/Box.mjs'
@@ -15,8 +15,21 @@ function OrderCard({ order, category, closedAt, onAction }) {
   const busy = order.localActionState === 'pending'
   return (
     <article className="shiphub-order-card" data-local-state={order.localActionState || 'pending'}>
-      <div className="shiphub-order-card-head"><span><IconBox width={16} height={16} aria-hidden="true" />{meta.cn}</span><strong>{order.displayLabel || order.id}</strong><small>{order.status || '待处理'}</small></div>
-      {order.items?.length ? <ul className="shiphub-order-items">{order.items.map((item) => <li key={item.id}><span>{item.productLabel || item.sku || '商品'}</span><b>×{item.quantity}</b></li>)}</ul> : <p className="shiphub-order-empty-detail">暂无商品明细</p>}
+            <div className="shiphub-order-card-head">
+        <span><IconBox width={16} height={16} aria-hidden="true" />{order.sourceLabel || meta.cn}</span>
+        {order.orderNumber && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>{order.orderNumber}</small>}
+        <strong>{order.orderNumber || order.displayLabel || order.id}</strong>
+        {order.vehicleInfo && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>{order.vehicleInfo}</small>}
+        {order.customerPhone && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>📞 {order.customerPhone}</small>}
+        {!order.orderNumber && <small>{order.status || '待处理'}</small>}
+      </div>
+      {order.items?.length ? <ul className="shiphub-order-items">{order.items.map((item, idx) => (
+          <Fragment key={`${order.id}-item-${idx}`}>
+            <li><span>{item.vehicleInfo || item.productLabel || item.sku || '商品'}</span><b>×{item.quantity}</b></li>
+            {item.sku && <li style={{ fontSize: '11px', color: 'var(--ops-muted, #6a6a6a)', gridColumn: '1 / -1' }}><span>SKU: {item.sku}</span></li>}
+            {item.serialNumberMasked && <li style={{ fontSize: '11px', color: 'var(--ops-muted, #6a6a6a)' }}><span>序列号</span><span>{item.serialNumberMasked}</span></li>}
+          </Fragment>
+        ))}</ul> : <p className="shiphub-order-empty-detail">暂无商品明细</p>}
       <footer><span>{completed ? '本地已处理 · 等待上游对齐' : order.scheduledAt ? new Date(order.scheduledAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '无预约时间'}</span><button type="button" onClick={() => void onAction(category, order.id, completed ? 'revoked' : 'completed')} disabled={Boolean(closedAt) || busy}>{completed ? '撤销本地确认' : <><IconCheck width={15} height={15} aria-hidden="true" />{meta.action}</>}</button></footer>
     </article>
   )
