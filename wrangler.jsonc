@@ -12,6 +12,7 @@
   "placement": { "mode": "smart" },
   "workers_dev": true,
   "preview_urls": true,
+  "triggers": { "crons": ["*/5 * * * *"] },
   "assets": {
     "directory": "apps/web/dist",
     "not_found_handling": "single-page-application",
@@ -31,6 +32,8 @@
     "APP_VERSION": "5.9.2",
     "COOKIE_SECURE": "true",
     "SESSION_TTL_HOURS": "12",
-    "CORS_ALLOWED_ORIGINS": "https://bike-ops-staging.geeklightonefish.workers.dev"
+    "CORS_ALLOWED_ORIGINS": "https://bike-ops-staging.geeklightonefish.workers.dev",
+    "SHIPHUB_ENABLED": "false",
+    "SHIPHUB_MODE": "fixture"
   }
 }

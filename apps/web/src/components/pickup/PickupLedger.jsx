@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import MemberSelectSheet from '../dialogs/MemberSelectSheet.jsx'
+import ShipHubOrderBoard from '../shiphub/ShipHubOrderBoard.jsx'
 import IconArchive from '@iconoir/Archive.mjs'
 import IconBell from '@iconoir/Bell.mjs'
 import IconBicycle from '@iconoir/Bicycle.mjs'
@@ -195,7 +196,7 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
   </div>
 }
 
-export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, onRemove, onHistory, onPickup, onRepairComplete, onHandoverComplete, onPickupNotificationChange, pickupErrors = {}, primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete, repairMode = false, handoverMode = false, repairPixelDissolveId = '', onRepairPixelDissolveComplete, members = [], onAssign = null }) {
+export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, onRemove, onHistory, onPickup, onRepairComplete, onHandoverComplete, onPickupNotificationChange, pickupErrors = {}, primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete, repairMode = false, handoverMode = false, repairPixelDissolveId = '', onRepairPixelDissolveComplete, members = [], onAssign = null, shiphub = null }) {
   const [query, setQuery] = useState('')
   const [expandedId, setExpandedId] = useState('')
   const storageKey = handoverMode ? 'handover-ledger' : repairMode ? 'repair-ledger' : 'pickup-ledger'
@@ -203,6 +204,7 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   const [density, setDensity] = useState(() => window.localStorage?.getItem(`${storageKey}-density`) || 'balanced')
   const [sources, setSources] = useState([])
   const [sort, setSort] = useState(() => window.localStorage?.getItem(`${storageKey}-sort`) || 'default')
+  const [shiphubTab, setShiphubTab] = useState(handoverMode ? 'other' : 'all')
   const [sheet, setSheet] = useState(null)
   const [assignRecord, setAssignRecord] = useState(null)
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -212,6 +214,18 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   const waitingRecords = handoverMode ? records : repairMode ? records.filter((record) => !record.completedToday && !record.completedOn) : records.filter((record) => !isPickedUpToday(record.pickedUpToday))
   const pickedRecords = handoverMode ? [] : repairMode ? records.filter((record) => record.completedToday || record.completedOn) : records.filter((record) => isPickedUpToday(record.pickedUpToday))
   const autoDensity = waitingRecords.length > 12 ? 'compact' : density
+  const shiphubEnabled = !repairMode && Boolean(shiphub?.enabled)
+  const sourceTabs = handoverMode
+    ? [['other', '其它交接'], ['receive', '待收货'], ['ship', '待发货']]
+    : [['all', '全部'], ['manual', '手工台账'], ['shiphub', 'Shiphub 自提']]
+  const showManualLedger = !shiphubEnabled || (handoverMode ? shiphubTab === 'other' : shiphubTab !== 'shiphub')
+  const showShipHub = shiphubEnabled && (handoverMode ? shiphubTab !== 'other' : shiphubTab !== 'manual')
+  const shiphubCategories = handoverMode ? [shiphubTab] : ['hand']
+
+  useEffect(() => {
+    if (!showShipHub || !shiphub?.loadOrders) return
+    shiphubCategories.forEach((category) => { void shiphub.loadOrders(category) })
+  }, [showShipHub, shiphub?.loadOrders, shiphubTab, handoverMode])
 
   useEffect(() => { window.localStorage?.setItem(`${storageKey}-density`, density) }, [density, storageKey])
   useEffect(() => { window.localStorage?.setItem(`${storageKey}-sort`, sort) }, [sort, storageKey])
@@ -261,6 +275,8 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
       : ['队列号', '车辆 / 业务类型', '联系方式', '预约时间', '状态', '操作']
 
   return <div className="pickup-ledger" data-density={autoDensity} aria-label={`${handoverMode ? '交接事项' : repairMode ? '维修车辆' : '待取车辆'}台账，共 ${records.length} 条`}>
+    {shiphubEnabled ? <nav className="pickup-source-tabs" aria-label={handoverMode ? '其它交接来源' : '待取车辆来源'}>{sourceTabs.map(([value, label]) => <button type="button" key={value} data-active={shiphubTab === value ? 'true' : undefined} onClick={() => setShiphubTab(value)}>{label}</button>)}</nav> : null}
+    {showManualLedger ? <>
     {queueControls}
     <section className="pickup-ledger-board" data-ledger-mode={ledgerMode}>
     <div className="pickup-ledger-intro"><div><span>{handoverMode ? 'ACTIVE HANDOVER' : repairMode ? 'ACTIVE REPAIR' : 'ACTIVE PICKUP'}</span><strong>{visible.length ? (handoverMode ? `当前显示 ${visible.length} 项，按列表顺序完成交接。` : repairMode ? `当前显示 ${visible.length} 台，按列表顺序核对并完成维修。` : `当前显示 ${visible.length} 台，按列表顺序核对并交付。`) : (handoverMode ? '当前没有交接事项。' : repairMode ? '当前规则下没有维修车辆。' : '当前规则下没有待取车辆。')}</strong></div><div className="pickup-ledger-global-actions"><button type="button" onClick={() => onHistory()}><IconJournal width={17} height={17} aria-hidden="true" />操作记录</button><button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />{handoverMode ? '增加交接事项' : repairMode ? '增加维修' : '增加待取'}</button></div></div>
@@ -268,6 +284,11 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
     {visible.length ? <div className="pickup-card-grid">{visible.map((record, index) => <PickupCard key={record.id} record={record} index={index} expanded={expandedId === record.id} density={autoDensity} query={debouncedQuery} closedAt={closedAt} pickupError={pickupErrors[record.id] || ''} primaryProcessing={primaryProcessingId === record.id} primaryActionBusy={primaryActionBusy} pickupPixelFill={repairMode ? repairPixelDissolveId === record.id : pickupPixelFillId === record.id} repairMode={repairMode} handoverMode={handoverMode} handoverStampEntering={handoverStampMotionId === record.id} members={members} onToggle={(id) => setExpandedId((current) => current === id ? '' : id)} onEdit={onEdit} onRemove={onRemove} onHistory={onHistory} onPickup={onPickup} onRepairComplete={onRepairComplete} onHandoverComplete={onHandoverComplete} onNotificationChange={onPickupNotificationChange} onAssignClick={(target) => setAssignRecord(target)} onPickupPixelFillComplete={repairMode ? onRepairPixelDissolveComplete : onPickupPixelFillComplete} />)}</div> : <section className="pickup-empty-state"><IconBicycle width={34} height={34} aria-hidden="true" /><span>{waitingRecords.length ? 'NO MATCH' : 'QUEUE CLEAR'}</span><h3>{waitingRecords.length ? '没有符合条件的车辆' : repairMode ? '当前没有维修车辆' : '当前没有待取车辆'}</h3><p>{waitingRecords.length ? '清除搜索或筛选条件，恢复完整列表。' : repairMode ? '新增维修车辆记录，开始录入维修单。' : '新增顾客暂存、自提订单或二手车待取记录。'}</p>{waitingRecords.length ? <button type="button" onClick={() => { setQuery(''); setSources([]); setSort('default') }}>恢复全部车辆</button> : <button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />{repairMode ? '增加维修车辆' : '增加待取车辆'}</button>}</section>}
     {!repairMode && !handoverMode && pickedRecords.length ? <details className="pickup-completed-today"><summary><span><IconCheck width={17} height={17} aria-hidden="true" />今日已取</span><b>{String(pickedRecords.length).padStart(2, '0')}</b></summary><div>{pickedRecords.map((record) => <button type="button" key={record.id} onClick={() => onHistory(record)}><span>{record.title}</span><small>{pickupSourceLabel(record)} · 查看操作记录</small></button>)}</div></details> : null}
     </section>
+    </> : null}
+    {showShipHub ? shiphubCategories.map((category) => {
+      const categoryState = shiphub?.summary?.categories?.find((item) => item.category === category)
+      return <ShipHubOrderBoard key={category} category={category} orders={shiphub?.orders?.[category] || []} loading={Boolean(shiphub?.ordersLoading?.[category])} stale={Boolean(categoryState?.stale)} error={shiphub?.error || ''} closedAt={closedAt} onLoad={shiphub.loadOrders} onAction={shiphub.action} onSync={shiphub.sync} />
+    }) : null}
     <PickupFilterSheet open={Boolean(sheet)} initialTab={sheet || 'filter'} appliedSources={sources} appliedSort={sort} repairMode={repairMode || handoverMode} onClose={closeSheet} onApply={applySheet} />
     <MemberSelectSheet open={Boolean(assignRecord)} members={members} currentId={assignRecord?.assignedTo || ''} title={assignRecord ? assignRecord.title : ''} onClose={() => setAssignRecord(null)} onPick={(userId) => { if (onAssign && assignRecord) void onAssign(assignRecord.id, userId) }} onClear={() => { if (onAssign && assignRecord) void onAssign(assignRecord.id, null) }} />
   </div>

@@ -1,3 +1,5 @@
+export type ShipHubMode = 'fixture' | 'live'
+
 export interface WorkerEnv {
   DB: D1Database
   ASSETS: Fetcher
@@ -16,6 +18,39 @@ export interface WorkerEnv {
   REGISTRATION_SECRET?: string
   RESEND_API_KEY?: string
   RESEND_FROM?: string
+  SHIPHUB_ENABLED?: string
+  SHIPHUB_MODE?: string
+  SHIPHUB_BASE_URL?: string
+  SHIPHUB_FIXTURE_JSON?: string
+  SHIPHUB_LIVE_CONFIRMED?: string
+  SHIPHUB_OAUTH_AUTHORIZE_URL?: string
+  SHIPHUB_OAUTH_TOKEN_URL?: string
+  SHIPHUB_OAUTH_CLIENT_ID?: string
+  SHIPHUB_OAUTH_CLIENT_SECRET?: string
+  SHIPHUB_OAUTH_REDIRECT_URI?: string
+  SHIPHUB_OAUTH_SCOPE?: string
+  SHIPHUB_TOKEN_ENCRYPTION_KEY?: string
+  SHIPHUB_REQUEST_TIMEOUT_MS?: string
+  SHIPHUB_ACTIVE_START_HOUR?: string
+  SHIPHUB_ACTIVE_END_HOUR?: string
+}
+
+export interface ShipHubConfig {
+  enabled: boolean
+  mode: ShipHubMode
+  baseUrl?: string
+  fixtureJson?: string
+  liveConfirmed: boolean
+  oauthAuthorizeUrl?: string
+  oauthTokenUrl?: string
+  oauthClientId?: string
+  oauthClientSecret?: string
+  oauthRedirectUri?: string
+  oauthScope: string
+  tokenEncryptionKey?: string
+  requestTimeoutMs: number
+  activeStartHour: number
+  activeEndHour: number
 }
 
 export interface AppConfig {
@@ -34,10 +69,37 @@ export interface AppConfig {
   REGISTRATION_SECRET?: string
   RESEND_API_KEY?: string
   RESEND_FROM?: string
+  SHIPHUB: ShipHubConfig
 }
 
 export function isAllowedOrigin(origin: string | undefined, allowedOrigins: readonly string[]): boolean {
   return Boolean(origin && allowedOrigins.includes(origin))
+}
+
+function parseHour(value: string | undefined, fallback: number): number {
+  const parsed = Number(value ?? fallback)
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 24 ? parsed : fallback
+}
+
+function loadShipHubConfig(env: WorkerEnv): ShipHubConfig {
+  const mode: ShipHubMode = env.SHIPHUB_MODE === 'live' ? 'live' : 'fixture'
+  return {
+    enabled: env.SHIPHUB_ENABLED === 'true',
+    mode,
+    baseUrl: env.SHIPHUB_BASE_URL,
+    fixtureJson: env.SHIPHUB_FIXTURE_JSON,
+    liveConfirmed: env.SHIPHUB_LIVE_CONFIRMED === 'true',
+    oauthAuthorizeUrl: env.SHIPHUB_OAUTH_AUTHORIZE_URL,
+    oauthTokenUrl: env.SHIPHUB_OAUTH_TOKEN_URL,
+    oauthClientId: env.SHIPHUB_OAUTH_CLIENT_ID,
+    oauthClientSecret: env.SHIPHUB_OAUTH_CLIENT_SECRET,
+    oauthRedirectUri: env.SHIPHUB_OAUTH_REDIRECT_URI,
+    oauthScope: env.SHIPHUB_OAUTH_SCOPE ?? 'read',
+    tokenEncryptionKey: env.SHIPHUB_TOKEN_ENCRYPTION_KEY,
+    requestTimeoutMs: (() => { const value = Number(env.SHIPHUB_REQUEST_TIMEOUT_MS ?? 8000); return Number.isFinite(value) ? Math.min(Math.max(value, 1000), 30000) : 8000 })(),
+    activeStartHour: parseHour(env.SHIPHUB_ACTIVE_START_HOUR, 6),
+    activeEndHour: parseHour(env.SHIPHUB_ACTIVE_END_HOUR, 23)
+  }
 }
 
 export function loadConfig(env: WorkerEnv): AppConfig {
@@ -65,6 +127,7 @@ export function loadConfig(env: WorkerEnv): AppConfig {
     PLATFORM_ADMIN_SETUP_TOKEN_HASH: env.PLATFORM_ADMIN_SETUP_TOKEN_HASH,
     REGISTRATION_SECRET: env.REGISTRATION_SECRET,
     RESEND_API_KEY: env.RESEND_API_KEY,
-    RESEND_FROM: env.RESEND_FROM
+    RESEND_FROM: env.RESEND_FROM,
+    SHIPHUB: loadShipHubConfig(env)
   }
 }

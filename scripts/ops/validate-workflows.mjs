@@ -87,6 +87,7 @@ assert(/environment: preview/u.test(preview), 'cloudflare preview: GitHub Enviro
 assert(/CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/u.test(preview), 'cloudflare preview: API token must come from the preview Environment')
 assert(/database_id": "e40af8eb-6340-4b9e-8484-20247323fd84"/u.test(preview), 'cloudflare preview: D1 database must remain pinned')
 assert(/"name": "bike-ops-preview"/u.test(preview), 'cloudflare preview: Worker name must remain pinned')
+assert(/"SHIPHUB_ENABLED": "true"/u.test(preview) && /"SHIPHUB_MODE": "fixture"/u.test(preview), 'cloudflare preview: Shiphub must use synthetic fixture mode only')
 assert(/wrangler@4\.112\.0/u.test(preview), 'cloudflare preview: Wrangler version must be pinned')
 
 assert(/^\s+workflow_dispatch:/mu.test(production) && !/^\s+(?:push|pull_request):/mu.test(production), 'production: deployment must be manual')
@@ -107,8 +108,9 @@ assert(/git diff --quiet "\$STAGING_ACCEPTED_SHA" "\$RELEASE_SHA" -- \./u.test(p
 assert(/wrangler@4\.112\.0/u.test(production), 'production: Wrangler version must be pinned')
 includesInOrder(production, ['Validate, test, typecheck, and build before database mutation', 'Apply Production D1 migrations', 'Deploy the Production Worker with Static Assets and D1', 'Verify the deployed Production API, release identity, and Web shell'], 'production')
 
-assert(/0014_handover_assignee/u.test(schemaVersion), 'schema version: latest D1 migration must be reflected in runtime metadata')
-assert(migrationNames.at(-1)?.startsWith('0014_'), 'schema version: latest committed D1 migration must be 0014')
+const latestMigration = migrationNames.at(-1)?.replace(/\.sql$/u, '') ?? ''
+assert(latestMigration && schemaVersion.includes(latestMigration), 'schema version: latest D1 migration must be reflected in runtime metadata')
+assert(latestMigration.startsWith('0015_'), 'schema version: latest committed D1 migration must be 0015 Shiphub sync')
 for (const variable of ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_STORAGE_BUCKET']) assert(envExample.includes(variable), `.env.example: missing ${variable}`)
 assert(!/(?:CLOUDFLARE|RAILWAY|R2_)/u.test(envExample), '.env.example: retired provider variables are forbidden')
 for (const path of ['.github/workflows/bootstrap-infrastructure.yml', 'railway.json', 'infra/docker/api.Dockerfile', 'scripts/ops/cloudflare.mjs', 'scripts/ops/railway.mjs', 'scripts/ops/supabase.mjs', 'scripts/ops/index.mjs', 'scripts/prepare-pages-headers.mjs']) assert(await missing(path), `cleanup: retired file must be deleted: ${path}`)

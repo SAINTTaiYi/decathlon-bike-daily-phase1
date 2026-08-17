@@ -132,13 +132,19 @@ function operationSummary(workflow) {
   return '销售数据已保存 · 可闭店'
 }
 
-function OperationsIndex({ workflow, onJump, showUsed = false }) {
+function OperationsIndex({ workflow, shiphubSummary, onJump, showUsed = false }) {
   const available = workflow.hydrated && workflow.hasSnapshot && !workflow.storageError
   return (
     <nav className="ops-index" aria-label="业务台账模块">
       <div className="ops-index-head"><span className="ops-index-label"><span>OPERATIONS INDEX ·</span><span className="ops-index-label-cn">业务台账</span></span><strong>{operationSummary(workflow)}</strong></div>
       <ol>{operations.filter(({ id }) => showUsed || id !== 'resale').map(({ id, no, en, cn, Icon }) => {
-        const count = workflow.recordsByScene[id]?.length ?? 0
+        const manualCount = workflow.recordsByScene[id]?.length ?? 0
+        const shiphubCount = (category) => shiphubSummary?.categories?.find((item) => item.category === category)?.count ?? 0
+        const count = id === 'pickup'
+          ? manualCount + shiphubCount('hand')
+          : id === 'poster'
+            ? manualCount + shiphubCount('receive') + shiphubCount('ship')
+            : manualCount
         let value = displayMetric(count, available)
         if (id === 'sales') {
           value = !available ? '—' : workflow.closedAt ? 'DONE' : workflow.kpiReady ? 'READY' : 'DUE'
@@ -149,11 +155,11 @@ function OperationsIndex({ workflow, onJump, showUsed = false }) {
   )
 }
 
-function OverviewAnalytics({ workflow }) {
+function OverviewAnalytics({ workflow, shiphubSummary }) {
   const available = workflow.hydrated && workflow.hasSnapshot && !workflow.storageError
   const repairCount = workflow.recordsByScene.repair?.length ?? 0
-  const pickupCount = workflow.recordsByScene.pickup?.length ?? 0
-  const otherCount = workflow.recordsByScene.poster?.length ?? 0
+  const pickupCount = (workflow.recordsByScene.pickup?.length ?? 0) + (shiphubSummary?.categories?.find((item) => item.category === 'hand')?.count ?? 0)
+  const otherCount = (workflow.recordsByScene.poster?.length ?? 0) + (shiphubSummary?.categories?.find((item) => item.category === 'receive')?.count ?? 0) + (shiphubSummary?.categories?.find((item) => item.category === 'ship')?.count ?? 0)
   const healthRows = [
     ['销售数据', workflow.kpiReady ? '完整' : '待填写'],
     ['维修交接', available ? `${repairCount} 条在册` : '待同步'],
@@ -204,15 +210,15 @@ function ReleaseStrip() {
   )
 }
 
-export default function WorkshopOverviewPage({ workflow, online, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport, onJump, showUsed = false, showAnalytics = false }) {
+export default function WorkshopOverviewPage({ workflow, shiphubSummary, online, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport, onJump, showUsed = false, showAnalytics = false }) {
   const available = workflow.hydrated && workflow.hasSnapshot
   return (
     <div className="ops-mobile-overview" data-workspace-module="true" aria-label="Workshop 业务总览">
       {!online ? <p className="ops-inline-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据</p> : null}
       <ClosingStatusCard workflow={workflow} online={online} onEditKpi={onEditKpi} onCompleteClosing={onCompleteClosing} onHistory={onHistory} onRefresh={onRefresh} onReopenClosing={onReopenClosing} onExportReport={onExportReport} />
       <SalesVehiclesPanel dateKey={workflow.dateKey} kpi={workflow.kpi} available={available} onEditKpi={onEditKpi} />
-      <OperationsIndex workflow={workflow} onJump={onJump} showUsed={showUsed} />
-      {showAnalytics ? <OverviewAnalytics workflow={workflow} /> : null}
+      <OperationsIndex workflow={workflow} shiphubSummary={shiphubSummary} onJump={onJump} showUsed={showUsed} />
+      {showAnalytics ? <OverviewAnalytics workflow={workflow} shiphubSummary={shiphubSummary} /> : null}
       <ReleaseStrip />
       <div className="ops-first-screen-spacer" aria-hidden="true" />
     </div>

@@ -137,7 +137,9 @@ jobs:
               "COOKIE_SECURE": "true",
               "SESSION_TTL_HOURS": "12",
               "CORS_ALLOWED_ORIGINS": "__PREVIEW_BASE_URL__",
-              "GIT_SHA": "__RELEASE_SHA__"
+              "GIT_SHA": "__RELEASE_SHA__",
+              "SHIPHUB_ENABLED": "true",
+              "SHIPHUB_MODE": "fixture"
             }
           }
           JSON

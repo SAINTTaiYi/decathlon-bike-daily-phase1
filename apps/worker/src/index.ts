@@ -15,6 +15,8 @@ import { workItemRoutes } from './routes/work-items.js'
 import { registrationRoutes } from './routes/registration.js'
 import { governanceRoutes } from './routes/governance.js'
 import { adminRoutes } from './routes/admin.js'
+import { shipHubRoutes } from './routes/shiphub.js'
+import { runScheduledShipHubSync } from './services/shiphub-sync.js'
 import { ApiProblem } from './services/problems.js'
 import { routeIncomingRequest } from './request-routing.js'
 
@@ -59,7 +61,8 @@ app.use('*', async (c, next) => {
         allowedOrigins: ['https://bike-ops-staging.workers.dev'],
         SESSION_SECRET: 'public-route-placeholder-not-used',
         CSRF_SECRET: 'public-route-placeholder-not-used',
-        PASSWORD_PEPPER: 'public-route-placeholder-not-used'
+        PASSWORD_PEPPER: 'public-route-placeholder-not-used',
+        SHIPHUB: { enabled: false, mode: 'fixture', liveConfirmed: false, oauthScope: 'read', requestTimeoutMs: 8000, activeStartHour: 6, activeEndHour: 23 }
       })
     }
     const origin = c.req.header('origin')
@@ -99,6 +102,7 @@ app.route('/', closingRoutes())
 app.route('/', workItemRoutes())
 app.route('/', auditRoutes())
 app.route('/', bootstrapRoutes())
+app.route('/', shipHubRoutes())
 
 app.all('/api/v1/attachments/*', (c) => c.json({
   error: 'MEDIA_DISABLED',
@@ -126,4 +130,9 @@ export async function handleRequest(request: Request, env: WorkerEnv, executionC
   return routeIncomingRequest(request, env.ASSETS, (apiRequest) => app.fetch(apiRequest, env, executionCtx))
 }
 
-export default { fetch: handleRequest }
+export default {
+  fetch: handleRequest,
+  scheduled(_controller: ScheduledController, env: WorkerEnv, executionCtx: ExecutionContext): void {
+    executionCtx.waitUntil(runScheduledShipHubSync(env))
+  }
+}

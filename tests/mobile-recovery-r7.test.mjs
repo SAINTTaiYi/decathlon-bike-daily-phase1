@@ -34,7 +34,7 @@ test('desktop analytics and Used stay out of the ordinary phone DOM', () => {
   assert.match(app, /showUsed=\{desktopLayout\}/u)
   assert.match(app, /showAnalytics=\{desktopLayout\}/u)
   assert.match(overview, /showUsed = false, showAnalytics = false/u)
-  assert.match(overview, /\{showAnalytics \? <OverviewAnalytics workflow=\{workflow\} \/> : null\}/u)
+  assert.match(overview, /\{showAnalytics \? <OverviewAnalytics workflow=\{workflow\}(?: shiphubSummary=\{shiphubSummary\})? \/> : null\}/u)
   assert.match(overview, /operations\.filter\(\(\{ id \}\) => showUsed \|\| id !== 'resale'\)/u)
 })
 
