@@ -205,7 +205,7 @@ export async function getShipHubOrder(db: D1Database, storeId: string, category:
   `).bind(storeId, category, id))
   if (!row) return null
   const items = await all<any>(db.prepare(`
-    SELECT upstream_item_id AS id, product_label, sku, quantity, serial_number_masked, image_url
+    SELECT upstream_item_id AS id, product_label, sku, quantity, vehicle_info, serial_number_masked, image_url
     FROM shiphub_order_items
     WHERE store_id = ? AND category = ? AND upstream_order_id = ?
     ORDER BY upstream_item_id ASC
@@ -215,7 +215,10 @@ export async function getShipHubOrder(db: D1Database, storeId: string, category:
     items: items.map((item) => ({
       id: item.id,
       productLabel: item.product_label,
+      vehicleInfo: item.vehicle_info,
       sku: item.sku,
+      productLabel: item.product_label,
+      vehicleInfo: item.vehicle_info,
       quantity: item.quantity,
       serialNumberMasked: item.serial_number_masked,
       imageUrl: item.image_url
@@ -340,24 +343,24 @@ export async function syncStoreCategory(
     for (const order of orders) {
       statements.push(db.prepare(`
         INSERT INTO shiphub_orders (
-          store_id, category, upstream_order_id, display_label, source_label, order_status,
+          store_id, category, upstream_order_id, display_label, source_label, order_status, order_number, customer_phone, vehicle_info,
           scheduled_at, upstream_updated_at, first_seen_at, last_seen_at, last_seen_run_id,
           upstream_absent_at, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
         ON CONFLICT(store_id, category, upstream_order_id) DO UPDATE SET
-          display_label = excluded.display_label, source_label = excluded.source_label, order_status = excluded.order_status,
+          display_label = excluded.display_label, source_label = excluded.source_label, order_status = excluded.order_status, order_number = excluded.order_number, customer_phone = excluded.customer_phone, vehicle_info = excluded.vehicle_info,
           scheduled_at = excluded.scheduled_at, upstream_updated_at = excluded.upstream_updated_at,
           last_seen_at = excluded.last_seen_at, last_seen_run_id = excluded.last_seen_run_id,
           upstream_absent_at = NULL, updated_at = excluded.updated_at
-      `).bind(storeId, category, order.id, order.displayLabel, order.sourceLabel, order.status, order.scheduledAt ?? null, order.updatedAt ?? null, writeStamp, writeStamp, runId, writeStamp, writeStamp))
+      `).bind(storeId, category, order.id, order.displayLabel, order.sourceLabel, order.status, order.orderNumber ?? null, order.customerPhone ?? null, order.vehicleInfo ?? null, order.scheduledAt ?? null, order.updatedAt ?? null, writeStamp, writeStamp, runId, writeStamp, writeStamp))
       statements.push(db.prepare('DELETE FROM shiphub_order_items WHERE store_id = ? AND category = ? AND upstream_order_id = ?').bind(storeId, category, order.id))
       for (const item of order.items) {
         statements.push(db.prepare(`
           INSERT INTO shiphub_order_items (
-            store_id, category, upstream_order_id, upstream_item_id, product_label, sku, quantity,
+            store_id, category, upstream_order_id, upstream_item_id, product_label, sku, quantity, vehicle_info,
             serial_number_masked, image_url, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(storeId, category, order.id, item.id, item.productLabel, item.sku, item.quantity, item.serialNumberMasked ?? null, item.imageUrl ?? null, writeStamp, writeStamp))
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(storeId, category, order.id, item.id, item.productLabel, item.sku, item.quantity, item.vehicleInfo ?? null, item.serialNumberMasked ?? null, item.imageUrl ?? null, writeStamp, writeStamp))
       }
     }
     if (fullReconcile) {
