@@ -1,13 +1,15 @@
-export const APP_VERSION = "5.9.9"
+export const APP_VERSION = "5.10.0"
 
 export const currentRelease = {
   version: APP_VERSION,
-  date: "2026.08.15",
-  title: "待取台账搜索工具区常驻与卡片动画提速",
-  summary: "移除滚动隐藏机制，搜索工具区常驻可见；待取卡展开动画提速并使用统一缓动曲线。",
+  date: "2026.08.19",
+  title: "Shiphub 真实数据接入",
+  summary: "Workshop 已真实接入 Shiphub（南通店 NANNI1299），只读同步自行车订单到待取自提、待收货和待发货，采用单门店授权模式，凭证走 Cloudflare Secret。Preview 已实战验证通过。",
   changes: [
-    "移除搜索栏滚动隐藏机制：删除 data-tools-visible 与 scroll 监听，搜索/筛选/排序/密度/收起工具区在台账滚动时始终可见。",
-    "待取卡展开动画提速：卡片摘要过渡 420ms 改为 360ms，展开区 420/180/360ms 改为 360/140/300ms。",
-    "动画曲线统一改为 cubic-bezier(.16,1,.3,1)，滚动时工具区不再上下收缩。"
+    "后端：接入真实 Shiphub API（PingFederate SSO + refresh token 轮换 + Basic 认证），按类目过滤只保留自行车订单（universe_id=2 / CYCLING），泳衣内衣等非自行车商品不进入台账",
+    "前端：待取车辆 Shiphub 自提分段展示真实订单，卡片大标题=商品名称，渠道标签（小程序/京东/天猫），订单号+顾客手机并排，下单时间，长名称自动换行",
+    "安全：凭证走 Cloudflare Secret（client_id/refresh token/加密密钥），refresh token 信封加密落库，access token 不持久化，密码不经过 Workshop 系统",
+    "数据：migration 0016 增加渠道字段持久化（order_platform→中文渠道），订单详情保留商品名、颜色尺寸、SKU、图片、顾客手机",
+    "门控：Preview 实战测试通过（hand=2 自行车、receive=0、ship=1），refresh token 持续轮换无需反复登录"
   ]
 }

@@ -137,7 +137,11 @@ jobs:
               "COOKIE_SECURE": "true",
               "SESSION_TTL_HOURS": "12",
               "CORS_ALLOWED_ORIGINS": "__PREVIEW_BASE_URL__",
-              "GIT_SHA": "__RELEASE_SHA__"
+              "GIT_SHA": "__RELEASE_SHA__",
+              "SHIPHUB_ENABLED": "true",
+              "SHIPHUB_MODE": "live",
+              "SHIPHUB_BASE_URL": "https://shiphub-asia-cn.decathlon.com.cn",
+              "SHIPHUB_OAUTH_TOKEN_URL": "https://idpdecathlon.decathlon.com.cn/as/token.oauth2"
             }
           }
           JSON
@@ -154,6 +158,18 @@ jobs:
           "
       - name: Apply Preview D1 migrations
         run: wrangler d1 migrations apply bike-ops-preview --remote --config wrangler.preview.jsonc
+      - name: Inject Shiphub secrets into the Preview Worker
+        env:
+          SHIPHUB_LOCATION_NUM: ${{ secrets.SHIPHUB_LOCATION_NUM }}
+          SHIPHUB_OAUTH_BASIC_TOKEN: ${{ secrets.SHIPHUB_OAUTH_BASIC_TOKEN }}
+          SHIPHUB_BOOTSTRAP_REFRESH_TOKEN: ${{ secrets.SHIPHUB_BOOTSTRAP_REFRESH_TOKEN }}
+          SHIPHUB_TOKEN_ENCRYPTION_KEY: ${{ secrets.SHIPHUB_TOKEN_ENCRYPTION_KEY }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$SHIPHUB_LOCATION_NUM" | wrangler secret put SHIPHUB_LOCATION_NUM --config wrangler.preview.jsonc
+          printf '%s' "$SHIPHUB_OAUTH_BASIC_TOKEN" | wrangler secret put SHIPHUB_OAUTH_BASIC_TOKEN --config wrangler.preview.jsonc
+          printf '%s' "$SHIPHUB_BOOTSTRAP_REFRESH_TOKEN" | wrangler secret put SHIPHUB_BOOTSTRAP_REFRESH_TOKEN --config wrangler.preview.jsonc
+          printf '%s' "$SHIPHUB_TOKEN_ENCRYPTION_KEY" | wrangler secret put SHIPHUB_TOKEN_ENCRYPTION_KEY --config wrangler.preview.jsonc
       - name: Deploy the Preview Worker with Static Assets and D1
         run: wrangler deploy --config wrangler.preview.jsonc
       - name: Verify the deployed Preview API, release identity, and Web shell

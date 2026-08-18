@@ -520,3 +520,55 @@
 .pickup-assignee-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .pickup-assignee-current { min-width: 0; overflow: hidden; color: var(--pickup-black); font-size: 12px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
 .pickup-assignee-current[data-empty='true'] { color: var(--pickup-muted); }
+
+/* Shiphub stays an additive source inside the existing compact ledgers. */
+.pickup-source-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--ops-ink, #202020) 14%, transparent);
+  border-radius: 999px;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.pickup-source-tabs button {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: transparent;
+  color: var(--ops-muted, #6a6a6a);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pickup-source-tabs button[data-active="true"] { background: var(--ops-ink, #202020); color: #fff; }
+.shiphub-order-board { margin-top: 14px; padding: 16px; border: 1px solid color-mix(in srgb, var(--ops-ink, #202020) 16%, transparent); border-radius: 18px; background: color-mix(in srgb, var(--ops-paper, #fff) 92%, var(--ops-ink, #202020)); }
+.shiphub-order-board > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.shiphub-order-board > header span, .shiphub-order-card-head span { display: flex; align-items: center; gap: 6px; color: var(--ops-muted, #6a6a6a); font-size: 10px; letter-spacing: .12em; }
+.shiphub-order-board > header strong { display: block; margin-top: 3px; font-size: 18px; }
+.shiphub-order-board-meta { display: flex; align-items: center; gap: 10px; color: var(--ops-muted, #6a6a6a); font-size: 12px; }
+.shiphub-order-board-meta em { color: #a56500; font-style: normal; }
+.shiphub-order-board-meta button { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.shiphub-order-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.shiphub-order-card { padding: 12px; border: 1px solid color-mix(in srgb, var(--ops-ink, #202020) 12%, transparent); border-radius: 14px; background: var(--ops-paper, #fff); }
+.shiphub-order-card-head { display: grid; grid-template-columns: 1fr; gap: 4px 8px; }
+.shiphub-order-card-head span { grid-column: 1 / -1; }
+.shiphub-order-card-head strong { overflow-wrap: anywhere; line-height: 1.35; }
+.shiphub-order-card-head small { color: var(--ops-muted, #6a6a6a); overflow-wrap: anywhere; line-height: 1.3; }
+.shiphub-order-card-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.shiphub-order-items { display: grid; gap: 5px; margin: 12px 0; padding: 0; list-style: none; font-size: 13px; }
+.shiphub-order-items li { display: flex; justify-content: space-between; gap: 10px; }
+.shiphub-order-items b { color: var(--ops-muted, #6a6a6a); font-weight: 500; }
+.shiphub-order-card footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ops-muted, #6a6a6a); font-size: 11px; }
+.shiphub-order-card footer button { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--ops-ink, #202020); border-radius: 999px; padding: 6px 9px; background: var(--ops-ink, #202020); color: #fff; cursor: pointer; white-space: nowrap; }
+.shiphub-order-card footer button:disabled { opacity: .5; cursor: not-allowed; }
+.shiphub-order-card[data-local-state="completed"] { border-color: color-mix(in srgb, #39855a 38%, transparent); }
+.shiphub-order-placeholder, .shiphub-order-error { margin: 0; padding: 12px 0 2px; color: var(--ops-muted, #6a6a6a); font-size: 13px; }
+.shiphub-order-error { color: #a33b31; }
+@media (max-width: 640px) {
+  .shiphub-order-board { padding: 12px; border-radius: 14px; }
+  .shiphub-order-board > header { align-items: flex-start; }
+  .shiphub-order-board-meta { flex-direction: column; align-items: flex-end; gap: 5px; }
+  .shiphub-order-grid { grid-template-columns: 1fr; }
+}
