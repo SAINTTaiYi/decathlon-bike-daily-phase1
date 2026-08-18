@@ -3,7 +3,7 @@ import type { AppConfig, WorkerEnv } from '../env.js'
 import { first, nowIso } from '../db.js'
 import { randomToken, sha256 } from './crypto.js'
 import { decryptShipHubSecret, encryptShipHubSecret } from './shiphub-crypto.js'
-import { refreshShipHubAccessToken, type ShipHubToken } from './shiphub-token.js'
+import { exchangeShipHubAuthorizationCode, refreshShipHubAccessToken, type ShipHubToken } from './shiphub-token.js'
 import { ShipHubUpstreamError } from './shiphub-client.js'
 
 function base64Url(bytes: Uint8Array): string {
@@ -86,10 +86,9 @@ export async function completeShipHubAuthorization(
   }
   const key = config.SHIPHUB.tokenEncryptionKey
   if (!key) throw new ShipHubUpstreamError('OAUTH_CONFIG_INCOMPLETE')
-  const verifier = await decryptShipHubSecret(row.pkce_verifier_ciphertext, row.pkce_verifier_nonce, key)
   await db.prepare('UPDATE shiphub_oauth_states SET consumed_at = ? WHERE state_hash = ? AND consumed_at IS NULL')
     .bind(nowIso(), row.state_hash).run()
-  const token = await exchangeAuthorizationCode(config, code, verifier)
+  const token = await exchangeAuthorizationCode(config, code)
   if (!token.refreshToken) throw new ShipHubUpstreamError('OAUTH_REFRESH_TOKEN_MISSING')
   const encrypted = await encryptShipHubSecret(token.refreshToken, key)
   const stamp = nowIso()
@@ -107,34 +106,8 @@ export async function completeShipHubAuthorization(
   return { returnTo: row.return_to, token }
 }
 
-async function exchangeAuthorizationCode(config: AppConfig, code: string, verifier: string): Promise<ShipHubToken> {
-  if (!config.SHIPHUB.oauthTokenUrl || !config.SHIPHUB.oauthClientId || !config.SHIPHUB.oauthRedirectUri) {
-    throw new ShipHubUpstreamError('OAUTH_TOKEN_CONFIG_INCOMPLETE')
-  }
-  const body = new URLSearchParams({
-    grant_type: 'authorization_code',
-    code,
-    code_verifier: verifier,
-    client_id: config.SHIPHUB.oauthClientId,
-    redirect_uri: config.SHIPHUB.oauthRedirectUri
-  })
-  if (config.SHIPHUB.oauthClientSecret) body.set('client_secret', config.SHIPHUB.oauthClientSecret)
-  let response: Response
-  try {
-    response = await fetch(config.SHIPHUB.oauthTokenUrl, { method: 'POST', headers: { accept: 'application/json', 'content-type': 'application/x-www-form-urlencoded' }, body })
-  } catch {
-    throw new ShipHubUpstreamError('OAUTH_CODE_NETWORK_ERROR', undefined, true)
-  }
-  if (!response.ok) throw new ShipHubUpstreamError(`OAUTH_CODE_HTTP_${response.status}`, response.status, response.status >= 500)
-  let payload: unknown
-  try { payload = await response.json() } catch { throw new ShipHubUpstreamError('OAUTH_CODE_INVALID_JSON') }
-  if (!payload || typeof payload !== 'object') throw new ShipHubUpstreamError('OAUTH_CODE_INVALID_RESPONSE')
-  const row = payload as Record<string, unknown>
-  const accessToken = typeof row.access_token === 'string' ? row.access_token : ''
-  const refreshToken = typeof row.refresh_token === 'string' ? row.refresh_token : undefined
-  if (!accessToken || !refreshToken) throw new ShipHubUpstreamError('OAUTH_TOKEN_MISSING')
-  const expiresIn = Number(row.expires_in ?? 3600)
-  return { accessToken, refreshToken, expiresAt: new Date(Date.now() + Math.max(Number.isFinite(expiresIn) ? expiresIn : 3600, 60) * 1000).toISOString() }
+async function exchangeAuthorizationCode(config: AppConfig, code: string): Promise<ShipHubToken> {
+  return exchangeShipHubAuthorizationCode(config.SHIPHUB, code)
 }
 
 export async function readRefreshToken(config: AppConfig, row: { refresh_token_ciphertext: string; refresh_token_nonce: string }): Promise<string> {
@@ -158,4 +131,28 @@ export async function rotateRefreshToken(
         token_expires_at = ?, token_updated_at = ?, updated_at = ?
     WHERE store_id = ? AND refresh_token_ciphertext = ? AND refresh_token_nonce = ?
   `).bind(encrypted.ciphertext, encrypted.nonce, token.expiresAt, nowIso(), nowIso(), storeId, previousCiphertext, previousNonce).run()
+}
+
+export async function bootstrapShipHubConnection(
+  db: D1Database,
+  config: AppConfig,
+  storeId: string
+): Promise<boolean> {
+  const refreshToken = config.SHIPHUB.bootstrapRefreshToken
+  const key = config.SHIPHUB.tokenEncryptionKey
+  if (!refreshToken || !key) return false
+  const encrypted = await encryptShipHubSecret(refreshToken, key)
+  const stamp = nowIso()
+  await db.prepare(`
+    INSERT INTO shiphub_connections (
+      store_id, enabled, mode, refresh_token_ciphertext, refresh_token_nonce, refresh_token_key_version,
+      token_expires_at, token_updated_at, authorization_status, last_auth_error_code, created_at, updated_at
+    ) VALUES (?, 1, 'live', ?, ?, 'v1', NULL, ?, 'connected', NULL, ?, ?)
+    ON CONFLICT(store_id) DO UPDATE SET
+      enabled = 1, mode = 'live', refresh_token_ciphertext = excluded.refresh_token_ciphertext,
+      refresh_token_nonce = excluded.refresh_token_nonce, refresh_token_key_version = excluded.refresh_token_key_version,
+      token_updated_at = excluded.token_updated_at, authorization_status = 'connected',
+      last_auth_error_code = NULL, updated_at = excluded.updated_at
+  `).bind(storeId, encrypted.ciphertext, encrypted.nonce, stamp, stamp, stamp).run()
+  return true
 }

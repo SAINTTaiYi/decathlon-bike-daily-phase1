@@ -24,6 +24,7 @@ export type ShipHubOrder = {
   vehicleInfo?: string | null
   scheduledAt?: string | null
   updatedAt?: string | null
+  detailKey?: string | null
   items: ShipHubOrderItem[]
 }
 
@@ -33,7 +34,7 @@ export interface ShipHubClient {
   readonly mode: ShipHubMode
   count(category: ShipHubCategory): Promise<number>
   list(category: ShipHubCategory, cursor?: string | null, pageSize?: number): Promise<ShipHubPage>
-  detail(category: ShipHubCategory, id: string): Promise<ShipHubOrder>
+  detail(category: ShipHubCategory, id: string, detailKey?: string | null): Promise<ShipHubOrder>
 }
 
 export class ShipHubUpstreamError extends Error {
@@ -169,7 +170,7 @@ export class FixtureShipHubClient implements ShipHubClient {
     return Promise.resolve({ orders: page, nextCursor: next })
   }
 
-  detail(category: ShipHubCategory, id: string): Promise<ShipHubOrder> {
+  detail(category: ShipHubCategory, id: string, _detailKey?: string | null): Promise<ShipHubOrder> {
     const order = this.orders.find((item) => item.category === category && item.id === id)
     if (!order) return Promise.reject(new ShipHubUpstreamError('UPSTREAM_NOT_FOUND', 404))
     return Promise.resolve(order)
@@ -180,30 +181,150 @@ export function createFixtureClient(config: ShipHubConfig): FixtureShipHubClient
   return new FixtureShipHubClient(parseFixture(config.fixtureJson))
 }
 
+const CATEGORY_COUNT_PATH: Record<ShipHubCategory, string> = {
+  hand: 'to_hand_count',
+  receive: 'to_receive_count',
+  ship: 'to_ship_count'
+}
+
+const CATEGORY_SOURCE_LABEL: Record<ShipHubCategory, string> = {
+  hand: 'Shiphub 自提',
+  receive: 'Shiphub 待收货',
+  ship: 'Shiphub 待发货'
+}
+
+function normalizeListOrder(category: ShipHubCategory, input: unknown): ShipHubOrder {
+  if (!input || typeof input !== 'object') throw new ShipHubUpstreamError('INVALID_ORDER')
+  const row = input as Record<string, unknown>
+  const id = firstText(row.b2c_order_id, row.b2cOrderId)
+  if (!id) throw new ShipHubUpstreamError('INVALID_ORDER_ID')
+  const detailKey = firstText(row.ship_group_id, row.shipGroupId) || null
+  const mailNo = firstText(row.mail_no, row.mailNo)
+  const orderType = firstText(row.order_type, row.orderType)
+  const orderPlatform = firstText(row.order_platform, row.orderPlatform)
+  const statusCode = firstText(row.order_latest_status, row.orderLatestStatus)
+  const scheduledAt = firstText(row.carrier_arrive_time, row.receive_time, row.expect_pick_time_start, row.expect_delivery_time_start) || null
+  return {
+    id,
+    detailKey,
+    category,
+    displayLabel: mailNo || id,
+    orderNumber: id,
+    sourceLabel: CATEGORY_SOURCE_LABEL[category],
+    status: orderType || orderPlatform || statusCode || 'pending',
+    scheduledAt,
+    updatedAt: null,
+    items: []
+  }
+}
+
+function mapDetailItem(input: unknown, index: number): ShipHubOrderItem {
+  const row = input && typeof input === 'object' ? input as Record<string, unknown> : {}
+  const sku = firstText(row.sku_id, row.skuId, row.model_code, row.modelCode)
+  const productLabel = firstText(row.sku_name, row.skuName, row.product_label, row.productLabel) || '未命名商品'
+  const color = firstText(row.sku_color, row.skuColor)
+  const size = firstText(row.sku_size, row.skuSize)
+  const brand = firstText(row.brand_label, row.brandLabel)
+  const rawQty = Number(row.purchase_qty ?? row.quantity ?? 1)
+  const imageUrl = firstText(row.image_url, row.imageUrl) || null
+  const vehicleInfo = [color, size].filter(Boolean).join(' · ') || brand || null
+  return {
+    id: sku || `item-${index + 1}`,
+    productLabel,
+    sku,
+    quantity: Number.isInteger(rawQty) && rawQty > 0 ? Math.min(rawQty, 999) : 1,
+    vehicleInfo: vehicleInfo || null,
+    serialNumberMasked: null,
+    imageUrl
+  }
+}
+
+function mapDetailItems(input: unknown): ShipHubOrderItem[] {
+  if (!input || typeof input !== 'object') return []
+  const row = input as Record<string, unknown>
+  const rawItems = Array.isArray(row.order_item_list) ? row.order_item_list : []
+  return rawItems.map((item, index) => mapDetailItem(item, index))
+}
+
+function receiverField(receiverBody: unknown, key: string): string | null {
+  if (!receiverBody || typeof receiverBody !== 'object') return null
+  const row = receiverBody as Record<string, unknown>
+  const data = row.data && typeof row.data === 'object' ? row.data as Record<string, unknown> : {}
+  return firstText(data[key]) || null
+}
+
+function normalizeDetailOrder(category: ShipHubCategory, listOrder: ShipHubOrder, detailBody: unknown, receiverBody: unknown): ShipHubOrder {
+  const items = mapDetailItems(detailBody)
+  const customerPhone = receiverField(receiverBody, 'mobile')
+  const customerName = receiverField(receiverBody, 'ship_name')
+  const vehicleInfo = items.slice(0, 3).map((item) => item.productLabel).join('、') || null
+  return {
+    ...listOrder,
+    displayLabel: customerName || items[0]?.productLabel || listOrder.displayLabel,
+    customerPhone: customerPhone || null,
+    vehicleInfo: vehicleInfo || listOrder.vehicleInfo || null,
+    updatedAt: new Date().toISOString(),
+    items
+  }
+}
+
 export class HttpShipHubClient implements ShipHubClient {
   readonly mode = 'live' as const
-  constructor(private readonly config: ShipHubConfig, private readonly accessToken: string) {}
+  constructor(
+    private readonly config: ShipHubConfig,
+    private readonly accessToken: string
+  ) {}
+
+  private get locationNum(): string {
+    const value = this.config.locationNum?.trim()
+    if (!value) throw new ShipHubUpstreamError('LOCATION_NUM_NOT_CONFIGURED')
+    return value
+  }
 
   count(category: ShipHubCategory): Promise<number> {
-    return this.request<{ count: number }>(`/v1/orders/${category}/count`).then((body) => {
-      const count = Number(body.count)
-      if (!Number.isInteger(count) || count < 0) throw new ShipHubUpstreamError('INVALID_COUNT')
+    const path = CATEGORY_COUNT_PATH[category]
+    return this.request<unknown>(`/shiphub_web/stores/orders/count/${path}?location_num=${encodeURIComponent(this.locationNum)}`).then((body) => {
+      const count = Number(body)
+      if (!Number.isInteger(count) || count < 0) return 0
       return count
     })
   }
 
-  list(category: ShipHubCategory, cursor?: string | null, pageSize = 100): Promise<ShipHubPage> {
-    const params = new URLSearchParams({ page_size: String(Math.min(Math.max(pageSize, 1), 500)) })
-    if (cursor) params.set('cursor', cursor)
-    return this.request<{ orders: unknown[]; next_cursor?: string | null }>(`/v1/orders/${category}?${params}`)
-      .then((body) => ({
-        orders: (body.orders ?? []).map(normalizeOrder),
-        nextCursor: body.next_cursor ?? null
-      }))
+  list(category: ShipHubCategory, cursor?: string | null, pageSize = 20): Promise<ShipHubPage> {
+    const pageNum = cursor ? Math.max(Number(cursor), 0) : 0
+    const size = Math.min(Math.max(pageSize, 1), 100)
+    const path = `/shiphub_web/stores/orders/${category}/list?location_num=${encodeURIComponent(this.locationNum)}&page_num=${pageNum}&page_size=${size}`
+    return this.request<{ total_page_num?: number; order_list?: unknown[] }>(path).then((body) => {
+      const rawOrders = Array.isArray(body.order_list) ? body.order_list : []
+      const totalPages = Number(body.total_page_num ?? 0)
+      const orders = rawOrders.map((row) => normalizeListOrder(category, row))
+      const nextPage = pageNum + 1
+      const nextCursor = nextPage < totalPages ? String(nextPage) : null
+      return { orders, nextCursor }
+    })
   }
 
-  detail(category: ShipHubCategory, id: string): Promise<ShipHubOrder> {
-    return this.request<unknown>(`/v1/orders/${category}/${encodeURIComponent(id)}`).then(normalizeOrder)
+  detail(category: ShipHubCategory, id: string, detailKey?: string | null): Promise<ShipHubOrder> {
+    const key = detailKey ?? id
+    const listOrder: ShipHubOrder = {
+      id,
+      detailKey: key,
+      category,
+      displayLabel: id,
+      sourceLabel: CATEGORY_SOURCE_LABEL[category],
+      status: 'pending',
+      items: []
+    }
+    const detailPath = `/shiphub_web/stores/orders/${category}/detail?location_num=${encodeURIComponent(this.locationNum)}&ship_group_id=${encodeURIComponent(key)}&decrypt=true`
+    return this.request<unknown>(detailPath).then(async (detailBody) => {
+      let receiverBody: unknown = null
+      try {
+        receiverBody = await this.request<unknown>(`/shiphub_web/stores/receiver?b2c_order_id=${encodeURIComponent(id)}`)
+      } catch {
+        receiverBody = null
+      }
+      return normalizeDetailOrder(category, listOrder, detailBody, receiverBody)
+    })
   }
 
   private async request<T>(path: string): Promise<T> {

@@ -1,7 +1,7 @@
 import { loadConfig, type AppConfig, type WorkerEnv } from '../env.js'
 import { all, first, nowIso, run, uuid } from '../db.js'
 import { ShipHubUpstreamError, createShipHubClient, type ShipHubCategory, type ShipHubClient, type ShipHubOrder } from '../lib/shiphub-client.js'
-import { readRefreshToken, rotateRefreshToken } from '../lib/shiphub-oauth.js'
+import { bootstrapShipHubConnection, readRefreshToken, rotateRefreshToken } from '../lib/shiphub-oauth.js'
 import { refreshShipHubAccessToken } from '../lib/shiphub-token.js'
 import { ApiProblem } from './problems.js'
 
@@ -227,11 +227,19 @@ export async function getShipHubOrder(db: D1Database, storeId: string, category:
 
 async function connectionForSync(db: D1Database, config: AppConfig, storeId: string): Promise<{ client: ShipHubClient; refresh?: { ciphertext: string; nonce: string } }> {
   if (config.SHIPHUB.mode === 'fixture') return { client: createShipHubClient(config.SHIPHUB) }
-  const row = await first<any>(db.prepare(`
+  let row = await first<any>(db.prepare(`
     SELECT enabled, mode, refresh_token_ciphertext, refresh_token_nonce
     FROM shiphub_connections WHERE store_id = ?
   `).bind(storeId))
-  if (!row || !(row.enabled === 1 || row.enabled === true)) throw new ShipHubUpstreamError('CONNECTION_DISABLED')
+  if (!row || !(row.enabled === 1 || row.enabled === true)) {
+    const bootstrapped = await bootstrapShipHubConnection(db, config, storeId)
+    if (!bootstrapped) throw new ShipHubUpstreamError('CONNECTION_DISABLED')
+    row = await first<any>(db.prepare(`
+      SELECT enabled, mode, refresh_token_ciphertext, refresh_token_nonce
+      FROM shiphub_connections WHERE store_id = ?
+    `).bind(storeId))
+  }
+  if (!row) throw new ShipHubUpstreamError('CONNECTION_DISABLED')
   if (row.mode === 'fixture') return { client: createShipHubClient({ ...config.SHIPHUB, mode: 'fixture' }) }
   if (!row.refresh_token_ciphertext || !row.refresh_token_nonce) throw new ShipHubUpstreamError('REFRESH_TOKEN_MISSING')
   const refreshToken = await readRefreshToken(config, row)
@@ -327,7 +335,7 @@ export async function syncStoreCategory(
           SELECT upstream_updated_at FROM shiphub_orders WHERE store_id = ? AND category = ? AND upstream_order_id = ?
         `).bind(storeId, category, order.id))
         if (!existing || existing.upstream_updated_at !== order.updatedAt) {
-          detailed.push(await client.detail(category, order.id))
+          detailed.push(await client.detail(category, order.id, order.detailKey))
           detailCount += 1
         } else {
           detailed.push(order)

@@ -33,6 +33,9 @@ export interface WorkerEnv {
   SHIPHUB_REQUEST_TIMEOUT_MS?: string
   SHIPHUB_ACTIVE_START_HOUR?: string
   SHIPHUB_ACTIVE_END_HOUR?: string
+  SHIPHUB_LOCATION_NUM?: string
+  SHIPHUB_OAUTH_BASIC_TOKEN?: string
+  SHIPHUB_BOOTSTRAP_REFRESH_TOKEN?: string
 }
 
 export interface ShipHubConfig {
@@ -48,6 +51,9 @@ export interface ShipHubConfig {
   oauthRedirectUri?: string
   oauthScope: string
   tokenEncryptionKey?: string
+  locationNum?: string
+  oauthBasicToken?: string
+  bootstrapRefreshToken?: string
   requestTimeoutMs: number
   activeStartHour: number
   activeEndHour: number
@@ -96,6 +102,9 @@ function loadShipHubConfig(env: WorkerEnv): ShipHubConfig {
     oauthRedirectUri: env.SHIPHUB_OAUTH_REDIRECT_URI,
     oauthScope: env.SHIPHUB_OAUTH_SCOPE ?? 'read',
     tokenEncryptionKey: env.SHIPHUB_TOKEN_ENCRYPTION_KEY,
+    locationNum: env.SHIPHUB_LOCATION_NUM,
+    oauthBasicToken: env.SHIPHUB_OAUTH_BASIC_TOKEN,
+    bootstrapRefreshToken: env.SHIPHUB_BOOTSTRAP_REFRESH_TOKEN,
     requestTimeoutMs: (() => { const value = Number(env.SHIPHUB_REQUEST_TIMEOUT_MS ?? 8000); return Number.isFinite(value) ? Math.min(Math.max(value, 1000), 30000) : 8000 })(),
     activeStartHour: parseHour(env.SHIPHUB_ACTIVE_START_HOUR, 6),
     activeEndHour: parseHour(env.SHIPHUB_ACTIVE_END_HOUR, 23)
