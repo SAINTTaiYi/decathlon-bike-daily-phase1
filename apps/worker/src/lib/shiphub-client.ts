@@ -55,7 +55,7 @@ function assertCategory(value: string): asserts value is ShipHubCategory {
 }
 
 const DEFAULT_FIXTURE: ShipHubOrder[] = [
-  { id: 'fixture-hand-001', category: 'hand', orderNumber: '订单-20260818-001', displayLabel: '订单-20260818-001', sourceLabel: 'Shiphub 自提', status: 'pending', customerPhone: '13800138001', vehicleInfo: '城市通勤车 · 黑色 · M码', scheduledAt: '2026-08-18T10:30:00.000Z', updatedAt: '2026-08-18T01:00:00.000Z', items: [{ id: 'fixture-hand-item-001', productLabel: '城市通勤自行车', sku: 'SKU-CITY-BIKE-001', quantity: 1, vehicleInfo: '城市通勤车 · 黑色 · M码', serialNumberMasked: '***0001' }] },
+  { id: 'fixture-hand-001', category: 'hand', orderNumber: '订单-20260818-001', displayLabel: '订单-20260818-001', sourceLabel: 'Shiphub 自提', status: 'pending', customerPhone: '17012345678', isEncryptedOrder: true, vehicleInfo: '城市通勤车 · 黑色 · M码', scheduledAt: '2026-08-18T10:30:00.000Z', updatedAt: '2026-08-18T01:00:00.000Z', items: [{ id: 'fixture-hand-item-001', productLabel: '城市通勤自行车', sku: 'SKU-CITY-BIKE-001', quantity: 1, vehicleInfo: '城市通勤车 · 黑色 · M码', serialNumberMasked: '***0001' }] },
   { id: 'fixture-receive-001', category: 'receive', orderNumber: '收货-20260818-001', displayLabel: '收货-20260818-001', sourceLabel: 'Shiphub 待收货', status: 'pending', updatedAt: '2026-08-18T01:00:00.000Z', items: [{ id: 'fixture-receive-item-001', productLabel: '自行车配件箱', sku: 'SKU-PARTS-001', quantity: 2 }] },
   { id: 'fixture-ship-001', category: 'ship', orderNumber: '发货-20260818-001', displayLabel: '发货-20260818-001', sourceLabel: 'Shiphub 待发货', status: 'pending', updatedAt: '2026-08-18T01:00:00.000Z', items: [{ id: 'fixture-ship-item-001', productLabel: '整备完成自行车', sku: 'SKU-PREPARED-BIKE-001', quantity: 1, vehicleInfo: '城市通勤车 · 蓝色 · L码', serialNumberMasked: '***0002' }] }
 ]
@@ -122,6 +122,7 @@ export function normalizeOrder(input: unknown): ShipHubOrder {
     sourceLabel: String(row.sourceLabel ?? 'Shiphub').slice(0, 80),
     status: String(row.status ?? '').slice(0, 80),
     customerPhone: customerPhone || null,
+    isEncryptedOrder: row.isEncryptedOrder === true || String(row.is_encrypted_order ?? '') === '1' || null,
     vehicleInfo: vehicleText(row.vehicleInfo ?? row.vehicle_info ?? row.vehicle ?? row.bike ?? row.bicycle),
     scheduledAt: typeof row.scheduledAt === 'string' ? row.scheduledAt : null,
     updatedAt: typeof row.updatedAt === 'string' ? row.updatedAt : null,
