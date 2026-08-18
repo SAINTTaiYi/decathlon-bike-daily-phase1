@@ -39,6 +39,10 @@ type OrderRow = {
   display_label: string
   source_label: string
   order_status: string
+  order_number?: string | null
+  customer_phone?: string | null
+  vehicle_info?: string | null
+  channel?: string | null
   scheduled_at: string | null
   upstream_updated_at: string | null
   first_seen_at: string
@@ -354,16 +358,16 @@ export async function syncStoreCategory(
     for (const order of orders) {
       statements.push(db.prepare(`
         INSERT INTO shiphub_orders (
-          store_id, category, upstream_order_id, display_label, source_label, order_status, order_number, customer_phone, vehicle_info,
+          store_id, category, upstream_order_id, display_label, source_label, order_status, order_number, customer_phone, vehicle_info, channel,
           scheduled_at, upstream_updated_at, first_seen_at, last_seen_at, last_seen_run_id,
           upstream_absent_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
         ON CONFLICT(store_id, category, upstream_order_id) DO UPDATE SET
-          display_label = excluded.display_label, source_label = excluded.source_label, order_status = excluded.order_status, order_number = excluded.order_number, customer_phone = excluded.customer_phone, vehicle_info = excluded.vehicle_info,
+          display_label = excluded.display_label, source_label = excluded.source_label, order_status = excluded.order_status, order_number = excluded.order_number, customer_phone = excluded.customer_phone, vehicle_info = excluded.vehicle_info, channel = excluded.channel,
           scheduled_at = excluded.scheduled_at, upstream_updated_at = excluded.upstream_updated_at,
           last_seen_at = excluded.last_seen_at, last_seen_run_id = excluded.last_seen_run_id,
           upstream_absent_at = NULL, updated_at = excluded.updated_at
-      `).bind(storeId, category, order.id, order.displayLabel, order.sourceLabel, order.status, order.orderNumber ?? null, order.customerPhone ?? null, order.vehicleInfo ?? null, order.scheduledAt ?? null, order.updatedAt ?? null, writeStamp, writeStamp, runId, writeStamp, writeStamp))
+      `).bind(storeId, category, order.id, order.displayLabel, order.sourceLabel, order.status, order.orderNumber ?? null, order.customerPhone ?? null, order.vehicleInfo ?? null, order.channel ?? null, order.scheduledAt ?? null, order.updatedAt ?? null, writeStamp, writeStamp, runId, writeStamp, writeStamp))
       statements.push(db.prepare('DELETE FROM shiphub_order_items WHERE store_id = ? AND category = ? AND upstream_order_id = ?').bind(storeId, category, order.id))
       for (const item of order.items) {
         statements.push(db.prepare(`
