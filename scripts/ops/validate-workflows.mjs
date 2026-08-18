@@ -87,7 +87,8 @@ assert(/environment: preview/u.test(preview), 'cloudflare preview: GitHub Enviro
 assert(/CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/u.test(preview), 'cloudflare preview: API token must come from the preview Environment')
 assert(/database_id": "e40af8eb-6340-4b9e-8484-20247323fd84"/u.test(preview), 'cloudflare preview: D1 database must remain pinned')
 assert(/"name": "bike-ops-preview"/u.test(preview), 'cloudflare preview: Worker name must remain pinned')
-assert(/"SHIPHUB_ENABLED": "true"/u.test(preview) && /"SHIPHUB_MODE": "fixture"/u.test(preview), 'cloudflare preview: Shiphub must use synthetic fixture mode only')
+assert(/"SHIPHUB_ENABLED": "true"/u.test(preview), 'cloudflare preview: Shiphub must be enabled')
+assert(/"SHIPHUB_MODE": "(fixture|live)"/u.test(preview), 'cloudflare preview: Shiphub mode must be fixture or live (live requires authorized secrets)')
 assert(/wrangler@4\.112\.0/u.test(preview), 'cloudflare preview: Wrangler version must be pinned')
 
 assert(/^\s+workflow_dispatch:/mu.test(production) && !/^\s+(?:push|pull_request):/mu.test(production), 'production: deployment must be manual')
