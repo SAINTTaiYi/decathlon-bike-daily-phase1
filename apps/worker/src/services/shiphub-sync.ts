@@ -336,8 +336,10 @@ export async function syncStoreCategory(
         `).bind(storeId, category, order.id))
         if (!existing || existing.upstream_updated_at !== order.updatedAt) {
           const detailOrder = await client.detail(category, order.id, order.detailKey)
-          detailOrder.scheduledAt = detailOrder.scheduledAt ?? order.scheduledAt
-          detailed.push(detailOrder)
+          if (detailOrder) {
+            detailOrder.scheduledAt = detailOrder.scheduledAt ?? order.scheduledAt
+            detailed.push(detailOrder)
+          }
           detailCount += 1
         } else {
           detailed.push(order)

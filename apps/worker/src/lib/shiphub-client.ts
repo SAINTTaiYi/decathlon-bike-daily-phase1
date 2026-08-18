@@ -34,7 +34,7 @@ export interface ShipHubClient {
   readonly mode: ShipHubMode
   count(category: ShipHubCategory): Promise<number>
   list(category: ShipHubCategory, cursor?: string | null, pageSize?: number): Promise<ShipHubPage>
-  detail(category: ShipHubCategory, id: string, detailKey?: string | null): Promise<ShipHubOrder>
+  detail(category: ShipHubCategory, id: string, detailKey?: string | null): Promise<ShipHubOrder | null>
 }
 
 export class ShipHubUpstreamError extends Error {
@@ -170,7 +170,7 @@ export class FixtureShipHubClient implements ShipHubClient {
     return Promise.resolve({ orders: page, nextCursor: next })
   }
 
-  detail(category: ShipHubCategory, id: string, _detailKey?: string | null): Promise<ShipHubOrder> {
+  detail(category: ShipHubCategory, id: string, _detailKey?: string | null): Promise<ShipHubOrder | null> {
     const order = this.orders.find((item) => item.category === category && item.id === id)
     if (!order) return Promise.reject(new ShipHubUpstreamError('UPSTREAM_NOT_FOUND', 404))
     return Promise.resolve(order)
@@ -218,6 +218,21 @@ function normalizeListOrder(category: ShipHubCategory, input: unknown): ShipHubO
   }
 }
 
+function isBikeItem(input: unknown): boolean {
+  if (!input || typeof input !== 'object') return false
+  const row = input as Record<string, unknown>
+  const uniId = String(row.universe_id ?? '').trim()
+  const uniEn = String(row.universe_label_en ?? '').toUpperCase()
+  const uniZh = String(row.universe_label_zh ?? '')
+  return uniId === '2' || uniEn.includes('CYCLING') || uniEn.includes('CYCLE') || uniZh.includes('自行车') || uniZh.includes('骑行')
+}
+
+function rawDetailItems(input: unknown): unknown[] {
+  if (!input || typeof input !== 'object') return []
+  const row = input as Record<string, unknown>
+  return Array.isArray(row.order_item_list) ? row.order_item_list : []
+}
+
 function mapDetailItem(input: unknown, index: number): ShipHubOrderItem {
   const row = input && typeof input === 'object' ? input as Record<string, unknown> : {}
   const sku = firstText(row.sku_id, row.skuId, row.model_code, row.modelCode)
@@ -253,14 +268,18 @@ function receiverField(receiverBody: unknown, key: string): string | null {
   return firstText(data[key]) || null
 }
 
-function normalizeDetailOrder(category: ShipHubCategory, listOrder: ShipHubOrder, detailBody: unknown, receiverBody: unknown): ShipHubOrder {
-  const items = mapDetailItems(detailBody)
+function normalizeDetailOrder(category: ShipHubCategory, listOrder: ShipHubOrder, detailBody: unknown, receiverBody: unknown): ShipHubOrder | null {
+  const rawItems = rawDetailItems(detailBody)
+  const bikeItems = rawItems.filter(isBikeItem)
+  const keptRaw = category === 'ship' ? rawItems : bikeItems
+  if (category !== 'ship' && keptRaw.length === 0) return null
+  const items = keptRaw.map((item, index) => mapDetailItem(item, index))
   const customerPhone = receiverField(receiverBody, 'mobile')
-  const customerName = receiverField(receiverBody, 'ship_name')
+  const productName = items[0]?.productLabel || null
   const vehicleInfo = items.slice(0, 3).map((item) => item.productLabel).join('、') || null
   return {
     ...listOrder,
-    displayLabel: customerName || items[0]?.productLabel || listOrder.displayLabel,
+    displayLabel: category === 'ship' ? listOrder.displayLabel : (productName || listOrder.displayLabel),
     customerPhone: customerPhone || null,
     vehicleInfo: vehicleInfo || listOrder.vehicleInfo || null,
     updatedAt: new Date().toISOString(),
@@ -304,7 +323,7 @@ export class HttpShipHubClient implements ShipHubClient {
     })
   }
 
-  detail(category: ShipHubCategory, id: string, detailKey?: string | null): Promise<ShipHubOrder> {
+  detail(category: ShipHubCategory, id: string, detailKey?: string | null): Promise<ShipHubOrder | null> {
     const key = detailKey ?? id
     const listOrder: ShipHubOrder = {
       id,
