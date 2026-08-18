@@ -245,6 +245,19 @@ SHIPHUB_TOKEN_ENCRYPTION_KEY=<secret>
 
 Preview 必须固定为 `SHIPHUB_ENABLED=false` 或 `SHIPHUB_MODE=fixture`。只有经过授权和连通性验证的目标环境可以使用 `live`。
 
+### 8.2 实际认证与令牌流程（脱敏描述）
+
+实际接入经过授权与连通性验证，采用 PingFederate 表单登录 + OAuth2 authorization code + 客户端 Basic 认证：
+
+1. 访问授权端点，IdP 返回 PingFederate 登录表单。
+2. 提交用户名密码（`pf.username` / `pf.pass`）到表单 action；校验通过后 302 重定向到 `redirect_uri` 并携带一次性 `authorization code`。
+3. 服务端用客户端凭证（`Authorization: Basic base64(client_id:client_secret)`）交换 code，获得 `access_token`（约 2 小时）与 `refresh_token`。
+4. `refresh_token` 每次刷新轮换（旧 token 立即失效）；信封加密存入 D1，持续自动刷新，正常运营无需重新登录。
+5. 首次部署通过 bootstrap `refresh_token`（Cloudflare Secret 注入）初始化连接，之后由 D1 托管轮换。
+6. 若令牌长期失效需要重新授权，密码只在 IdP 登录页提交，不经过 Workshop 系统；重新授权会使历史 refresh token 失效。
+
+脱敏约束：授权端点、token 端点、client credential、refresh token 等真实值只通过 Cloudflare Secret / 受控环境变量注入，不在仓库、日志、审计或本文档中出现。
+
 ## 9. Worker 落地
 
 建议文件边界：
