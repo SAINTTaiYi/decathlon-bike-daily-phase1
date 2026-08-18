@@ -335,7 +335,9 @@ export async function syncStoreCategory(
           SELECT upstream_updated_at FROM shiphub_orders WHERE store_id = ? AND category = ? AND upstream_order_id = ?
         `).bind(storeId, category, order.id))
         if (!existing || existing.upstream_updated_at !== order.updatedAt) {
-          detailed.push(await client.detail(category, order.id, order.detailKey))
+          const detailOrder = await client.detail(category, order.id, order.detailKey)
+          detailOrder.scheduledAt = detailOrder.scheduledAt ?? order.scheduledAt
+          detailed.push(detailOrder)
           detailCount += 1
         } else {
           detailed.push(order)
