@@ -14,23 +14,26 @@ function OrderCard({ order, category, closedAt, onAction }) {
   const completed = order.localActionState === 'completed'
   const busy = order.localActionState === 'pending'
   const title = order.displayLabel || order.items?.[0]?.productLabel || order.id
+  const items = order.items || []
+  const multi = items.length > 1
   return (
     <article className="shiphub-order-card" data-local-state={order.localActionState || 'pending'}>
       <div className="shiphub-order-card-head">
         <span><IconBox width={16} height={16} aria-hidden="true" />{order.sourceLabel || meta.cn}{order.channel ? ' · ' + order.channel : ''}</span>
         <strong>{title}</strong>
-        {order.vehicleInfo && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>{order.vehicleInfo}</small>}
+        {!multi && order.vehicleInfo && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>{order.vehicleInfo}</small>}
         {order.orderNumber && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>{order.orderNumber}</small>}
         {order.customerPhone && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>📞 {order.customerPhone}</small>}
       </div>
-      {order.items?.length ? <ul className="shiphub-order-items">{order.items.map((item, idx) => (
-          <Fragment key={`${order.id}-item-${idx}`}>
-            <li><span>{item.productLabel || item.vehicleInfo || item.sku || '商品'}</span><b>×{item.quantity}</b></li>
-            {item.vehicleInfo && <li style={{ fontSize: '11px', color: 'var(--ops-muted, #6a6a6a)', gridColumn: '1 / -1' }}><span>{item.vehicleInfo}</span></li>}
-            {item.sku && <li style={{ fontSize: '11px', color: 'var(--ops-muted, #6a6a6a)', gridColumn: '1 / -1' }}><span>SKU: {item.sku}</span></li>}
-            {item.serialNumberMasked && <li style={{ fontSize: '11px', color: 'var(--ops-muted, #6a6a6a)', gridColumn: '1 / -1' }}><span>序列号</span><span>{item.serialNumberMasked}</span></li>}
-          </Fragment>
-        ))}</ul> : <p className="shiphub-order-empty-detail">暂无商品明细</p>}
+      {multi ? (
+        <ul className="shiphub-order-items">{items.map((item, idx) => (
+          <li key={`${order.id}-item-${idx}`}><span>{item.productLabel || item.sku || '商品'}</span><b>×{item.quantity}</b></li>
+        ))}</ul>
+      ) : items.length === 1 ? (
+        items[0].sku ? <ul className="shiphub-order-items"><li><span>SKU: {items[0].sku}</span></li></ul> : null
+      ) : (
+        <p className="shiphub-order-empty-detail">暂无商品明细</p>
+      )}
       <footer><span>{completed ? '本地已处理 · 等待上游对齐' : order.scheduledAt ? new Date(order.scheduledAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '无预约时间'}</span><button type="button" onClick={() => void onAction(category, order.id, completed ? 'revoked' : 'completed')} disabled={Boolean(closedAt) || busy}>{completed ? '撤销本地确认' : <><IconCheck width={15} height={15} aria-hidden="true" />{meta.action}</>}</button></footer>
     </article>
   )
