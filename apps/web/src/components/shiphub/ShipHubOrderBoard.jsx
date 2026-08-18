@@ -3,6 +3,8 @@ import IconCheck from '@iconoir/Check.mjs'
 import IconRefresh from '@iconoir/Refresh.mjs'
 import IconBox from '@iconoir/Box.mjs'
 
+const locatorInstalled = typeof window !== 'undefined' && Boolean(window.__shiphubLocatorInstalled)
+
 const labels = {
   hand: { en: 'SHIPHUB PICKUP', cn: 'Shiphub 自提', action: '确认取车', actionType: 'pickup' },
   receive: { en: 'SHIPHUB RECEIVE', cn: '待收货', action: '确认收货', actionType: 'receive' },
@@ -54,6 +56,14 @@ export default function ShipHubOrderBoard({ category, orders = [], loading = fal
   return (
     <section className="shiphub-order-board" data-category={category} aria-labelledby={`shiphub-${category}-title`}>
       <header><div><span>{meta.en}</span><strong id={`shiphub-${category}-title`}>{meta.cn}</strong></div><div className="shiphub-order-board-meta">{stale ? <em>数据可能已过期</em> : <small>读取本站缓存</small>}<button type="button" onClick={() => void sync()} disabled={loading}><IconRefresh width={15} height={15} aria-hidden="true" />同步</button></div></header>
+      {category === 'hand' && !locatorInstalled ? (
+        <div className="shiphub-locator-guide" role="status">
+          <strong>Shiphub 定位脚本未安装</strong>
+          <span>在店内电脑 Chrome 安装后，「Shiphub 核销」会自动定位并展开对应订单卡片，仅需人工输入取件码。</span>
+          <a href="/shiphub-pickup-locator.user.js" download="shiphub-pickup-locator.user.js">一键下载脚本</a>
+          <small>下载后用 Tampermonkey 打开（或拖入浏览器）即可安装</small>
+        </div>
+      ) : null}
       {error ? <p className="shiphub-order-error" role="status">{error}</p> : null}
       {loading ? <p className="shiphub-order-placeholder" role="status">正在读取缓存…</p> : orders.length ? <div className="shiphub-order-grid">{orders.map((order) => <OrderCard key={order.id} order={order} category={category} closedAt={closedAt} onAction={onAction} />)}</div> : <p className="shiphub-order-placeholder">当前没有 {meta.cn}。</p>}
     </section>
