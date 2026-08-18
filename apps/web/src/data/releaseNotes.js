@@ -4,7 +4,7 @@ export const currentRelease = {
   version: APP_VERSION,
   date: "2026.08.19",
   title: "Shiphub 真实数据接入",
-  summary: "Workshop 已真实接入 Shiphub（南通店 NANNI1299），只读同步自行车订单到待取自提、待收货和待发货，采用单门店授权模式，凭证走 Cloudflare Secret。Preview 已实战验证通过。",
+  summary: "Workshop 已真实接入 Shiphub，只读同步自行车订单到待取自提、待收货和待发货，采用单门店授权模式，凭证走 Cloudflare Secret。Preview 已实战验证通过。",
   changes: [
     "后端：接入真实 Shiphub API（PingFederate SSO + refresh token 轮换 + Basic 认证），按类目过滤只保留自行车订单（universe_id=2 / CYCLING），泳衣内衣等非自行车商品不进入台账",
     "前端：待取车辆 Shiphub 自提分段展示真实订单，卡片大标题=商品名称，渠道标签（小程序/京东/天猫），订单号+顾客手机并排，下单时间，长名称自动换行",
