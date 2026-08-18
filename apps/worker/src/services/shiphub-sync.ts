@@ -409,8 +409,8 @@ export async function runScheduledShipHubSync(env: WorkerEnv, now = new Date()):
   if (!config.SHIPHUB.enabled) return
   const stores = await all<{ id: string; timezone: string }>(env.DB.prepare(`
     SELECT s.id, s.timezone
-    FROM stores s JOIN shiphub_connections c ON c.store_id = s.id
-    WHERE s.status = 'active' AND c.enabled = 1
+    FROM stores s
+    WHERE s.status = 'active'
   `))
   for (const store of stores) {
     if (!activeInStoreTimezone(store.timezone, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) continue
