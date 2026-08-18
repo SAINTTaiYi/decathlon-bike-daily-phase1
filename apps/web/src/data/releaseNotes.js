@@ -1,15 +1,14 @@
-export const APP_VERSION = "5.10.0"
+export const APP_VERSION = "6.0.0"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.08.19",
-  title: "Shiphub 真实数据接入",
-  summary: "Workshop 已真实接入 Shiphub，只读同步自行车订单到待取自提、待收货和待发货，采用单门店授权模式，凭证走 Cloudflare Secret。Preview 已实战验证通过。",
+  title: "Shiphub 核销跳转 + 虚拟号标识 + 定位脚本引导",
+  summary: "待取车辆卡片可直接跳转官方 Shiphub 核销自提订单；隐私号加注转接标识；店内 Chrome 提供油猴定位脚本一键安装引导，官方登录后自动定位订单卡片。",
   changes: [
-    "后端：接入真实 Shiphub API（PingFederate SSO + refresh token 轮换 + Basic 认证），按类目过滤只保留自行车订单（universe_id=2 / CYCLING），泳衣内衣等非自行车商品不进入台账",
-    "前端：待取车辆 Shiphub 自提分段展示真实订单，卡片大标题=商品名称，渠道标签（小程序/京东/天猫），订单号+顾客手机并排，下单时间，长名称自动换行",
-    "安全：凭证走 Cloudflare Secret（client_id/refresh token/加密密钥），refresh token 信封加密落库，access token 不持久化，密码不经过 Workshop 系统",
-    "数据：migration 0016 增加渠道字段持久化（order_platform→中文渠道），订单详情保留商品名、颜色尺寸、SKU、图片、顾客手机",
-    "门控：Preview 实战测试通过（hand=2 自行车、receive=0、ship=1），refresh token 持续轮换无需反复登录"
+    "待取车辆 Shiphub 自提卡片新增「Shiphub 核销」按钮：一键复制订单号并打开官方待交接页，配合店内定位脚本自动展开对应订单卡片；核销仍由人工在官方页面输入取件码完成（Workshop 不直连上游写接口）。",
+    "自提订单手机号若为隐私号（虚拟号），卡片加注「虚拟号 · 转接」标识，避免误拿虚拟号核对顾客真实尾号；同步新增 is_encrypted_order 字段（数据库迁移 0017）。",
+    "新增 Shiphub 定位脚本安装引导：待取车辆页自动检测 Tampermonkey（油猴）与定位脚本，未安装时提供一键引导（油猴商店安装 / 脚本一键下载）。",
+    "定位脚本 v0.2.0：打开官方页面后自动填订单号搜索并展开卡片；若遇官方登录，登录完成后自动回跳待交接页并继续定位。"
   ]
 }
