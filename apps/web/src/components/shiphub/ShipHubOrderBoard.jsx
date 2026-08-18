@@ -22,8 +22,10 @@ function OrderCard({ order, category, closedAt, onAction }) {
         <span><IconBox width={16} height={16} aria-hidden="true" />{order.sourceLabel || meta.cn}{order.channel ? ' · ' + order.channel : ''}</span>
         <strong>{title}</strong>
         {!multi && order.vehicleInfo && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>{order.vehicleInfo}</small>}
-        {order.orderNumber && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>{order.orderNumber}</small>}
-        {order.customerPhone && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>📞 {order.customerPhone}</small>}
+        <div className="shiphub-order-card-meta">
+          {order.orderNumber && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>订单号：{order.orderNumber}</small>}
+          {order.customerPhone && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>📞 {order.customerPhone}</small>}
+        </div>
       </div>
       {multi ? (
         <ul className="shiphub-order-items">{items.map((item, idx) => (
@@ -34,7 +36,7 @@ function OrderCard({ order, category, closedAt, onAction }) {
       ) : (
         <p className="shiphub-order-empty-detail">暂无商品明细</p>
       )}
-      <footer><span>{completed ? '本地已处理 · 等待上游对齐' : order.scheduledAt ? new Date(order.scheduledAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '无预约时间'}</span><button type="button" onClick={() => void onAction(category, order.id, completed ? 'revoked' : 'completed')} disabled={Boolean(closedAt) || busy}>{completed ? '撤销本地确认' : <><IconCheck width={15} height={15} aria-hidden="true" />{meta.action}</>}</button></footer>
+      <footer><span>{completed ? '本地已处理 · 等待上游对齐' : order.scheduledAt ? `下单时间：${new Date(order.scheduledAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}` : '无预约时间'}</span><button type="button" onClick={() => void onAction(category, order.id, completed ? 'revoked' : 'completed')} disabled={Boolean(closedAt) || busy}>{completed ? '撤销本地确认' : <><IconCheck width={15} height={15} aria-hidden="true" />{meta.action}</>}</button></footer>
     </article>
   )
 }
