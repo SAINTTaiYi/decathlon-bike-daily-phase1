@@ -1,62 +1,70 @@
 {
   "kind": "formal-production-release",
-  "version": "5.9.10",
+  "version": "5.10.0",
   "previewRange": {
-    "fromExclusive": "400fe210231132a6065d5faaecbf6254ec15bc6e",
-    "toInclusive": "a63e0e006556c8de42f9aa832d360e6a20f7d9a1",
+    "fromExclusive": "ef624d93e55ff3b38ad927ecd53b334dc4fc0969",
+    "toInclusive": "8dbff54b47985981cfa1240038fee675ff922d69",
     "commits": [
       {
-        "sha": "6aca950d1a3a347ac1c6b993b8237dccc740cf36",
-        "subject": "chore(release): prepare formal release V5.9.9"
+        "sha": "57007743bff8974a40a759fa0cea7a958f0d25de",
+        "subject": "feat(shiphub): wire live mode to real Shiphub API"
       },
       {
-        "sha": "40cac640e2691b5b10a11ba9166401d81b135a83",
-        "subject": "feat(worker): add gated Shiphub sync foundation"
+        "sha": "50d86cdf745914293e74bec6442f2be4ddb7dce5",
+        "subject": "feat(shiphub): enable live sync in Preview + auto-bootstrap connection"
       },
       {
-        "sha": "1110beb2d3709a4daa6be81a2bd048a5bcf61926",
-        "subject": "feat(web): surface gated Shiphub cached orders"
+        "sha": "5d84c6455c7e841277805644754698be1335786a",
+        "subject": "fix(ci): allow live Shiphub mode in Preview workflow validation"
       },
       {
-        "sha": "df8ec88342cf28ae6d114eb64357684cfb26ffca",
-        "subject": "test(preview): enable synthetic Shiphub fixture"
+        "sha": "4b07142f717fc13424c8975c5756870016fbb4c3",
+        "subject": "fix(shiphub): preserve scheduledAt from list phase through detail"
       },
       {
-        "sha": "163a9ba3330b78a3f3a2d150b80394b443326743",
-        "subject": "feat(shiphub): add orderNumber, customerPhone, vehicleInfo to orders and items"
+        "sha": "0a6d4b72b433cb4ff34f010ce912055259c68a74",
+        "subject": "feat(shiphub): filter to cycling orders only + use product name as card title"
       },
       {
-        "sha": "6c4c42b49cdf86af8d6edb628bc264b9ec5f3add",
-        "subject": "fix(shiphub): remove duplicate productLabel/vehicleInfo in getShipHubOrder items map"
+        "sha": "531114d4d6f9abce8c43c8b287558b5db7f2a608",
+        "subject": "fix(shiphub): preserve orderNumber in detail + vehicleInfo as color/size"
       },
       {
-        "sha": "d2c8afdb70f61c961d2ec4f6b418bb3e427796c9",
-        "subject": "feat(web): display orderNumber, phone, vehicleInfo, SKU in Shiphub cards"
+        "sha": "8baa5c87561235fd0abd714e42921df9f21d4759",
+        "subject": "feat(shiphub): identify order channel (cube=小程序/jd=京东/tmall=天猫)"
       },
       {
-        "sha": "f08a9e9696ef96ace967c919851b2248a80e6998",
-        "subject": "test(shiphub): add orderNumber, customerPhone, vehicleInfo to test fixtures"
+        "sha": "9d333fc4dd427d0deed873c1fff7da9cad2befef",
+        "subject": "feat(shiphub): persist channel field in D1 (migration 0016)"
       },
       {
-        "sha": "612e444a02e531ad785f8a98bdcaaac22fee968a",
-        "subject": "fix(shiphub): add 4 missing INSERT VALUES placeholders"
+        "sha": "bd50577744c5fdbd20f4b501e012d772fbf2a1f0",
+        "subject": "test: update schema version assertion to 0016_shiphub_channel"
       },
       {
-        "sha": "a63e0e006556c8de42f9aa832d360e6a20f7d9a1",
-        "subject": "fix(web): use snake_case fields for Shiphub order display"
+        "sha": "80709c859b21ea03e7aa32eb252e74b69dbbdb6c",
+        "subject": "fix(web): dedupe Shiphub card info (title/vehicleInfo/items)"
+      },
+      {
+        "sha": "181d120243b94ab255234b8cda8b1782e078dc8d",
+        "subject": "fix(web): allow Shiphub card long names/descriptions to wrap to two lines"
+      },
+      {
+        "sha": "8dbff54b47985981cfa1240038fee675ff922d69",
+        "subject": "feat(web): label order number & time on Shiphub card, pair phone with order number"
       }
     ]
   },
   "announcement": {
-    "title": "Shiphub 数据整合",
-    "summary": "Workshop 现已支持从 Shiphub 只读同步待取自提、待收货和待发货订单，采用单门店 SSO 授权模式，Preview 环境使用合成 fixture 测试，生产环境默认关闭需手动启用。",
+    "title": "Shiphub 真实数据接入",
+    "summary": "Workshop 已真实接入 Shiphub（南通店 NANNI1299），只读同步自行车订单到待取自提、待收货和待发货，采用单门店授权模式，凭证走 Cloudflare Secret。Preview 已实战验证通过。",
     "changes": [
-      "后端：新增 D1 schema 0015_shiphub_sync，实现 OAuth2/PKCE 连接、token 加密存储、租约控制的定时同步引擎和完整对账逻辑",
-      "前端：待取车辆增加 Shiphub 自提分段，其它交接增加待收货/待发货标签，设置中心增加 Shiphub 连接管理卡片",
-      "安全：refresh token 信封加密落库，access token 不持久化，密码只在 IdP 页面提交不经过 Workshop，所有日志和响应脱敏",
-      "UI：订单卡片显示真实订单编号、顾客手机、车辆信息和 SKU，修复合成 fixture 数据字段映射",
-      "门控：Preview 固定使用 fixture 模式零真实调用，staging/production 默认 SHIPHUB_ENABLED=false 需配置后手动启用"
+      "后端：接入真实 Shiphub API（PingFederate SSO + refresh token 轮换 + Basic 认证），按类目过滤只保留自行车订单（universe_id=2 / CYCLING），泳衣内衣等非自行车商品不进入台账",
+      "前端：待取车辆 Shiphub 自提分段展示真实订单，卡片大标题=商品名称，渠道标签（小程序/京东/天猫），订单号+顾客手机并排，下单时间，长名称自动换行",
+      "安全：凭证走 Cloudflare Secret（client_id/refresh token/加密密钥），refresh token 信封加密落库，access token 不持久化，密码不经过 Workshop 系统",
+      "数据：migration 0016 增加渠道字段持久化（order_platform→中文渠道），订单详情保留商品名、颜色尺寸、SKU、图片、顾客手机",
+      "门控：Preview 实战测试通过（hand=2 自行车、receive=0、ship=1），refresh token 持续轮换无需反复登录"
     ]
   },
-  "preparedAt": "2026-08-18T06:08:06.834Z"
+  "preparedAt": "2026-08-18T17:22:04.904Z"
 }
