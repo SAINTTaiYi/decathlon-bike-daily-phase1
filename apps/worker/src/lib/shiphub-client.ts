@@ -276,7 +276,7 @@ function normalizeDetailOrder(category: ShipHubCategory, listOrder: ShipHubOrder
   const items = keptRaw.map((item, index) => mapDetailItem(item, index))
   const customerPhone = receiverField(receiverBody, 'mobile')
   const productName = items[0]?.productLabel || null
-  const vehicleInfo = items.slice(0, 3).map((item) => item.productLabel).join('、') || null
+  const vehicleInfo = items[0]?.vehicleInfo || null
   return {
     ...listOrder,
     displayLabel: category === 'ship' ? listOrder.displayLabel : (productName || listOrder.displayLabel),
@@ -330,6 +330,7 @@ export class HttpShipHubClient implements ShipHubClient {
       detailKey: key,
       category,
       displayLabel: id,
+      orderNumber: id,
       sourceLabel: CATEGORY_SOURCE_LABEL[category],
       status: 'pending',
       items: []
