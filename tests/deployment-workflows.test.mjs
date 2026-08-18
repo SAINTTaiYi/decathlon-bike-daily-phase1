@@ -70,7 +70,7 @@ test('发布顺序固定为全量验证、数据库迁移、Worker 部署、线�
 
 test('D1 schema identity is tied to the latest committed migration', async () => {
   const source = await readFile('apps/worker/src/schema-version.ts', 'utf8')
-  assert.match(source, /SCHEMA_VERSION = '0015_shiphub_sync'/u)
+  assert.match(source, /SCHEMA_VERSION = '0016_shiphub_channel'/u)
 })
 
 test('旧基础设施文件仍被删除', async () => {
