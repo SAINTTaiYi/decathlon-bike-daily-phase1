@@ -572,3 +572,12 @@
   .shiphub-order-board-meta { flex-direction: column; align-items: flex-end; gap: 5px; }
   .shiphub-order-grid { grid-template-columns: 1fr; }
 }
+
+/* Shiphub 核销跳转（feat/shiphub-verify-jump）：虚拟号标识 + 官方核销入口 */
+.shiphub-order-virtual-tag { font-style: normal; margin-left: 4px; padding: 1px 7px; border-radius: 999px; background: #fff3e0; color: #a56500; font-size: 10px; line-height: 1.5; border: 1px solid #ffd591; white-space: nowrap; }
+.shiphub-order-card-actions { display: inline-flex; align-items: center; gap: 6px; }
+.shiphub-order-card-actions .shiphub-order-verify { background: transparent; color: var(--ops-ink, #202020); border: 1px dashed color-mix(in srgb, var(--ops-ink, #202020) 45%, transparent); }
+.shiphub-order-card-actions .shiphub-order-verify:hover { background: color-mix(in srgb, var(--ops-ink, #202020) 6%, transparent); }
+@media (max-width: 640px) {
+  .shiphub-order-card footer { flex-wrap: wrap; }
+}

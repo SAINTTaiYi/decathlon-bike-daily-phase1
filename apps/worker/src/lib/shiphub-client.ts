@@ -21,6 +21,7 @@ export type ShipHubOrder = {
   sourceLabel: string
   status: string
   customerPhone?: string | null
+  isEncryptedOrder?: boolean | null
   vehicleInfo?: string | null
   scheduledAt?: string | null
   updatedAt?: string | null
@@ -216,6 +217,7 @@ function normalizeListOrder(category: ShipHubCategory, input: unknown): ShipHubO
   const orderType = firstText(row.order_type, row.orderType)
   const orderPlatform = firstText(row.order_platform, row.orderPlatform)
   const statusCode = firstText(row.order_latest_status, row.orderLatestStatus)
+  const isEncrypted = row.is_encrypted_order === true || String(row.is_encrypted_order ?? '') === '1'
   const scheduledAt = firstText(row.carrier_arrive_time, row.receive_time, row.expect_pick_time_start, row.expect_delivery_time_start) || null
   return {
     id,
@@ -226,6 +228,7 @@ function normalizeListOrder(category: ShipHubCategory, input: unknown): ShipHubO
     sourceLabel: CATEGORY_SOURCE_LABEL[category],
     status: orderType || statusCode || 'pending',
     channel: channelLabel(orderPlatform),
+    isEncryptedOrder: isEncrypted || null,
     scheduledAt,
     updatedAt: null,
     items: []

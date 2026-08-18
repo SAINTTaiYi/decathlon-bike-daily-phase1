@@ -33,6 +33,7 @@ function mapOrder(order: any) {
     status: order.order_status,
     orderNumber: order.order_number ?? null,
     customerPhone: order.customer_phone ?? null,
+    isEncryptedOrder: Boolean(order.is_encrypted_order),
     vehicleInfo: order.vehicle_info ?? null,
     channel: order.channel ?? null,
     scheduledAt: order.scheduled_at,

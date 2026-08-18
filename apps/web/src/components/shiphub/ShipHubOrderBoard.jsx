@@ -13,6 +13,12 @@ function OrderCard({ order, category, closedAt, onAction }) {
   const meta = labels[category]
   const completed = order.localActionState === 'completed'
   const busy = order.localActionState === 'pending'
+  const openShiphubVerify = () => {
+    const orderId = order.orderNumber || order.id
+    if (!orderId) return
+    try { void navigator.clipboard?.writeText(orderId) } catch (e) { /* 复制失败不阻塞跳转 */ }
+    window.open(`https://shiphub-asia-cn.decathlon.com.cn/to_handover#pickup=${encodeURIComponent(orderId)}`, '_blank', 'noopener')
+  }
   const title = order.displayLabel || order.items?.[0]?.productLabel || order.id
   const items = order.items || []
   const multi = items.length > 1
@@ -24,7 +30,7 @@ function OrderCard({ order, category, closedAt, onAction }) {
         {!multi && order.vehicleInfo && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>{order.vehicleInfo}</small>}
         <div className="shiphub-order-card-meta">
           {order.orderNumber && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>订单号：{order.orderNumber}</small>}
-          {order.customerPhone && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>📞 {order.customerPhone}</small>}
+          {order.customerPhone && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>📞 {order.customerPhone}{order.isEncryptedOrder ? <em className="shiphub-order-virtual-tag">虚拟号 · 转接</em> : null}</small>}
         </div>
       </div>
       {multi ? (
@@ -36,7 +42,7 @@ function OrderCard({ order, category, closedAt, onAction }) {
       ) : (
         <p className="shiphub-order-empty-detail">暂无商品明细</p>
       )}
-      <footer><span>{completed ? '本地已处理 · 等待上游对齐' : order.scheduledAt ? `下单时间：${new Date(order.scheduledAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}` : '无预约时间'}</span><button type="button" onClick={() => void onAction(category, order.id, completed ? 'revoked' : 'completed')} disabled={Boolean(closedAt) || busy}>{completed ? '撤销本地确认' : <><IconCheck width={15} height={15} aria-hidden="true" />{meta.action}</>}</button></footer>
+      <footer><span>{completed ? '本地已处理 · 等待上游对齐' : order.scheduledAt ? `下单时间：${new Date(order.scheduledAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}` : '无预约时间'}</span><span className="shiphub-order-card-actions">{category === 'hand' && (order.orderNumber || order.id) ? <button type="button" className="shiphub-order-verify" title="复制订单号并在官方 Shiphub 待交接页定位该订单，人工输入取件码核销" onClick={openShiphubVerify}>Shiphub 核销 ↗</button> : null}<button type="button" onClick={() => void onAction(category, order.id, completed ? 'revoked' : 'completed')} disabled={Boolean(closedAt) || busy}>{completed ? '撤销本地确认' : <><IconCheck width={15} height={15} aria-hidden="true" />{meta.action}</>}</button></span></footer>
     </article>
   )
 }
