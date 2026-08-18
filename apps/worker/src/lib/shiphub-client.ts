@@ -25,6 +25,7 @@ export type ShipHubOrder = {
   scheduledAt?: string | null
   updatedAt?: string | null
   detailKey?: string | null
+  channel?: string | null
   items: ShipHubOrderItem[]
 }
 
@@ -193,6 +194,18 @@ const CATEGORY_SOURCE_LABEL: Record<ShipHubCategory, string> = {
   ship: 'Shiphub 待发货'
 }
 
+const CHANNEL_LABELS: Record<string, string> = {
+  cube: '小程序',
+  jd: '京东',
+  tmall: '天猫'
+}
+
+function channelLabel(platform: string): string | null {
+  const key = platform.trim().toLowerCase()
+  if (!key) return null
+  return CHANNEL_LABELS[key] ?? platform.trim()
+}
+
 function normalizeListOrder(category: ShipHubCategory, input: unknown): ShipHubOrder {
   if (!input || typeof input !== 'object') throw new ShipHubUpstreamError('INVALID_ORDER')
   const row = input as Record<string, unknown>
@@ -211,7 +224,8 @@ function normalizeListOrder(category: ShipHubCategory, input: unknown): ShipHubO
     displayLabel: mailNo || id,
     orderNumber: id,
     sourceLabel: CATEGORY_SOURCE_LABEL[category],
-    status: orderType || orderPlatform || statusCode || 'pending',
+    status: orderType || statusCode || 'pending',
+    channel: channelLabel(orderPlatform),
     scheduledAt,
     updatedAt: null,
     items: []

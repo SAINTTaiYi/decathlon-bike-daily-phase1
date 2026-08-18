@@ -338,6 +338,7 @@ export async function syncStoreCategory(
           const detailOrder = await client.detail(category, order.id, order.detailKey)
           if (detailOrder) {
             detailOrder.scheduledAt = detailOrder.scheduledAt ?? order.scheduledAt
+            detailOrder.channel = detailOrder.channel ?? order.channel
             detailed.push(detailOrder)
           }
           detailCount += 1

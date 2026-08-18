@@ -34,6 +34,7 @@ function mapOrder(order: any) {
     orderNumber: order.order_number ?? null,
     customerPhone: order.customer_phone ?? null,
     vehicleInfo: order.vehicle_info ?? null,
+    channel: order.channel ?? null,
     scheduledAt: order.scheduled_at,
     upstreamUpdatedAt: order.upstream_updated_at,
     firstSeenAt: order.first_seen_at,

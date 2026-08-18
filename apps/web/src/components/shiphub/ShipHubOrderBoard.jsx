@@ -17,7 +17,7 @@ function OrderCard({ order, category, closedAt, onAction }) {
   return (
     <article className="shiphub-order-card" data-local-state={order.localActionState || 'pending'}>
       <div className="shiphub-order-card-head">
-        <span><IconBox width={16} height={16} aria-hidden="true" />{order.sourceLabel || meta.cn}</span>
+        <span><IconBox width={16} height={16} aria-hidden="true" />{order.sourceLabel || meta.cn}{order.channel ? ' · ' + order.channel : ''}</span>
         <strong>{title}</strong>
         {order.vehicleInfo && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>{order.vehicleInfo}</small>}
         {order.orderNumber && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>{order.orderNumber}</small>}
