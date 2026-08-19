@@ -417,7 +417,7 @@ export async function syncStoreCategory(
     await db.batch([
       db.prepare(`UPDATE shiphub_category_state SET last_attempt_at = ?, last_error_code = ?, consecutive_failures = consecutive_failures + 1, updated_at = ? WHERE store_id = ? AND category = ?`).bind(stamp, code, failedAt, storeId, category),
       db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'failed', error_code = ? WHERE id = ?`).bind(failedAt, code, runId),
-      db.prepare(`UPDATE shiphub_connections SET authorization_status = CASE WHEN ? = 'REFRESH_TOKEN_MISSING' OR ? LIKE 'OAUTH_%' THEN 'reauth_required' ELSE authorization_status END, last_auth_error_code = ?, updated_at = ? WHERE store_id = ?`).bind(code, code, code, failedAt, storeId)
+      db.prepare(`UPDATE shiphub_connections SET authorization_status = CASE WHEN ? = 'REFRESH_TOKEN_MISSING' OR ? LIKE 'OAUTH_TOKEN_HTTP_4%' THEN 'reauth_required' ELSE authorization_status END, last_auth_error_code = ?, updated_at = ? WHERE store_id = ?`).bind(code, code, code, failedAt, storeId)
     ])
     return { status: 'failed', reason: code, runId }
   } finally {
