@@ -6,6 +6,9 @@ import { businessDateFor, prepareAudit } from '../services/business.js'
 import { requireJsonBody } from '../lib/json.js'
 import { ShipHubUpstreamError, type ShipHubCategory } from '../lib/shiphub-client.js'
 import { completeShipHubAuthorization, createShipHubAuthorization } from '../lib/shiphub-oauth.js'
+import { encryptShipHubSecret } from '../lib/shiphub-crypto.js'
+import { performShipHubProgrammaticLogin } from '../lib/shiphub-login.js'
+import { nowIso } from '../db.js'
 import { idempotent } from '../services/idempotency.js'
 import { ApiProblem } from '../services/problems.js'
 import {
@@ -79,6 +82,51 @@ export function shipHubRoutes() {
     if (!config.SHIPHUB.liveConfirmed) throw new ApiProblem(503, 'LIVE_NOT_CONFIRMED', '真实 Shiphub 尚未完成授权与连通性验证。')
     const context = c.get('auth')!
     const body = await c.req.json().catch(() => ({})) as { returnTo?: string }
+    // 程序化登录（推荐）：门店账号凭据 AES-GCM 加密存于 CF secret 时，服务端自动完成
+    // PingFederate 登录与 OAuth code 交换，无需浏览器跳转，手机也可一键重连。
+    if (config.SHIPHUB.loginKey && config.SHIPHUB.loginUsernameEnc && config.SHIPHUB.loginPasswordEnc) {
+      try {
+        const token = await performShipHubProgrammaticLogin(config.SHIPHUB)
+        if (!token.refreshToken) throw new ShipHubUpstreamError('OAUTH_REFRESH_TOKEN_MISSING')
+        const key = config.SHIPHUB.tokenEncryptionKey
+        if (!key) throw new ShipHubUpstreamError('TOKEN_ENCRYPTION_NOT_CONFIGURED')
+        const encrypted = await encryptShipHubSecret(token.refreshToken, key)
+        const stamp = nowIso()
+        const audit = prepareAudit(c.env.DB, {
+          context,
+          action: 'shiphub-connect',
+          entityType: 'shiphub-connection',
+          entityId: context.storeId,
+          businessDate: await businessDateFor(context),
+          summary: '通过门店账号自动完成 Shiphub 授权',
+          module: 'account'
+        })
+        await c.env.DB.batch([
+          c.env.DB.prepare(`
+            INSERT INTO shiphub_connections (
+              store_id, enabled, mode, refresh_token_ciphertext, refresh_token_nonce, refresh_token_key_version,
+              token_expires_at, token_updated_at, authorization_status, last_auth_error_code, created_at, updated_at
+            ) VALUES (?, 1, 'live', ?, ?, 'v1', ?, ?, 'connected', NULL, ?, ?)
+            ON CONFLICT(store_id) DO UPDATE SET
+              enabled = 1, mode = 'live', refresh_token_ciphertext = excluded.refresh_token_ciphertext,
+              refresh_token_nonce = excluded.refresh_token_nonce, refresh_token_key_version = excluded.refresh_token_key_version,
+              token_expires_at = excluded.token_expires_at, token_updated_at = excluded.token_updated_at,
+              authorization_status = 'connected', last_auth_error_code = NULL, updated_at = excluded.updated_at
+          `).bind(context.storeId, encrypted.ciphertext, encrypted.nonce, token.expiresAt, stamp, stamp, stamp),
+          audit.statement
+        ])
+        const waitUntil = c.executionCtx?.waitUntil?.bind(c.executionCtx)
+        if (waitUntil) {
+          for (const selected of ['hand', 'receive', 'ship'] as const) {
+            waitUntil(syncStoreCategory(c.env.DB, config, context.storeId, selected, { trigger: 'authorization' }))
+          }
+        }
+        return c.json({ connected: true, mode: 'live' })
+      } catch (error) {
+        throw mapUpstreamError(error)
+      }
+    }
+    // 浏览器 SSO 兜底：未配置门店账号凭据时沿用原跳转授权流程
     try {
       return c.json({ authorizationUrl: await createShipHubAuthorization(c.env.DB, config, context, body.returnTo) })
     } catch (error) {
