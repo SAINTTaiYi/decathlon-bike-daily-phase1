@@ -54,8 +54,11 @@ export async function refreshShipHubAccessToken(config: ShipHubConfig, refreshTo
   return exchange(config, { grant_type: 'refresh_token', refresh_token: refreshToken })
 }
 
-export async function exchangeShipHubAuthorizationCode(config: ShipHubConfig, code: string): Promise<ShipHubToken> {
+export async function exchangeShipHubAuthorizationCode(config: ShipHubConfig, code: string, codeVerifier?: string): Promise<ShipHubToken> {
   const params: Record<string, string> = { grant_type: 'authorization_code', code }
   if (config.oauthRedirectUri) params.redirect_uri = config.oauthRedirectUri
+  // PKCE 硬性要求：授权请求带了 code_challenge，交换必须带对应 code_verifier，
+  // 否则 IdP 返回 400 code_verifier mismatch（2026-08-19 线上事故根因）
+  if (codeVerifier) params.code_verifier = codeVerifier
   return exchange(config, params)
 }

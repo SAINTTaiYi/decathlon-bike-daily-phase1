@@ -92,6 +92,11 @@ test('performShipHubProgrammaticLogin 全流程：表单提交、code 捕获、P
     assert.equal(params.get('pf.pass'), 'TestPass@1234')
     assert.equal(params.get('pf.adapterId'), 'idpAdapter')
     assert.equal(calls.length, 3)
+    // token 交换请求必须携带 PKCE code_verifier（线上事故回归断言）
+    const tokenBody = new URLSearchParams(calls[2].init?.body as string)
+    assert.ok(tokenBody.get('code_verifier'), 'token 交换必须携带 code_verifier')
+    assert.equal(tokenBody.get('grant_type'), 'authorization_code')
+    assert.equal(tokenBody.get('code'), 'code-ok')
     // 登录 POST 携带了授权页下发的 cookie
     assert.equal((calls[1].init?.headers as Record<string, string>)?.cookie, 'PF.PERSISTENT=abc123')
     // 授权请求包含 PKCE
