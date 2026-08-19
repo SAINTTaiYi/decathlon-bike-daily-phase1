@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { AppConfig } from '../src/env.js'
 import { FixtureShipHubClient, type ShipHubClient, type ShipHubOrder, type ShipHubPage } from '../src/lib/shiphub-client.js'
-import { getShipHubOrder, getShipHubSummary, listShipHubOrders, syncStoreCategory } from '../src/services/shiphub-sync.js'
+import { activeInStoreTimezone, getShipHubOrder, getShipHubSummary, listShipHubOrders, runScheduledShipHubSync, syncStoreCategory } from '../src/services/shiphub-sync.js'
 import { migratedTestDatabase, type TestD1Database } from '../security/d1-test-adapter.js'
 
 const STORE = 'shiphub-test-store'
@@ -23,8 +23,8 @@ const config: AppConfig = {
     mode: 'fixture',
     liveConfirmed: false,
     requestTimeoutMs: 1000,
-    activeStartHour: 6,
-    activeEndHour: 23
+    activeStartHour: 10,
+    activeEndHour: 22
   }
 }
 
@@ -138,6 +138,46 @@ test('Preview fixture 在没有连接和 token 时仍只读加载人工构造数
     })
     assert.equal(result.status, 'succeeded')
     assert.equal(db.one<{ id: string }>('SELECT upstream_order_id AS id FROM shiphub_orders WHERE store_id = ? AND category = ?', STORE, 'hand')?.id, 'fixture-hand-001')
+  } finally {
+    db.close()
+  }
+})
+
+
+test('营业时间硬规则：北京时间 10:00–22:00 内允许同步，其余时间一律拒绝', async () => {
+  // Asia/Shanghai = UTC+8
+  const at = (utcIso: string) => activeInStoreTimezone('Asia/Shanghai', new Date(utcIso), 10, 22)
+  assert.equal(at('2026-08-19T01:59:59.000Z'), false, '09:59:59 北京 → 未营业')
+  assert.equal(at('2026-08-19T02:00:00.000Z'), true, '10:00:00 北京 → 营业')
+  assert.equal(at('2026-08-19T04:00:00.000Z'), true, '12:00 北京 → 营业')
+  assert.equal(at('2026-08-19T13:59:59.000Z'), true, '21:59:59 北京 → 营业')
+  assert.equal(at('2026-08-19T14:00:00.000Z'), false, '22:00:00 北京 → 停止调用')
+  assert.equal(at('2026-08-19T17:00:00.000Z'), false, '凌晨 01:00 北京 → 停止调用')
+  assert.equal(at('2026-08-19T16:00:00.000Z'), false, '00:00 北京（午夜）→ 停止调用')
+})
+
+test('定时同步固定按北京时间判定，门店时区误配不影响硬规则', async () => {
+  const db = await database()
+  // 把门店时区误配成 UTC：UTC 14:30 在 10–22 窗口内，但北京 22:30 已过营业时间
+  db.exec("UPDATE stores SET timezone = 'UTC' WHERE id = '" + STORE + "'")
+  try {
+    const env = {
+      DB: db as unknown as D1Database,
+      SHIPHUB_ENABLED: 'true',
+      SHIPHUB_MODE: 'fixture',
+      SESSION_SECRET: 'x'.repeat(32),
+      CSRF_SECRET: 'y'.repeat(32),
+      PASSWORD_PEPPER: 'z'.repeat(32)
+    } as unknown as WorkerEnv
+    const inside = new Date('2026-08-19T13:59:00.000Z') // 北京 21:59 → 应同步
+    await runScheduledShipHubSync(env, inside)
+    const afterInside = db.one<{ id: string }>('SELECT upstream_order_id AS id FROM shiphub_orders WHERE store_id = ? LIMIT 1', STORE)
+    assert.ok(afterInside, '北京时间 21:59 应执行同步并写入数据')
+
+    const outside = new Date('2026-08-19T14:30:00.000Z') // 北京 22:30 → 禁止同步
+    await runScheduledShipHubSync(env, outside)
+    const attempt = db.one<{ last_attempt_at: string }>('SELECT last_attempt_at FROM shiphub_category_state WHERE store_id = ? AND category = ?', STORE, 'hand')
+    assert.equal(attempt?.last_attempt_at, '2026-08-19T13:59:00.000Z', '北京时间 22:30 不得发起新的同步尝试')
   } finally {
     db.close()
   }

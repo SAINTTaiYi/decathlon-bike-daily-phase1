@@ -134,7 +134,9 @@ jobs:
               "SHIPHUB_ENABLED": "true",
               "SHIPHUB_MODE": "live",
               "SHIPHUB_BASE_URL": "__SHIPHUB_BASE_URL__",
-              "SHIPHUB_OAUTH_TOKEN_URL": "__SHIPHUB_OAUTH_TOKEN_URL__"
+              "SHIPHUB_OAUTH_TOKEN_URL": "__SHIPHUB_OAUTH_TOKEN_URL__",
+              "SHIPHUB_ACTIVE_START_HOUR": "10",
+              "SHIPHUB_ACTIVE_END_HOUR": "22"
             }
           }
           JSON

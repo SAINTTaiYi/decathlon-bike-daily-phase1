@@ -106,8 +106,8 @@ function loadShipHubConfig(env: WorkerEnv): ShipHubConfig {
     oauthBasicToken: env.SHIPHUB_OAUTH_BASIC_TOKEN,
     bootstrapRefreshToken: env.SHIPHUB_BOOTSTRAP_REFRESH_TOKEN,
     requestTimeoutMs: (() => { const value = Number(env.SHIPHUB_REQUEST_TIMEOUT_MS ?? 8000); return Number.isFinite(value) ? Math.min(Math.max(value, 1000), 30000) : 8000 })(),
-    activeStartHour: parseHour(env.SHIPHUB_ACTIVE_START_HOUR, 6),
-    activeEndHour: parseHour(env.SHIPHUB_ACTIVE_END_HOUR, 23)
+    activeStartHour: parseHour(env.SHIPHUB_ACTIVE_START_HOUR, 10),
+    activeEndHour: parseHour(env.SHIPHUB_ACTIVE_END_HOUR, 22)
   }
 }
 

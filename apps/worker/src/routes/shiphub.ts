@@ -9,10 +9,12 @@ import { completeShipHubAuthorization, createShipHubAuthorization } from '../lib
 import { idempotent } from '../services/idempotency.js'
 import { ApiProblem } from '../services/problems.js'
 import {
+  activeInStoreTimezone,
   getShipHubConnection,
   getShipHubOrder,
   getShipHubSummary,
   listShipHubOrders,
+  SHIPHUB_SYNC_TIMEZONE,
   syncStoreCategory
 } from '../services/shiphub-sync.js'
 
@@ -189,6 +191,10 @@ export function shipHubRoutes() {
   app.post('/api/v1/shiphub/sync', requireJsonBody, ...managerWrite, async (c) => {
     const context = c.get('auth')!
     const config = c.get('config')
+    // 硬规则：营业时间（北京时间 10:00–22:00）外禁止手动同步，半夜部署/排查也不放行
+    if (!activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, new Date(), config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) {
+      throw new ApiProblem(403, 'SHIPHUB_OUTSIDE_BUSINESS_HOURS', '门店营业时间外（北京时间 10:00–22:00）不可同步 Shiphub 数据。')
+    }
     const body = await c.req.json().catch(() => ({}))
     const result = await idempotent(c, body, async (db) => {
       const now = new Date()

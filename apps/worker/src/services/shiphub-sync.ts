@@ -5,6 +5,12 @@ import { bootstrapShipHubConnection, readRefreshToken, rotateRefreshToken } from
 import { refreshShipHubAccessToken } from '../lib/shiphub-token.js'
 import { ApiProblem } from './problems.js'
 
+// 硬规则：门店营业时间（北京时间 10:00–22:00）内才允许调用 Shiphub 上游获取自提数据。
+// 固定使用 Asia/Shanghai，不随门店 timezone 字段或部署环境变化。
+export const SHIPHUB_SYNC_TIMEZONE = 'Asia/Shanghai'
+export const SHIPHUB_BUSINESS_START_HOUR = 10
+export const SHIPHUB_BUSINESS_END_HOUR = 22
+
 const CATEGORIES: readonly ShipHubCategory[] = ['hand', 'receive', 'ship']
 const COUNT_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 5 * 60_000, receive: 10 * 60_000, ship: 10 * 60_000 }
 const FULL_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 15 * 60_000, receive: 30 * 60_000, ship: 30 * 60_000 }
@@ -417,13 +423,13 @@ export async function syncStoreCategory(
 export async function runScheduledShipHubSync(env: WorkerEnv, now = new Date()): Promise<void> {
   const config = loadConfig(env)
   if (!config.SHIPHUB.enabled) return
-  const stores = await all<{ id: string; timezone: string }>(env.DB.prepare(`
-    SELECT s.id, s.timezone
+  const stores = await all<{ id: string }>(env.DB.prepare(`
+    SELECT s.id
     FROM stores s
     WHERE s.status = 'active'
   `))
   for (const store of stores) {
-    if (!activeInStoreTimezone(store.timezone, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) continue
+    if (!activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) continue
     for (const category of CATEGORIES) await syncStoreCategory(env.DB, config, store.id, category, { trigger: 'scheduled', now })
   }
 }
