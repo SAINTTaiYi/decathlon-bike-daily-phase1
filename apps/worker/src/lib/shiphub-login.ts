@@ -92,7 +92,7 @@ export async function performShipHubProgrammaticLogin(config: ShipHubConfig): Pr
     body: body.toString()
   })
   const code = extractCodeFromUrl(submit.url, state)
-  const token = await exchangeShipHubAuthorizationCode(config, code)
+  const token = await exchangeShipHubAuthorizationCode(config, code, verifier)
   if (!token.refreshToken) throw new ShipHubUpstreamError('OAUTH_REFRESH_TOKEN_MISSING')
   return token
 }
