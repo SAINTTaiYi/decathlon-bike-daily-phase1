@@ -121,6 +121,9 @@ jobs:
               "database_id": "91e78387-9b24-4126-a5a1-27f9c1792975",
               "migrations_dir": "migrations/d1"
             }],
+            "triggers": {
+              "crons": ["*/5 * * * *"]
+            },
             "vars": {
               "APP_ENV": "staging",
               "APP_VERSION": "__APP_VERSION__",
