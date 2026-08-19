@@ -88,7 +88,8 @@ export async function completeShipHubAuthorization(
   if (!key) throw new ShipHubUpstreamError('OAUTH_CONFIG_INCOMPLETE')
   await db.prepare('UPDATE shiphub_oauth_states SET consumed_at = ? WHERE state_hash = ? AND consumed_at IS NULL')
     .bind(nowIso(), row.state_hash).run()
-  const token = await exchangeAuthorizationCode(config, code)
+  const codeVerifier = await decryptShipHubSecret(row.pkce_verifier_ciphertext, row.pkce_verifier_nonce, key)
+  const token = await exchangeAuthorizationCode(config, code, codeVerifier)
   if (!token.refreshToken) throw new ShipHubUpstreamError('OAUTH_REFRESH_TOKEN_MISSING')
   const encrypted = await encryptShipHubSecret(token.refreshToken, key)
   const stamp = nowIso()
@@ -106,8 +107,8 @@ export async function completeShipHubAuthorization(
   return { returnTo: row.return_to, token }
 }
 
-async function exchangeAuthorizationCode(config: AppConfig, code: string): Promise<ShipHubToken> {
-  return exchangeShipHubAuthorizationCode(config.SHIPHUB, code)
+async function exchangeAuthorizationCode(config: AppConfig, code: string, codeVerifier?: string): Promise<ShipHubToken> {
+  return exchangeShipHubAuthorizationCode(config.SHIPHUB, code, codeVerifier)
 }
 
 export async function readRefreshToken(config: AppConfig, row: { refresh_token_ciphertext: string; refresh_token_nonce: string }): Promise<string> {
