@@ -3,6 +3,7 @@ import test from 'node:test'
 import type { AppConfig } from '../src/env.js'
 import { FixtureShipHubClient, type ShipHubClient, type ShipHubOrder, type ShipHubPage } from '../src/lib/shiphub-client.js'
 import { activeInStoreTimezone, getShipHubOrder, getShipHubSummary, listShipHubOrders, runScheduledShipHubSync, syncStoreCategory } from '../src/services/shiphub-sync.js'
+import type { WorkerEnv } from '../src/env.js'
 import { migratedTestDatabase, type TestD1Database } from '../security/d1-test-adapter.js'
 
 const STORE = 'shiphub-test-store'
@@ -178,6 +179,75 @@ test('定时同步固定按北京时间判定，门店时区误配不影响硬�
     await runScheduledShipHubSync(env, outside)
     const attempt = db.one<{ last_attempt_at: string }>('SELECT last_attempt_at FROM shiphub_category_state WHERE store_id = ? AND category = ?', STORE, 'hand')
     assert.equal(attempt?.last_attempt_at, '2026-08-19T13:59:00.000Z', '北京时间 22:30 不得发起新的同步尝试')
+  } finally {
+    db.close()
+  }
+})
+
+
+function liveConfig(): AppConfig {
+  return {
+    ...config,
+    SHIPHUB: {
+      ...config.SHIPHUB,
+      mode: 'live',
+      tokenEncryptionKey: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=='
+    }
+  }
+}
+
+async function liveEnv(db: TestD1Database): Promise<WorkerEnv> {
+  return {
+    DB: db as unknown as D1Database,
+    SHIPHUB_ENABLED: 'true',
+    SHIPHUB_MODE: 'live',
+    SESSION_SECRET: 'x'.repeat(32),
+    CSRF_SECRET: 'y'.repeat(32),
+    PASSWORD_PEPPER: 'z'.repeat(32)
+  } as unknown as WorkerEnv
+}
+
+test('live 定时同步只选已授权连接的门店，禁止对未连接门店自动 bootstrap（防共享 token 风暴）', async () => {
+  const db = await database()
+  db.exec(`INSERT INTO stores (id, code, name, timezone, status, created_at, updated_at) VALUES ('other-store', 'OTHER', 'Other Store', 'Asia/Shanghai', 'active', '2026-08-18T00:00:00.000Z', '2026-08-18T00:00:00.000Z')`)
+  // 只有 STORE 有连接；other-store 没有连接，不得被 scheduled 同步 bootstrap
+  db.exec(`INSERT INTO shiphub_connections (store_id, enabled, mode, refresh_token_ciphertext, refresh_token_nonce, refresh_token_key_version, authorization_status, created_at, updated_at)
+           VALUES ('${STORE}', 1, 'live', '${'A'.repeat(78)}', '${'B'.repeat(16)}', 'v1', 'connected', '2026-08-18T00:00:00.000Z', '2026-08-18T00:00:00.000Z')`)
+  try {
+    await runScheduledShipHubSync(await liveEnv(db), new Date('2026-08-19T04:00:00.000Z')) // 北京 12:00
+    const otherRuns = db.one<{ n: number }>('SELECT count(*) AS n FROM shiphub_sync_runs WHERE store_id = ?', 'other-store')
+    assert.equal(otherRuns?.n, 0, '未连接门店不得产生任何同步运行')
+    const otherConn = db.one<{ n: number }>('SELECT count(*) AS n FROM shiphub_connections WHERE store_id = ?', 'other-store')
+    assert.equal(otherConn?.n, 0, 'scheduled 不得为未连接门店 bootstrap 连接')
+    const connectedRuns = db.one<{ n: number }>('SELECT count(*) AS n FROM shiphub_sync_runs WHERE store_id = ?', STORE)
+    assert.ok((connectedRuns?.n ?? 0) >= 1, '已授权连接的门店应被调度同步')
+  } finally {
+    db.close()
+  }
+})
+
+test('live 定时同步排除 reauth_required 连接，不再对失效 token 空转', async () => {
+  const db = await database()
+  db.exec(`INSERT INTO shiphub_connections (store_id, enabled, mode, refresh_token_ciphertext, refresh_token_nonce, refresh_token_key_version, authorization_status, created_at, updated_at)
+           VALUES ('${STORE}', 1, 'live', '${'A'.repeat(78)}', '${'B'.repeat(16)}', 'v1', 'reauth_required', '2026-08-18T00:00:00.000Z', '2026-08-18T00:00:00.000Z')`)
+  try {
+    await runScheduledShipHubSync(await liveEnv(db), new Date('2026-08-19T04:00:00.000Z'))
+    const runs = db.one<{ n: number }>('SELECT count(*) AS n FROM shiphub_sync_runs WHERE store_id = ?', STORE)
+    assert.equal(runs?.n, 0, 'reauth_required 连接不得被调度')
+  } finally {
+    db.close()
+  }
+})
+
+test('同步引擎层硬门禁：live 模式营业时间外即使绕过路由也拒绝建立上游连接', async () => {
+  const db = await database()
+  try {
+    const result = await syncStoreCategory(db as unknown as D1Database, liveConfig(), STORE, 'hand', {
+      trigger: 'manual', now: new Date('2026-08-19T14:00:00.000Z') // 北京 22:00
+    })
+    assert.deepEqual(result, { status: 'skipped', reason: 'OUTSIDE_BUSINESS_HOURS' })
+    const conn = db.one<{ n: number }>('SELECT count(*) AS n FROM shiphub_connections WHERE store_id = ?', STORE)
+    assert.equal(conn?.n, 0, '营业时间外不得触发 bootstrap 或任何上游调用')
   } finally {
     db.close()
   }

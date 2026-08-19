@@ -312,6 +312,11 @@ export async function syncStoreCategory(
     if (recent) return { status: 'skipped', reason: 'MANUAL_COOLDOWN' }
   }
   const state = await ensureState(db, storeId, category)
+  // 硬规则兜底：live 模式在建立任何上游连接（token 刷新/数据拉取）前校验营业时间，
+  // 防止未来新增调用路径绕过路由层与调度层的门禁。
+  if (!options.client && config.SHIPHUB.mode === 'live' && !activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) {
+    return { status: 'skipped', reason: 'OUTSIDE_BUSINESS_HOURS' }
+  }
   const lastSuccess = state.last_success_at ? Date.parse(state.last_success_at) : 0
   if (trigger === 'manual' && lastSuccess && now.getTime() - lastSuccess < MANUAL_FRESH_MS) return { status: 'skipped', reason: 'CACHE_FRESH' }
   const fullReconcile = trigger === 'manual' || isDue(state.last_full_reconcile_at, FULL_INTERVAL_MS[category], now.getTime())
@@ -423,11 +428,19 @@ export async function syncStoreCategory(
 export async function runScheduledShipHubSync(env: WorkerEnv, now = new Date()): Promise<void> {
   const config = loadConfig(env)
   if (!config.SHIPHUB.enabled) return
-  const stores = await all<{ id: string }>(env.DB.prepare(`
-    SELECT s.id
-    FROM stores s
-    WHERE s.status = 'active'
-  `))
+  // live 模式只同步「已授权且持有有效 token 的连接」：不再对每个 active store 自动
+  // bootstrap——多个门店共享同一 bootstrap refresh token 并发刷新会被上游轮换机制
+  // 立即作废（OAUTH_TOKEN_HTTP_400，全部门店翻成 reauth_required）。
+  // reauth_required 连接也排除：避免对失效 token 每 5 分钟空转，待门店重新授权后恢复。
+  // fixture 模式无上游调用，仍覆盖全部 active store 写入合成数据。
+  const stores = config.SHIPHUB.mode === 'fixture'
+    ? await all<{ id: string }>(env.DB.prepare(`SELECT s.id FROM stores s WHERE s.status = 'active'`))
+    : await all<{ id: string }>(env.DB.prepare(`
+        SELECT c.store_id AS id
+        FROM shiphub_connections c
+        WHERE c.enabled = 1 AND c.refresh_token_ciphertext IS NOT NULL AND c.refresh_token_nonce IS NOT NULL
+          AND c.authorization_status != 'reauth_required'
+      `))
   for (const store of stores) {
     if (!activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) continue
     for (const category of CATEGORIES) await syncStoreCategory(env.DB, config, store.id, category, { trigger: 'scheduled', now })
