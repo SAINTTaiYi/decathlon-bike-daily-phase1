@@ -1,15 +1,13 @@
-export const APP_VERSION = "6.1.0"
+export const APP_VERSION = "6.1.1"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.08.19",
-  title: "Shiphub 自动同步修复与营业时间规则",
-  summary: "修复 Shiphub 订单自动同步从未运行的问题；新增硬规则：仅北京时间 10:00–22:00 门店营业时间内允许调用 Shiphub 同步数据；Preview 测试环境改回合成数据并清理真实客户信息。",
+  title: "Shiphub 同步修复：连接驱动调度 + 营业时间硬规则",
+  summary: "修复 cron 启用后多门店共享 bootstrap token 导致的同步中断；定时同步改为仅同步已授权连接；引擎层增加营业时间硬门禁兜底。",
   changes: [
-    "修复 Shiphub 订单自动同步从未运行的问题：每 5 分钟的定时任务现已随部署启用",
-    "新增硬规则：仅北京时间 10:00–22:00 门店营业时间允许同步 Shiphub 数据，其余时间（含手动触发）一律拒绝",
-    "同步窗口统一按北京时间判定，不再受门店时区字段影响",
-    "Preview 测试环境改用合成数据，不再拉取真实门店订单并已清空既有真实客户信息",
-    "清理 Preview 环境遗留的无效密钥"
+    "修复 cron 启用后全部门店同步失败（OAUTH_TOKEN_HTTP_400）：定时同步改为连接驱动，仅同步已授权且持有有效 token 的门店",
+    "不再对每个门店自动 bootstrap 共享凭据，杜绝并发刷新被上游轮换机制作废",
+    "引擎层新增营业时间硬门禁兜底：仅北京时间 10:00–22:00 允许建立上游连接"
   ]
 }
