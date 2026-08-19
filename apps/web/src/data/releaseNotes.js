@@ -1,14 +1,12 @@
-export const APP_VERSION = "6.1.2"
+export const APP_VERSION = "6.1.3"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.08.19",
-  title: "Shiphub 一键自动重连",
-  summary: "ops 点击连接即可用门店账号自动完成 IdP 登录与授权；门店账号凭据 AES-256-GCM 加密存储；连接断开的定时自动恢复更稳健。",
+  title: "Shiphub 自动重连修复：PKCE code_verifier",
+  summary: "修复一键自动重连在 token 交换阶段失败的问题（授权请求发送 PKCE challenge 但交换时未携带 verifier，IdP 校验失败）。",
   changes: [
-    "ops 设置新增一键自动重连：服务端自动完成迪卡侬 IdP 登录与 OAuth 授权，无需浏览器跳转或手动抓取",
-    "门店账号凭据以 AES-256-GCM 加密存放于 Cloudflare secret，仅登录瞬间解密，不落日志与业务库",
-    "修复：瞬时网络错误不再误标连接为需要重新授权，定时同步自动重试更稳健",
-    "修复历史问题：Shiphub 定时同步（每 5 分钟）现已随部署启用，且仅同步已授权连接"
+    "修复自动重连 503：token 交换现在正确携带 PKCE code_verifier",
+    "SSO 浏览器回调路径同样补齐 verifier 传递，消除潜在同类缺陷"
   ]
 }
