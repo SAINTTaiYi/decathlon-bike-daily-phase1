@@ -142,7 +142,9 @@ jobs:
               "CORS_ALLOWED_ORIGINS": "__PREVIEW_BASE_URL__",
               "GIT_SHA": "__RELEASE_SHA__",
               "SHIPHUB_ENABLED": "true",
-              "SHIPHUB_MODE": "fixture"
+              "SHIPHUB_MODE": "fixture",
+              "SHIPHUB_ACTIVE_START_HOUR": "10",
+              "SHIPHUB_ACTIVE_END_HOUR": "22"
             }
           }
           JSON
