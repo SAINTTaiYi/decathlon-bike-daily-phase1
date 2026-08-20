@@ -1,14 +1,12 @@
-export const APP_VERSION = "6.1.4"
+export const APP_VERSION = "6.1.5"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.08.20",
-  title: "定位脚本安装引导修复：不再依赖油猴页面全局检测",
-  summary: "修复店内电脑装完 Tampermonkey 后 ops 仍提示「未检测到 Tampermonkey」的检测失效问题；安装引导改为两步合一卡片（装油猴可跳过 + 下载脚本），新增 Chrome 开发者模式提示与「重新检测」按钮；定位脚本升级 v0.2.1，双标记检测在任何执行世界均可靠。",
+  title: "定位脚本安装引导适配油猴 MV3 安装流程",
+  summary: "TM 5.3.2 起（MV3）点击 .user.js 链接默认不再自动弹出安装确认，原引导文案误导门店；现改为拖拽到油猴管理面板或把「用户脚本 URL 检测」改为传统模式，并补充 Chrome 138+「允许用户脚本」开关说明。",
   changes: [
-    "修复定位脚本安装检测失效：原实现依赖 window.Tampermonkey 页面全局判断油猴是否安装，该全局在页面中并不存在（油猴页面通信走 window.external.Tampermonkey，Chrome 上 5.3.2+ 还需开启开发者模式），导致装完油猴后引导仍显示「未检测到 Tampermonkey」",
-    "安装引导改为两步合一卡片：安装油猴扩展（工具栏已有油猴图标可跳过）+ 一键下载定位脚本，新增「重新检测」按钮实时刷新识别状态",
-    "引导文案补充 Chrome 开发者模式提示：Tampermonkey 5.3+ 需在 chrome://extensions 开启「开发者模式」后才会运行用户脚本",
-    "定位脚本升级 v0.2.1：除 window.__shiphubLocatorInstalled 标记外，额外写入 <html data-shiphub-locator> DOM 属性，主世界/隔离沙箱等任意执行世界均可检测到"
+    "安装引导文案适配油猴 MV3：TM 5.3.2 起点击 .user.js 链接不再自动弹安装确认，提示改为「把下载的文件拖到油猴管理面板，或在油猴设置里把『用户脚本 URL 检测』改为传统模式」",
+    "引导文案补充 Chrome 138+ 替代开关：除 chrome://extensions 开发者模式外，可在油猴扩展详情开启「允许用户脚本」"
   ]
 }
