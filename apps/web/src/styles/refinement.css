@@ -681,5 +681,5 @@ button:not(:disabled) { transition-duration: 150ms; }
   line-height: 1.45;
 }
 .update-refresh-changes li::marker {
-  color: var(--accent, #2f6bff);
+  color: var(--accent);
 }
