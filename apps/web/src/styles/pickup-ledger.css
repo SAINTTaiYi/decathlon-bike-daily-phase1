@@ -583,8 +583,12 @@
 }
 
 /* Shiphub 定位脚本安装引导（feat/shiphub-verify-jump） */
-.shiphub-locator-guide { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 10px 0 2px; padding: 10px 12px; border: 1px solid #ffd591; border-radius: 12px; background: #fff8e1; color: #5d4037; font-size: 12px; }
+.shiphub-locator-guide { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 10px 0 2px; padding: 12px; border: 1px solid #ffd591; border-radius: 12px; background: #fff8e1; color: #5d4037; font-size: 12px; }
 .shiphub-locator-guide strong { font-size: 13px; }
 .shiphub-locator-guide a { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; background: var(--ops-ink, #202020); color: #fff; text-decoration: none; white-space: nowrap; }
 .shiphub-locator-guide small { color: #a56500; }
-@media (max-width: 640px) { .shiphub-locator-guide { flex-direction: column; align-items: flex-start; } }
+.shiphub-locator-guide-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.shiphub-locator-guide-steps li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; line-height: 1.5; }
+.shiphub-locator-guide .shiphub-locator-recheck { padding: 5px 12px; border-radius: 999px; border: 1px solid #d9a441; background: transparent; color: #8a5a00; cursor: pointer; font-size: 12px; }
+.shiphub-locator-guide .shiphub-locator-recheck:hover { background: #ffe9b8; }
+@media (max-width: 640px) { .shiphub-locator-guide { align-items: stretch; } }

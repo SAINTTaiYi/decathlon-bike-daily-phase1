@@ -1,10 +1,20 @@
-import { useEffect, Fragment } from 'react'
+import { useEffect, Fragment, useState } from 'react'
 import IconCheck from '@iconoir/Check.mjs'
 import IconRefresh from '@iconoir/Refresh.mjs'
 import IconBox from '@iconoir/Box.mjs'
 
-const locatorInstalled = typeof window !== 'undefined' && Boolean(window.__shiphubLocatorInstalled)
-const hasUserscriptManager = typeof window !== 'undefined' && Boolean(window.Tampermonkey || window.Violentmonkey || window.Greasemonkey)
+const readLocatorInstalled = () => typeof window !== 'undefined' && (
+  Boolean(window.__shiphubLocatorInstalled) ||
+  Boolean(document.documentElement && document.documentElement.getAttribute('data-shiphub-locator'))
+)
+// 仅作文案优化：油猴与页面通信走 window.external.Tampermonkey（Chrome 上还需开发者模式），
+// 普通页面全局不可靠，绝不能作为「未安装」的硬判定依据。
+const readManagerHint = () => typeof window !== 'undefined' && Boolean(
+  (window.external && window.external.Tampermonkey) ||
+  window.Tampermonkey ||
+  window.Violentmonkey ||
+  window.Greasemonkey
+)
 
 const labels = {
   hand: { en: 'SHIPHUB PICKUP', cn: 'Shiphub 自提', action: '确认取车', actionType: 'pickup' },
@@ -52,27 +62,36 @@ function OrderCard({ order, category, closedAt, onAction }) {
 
 export default function ShipHubOrderBoard({ category, orders = [], loading = false, stale = false, error = '', closedAt, onLoad, onAction, onSync }) {
   const meta = labels[category]
+  const [locatorInstalled, setLocatorInstalled] = useState(readLocatorInstalled)
+  const [managerHint, setManagerHint] = useState(readManagerHint)
   useEffect(() => { void onLoad?.(category) }, [category, onLoad])
   const sync = async () => { await onSync?.(); await onLoad?.(category) }
+  const recheckLocator = () => { setLocatorInstalled(readLocatorInstalled()); setManagerHint(readManagerHint()) }
   return (
     <section className="shiphub-order-board" data-category={category} aria-labelledby={`shiphub-${category}-title`}>
       <header><div><span>{meta.en}</span><strong id={`shiphub-${category}-title`}>{meta.cn}</strong></div><div className="shiphub-order-board-meta">{stale ? <em>数据可能已过期</em> : <small>读取本站缓存</small>}<button type="button" onClick={() => void sync()} disabled={loading}><IconRefresh width={15} height={15} aria-hidden="true" />同步</button></div></header>
       {category === 'hand' && !locatorInstalled ? (
-        hasUserscriptManager ? (
-          <div className="shiphub-locator-guide" role="status">
-            <strong>Shiphub 定位脚本未安装</strong>
-            <span>安装后，「Shiphub 核销」会自动定位并展开对应订单卡片，仅需人工输入取件码。</span>
-            <a href="/shiphub-pickup-locator.user.js" download="shiphub-pickup-locator.user.js">一键下载脚本</a>
-            <small>Tampermonkey 检测到脚本文件会自动弹出安装确认，点「安装」即可</small>
-          </div>
-        ) : (
-          <div className="shiphub-locator-guide" role="status">
-            <strong>未检测到 Tampermonkey（油猴）</strong>
-            <span>请在店内电脑 Chrome 安装油猴扩展，之后才能安装定位脚本。安装一次即可。</span>
-            <a href="https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noreferrer">去 Chrome 应用商店安装</a>
-            <small>商店无法访问时，可在 Tampermonkey 官网 tampermonkey.net 下载</small>
-          </div>
-        )
+        <div className="shiphub-locator-guide" role="status">
+          {managerHint ? (
+            <>
+              <strong>Shiphub 定位脚本未安装</strong>
+              <span>安装后，「Shiphub 核销」会自动定位并展开对应订单卡片，仅需人工输入取件码。</span>
+              <a href="/shiphub-pickup-locator.user.js" download="shiphub-pickup-locator.user.js">一键下载脚本</a>
+              <small>Tampermonkey 检测到脚本文件会自动弹出安装确认，点「安装」即可；装完点「重新检测」。</small>
+            </>
+          ) : (
+            <>
+              <strong>安装 Shiphub 定位脚本（两步）</strong>
+              <span>完成两步后点「重新检测」或刷新本页，Workshop 会自动识别。</span>
+              <ol className="shiphub-locator-guide-steps">
+                <li>① 安装油猴扩展（工具栏已有油猴图标可跳过）<a href="https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noreferrer">去 Chrome 应用商店安装</a></li>
+                <li>② 下载定位脚本<a href="/shiphub-pickup-locator.user.js" download="shiphub-pickup-locator.user.js">一键下载脚本</a><small>Tampermonkey 检测到脚本文件会自动弹出安装确认，点「安装」即可</small></li>
+              </ol>
+              <small>Chrome 还需在 chrome://extensions 开启「开发者模式」，否则 Tampermonkey 5.3+ 不会运行任何脚本。</small>
+            </>
+          )}
+          <button type="button" className="shiphub-locator-recheck" onClick={recheckLocator}>重新检测</button>
+        </div>
       ) : null}
       {error ? <p className="shiphub-order-error" role="status">{error}</p> : null}
       {loading ? <p className="shiphub-order-placeholder" role="status">正在读取缓存…</p> : orders.length ? <div className="shiphub-order-grid">{orders.map((order) => <OrderCard key={order.id} order={order} category={category} closedAt={closedAt} onAction={onAction} />)}</div> : <p className="shiphub-order-placeholder">当前没有 {meta.cn}。</p>}

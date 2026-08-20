@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shiphub 自提定位器
 // @namespace    workshop.skin
-// @version      0.2.0
+// @version      0.2.1
 // @description  ①在 Shiphub「待交接」页自动定位并展开指定订单卡片，人工输入取件码完成核销（只读）；②登录后自动回到待交接页继续定位；③在 Workshop 页面注入安装标记供检测。不发起任何写请求。
 // @match        https://shiphub-asia-cn.decathlon.com.cn/*
 // @match        https://workshop.skin/*
@@ -23,7 +23,11 @@
 
   // ---------- 安装标记（Workshop 域） ----------
   if (!IS_SHIPHUB) {
-    try { window.__shiphubLocatorInstalled = { installed: true, version: '0.2.0' }; } catch (e) {}
+    try {
+      window.__shiphubLocatorInstalled = { installed: true, version: '0.2.1' };
+      // DOM 属性在任意执行世界（主世界/隔离沙箱）都可见，兼容所有脚本管理器
+      document.documentElement.setAttribute('data-shiphub-locator', '0.2.1');
+    } catch (e) {}
     return; // Workshop 域只做标记，不执行定位
   }
 
