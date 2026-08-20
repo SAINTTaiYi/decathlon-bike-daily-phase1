@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { AppConfig } from '../src/env.js'
 import { FixtureShipHubClient, type ShipHubClient, type ShipHubOrder, type ShipHubPage } from '../src/lib/shiphub-client.js'
-import { activeInStoreTimezone, getShipHubOrder, getShipHubSummary, listShipHubOrders, runScheduledShipHubSync, syncStoreCategory } from '../src/services/shiphub-sync.js'
+import { activeInStoreTimezone, getShipHubConnection, getShipHubOrder, getShipHubSummary, listShipHubOrders, runScheduledShipHubSync, syncStoreCategory } from '../src/services/shiphub-sync.js'
 import type { WorkerEnv } from '../src/env.js'
 import { migratedTestDatabase, type TestD1Database } from '../security/d1-test-adapter.js'
 
@@ -251,4 +251,71 @@ test('同步引擎层硬门禁：live 模式营业时间外即使绕过路由也
   } finally {
     db.close()
   }
+})
+
+test('live 同步引擎层拒绝未连接门店：不再自动 bootstrap 共享 token，且不产生连接行', async () => {
+  const db = await database()
+  try {
+    const result = await syncStoreCategory(db as unknown as D1Database, liveConfig(), STORE, 'hand', {
+      trigger: 'manual', now: new Date('2026-08-19T02:00:00.000Z') // 北京 10:00 营业时间内
+    })
+    assert.equal(result.status, 'failed')
+    assert.equal(result.reason, 'CONNECTION_DISABLED')
+    const conn = db.one<{ n: number }>('SELECT count(*) AS n FROM shiphub_connections WHERE store_id = ?', STORE)
+    assert.equal(conn?.n, 0, '未连接门店不得被自动 bootstrap')
+    const run = db.one<{ status: string }>('SELECT status FROM shiphub_sync_runs WHERE store_id = ? ORDER BY started_at DESC LIMIT 1', STORE)
+    assert.equal(run?.status, 'failed')
+  } finally {
+    db.close()
+  }
+})
+
+test('同一上游身份的 token 轮换互斥：身份租约被其他门店持有时跳过本轮，不轮换、不误标 reauth_required', async () => {
+  const db = await database()
+  db.exec(`INSERT INTO shiphub_connections (store_id, enabled, mode, refresh_token_ciphertext, refresh_token_nonce, refresh_token_key_version, location_num, identity_fingerprint, authorization_status, created_at, updated_at)
+           VALUES ('${STORE}', 1, 'live', '${'A'.repeat(78)}', '${'B'.repeat(16)}', 'v1', '1299', 'fp-shared-identity', 'connected', '2026-08-18T00:00:00.000Z', '2026-08-18T00:00:00.000Z')`)
+  db.exec(`INSERT INTO shiphub_identity_leases (fingerprint, lease_owner, lease_expires_at, updated_at)
+           VALUES ('fp-shared-identity', 'other-store', '2099-01-01T00:00:00.000Z', '2026-08-18T00:00:00.000Z')`)
+  try {
+    const result = await syncStoreCategory(db as unknown as D1Database, liveConfig(), STORE, 'hand', {
+      trigger: 'manual', now: new Date('2026-08-19T02:00:00.000Z')
+    })
+    assert.equal(result.status, 'skipped')
+    assert.equal(result.reason, 'IDENTITY_LEASE_BUSY')
+    const run = db.one<{ status: string }>('SELECT status FROM shiphub_sync_runs WHERE store_id = ? ORDER BY started_at DESC LIMIT 1', STORE)
+    assert.equal(run?.status, 'skipped', '租约竞争不得记为失败')
+    const conn = db.one<{ authorization_status: string; consecutive_failures: number }>(`SELECT authorization_status FROM shiphub_connections WHERE store_id = ?`, STORE)
+    assert.equal(conn?.authorization_status, 'connected', '租约竞争不得误标 reauth_required')
+    const lease = db.one<{ lease_owner: string }>('SELECT lease_owner FROM shiphub_identity_leases WHERE fingerprint = ?', 'fp-shared-identity')
+    assert.equal(lease?.lease_owner, 'other-store', '他人租约不得被释放')
+  } finally {
+    db.close()
+  }
+})
+
+test('连接公共视图只暴露是否配置本店凭据，绝不暴露凭据本身', async () => {
+  const db = await database()
+  db.exec(`INSERT INTO shiphub_connections (store_id, enabled, mode, refresh_token_ciphertext, refresh_token_nonce, refresh_token_key_version, login_username_enc, login_password_enc, login_key_version, location_num, identity_fingerprint, authorization_status, created_at, updated_at)
+           VALUES ('${STORE}', 1, 'live', '${'A'.repeat(78)}', '${'B'.repeat(16)}', 'v1', 'enc-user', 'enc-pass', 'v1', '1299', 'fp-per-store', 'connected', '2026-08-18T00:00:00.000Z', '2026-08-18T00:00:00.000Z')`)
+  try {
+    const conn = await getShipHubConnection(db as unknown as D1Database, STORE)
+    assert.ok(conn)
+    assert.equal(conn.hasPerStoreLogin, true)
+    assert.equal(conn.locationNum, '1299')
+    const keys = Object.keys(conn as object)
+    assert.ok(!keys.some((key) => /username_enc|password_enc|refresh_token|credential/i.test(key)), `公共视图泄露敏感字段: ${keys.join(',')}`)
+    assert.ok(!keys.includes('identityFingerprint'), '身份指纹属内部字段，不进公共视图')
+  } finally {
+    db.close()
+  }
+})
+
+test('connect/start 路由实现同一上游身份冲突拒绝（SHIPHUB_IDENTITY_IN_USE）', async () => {
+  const source = await (await import('node:fs/promises')).readFile(new URL('../src/routes/shiphub.ts', import.meta.url), 'utf8')
+  assert.match(source, /SHIPHUB_IDENTITY_IN_USE/u)
+  assert.match(source, /SHIPHUB_LOGIN_INCOMPLETE/u)
+  assert.match(source, /SHIPHUB_LOGIN_INVALID/u)
+  assert.match(source, /identity_fingerprint = \? AND c\.store_id != \?/u)
+  assert.match(source, /COALESCE\(excluded\.login_username_enc, shiphub_connections\.login_username_enc\)/u)
+  assert.match(source, /loginUsernameEnc, loginPasswordEnc, loginUsernameEnc \? 'v1' : null/u)
 })

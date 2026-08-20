@@ -39,6 +39,7 @@ export interface WorkerEnv {
   SHIPHUB_LOGIN_KEY?: string
   SHIPHUB_LOGIN_USERNAME_ENC?: string
   SHIPHUB_LOGIN_PASSWORD_ENC?: string
+  SHIPHUB_ALERT_EMAIL?: string
 }
 
 export interface ShipHubConfig {
@@ -60,6 +61,7 @@ export interface ShipHubConfig {
   loginKey?: string
   loginUsernameEnc?: string
   loginPasswordEnc?: string
+  alertEmail?: string
   requestTimeoutMs: number
   activeStartHour: number
   activeEndHour: number
@@ -114,6 +116,7 @@ function loadShipHubConfig(env: WorkerEnv): ShipHubConfig {
     loginKey: env.SHIPHUB_LOGIN_KEY,
     loginUsernameEnc: env.SHIPHUB_LOGIN_USERNAME_ENC,
     loginPasswordEnc: env.SHIPHUB_LOGIN_PASSWORD_ENC,
+    alertEmail: env.SHIPHUB_ALERT_EMAIL,
     requestTimeoutMs: (() => { const value = Number(env.SHIPHUB_REQUEST_TIMEOUT_MS ?? 8000); return Number.isFinite(value) ? Math.min(Math.max(value, 1000), 30000) : 8000 })(),
     activeStartHour: parseHour(env.SHIPHUB_ACTIVE_START_HOUR, 10),
     activeEndHour: parseHour(env.SHIPHUB_ACTIVE_END_HOUR, 22)

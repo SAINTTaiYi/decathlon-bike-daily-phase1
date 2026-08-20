@@ -10,5 +10,5 @@ export const getShipHubOrders = (category, { cursor = '', limit = 50, signal } =
 export const getShipHubOrder = (category, id, signal) => api(`/api/v1/shiphub/orders/${encodeURIComponent(category)}/${encodeURIComponent(id)}`, { signal })
 export const setShipHubOrderAction = (category, id, state) => api(`/api/v1/shiphub/orders/${encodeURIComponent(category)}/${encodeURIComponent(id)}/actions`, { method: 'POST', body: { state } })
 export const requestShipHubSync = () => api('/api/v1/shiphub/sync', { method: 'POST', body: {} })
-export const startShipHubConnection = (returnTo = '/') => api('/api/v1/settings/shiphub/connect/start', { method: 'POST', body: { returnTo } })
+export const startShipHubConnection = (returnTo = '/', login = null) => api('/api/v1/settings/shiphub/connect/start', { method: 'POST', body: login ? { returnTo, login } : { returnTo } })
 export const disconnectShipHub = () => api('/api/v1/settings/shiphub/disconnect', { method: 'POST', body: {} })

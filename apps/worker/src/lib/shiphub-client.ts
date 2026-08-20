@@ -309,11 +309,12 @@ export class HttpShipHubClient implements ShipHubClient {
   readonly mode = 'live' as const
   constructor(
     private readonly config: ShipHubConfig,
-    private readonly accessToken: string
+    private readonly accessToken: string,
+    private readonly locationNumOverride?: string
   ) {}
 
   private get locationNum(): string {
-    const value = this.config.locationNum?.trim()
+    const value = this.locationNumOverride?.trim() || this.config.locationNum?.trim()
     if (!value) throw new ShipHubUpstreamError('LOCATION_NUM_NOT_CONFIGURED')
     return value
   }
@@ -401,8 +402,8 @@ export class HttpShipHubClient implements ShipHubClient {
   }
 }
 
-export function createShipHubClient(config: ShipHubConfig, accessToken?: string): ShipHubClient {
+export function createShipHubClient(config: ShipHubConfig, accessToken?: string, locationNumOverride?: string): ShipHubClient {
   if (config.mode === 'fixture') return createFixtureClient(config)
   if (!accessToken) throw new ShipHubUpstreamError('ACCESS_TOKEN_MISSING')
-  return new HttpShipHubClient(config, accessToken)
+  return new HttpShipHubClient(config, accessToken, locationNumOverride)
 }

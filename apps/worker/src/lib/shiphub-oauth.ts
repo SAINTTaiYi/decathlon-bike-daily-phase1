@@ -134,26 +134,11 @@ export async function rotateRefreshToken(
   `).bind(encrypted.ciphertext, encrypted.nonce, token.expiresAt, nowIso(), nowIso(), storeId, previousCiphertext, previousNonce).run()
 }
 
-export async function bootstrapShipHubConnection(
-  db: D1Database,
-  config: AppConfig,
-  storeId: string
-): Promise<boolean> {
-  const refreshToken = config.SHIPHUB.bootstrapRefreshToken
-  const key = config.SHIPHUB.tokenEncryptionKey
-  if (!refreshToken || !key) return false
-  const encrypted = await encryptShipHubSecret(refreshToken, key)
-  const stamp = nowIso()
-  await db.prepare(`
-    INSERT INTO shiphub_connections (
-      store_id, enabled, mode, refresh_token_ciphertext, refresh_token_nonce, refresh_token_key_version,
-      token_expires_at, token_updated_at, authorization_status, last_auth_error_code, created_at, updated_at
-    ) VALUES (?, 1, 'live', ?, ?, 'v1', NULL, ?, 'connected', NULL, ?, ?)
-    ON CONFLICT(store_id) DO UPDATE SET
-      enabled = 1, mode = 'live', refresh_token_ciphertext = excluded.refresh_token_ciphertext,
-      refresh_token_nonce = excluded.refresh_token_nonce, refresh_token_key_version = excluded.refresh_token_key_version,
-      token_updated_at = excluded.token_updated_at, authorization_status = 'connected',
-      last_auth_error_code = NULL, updated_at = excluded.updated_at
-  `).bind(storeId, encrypted.ciphertext, encrypted.nonce, stamp, stamp, stamp).run()
-  return true
+// 同一上游身份 = location_num + 登录账号。返回 sha256 hex；无 location 时无法判定身份。
+// 无显式账号时按 legacy 规则（部署级共享凭据）计算，保证存量连接与增量连接口径一致。
+export async function shipHubIdentityFingerprint(locationNum: string | null | undefined, username?: string): Promise<string | null> {
+  const normalized = locationNum?.trim()
+  if (!normalized) return null
+  if (username) return sha256(`${normalized}\u0000${username}`)
+  return sha256(`legacy:${normalized}`)
 }

@@ -19,6 +19,7 @@ test('0015 Shiphub 迁移为禁用默认的纯新增 schema，并保持外键完
     assert.deepEqual(tables, [
       'shiphub_category_state',
       'shiphub_connections',
+      'shiphub_identity_leases',
       'shiphub_oauth_states',
       'shiphub_order_actions',
       'shiphub_order_items',

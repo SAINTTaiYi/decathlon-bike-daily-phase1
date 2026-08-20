@@ -60,7 +60,7 @@ export default function useShipHub(enabled) {
     return result
   }, [loadOrders])
 
-  const connect = useCallback((returnTo = '/') => startShipHubConnection(returnTo), [])
+  const connect = useCallback((returnTo = '/', login = null) => startShipHubConnection(returnTo, login), [])
   const disconnect = useCallback(async () => {
     const result = await disconnectShipHub()
     await refreshSummary()

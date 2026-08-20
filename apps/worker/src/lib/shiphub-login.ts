@@ -53,11 +53,12 @@ function base64Url(bytes: Uint8Array): string {
 
 // 完整程序化登录：授权请求 → 提交 PingFederate 表单 → 捕获 code → PKCE 换 token。
 // 依赖 Workers fetch 自动跟随重定向后 response.url 携带 ?code= 的行为（已实测）。
-export async function performShipHubProgrammaticLogin(config: ShipHubConfig): Promise<ShipHubToken> {
+// credentials 为「本店独立账号」时优先使用（每店独立身份）；缺省回退到部署级共享凭据。
+export async function performShipHubProgrammaticLogin(config: ShipHubConfig, credentials?: { username: string; password: string }): Promise<ShipHubToken> {
   if (!config.oauthAuthorizeUrl || !config.oauthClientId || !config.oauthRedirectUri) {
     throw new ShipHubUpstreamError('OAUTH_CONFIG_INCOMPLETE')
   }
-  const { username, password } = await readLoginCredentials(config)
+  const resolved = credentials ?? await readLoginCredentials(config)
   const verifier = base64Url(crypto.getRandomValues(new Uint8Array(48)))
   const challenge = base64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))))
   const state = base64Url(crypto.getRandomValues(new Uint8Array(24)))
@@ -78,8 +79,8 @@ export async function performShipHubProgrammaticLogin(config: ShipHubConfig): Pr
   const cookies = (page.headers.getSetCookie?.() ?? []).map((value) => value.split(';')[0]).join('; ')
 
   const body = new URLSearchParams(fields)
-  body.set('pf.username', username)
-  body.set('pf.pass', password)
+  body.set('pf.username', resolved.username)
+  body.set('pf.pass', resolved.password)
   const submit = await fetch(action, {
     method: 'POST',
     headers: {

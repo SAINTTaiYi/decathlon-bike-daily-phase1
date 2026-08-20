@@ -1,9 +1,10 @@
 import { loadConfig, type AppConfig, type WorkerEnv } from '../env.js'
 import { all, first, nowIso, run, uuid } from '../db.js'
 import { ShipHubUpstreamError, createShipHubClient, type ShipHubCategory, type ShipHubClient, type ShipHubOrder } from '../lib/shiphub-client.js'
-import { bootstrapShipHubConnection, readRefreshToken, rotateRefreshToken } from '../lib/shiphub-oauth.js'
+import { readRefreshToken, rotateRefreshToken, shipHubIdentityFingerprint } from '../lib/shiphub-oauth.js'
 import { refreshShipHubAccessToken } from '../lib/shiphub-token.js'
 import { ApiProblem } from './problems.js'
+import { sendShipHubFailureAlert, shouldAlertOnShipHubFailure } from './shiphub-alert.js'
 
 // 硬规则：门店营业时间（北京时间 10:00–22:00）内才允许调用 Shiphub 上游获取自提数据。
 // 固定使用 Asia/Shanghai，不随门店 timezone 字段或部署环境变化。
@@ -24,6 +25,8 @@ export type ShipHubConnection = {
   authorizationStatus: string
   lastAuthErrorCode: string | null
   lastSuccessAt: string | null
+  locationNum: string | null
+  hasPerStoreLogin: boolean
 }
 
 type CategoryState = {
@@ -77,13 +80,16 @@ function mapConnection(row: any): ShipHubConnection {
     mode: row.mode === 'live' ? 'live' : 'fixture',
     authorizationStatus: row.authorization_status,
     lastAuthErrorCode: row.last_auth_error_code ?? null,
-    lastSuccessAt: row.last_success_at ?? null
+    lastSuccessAt: row.last_success_at ?? null,
+    locationNum: row.location_num ?? null,
+    hasPerStoreLogin: Boolean(row.login_username_enc)
   }
 }
 
 export async function getShipHubConnection(db: D1Database, storeId: string): Promise<ShipHubConnection | null> {
   const row = await first(db.prepare(`
     SELECT c.store_id, c.enabled, c.mode, c.authorization_status, c.last_auth_error_code,
+           c.location_num, c.login_username_enc,
            MAX(s.last_success_at) AS last_success_at
     FROM shiphub_connections c
     LEFT JOIN shiphub_category_state s ON s.store_id = c.store_id
@@ -237,25 +243,55 @@ export async function getShipHubOrder(db: D1Database, storeId: string, category:
 
 async function connectionForSync(db: D1Database, config: AppConfig, storeId: string): Promise<{ client: ShipHubClient; refresh?: { ciphertext: string; nonce: string } }> {
   if (config.SHIPHUB.mode === 'fixture') return { client: createShipHubClient(config.SHIPHUB) }
-  let row = await first<any>(db.prepare(`
-    SELECT enabled, mode, refresh_token_ciphertext, refresh_token_nonce
-    FROM shiphub_connections WHERE store_id = ?
+  // 不再自动 bootstrap：没有显式授权（connect）的连接不做上游调用。历史「共享 bootstrap
+  // refresh token」写入任意门店是 2026-08-19 全部门店 token 族被打废的根因，
+  // 连接必须由门店显式发起并记录自己的上游身份。
+  const row = await first<any>(db.prepare(`
+    SELECT c.enabled, c.mode, c.refresh_token_ciphertext, c.refresh_token_nonce,
+           c.location_num, c.identity_fingerprint,
+           st.code AS store_code, st.name AS store_name
+    FROM shiphub_connections c JOIN stores st ON st.id = c.store_id
+    WHERE c.store_id = ?
   `).bind(storeId))
-  if (!row || !(row.enabled === 1 || row.enabled === true)) {
-    const bootstrapped = await bootstrapShipHubConnection(db, config, storeId)
-    if (!bootstrapped) throw new ShipHubUpstreamError('CONNECTION_DISABLED')
-    row = await first<any>(db.prepare(`
-      SELECT enabled, mode, refresh_token_ciphertext, refresh_token_nonce
-      FROM shiphub_connections WHERE store_id = ?
-    `).bind(storeId))
-  }
-  if (!row) throw new ShipHubUpstreamError('CONNECTION_DISABLED')
+  if (!row || !(row.enabled === 1 || row.enabled === true)) throw new ShipHubUpstreamError('CONNECTION_DISABLED')
   if (row.mode === 'fixture') return { client: createShipHubClient({ ...config.SHIPHUB, mode: 'fixture' }) }
   if (!row.refresh_token_ciphertext || !row.refresh_token_nonce) throw new ShipHubUpstreamError('REFRESH_TOKEN_MISSING')
-  const refreshToken = await readRefreshToken(config, row)
-  const token = await refreshShipHubAccessToken(config.SHIPHUB, refreshToken)
-  await rotateRefreshToken(db, config, storeId, row.refresh_token_ciphertext, row.refresh_token_nonce, token)
-  return { client: createShipHubClient(config.SHIPHUB, token.accessToken), refresh: { ciphertext: row.refresh_token_ciphertext, nonce: row.refresh_token_nonce } }
+  const locationNum = row.location_num?.trim() || config.SHIPHUB.locationNum?.trim()
+  const fingerprint = row.identity_fingerprint ?? await shipHubIdentityFingerprint(locationNum)
+  // 同一上游身份全局互斥：轮换前必须拿到 fingerprint 租约，防止共享身份的多店并发
+  // 刷新触发上游轮换竞态（2026-08-19 事故机制）。拿不到租约 = 其他门店正在用同一身份，
+  // 直接跳过本轮，不轮换、不误标 reauth_required。
+  const owner = uuid()
+  if (!fingerprint || !(await acquireIdentityLease(db, fingerprint, owner, nowIso()))) {
+    throw new ShipHubUpstreamError('IDENTITY_LEASE_BUSY')
+  }
+  try {
+    const refreshToken = await readRefreshToken(config, row)
+    const token = await refreshShipHubAccessToken(config.SHIPHUB, refreshToken)
+    await rotateRefreshToken(db, config, storeId, row.refresh_token_ciphertext, row.refresh_token_nonce, token)
+    return { client: createShipHubClient(config.SHIPHUB, token.accessToken, locationNum), refresh: { ciphertext: row.refresh_token_ciphertext, nonce: row.refresh_token_nonce } }
+  } finally {
+    await releaseIdentityLease(db, fingerprint, owner)
+  }
+}
+
+// 同一上游身份（location_num + 登录账号）的 token 轮换互斥租约
+const IDENTITY_LEASE_MS = 60_000
+
+async function acquireIdentityLease(db: D1Database, fingerprint: string, owner: string, now: string): Promise<boolean> {
+  const expires = new Date(Date.parse(now) + IDENTITY_LEASE_MS).toISOString()
+  const result = await run(db.prepare(`
+    INSERT INTO shiphub_identity_leases (fingerprint, lease_owner, lease_expires_at, updated_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(fingerprint) DO UPDATE SET lease_owner = excluded.lease_owner,
+      lease_expires_at = excluded.lease_expires_at, updated_at = excluded.updated_at
+    WHERE shiphub_identity_leases.lease_expires_at <= ? OR shiphub_identity_leases.lease_owner = ?
+  `).bind(fingerprint, owner, expires, now, now, owner))
+  return Number(result.meta.changes) > 0
+}
+
+async function releaseIdentityLease(db: D1Database, fingerprint: string, owner: string): Promise<void> {
+  await db.prepare('DELETE FROM shiphub_identity_leases WHERE fingerprint = ? AND lease_owner = ?').bind(fingerprint, owner).run()
 }
 
 async function acquireLease(db: D1Database, storeId: string, owner: string, now: string): Promise<boolean> {
@@ -328,7 +364,20 @@ export async function syncStoreCategory(
   const runId = uuid()
   await db.prepare(`INSERT INTO shiphub_sync_runs (id, store_id, category, trigger_source, batch_id, started_at, status) VALUES (?, ?, ?, ?, ?, ?, 'running')`).bind(runId, storeId, category, trigger, options.batchId ?? null, stamp).run()
   try {
-    const { client } = options.client ? { client: options.client } : await connectionForSync(db, config, storeId)
+    let client: ShipHubClient
+    if (options.client) {
+      client = options.client
+    } else {
+      try {
+        client = (await connectionForSync(db, config, storeId)).client
+      } catch (error) {
+        if (error instanceof ShipHubUpstreamError && error.code === 'IDENTITY_LEASE_BUSY') {
+          await db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'skipped', error_code = 'IDENTITY_LEASE_BUSY' WHERE id = ?`).bind(stamp, runId).run()
+          return { status: 'skipped', reason: 'IDENTITY_LEASE_BUSY', runId }
+        }
+        throw error
+      }
+    }
     const count = await client.count(category)
     const countChanged = state.last_count === null || state.last_count !== count
     const shouldList = fullReconcile || countChanged
@@ -419,6 +468,17 @@ export async function syncStoreCategory(
       db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'failed', error_code = ? WHERE id = ?`).bind(failedAt, code, runId),
       db.prepare(`UPDATE shiphub_connections SET authorization_status = CASE WHEN ? = 'REFRESH_TOKEN_MISSING' OR ? LIKE 'OAUTH_TOKEN_HTTP_4%' THEN 'reauth_required' ELSE authorization_status END, last_auth_error_code = ?, updated_at = ? WHERE store_id = ?`).bind(code, code, code, failedAt, storeId)
     ])
+    // 连续失败告警：连接级错误（token/授权）在三类分类上同步出现，只在 hand 类触发避免三连发；
+    // 首次跨过 3 次 + 每再失败 10 次各补一封（邮件可选，未配置时仅状态可见）。
+    if (category === 'hand') {
+      const fresh = await first<{ consecutive_failures: number }>(db.prepare(`SELECT consecutive_failures FROM shiphub_category_state WHERE store_id = ? AND category = ?`).bind(storeId, category))
+      if (fresh && shouldAlertOnShipHubFailure(Number(fresh.consecutive_failures))) {
+        const storeRow = await first<{ code: string; name: string }>(db.prepare(`SELECT code, name FROM stores WHERE id = ?`).bind(storeId))
+        if (storeRow) {
+          await sendShipHubFailureAlert(config, { storeCode: storeRow.code, storeName: storeRow.name, errorCode: code, consecutiveFailures: Number(fresh.consecutive_failures) })
+        }
+      }
+    }
     return { status: 'failed', reason: code, runId }
   } finally {
     await releaseLease(db, storeId, owner)

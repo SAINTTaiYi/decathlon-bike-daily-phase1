@@ -5,10 +5,10 @@ import { createAuthMiddleware } from '../auth/middleware.js'
 import { businessDateFor, prepareAudit } from '../services/business.js'
 import { requireJsonBody } from '../lib/json.js'
 import { ShipHubUpstreamError, type ShipHubCategory } from '../lib/shiphub-client.js'
-import { completeShipHubAuthorization, createShipHubAuthorization } from '../lib/shiphub-oauth.js'
+import { completeShipHubAuthorization, createShipHubAuthorization, shipHubIdentityFingerprint } from '../lib/shiphub-oauth.js'
 import { encryptShipHubSecret } from '../lib/shiphub-crypto.js'
 import { performShipHubProgrammaticLogin } from '../lib/shiphub-login.js'
-import { nowIso } from '../db.js'
+import { first, nowIso } from '../db.js'
 import { idempotent } from '../services/idempotency.js'
 import { ApiProblem } from '../services/problems.js'
 import {
@@ -81,15 +81,41 @@ export function shipHubRoutes() {
     if (config.SHIPHUB.mode !== 'live') throw new ApiProblem(409, 'SSO_NOT_AVAILABLE_IN_FIXTURE', 'Preview fixture 不启用真实 Shiphub 授权。')
     if (!config.SHIPHUB.liveConfirmed) throw new ApiProblem(503, 'LIVE_NOT_CONFIRMED', '真实 Shiphub 尚未完成授权与连通性验证。')
     const context = c.get('auth')!
-    const body = await c.req.json().catch(() => ({})) as { returnTo?: string }
-    // 程序化登录（推荐）：门店账号凭据 AES-GCM 加密存于 CF secret 时，服务端自动完成
-    // PingFederate 登录与 OAuth code 交换，无需浏览器跳转，手机也可一键重连。
-    if (config.SHIPHUB.loginKey && config.SHIPHUB.loginUsernameEnc && config.SHIPHUB.loginPasswordEnc) {
+    const body = await c.req.json().catch(() => ({})) as { returnTo?: string; login?: { username?: string; password?: string; locationNum?: string } }
+    // 每店独立上游身份（推荐）：门店可提供自己的 ShipHub 账号与 location_num，加密存于本店
+    // 连接行，后续重连/同步使用本店身份；不填则回退到部署级共享凭据（仅兼容存量连接）。
+    const login = body.login ?? null
+    const storeUsername = login?.username?.trim()
+    const storePassword = login?.password
+    const perStoreLogin = Boolean(login && (login.username || login.password || login.locationNum))
+    if (perStoreLogin) {
+      if (!storeUsername || !storePassword) throw new ApiProblem(400, 'SHIPHUB_LOGIN_INCOMPLETE', '提供本店 ShipHub 账号时，用户名与密码必须同时填写。')
+      if (storeUsername.length > 128 || storePassword.length > 128 || !storePassword.trim()) throw new ApiProblem(400, 'SHIPHUB_LOGIN_INVALID', 'ShipHub 账号凭据格式不正确。')
+    }
+    const key = config.SHIPHUB.tokenEncryptionKey
+    if (!key) throw new ShipHubUpstreamError('TOKEN_ENCRYPTION_NOT_CONFIGURED')
+    const [loginUsernameEnc, loginPasswordEnc] = perStoreLogin && storeUsername && storePassword
+      ? await Promise.all([encryptShipHubSecret(storeUsername, key), encryptShipHubSecret(storePassword, key)])
+      : [null, null]
+    const effectiveLocationNum = login?.locationNum?.trim() || config.SHIPHUB.locationNum?.trim() || null
+    const fingerprint = await shipHubIdentityFingerprint(effectiveLocationNum, perStoreLogin ? storeUsername : undefined)
+    // 同一上游身份只允许一个门店连接：拒绝把共享账号连接到第二家店（历史事故根因）
+    if (fingerprint) {
+      const conflicting = await first<{ store_code: string }>(c.env.DB.prepare(`
+        SELECT st.code AS store_code
+        FROM shiphub_connections c JOIN stores st ON st.id = c.store_id
+        WHERE c.identity_fingerprint = ? AND c.store_id != ? AND c.enabled = 1
+          AND c.authorization_status IN ('connected', 'reauth_required')
+        LIMIT 1
+      `).bind(fingerprint, context.storeId))
+      if (conflicting) throw new ApiProblem(409, 'SHIPHUB_IDENTITY_IN_USE', `该 ShipHub 账号已被门店 ${conflicting.store_code} 使用，一个上游账号只能连接一个门店。`)
+    }
+    // 程序化登录（推荐）：优先本店独立账号；未提供时用部署级共享凭据（CF secret），
+    // 服务端自动完成 PingFederate 登录与 OAuth code 交换，无需浏览器跳转。
+    if (config.SHIPHUB.loginKey && (config.SHIPHUB.loginUsernameEnc && config.SHIPHUB.loginPasswordEnc || perStoreLogin)) {
       try {
-        const token = await performShipHubProgrammaticLogin(config.SHIPHUB)
+        const token = await performShipHubProgrammaticLogin(config.SHIPHUB, perStoreLogin && storeUsername && storePassword ? { username: storeUsername, password: storePassword } : undefined)
         if (!token.refreshToken) throw new ShipHubUpstreamError('OAUTH_REFRESH_TOKEN_MISSING')
-        const key = config.SHIPHUB.tokenEncryptionKey
-        if (!key) throw new ShipHubUpstreamError('TOKEN_ENCRYPTION_NOT_CONFIGURED')
         const encrypted = await encryptShipHubSecret(token.refreshToken, key)
         const stamp = nowIso()
         const audit = prepareAudit(c.env.DB, {
@@ -98,21 +124,27 @@ export function shipHubRoutes() {
           entityType: 'shiphub-connection',
           entityId: context.storeId,
           businessDate: await businessDateFor(context),
-          summary: '通过门店账号自动完成 Shiphub 授权',
+          summary: perStoreLogin ? '使用本店独立账号完成 Shiphub 授权' : '通过门店账号自动完成 Shiphub 授权',
           module: 'account'
         })
         await c.env.DB.batch([
           c.env.DB.prepare(`
             INSERT INTO shiphub_connections (
               store_id, enabled, mode, refresh_token_ciphertext, refresh_token_nonce, refresh_token_key_version,
+              login_username_enc, login_password_enc, login_key_version, location_num, identity_fingerprint,
               token_expires_at, token_updated_at, authorization_status, last_auth_error_code, created_at, updated_at
-            ) VALUES (?, 1, 'live', ?, ?, 'v1', ?, ?, 'connected', NULL, ?, ?)
+            ) VALUES (?, 1, 'live', ?, ?, 'v1', ?, ?, ?, ?, ?, ?, ?, 'connected', NULL, ?, ?)
             ON CONFLICT(store_id) DO UPDATE SET
               enabled = 1, mode = 'live', refresh_token_ciphertext = excluded.refresh_token_ciphertext,
               refresh_token_nonce = excluded.refresh_token_nonce, refresh_token_key_version = excluded.refresh_token_key_version,
+              login_username_enc = COALESCE(excluded.login_username_enc, shiphub_connections.login_username_enc),
+              login_password_enc = COALESCE(excluded.login_password_enc, shiphub_connections.login_password_enc),
+              login_key_version = COALESCE(excluded.login_key_version, shiphub_connections.login_key_version),
+              location_num = COALESCE(excluded.location_num, shiphub_connections.location_num),
+              identity_fingerprint = COALESCE(excluded.identity_fingerprint, shiphub_connections.identity_fingerprint),
               token_expires_at = excluded.token_expires_at, token_updated_at = excluded.token_updated_at,
               authorization_status = 'connected', last_auth_error_code = NULL, updated_at = excluded.updated_at
-          `).bind(context.storeId, encrypted.ciphertext, encrypted.nonce, token.expiresAt, stamp, stamp, stamp),
+          `).bind(context.storeId, encrypted.ciphertext, encrypted.nonce, loginUsernameEnc, loginPasswordEnc, loginUsernameEnc ? 'v1' : null, effectiveLocationNum, fingerprint, token.expiresAt, stamp, stamp, stamp),
           audit.statement
         ])
         const waitUntil = c.executionCtx?.waitUntil?.bind(c.executionCtx)

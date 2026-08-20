@@ -166,12 +166,14 @@ jobs:
           SHIPHUB_OAUTH_BASIC_TOKEN: ${{ secrets.SHIPHUB_OAUTH_BASIC_TOKEN }}
           SHIPHUB_BOOTSTRAP_REFRESH_TOKEN: ${{ secrets.SHIPHUB_BOOTSTRAP_REFRESH_TOKEN }}
           SHIPHUB_TOKEN_ENCRYPTION_KEY: ${{ secrets.SHIPHUB_TOKEN_ENCRYPTION_KEY }}
+          SHIPHUB_ALERT_EMAIL: ${{ secrets.SHIPHUB_ALERT_EMAIL }}
         run: |
           set -euo pipefail
           printf '%s' "$SHIPHUB_LOCATION_NUM" | wrangler secret put SHIPHUB_LOCATION_NUM --config wrangler.deploy.jsonc
           printf '%s' "$SHIPHUB_OAUTH_BASIC_TOKEN" | wrangler secret put SHIPHUB_OAUTH_BASIC_TOKEN --config wrangler.deploy.jsonc
           printf '%s' "$SHIPHUB_BOOTSTRAP_REFRESH_TOKEN" | wrangler secret put SHIPHUB_BOOTSTRAP_REFRESH_TOKEN --config wrangler.deploy.jsonc
           printf '%s' "$SHIPHUB_TOKEN_ENCRYPTION_KEY" | wrangler secret put SHIPHUB_TOKEN_ENCRYPTION_KEY --config wrangler.deploy.jsonc
+          if [ -n "$SHIPHUB_ALERT_EMAIL" ]; then printf '%s' "$SHIPHUB_ALERT_EMAIL" | wrangler secret put SHIPHUB_ALERT_EMAIL --config wrangler.deploy.jsonc; fi
       - name: Deploy the Staging Worker with Static Assets and D1
         run: wrangler deploy --config wrangler.deploy.jsonc
       - name: Verify the deployed Staging API, release identity, and Web shell
