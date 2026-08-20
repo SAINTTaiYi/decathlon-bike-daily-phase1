@@ -438,7 +438,7 @@
 /* Instant press feedback for all interactive controls (GSAP/anime also apply transform) */
 button:not(:disabled):active,
 button:not(:disabled)[data-pressed='true'] {
-  transform: scale(.98);
+  transform: scale(.985);
   opacity: .9;
   transition: transform 90ms var(--ease-out), opacity 90ms var(--ease-out);
 }
@@ -669,7 +669,7 @@ button:not(:disabled) {
   font-size: 15px;
   font-weight: 800;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
 }
 
 .closing-check-page-secondary {
@@ -683,7 +683,7 @@ button:not(:disabled) {
 }
 
 .closing-check-page-secondary:active {
-  transform: scale(0.98);
+  transform: scale(.985);
 }
 
 .closing-check-page-secondary:disabled {
@@ -707,7 +707,7 @@ button:not(:disabled) {
 }
 
 .closing-check-page-primary:active {
-  transform: scale(0.98);
+  transform: scale(.985);
 }
 
 .closing-check-page-primary:disabled {
