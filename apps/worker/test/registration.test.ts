@@ -23,6 +23,14 @@ test('错误 OTP 使用条件原子增量并在第五次尝试时收敛为过期
   assert.match(source, /SET attempts = attempts \+ 1,/u)
   assert.match(source, /CASE WHEN attempts \+ 1 >= 5 THEN 'expired'/u)
   assert.match(source, /WHERE id = \? AND status = 'pending' AND attempts < 5 AND expires_at > \?/u)
+  assert.match(source, /ApiProblem\(429, 'OTP_LOCKED'/u)
+})
+
+test('OTP 锁定后显式返回 429 OTP_LOCKED，不存在的 challengeId 仍为通用错误', async () => {
+  const source = await (await import('node:fs/promises')).readFile(new URL('../src/routes/registration.ts', import.meta.url), 'utf8')
+  assert.match(source, /if \(!challenge\) \{[\s\S]{0,140}OTP_INVALID_OR_EXPIRED/u)
+  assert.match(source, /if \(challenge\.attempts >= 5\) \{[\s\S]{0,140}429[\s\S]{0,60}OTP_LOCKED/u)
+  assert.match(source, /updated\.meta\.changes === 1 && challenge\.attempts \+ 1 >= 5[\s\S]{0,120}OTP_LOCKED/u)
 })
 
 

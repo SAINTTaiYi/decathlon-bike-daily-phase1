@@ -47,7 +47,7 @@ test('Production 验证线上 Staging 身份后才允许迁移和部署', async 
   const source = await workflow('deploy-production.yml')
   assert.match(source, /environment: production/u)
   assert.match(source, /STAGING_BASE_URL: \$\{\{ vars\.STAGING_BASE_URL \}\}/u)
-  assert.match(source, /meta\.gitSha !== process\.env\.STAGING_ACCEPTED_SHA/u)
+  assert.match(source, /ready\.gitSha !== process\.env\.STAGING_ACCEPTED_SHA/u)
   assert.match(source, /meta\.environment !== 'staging'/u)
   assert.match(source, /scripts-search\?name=bike-ops-production/u)
   assert.match(source, /PRODUCTION_D1_DATABASE_ID: \$\{\{ vars\.PRODUCTION_D1_DATABASE_ID \}\}/u)
