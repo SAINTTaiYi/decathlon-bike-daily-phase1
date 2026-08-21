@@ -212,15 +212,19 @@
   .ops-first-screen-spacer { height: 6px; }
 
   .look-dock {
+    left: 0 !important;
+    right: 0 !important;
     bottom: var(--visual-viewport-bottom) !important;
     display: block !important;
-    width: min(100%, 430px) !important;
+    width: 100% !important;
     min-height: calc(58px + env(safe-area-inset-bottom));
     padding: 0 0 env(safe-area-inset-bottom) !important;
     border: 0 !important;
+    border-top: 1px solid rgb(12 14 12 / .08) !important;
     background: var(--ops-page) !important;
     box-shadow: none !important;
     clip-path: none !important;
+    transform: none !important;
   }
   .look-dock::before { display: none !important; }
   .look-dock .dock-status { display: none !important; }
@@ -232,6 +236,18 @@
   .look-dock button span { display: block !important; font-family: var(--ops-body); font-size: 9px !important; font-weight: 700; line-height: 10px; }
   .look-dock button small { position: static !important; display: block !important; color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 8px !important; line-height: 8px; }
   .look-dock button[data-active='true'] small { color: var(--ops-text-inverse); }
+
+  /* 搜索/工具条并入次页头：sticky 于固定 header 之下，滚动时列表区最大化。
+     margin-inline 需 !important：pickup-ledger.css 后于本文件加载，其
+     <600px 规则 margin-inline:-12px 会覆盖这里。 */
+  .pickup-queue-controls {
+    position: sticky !important;
+    top: var(--ops-header-height, 104px);
+    z-index: 60;
+    margin-inline: 0 !important;
+    background: var(--pickup-page);
+    box-shadow: 0 1px 0 rgb(12 14 12 / .08);
+  }
 
   @media (max-width: 374px) {
     .lookbook-shell { padding-inline: 10px; }
