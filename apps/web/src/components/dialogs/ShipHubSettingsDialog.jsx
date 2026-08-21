@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import AppDialog from './AppDialog.jsx'
 
-export default function ShipHubSettingsDialog({ open, onClose, shiphub, onNotify }) {
+export default function ShipHubSettingsDialog({ open, onClose, shiphub, onNotify, canManage = false }) {
   const [busy, setBusy] = useState(false)
   const [showStoreLogin, setShowStoreLogin] = useState(false)
   const [storeLogin, setStoreLogin] = useState({ username: '', password: '', locationNum: '' })
@@ -47,8 +47,8 @@ export default function ShipHubSettingsDialog({ open, onClose, shiphub, onNotify
       <p className="dialog-copy">页面打开、切换模块和普通刷新只读取 Workshop D1 缓存，不直接访问 Shiphub。手工确认也只写入本地操作覆盖层。</p>
       {fixture ? <p className="dialog-copy">Preview 只使用仓库内人工构造的 fixture，不启用 SSO，也不会访问真实 Shiphub。</p> : status === 'connected' ? <button type="button" className="dialog-action" onClick={disconnect} disabled={busy}><span><strong>{busy ? '正在断开…' : '断开 Shiphub'}</strong><small>删除当前门店的本地 refresh token，不影响手工台账。</small></span></button> : <>
         <button type="button" className="dialog-action" onClick={connect} disabled={busy}><span><strong>{busy ? '正在自动授权…' : '连接 Shiphub'}</strong><small>{showStoreLogin ? '使用下方本店账号完成 IdP 登录与授权（OAuth2 authorization code + PKCE）。' : '使用门店账号自动完成 IdP 登录与授权（OAuth2 authorization code + PKCE）。'}</small></span></button>
-        <button type="button" className="dialog-toggle" onClick={() => setShowStoreLogin((current) => !current)} aria-expanded={showStoreLogin}><span>{showStoreLogin ? '收起本店独立账号' : '高级：使用本店独立 ShipHub 账号（推荐）'}</span></button>
-        {showStoreLogin ? <form className="data-form" onSubmit={(event) => { event.preventDefault(); void connect() }}>
+        {canManage ? <button type="button" className="dialog-toggle" onClick={() => setShowStoreLogin((current) => !current)} aria-expanded={showStoreLogin}><span>{showStoreLogin ? '收起本店独立账号' : '高级：设置本店 ShipHub 账号（推荐）'}</span></button> : <p className="dialog-copy">本店 ShipHub 账号由门店管理员设置；操作员可直接重新连接。</p>}
+        {canManage && showStoreLogin ? <form className="data-form" onSubmit={(event) => { event.preventDefault(); void connect() }}>
           <label className="field-row"><span>门店账号用户名</span><input autoComplete="off" maxLength="128" value={storeLogin.username} onChange={set('username')} placeholder="本店的 ShipHub 门店账号" /></label>
           <label className="field-row"><span>门店账号密码</span><input type="password" autoComplete="new-password" maxLength="128" value={storeLogin.password} onChange={set('password')} placeholder="对应账号密码" /></label>
           <label className="field-row"><span>location_num（可选）</span><input autoComplete="off" maxLength="32" value={storeLogin.locationNum} onChange={set('locationNum')} placeholder="留空则使用部署默认值" /></label>

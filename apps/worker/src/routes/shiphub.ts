@@ -75,7 +75,9 @@ export function shipHubRoutes() {
     return c.json({ enabled: c.get('config').SHIPHUB.enabled, connection: await getShipHubConnection(c.env.DB, context.storeId) })
   })
 
-  app.post('/api/v1/settings/shiphub/connect/start', requireJsonBody, ...managerWrite, async (c) => {
+  // 权限拆分：重连（复用已存本店凭据）允许门店任意角色（含操作员）；
+  // 添加/更换账号（body 携带 login 凭据）仅门店管理员（manager/admin）
+  app.post('/api/v1/settings/shiphub/connect/start', requireJsonBody, auth.loadSession, auth.requirePasswordChanged, auth.requireCsrf, async (c) => {
     const config = c.get('config')
     if (!config.SHIPHUB.enabled) throw new ApiProblem(404, 'SHIPHUB_DISABLED', 'Shiphub 接入尚未启用。')
     if (config.SHIPHUB.mode !== 'live') throw new ApiProblem(409, 'SSO_NOT_AVAILABLE_IN_FIXTURE', 'Preview fixture 不启用真实 Shiphub 授权。')
@@ -88,6 +90,8 @@ export function shipHubRoutes() {
     const storeUsername = login?.username?.trim()
     const storePassword = login?.password
     const perStoreLogin = Boolean(login && (login.username || login.password || login.locationNum))
+    // 添加/更换本店账号仅限门店管理员；操作员只用已存凭据重连
+    if (perStoreLogin) requireManager(context)
     if (perStoreLogin) {
       if (!storeUsername || !storePassword) throw new ApiProblem(400, 'SHIPHUB_LOGIN_INCOMPLETE', '提供本店 ShipHub 账号时，用户名与密码必须同时填写。')
       if (storeUsername.length > 128 || storePassword.length > 128 || !storePassword.trim()) throw new ApiProblem(400, 'SHIPHUB_LOGIN_INVALID', 'ShipHub 账号凭据格式不正确。')

@@ -319,3 +319,14 @@ test('connect/start 路由实现同一上游身份冲突拒绝（SHIPHUB_IDENTIT
   assert.match(source, /COALESCE\(excluded\.login_username_enc, shiphub_connections\.login_username_enc\)/u)
   assert.match(source, /loginUsernameEnc, loginPasswordEnc, loginUsernameEnc \? 'v1' : null/u)
 })
+
+test('ShipHub connect 权限拆分：重连任意门店角色，添加账号仅 manager/admin', async () => {
+  const source = await (await import('node:fs/promises')).readFile(new URL('../src/routes/shiphub.ts', import.meta.url), 'utf8')
+  // connect/start 不再要求 manager/admin 角色（操作员可重连已存凭据）
+  assert.match(source, /connect\/start', requireJsonBody, auth\.loadSession, auth\.requirePasswordChanged, auth\.requireCsrf/u)
+  assert.doesNotMatch(source, /connect\/start', requireJsonBody, \.\.\.managerWrite/u)
+  // 携带 login 凭据（添加/更换账号）时必须为门店管理员
+  assert.match(source, /const perStoreLogin = Boolean\(login && \(login\.username \|\| login\.password \|\| login\.locationNum\)\)\n    \/\/ 添加\/更换本店账号仅限门店管理员；操作员只用已存凭据重连\n    if \(perStoreLogin\) requireManager\(context\)/u)
+  // 未携带凭据（纯重连）不触发管理员门槛
+  assert.match(source, /if \(config\.SHIPHUB\.loginKey && \(config\.SHIPHUB\.loginUsernameEnc && config\.SHIPHUB\.loginPasswordEnc \|\| perStoreLogin\)\)/u)
+})
