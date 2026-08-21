@@ -476,21 +476,23 @@
   .workshop-shell[data-mobile-scene='resale'] .workshop-module-panel[data-scene-id='resale'],
   .workshop-shell[data-mobile-scene='sales'] .workshop-module-panel[data-scene-id='sales'] { display: block !important; }
 
-  /* 移动端 wipe：全屏覆盖（盖住 header 与 dock），参数与桌面端一致 */
-  .desktop-scene-transition-viewport {
+  /* 移动端 wipe：全屏覆盖（盖住 header 与 dock），参数与桌面端一致。
+     display 必须 !important：desktop-workbench.css 在 index.css 中后于本文件加载，
+     其全局 .desktop-scene-transition-wipe { display: none } 会以同特异性覆盖这里。 */
+  .workshop-runtime .desktop-scene-transition-viewport {
     position: fixed;
     inset: 0;
     z-index: 130;
-    display: block;
+    display: block !important;
     overflow: hidden;
     contain: paint;
     isolation: isolate;
     pointer-events: none;
   }
-  .desktop-scene-transition-wipe {
+  .workshop-runtime .desktop-scene-transition-wipe {
     position: absolute;
     inset: -8% -10%;
-    display: block;
+    display: block !important;
     pointer-events: none;
     background: var(--ops-yellow);
     box-shadow: 18px 0 0 var(--ops-black), 32px 0 42px rgb(12 14 12 / .26);
@@ -500,12 +502,9 @@
     transform-origin: left center;
     will-change: transform, opacity;
   }
-  .workshop-shell[data-mobile-scene-direction='backward'] .desktop-scene-transition-wipe {
+  .workshop-shell[data-mobile-scene-direction='backward'] .workshop-runtime .desktop-scene-transition-wipe {
     box-shadow: -18px 0 0 var(--ops-black), -32px 0 42px rgb(12 14 12 / .26);
     clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
-  }
-  .workshop-shell[data-mobile-scene-transitioning='true'] .workshop-module-panel {
-    will-change: transform, opacity, clip-path;
   }
 
   @media (prefers-reduced-motion: reduce) {

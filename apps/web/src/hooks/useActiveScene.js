@@ -90,12 +90,14 @@ export default function useActiveScene({ enabled = true, rootRef, viewMode = fal
         if (!nextPanel) return
         const targets = entranceTargets(nextPanel)
         gsap.fromTo(nextPanel,
-          { autoAlpha: .01, x: direction * 58, scale: .975, clipPath: direction > 0 ? 'inset(0 0 0 14%)' : 'inset(0 14% 0 0)' },
-          { autoAlpha: 1, x: 0, scale: 1, clipPath: 'inset(0 0% 0 0%)', duration: .72, ease: 'expo.out', clearProps: 'transform,opacity,visibility,clipPath' }
+          // 移动端轻量化：去掉 clip-path（inset 动画在移动端 GPU 开销大易掉帧），
+          // 位移/时长按比例缩小；wipe 节奏（.34/.54）与桌面端保持一致。
+          { autoAlpha: .01, x: direction * 36, scale: .985 },
+          { autoAlpha: 1, x: 0, scale: 1, duration: .6, ease: 'expo.out', clearProps: 'transform,opacity,visibility' }
         )
         if (targets.length) gsap.fromTo(targets,
-          { autoAlpha: .01, x: direction * 26, y: 32, scale: .965 },
-          { autoAlpha: 1, x: 0, y: 0, scale: 1, duration: .78, stagger: .055, ease: 'power4.out', clearProps: 'transform,opacity,visibility' }
+          { autoAlpha: .01, x: direction * 18, y: 24, scale: .975 },
+          { autoAlpha: 1, x: 0, y: 0, scale: 1, duration: .7, stagger: .04, ease: 'power4.out', clearProps: 'transform,opacity,visibility' }
         )
       })
     }
