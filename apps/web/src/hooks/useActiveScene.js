@@ -58,6 +58,7 @@ export default function useActiveScene({ enabled = true, rootRef, viewMode = fal
     const shell = rootRef?.current?.querySelector('.workshop-shell') || document.querySelector('.workshop-shell')
     if (shell) {
       shell.dataset.mobileScene = activeSceneRef.current
+      rootRef?.current?.setAttribute?.('data-mobile-scene', activeSceneRef.current)
       window.scrollTo(0, 0)
     }
     return undefined
@@ -81,6 +82,7 @@ export default function useActiveScene({ enabled = true, rootRef, viewMode = fal
     const direction = sceneOrder.indexOf(id) >= sceneOrder.indexOf(currentScene) ? 1 : -1
     const reveal = () => {
       shell.dataset.mobileScene = id
+      rootRef?.current?.setAttribute?.('data-mobile-scene', id)
       activeSceneRef.current = id
       setActiveScene(id)
       window.scrollTo(0, scrollPositionsRef.current[id] ?? 0)

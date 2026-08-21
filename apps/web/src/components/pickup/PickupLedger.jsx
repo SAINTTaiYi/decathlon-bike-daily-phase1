@@ -199,6 +199,7 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
 export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, onRemove, onHistory, onPickup, onRepairComplete, onHandoverComplete, onPickupNotificationChange, pickupErrors = {}, primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete, repairMode = false, handoverMode = false, repairPixelDissolveId = '', onRepairPixelDissolveComplete, members = [], onAssign = null, shiphub = null }) {
   const [query, setQuery] = useState('')
   const [expandedId, setExpandedId] = useState('')
+  const [mobileLayout, setMobileLayout] = useState(false)
   const storageKey = handoverMode ? 'handover-ledger' : repairMode ? 'repair-ledger' : 'pickup-ledger'
   const searchId = `${storageKey}-search`
   const [density, setDensity] = useState(() => window.localStorage?.getItem(`${storageKey}-density`) || 'balanced')
@@ -258,6 +259,14 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
     return sortRecords(waitingRecords.filter((record) => (repairMode || handoverMode || !sources.length || sources.includes(inferPickupSource(record))) && (!term || normalizedSearch(record).includes(term))), sort)
   }, [debouncedQuery, records, sort, sources])
   const appliedLabels = [...(repairMode || handoverMode ? [] : sources.map((value) => sourceOptions.find(([key]) => key === value)?.[1]).filter(Boolean)), sort === 'default' ? null : sortOptions.find(([value]) => value === sort)?.[1]].filter(Boolean)
+  useEffect(() => {
+    const media = window.matchMedia?.('(max-width: 767px)')
+    if (!media) return undefined
+    const sync = () => setMobileLayout(media.matches)
+    sync()
+    media.addEventListener?.('change', sync)
+    return () => media.removeEventListener?.('change', sync)
+  }, [])
   const closeSheet = useCallback(() => setSheet(null), [])
   const applySheet = useCallback(({ sources: nextSources, sort: nextSort }) => { setSources(nextSources); setSort(nextSort); setSheet(null) }, [])
 
@@ -268,6 +277,10 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   </div>
 
   const ledgerMode = handoverMode ? 'handover' : repairMode ? 'repair' : 'pickup'
+  // 移动端：搜索/排序/密度栏 Portal 进固定页头工具条容器（「02/06 待取车辆」行下方），
+  // 不再依赖 sticky（iOS 上 body overflow-x:hidden 会使 sticky 失效）；桌面端保持原位置。
+  const toolsTarget = mobileLayout ? document.querySelector(`.workshop-mobile-module-tools[data-scene="${ledgerMode}"]`) : null
+  const queueControlsRendered = toolsTarget ? createPortal(queueControls, toolsTarget) : queueControls
   const tableColumns = handoverMode
     ? ['队列号', '交接事项', '联系电话', '状态', '操作']
     : repairMode
@@ -277,7 +290,7 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   return <div className="pickup-ledger" data-density={autoDensity} aria-label={`${handoverMode ? '交接事项' : repairMode ? '维修车辆' : '待取车辆'}台账，共 ${records.length} 条`}>
     {shiphubEnabled ? <nav className="pickup-source-tabs" aria-label={handoverMode ? '其它交接来源' : '待取车辆来源'}>{sourceTabs.map(([value, label]) => <button type="button" key={value} data-active={shiphubTab === value ? 'true' : undefined} onClick={() => setShiphubTab(value)}>{label}</button>)}</nav> : null}
     {showManualLedger ? <>
-    {queueControls}
+    {queueControlsRendered}
     <section className="pickup-ledger-board" data-ledger-mode={ledgerMode}>
     <div className="pickup-ledger-intro"><div><span>{handoverMode ? 'ACTIVE HANDOVER' : repairMode ? 'ACTIVE REPAIR' : 'ACTIVE PICKUP'}</span><strong>{visible.length ? (handoverMode ? `当前显示 ${visible.length} 项，按列表顺序完成交接。` : repairMode ? `当前显示 ${visible.length} 台，按列表顺序核对并完成维修。` : `当前显示 ${visible.length} 台，按列表顺序核对并交付。`) : (handoverMode ? '当前没有交接事项。' : repairMode ? '当前规则下没有维修车辆。' : '当前规则下没有待取车辆。')}</strong></div><div className="pickup-ledger-global-actions"><button type="button" onClick={() => onHistory()}><IconJournal width={17} height={17} aria-hidden="true" />操作记录</button><button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />{handoverMode ? '增加交接事项' : repairMode ? '增加维修' : '增加待取'}</button></div></div>
     <div className="pickup-ledger-table-head" aria-hidden="true">{tableColumns.map((column) => <span key={column}>{column}</span>)}</div>
