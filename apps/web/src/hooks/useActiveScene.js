@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { gsap } from 'gsap'
 import { lookbookScenes } from '../data/lookbookScenes.js'
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 const moduleElement = (id) => document.getElementById(`module-${id}`)
 const scrollKeys = new Set([' ', 'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End'])
+
+const sceneOrder = ['pulse', 'pickup', 'poster', 'repair', 'resale', 'sales']
 
 const isAtNavigationTarget = (section) => {
   const rect = section.getBoundingClientRect()
@@ -11,10 +14,36 @@ const isAtNavigationTarget = (section) => {
   return Math.abs(rect.top) <= 8 || (nearDocumentEnd && rect.bottom > 0)
 }
 
-export default function useActiveScene({ enabled = true, rootRef } = {}) {
+// 与桌面端 useDesktopSceneTransition 保持同款入场目标与动画参数
+function entranceTargets(panel) {
+  if (!panel) return []
+  const selectors = [
+    '.ops-mobile-overview > *',
+    '.pickup-queue-controls',
+    '.pickup-ledger-board',
+    '.pickup-card-frame',
+    '.sales-input-summary > *',
+    '.look-section > .scene-title',
+    '.look-section > .record-ledger',
+    '.look-section > .resale-register'
+  ]
+  return [...new Set(selectors.flatMap((selector) => [...panel.querySelectorAll(selector)]))].slice(0, 14)
+}
+
+export default function useActiveScene({ enabled = true, rootRef, viewMode = false } = {}) {
   const [activeScene, setActiveScene] = useState('pulse')
   const sceneIds = useMemo(() => lookbookScenes.map((scene) => scene.id), [])
   const navigationRef = useRef(null)
+  const activeSceneRef = useRef('pulse')
+  const timelineRef = useRef(null)
+  // viewMode：切换模块时按场景记忆窗口滚动位置，切回时恢复
+  const scrollPositionsRef = useRef({})
+
+  useEffect(() => {
+    activeSceneRef.current = activeScene
+  }, [activeScene])
+
+  useEffect(() => () => timelineRef.current?.kill(), [])
 
   const cancelNavigation = useCallback(() => {
     const navigation = navigationRef.current
@@ -23,8 +52,84 @@ export default function useActiveScene({ enabled = true, rootRef } = {}) {
     navigationRef.current = null
   }, [])
 
+  // ---- viewMode：点击导航栏切换单模块视图（复用桌面端 wipe 切换动画）----
+  useLayoutEffect(() => {
+    if (!enabled || !viewMode) return undefined
+    const shell = rootRef?.current?.querySelector('.workshop-shell') || document.querySelector('.workshop-shell')
+    if (shell) {
+      shell.dataset.mobileScene = activeSceneRef.current
+      window.scrollTo(0, 0)
+    }
+    return undefined
+  }, [enabled, rootRef, viewMode])
+
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || !viewMode) return undefined
+    return () => timelineRef.current?.kill()
+  }, [enabled, viewMode])
+
+  const jumpView = useCallback((id) => {
+    if (!enabled || id === activeSceneRef.current) return
+    const shell = rootRef?.current?.querySelector('.workshop-shell') || document.querySelector('.workshop-shell')
+    const panel = moduleElement(id)
+    const wipe = rootRef?.current?.querySelector('.desktop-scene-transition-wipe') || document.querySelector('.desktop-scene-transition-wipe')
+    if (!shell || !panel) return
+
+    // 记忆当前场景的滚动位置，切回时恢复
+    scrollPositionsRef.current[activeSceneRef.current] = window.scrollY
+    const currentScene = activeSceneRef.current
+    const direction = sceneOrder.indexOf(id) >= sceneOrder.indexOf(currentScene) ? 1 : -1
+    const reveal = () => {
+      shell.dataset.mobileScene = id
+      activeSceneRef.current = id
+      setActiveScene(id)
+      window.scrollTo(0, scrollPositionsRef.current[id] ?? 0)
+      window.requestAnimationFrame(() => {
+        const nextPanel = moduleElement(id)
+        nextPanel?.focus({ preventScroll: true })
+        if (!nextPanel) return
+        const targets = entranceTargets(nextPanel)
+        gsap.fromTo(nextPanel,
+          { autoAlpha: .01, x: direction * 58, scale: .975, clipPath: direction > 0 ? 'inset(0 0 0 14%)' : 'inset(0 14% 0 0)' },
+          { autoAlpha: 1, x: 0, scale: 1, clipPath: 'inset(0 0% 0 0%)', duration: .72, ease: 'expo.out', clearProps: 'transform,opacity,visibility,clipPath' }
+        )
+        if (targets.length) gsap.fromTo(targets,
+          { autoAlpha: .01, x: direction * 26, y: 32, scale: .965 },
+          { autoAlpha: 1, x: 0, y: 0, scale: 1, duration: .78, stagger: .055, ease: 'power4.out', clearProps: 'transform,opacity,visibility' }
+        )
+      })
+    }
+
+    if (reducedMotion() || !wipe) {
+      reveal()
+      return
+    }
+
+    timelineRef.current?.kill()
+    const headerItems = [...(rootRef?.current?.querySelectorAll('.workshop-module-header > *') || [])]
+    gsap.killTweensOf([wipe, panel, ...headerItems].filter(Boolean))
+    gsap.killTweensOf(entranceTargets(panel))
+
+    shell.dataset.mobileSceneDirection = direction > 0 ? 'forward' : 'backward'
+    shell.dataset.mobileSceneTransitioning = 'true'
+    gsap.set(wipe, { autoAlpha: 1, scaleX: 0, transformOrigin: direction > 0 ? 'left center' : 'right center' })
+
+    const finish = () => {
+      delete shell.dataset.mobileSceneTransitioning
+      gsap.set(wipe, { clearProps: 'transform,opacity,visibility,transformOrigin' })
+    }
+
+    const timeline = gsap.timeline({ onComplete: finish })
+      .to(wipe, { scaleX: 1, duration: .34, ease: 'power4.inOut' })
+      .call(reveal)
+      .set(wipe, { transformOrigin: direction > 0 ? 'right center' : 'left center' })
+      .to(wipe, { scaleX: 0, duration: .54, ease: 'expo.inOut' }, '+=.04')
+    timelineRef.current = timeline
+  }, [enabled, rootRef])
+
+  // ---- 非 viewMode：滚动驱动的场景跟踪（桌面端与旧移动端行为）----
+  useEffect(() => {
+    if (!enabled || viewMode) {
       cancelNavigation()
       return undefined
     }
@@ -94,9 +199,10 @@ export default function useActiveScene({ enabled = true, rootRef } = {}) {
       if (frame) window.cancelAnimationFrame(frame)
       cancelNavigation()
     }
-  }, [cancelNavigation, enabled, rootRef, sceneIds])
+  }, [cancelNavigation, enabled, rootRef, sceneIds, viewMode])
 
-  const jumpTo = useCallback((id) => {
+  // 非 viewMode 的平滑滚动跳转（旧移动端/桌面端锚点兜底）
+  const scrollJump = useCallback((id) => {
     const section = moduleElement(id)
     if (!section) return
 
@@ -129,6 +235,14 @@ export default function useActiveScene({ enabled = true, rootRef } = {}) {
     navigation.frame = window.requestAnimationFrame(watchForArrival)
     window.requestAnimationFrame(() => section.focus({ preventScroll: true }))
   }, [cancelNavigation])
+
+  const jumpTo = useCallback((id) => {
+    if (viewMode) {
+      jumpView(id)
+      return
+    }
+    scrollJump(id)
+  }, [jumpView, scrollJump, viewMode])
 
   return { activeScene, jumpTo }
 }

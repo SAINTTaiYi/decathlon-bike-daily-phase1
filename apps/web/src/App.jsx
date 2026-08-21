@@ -197,7 +197,8 @@ export default function App() {
   const taskFocused = Boolean(taskInputFocused || menuOpen || passwordChangeOpen || logOpen || permanentHistoryOpen || confirmOpen || kpiOpen || migrationOpen || governanceOpen || reportImage || recordEditor || mediaRecord || pickupConfirm || historyTarget)
   const { activeScene, jumpTo } = useActiveScene({
     enabled: introDone && workflow.hydrated && !workspaceLaunching,
-    rootRef: workspaceRootRef
+    rootRef: workspaceRootRef,
+    viewMode: !desktopLayout
   })
 
   useEffect(() => {

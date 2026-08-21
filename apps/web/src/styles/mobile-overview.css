@@ -463,3 +463,53 @@
   .ops-release-strip,
   .ops-first-screen-spacer { grid-column: 1 / -1; }
 }
+
+/* ---- 移动端单模块视图（2026-08-21）：点击底部导航切换模块，不再整页滚动浏览 ----
+   切换动画复用桌面端 wipe（黄色斜向覆盖 + 方向感知 + 面板位移入场）。 */
+
+@media (max-width: 767px) {
+  .workshop-shell[data-mobile-scene] .workshop-module-panel { display: none !important; }
+  .workshop-shell[data-mobile-scene='pulse'] .workshop-module-panel[data-scene-id='pulse'],
+  .workshop-shell[data-mobile-scene='pickup'] .workshop-module-panel[data-scene-id='pickup'],
+  .workshop-shell[data-mobile-scene='poster'] .workshop-module-panel[data-scene-id='poster'],
+  .workshop-shell[data-mobile-scene='repair'] .workshop-module-panel[data-scene-id='repair'],
+  .workshop-shell[data-mobile-scene='resale'] .workshop-module-panel[data-scene-id='resale'],
+  .workshop-shell[data-mobile-scene='sales'] .workshop-module-panel[data-scene-id='sales'] { display: block !important; }
+
+  /* 移动端 wipe：全屏覆盖（盖住 header 与 dock），参数与桌面端一致 */
+  .desktop-scene-transition-viewport {
+    position: fixed;
+    inset: 0;
+    z-index: 130;
+    display: block;
+    overflow: hidden;
+    contain: paint;
+    isolation: isolate;
+    pointer-events: none;
+  }
+  .desktop-scene-transition-wipe {
+    position: absolute;
+    inset: -8% -10%;
+    display: block;
+    pointer-events: none;
+    background: var(--ops-yellow);
+    box-shadow: 18px 0 0 var(--ops-black), 32px 0 42px rgb(12 14 12 / .26);
+    clip-path: polygon(0 0, 92% 0, 100% 100%, 8% 100%);
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left center;
+    will-change: transform, opacity;
+  }
+  .workshop-shell[data-mobile-scene-direction='backward'] .desktop-scene-transition-wipe {
+    box-shadow: -18px 0 0 var(--ops-black), -32px 0 42px rgb(12 14 12 / .26);
+    clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+  }
+  .workshop-shell[data-mobile-scene-transitioning='true'] .workshop-module-panel {
+    will-change: transform, opacity, clip-path;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .desktop-scene-transition-viewport { display: none !important; }
+    .desktop-scene-transition-wipe { display: none !important; }
+  }
+}
