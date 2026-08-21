@@ -211,7 +211,10 @@
   .ops-release-strip > div li + li { margin-top: 4px; }
   .ops-first-screen-spacer { height: 6px; }
 
-  .look-dock {
+  /* 特异性必须 .workshop-runtime 前缀：workshop-system.css 等后于本文件加载，
+     其悬浮胶囊 .look-dock 规则（全 !important）会以同特异性覆盖贴底定位。
+     0,2,0 + important 保证任何后加载同特异性规则都无法压过。 */
+  .workshop-runtime .look-dock {
     left: 0 !important;
     right: 0 !important;
     bottom: var(--visual-viewport-bottom) !important;
@@ -221,6 +224,7 @@
     padding: 0 0 env(safe-area-inset-bottom) !important;
     border: 0 !important;
     border-top: 1px solid rgb(12 14 12 / .08) !important;
+    border-radius: 0 !important;
     background: var(--ops-page) !important;
     box-shadow: none !important;
     clip-path: none !important;
