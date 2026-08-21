@@ -118,7 +118,7 @@ Preview D1 is persistent across deployments. A deployment rollback does not roll
 
 Before deployment:
 
-1. Read the live `/api/v1/meta/version` response and record `schemaVersion` and `gitSha`.
+1. Read the live `/health/live` response and record the exact `gitSha`. The public `/api/v1/meta/version` endpoint intentionally no longer exposes `gitSha`/`schemaVersion` (pentest 2026-08-21 hardening); confirm the candidate's `SCHEMA_VERSION` against the latest committed migration in `migrations/d1/` instead.
 2. Compare the candidate runtime's `SCHEMA_VERSION` and migration set with the live schema.
 3. Exercise the business endpoints affected by the migration.
 4. Reject any old runtime that references tables or columns already removed from the live D1.

@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
-import { SCHEMA_VERSION } from '../schema-version.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
 
@@ -25,11 +24,10 @@ export function healthRoutes() {
 
   app.get('/api/v1/meta/version', (c) => {
     const config = c.get('config')
+    // 公开端点不暴露内部元数据（精确提交与内部 schema 标识仅由 /health/* 与部署门禁内部使用）
     return c.json({
       appVersion: config.APP_VERSION,
       apiVersion: '1.0.0',
-      schemaVersion: SCHEMA_VERSION,
-      gitSha: config.GIT_SHA,
       environment: config.APP_ENV,
       platform: 'cloudflare-workers-d1'
     })

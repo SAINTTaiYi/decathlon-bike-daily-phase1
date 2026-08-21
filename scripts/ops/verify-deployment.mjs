@@ -24,7 +24,7 @@ const result = await waitFor(`EdgeOne ${expectedEnvironment} deployment ${expect
   ])
   if (!web.ok) return false
   if (health?.status !== 'ready' || health?.gitSha !== expectedSha || health?.version !== packageJson.version) return false
-  if (version?.gitSha !== expectedSha || version?.appVersion !== packageJson.version || version?.environment !== expectedEnvironment) return false
+  if (version?.appVersion !== packageJson.version || version?.environment !== expectedEnvironment) return false
   return { origin, health, version, webStatus: web.status }
 }, { attempts: 120, delayMs: 5000 })
 
