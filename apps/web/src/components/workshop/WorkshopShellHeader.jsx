@@ -38,7 +38,13 @@ export default function WorkshopShellHeader({ activeScene, dateKey, storeName, r
         <Icon width={26} height={26} strokeWidth={1.7} aria-hidden="true" />
         <span>{scene.no} / 06</span>
         <strong>{scene.cn}</strong>
-        <small>{scene.title}</small>
+        <small className="workshop-module-en">{scene.title}</small>
+        {/* 移动端搜索框槽位：插件并进「02/06 待取车辆」行右侧的空白区域；桌面端隐藏 */}
+        <div className="workshop-module-search-slot">
+          <div className="workshop-module-search" data-scene="pickup" />
+          <div className="workshop-module-search" data-scene="poster" />
+          <div className="workshop-module-search" data-scene="repair" />
+        </div>
       </div>
     </header>
     <div className="workshop-mobile-module-tools" data-scene="pickup" />

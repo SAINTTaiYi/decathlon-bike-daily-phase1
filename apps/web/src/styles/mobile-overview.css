@@ -266,6 +266,24 @@
     padding-top: calc(var(--ops-header-height, 104px) + 52px + 12px) !important;
   }
 
+  /* 模块行融合搜索框：搜索框嵌进「02/06 待取车辆」行右侧空白区域（PICKUP BOARD 隐藏），
+     搜索框由 PickupLedger Portal 挂载，随页头固定。 */
+  .workshop-runtime .workshop-module-header {
+    grid-template-columns: 22px auto auto minmax(0, 1fr);
+  }
+  .workshop-runtime .workshop-module-header .workshop-module-en { display: none; }
+  .workshop-module-search-slot { position: relative; min-width: 0; }
+  .workshop-module-search { display: none; min-width: 0; }
+  .workshop-runtime[data-mobile-scene='pickup'] .workshop-module-search[data-scene='pickup'],
+  .workshop-runtime[data-mobile-scene='poster'] .workshop-module-search[data-scene='poster'],
+  .workshop-runtime[data-mobile-scene='repair'] .workshop-module-search[data-scene='repair'] { display: block; }
+  .workshop-module-search .pickup-search-field { height: 40px; min-width: 0; }
+  /* 工具行（筛选/排序/密度/收起）右对齐紧凑 */
+  .workshop-runtime .workshop-mobile-module-tools .pickup-tool-row {
+    grid-template-columns: repeat(4, 44px);
+    justify-content: end;
+  }
+
   @media (max-width: 374px) {
     .lookbook-shell { padding-inline: 10px; }
     .ops-brand-lockup strong { font-size: 20px; }
