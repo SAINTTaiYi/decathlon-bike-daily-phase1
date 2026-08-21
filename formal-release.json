@@ -1,23 +1,84 @@
 {
   "kind": "formal-production-release",
-  "version": "6.1.5",
+  "version": "6.2.0",
   "previewRange": {
-    "fromExclusive": "73f85a2c5a49a7c83bc9fb4e379dea904b311e72",
-    "toInclusive": "72dd0000fb057a82ef55e4bfa44eaa984d4531a8",
+    "fromExclusive": "2a5468da4ab59cacd65e9215e10fc8a674f6fbad",
+    "toInclusive": "ec057d3bbb8e37356c107bb0371fc5d863e45a70",
     "commits": [
       {
-        "sha": "72dd0000fb057a82ef55e4bfa44eaa984d4531a8",
-        "subject": "fix(shiphub): 引导卡文案适配油猴 MV3——点击 .user.js 不再自动弹安装框"
+        "sha": "602285cd46747ee480cbe0f6c3461fe3e5e9b72e",
+        "subject": "feat(web): 移动端改点击导航切换模块——单模块视图 + 桌面端同款 wipe 动画"
+      },
+      {
+        "sha": "57b1910b838523d6e7bfbacb299b45ab58b601e9",
+        "subject": "fix(web): 移动端 wipe 被 desktop-workbench 全局 display:none 覆盖——修复并轻量化切换动画"
+      },
+      {
+        "sha": "9926c35164d8b6f5303b0bbbc1e88441ecd8a077",
+        "subject": "fix(web): 移动端 wipe 只覆盖滚动内容区，避开固定 header 与 dock"
+      },
+      {
+        "sha": "91182ec37594925521e73c3600912fe558ced2b0",
+        "subject": "feat(web): 移动端底栏贴底 + 搜索工具条并入次页头"
+      },
+      {
+        "sha": "4b278207ede571f22f69eff176e5d887ef89ae39",
+        "subject": "fix(web): SW 缓存版本改为构建注入（版本+SHA），杜绝旧版滞留"
+      },
+      {
+        "sha": "39625a8afacec82bfb956fe9bd9fae49cd6f6574",
+        "subject": "fix(web): dock 贴底规则特异性不足被 workshop-system 悬浮胶囊覆盖——加 .workshop-runtime 前缀"
+      },
+      {
+        "sha": "13953d54bd007285277180a23310992d5e087285",
+        "subject": "fix(web): 搜索工具条与固定页头无缝衔接 + 移动端 dock 移除入场动画"
+      },
+      {
+        "sha": "5c0244d0bb56d47e3dd5397f4f35ce5260a0915b",
+        "subject": "feat(web): 搜索工具条 Portal 并入固定页头（02/06 待取车辆行下方）+ dock 动效清理"
+      },
+      {
+        "sha": "70e3ed9c2cff59708d27539c9a68f4c2d019eb80",
+        "subject": "fix(web): QUEUE STATUS 行融入页头——隐藏中间摘要行，页头三层紧凑融合"
+      },
+      {
+        "sha": "4fe906ce957f640aba9bc90ff11cfdf6b3059969",
+        "subject": "feat(web): 搜索框嵌入「02/06 待取车辆」行右侧小框——页头最终融合形态"
+      },
+      {
+        "sha": "74e9cfd51a3a3a06709827f2b9b58de9b36fcbaf",
+        "subject": "feat(web): 搜索框+图标按钮全部压缩进「02/06 待取车辆」行"
+      },
+      {
+        "sha": "17a0af701b3b917a38e9097648982c6e6fd278aa",
+        "subject": "style(web): 模块行工具区全无框化——按钮仅图标无边框，搜索框融入模块行"
+      },
+      {
+        "sha": "d245eaa6a39ff2d8e53061d78015f238c939724f",
+        "subject": "fix(web): 无工具行场景顶部空白 + dock 指示器黑块错位凸出"
+      },
+      {
+        "sha": "89b10ec39470f8d5f0496c8a132d7529df1a1231",
+        "subject": "fix(web): footer 场景隔离、poster 搜索栏进页头、wipe 漏截、dock 切换动效"
+      },
+      {
+        "sha": "ec057d3bbb8e37356c107bb0371fc5d863e45a70",
+        "subject": "fix(web): 内容区顶部空白（工具行占位残留）+ 按钮外框暴力清除"
       }
     ]
   },
   "announcement": {
-    "title": "定位脚本安装引导适配油猴 MV3 安装流程",
-    "summary": "TM 5.3.2 起（MV3）点击 .user.js 链接默认不再自动弹出安装确认，原引导文案误导门店；现改为拖拽到油猴管理面板或把「用户脚本 URL 检测」改为传统模式，并补充 Chrome 138+「允许用户脚本」开关说明。",
+    "title": "移动端导航重构与安全加固",
+    "summary": "移动端浏览改版：底部导航切换模块（与桌面端一致的切换动画）、搜索工具条融入固定页头、底栏贴底；同步完成安全加固（OTP 锁定显式化、版本接口信息收敛、SW 缓存轮换）。",
     "changes": [
-      "安装引导文案适配油猴 MV3：TM 5.3.2 起点击 .user.js 链接不再自动弹安装确认，提示改为「把下载的文件拖到油猴管理面板，或在油猴设置里把『用户脚本 URL 检测』改为传统模式」",
-      "引导文案补充 Chrome 138+ 替代开关：除 chrome://extensions 开发者模式外，可在油猴扩展详情开启「允许用户脚本」"
+      "移动端改为点击底部导航切换模块，一次只显示一个模块，不再整页滚动浏览",
+      "切换动画与桌面端一致：黄色斜向覆盖 + 方向感知入场（wipe）",
+      "搜索/筛选/排序/密度工具条融入固定页头（02/06 模块行内），列表空间更大",
+      "底部导航贴底，选中指示器平滑滑动",
+      "OTP 验证码第 5 次错误后显式锁定（429），防止爆破",
+      "公共版本接口不再暴露内部 git SHA 与 schema 标识",
+      "Service Worker 缓存版本随发布自动轮换，杜绝旧版页面滞留"
     ]
   },
-  "preparedAt": "2026-08-20T14:38:10.455Z"
+  "preparedAt": "2026-08-21T15:22:45.275Z"
 }
