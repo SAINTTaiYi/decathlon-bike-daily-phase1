@@ -100,7 +100,7 @@ assert(/STAGING_BASE_URL: \$\{\{ vars\.STAGING_BASE_URL \}\}/u.test(production),
 assert(/PRODUCTION_BASE_URL: \$\{\{ vars\.PRODUCTION_BASE_URL \}\}/u.test(production), 'production: site URL must come from the production Environment variable')
 assert(/PRODUCTION_D1_DATABASE_ID: \$\{\{ vars\.PRODUCTION_D1_DATABASE_ID \}\}/u.test(production), 'production: D1 ID must come from the production Environment variable')
 assert(/scripts-search\?name=bike-ops-production/u.test(production), 'production: Worker must be checked through the JSON search API')
-assert(/meta\.gitSha !== process\.env\.STAGING_ACCEPTED_SHA/u.test(production), 'production: live Staging SHA must equal the accepted SHA')
+assert(/ready\.gitSha !== process\.env\.STAGING_ACCEPTED_SHA/u.test(production), 'production: live Staging SHA (health/ready) must equal the accepted SHA')
 assert(/meta\.environment !== 'staging'/u.test(production), 'production: live Staging environment must be checked')
 assert(/wrangler d1 migrations apply bike-ops-production/u.test(production), 'production: D1 migrations must run before Worker deployment')
 assert(/pnpm check:version -- --mode production/u.test(production), 'production: formal release version gate is required')

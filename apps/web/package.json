@@ -1,12 +1,12 @@
 {
   "name": "@bike-ops/web",
-  "version": "6.1.5",
+  "version": "6.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "dev:lan": "vite --host 0.0.0.0",
-    "build": "vite build",
+    "build": "vite build && node ../../scripts/stamp-sw.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "preview:lan": "vite preview --host 0.0.0.0"
   },

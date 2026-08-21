@@ -229,20 +229,32 @@ export function registrationRoutes() {
       SELECT id, email_key, username_key, display_name, store_id, otp_hash, status, attempts, expires_at
       FROM registration_challenges WHERE id = ? LIMIT 1
     `).bind(input.challengeId))
-    if (!challenge || challenge.status !== 'pending' || Date.parse(challenge.expires_at) <= Date.now() || challenge.attempts >= 5) {
-      if (challenge?.status === 'pending') await c.env.DB.prepare(`UPDATE registration_challenges SET status = 'expired', updated_at = ? WHERE id = ?`).bind(nowIso(), challenge.id).run()
+    // 不存在的 challengeId 保持通用错误，避免枚举有效 challenge
+    if (!challenge) {
+      throw new ApiProblem(400, 'OTP_INVALID_OR_EXPIRED', '验证码无效或已过期，请重新获取。')
+    }
+    // 尝试次数已达上限（含已被第五次失败作废的 challenge）：显式锁定，客户端必须重新获取 challengeId
+    if (challenge.attempts >= 5) {
+      throw new ApiProblem(429, 'OTP_LOCKED', '验证码错误次数过多，请重新获取验证码。')
+    }
+    if (challenge.status !== 'pending' || Date.parse(challenge.expires_at) <= Date.now()) {
+      if (challenge.status === 'pending') await c.env.DB.prepare(`UPDATE registration_challenges SET status = 'expired', updated_at = ? WHERE id = ?`).bind(nowIso(), challenge.id).run()
       throw new ApiProblem(400, 'OTP_INVALID_OR_EXPIRED', '验证码无效或已过期，请重新获取。')
     }
     const expected = await keyedHash(`${challenge.id}:${input.otp}`, config.REGISTRATION_SECRET)
     if (!safeEqualHex(expected, challenge.otp_hash)) {
       const stamp = nowIso()
-      await c.env.DB.prepare(`
+      const updated = await c.env.DB.prepare(`
         UPDATE registration_challenges
         SET attempts = attempts + 1,
             status = CASE WHEN attempts + 1 >= 5 THEN 'expired' ELSE 'pending' END,
             updated_at = ?
         WHERE id = ? AND status = 'pending' AND attempts < 5 AND expires_at > ?
       `).bind(stamp, challenge.id, stamp).run()
+      // 第五次失败作废 challenge 并显式返回 429，爆破面收敛且复测可观测
+      if (updated.meta.changes === 1 && challenge.attempts + 1 >= 5) {
+        throw new ApiProblem(429, 'OTP_LOCKED', '验证码错误次数过多，请重新获取验证码。')
+      }
       throw new ApiProblem(400, 'OTP_INVALID_OR_EXPIRED', '验证码无效或已过期，请重新获取。')
     }
     const completionToken = randomToken()

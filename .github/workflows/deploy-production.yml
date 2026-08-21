@@ -122,7 +122,7 @@ jobs:
           const meta = JSON.parse(fs.readFileSync('/tmp/staging-meta.json', 'utf8'))
           if (ready.status !== 'ready') throw new Error('STAGING_NOT_READY')
           if (meta.environment !== 'staging') throw new Error('STAGING_ENVIRONMENT_MISMATCH')
-          if (meta.gitSha !== process.env.STAGING_ACCEPTED_SHA) throw new Error('STAGING_SHA_MISMATCH')
+          if (ready.gitSha !== process.env.STAGING_ACCEPTED_SHA) throw new Error('STAGING_SHA_MISMATCH')
           NODE
       - name: Validate Production Worker and D1 resources must already exist
         run: |
@@ -230,7 +230,7 @@ jobs:
             if grep -q '"status":"ok"' /tmp/live.json \
               && grep -q '"status":"ready"' /tmp/ready.json \
               && grep -Fq "\"appVersion\":\"$APP_VERSION\"" /tmp/meta.json \
-              && grep -Fq "\"gitSha\":\"$RELEASE_SHA\"" /tmp/meta.json \
+              && grep -Fq "\"gitSha\":\"$RELEASE_SHA\"" /tmp/live.json \
               && grep -Fq "\"environment\":\"production\"" /tmp/meta.json \
               && grep -qi '<!doctype html' /tmp/index.html; then
               echo "Production identity matched on attempt $attempt"

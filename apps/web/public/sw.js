@@ -1,4 +1,6 @@
-const CACHE = 'bike-ops-v5.4.0-static'
+// 缓存版本由构建脚本注入（scripts/stamp-sw.mjs）：每次部署版本/SHA 变化都会
+// 使 sw.js 字节变化 -> 浏览器自动更新 SW -> activate 时清掉旧缓存，杜绝旧版滞留。
+const CACHE = 'bike-ops-__BUILD_SHA__-static'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['/'])).then(() => self.skipWaiting()))
