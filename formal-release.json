@@ -1,84 +1,57 @@
 {
   "kind": "formal-production-release",
-  "version": "6.2.0",
+  "version": "6.2.1",
   "previewRange": {
-    "fromExclusive": "2a5468da4ab59cacd65e9215e10fc8a674f6fbad",
-    "toInclusive": "ec057d3bbb8e37356c107bb0371fc5d863e45a70",
+    "fromExclusive": "87c8ba3b7d6dfa729687ff85a345a1c85a0877c7",
+    "toInclusive": "d4dd65e86f117da0fb7327bcb80aa1f4c2a7c7b9",
     "commits": [
       {
-        "sha": "602285cd46747ee480cbe0f6c3461fe3e5e9b72e",
-        "subject": "feat(web): 移动端改点击导航切换模块——单模块视图 + 桌面端同款 wipe 动画"
+        "sha": "1232a2fa28a3031e01346cc0243004655faf7506",
+        "subject": "feat(shiphub): 每店独立上游身份 + 同身份互斥轮换 + 连续失败告警（2026-08-21 渗透复盘）"
       },
       {
-        "sha": "57b1910b838523d6e7bfbacb299b45ab58b601e9",
-        "subject": "fix(web): 移动端 wipe 被 desktop-workbench 全局 display:none 覆盖——修复并轻量化切换动画"
+        "sha": "e6a2d891a604ab9c384bf2823399cdce50aa067e",
+        "subject": "merge: 移动端导航重构（tabbed 切换/wipe 动画/dock 贴底/页头工具融合）+ V6.2.0 发布准备"
       },
       {
-        "sha": "9926c35164d8b6f5303b0bbbc1e88441ecd8a077",
-        "subject": "fix(web): 移动端 wipe 只覆盖滚动内容区，避开固定 header 与 dock"
+        "sha": "0e71d701e2f20afc638058708873cdcee8cb40b1",
+        "subject": "fix(security): 2026-08-21 渗透测试加固——OTP 锁定显式 429 + meta/version 去敏感字段"
       },
       {
-        "sha": "91182ec37594925521e73c3600912fe558ced2b0",
-        "subject": "feat(web): 移动端底栏贴底 + 搜索工具条并入次页头"
+        "sha": "f042057d41230174416857e667e845486a6c5d10",
+        "subject": "fix(ci): preview 身份校验改从 /health/live 取 gitSha（meta/version 已去敏感字段）"
       },
       {
-        "sha": "4b278207ede571f22f69eff176e5d887ef89ae39",
-        "subject": "fix(web): SW 缓存版本改为构建注入（版本+SHA），杜绝旧版滞留"
+        "sha": "c4bef9a75136b4bc478359def9768f0fe0880a78",
+        "subject": "docs(runbook): D1 兼容性核验改从 /health/live 取 gitSha（meta/version 已去敏感字段）"
       },
       {
-        "sha": "39625a8afacec82bfb956fe9bd9fae49cd6f6574",
-        "subject": "fix(web): dock 贴底规则特异性不足被 workshop-system 悬浮胶囊覆盖——加 .workshop-runtime 前缀"
+        "sha": "7a31cceea911b3ea6c56360dc745b8785b37422a",
+        "subject": "merge: 安全加固（OTP 锁定 429/meta-version 信息收敛/部署校验改 health）"
       },
       {
-        "sha": "13953d54bd007285277180a23310992d5e087285",
-        "subject": "fix(web): 搜索工具条与固定页头无缝衔接 + 移动端 dock 移除入场动画"
+        "sha": "854c3e47b692b257b6d1a23d73a7b1a40ba22e83",
+        "subject": "merge: V6.2.0 发布准备（版本 bump + 发布公告 + 形式化发布清单）"
       },
       {
-        "sha": "5c0244d0bb56d47e3dd5397f4f35ce5260a0915b",
-        "subject": "feat(web): 搜索工具条 Portal 并入固定页头（02/06 待取车辆行下方）+ dock 动效清理"
+        "sha": "a2ed5da4c8c51c2c51753d9cd3da500759ffa7fa",
+        "subject": "merge: main(V6.2.0) into shiphub per-store identity"
       },
       {
-        "sha": "70e3ed9c2cff59708d27539c9a68f4c2d019eb80",
-        "subject": "fix(web): QUEUE STATUS 行融入页头——隐藏中间摘要行，页头三层紧凑融合"
-      },
-      {
-        "sha": "4fe906ce957f640aba9bc90ff11cfdf6b3059969",
-        "subject": "feat(web): 搜索框嵌入「02/06 待取车辆」行右侧小框——页头最终融合形态"
-      },
-      {
-        "sha": "74e9cfd51a3a3a06709827f2b9b58de9b36fcbaf",
-        "subject": "feat(web): 搜索框+图标按钮全部压缩进「02/06 待取车辆」行"
-      },
-      {
-        "sha": "17a0af701b3b917a38e9097648982c6e6fd278aa",
-        "subject": "style(web): 模块行工具区全无框化——按钮仅图标无边框，搜索框融入模块行"
-      },
-      {
-        "sha": "d245eaa6a39ff2d8e53061d78015f238c939724f",
-        "subject": "fix(web): 无工具行场景顶部空白 + dock 指示器黑块错位凸出"
-      },
-      {
-        "sha": "89b10ec39470f8d5f0496c8a132d7529df1a1231",
-        "subject": "fix(web): footer 场景隔离、poster 搜索栏进页头、wipe 漏截、dock 切换动效"
-      },
-      {
-        "sha": "ec057d3bbb8e37356c107bb0371fc5d863e45a70",
-        "subject": "fix(web): 内容区顶部空白（工具行占位残留）+ 按钮外框暴力清除"
+        "sha": "d4dd65e86f117da0fb7327bcb80aa1f4c2a7c7b9",
+        "subject": "feat(shiphub): 连接权限拆分——操作员可重连，添加账号仅门店管理员"
       }
     ]
   },
   "announcement": {
-    "title": "移动端导航重构与安全加固",
-    "summary": "移动端浏览改版：底部导航切换模块（与桌面端一致的切换动画）、搜索工具条融入固定页头、底栏贴底；同步完成安全加固（OTP 锁定显式化、版本接口信息收敛、SW 缓存轮换）。",
+    "title": "ShipHub 每店独立账号与连接权限",
+    "summary": "每个门店使用自己的 ShipHub 账号与门店编号，凭据由门店管理员加密设置（AES-256-GCM），仅本店可用；操作员可凭已存凭据一键重连；同一上游账号不可连接多家门店；连续同步失败自动邮件告警（可配置）。",
     "changes": [
-      "移动端改为点击底部导航切换模块，一次只显示一个模块，不再整页滚动浏览",
-      "切换动画与桌面端一致：黄色斜向覆盖 + 方向感知入场（wipe）",
-      "搜索/筛选/排序/密度工具条融入固定页头（02/06 模块行内），列表空间更大",
-      "底部导航贴底，选中指示器平滑滑动",
-      "OTP 验证码第 5 次错误后显式锁定（429），防止爆破",
-      "公共版本接口不再暴露内部 git SHA 与 schema 标识",
-      "Service Worker 缓存版本随发布自动轮换，杜绝旧版页面滞留"
+      "每店独立 ShipHub 账号：门店管理员在「Shiphub 连接」弹窗设置本店账号与 location_num，加密存储，仅本店可用",
+      "连接权限：添加/更换账号仅限门店管理员；普通操作员可凭已存凭据一键重连",
+      "同一上游账号只允许连接一家门店（防止共享账号互相挤占 token 族）",
+      "同步连续失败 3 次自动邮件告警（SHIPHUB_ALERT_EMAIL 配置后生效）"
     ]
   },
-  "preparedAt": "2026-08-21T15:22:45.275Z"
+  "preparedAt": "2026-08-21T15:49:21.831Z"
 }
