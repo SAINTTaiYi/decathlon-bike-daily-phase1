@@ -277,11 +277,37 @@
   .workshop-runtime[data-mobile-scene='pickup'] .workshop-module-search[data-scene='pickup'],
   .workshop-runtime[data-mobile-scene='poster'] .workshop-module-search[data-scene='poster'],
   .workshop-runtime[data-mobile-scene='repair'] .workshop-module-search[data-scene='repair'] { display: block; }
-  .workshop-module-search .pickup-search-field { height: 40px; min-width: 0; }
-  /* 工具行（筛选/排序/密度/收起）右对齐紧凑 */
-  .workshop-runtime .workshop-mobile-module-tools .pickup-tool-row {
+  /* 搜索框 + 图标按钮压缩进模块行：flex 工具栏，搜索框弹性占剩余宽度 */
+  .workshop-module-search {
+    display: none;
+    min-width: 0;
+  }
+  .workshop-runtime[data-mobile-scene='pickup'] .workshop-module-search[data-scene='pickup'],
+  .workshop-runtime[data-mobile-scene='poster'] .workshop-module-search[data-scene='poster'],
+  .workshop-runtime[data-mobile-scene='repair'] .workshop-module-search[data-scene='repair'] { display: flex; }
+  .workshop-runtime .pickup-module-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+  }
+  .workshop-runtime .pickup-module-toolbar .pickup-search-field {
+    flex: 1;
+    min-width: 0;
+    height: 40px;
+  }
+  .workshop-runtime .pickup-module-toolbar .pickup-tool-row {
+    display: grid;
     grid-template-columns: repeat(4, 44px);
-    justify-content: end;
+    gap: 4px;
+    min-height: 0;
+    padding: 0;
+    background: transparent;
+  }
+  .workshop-runtime .pickup-module-toolbar .pickup-tool-row > button {
+    min-width: 44px;
+    height: 40px;
   }
 
   @media (max-width: 374px) {
