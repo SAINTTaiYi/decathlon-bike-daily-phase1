@@ -214,6 +214,11 @@
   /* 特异性必须 .workshop-runtime 前缀：workshop-system.css 等后于本文件加载，
      其悬浮胶囊 .look-dock 规则（全 !important）会以同特异性覆盖贴底定位。
      0,2,0 + important 保证任何后加载同特异性规则都无法压过。 */
+  /* 移动端 dock：隐藏旧模块工具栏滑动指示器黑块（选中态已由按钮黑底表达，
+     叠加错位导致「凸出一截」观感）；按钮黑光晕去掉 */
+  .workshop-runtime .look-dock .dock-active-indicator { display: none !important; }
+  .workshop-runtime .look-dock button[data-active='true'] { box-shadow: none !important; }
+
   .workshop-runtime .look-dock {
     left: 0 !important;
     right: 0 !important;
@@ -262,7 +267,14 @@
     display: none;
   }
   /* 内容区让位：页头 104 + 工具条（摘要 52 + 搜索行 52）+ 12 */
+  /* 内容区让位：有工具行的场景（pickup/poster/repair）才加工具工具行空位，
+     无工具行的场景（pulse/sales）不留空位，避免顶部出现大片空白 */
   .workshop-runtime .workshop-shell {
+    padding-top: calc(var(--ops-header-height, 104px) + 12px) !important;
+  }
+  .workshop-runtime[data-mobile-scene='pickup'] .workshop-shell,
+  .workshop-runtime[data-mobile-scene='poster'] .workshop-shell,
+  .workshop-runtime[data-mobile-scene='repair'] .workshop-shell {
     padding-top: calc(var(--ops-header-height, 104px) + 52px + 12px) !important;
   }
 
