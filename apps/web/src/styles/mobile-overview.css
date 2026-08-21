@@ -479,9 +479,15 @@
   /* 移动端 wipe：全屏覆盖（盖住 header 与 dock），参数与桌面端一致。
      display 必须 !important：desktop-workbench.css 在 index.css 中后于本文件加载，
      其全局 .desktop-scene-transition-wipe { display: none } 会以同特异性覆盖这里。 */
+  /* wipe 只覆盖滚动内容区：顶部避开固定 header（--ops-header-height），
+     底部避开 dock（--ops-dock-height + 20px + 安全区），与桌面端
+     inset: 90px 0 0 262px 的避让思路一致。 */
   .workshop-runtime .desktop-scene-transition-viewport {
     position: fixed;
-    inset: 0;
+    top: var(--ops-header-height, 104px);
+    right: 0;
+    bottom: calc(var(--ops-dock-height, 66px) + 20px + env(safe-area-inset-bottom));
+    left: 0;
     z-index: 130;
     display: block !important;
     overflow: hidden;
