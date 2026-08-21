@@ -271,15 +271,10 @@
     display: none;
   }
   /* 内容区让位：页头 104 + 工具条（摘要 52 + 搜索行 52）+ 12 */
-  /* 内容区让位：有工具行的场景（pickup/poster/repair）才加工具工具行空位，
-     无工具行的场景（pulse/sales）不留空位，避免顶部出现大片空白 */
+  /* 内容区让位：工具行已嵌入模块行（页头内），内容区只需页头 104 + 12 ，
+     实测预留 52px 工具行空位导致顶部大片空白 */
   .workshop-runtime .workshop-shell {
     padding-top: calc(var(--ops-header-height, 104px) + 12px) !important;
-  }
-  .workshop-runtime[data-mobile-scene='pickup'] .workshop-shell,
-  .workshop-runtime[data-mobile-scene='poster'] .workshop-shell,
-  .workshop-runtime[data-mobile-scene='repair'] .workshop-shell {
-    padding-top: calc(var(--ops-header-height, 104px) + 52px + 12px) !important;
   }
 
   /* 模块行融合搜索框：搜索框嵌进「02/06 待取车辆」行右侧空白区域（PICKUP BOARD 隐藏），
@@ -352,6 +347,27 @@
   .workshop-runtime .workshop-footer { display: none; }
   .workshop-runtime[data-mobile-scene='pulse'] .workshop-footer,
   .workshop-runtime[data-mobile-scene='sales'] .workshop-footer { display: block; }
+
+  /* 工具区暴力无框化：pickup-ledger.css 中 .pickup-queue-controls :is(...) 规则会以同特异性后加载覆盖常规无框规则，
+     也避免模块行白底卡片产生的「框」感 */
+  .workshop-runtime .workshop-module-header {
+    background: transparent;
+  }
+  .workshop-runtime .pickup-module-toolbar,
+  .workshop-runtime .workshop-module-search,
+  .workshop-runtime .pickup-module-toolbar :is(.pickup-search-field, .pickup-tool-row, .pickup-tool-row > button, .pickup-tools-area) {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+  }
+  .workshop-runtime .pickup-module-toolbar .pickup-tool-row > button {
+    color: var(--ops-text-muted);
+  }
+  .workshop-runtime .pickup-module-toolbar .pickup-tool-row > button[data-active='true'] {
+    color: var(--ops-black);
+  }
 
   @media (max-width: 374px) {
     .lookbook-shell { padding-inline: 10px; }
