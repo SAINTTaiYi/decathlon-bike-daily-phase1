@@ -296,18 +296,39 @@
     flex: 1;
     min-width: 0;
     height: 40px;
+    /* 无框融合模块行：去边框/背景，只留放大镜 + 输入 */
+    border: 0;
+    background: transparent;
+    padding: 0 4px;
   }
   .workshop-runtime .pickup-module-toolbar .pickup-tool-row {
     display: grid;
-    grid-template-columns: repeat(4, 44px);
-    gap: 4px;
+    grid-template-columns: repeat(4, 40px);
+    gap: 2px;
     min-height: 0;
     padding: 0;
     background: transparent;
   }
   .workshop-runtime .pickup-module-toolbar .pickup-tool-row > button {
-    min-width: 44px;
+    min-width: 40px;
     height: 40px;
+    /* 仅图标、无外框：去边框/背景/阴影冠光效果 */
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--ops-text-muted);
+  }
+  .workshop-runtime .pickup-module-toolbar .pickup-tool-row > button[data-active='true'] {
+    background: transparent;
+    box-shadow: none;
+    color: var(--ops-black);
+  }
+  .workshop-runtime .pickup-module-toolbar .pickup-tool-row > button:disabled {
+    opacity: .35;
+  }
+  .workshop-runtime .pickup-module-toolbar .pickup-tool-row > button b {
+    right: 0;
+    top: 0;
   }
 
   @media (max-width: 374px) {
