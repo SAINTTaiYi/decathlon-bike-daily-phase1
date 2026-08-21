@@ -214,10 +214,14 @@
   /* 特异性必须 .workshop-runtime 前缀：workshop-system.css 等后于本文件加载，
      其悬浮胶囊 .look-dock 规则（全 !important）会以同特异性覆盖贴底定位。
      0,2,0 + important 保证任何后加载同特异性规则都无法压过。 */
-  /* 移动端 dock：隐藏旧模块工具栏滑动指示器黑块（选中态已由按钮黑底表达，
-     叠加错位导致「凸出一截」观感）；按钮黑光晕去掉 */
-  .workshop-runtime .look-dock .dock-active-indicator { display: none !important; }
-  .workshop-runtime .look-dock button[data-active='true'] { box-shadow: none !important; }
+  /* 移动端 dock：指示器为唯一选中标识（滑动动画 360ms），
+     按钮不再黑底（之前与指示器叠加错位导致凸出）；光晕去掉 */
+  .workshop-runtime .look-dock .dock-active-indicator { display: block !important; }
+  .workshop-runtime .look-dock button[data-active='true'] {
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--ops-yellow) !important;
+  }
 
   .workshop-runtime .look-dock {
     left: 0 !important;
@@ -342,6 +346,12 @@
     right: 0;
     top: 0;
   }
+
+  /* 全局 footer（Preview Store/LAST SYNC/填写销售数据/日报菜单等）只在总览与销售模块显示，
+     其他模块底部不再出现（双栅与 dock 避让不受影响） */
+  .workshop-runtime .workshop-footer { display: none; }
+  .workshop-runtime[data-mobile-scene='pulse'] .workshop-footer,
+  .workshop-runtime[data-mobile-scene='sales'] .workshop-footer { display: block; }
 
   @media (max-width: 374px) {
     .lookbook-shell { padding-inline: 10px; }
@@ -596,7 +606,8 @@
     position: fixed;
     top: var(--ops-header-height, 104px);
     right: 0;
-    bottom: calc(var(--ops-dock-height, 66px) + 20px + env(safe-area-inset-bottom));
+    /* dock 贴底后实际高度 58 + 安全区（此前 66+20 预留多余导致 wipe 底部漏带内容） */
+    bottom: calc(58px + env(safe-area-inset-bottom));
     left: 0;
     z-index: 130;
     display: block !important;

@@ -277,11 +277,13 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   const queueControls = <div className="pickup-queue-controls">{queueSummary}<div className="pickup-tools-area"><div className="pickup-tool-row">{searchField}{toolButtons}</div>{appliedFilterRow}</div></div>
 
   const ledgerMode = handoverMode ? 'handover' : repairMode ? 'repair' : 'pickup'
+  // 场景键：其它交接（handover）对应 poster 场景容器；修复搜索栏未进页头的 Portal 匹配错误
+  const sceneKey = handoverMode ? 'poster' : repairMode ? 'repair' : 'pickup'
   // 移动端：搜索框 Portal 进「02/06 待取车辆」行右侧小框（.workshop-module-search），
   // 工具按钮（筛选/排序/密度/收起）进页头工具行（.workshop-mobile-module-tools）；
   // 不再依赖 sticky（iOS 上 body overflow-x:hidden 会使 sticky 失效）；桌面端保持原布局。
-  const toolsTarget = mobileLayout ? document.querySelector(`.workshop-mobile-module-tools[data-scene="${ledgerMode}"]`) : null
-  const searchTarget = mobileLayout ? document.querySelector(`.workshop-module-search[data-scene="${ledgerMode}"]`) : null
+  const toolsTarget = mobileLayout ? document.querySelector(`.workshop-mobile-module-tools[data-scene="${sceneKey}"]`) : null
+  const searchTarget = mobileLayout ? document.querySelector(`.workshop-module-search[data-scene="${sceneKey}"]`) : null
   // 移动端：搜索框 + 图标按钮全部压缩进「02/06 待取车辆」行；已应用筛选标签行进工具容器（有条件时才显示）
   const queueControlsRendered = searchTarget
     ? <>{createPortal(<div className="pickup-module-toolbar">{searchField}<div className="pickup-tool-row pickup-tool-row-inline">{toolButtons}</div></div>, searchTarget)}{toolsTarget ? createPortal(appliedFilterRow, toolsTarget) : null}</>
