@@ -66,6 +66,7 @@ jobs:
       STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
       PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
       PRODUCTION_D1_DATABASE_ID: ${{ vars.PRODUCTION_D1_DATABASE_ID }}
+      SHIPHUB_ALERT_EMAIL: ${{ secrets.SHIPHUB_ALERT_EMAIL }}
     steps:
       - name: Enforce main, Production approvals, Free plan, and release confirmations
         env:
@@ -213,6 +214,10 @@ jobs:
         run: wrangler d1 migrations apply bike-ops-production --remote --config wrangler.production.jsonc
       - name: Deploy the Production Worker with Static Assets and D1
         run: wrangler deploy --config wrangler.production.jsonc
+      - name: Inject Shiphub alert email into the Production Worker
+        run: |
+          set -euo pipefail
+          if [ -n "$SHIPHUB_ALERT_EMAIL" ]; then printf '%s' "$SHIPHUB_ALERT_EMAIL" | wrangler secret put SHIPHUB_ALERT_EMAIL --config wrangler.production.jsonc; fi
       - name: Verify the deployed Production API, release identity, and Web shell
         run: |
           set -euo pipefail

@@ -108,3 +108,78 @@ test('performShipHubProgrammaticLogin 全流程：表单提交、code 捕获、P
     globalThis.fetch = originalFetch
   }
 })
+
+test('performShipHubProgrammaticLogin 支持显式本店凭据（无需部署级共享 secret）', async () => {
+  const config: ShipHubConfig = {
+    enabled: true,
+    mode: 'live',
+    liveConfirmed: true,
+    oauthScope: 'openid profile',
+    requestTimeoutMs: 8000,
+    activeStartHour: 10,
+    activeEndHour: 22,
+    oauthAuthorizeUrl: 'https://idpdecathlon.decathlon.com.cn/as/authorization.oauth2',
+    oauthTokenUrl: 'https://idpdecathlon.decathlon.com.cn/as/token.oauth2',
+    oauthClientId: 'test-client',
+    oauthRedirectUri: 'https://shiphub-asia-cn.decathlon.com.cn',
+    oauthBasicToken: 'tb1'
+    // 故意不配置 loginKey/loginUsernameEnc/loginPasswordEnc
+  }
+  let submittedBody = ''
+  let authUrlState = ''
+  const fakeResponse = (url: string, body: string, status = 200) => ({
+    url, ok: status >= 200 && status < 300, status,
+    text: async () => body,
+    json: async () => JSON.parse(body),
+    headers: new Headers()
+  }) as unknown as Response
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = (async (url: any, init?: any) => {
+    const u = String(url)
+    if (u.includes('/token.oauth2')) {
+      return fakeResponse(u, JSON.stringify({ access_token: 'at-store', refresh_token: 'rt-store', expires_in: 7199 }))
+    }
+    if (u.includes('/authorization.oauth2')) {
+      authUrlState = new URL(u).searchParams.get('state') ?? ''
+      return fakeResponse(u, FORM_HTML)
+    }
+    if (u.includes('/resume/as/authorization.ping')) {
+      submittedBody = String(init?.body ?? '')
+      return fakeResponse(`https://shiphub-asia-cn.decathlon.com.cn/?code=code-store&state=${encodeURIComponent(authUrlState)}`, '')
+    }
+    return originalFetch(url, init)
+  }) as typeof fetch
+  try {
+    const token = await performShipHubProgrammaticLogin(config, { username: 'store-1299', password: 'StorePass!1299' })
+    assert.equal(token.accessToken, 'at-store')
+    const params = new URLSearchParams(submittedBody)
+    assert.equal(params.get('pf.username'), 'store-1299')
+    assert.equal(params.get('pf.pass'), 'StorePass!1299')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('显式凭据为空时回退到部署级共享 secret（缺配置则抛 LOGIN_CREDENTIALS_NOT_CONFIGURED）', async () => {
+  const config: ShipHubConfig = {
+    enabled: true,
+    mode: 'live',
+    liveConfirmed: true,
+    oauthScope: 'openid profile',
+    requestTimeoutMs: 8000,
+    activeStartHour: 10,
+    activeEndHour: 22,
+    oauthAuthorizeUrl: 'https://idpdecathlon.decathlon.com.cn/as/authorization.oauth2',
+    oauthTokenUrl: 'https://idpdecathlon.decathlon.com.cn/as/token.oauth2',
+    oauthClientId: 'test-client',
+    oauthRedirectUri: 'https://shiphub-asia-cn.decathlon.com.cn',
+    oauthBasicToken: 'tb1'
+  }
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = (async () => { throw new Error('不应发起任何请求') }) as typeof fetch
+  try {
+    await assert.rejects(() => performShipHubProgrammaticLogin(config), /LOGIN_CREDENTIALS_NOT_CONFIGURED/)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
