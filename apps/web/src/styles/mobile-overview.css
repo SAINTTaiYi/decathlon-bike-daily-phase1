@@ -256,9 +256,14 @@
   .workshop-runtime .workshop-mobile-module-tools .pickup-queue-controls {
     margin-inline: 0;
   }
+  /* QUEUE STATUS 摘要行融入页头后隐藏：计数信息由列表 ACTIVE PICKUP 行承担，
+     页头保持「品牌行 + 02/06 模块行 + 搜索行」三层紧凑结构 */
+  .workshop-runtime .workshop-mobile-module-tools .pickup-queue-summary {
+    display: none;
+  }
   /* 内容区让位：页头 104 + 工具条（摘要 52 + 搜索行 52）+ 12 */
   .workshop-runtime .workshop-shell {
-    padding-top: calc(var(--ops-header-height, 104px) + 104px + 12px) !important;
+    padding-top: calc(var(--ops-header-height, 104px) + 52px + 12px) !important;
   }
 
   @media (max-width: 374px) {
