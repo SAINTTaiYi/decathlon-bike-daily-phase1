@@ -199,6 +199,7 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
 export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, onRemove, onHistory, onPickup, onRepairComplete, onHandoverComplete, onPickupNotificationChange, pickupErrors = {}, primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete, repairMode = false, handoverMode = false, repairPixelDissolveId = '', onRepairPixelDissolveComplete, members = [], onAssign = null, shiphub = null }) {
   const [query, setQuery] = useState('')
   const [expandedId, setExpandedId] = useState('')
+  const [mobileLayout, setMobileLayout] = useState(false)
   const storageKey = handoverMode ? 'handover-ledger' : repairMode ? 'repair-ledger' : 'pickup-ledger'
   const searchId = `${storageKey}-search`
   const [density, setDensity] = useState(() => window.localStorage?.getItem(`${storageKey}-density`) || 'balanced')
@@ -258,16 +259,36 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
     return sortRecords(waitingRecords.filter((record) => (repairMode || handoverMode || !sources.length || sources.includes(inferPickupSource(record))) && (!term || normalizedSearch(record).includes(term))), sort)
   }, [debouncedQuery, records, sort, sources])
   const appliedLabels = [...(repairMode || handoverMode ? [] : sources.map((value) => sourceOptions.find(([key]) => key === value)?.[1]).filter(Boolean)), sort === 'default' ? null : sortOptions.find(([value]) => value === sort)?.[1]].filter(Boolean)
+  useEffect(() => {
+    const media = window.matchMedia?.('(max-width: 767px)')
+    if (!media) return undefined
+    const sync = () => setMobileLayout(media.matches)
+    sync()
+    media.addEventListener?.('change', sync)
+    return () => media.removeEventListener?.('change', sync)
+  }, [])
   const closeSheet = useCallback(() => setSheet(null), [])
   const applySheet = useCallback(({ sources: nextSources, sort: nextSort }) => { setSources(nextSources); setSort(nextSort); setSheet(null) }, [])
 
-  const queueControls = <div className="pickup-queue-controls">
-    <div className="pickup-queue-summary"><h2 id={handoverMode ? 'poster-title' : repairMode ? 'repair-title' : 'pickup-title'} className="sr-only">{handoverMode ? '交接事项' : repairMode ? '维修车辆' : '待取车辆'}</h2><span>{handoverMode ? 'HANDOVER STATUS' : repairMode ? 'REPAIR STATUS' : 'QUEUE STATUS'}</span><div className="pickup-module-count"><span><b>{String(waitingRecords.length).padStart(2, '0')}</b>{handoverMode ? '事项' : repairMode ? '待完成' : '待取'}</span>{!repairMode && !handoverMode ? <span><b>{String(pickedRecords.length).padStart(2, '0')}</b>今日已取</span> : null}</div><button type="button" className="pickup-header-search" onClick={() => { window.setTimeout(() => document.getElementById(searchId)?.focus({ preventScroll: true }), 0) }} aria-label={handoverMode ? '搜索交接事项' : repairMode ? '搜索维修车辆' : '搜索待取车辆'}><IconSearch width={19} height={19} aria-hidden="true" /></button></div>
-    <div className="pickup-tools-area"><div className="pickup-tool-row"><label className="pickup-search-field" htmlFor={searchId}><IconSearch width={17} height={17} aria-hidden="true" /><input id={searchId} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={handoverMode ? '搜索交接事项…' : repairMode ? '搜索车型、电话、维修单号…' : '搜索车型、电话、车主姓名…'} /></label>{!repairMode && !handoverMode ? <button type="button" onClick={() => setSheet('filter')} data-active={sources.length ? 'true' : undefined}><IconFilter width={17} height={17} aria-hidden="true" /><span>筛选</span>{sources.length ? <b>{sources.length}</b> : null}</button> : null}<button type="button" onClick={() => setSheet('sort')} data-active={sort !== 'default' ? 'true' : undefined}><IconSort width={17} height={17} aria-hidden="true" /><span>排序</span></button><button type="button" onClick={() => setDensity((current) => current === 'balanced' ? 'compact' : 'balanced')} aria-label={`切换为${density === 'balanced' ? '紧凑' : '平衡'}密度`}>{density === 'balanced' ? <IconList width={17} height={17} aria-hidden="true" /> : <IconViewColumns width={17} height={17} aria-hidden="true" />}<span>密度</span></button><button type="button" className="pickup-collapse-all" onClick={() => setExpandedId('')} disabled={!expandedId} aria-label="全部收起"><IconNavArrowDown width={17} height={17} aria-hidden="true" /><span>收起</span></button></div>
-    {appliedLabels.length ? <div className="pickup-applied-filters" aria-label="已应用规则">{appliedLabels.map((label) => <span key={label}>{label}</span>)}<button type="button" onClick={() => { setSources([]); setSort('default') }}>清除</button></div> : null}</div>
-  </div>
+  const queueSummary = <div className="pickup-queue-summary"><h2 id={handoverMode ? 'poster-title' : repairMode ? 'repair-title' : 'pickup-title'} className="sr-only">{handoverMode ? '交接事项' : repairMode ? '维修车辆' : '待取车辆'}</h2><span>{handoverMode ? 'HANDOVER STATUS' : repairMode ? 'REPAIR STATUS' : 'QUEUE STATUS'}</span><div className="pickup-module-count"><span><b>{String(waitingRecords.length).padStart(2, '0')}</b>{handoverMode ? '事项' : repairMode ? '待完成' : '待取'}</span>{!repairMode && !handoverMode ? <span><b>{String(pickedRecords.length).padStart(2, '0')}</b>今日已取</span> : null}</div><button type="button" className="pickup-header-search" onClick={() => { window.setTimeout(() => document.getElementById(searchId)?.focus({ preventScroll: true }), 0) }} aria-label={handoverMode ? '搜索交接事项' : repairMode ? '搜索维修车辆' : '搜索待取车辆'}><IconSearch width={19} height={19} aria-hidden="true" /></button></div>
+  const searchField = <label className="pickup-search-field" htmlFor={searchId}><IconSearch width={17} height={17} aria-hidden="true" /><input id={searchId} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={handoverMode ? '搜索交接事项…' : repairMode ? '搜索车型、电话、维修单号…' : '搜索车型、电话、车主姓名…'} /></label>
+  const toolButtons = <>{!repairMode && !handoverMode ? <button type="button" onClick={() => setSheet('filter')} data-active={sources.length ? 'true' : undefined} aria-label="筛选条件"><IconFilter width={17} height={17} aria-hidden="true" />{sources.length ? <b>{sources.length}</b> : null}</button> : null}<button type="button" onClick={() => setSheet('sort')} data-active={sort !== 'default' ? 'true' : undefined} aria-label="排序"><IconSort width={17} height={17} aria-hidden="true" /></button><button type="button" onClick={() => setDensity((current) => current === 'balanced' ? 'compact' : 'balanced')} aria-label={`切换为${density === 'balanced' ? '紧凑' : '平衡'}密度`}>{density === 'balanced' ? <IconList width={17} height={17} aria-hidden="true" /> : <IconViewColumns width={17} height={17} aria-hidden="true" />}</button><button type="button" className="pickup-collapse-all" onClick={() => setExpandedId('')} disabled={!expandedId} aria-label="全部收起"><IconNavArrowDown width={17} height={17} aria-hidden="true" /></button></>
+  const appliedFilterRow = appliedLabels.length ? <div className="pickup-applied-filters" aria-label="已应用规则">{appliedLabels.map((label) => <span key={label}>{label}</span>)}<button type="button" onClick={() => { setSources([]); setSort('default') }}>清除</button></div> : null
+  const queueControls = <div className="pickup-queue-controls">{queueSummary}<div className="pickup-tools-area"><div className="pickup-tool-row">{searchField}{toolButtons}</div>{appliedFilterRow}</div></div>
 
   const ledgerMode = handoverMode ? 'handover' : repairMode ? 'repair' : 'pickup'
+  // 场景键：其它交接（handover）对应 poster 场景容器；修复搜索栏未进页头的 Portal 匹配错误
+  const sceneKey = handoverMode ? 'poster' : repairMode ? 'repair' : 'pickup'
+  // 移动端：搜索框 Portal 进「02/06 待取车辆」行右侧小框（.workshop-module-search），
+  // 工具按钮（筛选/排序/密度/收起）进页头工具行（.workshop-mobile-module-tools）；
+  // 不再依赖 sticky（iOS 上 body overflow-x:hidden 会使 sticky 失效）；桌面端保持原布局。
+  const toolsTarget = mobileLayout ? document.querySelector(`.workshop-mobile-module-tools[data-scene="${sceneKey}"]`) : null
+  const searchTarget = mobileLayout ? document.querySelector(`.workshop-module-search[data-scene="${sceneKey}"]`) : null
+  // 移动端：搜索框 + 图标按钮全部压缩进「02/06 待取车辆」行；已应用筛选标签行进工具容器（有条件时才显示）
+  const queueControlsRendered = searchTarget
+    ? <>{createPortal(<div className="pickup-module-toolbar">{searchField}<div className="pickup-tool-row pickup-tool-row-inline">{toolButtons}</div></div>, searchTarget)}{toolsTarget ? createPortal(appliedFilterRow, toolsTarget) : null}</>
+    : queueControls
+
   const tableColumns = handoverMode
     ? ['队列号', '交接事项', '联系电话', '状态', '操作']
     : repairMode
@@ -277,7 +298,7 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   return <div className="pickup-ledger" data-density={autoDensity} aria-label={`${handoverMode ? '交接事项' : repairMode ? '维修车辆' : '待取车辆'}台账，共 ${records.length} 条`}>
     {shiphubEnabled ? <nav className="pickup-source-tabs" aria-label={handoverMode ? '其它交接来源' : '待取车辆来源'}>{sourceTabs.map(([value, label]) => <button type="button" key={value} data-active={shiphubTab === value ? 'true' : undefined} onClick={() => setShiphubTab(value)}>{label}</button>)}</nav> : null}
     {showManualLedger ? <>
-    {queueControls}
+    {queueControlsRendered}
     <section className="pickup-ledger-board" data-ledger-mode={ledgerMode}>
     <div className="pickup-ledger-intro"><div><span>{handoverMode ? 'ACTIVE HANDOVER' : repairMode ? 'ACTIVE REPAIR' : 'ACTIVE PICKUP'}</span><strong>{visible.length ? (handoverMode ? `当前显示 ${visible.length} 项，按列表顺序完成交接。` : repairMode ? `当前显示 ${visible.length} 台，按列表顺序核对并完成维修。` : `当前显示 ${visible.length} 台，按列表顺序核对并交付。`) : (handoverMode ? '当前没有交接事项。' : repairMode ? '当前规则下没有维修车辆。' : '当前规则下没有待取车辆。')}</strong></div><div className="pickup-ledger-global-actions"><button type="button" onClick={() => onHistory()}><IconJournal width={17} height={17} aria-hidden="true" />操作记录</button><button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />{handoverMode ? '增加交接事项' : repairMode ? '增加维修' : '增加待取'}</button></div></div>
     <div className="pickup-ledger-table-head" aria-hidden="true">{tableColumns.map((column) => <span key={column}>{column}</span>)}</div>

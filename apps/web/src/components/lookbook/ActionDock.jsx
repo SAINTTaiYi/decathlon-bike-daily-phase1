@@ -48,7 +48,7 @@ export default function ActionDock({ activeScene, onJump, closedAt, desktopLayou
   }, [desktopLayout])
 
   return (
-    <nav ref={dockRef} className="look-dock" aria-label="全部日报模块" data-motion="dock" style={{ '--dock-active-index': activeIndex }}>
+    <nav ref={dockRef} className="look-dock" aria-label="全部日报模块" data-motion={desktopLayout ? 'dock' : undefined} style={{ '--dock-active-index': activeIndex }}>
       <span className="dock-active-indicator" aria-hidden="true" />
       <div className="dock-scroll-region">
         <ul>

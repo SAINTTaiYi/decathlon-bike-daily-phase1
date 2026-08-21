@@ -17,6 +17,7 @@ export default function WorkshopShellHeader({ activeScene, dateKey, storeName, r
   const scene = sceneById(activeScene)
   const Icon = scene.NavIcon
   return (
+    <>
     <header className="workshop-shell-header" data-active-module={scene.id}>
       <div className="workshop-global-header">
         <button type="button" className="workshop-header-action workshop-header-menu" onClick={onMenu} aria-label="打开日报菜单"><IconMenu width={28} height={28} aria-hidden="true" />{pendingBadge > 0 ? <span className="workshop-pending-badge" aria-label={`${pendingBadge} 项待审批`}>{pendingBadge > 99 ? '99+' : pendingBadge}</span> : null}</button>
@@ -37,8 +38,18 @@ export default function WorkshopShellHeader({ activeScene, dateKey, storeName, r
         <Icon width={26} height={26} strokeWidth={1.7} aria-hidden="true" />
         <span>{scene.no} / 06</span>
         <strong>{scene.cn}</strong>
-        <small>{scene.title}</small>
+        <small className="workshop-module-en">{scene.title}</small>
+        {/* 移动端搜索框槽位：插件并进「02/06 待取车辆」行右侧的空白区域；桌面端隐藏 */}
+        <div className="workshop-module-search-slot">
+          <div className="workshop-module-search" data-scene="pickup" />
+          <div className="workshop-module-search" data-scene="poster" />
+          <div className="workshop-module-search" data-scene="repair" />
+        </div>
       </div>
     </header>
+    <div className="workshop-mobile-module-tools" data-scene="pickup" />
+    <div className="workshop-mobile-module-tools" data-scene="poster" />
+    <div className="workshop-mobile-module-tools" data-scene="repair" />
+    </>
   )
 }
