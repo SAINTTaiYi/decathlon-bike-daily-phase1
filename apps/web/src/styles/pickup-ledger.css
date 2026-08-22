@@ -589,6 +589,8 @@
 .shiphub-locator-guide small { color: #a56500; }
 .shiphub-locator-guide-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
 .shiphub-locator-guide-steps li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; line-height: 1.5; }
+.shiphub-locator-guide .shiphub-locator-install { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; border: 0; background: var(--ops-ink, #202020); color: #fff; cursor: pointer; font-size: 12px; white-space: nowrap; }
+.shiphub-locator-guide .shiphub-locator-install:hover { background: #3a3a3a; }
 .shiphub-locator-guide .shiphub-locator-recheck { padding: 5px 12px; border-radius: 999px; border: 1px solid #d9a441; background: transparent; color: #8a5a00; cursor: pointer; font-size: 12px; }
 .shiphub-locator-guide .shiphub-locator-recheck:hover { background: #ffe9b8; }
 @media (max-width: 640px) { .shiphub-locator-guide { align-items: stretch; } }

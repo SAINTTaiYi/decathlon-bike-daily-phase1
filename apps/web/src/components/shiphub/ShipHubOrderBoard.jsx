@@ -64,6 +64,12 @@ export default function ShipHubOrderBoard({ category, orders = [], loading = fal
   const meta = labels[category]
   const [locatorInstalled, setLocatorInstalled] = useState(readLocatorInstalled)
   const [managerHint, setManagerHint] = useState(readManagerHint)
+  // 油猴官方一键安装中间页：Chrome 138+ 不再对 .user.js 直链弹安装框，走官方页可让已装油猴的浏览器直接弹「安装」确认
+  const openLocatorInstall = () => {
+    const origin = (typeof window !== 'undefined' && window.location.origin) || 'https://workshop.skin'
+    const scriptUrl = origin + '/shiphub-pickup-locator.user.js'
+    window.open('https://www.tampermonkey.net/script_installation.php#url=' + encodeURIComponent(scriptUrl), '_blank', 'noopener')
+  }
   useEffect(() => { void onLoad?.(category) }, [category, onLoad])
   const sync = async () => { await onSync?.(); await onLoad?.(category) }
   const recheckLocator = () => { setLocatorInstalled(readLocatorInstalled()); setManagerHint(readManagerHint()) }
@@ -76,8 +82,8 @@ export default function ShipHubOrderBoard({ category, orders = [], loading = fal
             <>
               <strong>Shiphub 定位脚本未安装</strong>
               <span>安装后，「Shiphub 核销」会自动定位并展开对应订单卡片，仅需人工输入取件码。</span>
-              <a href="/shiphub-pickup-locator.user.js" download="shiphub-pickup-locator.user.js">一键下载脚本</a>
-              <small>若点击后未自动弹出安装确认：把下载的 .user.js 文件拖到油猴管理面板即可安装；装完点「重新检测」。</small>
+              <button type="button" className="shiphub-locator-install" onClick={openLocatorInstall}>一键去油猴安装</button>
+              <small>点击后油猴会弹出安装确认框，点「安装」即可；装完点「重新检测」。若无反应，请先在油猴扩展详情开启「允许用户脚本」或 Chrome 开发者模式。</small>
             </>
           ) : (
             <>
@@ -85,7 +91,7 @@ export default function ShipHubOrderBoard({ category, orders = [], loading = fal
               <span>完成两步后点「重新检测」或刷新本页，Workshop 会自动识别。</span>
               <ol className="shiphub-locator-guide-steps">
                 <li>① 安装油猴扩展（工具栏已有油猴图标可跳过）<a href="https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noreferrer">去 Chrome 应用商店安装</a></li>
-                <li>② 下载定位脚本<a href="/shiphub-pickup-locator.user.js" download="shiphub-pickup-locator.user.js">一键下载脚本</a><small>若未自动弹出安装确认：把下载的文件拖到油猴管理面板，或在油猴设置里把「用户脚本 URL 检测」改为传统模式</small></li>
+                <li>② 安装定位脚本<button type="button" className="shiphub-locator-install" onClick={openLocatorInstall}>一键去油猴安装</button><small>点击后油猴弹出安装确认框，点「安装」即可。若无反应，请先开启开发者模式或「允许用户脚本」。</small></li>
               </ol>
               <small>Chrome 需在 chrome://extensions 开启「开发者模式」（Chrome 138+ 可在油猴扩展详情开启「允许用户脚本」替代），否则 Tampermonkey 5.3+ 不会运行任何脚本。</small>
             </>
