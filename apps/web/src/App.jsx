@@ -642,6 +642,7 @@ export default function App() {
             onSearch={() => navigateToScene('pickup')}
             hasUnread={Boolean(workflow.events?.length)}
             pendingBadge={adminPending}
+            mobileLayout={!desktopLayout}
           />
         </div>
         {!online ? <p className="workshop-global-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据；恢复网络后才能修改。</p> : null}

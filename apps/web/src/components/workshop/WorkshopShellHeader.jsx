@@ -13,7 +13,7 @@ function formatDate(dateKey) {
   return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', weekday: 'short' }).format(date)
 }
 
-export default function WorkshopShellHeader({ activeScene, dateKey, storeName, roleLabel, userName, onMenu, onLog, onSearch, hasUnread, pendingBadge = 0 }) {
+export default function WorkshopShellHeader({ activeScene, dateKey, storeName, roleLabel, userName, onMenu, onLog, onSearch, hasUnread, pendingBadge = 0, mobileLayout = false }) {
   const scene = sceneById(activeScene)
   const Icon = scene.NavIcon
   return (
@@ -39,17 +39,22 @@ export default function WorkshopShellHeader({ activeScene, dateKey, storeName, r
         <span>{scene.no} / 06</span>
         <strong>{scene.cn}</strong>
         <small className="workshop-module-en">{scene.title}</small>
-        {/* 移动端搜索框槽位：插件并进「02/06 待取车辆」行右侧的空白区域；桌面端隐藏 */}
-        <div className="workshop-module-search-slot">
-          <div className="workshop-module-search" data-scene="pickup" />
-          <div className="workshop-module-search" data-scene="poster" />
-          <div className="workshop-module-search" data-scene="repair" />
-        </div>
+        {mobileLayout ? (
+          <div className="workshop-module-search-slot">
+            <div className="workshop-module-search" data-scene="pickup" />
+            <div className="workshop-module-search" data-scene="poster" />
+            <div className="workshop-module-search" data-scene="repair" />
+          </div>
+        ) : null}
       </div>
     </header>
-    <div className="workshop-mobile-module-tools" data-scene="pickup" />
-    <div className="workshop-mobile-module-tools" data-scene="poster" />
-    <div className="workshop-mobile-module-tools" data-scene="repair" />
+    {mobileLayout ? (
+      <>
+        <div className="workshop-mobile-module-tools" data-scene="pickup" />
+        <div className="workshop-mobile-module-tools" data-scene="poster" />
+        <div className="workshop-mobile-module-tools" data-scene="repair" />
+      </>
+    ) : null}
     </>
   )
 }

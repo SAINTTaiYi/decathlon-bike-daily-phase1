@@ -216,14 +216,14 @@
      0,2,0 + important 保证任何后加载同特异性规则都无法压过。 */
   /* 移动端 dock：指示器为唯一选中标识（滑动动画 360ms），
      按钮不再黑底（之前与指示器叠加错位导致凸出）；光晕去掉 */
-  .workshop-runtime .look-dock .dock-active-indicator { display: block !important; }
-  .workshop-runtime .look-dock button[data-active='true'] {
+  .workshop-runtime[data-mobile-scene] .look-dock .dock-active-indicator { display: block !important; }
+  .workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] {
     background: transparent !important;
     box-shadow: none !important;
     color: var(--ops-yellow) !important;
   }
 
-  .workshop-runtime .look-dock {
+  .workshop-runtime[data-mobile-scene] .look-dock {
     left: 0 !important;
     right: 0 !important;
     bottom: var(--visual-viewport-bottom) !important;
@@ -258,31 +258,31 @@
   .workshop-runtime[data-mobile-scene='pickup'] .workshop-mobile-module-tools[data-scene='pickup'],
   .workshop-runtime[data-mobile-scene='poster'] .workshop-mobile-module-tools[data-scene='poster'],
   .workshop-runtime[data-mobile-scene='repair'] .workshop-mobile-module-tools[data-scene='repair'] { display: block; }
-  .workshop-runtime .workshop-mobile-module-tools {
+  .workshop-runtime[data-mobile-scene] .workshop-mobile-module-tools {
     background: var(--ops-page);
     box-shadow: 0 1px 0 rgb(12 14 12 / .08);
   }
-  .workshop-runtime .workshop-mobile-module-tools .pickup-queue-controls {
+  .workshop-runtime[data-mobile-scene] .workshop-mobile-module-tools .pickup-queue-controls {
     margin-inline: 0;
   }
   /* QUEUE STATUS 摘要行融入页头后隐藏：计数信息由列表 ACTIVE PICKUP 行承担，
      页头保持「品牌行 + 02/06 模块行 + 搜索行」三层紧凑结构 */
-  .workshop-runtime .workshop-mobile-module-tools .pickup-queue-summary {
+  .workshop-runtime[data-mobile-scene] .workshop-mobile-module-tools .pickup-queue-summary {
     display: none;
   }
   /* 内容区让位：页头 104 + 工具条（摘要 52 + 搜索行 52）+ 12 */
   /* 内容区让位：工具行已嵌入模块行（页头内），内容区只需页头 104 + 12 ，
      实测预留 52px 工具行空位导致顶部大片空白 */
-  .workshop-runtime .workshop-shell {
+  .workshop-runtime[data-mobile-scene] .workshop-shell {
     padding-top: calc(var(--ops-header-height, 104px) + 12px) !important;
   }
 
   /* 模块行融合搜索框：搜索框嵌进「02/06 待取车辆」行右侧空白区域（PICKUP BOARD 隐藏），
      搜索框由 PickupLedger Portal 挂载，随页头固定。 */
-  .workshop-runtime .workshop-module-header {
+  .workshop-runtime[data-mobile-scene] .workshop-module-header {
     grid-template-columns: 22px auto auto minmax(0, 1fr);
   }
-  .workshop-runtime .workshop-module-header .workshop-module-en { display: none; }
+  .workshop-runtime[data-mobile-scene] .workshop-module-header .workshop-module-en { display: none; }
   .workshop-module-search-slot { position: relative; min-width: 0; }
   .workshop-module-search { display: none; min-width: 0; }
   .workshop-runtime[data-mobile-scene='pickup'] .workshop-module-search[data-scene='pickup'],
@@ -296,14 +296,14 @@
   .workshop-runtime[data-mobile-scene='pickup'] .workshop-module-search[data-scene='pickup'],
   .workshop-runtime[data-mobile-scene='poster'] .workshop-module-search[data-scene='poster'],
   .workshop-runtime[data-mobile-scene='repair'] .workshop-module-search[data-scene='repair'] { display: flex; }
-  .workshop-runtime .pickup-module-toolbar {
+  .workshop-runtime[data-mobile-scene] .pickup-module-toolbar {
     display: flex;
     align-items: center;
     gap: 6px;
     min-width: 0;
     flex: 1;
   }
-  .workshop-runtime .pickup-module-toolbar .pickup-search-field {
+  .workshop-runtime[data-mobile-scene] .pickup-module-toolbar .pickup-search-field {
     flex: 1;
     min-width: 0;
     height: 40px;
@@ -312,7 +312,7 @@
     background: transparent;
     padding: 0 4px;
   }
-  .workshop-runtime .pickup-module-toolbar .pickup-tool-row {
+  .workshop-runtime[data-mobile-scene] .pickup-module-toolbar .pickup-tool-row {
     display: grid;
     grid-template-columns: repeat(4, 40px);
     gap: 2px;
@@ -320,7 +320,7 @@
     padding: 0;
     background: transparent;
   }
-  .workshop-runtime .pickup-module-toolbar .pickup-tool-row > button {
+  .workshop-runtime[data-mobile-scene] .pickup-module-toolbar .pickup-tool-row > button {
     min-width: 40px;
     height: 40px;
     /* 仅图标、无外框：去边框/背景/阴影冠光效果 */
@@ -329,43 +329,43 @@
     box-shadow: none;
     color: var(--ops-text-muted);
   }
-  .workshop-runtime .pickup-module-toolbar .pickup-tool-row > button[data-active='true'] {
+  .workshop-runtime[data-mobile-scene] .pickup-module-toolbar .pickup-tool-row > button[data-active='true'] {
     background: transparent;
     box-shadow: none;
     color: var(--ops-black);
   }
-  .workshop-runtime .pickup-module-toolbar .pickup-tool-row > button:disabled {
+  .workshop-runtime[data-mobile-scene] .pickup-module-toolbar .pickup-tool-row > button:disabled {
     opacity: .35;
   }
-  .workshop-runtime .pickup-module-toolbar .pickup-tool-row > button b {
+  .workshop-runtime[data-mobile-scene] .pickup-module-toolbar .pickup-tool-row > button b {
     right: 0;
     top: 0;
   }
 
   /* 全局 footer（Preview Store/LAST SYNC/填写销售数据/日报菜单等）只在总览与销售模块显示，
      其他模块底部不再出现（双栅与 dock 避让不受影响） */
-  .workshop-runtime .workshop-footer { display: none; }
+  .workshop-runtime[data-mobile-scene] .workshop-footer { display: none; }
   .workshop-runtime[data-mobile-scene='pulse'] .workshop-footer,
   .workshop-runtime[data-mobile-scene='sales'] .workshop-footer { display: block; }
 
   /* 工具区暴力无框化：pickup-ledger.css 中 .pickup-queue-controls :is(...) 规则会以同特异性后加载覆盖常规无框规则，
      也避免模块行白底卡片产生的「框」感 */
-  .workshop-runtime .workshop-module-header {
+  .workshop-runtime[data-mobile-scene] .workshop-module-header {
     background: transparent;
   }
-  .workshop-runtime .pickup-module-toolbar,
-  .workshop-runtime .workshop-module-search,
-  .workshop-runtime .pickup-module-toolbar :is(.pickup-search-field, .pickup-tool-row, .pickup-tool-row > button, .pickup-tools-area) {
+  .workshop-runtime[data-mobile-scene] .pickup-module-toolbar,
+  .workshop-runtime[data-mobile-scene] .workshop-module-search,
+  .workshop-runtime[data-mobile-scene] .pickup-module-toolbar :is(.pickup-search-field, .pickup-tool-row, .pickup-tool-row > button, .pickup-tools-area) {
     border: 0 !important;
     border-radius: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
     outline: 0 !important;
   }
-  .workshop-runtime .pickup-module-toolbar .pickup-tool-row > button {
+  .workshop-runtime[data-mobile-scene] .pickup-module-toolbar .pickup-tool-row > button {
     color: var(--ops-text-muted);
   }
-  .workshop-runtime .pickup-module-toolbar .pickup-tool-row > button[data-active='true'] {
+  .workshop-runtime[data-mobile-scene] .pickup-module-toolbar .pickup-tool-row > button[data-active='true'] {
     color: var(--ops-black);
   }
 
