@@ -511,3 +511,66 @@
     color: rgb(12 14 12 / .55) !important;
   }
 }
+
+/* ============================================================
+ * Section 9 — Pickup ledger: residual hairlines + expand jitter
+ * ============================================================
+ * Section 3a only cleared box-shadow on .pickup-card, leaving
+ * pickup-ledger.css's own `border: 1px solid var(--pickup-line)`
+ * alive. --pickup-line is rgb(12 14 12 / .18); over the warm
+ * #fffdf8 card fill it composites to a warm brown hairline —
+ * the "red line" still visible on the board. Clear the borders
+ * for the whole pickup card system, including the expanded
+ * state's yellow border-color and the frame's black backdrop.
+ */
+.pickup-ledger .pickup-card,
+.pickup-ledger .pickup-card-frame,
+.pickup-ledger .pickup-card-frame[data-expanded='true'] .pickup-card,
+.pickup-ledger .pickup-card[data-error='true'],
+.pickup-ledger .pickup-card-index,
+.pickup-ledger .pickup-completed-today,
+.pickup-ledger .pickup-completed-today > div button,
+.pickup-ledger .pickup-empty-state {
+  border: 0 !important;
+}
+
+/* The frame paints black behind the card purely to fake a rule. */
+.pickup-ledger .pickup-card-frame {
+  background: transparent !important;
+}
+
+/* Expanded state kept a yellow ring; the fill already carries it. */
+.pickup-ledger .pickup-card-frame[data-expanded='true'] .pickup-card {
+  border-color: transparent !important;
+}
+
+/* Jitter fix: pickup-ledger.css lifts the expanded card by 1px and
+ * animates `transform` over 380ms. The queue number is a child, so
+ * it rides that 1px round trip — reading as a twitch on the NO./01
+ * column. The lift adds nothing over the glow, so drop it and keep
+ * transform reserved for the swipe-to-delete translate.
+ */
+.pickup-ledger .pickup-card-frame[data-expanded='true'] .pickup-card {
+  transform: none !important;
+}
+
+/* Keep row heights stable across expand/collapse so the queue
+ * numbers stay on a shared baseline afterwards. pickup-ledger.css
+ * gates equal-height on :not([data-expanded='true']), so collapsing
+ * left siblings sized by content. Anchor the index cell instead of
+ * relying on the row box.
+ */
+.pickup-ledger .pickup-card-index {
+  align-content: start !important;
+  align-self: start !important;
+}
+
+/* Apply equal-height unconditionally on the desktop 2-up grid.
+ * An expanded card spans the full row (grid-column: 1 / -1), so
+ * height: 100% no longer fights its own content — and collapsing
+ * returns siblings to the same row box they started in.
+ */
+@media (min-width: 768px) {
+  .pickup-ledger .pickup-card-frame { min-height: 100%; }
+  .pickup-ledger .pickup-card-frame .pickup-card { height: 100%; }
+}
