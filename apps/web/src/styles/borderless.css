@@ -188,7 +188,7 @@
 .status-alert > button,
 .member-select-clear button,
 .handover-todo-later,
-.pickup-card-actions button,
+.pickup-card-actions button:not(.pickup-primary-action),
 .pickup-source-label,
 .shiphub-order-card-actions .shiphub-order-verify,
 .shiphub-locator-guide .shiphub-locator-recheck,
@@ -446,4 +446,68 @@
 
   /* Action row labels. */
   .record-actions button { font-size: 14px !important; }
+}
+
+/* ------------------------------------------------------------------
+ * 9. Pickup board: desktop legibility + primary action fill.
+ *
+ * The expanded pickup card is a different component from the record
+ * ledger (.pickup-* vs .record-*), so section 8 above never reached it.
+ * Two problems were visible on a 1280px viewport:
+ *
+ * 1. The detail grid kept the mobile type scale — dt at 10px, dd at
+ *    11px, notes at 12px — because desktop-workbench.css sets the
+ *    desktop grid and padding but never revisits font-size. At 10px the
+ *    labels are not readable at a normal desktop viewing distance.
+ *
+ * 2. `.pickup-card-actions button` (section above) had no :not()
+ *    exclusion, unlike its .record-actions counterpart, so the sunken
+ *    grey fill also swallowed .pickup-primary-action. Because
+ *    borderless.css is imported last and uses !important, it beat the
+ *    black fill from pickup-ledger.css. That made the card's main
+ *    action look disabled even when it was live — `locked` only tracks
+ *    closing state and in-flight submits, never order status.
+ *
+ * Desktop only (>=768px): the mobile compact dock keeps its own scale.
+ * ------------------------------------------------------------------ */
+@media (min-width: 768px) {
+  /* Section labels (CUSTOMER / ORIGIN / NOTICE ...). */
+  .pickup-card-detail h4 { font-size: 13px !important; }
+  .pickup-card-detail h4 span { font-size: 11px !important; }
+
+  /* Field labels and values. 10px/11px -> 13px/14px. */
+  .pickup-card-detail dl { gap: 8px !important; }
+  .pickup-card-detail dl div { grid-template-columns: 92px minmax(0, 1fr) !important; }
+  .pickup-card-detail dt {
+    color: var(--pickup-muted, #55554f) !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+  }
+  .pickup-card-detail dd {
+    font-size: 14px !important;
+    font-weight: 650 !important;
+    line-height: 1.45 !important;
+  }
+
+  /* Free-text blocks: repair notes, handover detail. */
+  .pickup-card-detail p {
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+  }
+
+  /* Assignee row + action labels. */
+  .pickup-assignee-current { font-size: 14px !important; }
+  .pickup-card-actions button { font-size: 14px !important; }
+  .pickup-notification-buttons button { font-size: 14px !important; }
+
+  /* Primary action keeps its ink fill; only a real disabled state greys
+   * out, and it must still look deliberately disabled rather than flat. */
+  .pickup-card-actions .pickup-primary-action {
+    background: var(--pickup-black, #14161a) !important;
+    color: var(--ops-text-inverse, #fffdf8) !important;
+  }
+  .pickup-card-actions .pickup-primary-action:disabled {
+    background: rgb(12 14 12 / .22) !important;
+    color: rgb(12 14 12 / .55) !important;
+  }
 }
