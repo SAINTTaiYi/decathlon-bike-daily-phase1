@@ -82,7 +82,7 @@
   gap: 8px;
   min-height: 44px;
   padding: 0 16px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   border: 1px solid var(--ops-black, #0c0e0c);
   background: var(--ops-black, #0c0e0c);
   color: var(--ops-text-inverse, #fffdf8);
@@ -138,7 +138,7 @@
   min-height: 48px;
   padding: 0 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: transparent;
   color: var(--ops-text, #0a0b0a);
   font: inherit;
@@ -240,7 +240,7 @@
   flex-direction: column;
   gap: 6px;
   padding: 16px 18px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--ops-card, #fffdf8);
   box-shadow: var(--ops-card-shadow, 0 5px 18px rgb(64 55 34 / .055));
   min-width: 0;
@@ -303,7 +303,7 @@
 }
 
 .admin-card {
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--ops-card, #fffdf8);
   box-shadow: var(--ops-card-shadow, 0 5px 18px rgb(64 55 34 / .055));
   padding: 16px 18px;
@@ -370,7 +370,7 @@
   min-height: 44px;
   padding: 0 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: transparent;
   font: inherit;
   font-size: 14px;
@@ -466,7 +466,7 @@
   justify-content: center;
   min-height: 24px;
   padding: 0 8px;
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   background: var(--paper-cool, #f0ede4);
   font-size: 12px;
   font-weight: 600;
@@ -489,7 +489,7 @@
   gap: 4px;
   margin-bottom: 16px;
   padding: 4px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--paper-cool, #f0ede4);
 }
 
@@ -500,7 +500,7 @@
   min-height: 40px;
   padding: 0 14px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   background: transparent;
   font: inherit;
   cursor: pointer;
@@ -559,7 +559,7 @@
   gap: 18px;
   align-items: start;
   padding: 14px 18px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--ops-card, #fffdf8);
   box-shadow: var(--ops-card-shadow, 0 5px 18px rgb(64 55 34 / .055));
 }
@@ -710,7 +710,7 @@
 .admin-approval-actions .secondary-action {
   min-height: 44px;
   padding: 0 18px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
@@ -745,7 +745,7 @@
   align-items: end;
   margin-bottom: 18px;
   padding: 16px 18px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--ops-card, #fffdf8);
   box-shadow: var(--ops-card-shadow, 0 5px 18px rgb(64 55 34 / .055));
 }
@@ -757,7 +757,7 @@
 }
 
 .admin-directory-branch {
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--ops-card, #fffdf8);
   box-shadow: var(--ops-card-shadow, 0 5px 18px rgb(64 55 34 / .055));
   padding: 10px 0;
@@ -798,7 +798,7 @@
   align-items: center;
   min-height: 24px;
   padding: 0 8px;
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   font-size: 12px;
   font-weight: 600;
 }
@@ -822,7 +822,7 @@
   min-height: 36px;
   padding: 0 12px;
   border: 1px solid var(--line, #dedbd2);
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   background: transparent;
   font: inherit;
   font-size: 13px;
@@ -839,7 +839,7 @@
   min-height: 36px;
   padding: 0 10px;
   border: 1px solid var(--line-strong, #b9b5aa);
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-card, #fffdf8);
   font: inherit;
   font-size: 14px;
@@ -862,7 +862,7 @@
   min-height: 44px;
   padding: 0 12px;
   border: 1px solid var(--line-strong, #b9b5aa);
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--ops-card, #fffdf8);
   font: inherit;
   font-size: 14px;
@@ -877,7 +877,7 @@
   min-height: 44px;
   padding: 0 18px;
   border: 1px solid var(--line-strong, #b9b5aa);
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: transparent;
   font: inherit;
   font-size: 14px;
@@ -900,7 +900,7 @@
 }
 
 .admin-table-wrap {
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--ops-card, #fffdf8);
   box-shadow: var(--ops-card-shadow, 0 5px 18px rgb(64 55 34 / .055));
   overflow: hidden;
@@ -948,7 +948,7 @@
   min-height: 22px;
   margin-left: 8px;
   padding: 0 7px;
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-black, #0c0e0c);
   color: var(--ops-yellow, #ffc31a);
   font-size: 12px;
@@ -1059,7 +1059,7 @@
   min-height: 44px;
   padding: 8px 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: transparent;
   font: inherit;
   cursor: pointer;
@@ -1102,7 +1102,7 @@
   margin-left: auto;
   gap: 2px;
   padding: 2px;
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   background: var(--paper-cool, #f0ede4);
 }
 
@@ -1160,7 +1160,7 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   padding: 0 6px;
 }
 
@@ -1209,7 +1209,7 @@
   min-height: 44px;
   padding: 9px 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   background: transparent;
   font: inherit;
   text-align: left;
@@ -1258,7 +1258,7 @@
   min-height: 56px;
   padding: 10px 12px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--ops-card, #fffdf8);
   box-shadow: var(--ops-card-shadow, 0 5px 18px rgb(64 55 34 / .055));
   font: inherit;
@@ -1296,7 +1296,7 @@
 }
 
 .admin-store-detail {
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--ops-card, #fffdf8);
   box-shadow: var(--ops-card-shadow, 0 5px 18px rgb(64 55 34 / .055));
   padding: 18px;
@@ -1333,7 +1333,7 @@
   flex-direction: column;
   gap: 3px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--paper-cool, #f0ede4);
 }
 
@@ -1396,7 +1396,7 @@
   justify-content: center;
   min-height: 24px;
   padding: 0 8px;
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   background: var(--paper-cool, #f0ede4);
   font-size: 12px;
   font-weight: 600;
@@ -1440,7 +1440,7 @@
   min-height: 36px;
   padding: 0 14px;
   border: 1px solid var(--line-strong, #b9b5aa);
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: transparent;
   font: inherit;
   font-size: 13px;
@@ -1473,7 +1473,7 @@
   min-height: 32px;
   padding: 0 10px;
   border: 1px solid var(--line-strong, #b9b5aa);
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   background: transparent;
   font: inherit;
   font-size: 12px;
@@ -1485,7 +1485,7 @@
   min-height: 44px;
   padding: 0 18px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--ops-yellow, #ffc31a);
   color: var(--ops-black, #0c0e0c);
   font: inherit;
@@ -1503,7 +1503,7 @@
   align-items: center;
   min-height: 24px;
   padding: 0 8px;
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   background: rgb(12 14 12 / .06);
   font-family: var(--font-mono, 'Barlow Condensed Ops');
   font-size: 12px;
@@ -1522,7 +1522,7 @@
 
 .admin-decision {
   width: min(440px, 100%);
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--ops-card, #fffdf8);
   box-shadow: var(--shadow-panel, 0 18px 54px rgb(39 34 24 / .12));
   padding: 20px;
@@ -1573,7 +1573,7 @@
 .admin-decision-choice button {
   min-height: 44px;
   border: 1px solid var(--line-strong, #b9b5aa);
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: transparent;
   font: inherit;
   font-size: 14px;
@@ -1609,7 +1609,7 @@
 .admin-decision-actions .secondary-action {
   min-height: 44px;
   padding: 0 18px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
@@ -1636,7 +1636,7 @@
 .admin-warning {
   margin: 0 0 6px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: rgb(198 59 46 / .08);
   color: var(--ops-danger, #c63b2e);
   font-size: 13px;
@@ -1646,7 +1646,7 @@
 .admin-temp-password {
   margin: 0 0 8px;
   padding: 14px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--ops-black, #0c0e0c);
   color: var(--ops-yellow, #ffc31a);
   font-family: var(--font-mono, 'Barlow Condensed Ops');
@@ -1683,7 +1683,7 @@
 .admin-confirm-dialog .dialog-panel,
 .admin-temp-dialog .dialog-panel,
 .admin-decision-dialog .dialog-panel { width: min(440px, calc(100vw - 32px)); }
-.admin-mobile-card { border-radius: 8px; background: var(--ops-card, #fffdf8); box-shadow: var(--ops-card-shadow, 0 5px 18px rgb(64 55 34 / .055)); padding: 14px; }
+.admin-mobile-card { border-radius: var(--ops-radius); background: var(--ops-card, #fffdf8); box-shadow: var(--ops-card-shadow, 0 5px 18px rgb(64 55 34 / .055)); padding: 14px; }
 .admin-mobile-card > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .admin-mobile-card dl { display: grid; gap: 8px; margin: 12px 0; }
 .admin-mobile-card dl > div { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 8px; }
@@ -1915,7 +1915,7 @@
 
 .admin-directory-module {
   border: 1px solid var(--ops-line, #dedbd2);
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--ops-card, #fffdf8);
   overflow: hidden;
 }
@@ -2173,7 +2173,7 @@
 
   .admin-directory-module-regions {
     border: 1px solid var(--ops-line, #dedbd2);
-    border-radius: 8px;
+    border-radius: var(--ops-radius);
     background: var(--ops-card, #fffdf8);
     padding: 6px 14px;
   }
@@ -2304,7 +2304,7 @@
   .admin-directory-store-block {
     position: relative;
     border: 1px solid var(--ops-line, #dedbd2);
-    border-radius: 8px;
+    border-radius: var(--ops-radius);
     background: var(--ops-card, #fffdf8);
   }
 
@@ -2395,7 +2395,7 @@
     margin: 0 8px;
     padding: 0;
     border: 1px solid var(--ops-line, #dedbd2);
-    border-radius: 8px;
+    border-radius: var(--ops-radius);
   }
 
   /* 图标尺寸不再依赖内容宽余量：显式钉死，且 flex 不得压缩。 */
@@ -2470,7 +2470,7 @@
     padding: 6px 8px;
     border: 1px solid var(--ops-line, #dedbd2);
     border-left: 2px solid var(--ops-yellow, #ffc31a);
-    border-radius: 6px;
+    border-radius: var(--ops-radius-sm);
     background: var(--ops-card, #fffdf8);
     font-size: 12px;
   }

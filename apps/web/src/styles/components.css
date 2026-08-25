@@ -525,7 +525,7 @@ button:not(:disabled) {
 .handover-todo-list svg { grid-area: arrow; align-self: center; justify-self: end; color: var(--muted); }
 .handover-todo-empty { padding: 16px; color: var(--muted); font-size: 13px; text-align: center; }
 .handover-todo-foot { display: flex; justify-content: flex-end; }
-.handover-todo-later { min-height: 42px; border: 1px solid var(--line-strong); border-radius: 8px; background: transparent; padding: 0 16px; font-size: 13px; font-weight: 750; color: var(--muted); }
+.handover-todo-later { min-height: 42px; border: 1px solid var(--line-strong); border-radius: var(--ops-radius); background: transparent; padding: 0 16px; font-size: 13px; font-weight: 750; color: var(--muted); }
 
 @media (min-width: 641px) {
   .member-select-backdrop { align-items: center; justify-items: center; }
@@ -644,7 +644,7 @@ button:not(:disabled) {
   width: 32px;
   height: 32px;
   border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   color: #55554f;
 }
 
@@ -667,7 +667,7 @@ button:not(:disabled) {
   min-height: 48px;
   padding: 12px 16px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   font-family: var(--font-display);
   font-size: 15px;
   font-weight: 800;

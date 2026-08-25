@@ -434,13 +434,13 @@
   height: 44px;
   margin-right: 0;
   padding-inline: 10px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
 }
 
 .ops-closing-card,
 .ops-sales-panel,
 .ops-index,
-.ops-pickup-board { overflow: hidden; border-radius: 8px; border: 0; box-shadow: var(--ops-card-shadow); }
+.ops-pickup-board { overflow: hidden; border-radius: var(--ops-radius); border: 0; box-shadow: var(--ops-card-shadow); }
 .ops-closing-card { height: 154px; margin-top: 16px; }
 .ops-closing-card[data-closed='true'] { height: 206px; }
 .ops-closing-main {
@@ -454,7 +454,7 @@
 .ops-status-value { font-size: 68px; }
 .ops-status-value strong { font-size: 68px; }
 .ops-closing-next { grid-template-columns: 32px minmax(0,1fr) 136px; gap: 10px; height: 68px; margin-inline: 13px; border-top: 0; }
-.ops-closing-next button { width: 136px; min-height: 44px; border-radius: 8px; box-shadow: 0 0 14px var(--ops-yellow-glow); }
+.ops-closing-next button { width: 136px; min-height: 44px; border-radius: var(--ops-radius); box-shadow: 0 0 14px var(--ops-yellow-glow); }
 
 .ops-brand-lockup em,
 .ops-bell-glyph b,
@@ -531,7 +531,7 @@
 .ops-pickup-card,
 .ops-pickup-empty { border-radius: 0; }
 .ops-pickup-add { min-height: 44px; }
-.ops-release-strip { min-height: 26px; margin-top: 8px; border-radius: 8px; }
+.ops-release-strip { min-height: 26px; margin-top: 8px; border-radius: var(--ops-radius); }
 .ops-release-strip summary { min-height: 24px; }
 .ops-first-screen-spacer { height: 20px; }
 
@@ -559,7 +559,7 @@
   .look-dock {
     bottom: calc(16px + var(--visual-viewport-bottom)) !important;
     width: min(calc(100% - 32px), 728px) !important;
-    border-radius: 8px !important;
+    border-radius: var(--ops-radius) !important;
   }
 }
 

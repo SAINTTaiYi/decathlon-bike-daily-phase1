@@ -229,7 +229,7 @@ button:disabled { opacity: .48; }
   left: 6px;
   z-index: 0;
   width: calc((100% - 12px) / 5);
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-black);
   box-shadow: 0 0 16px var(--ops-black-glow);
   transform: translateX(calc(var(--dock-active-index) * 100%));
@@ -247,7 +247,7 @@ button:disabled { opacity: .48; }
   min-width: 0 !important;
   min-height: 58px !important;
   padding: 6px 1px 3px !important;
-  border-radius: 6px !important;
+  border-radius: var(--ops-radius-sm) !important;
   background: transparent !important;
   color: var(--ops-black) !important;
   box-shadow: none !important;
@@ -324,7 +324,7 @@ button:disabled { opacity: .48; }
 .ops-kpi-grid button,
 .ops-pickup-card,
 .ops-pickup-empty,
-.ops-pickup-add { border-radius: 6px !important; }
+.ops-pickup-add { border-radius: var(--ops-radius-sm) !important; }
 .ops-release-strip { margin: 12px 0 var(--dock-space); border: 0 !important; border-radius: var(--ops-radius); background: var(--ops-card); box-shadow: var(--ops-card-shadow); scroll-margin-bottom: var(--dock-space); }
 
 .record-ledger {
@@ -362,7 +362,7 @@ button:disabled { opacity: .48; }
 .record-row[data-resolved='true'] { background: var(--ops-black) !important; color: var(--ops-text-inverse); }
 .record-row[data-error='true'] { box-shadow: inset 4px 0 0 var(--ops-danger), var(--ops-card-shadow); }
 .record-row-head { grid-template-columns: 38px minmax(0,1fr); gap: 8px 10px; }
-.record-history-mark { width: 38px !important; height: 38px !important; border: 0 !important; border-radius: 6px !important; background: var(--ops-yellow-wash); color: var(--ops-black) !important; }
+.record-history-mark { width: 38px !important; height: 38px !important; border: 0 !important; border-radius: var(--ops-radius-sm) !important; background: var(--ops-yellow-wash); color: var(--ops-black) !important; }
 .record-model-block strong { font-family: var(--ops-body); font-size: 17px; line-height: 1.25; }
 .record-model-block > span { color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 11px; }
 .record-head-meta { grid-column: 2; align-items: flex-start; }
@@ -404,7 +404,7 @@ button:disabled { opacity: .48; }
   text-align: center;
 }
 .sales-input-summary { gap: 8px; margin-top: 0; padding: 12px; }
-.sales-input-summary > div { border-radius: 6px; background: var(--ops-page); }
+.sales-input-summary > div { border-radius: var(--ops-radius-sm); background: var(--ops-page); }
 .sales-input-summary > button { background: var(--ops-yellow); color: var(--ops-black); }
 .sales-input-summary > p { background: transparent; }
 
@@ -427,7 +427,7 @@ button:disabled { opacity: .48; }
 .pickup-header-search { border-radius: var(--ops-radius) !important; }
 .pickup-filter-sheet { border-radius: var(--ops-radius) var(--ops-radius) 0 0 !important; background: var(--ops-card); }
 .pickup-sheet-tabs { position: relative; padding: 4px; border-radius: var(--ops-radius); background: var(--ops-page); }
-.pickup-sheet-tabs button { border-radius: 6px !important; }
+.pickup-sheet-tabs button { border-radius: var(--ops-radius-sm) !important; }
 .pickup-sheet-tabs button[aria-selected='true'] { background: var(--ops-black); color: var(--ops-yellow); }
 .pickup-sheet-apply { border-radius: var(--ops-radius) !important; background: var(--ops-yellow) !important; color: var(--ops-black) !important; }
 
@@ -541,13 +541,13 @@ button:disabled { opacity: .48; }
 .dialog-empty { padding: 22px; text-align: center; }
 .attachment-upload { border: 1px dashed var(--ops-line-strong) !important; border-radius: var(--ops-radius); background: var(--ops-page); }
 .event-log { gap: 4px; }
-.event-log li { padding: 11px; border: 0; border-radius: 6px; background: var(--ops-page); }
+.event-log li { padding: 11px; border: 0; border-radius: var(--ops-radius-sm); background: var(--ops-page); }
 .event-log .event-actor { border-radius: 4px; }
 .governance-stack { gap: 10px; }
 .governance-section { padding: 14px; }
 .governance-request-list { border: 0; }
-.governance-request-list > li { padding: 11px; border: 0; border-radius: 6px; background: var(--ops-page); }
-.directory-row { border: 0; border-radius: 6px; background: var(--ops-page); }
+.governance-request-list > li { padding: 11px; border: 0; border-radius: var(--ops-radius-sm); background: var(--ops-page); }
+.directory-row { border: 0; border-radius: var(--ops-radius-sm); background: var(--ops-page); }
 /*
  * Closing checklist: per-module acknowledgement before the single yellow closing action.
  * The three gate buttons stay black (structural acknowledgements) so signal yellow keeps
@@ -572,12 +572,12 @@ button:disabled { opacity: .48; }
 .closing-check-focus p { color: var(--ops-text-muted); font-size: 12px; line-height: 1.5; }
 .closing-check-focus-metrics { font-family: var(--ops-display); font-weight: 700; }
 .closing-check-focus-list { display: grid; gap: 4px; margin-top: 2px; list-style: none; }
-.closing-check-focus-list li { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: baseline; padding: 7px 9px; border-radius: 6px; background: var(--ops-card); }
+.closing-check-focus-list li { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: baseline; padding: 7px 9px; border-radius: var(--ops-radius-sm); background: var(--ops-card); }
 .closing-check-focus-list strong { overflow-wrap: anywhere; font-size: 13px; }
 .closing-check-focus-list small { color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 11px; font-weight: 700; white-space: nowrap; }
 
 .closing-check-list { display: grid; gap: 8px; list-style: none; }
-.closing-check-row { display: grid; gap: 8px; padding: 11px; border-radius: 6px; background: var(--ops-page); }
+.closing-check-row { display: grid; gap: 8px; padding: 11px; border-radius: var(--ops-radius-sm); background: var(--ops-page); }
 .closing-check-row[data-confirmed='true'] { box-shadow: inset 4px 0 0 var(--ops-success); }
 .closing-check-head { display: grid; grid-template-columns: 24px minmax(0,1fr) auto; gap: 10px; align-items: center; }
 .closing-check-no { color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 15px; font-weight: 700; }
@@ -601,22 +601,22 @@ button:disabled { opacity: .48; }
 .closing-check-action[aria-pressed='true'] { background: var(--ops-card); color: var(--ops-success); box-shadow: inset 0 0 0 1px var(--ops-success); }
 .closing-check-tally { color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 12px; font-weight: 700; }
 .closing-check-changes { display: grid; gap: 4px; list-style: none; }
-.closing-check-changes li { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px; align-items: baseline; padding: 7px 9px; border-radius: 6px; background: var(--ops-card); }
+.closing-check-changes li { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px; align-items: baseline; padding: 7px 9px; border-radius: var(--ops-radius-sm); background: var(--ops-card); }
 .closing-check-changes span { color: var(--ops-black); font-family: var(--ops-display); font-size: 11px; font-weight: 700; white-space: nowrap; }
 .closing-check-changes small { color: var(--ops-text); font-size: 12.5px; line-height: 1.45; overflow-wrap: anywhere; }
 .closing-check-more { display: block !important; color: var(--ops-text-muted); font-size: 11.5px; }
 .closing-check-carry { color: var(--ops-text-muted); font-size: 12px; line-height: 1.5; }
 /* An untouched ledger holding aging rows is the shape of the missed-pickup incident, so it
    reads as a warning rather than as reassurance. */
-.closing-check-carry[data-stale='true'] { padding: 7px 9px; border-radius: 6px; background: var(--ops-yellow-wash); box-shadow: inset 3px 0 0 var(--ops-yellow); color: var(--ops-text); font-weight: 700; }
-.closing-check-reconcile { padding: 7px 9px; border-radius: 6px; background: var(--ops-card); color: var(--ops-text) !important; font-weight: 700; }
+.closing-check-carry[data-stale='true'] { padding: 7px 9px; border-radius: var(--ops-radius-sm); background: var(--ops-yellow-wash); box-shadow: inset 3px 0 0 var(--ops-yellow); color: var(--ops-text); font-weight: 700; }
+.closing-check-reconcile { padding: 7px 9px; border-radius: var(--ops-radius-sm); background: var(--ops-card); color: var(--ops-text) !important; font-weight: 700; }
 .closing-check-group { display: grid; gap: 4px; margin-top: 6px; }
 .closing-check-group h4 { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; color: var(--ops-text); font-family: var(--ops-display); font-size: 12px; font-weight: 800; }
 .closing-check-group h4 small { color: var(--ops-text-muted); font-size: 11px; font-weight: 700; }
 .closing-check-focus-list li[data-stale='true'] { box-shadow: inset 3px 0 0 var(--ops-yellow); }
-.closing-check-crosscheck { padding: 10px 11px; border-radius: 6px; background: var(--ops-page); color: var(--ops-text-muted); font-size: 12.5px; line-height: 1.45; }
+.closing-check-crosscheck { padding: 10px 11px; border-radius: var(--ops-radius-sm); background: var(--ops-page); color: var(--ops-text-muted); font-size: 12.5px; line-height: 1.45; }
 .closing-check-crosscheck[data-tone='warn'] { background: var(--ops-yellow-wash); box-shadow: inset 4px 0 0 var(--ops-yellow); color: var(--ops-text); }
-.closing-check-gate { padding: 10px 11px; border-radius: 6px; background: var(--ops-page); color: var(--ops-text-muted); font-size: 12.5px; line-height: 1.45; }
+.closing-check-gate { padding: 10px 11px; border-radius: var(--ops-radius-sm); background: var(--ops-page); color: var(--ops-text-muted); font-size: 12.5px; line-height: 1.45; }
 .closing-check-gate[data-ready='true'] { color: var(--ops-success); font-weight: 700; }
 
 @keyframes dialog-panel-in { from { opacity: 0; transform: translateY(12px) scale(.985); } }
@@ -698,7 +698,7 @@ button:disabled { opacity: .48; }
 .initial-setup-panel > small,
 .registration-profile-help { color: var(--ops-text-muted); }
 .registration-steps { gap: 5px; background: transparent; }
-.registration-steps li { min-height: 48px; border-radius: 6px; background: var(--ops-page); }
+.registration-steps li { min-height: 48px; border-radius: var(--ops-radius-sm); background: var(--ops-page); }
 .registration-steps li[aria-current='step'] { background: var(--ops-black); color: var(--ops-yellow); box-shadow: 0 0 14px var(--ops-black-glow); }
 .registration-steps li[data-complete='true'] { background: var(--ops-yellow-wash); color: var(--ops-black); }
 .registration-summary,
@@ -1151,7 +1151,7 @@ button:disabled { opacity: .48; }
 .closing-check-page .closing-check-reconcile {
   margin: 0 0 13px 34px;
   padding: 9px 10px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: #fffefa;
   color: #181814 !important;
   font-size: 13px;
@@ -1181,7 +1181,7 @@ button:disabled { opacity: .48; }
   width: 68px;
   height: 91px;
   border: 1.5px solid #26251f;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: #fffefa;
 }
 .closing-check-page-clip {
@@ -1310,7 +1310,7 @@ button:disabled { opacity: .48; }
   min-height: 40px;
   padding: 0 7px 0 4px;
   border: 1px solid #f1ede4;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: #fffefa;
   box-shadow: none;
 }
@@ -1356,7 +1356,7 @@ button:disabled { opacity: .48; }
 .closing-check-page .closing-check-crosscheck {
   margin: 0 0 12px;
   padding: 9px 10px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: #fff5d6;
   color: #27231b;
   font-size: 12px;
@@ -1418,7 +1418,7 @@ button:disabled { opacity: .48; }
   place-items: center;
   width: 48px;
   height: 48px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: #fff0b4;
   color: #171713;
 }
@@ -1462,7 +1462,7 @@ button:disabled { opacity: .48; }
   min-width: 64px;
   min-height: 43px;
   padding: 0 5px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: #151511;
   color: #fffefa;
   font-size: 13px;
@@ -1486,7 +1486,7 @@ button:disabled { opacity: .48; }
 .closing-check-page .closing-check-gate {
   margin: 0;
   padding: 9px 10px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: #fff5d6;
   box-shadow: inset 3px 0 0 #f4c400;
   color: #363129;

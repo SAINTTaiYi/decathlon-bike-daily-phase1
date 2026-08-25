@@ -1,0 +1,136 @@
+/*
+ * Flat redesign token layer — 2026-08-26
+ *
+ * Single source of truth for the flat visual language. Imported AFTER
+ * workshop-system.css and mobile-overview.css so it overrides the two
+ * duplicated --ops-* blocks those files still declare, keeping desktop and
+ * mobile from drifting apart.
+ *
+ * Direction (user-approved): flat surfaces, large bezier-curve radii.
+ * The previous cream + diffuse-yellow palette is retired.
+ *
+ * Diffusion is neutralised at the TOKEN level, not per rule: redefining
+ * --ops-yellow-glow / --ops-black-glow / --ops-card-shadow / --ops-panel-shadow
+ * flattens all 49 existing references at once instead of editing each site.
+ */
+:root {
+  /* ---- Surfaces: neutral cool greys, no cream ---- */
+  --ops-page: #f4f5f7;
+  --ops-card: #ffffff;
+  --ops-card-sunken: #eef0f4;
+
+  /* ---- Ink ---- */
+  --ops-black: #14161a;
+  --ops-text: #14161a;
+  --ops-text-muted: #5b6270;
+  --ops-text-inverse: #ffffff;
+
+  /* ---- Accent: saturated flat amber, no glow ---- */
+  --ops-yellow: #ffb400;
+  --ops-yellow-pressed: #e09c00;
+  --ops-yellow-wash: #fff4d6;
+  --ops-pickup-expanded: #fff8e6;
+
+  /* ---- Flatten diffusion (kills 22 + 9 glow references) ---- */
+  --ops-yellow-glow: transparent;
+  --ops-black-glow: transparent;
+  --ops-card-shadow: none;
+  --ops-panel-shadow: none;
+
+  /* Retained tokens from the old cream layer, now flat */
+  --shadow-tight: none;
+  --shadow-panel: none;
+
+  /* ---- Borders carry structure now that shadows are gone ---- */
+  --ops-line: #e2e5ea;
+  --ops-line-strong: #c8cdd6;
+  --ops-border: #e2e5ea;
+  --ops-border-strong: #c8cdd6;
+
+  /* ---- Status ---- */
+  --ops-danger: #d92d20;
+  --ops-success: #12805c;
+
+  /* ---- Large bezier radii ---- */
+  --ops-radius: 18px;
+  --ops-radius-sm: 12px;
+  --ops-radius-lg: 26px;
+  --ops-radius-pill: 999px;
+
+  /* Legacy aliases from tokens.css kept in sync */
+  --paper: var(--ops-page);
+  --paper-cool: var(--ops-card-sunken);
+  --surface: var(--ops-card);
+  --surface-raised: var(--ops-card);
+  --line: var(--ops-line);
+  --line-strong: var(--ops-line-strong);
+  --ink: var(--ops-black);
+  --ink-soft: var(--ops-text-muted);
+  --muted: var(--ops-text-muted);
+  --accent: var(--ops-yellow);
+  --critical: var(--ops-danger);
+  --success: var(--ops-success);
+}
+
+/* Page background must not reintroduce a wash */
+html, body {
+  background: var(--ops-page);
+  background-image: none;
+}
+
+/* ------------------------------------------------------------------
+ * Retire the paper-grain texture.
+ * The cream base + grain noise + yellow glow stack is what read as
+ * "dirty". Flat surfaces need a clean substrate, so the texture is
+ * dropped everywhere it was applied (body, .lookbook-shell, refinement).
+ * ------------------------------------------------------------------ */
+body,
+.lookbook-shell,
+.lookbook-shell::before,
+.lookbook-shell::after {
+  background-image: none;
+}
+
+body { background-color: var(--ops-page); }
+.lookbook-shell { background-color: var(--ops-page); }
+
+/* ------------------------------------------------------------------
+ * pickup-ledger keeps its own --pickup-* glow vars, which the --ops-*
+ * overrides above cannot reach. Neutralise them at the source so all
+ * 13 glow references flatten together.
+ * ------------------------------------------------------------------ */
+.pickup-ledger,
+:root {
+  --pickup-glow: transparent;
+  --pickup-glow-soft: transparent;
+}
+
+/* Expanded pickup card: opaque flat wash instead of radial + linear gradients */
+.pickup-ledger .pickup-card[data-expanded='true'] {
+  background: var(--ops-pickup-expanded);
+  box-shadow: none;
+}
+
+/* The external glow halo behind an expanded card is removed entirely */
+.pickup-ledger .pickup-card-frame[data-expanded='true']::after {
+  display: none;
+}
+
+/* Drop the triple drop-shadow bloom */
+.pickup-ledger .pickup-card-frame[data-expanded='true'] {
+  filter: none;
+}
+
+.pickup-module-count b { text-shadow: none; }
+
+/* ------------------------------------------------------------------
+ * Large bezier radii, applied through the token so desktop and mobile
+ * move together. Hardcoded 8px/6px sites are migrated separately.
+ * ------------------------------------------------------------------ */
+.pickup-card,
+.pickup-card-frame,
+.ops-card,
+.ops-panel,
+.ops-module {
+  border-radius: var(--ops-radius);
+}

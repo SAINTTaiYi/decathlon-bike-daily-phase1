@@ -115,7 +115,7 @@
     column-gap: 13px;
     min-height: 72px !important;
     padding: 10px 20px !important;
-    border-radius: 8px !important;
+    border-radius: var(--ops-radius) !important;
     color: var(--ops-black) !important;
   }
   .look-dock button svg { grid-row: 1 / 3; width: 29px; height: 29px; }
@@ -132,7 +132,7 @@
     width: 182px;
     min-height: 116px;
     border: 1px solid rgb(12 14 12 / .07);
-    border-radius: 8px;
+    border-radius: var(--ops-radius);
     background: var(--ops-card);
     box-shadow: var(--ops-card-shadow);
   }
@@ -143,7 +143,7 @@
   .dock-release-card > summary > time { align-self: end; color: var(--ops-text-muted); font-size: 11px; }
   .dock-release-card > summary > b { align-self: end; justify-self: end; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 3px; background: var(--ops-yellow); font-size: 21px; line-height: 1; transition: transform 160ms ease; }
   .dock-release-card[open] > summary > b { transform: rotate(45deg); }
-  .dock-release-details { position: absolute; right: -30px; bottom: calc(100% + 8px); width: 220px; max-height: 310px; overflow-y: auto; padding: 14px; border: 1px solid rgb(12 14 12 / .1); border-radius: 8px; background: var(--ops-card); box-shadow: var(--ops-panel-shadow); }
+  .dock-release-details { position: absolute; right: -30px; bottom: calc(100% + 8px); width: 220px; max-height: 310px; overflow-y: auto; padding: 14px; border: 1px solid rgb(12 14 12 / .1); border-radius: var(--ops-radius); background: var(--ops-card); box-shadow: var(--ops-panel-shadow); }
   .dock-release-details > strong { font-size: 14px; }
   .dock-release-details p { margin: 8px 0; color: var(--ops-text-muted); font-size: 11px; line-height: 17px; }
   .dock-release-details ul { display: grid !important; grid-template-columns: 1fr !important; gap: 6px; margin: 0; padding-left: 16px; }
@@ -237,7 +237,7 @@
   .ops-index button > b { top: 94px; left: 28px; font-size: 45px; line-height: 1; }
   .ops-index button > .ops-arrow { top: 103px; right: 26px; font-size: 24px; line-height: 1; }
   .ops-analytics-grid { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(360px, 1fr); gap: 16px; }
-  .ops-analytics-panel { min-height: 290px; padding: 20px 24px; border-radius: 8px; background: var(--ops-card); box-shadow: var(--ops-card-shadow); }
+  .ops-analytics-panel { min-height: 290px; padding: 20px 24px; border-radius: var(--ops-radius); background: var(--ops-card); box-shadow: var(--ops-card-shadow); }
   .ops-analytics-panel > header { display: flex; align-items: baseline; justify-content: space-between; }
   .ops-analytics-panel > header strong { font-size: 16px; }
   .ops-analytics-panel > header span { color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 12px; }
@@ -264,17 +264,17 @@
   /* The target board begins 24px below the module bar; remove legacy section air. */
   .workshop-shell[data-desktop-scene='pickup'] .pickup-operations-section { padding-top: 0; border-top: 0; }
   .pickup-queue-controls { display: grid; grid-template-columns: 312px minmax(0, 1fr); gap: 24px; margin: 0; }
-  .pickup-queue-summary { min-height: 72px; padding: 10px 18px; border-radius: 8px; background: var(--ops-card); }
+  .pickup-queue-summary { min-height: 72px; padding: 10px 18px; border-radius: var(--ops-radius); background: var(--ops-card); }
   .pickup-queue-summary > span { font-size: 13px; line-height: 18px; }
   .pickup-module-count { align-items: center; }
   .pickup-module-count span { grid-template-rows: 34px 16px; align-items: end; justify-items: center; font-size: 12px; line-height: 16px; }
   .pickup-module-count b { display: block; font-size: 34px; line-height: 34px; }
   .pickup-tools-area { max-height: none !important; opacity: 1 !important; pointer-events: auto !important; }
-  .pickup-tool-row { grid-template-columns: minmax(0, 1fr) repeat(4, 70px); min-height: 72px; padding: 5px; border: 0; border-radius: 8px; background: var(--ops-card); box-shadow: var(--ops-card-shadow); }
+  .pickup-tool-row { grid-template-columns: minmax(0, 1fr) repeat(4, 70px); min-height: 72px; padding: 5px; border: 0; border-radius: var(--ops-radius); background: var(--ops-card); box-shadow: var(--ops-card-shadow); }
   .pickup-tool-row .pickup-search-field { min-height: 60px; padding: 0 20px; }
   .pickup-tool-row .pickup-search-field input { font-size: 16px; }
   .pickup-tool-row > button { height: 60px; font-size: 12px; }
-  .pickup-ledger-board { margin-top: 16px; padding: 0 16px 18px; border-radius: 8px; background: var(--ops-card); box-shadow: var(--ops-card-shadow); }
+  .pickup-ledger-board { margin-top: 16px; padding: 0 16px 18px; border-radius: var(--ops-radius); background: var(--ops-card); box-shadow: var(--ops-card-shadow); }
   .pickup-ledger-intro { min-height: 86px; margin: 0; padding: 16px 10px; border-bottom: 1px solid rgb(12 14 12 / .08); }
   .pickup-ledger-intro span { font-size: 13px; }
   .pickup-ledger-intro strong { font-size: 15px; line-height: 22px; }
@@ -290,7 +290,7 @@
   .pickup-card-frame[data-expanded='true']::after { display: none; }
   .pickup-card { height: auto; border: 1px solid rgb(12 14 12 / .08); box-shadow: none; }
   /* Target rows use one continuous rounded frame; the old isolated right-edge box is gone. */
-  .pickup-card-frame:not([data-expanded='true']) { overflow: hidden; border: 1px solid rgb(12 14 12 / .1); border-radius: 8px; }
+  .pickup-card-frame:not([data-expanded='true']) { overflow: hidden; border: 1px solid rgb(12 14 12 / .1); border-radius: var(--ops-radius); }
   .pickup-card-frame:not([data-expanded='true']) .pickup-card { height: auto; border: 0; border-radius: 0; box-shadow: none; }
   .pickup-card[data-expanded='true'] { transform: none; }
   .pickup-card-summary { grid-template-columns: 96px minmax(310px, 1.5fr) minmax(280px, 1fr) 160px; grid-template-areas: 'index core scan status'; align-items: center; min-height: 86px; padding: 11px 14px; }
@@ -338,8 +338,8 @@
 
   /* Sales check: one full reference card, real KPI fields and original actions. */
   .closing-look .scene-title { display: none; }
-  .closing-look .sales-input-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; min-height: 542px; margin: 38px 18px 0; padding: 34px 28px; border-radius: 8px; }
-  .sales-input-summary > div { display: grid; align-content: space-between; min-height: 184px; padding: 28px 22px; border-radius: 8px; }
+  .closing-look .sales-input-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; min-height: 542px; margin: 38px 18px 0; padding: 34px 28px; border-radius: var(--ops-radius); }
+  .sales-input-summary > div { display: grid; align-content: space-between; min-height: 184px; padding: 28px 22px; border-radius: var(--ops-radius); }
   .sales-input-summary > div span { font-size: 18px; }
   .sales-input-summary > div strong { font-size: 46px; }
   .sales-input-summary > button { grid-column: 1 / -1; min-height: 70px; font-size: 21px; }
@@ -526,7 +526,7 @@
     flex-basis: 54px;
     width: 54px;
     height: 54px;
-    border-radius: 8px;
+    border-radius: var(--ops-radius);
   }
   .record-editor-dialog .dialog-header .icon-button > svg { width: 27px; height: 27px; }
   .record-editor-dialog .dialog-description {
@@ -575,7 +575,7 @@
     min-height: 56px;
     padding: 13px 14px;
     border: 1px solid #c9c8c2 !important;
-    border-radius: 8px !important;
+    border-radius: var(--ops-radius) !important;
     background: #fffefa !important;
     box-shadow: none;
     font-size: 18px;
@@ -609,7 +609,7 @@
     height: 470px;
     padding: 23px 24px;
     border: 1px solid #dad8d1;
-    border-radius: 8px;
+    border-radius: var(--ops-radius);
   }
   .record-editor-pickup-contact .field-group {
     display: block;
@@ -641,7 +641,7 @@
     margin-top: 25px;
     padding: 16px;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--ops-radius);
     background: #fff2bd;
     box-shadow: none;
   }
@@ -660,7 +660,7 @@
     height: 470px;
     padding: 25px 23px;
     border: 1px solid #dad8d1;
-    border-radius: 8px;
+    border-radius: var(--ops-radius);
     color: #171815;
   }
   .record-editor-guidance h3 {
@@ -693,7 +693,7 @@
     height: 488px;
     overflow: visible;
     border: 1px solid #dad8d1;
-    border-radius: 8px;
+    border-radius: var(--ops-radius);
   }
   .record-editor-card .record-editor-section {
     margin: 0;

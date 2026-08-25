@@ -62,7 +62,7 @@
 .date-picker-nav {
   min-height: 34px;
   border: 1px solid rgb(12 14 12 / .12);
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--ops-card, #fffdf8);
   color: var(--ops-black, #0c0e0c);
   font-size: 20px;
@@ -90,7 +90,7 @@
 .date-picker-day {
   min-height: 36px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: transparent;
   color: var(--ops-black, #0c0e0c);
   font-family: var(--ops-display, var(--font-display));
@@ -119,7 +119,7 @@
 .date-picker-clear {
   min-height: 36px;
   border: 1px solid rgb(12 14 12 / .14);
-  border-radius: 8px;
+  border-radius: var(--ops-radius);
   background: var(--ops-card, #fffdf8);
   padding: 0 14px;
   font-size: 13px;
