@@ -11,16 +11,17 @@
  * --------------------------------------------------------------------------
  * Method: transparency, not removal.
  *
- * `border-color: transparent` rather than `border: 0` is deliberate:
- *   1. Zero layout shift. The earlier flat pass used borders to carry
- *      structure once shadows were removed, so ~600 declarations contribute
- *      real box metrics. Zeroing width would reflow every one of them;
- *      keeping width and dropping colour keeps geometry byte-identical.
- *   2. Backgrounds paint to border-box, so a transparent border shows the
- *      element's own fill — no seam, no halo.
- *   3. Existing tests assert specific `border: 1px solid ...` / `border-top`
- *      declarations in the source files. Neutralising colour here keeps those
- *      contracts intact instead of forcing test rewrites.
+ * Both colour AND width are cleared globally:
+ *   - `border-color: transparent` handles literal #hex / rgb() / color-mix()
+ *     declarations that tokens cannot reach.
+ *   - `border-width: 0` is required because a transparent border still
+ *     reserves 1px and reveals the PARENT's background on any element
+ *     without its own fill. That produced a warm-grey outline around cards
+ *     on the ops surfaces and was the real cause of the hairlines that
+ *     survived three rounds of per-selector fixes.
+ *   - Elements relying on border box metrics are all `box-sizing: border-box`
+ *     (set in the reset), so removing 1px shrinks content by at most 2px per
+ *     axis rather than reflowing the page.
  *
  * Separation now comes from surface tone + spacing + radius.
  *
@@ -73,6 +74,15 @@
 *::before,
 *::after {
   border-color: transparent !important;
+  /* Colour alone is not enough. A transparent border still occupies its
+   * 1px, and it only shows the element's OWN background — elements with
+   * no background of their own (transparent/unset) let the parent's tone
+   * through instead, which reads as a warm-grey hairline around every
+   * card on the #fffdf8-on-grey ops surfaces. That was the "brown line"
+   * surviving every targeted fix: 186 declarations still held width.
+   * Zero the width and let box-sizing: border-box absorb it. */
+  border-style: none !important;
+  border-width: 0 !important;
 }
 
 /* ------------------------------------------------------------------
@@ -295,9 +305,15 @@
  * unusable. Give system borders back and undo the fills above.
  * ------------------------------------------------------------------ */
 @media (forced-colors: active) {
+  /* Section 2 now zeroes border-width globally, so colour alone would
+   * restore nothing here — width and style have to come back too. */
   *,
   *::before,
-  *::after { border-color: ButtonBorder !important; }
+  *::after {
+    border-color: ButtonBorder !important;
+    border-style: solid !important;
+    border-width: 1px !important;
+  }
 
   button,
   input,
