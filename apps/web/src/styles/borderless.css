@@ -554,33 +554,43 @@
   transform: none !important;
 }
 
-/* Keep row heights stable across expand/collapse so the queue
- * numbers stay on a shared baseline afterwards. pickup-ledger.css
- * gates equal-height on :not([data-expanded='true']), so collapsing
- * left siblings sized by content. Anchor the index cell instead of
- * relying on the row box.
+/* Keep the queue number on a shared baseline across expand/collapse.
+ * Centring the cell itself (rather than stretching it) stops the glyph
+ * from tracking the row's changing height.
  */
 .pickup-ledger .pickup-card-index {
-  align-content: start !important;
-  align-self: start !important;
+  align-self: center !important;
 }
 
-/* Apply equal-height unconditionally on the desktop 2-up grid.
- * An expanded card spans the full row (grid-column: 1 / -1), so
- * height: 100% no longer fights its own content — and collapsing
- * returns siblings to the same row box they started in.
+/* Desktop breakpoint corrections. Both fixes below must live inside
+ * @media (min-width: 768px) to line up with desktop-workbench.css —
+ * the earlier unscoped attempts never reached these declarations.
  */
 @media (min-width: 768px) {
-  .pickup-ledger .pickup-card-frame { min-height: 100%; }
-  .pickup-ledger .pickup-card-frame .pickup-card { height: 100%; }
+  /* desktop-workbench.css:293 paints the hairline on the *frame*, not the
+   * card (line 294 zeroes the inner card's border on purpose). Clearing
+   * .pickup-card alone was a no-op — this is the border you actually see.
+   */
+  .pickup-ledger .pickup-card-frame,
+  .pickup-ledger .pickup-card-frame:not([data-expanded='true']) {
+    border: 0 !important;
+  }
+
+  /* Queue numbers drifted because desktop sets .pickup-card-index to
+   * align-content: center with min-height: 58px — an expanding card grows
+   * the row, the centred glyph rides down with it, and collapsing leaves
+   * each sibling's number at a different offset. Lock the cell to a fixed
+   * 58px box so centring is computed against a constant, not the row.
+   */
+  .pickup-ledger .pickup-card-index {
+    align-self: center !important;
+    align-content: center !important;
+    height: 58px !important;
+    min-height: 58px !important;
+  }
 }
 
-/* desktop-workbench.css:291 declares a *second* 1px border on
- * .pickup-card inside the desktop breakpoint — the actual source of
- * the hairline on wide viewports (pickup-ledger.css:56 is the mobile
- * one). Section 9's border:0 already outranks it; the intro divider
- * on line 278 is the same hairline family, so clear it too.
- */
+/* The intro divider is the same hairline family; clear it too. */
 .pickup-ledger .pickup-ledger-intro {
   border-bottom: 0 !important;
 }
