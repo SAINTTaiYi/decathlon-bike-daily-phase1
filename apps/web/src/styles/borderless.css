@@ -1,0 +1,394 @@
+/*
+ * Borderless layer — 2026-08-26
+ *
+ * Requirement: every ops page reads as borderless. No visible lines anywhere —
+ * buttons, components, container edges, dividers, table rules. Desktop AND mobile.
+ *
+ * Imported LAST so it wins over workshop-system / mobile-overview /
+ * desktop-workbench / pickup-ledger / admin-console, including their
+ * !important border declarations.
+ *
+ * --------------------------------------------------------------------------
+ * Method: transparency, not removal.
+ *
+ * `border-color: transparent` rather than `border: 0` is deliberate:
+ *   1. Zero layout shift. The earlier flat pass used borders to carry
+ *      structure once shadows were removed, so ~600 declarations contribute
+ *      real box metrics. Zeroing width would reflow every one of them;
+ *      keeping width and dropping colour keeps geometry byte-identical.
+ *   2. Backgrounds paint to border-box, so a transparent border shows the
+ *      element's own fill — no seam, no halo.
+ *   3. Existing tests assert specific `border: 1px solid ...` / `border-top`
+ *      declarations in the source files. Neutralising colour here keeps those
+ *      contracts intact instead of forcing test rewrites.
+ *
+ * Separation now comes from surface tone + spacing + radius.
+ *
+ * Accessibility is preserved on purpose:
+ *   - focus-visible rings are REBUILT below, not removed.
+ *   - forced-colors (Windows High Contrast) gets real lines back.
+ * --------------------------------------------------------------------------
+ */
+
+/* ------------------------------------------------------------------
+ * 1. Neutralise line tokens at source.
+ * ------------------------------------------------------------------ */
+:root,
+.pickup-ledger,
+.workshop-shell,
+.lookbook-shell {
+  --ops-line: transparent;
+  --ops-line-strong: transparent;
+  --ops-border: transparent;
+  --ops-border-strong: transparent;
+  --pickup-line: transparent;
+  --line: transparent;
+  --line-strong: transparent;
+}
+
+/* mobile-overview.css redeclares --ops-border* inside `@media (min-width: 0px)`,
+ * which outranks a bare :root. Re-assert at the same breakpoint so mobile
+ * does not drift back to visible lines. */
+@media (min-width: 0px) {
+  :root,
+  .workshop-shell,
+  .lookbook-shell {
+    --ops-line: transparent;
+    --ops-line-strong: transparent;
+    --ops-border: transparent;
+    --ops-border-strong: transparent;
+    --pickup-line: transparent;
+    --line: transparent;
+    --line-strong: transparent;
+  }
+}
+
+/* ------------------------------------------------------------------
+ * 2. Blanket transparency for hardcoded borders.
+ * Many declarations use literal #hex / rgb() / color-mix() / currentColor
+ * and cannot be reached through tokens. !important is required to beat
+ * `border: 1px solid X !important` in workshop-system.css.
+ * ------------------------------------------------------------------ */
+*,
+*::before,
+*::after {
+  border-color: transparent !important;
+}
+
+/* ------------------------------------------------------------------
+ * 3. Non-border line sources.
+ * A pass that only touches `border` leaves these behind: hairline
+ * box-shadows, 1px grid gaps revealing a coloured parent, pseudo-element
+ * rules, and decorative underlines.
+ * ------------------------------------------------------------------ */
+
+/* 3a. Hairline / 1px-ring box-shadows. */
+.lookbook-shell { box-shadow: none !important; }
+
+/* Sticky headers used a 1px bottom shadow as a divider; the header
+ * already differs in fill from the page. */
+.workshop-header,
+[data-workspace-layer='navigation'] { box-shadow: none !important; }
+
+/* Grouped list rows: spacing carries the grouping instead. */
+.project-select-option + .project-select-option { box-shadow: none !important; }
+
+/* Selected / active affordances keep meaning via fill, not a ring. */
+.member-select-list button[data-active='true'] {
+  box-shadow: none !important;
+  background: var(--ops-yellow-wash, #fff4d6) !important;
+}
+.date-picker-day[data-today='true'] {
+  box-shadow: none !important;
+  background: var(--ops-yellow-wash, #fff4d6);
+  font-weight: 800;
+}
+.closing-check-page .closing-check-action[aria-pressed='true'],
+.closing-check-action[aria-pressed='true'] {
+  box-shadow: none !important;
+  background: color-mix(in srgb, var(--ops-success, #12805c) 12%, #fff) !important;
+}
+
+/* Elevation that reads as an edge on white. */
+.pickup-card-frame,
+.pickup-card { box-shadow: none !important; }
+
+/* 3b. Desktop rail used a fixed 1px column as a divider. */
+.look-dock::after { display: none !important; }
+
+/* 3c. Dock hairline (mobile + desktop). */
+.look-dock { box-shadow: none !important; }
+
+/* 3d. 1px/2px grid gaps exposing a coloured parent as faux rules.
+ * Collapse to a real gap so cells read as separate tiles. */
+.metric-input-grid,
+.sales-input-summary,
+.migration-summary,
+.admin-directory-store-list,
+.admin-directory-member-list {
+  background: transparent !important;
+  gap: 8px !important;
+}
+
+/* Cells need their own fill now that the parent no longer paints. */
+.metric-input,
+.migration-summary > div,
+.admin-directory-store-block,
+.admin-directory-member-row {
+  background: var(--ops-card, #fff) !important;
+  border-radius: var(--ops-radius-sm, 12px);
+}
+
+/* 3e. Admin tree connector hairlines (::before pseudo rules). */
+.admin-directory-module-subregions > .admin-directory-module-head::before,
+.admin-directory-module-cities > .admin-directory-module-head::before,
+.admin-directory-store-block::before { display: none !important; }
+
+/* 3f. Decorative underlines read as lines. Real anchors keep their
+ * affordance; pseudo-controls drop it. */
+.record-assignee-chip span { border-bottom-color: transparent !important; }
+.dialog-toggle:hover { text-decoration: none; }
+.release-notes summary:hover strong { text-decoration: none; }
+
+/* 3g. Report masthead identity was 4px solid + 4px double rules. */
+.report-masthead {
+  border-top-width: 0 !important;
+  border-bottom-width: 0 !important;
+  padding-bottom: 1.15rem;
+}
+
+/* 3h. Blocks whose padding existed to sit beside a rule. */
+.closing-summary,
+.release-notes { border-width: 0 !important; }
+
+/* ------------------------------------------------------------------
+ * 4. Controls that relied on a border to be visible at all.
+ * A transparent border over a transparent background is an invisible
+ * button, so each gets an explicit flat fill.
+ * ------------------------------------------------------------------ */
+.field-row input,
+.field-row textarea,
+.history-filters input,
+.history-filters select,
+.project-select-trigger,
+.role-option,
+.metric-input input {
+  background: var(--ops-card-sunken, #eef0f4) !important;
+}
+
+.field-row input:focus,
+.field-row textarea:focus,
+.history-filters input:focus,
+.history-filters select:focus,
+.metric-input input:focus {
+  background: var(--ops-card, #fff) !important;
+}
+
+/* Secondary / ghost buttons: the border was their only edge. */
+.status-alert > button,
+.member-select-clear button,
+.handover-todo-later,
+.pickup-card-actions button,
+.pickup-source-label,
+.shiphub-order-card-actions .shiphub-order-verify,
+.shiphub-locator-guide .shiphub-locator-recheck,
+.ledger-history,
+.record-actions button,
+.record-history-mark,
+.pickup-filter-sheet > footer button,
+.pickup-tool-row > button {
+  background: var(--ops-card-sunken, #eef0f4) !important;
+}
+
+/* Dark ledger context: a sunken grey fill disappears on ink. */
+.record-ledger[data-dark='true'] .ledger-history,
+.record-ledger[data-dark='true'] .record-actions button,
+.record-row[data-row-dark='true'] .record-actions button,
+.record-row[data-row-dark='true'] .record-history-mark,
+.record-row[data-row-dark='true'] .pickup-date-callout {
+  background: rgb(255 255 255 / .14) !important;
+  color: #fff !important;
+}
+
+/* Dark-context primary keeps its inverted treatment. */
+.record-ledger[data-dark='true'] .record-actions .record-primary-action,
+.record-row[data-row-dark='true'] .record-actions .record-primary-action {
+  background: #fff !important;
+  color: var(--ops-black, #14161a) !important;
+}
+
+/* Boot login sits on a photographic backdrop; fill is the only separation. */
+.boot-login { background: rgb(12 14 12 / .82) !important; }
+.boot-login-field input {
+  background: rgb(255 255 255 / .16) !important;
+  border-radius: var(--ops-radius-sm, 12px);
+  padding-inline: .7rem;
+}
+.boot-login-submit { background: #fff !important; color: var(--ops-black, #14161a) !important; }
+
+/* Toast: a white hairline on ink is a line; the ink fill is enough. */
+.status-toast { box-shadow: none !important; }
+
+/* Segmented tabs: the 2px underline was the selected indicator; selection
+ * now reads as a filled pill. */
+.pickup-sheet-tabs button { border-bottom-width: 0 !important; }
+
+/* Outlined boxes become tinted chips. */
+.contact-callout,
+.pickup-date-callout,
+.summary-topline strong {
+  background: var(--ops-card-sunken, #eef0f4);
+  border-radius: var(--ops-radius-sm, 12px);
+  padding-inline: .4rem;
+}
+
+/* Dialog shell: panel fill carries the surface. */
+.app-dialog { border-width: 0 !important; }
+
+/* Table rules. */
+.admin-table td,
+.admin-table th { border-color: transparent !important; }
+
+/* ------------------------------------------------------------------
+ * 5. Focus visibility — REBUILT, not removed.
+ *
+ * Section 2 made every border transparent, and outlines are lines too.
+ * Dropping focus indication would break keyboard operation and WCAG 2.4.7,
+ * so focus is re-expressed as a ring that appears only while focused.
+ * This is the one intentional exception to "no lines": invisible at rest,
+ * required for operability.
+ * ------------------------------------------------------------------ */
+:where(a, button, input, select, textarea, summary, [tabindex], [role='button'], [role='tab'], [role='option']):focus-visible {
+  outline: 2px solid var(--ops-black, #14161a) !important;
+  outline-offset: 2px !important;
+  border-radius: var(--ops-radius-sm, 12px);
+}
+
+/* On ink / photographic surfaces a black ring vanishes — invert it. */
+.record-ledger[data-dark='true'] :focus-visible,
+.record-row[data-row-dark='true'] :focus-visible,
+.boot-login :focus-visible,
+.status-toast :focus-visible {
+  outline-color: var(--ops-yellow, #ffb400) !important;
+}
+
+/* ------------------------------------------------------------------
+ * 6. Charts.
+ * SVG axis/grid/tick strokes are geometry, so CSS border rules never
+ * reach them. Fade the chrome; data strokes stay fully legible.
+ * ------------------------------------------------------------------ */
+.ops-trend-card {
+  border-right-width: 0 !important;
+  background: var(--ops-card, #fff) !important;
+  border-radius: var(--ops-radius, 18px);
+}
+
+/* Axis, gridlines and ticks only. Data paths/rungs use MONO.ink and match
+ * neither selector, so the series itself is untouched. */
+.ops-trend-card svg line[stroke='#DEDDD6'],
+.ops-trend-card svg line[stroke='#C6C5BF'] { stroke: transparent; }
+
+/* ------------------------------------------------------------------
+ * 7. Forced colors: restore real lines.
+ * High Contrast strips backgrounds, so a borderless surface becomes
+ * unusable. Give system borders back and undo the fills above.
+ * ------------------------------------------------------------------ */
+@media (forced-colors: active) {
+  *,
+  *::before,
+  *::after { border-color: ButtonBorder !important; }
+
+  button,
+  input,
+  select,
+  textarea,
+  [role='button'] {
+    border: 1px solid ButtonText !important;
+    background: ButtonFace !important;
+    color: ButtonText !important;
+  }
+
+  :focus-visible { outline: 2px solid Highlight !important; }
+}
+
+/* ------------------------------------------------------------------
+ * 8. Platform admin console — scoped duplicate.
+ *
+ * admin-console.css is imported inside a lazy-loaded component
+ * (PlatformAdminConsole.jsx), so it ships in a separate chunk that is
+ * appended to the document AFTER this layer. Import order therefore does
+ * NOT guarantee the rules above win there. Everything the console needs
+ * is repeated here under .admin-console, which also raises specificity.
+ * ------------------------------------------------------------------ */
+.admin-console,
+.admin-console *,
+.admin-console *::before,
+.admin-console *::after {
+  border-color: transparent !important;
+  --ops-line: transparent;
+  --ops-line-strong: transparent;
+  --ops-border: transparent;
+  --ops-border-strong: transparent;
+}
+
+/* Faux rules built from a 1px grid gap over a coloured parent.
+ * (.admin-rail-label / .admin-stat-label also use gap:1px but they are
+ * text stacks with no background, so they are intentionally untouched.) */
+.admin-console .admin-directory-store-list,
+.admin-console .admin-directory-member-list {
+  background: transparent !important;
+  gap: 8px !important;
+}
+
+.admin-console .admin-directory-store-block,
+.admin-console .admin-directory-member-row {
+  background: var(--ops-card, #fff) !important;
+  border-radius: var(--ops-radius-sm, 12px);
+}
+
+/* Tree connector stems drawn as ::before bars. */
+.admin-console .admin-directory-module-regions > .admin-directory-child-level::before,
+.admin-console .admin-directory-module-subregions > .admin-directory-module-head::before,
+.admin-console .admin-directory-module-cities > .admin-directory-module-head::before,
+.admin-console .admin-directory-store-block::before {
+  display: none !important;
+}
+
+/* Hairline rings / dividers expressed as shadows. */
+.admin-console .admin-rail,
+.admin-console .admin-topbar,
+.admin-console .admin-panel,
+.admin-console .admin-stat { box-shadow: none !important; }
+
+/* Console controls whose only edge was a border. */
+.admin-console input,
+.admin-console select,
+.admin-console textarea {
+  background: var(--ops-card-sunken, #eef0f4) !important;
+}
+.admin-console input:focus,
+.admin-console select:focus,
+.admin-console textarea:focus {
+  background: var(--ops-card, #fff) !important;
+}
+
+.admin-console table { border-collapse: collapse; }
+
+/* Focus must survive here too. */
+.admin-console :where(a, button, input, select, textarea, summary, [tabindex], [role='button'], [role='tab'], [role='option']):focus-visible {
+  outline: 2px solid var(--ops-black, #14161a) !important;
+  outline-offset: 2px !important;
+}
+
+@media (forced-colors: active) {
+  .admin-console,
+  .admin-console *,
+  .admin-console *::before,
+  .admin-console *::after { border-color: ButtonBorder !important; }
+
+  .admin-console :is(button, input, select, textarea, [role='button']) {
+    border: 1px solid ButtonText !important;
+    background: ButtonFace !important;
+    color: ButtonText !important;
+  }
+}
