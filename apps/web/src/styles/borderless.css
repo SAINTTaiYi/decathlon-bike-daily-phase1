@@ -574,3 +574,13 @@
   .pickup-ledger .pickup-card-frame { min-height: 100%; }
   .pickup-ledger .pickup-card-frame .pickup-card { height: 100%; }
 }
+
+/* desktop-workbench.css:291 declares a *second* 1px border on
+ * .pickup-card inside the desktop breakpoint — the actual source of
+ * the hairline on wide viewports (pickup-ledger.css:56 is the mobile
+ * one). Section 9's border:0 already outranks it; the intro divider
+ * on line 278 is the same hairline family, so clear it too.
+ */
+.pickup-ledger .pickup-ledger-intro {
+  border-bottom: 0 !important;
+}
