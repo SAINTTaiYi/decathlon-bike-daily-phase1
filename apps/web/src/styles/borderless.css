@@ -173,7 +173,7 @@
 .project-select-trigger,
 .role-option,
 .metric-input input {
-  background: var(--ops-card-sunken, #eef0f4) !important;
+  background: var(--ops-surface-sunken, #f4f1e8) !important;
 }
 
 .field-row input:focus,
@@ -193,28 +193,29 @@
 .shiphub-order-card-actions .shiphub-order-verify,
 .shiphub-locator-guide .shiphub-locator-recheck,
 .ledger-history,
-.record-actions button,
+.record-actions button:not(.record-primary-action),
 .record-history-mark,
 .pickup-filter-sheet > footer button,
 .pickup-tool-row > button {
-  background: var(--ops-card-sunken, #eef0f4) !important;
+  background: var(--ops-surface-sunken, #f4f1e8) !important;
 }
 
 /* Dark ledger context: a sunken grey fill disappears on ink. */
 .record-ledger[data-dark='true'] .ledger-history,
-.record-ledger[data-dark='true'] .record-actions button,
-.record-row[data-row-dark='true'] .record-actions button,
+.record-ledger[data-dark='true'] .record-actions button:not(.record-primary-action),
+.record-row[data-row-dark='true'] .record-actions button:not(.record-primary-action),
 .record-row[data-row-dark='true'] .record-history-mark,
 .record-row[data-row-dark='true'] .pickup-date-callout {
   background: rgb(255 255 255 / .14) !important;
   color: #fff !important;
 }
 
-/* Dark-context primary keeps its inverted treatment. */
+/* Dark-context primary keeps the yellow accent so the main action still
+ * reads as the main action on an ink row. */
 .record-ledger[data-dark='true'] .record-actions .record-primary-action,
 .record-row[data-row-dark='true'] .record-actions .record-primary-action {
-  background: #fff !important;
-  color: var(--ops-black, #14161a) !important;
+  background: var(--ops-yellow, #ffc31a) !important;
+  color: var(--ops-black, #0c0e0c) !important;
 }
 
 /* Boot login sits on a photographic backdrop; fill is the only separation. */
@@ -237,7 +238,7 @@
 .contact-callout,
 .pickup-date-callout,
 .summary-topline strong {
-  background: var(--ops-card-sunken, #eef0f4);
+  background: var(--ops-surface-sunken, #f4f1e8);
   border-radius: var(--ops-radius-sm, 12px);
   padding-inline: .4rem;
 }
@@ -364,7 +365,7 @@
 .admin-console input,
 .admin-console select,
 .admin-console textarea {
-  background: var(--ops-card-sunken, #eef0f4) !important;
+  background: var(--ops-surface-sunken, #f4f1e8) !important;
 }
 .admin-console input:focus,
 .admin-console select:focus,
@@ -391,4 +392,58 @@
     background: ButtonFace !important;
     color: ButtonText !important;
   }
+}
+
+/* ------------------------------------------------------------------
+ * 8. Desktop legibility inside expanded record cards.
+ *
+ * The card body inherited mobile type scale (.68-.84rem, ~11-13px) with
+ * a muted fill. On a desktop viewport that reads as too small to scan.
+ * Borderless surfaces lean entirely on type contrast for hierarchy, so
+ * the body copy has to carry more weight than it did when a border and
+ * divider were doing part of the work.
+ *
+ * Desktop only (>=768px), so the mobile dock scale is untouched.
+ * ------------------------------------------------------------------ */
+@media (min-width: 768px) {
+  .record-body { gap: 10px; }
+
+  /* Primary content of the expanded card: the repair detail. */
+  .record-detail-line {
+    color: var(--ops-black, #0c0e0c) !important;
+    font-size: 15px !important;
+    font-weight: 600;
+    line-height: 1.5 !important;
+  }
+
+  /* Contact / date / assignee chips. */
+  .record-scan-item {
+    color: var(--ops-text-muted, #55554f);
+    font-size: 13px !important;
+    line-height: 1.35;
+  }
+  .record-scan-item svg { opacity: .9; }
+
+  /* Status notes: readable, still clearly secondary. */
+  .record-resolution-note,
+  .record-inline-error {
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+  }
+
+  /* Ink rows keep light text: the black above must not win there. */
+  .record-ledger[data-dark='true'] .record-detail-line,
+  .record-row[data-row-dark='true'] .record-detail-line {
+    color: rgb(255 255 255 / .92) !important;
+  }
+  .record-ledger[data-dark='true'] .record-scan-item,
+  .record-row[data-row-dark='true'] .record-scan-item {
+    color: rgb(255 255 255 / .82) !important;
+  }
+
+  /* Ticket number under the model name was 11px. */
+  .record-model-block > span { font-size: 12px !important; }
+
+  /* Action row labels. */
+  .record-actions button { font-size: 14px !important; }
 }
