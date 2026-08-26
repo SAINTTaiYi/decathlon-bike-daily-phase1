@@ -480,7 +480,7 @@
 }
 
 .admin-module-tag[data-tone='accent'] {
-  background: rgb(255 221 0 / .22);
+  background: color-mix(in srgb, var(--ops-yellow, #ffdd00) 22%, transparent);
   color: #6b4a00;
 }
 
@@ -678,7 +678,7 @@
 }
 
 .admin-status-tag[data-status='pending'] {
-  background: rgb(255 221 0 / .22);
+  background: color-mix(in srgb, var(--ops-yellow, #ffdd00) 22%, transparent);
   color: #6b4a00;
 }
 

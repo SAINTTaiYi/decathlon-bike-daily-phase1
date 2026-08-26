@@ -18,10 +18,28 @@ function git(args, fallback = '') {
   }
 }
 
-const environmentSha = process.env.GITHUB_SHA?.trim() || process.env.COMMIT_SHA?.trim() || ''
+// SHA precedence matters: RELEASE_SHA is the deliberately selected release commit passed
+// by the deploy workflows. GITHUB_SHA is whatever ref triggered the run and, under
+// workflow_dispatch, does NOT equal the release commit - trusting it first made the
+// runtime report a stale gitSha while the Worker binding carried the correct one.
+const releaseSha = process.env.RELEASE_SHA?.trim() || ''
+const ambientSha = process.env.GITHUB_SHA?.trim() || process.env.COMMIT_SHA?.trim() || ''
+const environmentSha = releaseSha || ambientSha
 const commitSha = environmentSha || git(['rev-parse', 'HEAD'], 'development')
 const dirty = git(['status', '--porcelain'], '')
-const gitSha = dirty && !environmentSha ? `${commitSha}-dirty` : commitSha
+const isCi = Boolean(process.env.CI || process.env.GITHUB_ACTIONS)
+
+// A dirty tree must never be able to stamp a clean-looking SHA into a deployed artifact.
+if (dirty && isCi) {
+  console.error('BUILD METADATA REFUSED: working tree is dirty in CI; refusing to stamp a release SHA.')
+  process.exit(1)
+}
+if (isCi && !releaseSha) {
+  console.error('BUILD METADATA REFUSED: RELEASE_SHA is required in CI so the stamped SHA matches the deployed commit.')
+  process.exit(1)
+}
+
+const gitSha = dirty ? `${commitSha}-dirty` : commitSha
 const generatedAt = new Date().toISOString()
 
 await mkdir(dirname(apiOutput), { recursive: true })
@@ -48,4 +66,4 @@ await Promise.all([
   ].join('\n'))
 ])
 
-console.log(JSON.stringify({ ok: true, appVersion: packageJson.version, gitSha, outputs: ['apps/api/src/generated/build-metadata.ts', 'apps/worker/src/generated/release-info.ts'] }))
+console.log(JSON.stringify({ ok: true, appVersion: packageJson.version, gitSha, shaSource: releaseSha ? 'RELEASE_SHA' : ambientSha ? 'GITHUB_SHA' : 'git-rev-parse', outputs: ['apps/api/src/generated/build-metadata.ts', 'apps/worker/src/generated/release-info.ts'] }))

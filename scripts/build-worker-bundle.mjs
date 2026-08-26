@@ -1,6 +1,9 @@
 import { build } from 'esbuild'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, rm } from 'node:fs/promises'
 
+// Wipe the output directory first. CI copies index.min.js over index.js before deploying, so a
+// leftover artifact from an earlier build could otherwise be shipped alongside fresh env vars.
+await rm('dist/worker', { recursive: true, force: true })
 await mkdir('dist/worker', { recursive: true })
 const shared = {
   entryPoints: ['apps/worker/src/index.ts'],

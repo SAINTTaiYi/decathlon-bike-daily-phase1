@@ -9,7 +9,7 @@
   --line: #dedbd2;
   --line-strong: #b9b5aa;
   --muted: #55554f;
-  --accent: #ffdd00;
+  --accent: var(--ops-yellow, #ffdd00);
   --critical: #c63b2e;
   --success: #17613c;
   --font-body: 'Noto Sans SC Variable';

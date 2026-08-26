@@ -25,7 +25,7 @@
     --ops-text-inverse: #fffdf8;
     --ops-yellow: #ffdd00;
     --ops-yellow-pressed: #e0c200;
-    --ops-yellow-glow: rgb(255 221 0 / .32);
+    --ops-yellow-glow: color-mix(in srgb, var(--ops-yellow, #ffdd00) 32%, transparent);
     --ops-black-glow: rgb(12 14 12 / .22);
     --ops-card-shadow: 0 5px 18px rgb(64 55 34 / .055);
     --ops-border: #d6d5cf;

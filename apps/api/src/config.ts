@@ -21,8 +21,13 @@ const environmentSchema = z.object({
   ADMIN_SETUP_TOKEN_HASH: z.string().regex(/^[a-f0-9]{64}$/u).optional(),
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(12),
   TRUST_PROXY: booleanString.default('true'),
-  APP_VERSION: z.string().default(BUILD_APP_VERSION),
-  GIT_SHA: z.string().default(BUILD_GIT_SHA),
+  // Build constants are a last-resort fallback only. A stale or dirty build artifact must not
+  // silently masquerade as the deployed identity, so an explicit env value always wins and a
+  // dirty stamp is rejected outright rather than served as truth.
+  APP_VERSION: z.string().min(1).default(BUILD_APP_VERSION),
+  GIT_SHA: z.string().min(1).refine((value) => !value.endsWith('-dirty'), {
+    message: 'GIT_SHA must not come from a dirty build; pass the release commit explicitly.'
+  }).default(BUILD_GIT_SHA),
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_SECRET_KEY: z.string().min(32).optional(),
   SUPABASE_STORAGE_BUCKET: z.string().min(3).max(63).regex(/^[a-z0-9][a-z0-9._-]*[a-z0-9]$/u).default('bike-ops-media')
