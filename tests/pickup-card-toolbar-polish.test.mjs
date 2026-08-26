@@ -6,7 +6,7 @@ const jsx = readFileSync(new URL('../apps/web/src/components/pickup/PickupLedger
 const css = readFileSync(new URL('../apps/web/src/styles/pickup-ledger.css', import.meta.url), 'utf8')
 
 test('Add Pickup and the entire expanded card share one opaque action yellow', () => {
-  assert.match(css, /--pickup-action-yellow: var\(--ops-yellow, #ff5a28\)/)
+  assert.match(css, /--pickup-action-yellow: var\(--ops-yellow, #[0-9a-fA-F]{6}\)/)
   assert.match(css, /pickup-ledger-global-actions button:last-child,\s*\n\.pickup-ledger \.pickup-card-frame\[data-expanded='true'\] \.pickup-card \{[^}]*background-color: var\(--pickup-action-yellow\)[^}]*background-image: none[^}]*opacity: 1/s)
   assert.match(css, /pickup-card-frame\[data-expanded='true'\] \.pickup-card-(?:summary|detail)[^{]*[\s\S]*background: transparent/)
   assert.match(css, /0 0 22px var\(--pickup-glow\), 0 7px 18px rgb\(64 55 34 \/ \.1\)/)

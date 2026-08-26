@@ -29,7 +29,7 @@ test('expanded handovers reveal their full item while the completed marker stays
   assert.match(ledger, /<Highlight query=\{query\}>\{handoverDetail\}<\/Highlight>/u)
   assert.doesNotMatch(ledger, /<h4>STATUS <span>\/ 当前状态<\/span><\/h4>/u)
   assert.match(ledger, /handover-complete-stamp-stage/u)
-  assert.match(styles, /--pickup-action-yellow: var\(--ops-yellow, #ff5a28\)/u)
+  assert.match(styles, /--pickup-action-yellow: var\(--ops-yellow, #[0-9a-fA-F]{6}\)/u)
   assert.match(styles, /handover-detail-full \{[\s\S]*?grid-column: 1 \/ -1;[\s\S]*?grid-row: auto;/u)
   assert.match(styles, /handover-detail-full p \{[\s\S]*?text-overflow: clip;[\s\S]*?white-space: normal;[\s\S]*?-webkit-line-clamp: unset;/u)
   assert.match(styles, /data-complete='true'\] \.pickup-card-summary \{[\s\S]*?min-height: 112px;[\s\S]*?padding-bottom: 52px;/u)

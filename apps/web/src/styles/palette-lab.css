@@ -41,7 +41,7 @@
   padding-right: 5px;
   padding-left: 5px;
   border-radius: 999px;
-  background: var(--ops-yellow, #ff5a28);
+  background: var(--ops-yellow, #ffde59);
   color: #14161a;
   font-size: 10px;
   font-weight: 800;
@@ -221,7 +221,7 @@
   padding-left: 10px;
   border-radius: 10px;
   background: #14161a;
-  color: var(--ops-yellow, #ff5a28);
+  color: var(--ops-yellow, #ffde59);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 10px;
   line-height: 1.5;
