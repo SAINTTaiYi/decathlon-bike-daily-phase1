@@ -239,14 +239,14 @@
   background:
     radial-gradient(
       62% 56% at 50% 40%,
-      color-mix(in srgb, var(--ops-yellow, #ffdd00) 32%, transparent) 0%,
-      color-mix(in srgb, var(--ops-yellow, #ffdd00) 13%, transparent) 58%,
-      color-mix(in srgb, var(--ops-yellow, #ffdd00) 0%, transparent) 100%
+      color-mix(in srgb, var(--ops-yellow, #ff5a28) 32%, transparent) 0%,
+      color-mix(in srgb, var(--ops-yellow, #ff5a28) 13%, transparent) 58%,
+      color-mix(in srgb, var(--ops-yellow, #ff5a28) 0%, transparent) 100%
     ),
     linear-gradient(
       to top,
-      color-mix(in srgb, var(--ops-yellow, #ffdd00) 58%, transparent) 0%,
-      color-mix(in srgb, var(--ops-yellow, #ffdd00) 0%, transparent) 32%
+      color-mix(in srgb, var(--ops-yellow, #ff5a28) 58%, transparent) 0%,
+      color-mix(in srgb, var(--ops-yellow, #ff5a28) 0%, transparent) 32%
     ) !important;
   box-shadow: none !important;
 }

@@ -10,10 +10,10 @@
   --ops-text: #0a0b0a;
   --ops-text-muted: #55554f;
   --ops-text-inverse: #fffdf8;
-  --ops-yellow: #ffdd00;
-  --ops-yellow-pressed: #e0c200;
-  --ops-yellow-wash: #fffbd1;
-  --ops-yellow-glow: color-mix(in srgb, var(--ops-yellow, #ffdd00) 32%, transparent);
+  --ops-yellow: #ff5a28;
+  --ops-yellow-pressed: #e04718;
+  --ops-yellow-wash: #ffede6;
+  --ops-yellow-glow: color-mix(in srgb, var(--ops-yellow, #ff5a28) 32%, transparent);
   --ops-black-glow: rgb(12 14 12 / .22);
   --ops-pickup-expanded: #fff1dc;
   --ops-card-shadow: 0 5px 18px rgb(64 55 34 / .055);
