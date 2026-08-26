@@ -232,9 +232,9 @@
     min-height: calc(58px + env(safe-area-inset-bottom));
     padding: 0 0 env(safe-area-inset-bottom) !important;
     border: 0 !important;
-    border-top: 1px solid rgb(12 14 12 / .08) !important;
+    /* border-top 已移除：沉浸式磨砂导航不留分隔线（frosted.css 接管） */
     border-radius: 0 !important;
-    background: var(--ops-page) !important;
+    /* background 交由 frosted.css 的渐变磨砂接管，此处不再设不透明底色 */
     box-shadow: none !important;
     clip-path: none !important;
     transform: none !important;
