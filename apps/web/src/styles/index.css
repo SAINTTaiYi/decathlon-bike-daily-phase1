@@ -18,3 +18,5 @@
 @import './flat-tokens.css';
 @import './borderless.css';
 @import './frosted.css';
+
+@import './palette-lab.css';

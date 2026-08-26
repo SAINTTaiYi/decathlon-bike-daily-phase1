@@ -6,6 +6,7 @@ import RegistrationWizard from './components/RegistrationWizard.jsx'
 import PasswordChangeGate from './components/PasswordChangeGate.jsx'
 import PasswordChangeDialog from './components/dialogs/PasswordChangeDialog.jsx'
 import StatusToast from './components/StatusToast.jsx'
+import PaletteLab from './components/PaletteLab.jsx'
 import { APP_VERSION } from './data/releaseNotes.js'
 import { buildClosingReportModel, exportClosingReportImage } from './utils/closingReportImage.js'
 import ActionDock from './components/lookbook/ActionDock.jsx'
@@ -712,6 +713,7 @@ export default function App() {
       />
       {introDone ? <UpdateRefreshDialog enabled={!deferUpdatePrompt && !workspaceLaunching} /> : null}
       <StatusToast notice={toast} />
+      <PaletteLab />
     </>
   )
 }

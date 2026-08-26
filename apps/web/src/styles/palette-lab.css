@@ -1,0 +1,258 @@
+/*
+ * PaletteLab — preview-only colour editor styling.
+ *
+ * Uses literal colour values rather than --ops-* tokens on purpose: the panel
+ * must stay readable while the user is mid-edit and has, say, set the page and
+ * card colours to the same hex. A theming tool that themes itself is unusable.
+ */
+.palette-lab-trigger {
+  position: fixed;
+  right: 12px;
+  bottom: calc(74px + env(safe-area-inset-bottom));
+  z-index: 2147483000;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding-top: 0;
+  padding-right: 14px;
+  padding-bottom: 0;
+  padding-left: 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #14161a;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: .04em;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgb(0 0 0 / .28);
+}
+
+.palette-lab-trigger-label { font-size: 12px; }
+
+.palette-lab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding-right: 5px;
+  padding-left: 5px;
+  border-radius: 999px;
+  background: #ffdd00;
+  color: #14161a;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.palette-lab-panel {
+  position: fixed;
+  right: 10px;
+  bottom: calc(122px + env(safe-area-inset-bottom));
+  left: 10px;
+  z-index: 2147483001;
+  display: flex;
+  max-height: min(72vh, 620px);
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 16px;
+  padding-right: 16px;
+  padding-bottom: 16px;
+  padding-left: 16px;
+  border: 0;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 18px 48px rgb(0 0 0 / .3);
+  color: #14161a;
+  overflow: hidden;
+}
+
+@media (min-width: 720px) {
+  .palette-lab-panel { right: 16px; left: auto; width: 380px; bottom: 76px; }
+  .palette-lab-trigger { right: 16px; bottom: 24px; }
+}
+
+.palette-lab-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.palette-lab-eyebrow {
+  margin: 0;
+  color: #5b6270;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .16em;
+  line-height: 1.2;
+}
+
+.palette-lab-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.palette-lab-close {
+  border: 0;
+  border-radius: 999px;
+  background: #eef0f4;
+  color: #14161a;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  min-width: 30px;
+  min-height: 30px;
+}
+
+.palette-lab-note {
+  margin: 0;
+  color: #5b6270;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.palette-lab-groups {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.palette-lab-group { display: flex; flex-direction: column; gap: 8px; }
+
+.palette-lab-group-label {
+  margin: 0;
+  color: #5b6270;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.palette-lab-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.palette-lab-swatch {
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgb(20 22 26 / .14);
+}
+
+.palette-lab-swatch input[type='color'] {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: calc(100% + 12px);
+  height: calc(100% + 12px);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.palette-lab-meta {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.palette-lab-name { font-size: 12px; font-weight: 700; line-height: 1.3; }
+
+.palette-lab-hint {
+  color: #5b6270;
+  font-size: 10px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-lab-hex {
+  width: 88px;
+  flex: 0 0 auto;
+  padding-top: 6px;
+  padding-right: 8px;
+  padding-bottom: 6px;
+  padding-left: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: #eef0f4;
+  color: #14161a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: lowercase;
+}
+
+.palette-lab-row[data-changed='true'] .palette-lab-hex {
+  background: #fffbd1;
+  font-weight: 700;
+}
+
+.palette-lab-foot { display: flex; flex-direction: column; gap: 8px; }
+
+.palette-lab-export {
+  margin: 0;
+  max-height: 96px;
+  padding-top: 10px;
+  padding-right: 10px;
+  padding-bottom: 10px;
+  padding-left: 10px;
+  border-radius: 10px;
+  background: #14161a;
+  color: #ffdd00;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  overflow: auto;
+  white-space: pre;
+}
+
+.palette-lab-actions { display: flex; gap: 8px; }
+
+.palette-lab-btn {
+  flex: 1 1 0;
+  min-height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: #eef0f4;
+  color: #14161a;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.palette-lab-btn.is-primary { background: #14161a; color: #ffffff; }
+
+.palette-lab-btn:disabled { cursor: not-allowed; opacity: .45; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .palette-lab-panel { animation: palette-lab-in .18s ease-out both; }
+}
+
+@keyframes palette-lab-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

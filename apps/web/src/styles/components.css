@@ -232,7 +232,7 @@
   place-items: center;
   padding: 0 4px;
   border-radius: 999px;
-  background: var(--ops-yellow, #ffee28);
+  background: var(--ops-yellow, #ffdd00);
   color: var(--ops-black, #0c0e0c);
   font-size: 11px;
   font-weight: 700;
@@ -247,7 +247,7 @@
   place-items: center;
   padding: 0 6px;
   border-radius: 999px;
-  background: var(--ops-yellow, #ffee28);
+  background: var(--ops-yellow, #ffdd00);
   color: var(--ops-black, #0c0e0c);
   font-size: 12px;
   font-weight: 700;
@@ -489,7 +489,7 @@ button:not(:disabled) {
 .member-select-list svg { color: var(--muted); }
 .member-select-name { overflow: hidden; font-size: 15px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .member-select-list small { color: var(--muted); font-size: 11px; font-weight: 650; }
-.member-select-list em { border-radius: 999px; background: var(--ops-black, #0c0e0c); padding: 2px 8px; color: var(--ops-yellow, #ffee28); font-size: 10px; font-style: normal; font-weight: 750; }
+.member-select-list em { border-radius: 999px; background: var(--ops-black, #0c0e0c); padding: 2px 8px; color: var(--ops-yellow, #ffdd00); font-size: 10px; font-style: normal; font-weight: 750; }
 .member-select-empty { padding: 12px; color: var(--muted); font-size: 13px; text-align: center; }
 .member-select-clear { padding: 0 16px 18px; }
 .member-select-clear button { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; border: 1px solid rgb(12 14 12 / .16); border-radius: 999px; background: transparent; padding: 0 14px; color: var(--muted); font-size: 12px; font-weight: 700; }
@@ -695,7 +695,7 @@ button:not(:disabled) {
 }
 
 .closing-check-page-primary {
-  background: #ffee28;
+  background: #ffdd00;
   color: #0b0b0c;
   box-shadow: 0 2px 8px rgba(255, 238, 40, 0.3);
   display: inline-flex;
