@@ -19,13 +19,13 @@ test('唯一运行设计层采用 DESIGN.md 暖白、黑色和信号黄 token', 
     /--ops-page: #f7f5ef/u,
     /--ops-card: #fffdf8/u,
     /--ops-black: #0c0e0c/u,
-    /--ops-yellow: #ffdd00/u,
+    /--ops-yellow: #ff5a28/u,
     /--ops-radius: 8px/u,
     /--ops-card-shadow: 0 5px 18px/u,
     /@media \(prefers-reduced-motion: reduce\)/u,
     /@media \(forced-colors: active\)/u
   ]) assert.match(css, rule)
-  assert.match(tokens, /--accent: #ffdd00/u)
+  assert.match(tokens, /--accent: var\(--ops-yellow, #ff5a28\)/u)
   assert.doesNotMatch(tokens, /#075dff/u)
 })
 

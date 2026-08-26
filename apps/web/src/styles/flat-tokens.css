@@ -29,7 +29,7 @@
   --ops-yellow: #ff5a28;
   --ops-yellow-pressed: #e04718;
   --ops-yellow-wash: #ffede6;
-  --ops-pickup-expanded: #fff8e6;
+  --ops-pickup-expanded: color-mix(in srgb, var(--ops-yellow, #ff5a28) 10%, #fffdf8);
 
   /* ---- Flatten diffusion (kills 22 + 9 glow references) ---- */
   --ops-yellow-glow: transparent;

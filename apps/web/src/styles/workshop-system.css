@@ -15,7 +15,7 @@
   --ops-yellow-wash: #ffede6;
   --ops-yellow-glow: color-mix(in srgb, var(--ops-yellow, #ff5a28) 32%, transparent);
   --ops-black-glow: rgb(12 14 12 / .22);
-  --ops-pickup-expanded: #fff1dc;
+  --ops-pickup-expanded: color-mix(in srgb, var(--ops-yellow, #ff5a28) 12%, #fffdf8);
   --ops-card-shadow: 0 5px 18px rgb(64 55 34 / .055);
   --ops-panel-shadow: 0 18px 54px rgb(39 34 24 / .12);
   --ops-line: #dedbd2;
