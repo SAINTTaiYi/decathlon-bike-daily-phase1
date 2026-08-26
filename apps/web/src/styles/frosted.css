@@ -34,12 +34,13 @@
    * are visible through the lower part of the bar. */
   background: linear-gradient(
     to bottom,
-    rgb(244 245 247 / .92) 0%,
-    rgb(244 245 247 / .82) 55%,
-    rgb(244 245 247 / .62) 100%
+    rgb(244 245 247 / .72) 0%,
+    rgb(244 245 247 / .56) 55%,
+    rgb(244 245 247 / .34) 100%
   ) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  border: 0 !important;
   box-shadow: none !important;
 }
 
@@ -60,12 +61,19 @@
 .workshop-runtime[data-mobile-scene] .look-dock {
   background: linear-gradient(
     to top,
-    rgb(244 245 247 / .94) 0%,
-    rgb(244 245 247 / .84) 55%,
-    rgb(244 245 247 / .60) 100%
+    rgb(244 245 247 / .76) 0%,
+    rgb(244 245 247 / .58) 55%,
+    rgb(244 245 247 / .30) 100%
   ) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  /* mobile-overview.css sets `border-top: 1px solid rgb(12 14 12 / .08)
+   * !important` on .look-dock. Clearing box-shadow alone left that hairline
+   * visible as a hard seam above the dock, which broke the immersion the
+   * frosted glass is meant to create. Both shorthand and longhand are reset
+   * so no later longhand declaration can reintroduce it. */
+  border: 0 !important;
+  border-top: 0 !important;
   box-shadow: none !important;
 }
 
@@ -109,11 +117,11 @@
  * ------------------------------------------------------------------ */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .workshop-runtime > [data-workspace-layer='navigation'] {
-    background: rgb(244 245 247 / .97) !important;
+    background: rgb(244 245 247 / .92) !important;
   }
   .look-dock,
   .workshop-runtime[data-mobile-scene] .look-dock {
-    background: rgb(244 245 247 / .97) !important;
+    background: rgb(244 245 247 / .92) !important;
   }
 }
 
