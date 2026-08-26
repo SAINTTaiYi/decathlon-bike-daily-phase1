@@ -133,3 +133,143 @@
     backdrop-filter: none;
   }
 }
+
+/* ==================================================================
+ * 5. Soften the frosted edges — 2026-08-26 (round 3)
+ *
+ * User feedback: "上下的磨砂切边太硬了".
+ *
+ * backdrop-filter clips at the element's geometric box, so blurred and
+ * unblurred pixels met along a hard seam at the header's bottom edge and
+ * the dock's top edge — the same seam the removed hairline used to hide.
+ *
+ * A mask cannot be applied to the layer itself: mask-image fades the
+ * element AND its children, which would dim the module tool row at the
+ * bottom of the header and the icon row at the top of the dock.
+ *
+ * So the frosted pane moves to a ::before backdrop that sits behind the
+ * content (z-index 0 vs. the existing content stacking) and carries the
+ * gradient, the blur and the mask. Content keeps full opacity; only the
+ * glass ramps out. Both layers already had ::before neutralised on
+ * mobile (workshop-system.css:215, mobile-overview.css:242), so this
+ * reuses a free slot rather than adding a DOM node.
+ * ================================================================== */
+.workshop-runtime[data-mobile-scene] > [data-workspace-layer='navigation'],
+.workshop-runtime[data-mobile-scene] .look-dock {
+  /* The pane is painted by ::before now. */
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+  isolation: isolate;
+}
+
+.workshop-runtime[data-mobile-scene] > [data-workspace-layer='navigation']::before,
+.workshop-runtime[data-mobile-scene] .look-dock::before {
+  content: '' !important;
+  display: block !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  width: auto !important;
+  pointer-events: none !important;
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+}
+
+/* Header: opaque under the status bar, ramping out at the bottom edge. */
+.workshop-runtime[data-mobile-scene] > [data-workspace-layer='navigation']::before {
+  background: linear-gradient(
+    to bottom,
+    rgb(244 245 247 / .82) 0%,
+    rgb(244 245 247 / .68) 58%,
+    rgb(244 245 247 / .42) 100%
+  ) !important;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 68%, rgb(0 0 0 / .78) 84%, rgb(0 0 0 / .32) 94%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 68%, rgb(0 0 0 / .78) 84%, rgb(0 0 0 / .32) 94%, transparent 100%);
+}
+
+/* Dock: mirrored — solid at the bottom, ramping out at the top edge. */
+.workshop-runtime[data-mobile-scene] .look-dock::before {
+  background: linear-gradient(
+    to top,
+    rgb(244 245 247 / .86) 0%,
+    rgb(244 245 247 / .70) 58%,
+    rgb(244 245 247 / .44) 100%
+  ) !important;
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 72%, rgb(0 0 0 / .78) 86%, rgb(0 0 0 / .32) 95%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0%, #000 72%, rgb(0 0 0 / .78) 86%, rgb(0 0 0 / .32) 95%, transparent 100%);
+}
+
+/* Content must stay above the backdrop. */
+.workshop-runtime[data-mobile-scene] > [data-workspace-layer='navigation'] > *,
+.workshop-runtime[data-mobile-scene] .look-dock > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* No mask support: fall back to a flat translucent pane (still readable,
+ * just with the previous hard edge). */
+@supports not ((mask-image: linear-gradient(#000, transparent)) or (-webkit-mask-image: linear-gradient(#000, transparent))) {
+  .workshop-runtime[data-mobile-scene] > [data-workspace-layer='navigation']::before,
+  .workshop-runtime[data-mobile-scene] .look-dock::before {
+    -webkit-mask-image: none;
+    mask-image: none;
+    background: rgb(244 245 247 / .92) !important;
+  }
+}
+
+/* ==================================================================
+ * 6. Dock selection: yellow icon + sliding trail, no black pill
+ *
+ * User feedback: "不要加那个黑框里，图标变黄就可以了，然后再加一个
+ * 图标变黄的轨迹动效".
+ *
+ * .dock-active-indicator already slides via
+ * `transform: translateX(calc(var(--dock-active-index) * 100%))` with a
+ * 360ms cubic-bezier (workshop-system.css:225). Only its paint changes:
+ * the solid black fill becomes a soft yellow wash plus a short underline,
+ * so the moving element reads as the travelling highlight itself instead
+ * of a box drawn around the icon.
+ * ================================================================== */
+.look-dock .dock-active-indicator,
+.workshop-runtime[data-mobile-scene] .look-dock .dock-active-indicator {
+  z-index: 1 !important;
+  border-radius: 999px !important;
+  background:
+    radial-gradient(
+      62% 56% at 50% 40%,
+      rgb(255 195 26 / .32) 0%,
+      rgb(255 195 26 / .13) 58%,
+      rgb(255 195 26 / 0) 100%
+    ),
+    linear-gradient(
+      to top,
+      rgb(255 195 26 / .58) 0%,
+      rgb(255 195 26 / 0) 32%
+    ) !important;
+  box-shadow: none !important;
+}
+
+/* Active item: the icon carries the state, no inverted pill text. */
+.look-dock button[data-active='true'],
+.workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] {
+  background: transparent !important;
+  color: var(--ops-yellow) !important;
+}
+.look-dock button[data-active='true'] svg,
+.workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] svg,
+.look-dock button[data-active='true'] span,
+.workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] span {
+  color: var(--ops-yellow) !important;
+  transition: color 240ms ease-out;
+}
+.look-dock button[data-active='true'] small,
+.workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] small {
+  color: var(--ops-text-muted) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .look-dock button[data-active='true'] svg,
+  .look-dock button[data-active='true'] span { transition: none; }
+}
