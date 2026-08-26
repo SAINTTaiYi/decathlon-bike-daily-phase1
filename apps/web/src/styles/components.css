@@ -697,7 +697,7 @@ button:not(:disabled) {
 .closing-check-page-primary {
   background: #ffee28;
   color: #0b0b0c;
-  box-shadow: 0 2px 8px rgba(251, 234, 3, 0.3);
+  box-shadow: 0 2px 8px rgba(255, 238, 40, 0.3);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -705,8 +705,8 @@ button:not(:disabled) {
 }
 
 .closing-check-page-primary:hover {
-  background: #FFD04D;
-  box-shadow: 0 4px 12px rgba(251, 234, 3, 0.4);
+  background: #f2d800;
+  box-shadow: 0 4px 12px rgba(255, 238, 40, 0.4);
 }
 
 .closing-check-page-primary:active {
