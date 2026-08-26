@@ -239,14 +239,14 @@
   background:
     radial-gradient(
       62% 56% at 50% 40%,
-      rgb(255 195 26 / .32) 0%,
-      rgb(255 195 26 / .13) 58%,
-      rgb(255 195 26 / 0) 100%
+      rgb(251 234 3 / .32) 0%,
+      rgb(251 234 3 / .13) 58%,
+      rgb(251 234 3 / 0) 100%
     ),
     linear-gradient(
       to top,
-      rgb(255 195 26 / .58) 0%,
-      rgb(255 195 26 / 0) 32%
+      rgb(251 234 3 / .58) 0%,
+      rgb(251 234 3 / 0) 32%
     ) !important;
   box-shadow: none !important;
 }
@@ -272,4 +272,105 @@
 @media (prefers-reduced-motion: reduce) {
   .look-dock button[data-active='true'] svg,
   .look-dock button[data-active='true'] span { transition: none; }
+}
+
+/* ==================================================================
+ * 8. Smooth the frosted ramp (round 6)
+ *
+ * User feedback: "磨砂的分层有些明显，页头和导航栏都有一样的毛病"
+ * — visible horizontal steps across both panes, plus a dark band
+ *   hugging the dock's top edge.
+ *
+ * Three causes, all in the section 5 ::before backdrop:
+ *
+ * 1. Banding. The fill ramped in 3 stops (.86 / .70 / .44) while the
+ *    mask ramped in 4 (.78 / .32 / 0) on a different curve. Two
+ *    dissimilar slopes multiplied together make each stop legible as
+ *    a step. Fix: fill goes to a 2-stop near-flat ramp, mask gets
+ *    enough stops to read as continuous (an 8-stop approximation of
+ *    an ease curve is below the perceptual threshold for banding).
+ *
+ * 2. Hard-clipped edge. workshop-system.css:207 sets
+ *    `overflow: hidden !important` on .look-dock. That clips the
+ *    ::before at the rounded box, truncating the mask before it
+ *    reaches zero — the truncation is the dark band in the
+ *    screenshot, not the gradient. The dock has no scrolling child
+ *    that needs clipping (it is a fixed 5-button grid), so the
+ *    clip is safe to drop on the mobile scene only.
+ *
+ * 3. saturate(180%) pushed the sampled backdrop toward the warm cream
+ *    of the page, which made the ramp read as a colour shift on top
+ *    of the alpha shift. Dropped to 125%: still lively, no cast.
+ * ================================================================== */
+.workshop-runtime[data-mobile-scene] .look-dock {
+  overflow: visible !important;
+}
+
+.workshop-runtime[data-mobile-scene] > [data-workspace-layer='navigation']::before,
+.workshop-runtime[data-mobile-scene] .look-dock::before {
+  -webkit-backdrop-filter: blur(32px) saturate(125%) !important;
+  backdrop-filter: blur(32px) saturate(125%) !important;
+}
+
+/* Header: near-flat fill, long smooth fade out of the bottom edge. */
+.workshop-runtime[data-mobile-scene] > [data-workspace-layer='navigation']::before {
+  background: linear-gradient(
+    to bottom,
+    rgb(244 245 247 / .70) 0%,
+    rgb(244 245 247 / .62) 100%
+  ) !important;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%, #000 52%,
+    rgb(0 0 0 / .96) 63%,
+    rgb(0 0 0 / .86) 72%,
+    rgb(0 0 0 / .70) 80%,
+    rgb(0 0 0 / .48) 87%,
+    rgb(0 0 0 / .26) 93%,
+    rgb(0 0 0 / .10) 97%,
+    transparent 100%
+  ) !important;
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%, #000 52%,
+    rgb(0 0 0 / .96) 63%,
+    rgb(0 0 0 / .86) 72%,
+    rgb(0 0 0 / .70) 80%,
+    rgb(0 0 0 / .48) 87%,
+    rgb(0 0 0 / .26) 93%,
+    rgb(0 0 0 / .10) 97%,
+    transparent 100%
+  ) !important;
+}
+
+/* Dock: mirrored, and the ramp now extends past the rounded top edge
+ * instead of being clipped into a band. */
+.workshop-runtime[data-mobile-scene] .look-dock::before {
+  background: linear-gradient(
+    to top,
+    rgb(244 245 247 / .72) 0%,
+    rgb(244 245 247 / .64) 100%
+  ) !important;
+  -webkit-mask-image: linear-gradient(
+    to top,
+    #000 0%, #000 46%,
+    rgb(0 0 0 / .96) 58%,
+    rgb(0 0 0 / .86) 68%,
+    rgb(0 0 0 / .70) 77%,
+    rgb(0 0 0 / .48) 85%,
+    rgb(0 0 0 / .26) 92%,
+    rgb(0 0 0 / .10) 97%,
+    transparent 100%
+  ) !important;
+  mask-image: linear-gradient(
+    to top,
+    #000 0%, #000 46%,
+    rgb(0 0 0 / .96) 58%,
+    rgb(0 0 0 / .86) 68%,
+    rgb(0 0 0 / .70) 77%,
+    rgb(0 0 0 / .48) 85%,
+    rgb(0 0 0 / .26) 92%,
+    rgb(0 0 0 / .10) 97%,
+    transparent 100%
+  ) !important;
 }

@@ -224,7 +224,7 @@
  * reads as the main action on an ink row. */
 .record-ledger[data-dark='true'] .record-actions .record-primary-action,
 .record-row[data-row-dark='true'] .record-actions .record-primary-action {
-  background: var(--ops-yellow, #ffc31a) !important;
+  background: var(--ops-yellow, #fbea03) !important;
   color: var(--ops-black, #0c0e0c) !important;
 }
 
@@ -280,7 +280,7 @@
 .record-row[data-row-dark='true'] :focus-visible,
 .boot-login :focus-visible,
 .status-toast :focus-visible {
-  outline-color: var(--ops-yellow, #ffb400) !important;
+  outline-color: var(--ops-yellow, #fbea03) !important;
 }
 
 /* ------------------------------------------------------------------

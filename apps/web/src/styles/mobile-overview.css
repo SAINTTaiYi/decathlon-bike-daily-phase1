@@ -23,9 +23,9 @@
     --ops-text: #0a0b0a;
     --ops-text-muted: #55554f;
     --ops-text-inverse: #fffdf8;
-    --ops-yellow: #ffc31a;
-    --ops-yellow-pressed: #e7a900;
-    --ops-yellow-glow: rgb(255 195 26 / .32);
+    --ops-yellow: #fbea03;
+    --ops-yellow-pressed: #ddcd00;
+    --ops-yellow-glow: rgb(251 234 3 / .32);
     --ops-black-glow: rgb(12 14 12 / .22);
     --ops-card-shadow: 0 5px 18px rgb(64 55 34 / .055);
     --ops-border: #d6d5cf;

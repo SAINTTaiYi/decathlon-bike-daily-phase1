@@ -26,9 +26,9 @@
   --ops-text-inverse: #ffffff;
 
   /* ---- Accent: saturated flat amber, no glow ---- */
-  --ops-yellow: #ffb400;
-  --ops-yellow-pressed: #e09c00;
-  --ops-yellow-wash: #fff4d6;
+  --ops-yellow: #fbea03;
+  --ops-yellow-pressed: #ddcd00;
+  --ops-yellow-wash: #fffcd6;
   --ops-pickup-expanded: #fff8e6;
 
   /* ---- Flatten diffusion (kills 22 + 9 glow references) ---- */
