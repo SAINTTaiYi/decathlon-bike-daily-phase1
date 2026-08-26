@@ -1,0 +1,127 @@
+/*
+ * Frosted navigation layer — 2026-08-26
+ *
+ * Requirement (user, mobile screenshot): the fixed header and the bottom dock
+ * should read as gradient translucent frosted glass, and the gap between the
+ * header and the first content row (source tabs) is too large.
+ *
+ * Imported LAST, after borderless.css, so these rules win against the
+ * `background: ... !important` declarations in workshop-system.css and
+ * mobile-overview.css without an escalating specificity fight.
+ *
+ * --------------------------------------------------------------------------
+ * Why the child surfaces must be cleared first
+ *
+ * The header is three stacked boxes:
+ *   [data-workspace-layer='navigation']  fixed, rgb(247 245 239 / .98)
+ *     └ .workshop-shell-header           background: var(--ops-page)   <- opaque
+ *         ├ .workshop-global-header      transparent
+ *         └ .workshop-module-header      background: var(--ops-card)   <- opaque
+ *
+ * backdrop-filter only samples what is painted BEHIND the element it is set
+ * on. Any opaque child repaints over that blur, so setting the filter on the
+ * fixed wrapper alone produced no visible frost. Both child fills are cleared
+ * to transparent and the gradient + blur live on the wrapper only.
+ * --------------------------------------------------------------------------
+ */
+
+/* ------------------------------------------------------------------
+ * 1. Header: gradient frosted glass.
+ * ------------------------------------------------------------------ */
+.workshop-runtime > [data-workspace-layer='navigation'] {
+  /* Opaque at the top edge (under the status bar / URL bar, where text must
+   * stay legible) fading to a lighter wash at the bottom, so scrolling cards
+   * are visible through the lower part of the bar. */
+  background: linear-gradient(
+    to bottom,
+    rgb(244 245 247 / .92) 0%,
+    rgb(244 245 247 / .82) 55%,
+    rgb(244 245 247 / .62) 100%
+  ) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: none !important;
+}
+
+/* Child fills cleared so the wrapper's blur is what the user actually sees. */
+.workshop-shell-header,
+.workshop-global-header,
+.workshop-module-header,
+.workshop-runtime[data-mobile-scene] .workshop-module-header,
+.workshop-runtime[data-mobile-scene] .workshop-mobile-module-tools {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* ------------------------------------------------------------------
+ * 2. Dock: same treatment, gradient runs the other way.
+ * ------------------------------------------------------------------ */
+.look-dock,
+.workshop-runtime[data-mobile-scene] .look-dock {
+  background: linear-gradient(
+    to top,
+    rgb(244 245 247 / .94) 0%,
+    rgb(244 245 247 / .84) 55%,
+    rgb(244 245 247 / .60) 100%
+  ) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: none !important;
+}
+
+/* The active pill keeps its solid fill — it is the only selection signal. */
+.look-dock button[data-active='true'],
+.workshop-runtime[data-mobile-scene] .look-dock .dock-active-indicator {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ------------------------------------------------------------------
+ * 3. Tighten the header-to-content gap.
+ *
+ * Measured on preview at 412 x 915 (Chromium 149 CDP):
+ *   header bottom          108px
+ *   .pickup-source-tabs    152px   -> 44px of empty space
+ *
+ * It came from two stacked paddings:
+ *   .workshop-shell            padding-top: calc(108px + 12px)  = 120
+ *   .pickup-operations-section padding-top: 32px (--section-air) = 152
+ *
+ * The section's air is meaningful in the desktop stacked-scene layout, so it
+ * is only collapsed for the mobile single-scene runtime, where the section is
+ * the sole panel and the header already provides separation.
+ * ------------------------------------------------------------------ */
+.workshop-runtime[data-mobile-scene] .workshop-shell {
+  padding-top: calc(var(--ops-header-height, 108px) + 4px) !important;
+}
+.workshop-runtime[data-mobile-scene] .pickup-operations-section {
+  padding-top: 4px !important;
+}
+/* Overview / sales panels are not .pickup-operations-section; keep their own
+ * first row from butting straight into the glass. */
+.workshop-runtime[data-mobile-scene='pulse'] .workshop-shell,
+.workshop-runtime[data-mobile-scene='sales'] .workshop-shell {
+  padding-top: calc(var(--ops-header-height, 108px) + 8px) !important;
+}
+
+/* ------------------------------------------------------------------
+ * 4. Fallbacks.
+ * ------------------------------------------------------------------ */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .workshop-runtime > [data-workspace-layer='navigation'] {
+    background: rgb(244 245 247 / .97) !important;
+  }
+  .look-dock,
+  .workshop-runtime[data-mobile-scene] .look-dock {
+    background: rgb(244 245 247 / .97) !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .workshop-runtime > [data-workspace-layer='navigation'],
+  .look-dock {
+    background: Canvas !important;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
