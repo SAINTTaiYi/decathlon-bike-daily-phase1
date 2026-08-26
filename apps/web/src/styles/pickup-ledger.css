@@ -5,7 +5,7 @@
   --pickup-black: var(--ops-black, #0c0e0c);
   --pickup-text: var(--ops-text, #0a0b0a);
   --pickup-muted: var(--ops-text-muted, #55554f);
-  --pickup-yellow: var(--ops-yellow, #fbea03);
+  --pickup-yellow: var(--ops-yellow, #ffee28);
   --pickup-orange-wash: var(--ops-pickup-expanded, #fff1dc);
   --pickup-line: rgb(12 14 12 / .18);
   display: block !important;
@@ -203,7 +203,7 @@
   --pickup-black: var(--ops-black, #0c0e0c);
   --pickup-text: var(--ops-text, #0a0b0a);
   --pickup-muted: var(--ops-text-muted, #55554f);
-  --pickup-yellow: var(--ops-yellow, #fbea03);
+  --pickup-yellow: var(--ops-yellow, #ffee28);
   --pickup-orange-wash: var(--ops-pickup-expanded, #fff1dc);
   --pickup-glow: rgb(255 184 18 / .42);
   --pickup-glow-soft: rgb(255 197 55 / .18);
@@ -283,7 +283,7 @@
 
 /* pickup-polish-v3: exact action yellow and measured-height reveal */
 .pickup-ledger {
-  --pickup-action-yellow: #fbea03;
+  --pickup-action-yellow: #ffee28;
 }
 
 .pickup-ledger .pickup-ledger-global-actions button:last-child,
@@ -295,7 +295,7 @@
 }
 
 .pickup-ledger .pickup-card-frame[data-expanded='true'] .pickup-card {
-  border-color: #fbea03;
+  border-color: #ffee28;
   box-shadow: 0 0 22px var(--pickup-glow), 0 7px 18px rgb(64 55 34 / .1);
   transform: translateY(-1px);
 }
@@ -416,7 +416,7 @@
 
 /* Keep the expanded surface itself pure and opaque; the light lives outside its perimeter. */
 .pickup-ledger .pickup-card[data-expanded='true'] {
-  background: #fbea03;
+  background: #ffee28;
   box-shadow: none;
 }
 
@@ -455,7 +455,7 @@
   pointer-events: none;
 }
 .handover-complete-stamp {
-  --stamp-yellow: var(--pickup-action-yellow, #fbea03);
+  --stamp-yellow: var(--pickup-action-yellow, #ffee28);
   position: absolute;
   inset: 0;
   display: grid;
