@@ -141,7 +141,7 @@ function OperationsIndex({ workflow, shiphubSummary, onJump, showUsed = false })
         const manualCount = workflow.recordsByScene[id]?.length ?? 0
         const shiphubCount = (category) => shiphubSummary?.categories?.find((item) => item.category === category)?.count ?? 0
         const count = id === 'pickup'
-          ? manualCount + shiphubCount('hand')
+          ? manualCount + shiphubCount('hand') + shiphubCount('pick') + shiphubCount('receive')
           : id === 'poster'
             ? manualCount + shiphubCount('receive') + shiphubCount('ship')
             : manualCount
@@ -158,7 +158,8 @@ function OperationsIndex({ workflow, shiphubSummary, onJump, showUsed = false })
 function OverviewAnalytics({ workflow, shiphubSummary }) {
   const available = workflow.hydrated && workflow.hasSnapshot && !workflow.storageError
   const repairCount = workflow.recordsByScene.repair?.length ?? 0
-  const pickupCount = (workflow.recordsByScene.pickup?.length ?? 0) + (shiphubSummary?.categories?.find((item) => item.category === 'hand')?.count ?? 0)
+  const shiphubCount = (category) => shiphubSummary?.categories?.find((item) => item.category === category)?.count ?? 0
+  const pickupCount = (workflow.recordsByScene.pickup?.length ?? 0) + shiphubCount('hand') + shiphubCount('pick') + shiphubCount('receive')
   const otherCount = (workflow.recordsByScene.poster?.length ?? 0) + (shiphubSummary?.categories?.find((item) => item.category === 'receive')?.count ?? 0) + (shiphubSummary?.categories?.find((item) => item.category === 'ship')?.count ?? 0)
   const healthRows = [
     ['销售数据', workflow.kpiReady ? '完整' : '待填写'],

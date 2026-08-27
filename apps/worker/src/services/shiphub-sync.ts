@@ -12,9 +12,9 @@ export const SHIPHUB_SYNC_TIMEZONE = 'Asia/Shanghai'
 export const SHIPHUB_BUSINESS_START_HOUR = 10
 export const SHIPHUB_BUSINESS_END_HOUR = 22
 
-const CATEGORIES: readonly ShipHubCategory[] = ['hand', 'receive', 'ship']
-const COUNT_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 5 * 60_000, receive: 10 * 60_000, ship: 10 * 60_000 }
-const FULL_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 15 * 60_000, receive: 30 * 60_000, ship: 30 * 60_000 }
+const CATEGORIES: readonly ShipHubCategory[] = ['hand', 'pick', 'receive', 'ship']
+const COUNT_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 5 * 60_000, pick: 5 * 60_000, receive: 10 * 60_000, ship: 10 * 60_000 }
+const FULL_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 15 * 60_000, pick: 15 * 60_000, receive: 30 * 60_000, ship: 30 * 60_000 }
 const MANUAL_FRESH_MS = 2 * 60_000
 const LEASE_MS = 90_000
 

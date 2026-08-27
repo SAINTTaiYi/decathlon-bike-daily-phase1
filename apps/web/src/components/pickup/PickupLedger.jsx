@@ -218,10 +218,12 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   const shiphubEnabled = !repairMode && Boolean(shiphub?.enabled)
   const sourceTabs = handoverMode
     ? [['other', '其它交接'], ['receive', '待收货'], ['ship', '待发货']]
-    : [['all', '全部'], ['manual', '手工台账'], ['shiphub', 'Shiphub 自提']]
+    : [['all', '全部'], ['manual', '手工台账'], ['shiphub', 'Shiphub 车辆']]
   const showManualLedger = !shiphubEnabled || (handoverMode ? shiphubTab === 'other' : shiphubTab !== 'shiphub')
   const showShipHub = shiphubEnabled && (handoverMode ? shiphubTab !== 'other' : shiphubTab !== 'manual')
-  const shiphubCategories = handoverMode ? [shiphubTab] : ['hand']
+  // 待取车模块呈现完整取车管线：待取(hand) → 待门店拣货(pick) → 待门店收货/在途(receive)。
+  // 其它交接场景（handoverMode）仍按 tab 单类呈现。
+  const shiphubCategories = handoverMode ? [shiphubTab] : ['hand', 'pick', 'receive']
 
   useEffect(() => {
     if (!showShipHub || !shiphub?.loadOrders) return
@@ -308,7 +310,7 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
     </> : null}
     {showShipHub ? shiphubCategories.map((category) => {
       const categoryState = shiphub?.summary?.categories?.find((item) => item.category === category)
-      return <ShipHubOrderBoard key={category} category={category} orders={shiphub?.orders?.[category] || []} loading={Boolean(shiphub?.ordersLoading?.[category])} stale={Boolean(categoryState?.stale)} error={shiphub?.error || ''} closedAt={closedAt} onLoad={shiphub.loadOrders} onAction={shiphub.action} onSync={shiphub.sync} />
+      return <ShipHubOrderBoard key={category} category={category} orders={shiphub?.orders?.[category] || []} loading={Boolean(shiphub?.ordersLoading?.[category])} stale={Boolean(categoryState?.stale)} error={shiphub?.error || ''} closedAt={closedAt} onLoad={shiphub.loadOrders} onAction={shiphub.action} onSync={shiphub.sync} variant={handoverMode ? 'handover' : 'pickup'} />
     }) : null}
     <PickupFilterSheet open={Boolean(sheet)} initialTab={sheet || 'filter'} appliedSources={sources} appliedSort={sort} repairMode={repairMode || handoverMode} onClose={closeSheet} onApply={applySheet} />
     <MemberSelectSheet open={Boolean(assignRecord)} members={members} currentId={assignRecord?.assignedTo || ''} title={assignRecord ? assignRecord.title : ''} onClose={() => setAssignRecord(null)} onPick={(userId) => { if (onAssign && assignRecord) void onAssign(assignRecord.id, userId) }} onClear={() => { if (onAssign && assignRecord) void onAssign(assignRecord.id, null) }} />

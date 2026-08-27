@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { disconnectShipHub, getShipHubOrders, getShipHubSummary, requestShipHubSync, setShipHubOrderAction, startShipHubConnection } from '../api/shiphub.js'
 
-const EMPTY = { hand: [], receive: [], ship: [] }
+const EMPTY = { hand: [], pick: [], receive: [], ship: [] }
+const CATEGORIES = ['hand', 'pick', 'receive', 'ship']
 
 export default function useShipHub(enabled) {
   const [summary, setSummary] = useState(null)
@@ -39,7 +40,7 @@ export default function useShipHub(enabled) {
   }, [refreshSummary])
 
   const loadOrders = useCallback(async (category) => {
-    if (!enabled || !['hand', 'receive', 'ship'].includes(category)) return []
+    if (!enabled || !CATEGORIES.includes(category)) return []
     setOrdersLoading((current) => ({ ...current, [category]: true }))
     try {
       const payload = await getShipHubOrders(category)
@@ -73,7 +74,7 @@ export default function useShipHub(enabled) {
     await refreshSummary()
     window.setTimeout(() => {
       void refreshSummary()
-      for (const category of ['hand', 'receive', 'ship']) void loadOrders(category)
+      for (const category of CATEGORIES) void loadOrders(category)
     }, 1200)
     return result
   }, [loadOrders, refreshSummary])

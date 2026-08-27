@@ -1,6 +1,6 @@
 import type { ShipHubConfig, ShipHubMode } from '../env.js'
 
-export const SHIPHUB_CATEGORIES = ['hand', 'receive', 'ship'] as const
+export const SHIPHUB_CATEGORIES = ['hand', 'pick', 'receive', 'ship'] as const
 export type ShipHubCategory = (typeof SHIPHUB_CATEGORIES)[number]
 
 export type ShipHubOrderItem = {
@@ -56,7 +56,8 @@ function assertCategory(value: string): asserts value is ShipHubCategory {
 
 const DEFAULT_FIXTURE: ShipHubOrder[] = [
   { id: 'fixture-hand-001', category: 'hand', orderNumber: '订单-20260818-001', displayLabel: '订单-20260818-001', sourceLabel: 'Shiphub 自提', status: 'pending', customerPhone: '17012345678', isEncryptedOrder: true, vehicleInfo: '城市通勤车 · 黑色 · M码', scheduledAt: '2026-08-18T10:30:00.000Z', updatedAt: '2026-08-18T01:00:00.000Z', items: [{ id: 'fixture-hand-item-001', productLabel: '城市通勤自行车', sku: 'SKU-CITY-BIKE-001', quantity: 1, vehicleInfo: '城市通勤车 · 黑色 · M码', serialNumberMasked: '***0001' }] },
-  { id: 'fixture-receive-001', category: 'receive', orderNumber: '收货-20260818-001', displayLabel: '收货-20260818-001', sourceLabel: 'Shiphub 待收货', status: 'pending', updatedAt: '2026-08-18T01:00:00.000Z', items: [{ id: 'fixture-receive-item-001', productLabel: '自行车配件箱', sku: 'SKU-PARTS-001', quantity: 2 }] },
+  { id: 'fixture-receive-001', category: 'receive', orderNumber: '收货-20260818-001', displayLabel: '收货-20260818-001', sourceLabel: 'Shiphub 待收货', status: 'pending', updatedAt: '2026-08-18T01:00:00.000Z', items: [{ id: 'fixture-receive-item-001', productLabel: '公路自行车', sku: 'SKU-ROAD-BIKE-001', quantity: 1, vehicleInfo: '公路自行车 · 白色 · S码', serialNumberMasked: '***0004' }] },
+  { id: 'fixture-pick-001', category: 'pick', orderNumber: '拣货-20260818-001', displayLabel: '拣货-20260818-001', sourceLabel: 'Shiphub 待拣货', status: 'pending', customerPhone: '17012345678', isEncryptedOrder: true, vehicleInfo: '山地自行车 · 灰色 · L码', scheduledAt: '2026-08-18T09:00:00.000Z', updatedAt: '2026-08-18T01:00:00.000Z', items: [{ id: 'fixture-pick-item-001', productLabel: '山地自行车', sku: 'SKU-MTB-BIKE-001', quantity: 1, vehicleInfo: '山地自行车 · 灰色 · L码', serialNumberMasked: '***0003' }] },
   { id: 'fixture-ship-001', category: 'ship', orderNumber: '发货-20260818-001', displayLabel: '发货-20260818-001', sourceLabel: 'Shiphub 待发货', status: 'pending', updatedAt: '2026-08-18T01:00:00.000Z', items: [{ id: 'fixture-ship-item-001', productLabel: '整备完成自行车', sku: 'SKU-PREPARED-BIKE-001', quantity: 1, vehicleInfo: '城市通勤车 · 蓝色 · L码', serialNumberMasked: '***0002' }] }
 ]
 
@@ -186,12 +187,14 @@ export function createFixtureClient(config: ShipHubConfig): FixtureShipHubClient
 
 const CATEGORY_COUNT_PATH: Record<ShipHubCategory, string> = {
   hand: 'to_hand_count',
+  pick: 'to_pick_count',
   receive: 'to_receive_count',
   ship: 'to_ship_count'
 }
 
 const CATEGORY_SOURCE_LABEL: Record<ShipHubCategory, string> = {
   hand: 'Shiphub 自提',
+  pick: 'Shiphub 待拣货',
   receive: 'Shiphub 待收货',
   ship: 'Shiphub 待发货'
 }

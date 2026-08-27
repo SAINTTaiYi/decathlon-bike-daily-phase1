@@ -32,12 +32,22 @@ const locatorScriptUrl = ((typeof window !== 'undefined' && window.location.orig
 
 const labels = {
   hand: { en: 'SHIPHUB PICKUP', cn: 'Shiphub 自提', action: '确认取车', actionType: 'pickup' },
+  pick: { en: 'SHIPHUB PICKING', cn: '待门店拣货', action: '确认拣货', actionType: 'pick' },
   receive: { en: 'SHIPHUB RECEIVE', cn: '待收货', action: '确认收货', actionType: 'receive' },
   ship: { en: 'SHIPHUB SHIP', cn: '待发货', action: '确认发货', actionType: 'ship' }
 }
+// 待取车模块（variant='pickup'）的展示口径：待门店收货在取车视角下标注为「在途车辆」。
+// 其它交接（variant='handover'）保持原有 待收货/待发货 标题。存储的 sourceLabel 不变。
+const PICKUP_VARIANT_TITLES = {
+  hand: { en: 'SHIPHUB PICKUP', cn: 'Shiphub 自提' },
+  pick: { en: 'SHIPHUB PICKING', cn: '待门店拣货' },
+  receive: { en: 'SHIPHUB IN-TRANSIT', cn: '在途车辆' }
+}
 
-function OrderCard({ order, category, closedAt, onAction }) {
+function OrderCard({ order, category, closedAt, onAction, variant = 'handover' }) {
   const meta = labels[category]
+  const variantTitle = variant === 'pickup' ? PICKUP_VARIANT_TITLES[category] : null
+  const headLabel = variantTitle ? variantTitle.cn : (order.sourceLabel || meta.cn)
   const completed = order.localActionState === 'completed'
   const busy = order.localActionState === 'pending'
   const openShiphubVerify = () => {
@@ -52,7 +62,7 @@ function OrderCard({ order, category, closedAt, onAction }) {
   return (
     <article className="shiphub-order-card" data-local-state={order.localActionState || 'pending'}>
       <div className="shiphub-order-card-head">
-        <span><IconBox width={16} height={16} aria-hidden="true" />{order.sourceLabel || meta.cn}{order.channel ? ' · ' + order.channel : ''}</span>
+        <span><IconBox width={16} height={16} aria-hidden="true" />{headLabel}{order.channel ? ' · ' + order.channel : ''}</span>
         <strong>{title}</strong>
         {!multi && order.vehicleInfo && <small style={{ color: 'var(--ops-muted, #6a6a6a)' }}>{order.vehicleInfo}</small>}
         <div className="shiphub-order-card-meta">
@@ -74,8 +84,10 @@ function OrderCard({ order, category, closedAt, onAction }) {
   )
 }
 
-export default function ShipHubOrderBoard({ category, orders = [], loading = false, stale = false, error = '', closedAt, onLoad, onAction, onSync }) {
+export default function ShipHubOrderBoard({ category, orders = [], loading = false, stale = false, error = '', closedAt, onLoad, onAction, onSync, variant = 'handover' }) {
   const meta = labels[category]
+  const variantTitle = variant === 'pickup' ? PICKUP_VARIANT_TITLES[category] : null
+  const boardTitle = variantTitle || meta
   const [locatorInstalled, setLocatorInstalled] = useState(readLocatorInstalled)
   const [managerHint, setManagerHint] = useState(readManagerHint)
   // 桌面：油猴官方一键安装中间页（Chrome 138+ 不再对 .user.js 直链弹安装框）。
@@ -89,7 +101,7 @@ export default function ShipHubOrderBoard({ category, orders = [], loading = fal
   const recheckLocator = () => { setLocatorInstalled(readLocatorInstalled()); setManagerHint(readManagerHint()) }
   return (
     <section className="shiphub-order-board" data-category={category} aria-labelledby={`shiphub-${category}-title`}>
-      <header><div><span>{meta.en}</span><strong id={`shiphub-${category}-title`}>{meta.cn}</strong></div><div className="shiphub-order-board-meta">{stale ? <em>数据可能已过期</em> : <small>读取本站缓存</small>}<button type="button" onClick={() => void sync()} disabled={loading}><IconRefresh width={15} height={15} aria-hidden="true" />同步</button></div></header>
+      <header data-variant={variant}><div><span>{boardTitle.en}</span><strong id={`shiphub-${category}-title`}>{boardTitle.cn}</strong></div><div className="shiphub-order-board-meta">{stale ? <em>数据可能已过期</em> : <small>读取本站缓存</small>}<button type="button" onClick={() => void sync()} disabled={loading}><IconRefresh width={15} height={15} aria-hidden="true" />同步</button></div></header>
       {category === 'hand' && !locatorInstalled ? (
         <div className="shiphub-locator-guide" role="status" data-platform={isMobileUA ? 'mobile' : 'desktop'}>
           {isMobileUA ? (
@@ -125,7 +137,7 @@ export default function ShipHubOrderBoard({ category, orders = [], loading = fal
         </div>
       ) : null}
       {error ? <p className="shiphub-order-error" role="status">{error}</p> : null}
-      {loading ? <p className="shiphub-order-placeholder" role="status">正在读取缓存…</p> : orders.length ? <div className="shiphub-order-grid">{orders.map((order) => <OrderCard key={order.id} order={order} category={category} closedAt={closedAt} onAction={onAction} />)}</div> : <p className="shiphub-order-placeholder">当前没有 {meta.cn}。</p>}
+      {loading ? <p className="shiphub-order-placeholder" role="status">正在读取缓存…</p> : orders.length ? <div className="shiphub-order-grid">{orders.map((order) => <OrderCard key={order.id} order={order} category={category} closedAt={closedAt} onAction={onAction} variant={variant} />)}</div> : <p className="shiphub-order-placeholder">当前没有 {meta.cn}。</p>}
     </section>
   )
 }

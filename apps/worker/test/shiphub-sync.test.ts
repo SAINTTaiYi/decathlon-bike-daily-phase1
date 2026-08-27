@@ -29,7 +29,7 @@ const config: AppConfig = {
   }
 }
 
-function order(id: string, updatedAt: string, category: 'hand' | 'receive' | 'ship' = 'hand'): ShipHubOrder {
+function order(id: string, updatedAt: string, category: 'hand' | 'pick' | 'receive' | 'ship' = 'hand'): ShipHubOrder {
   return {
     id,
     category,
@@ -76,7 +76,7 @@ test('fixture 同步只写规范化订单，完整对账能发现 count 不变�
 class FailingPagedClient implements ShipHubClient {
   readonly mode = 'fixture' as const
   count(): Promise<number> { return Promise.resolve(2) }
-  list(_category: 'hand' | 'receive' | 'ship', cursor?: string | null): Promise<ShipHubPage> {
+  list(_category: 'hand' | 'pick' | 'receive' | 'ship', cursor?: string | null): Promise<ShipHubPage> {
     if (!cursor) return Promise.resolve({ orders: [order('page-one', '2026-08-18T09:00:00.000Z')], nextCursor: 'next' })
     return Promise.reject(new Error('synthetic second page failure'))
   }
@@ -96,7 +96,7 @@ test('多页列表中途失败时不写入订单，也不标记旧订单上游�
   }
 })
 
-test('summary 按门店和 category 隔离，并保留三类固定输出', async () => {
+test('summary 按门店和 category 隔离，并保留四类固定输出', async () => {
   const db = await database()
   try {
     await syncStoreCategory(db as unknown as D1Database, config, STORE, 'receive', {
@@ -104,9 +104,26 @@ test('summary 按门店和 category 隔离，并保留三类固定输出', async
       now: NOW
     })
     const summary = await getShipHubSummary(db as unknown as D1Database, config, STORE)
-    assert.deepEqual(summary.categories.map((item) => item.category), ['hand', 'receive', 'ship'])
+    assert.deepEqual(summary.categories.map((item) => item.category), ['hand', 'pick', 'receive', 'ship'])
     assert.equal(summary.categories.find((item) => item.category === 'receive')?.count, 1)
     assert.equal(summary.categories.find((item) => item.category === 'hand')?.count, 0)
+  } finally {
+    db.close()
+  }
+})
+
+test('pick 分类同步写入 shiphub_orders 并进入待取车管线', async () => {
+  const db = await database()
+  try {
+    const result = await syncStoreCategory(db as unknown as D1Database, config, STORE, 'pick', {
+      client: new FixtureShipHubClient([order('pick-order-1', '2026-08-18T09:00:00.000Z', 'pick')]),
+      now: NOW
+    })
+    assert.equal(result.status, 'succeeded')
+    const orders = await listShipHubOrders(db as unknown as D1Database, STORE, 'pick', null, 50)
+    assert.equal(orders.orders.length, 1)
+    assert.equal(orders.orders[0].upstream_order_id, 'pick-order-1')
+    assert.equal(orders.orders[0].source_label, 'Shiphub fixture')
   } finally {
     db.close()
   }

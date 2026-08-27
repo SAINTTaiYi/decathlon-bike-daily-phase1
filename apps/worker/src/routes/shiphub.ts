@@ -24,7 +24,7 @@ import {
 type Vars = { config: AppConfig; auth: AuthContext | null }
 
 function category(value: string | undefined): ShipHubCategory {
-  if (value !== 'hand' && value !== 'receive' && value !== 'ship') throw new ApiProblem(400, 'INVALID_SHIPHUB_CATEGORY', 'Shiphub 分类无效。')
+  if (value !== 'hand' && value !== 'pick' && value !== 'receive' && value !== 'ship') throw new ApiProblem(400, 'INVALID_SHIPHUB_CATEGORY', 'Shiphub 分类无效。')
   return value
 }
 
@@ -153,7 +153,7 @@ export function shipHubRoutes() {
         ])
         const waitUntil = c.executionCtx?.waitUntil?.bind(c.executionCtx)
         if (waitUntil) {
-          for (const selected of ['hand', 'receive', 'ship'] as const) {
+          for (const selected of ['hand', 'pick', 'receive', 'ship'] as const) {
             waitUntil(syncStoreCategory(c.env.DB, config, context.storeId, selected, { trigger: 'authorization' }))
           }
         }
@@ -252,7 +252,7 @@ export function shipHubRoutes() {
         entityId: c.req.param('id'),
         businessDate: await businessDateFor(context),
         summary: body.state === 'completed' ? '确认 Shiphub 本地处理' : '撤销 Shiphub 本地处理',
-        module: selected === 'hand' ? 'pickup' : 'handover'
+        module: selected === 'hand' || selected === 'pick' ? 'pickup' : 'handover'
       })
       await db.batch([
         db.prepare(`
@@ -284,7 +284,7 @@ export function shipHubRoutes() {
       const now = new Date()
       const batchId = crypto.randomUUID()
       const job = (async () => {
-        for (const selected of ['hand', 'receive', 'ship'] as const) {
+        for (const selected of ['hand', 'pick', 'receive', 'ship'] as const) {
           await syncStoreCategory(db, config, context.storeId, selected, { trigger: 'manual', batchId, now })
         }
       })()
