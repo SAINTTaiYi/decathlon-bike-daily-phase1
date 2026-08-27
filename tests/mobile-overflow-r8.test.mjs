@@ -37,6 +37,8 @@ test('mobile sales keeps the established compact KPI summary beneath the hidden 
 
 test('desktop shell and scoped right-region transition remain frozen', () => {
   assert.match(desktopCss, /\.workshop-runtime \{[\s\S]*?width: 1536px;[\s\S]*?zoom: calc\(100vw \/ 1536px\);/u)
-  assert.match(desktopCss, /\.desktop-scene-transition-viewport \{\n    position: fixed;\n    inset: 90px 0 0 262px;/u)
+  // 2026-08-28 黄色 wipe 已移除，模块转场改为退场 + zoom-in 入场
+  assert.ok(!desktopCss.includes('.desktop-scene-transition-viewport'))
+  assert.ok(!desktopCss.includes('.desktop-scene-transition-wipe'))
   assert.match(desktopCss, /\.look-dock \{[\s\S]*?left: 20px !important;[\s\S]*?top: 112px !important;/u)
 })

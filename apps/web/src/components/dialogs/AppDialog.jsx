@@ -17,7 +17,18 @@ export default function AppDialog({ open, onClose, title, eyebrow, description, 
       dialog.showModal()
       window.requestAnimationFrame(() => (dialog.querySelector('[data-autofocus]') || closeRef.current || dialog.querySelector('button, input, textarea'))?.focus())
     } else if (!open && dialog.open) {
-      dialog.close()
+      // Amicro 风格退场：先播面板出场动画，再真正关闭原生 dialog
+      const panel = dialog.querySelector('[data-dialog-panel]')
+      if (panel) panel.dataset.closing = 'true'
+      const closeTimer = window.setTimeout(() => {
+        if (panel) delete panel.dataset.closing
+        dialog.close()
+      }, 210)
+      return () => {
+        window.clearTimeout(closeTimer)
+        if (panel) delete panel.dataset.closing
+        document.body.classList.remove('dialog-open')
+      }
     }
     return () => document.body.classList.remove('dialog-open')
   }, [open])

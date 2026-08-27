@@ -55,7 +55,7 @@ export default function useMotionSystem({ enabled, rootRef, quiet = false }) {
       groups.forEach((targets) => {
         const profile = profiles[targets[0].dataset.motion] || profiles.row
         const timeline = gsap.timeline({
-          defaults: { ease: 'power3.out', overwrite: 'auto' },
+          defaults: { ease: 'expo.out', overwrite: 'auto' },
           onComplete: () => {
             finish(targets)
             timelines.delete(timeline)
@@ -63,8 +63,8 @@ export default function useMotionSystem({ enabled, rootRef, quiet = false }) {
         })
         timelines.add(timeline)
         timeline.fromTo(targets,
-          { autoAlpha: .001, y: profile.y, scale: .994, willChange: 'transform, opacity' },
-          { autoAlpha: 1, y: 0, scale: 1, duration: profile.duration, stagger: targets.length > 1 ? .045 : 0 }
+          { autoAlpha: .001, y: profile.y, scale: .992, filter: 'blur(9px)', willChange: 'transform, opacity, filter' },
+          { autoAlpha: 1, y: 0, scale: 1, filter: 'blur(0px)', duration: profile.duration, stagger: targets.length > 1 ? .045 : 0, clearProps: 'transform,opacity,visibility,filter,willChange' }
         )
       })
     }, { rootMargin: '8% 0px -3% 0px', threshold: .04 })

@@ -14,17 +14,21 @@ test('desktop navigation uses the full reference labels while mobile keeps exist
   assert.match(css, /top: 764px;\n    left: 18px;/u)
 })
 
-test('desktop scene changes use one bold branded wipe and staggered directional entrances', () => {
+test('desktop scene changes use Amicro zoom-in entrances without the full-screen yellow wipe', () => {
   assert.ok(app.includes('useDesktopSceneTransition'))
-  assert.ok(app.includes('desktop-scene-transition-viewport'))
-  assert.match(app, /desktop-scene-transition-viewport[^>]*><span className="desktop-scene-transition-wipe"/u)
+  // 2026-08-28 黄色 wipe 已按用户要求移除
+  assert.ok(!app.includes('desktop-scene-transition-viewport'))
+  assert.ok(!app.includes('desktop-scene-transition-wipe'))
   assert.match(app, /if \(desktopLayout\) \{\n      transitionToDesktopScene\(sceneId\)/u)
   assert.match(hook, /gsap\.timeline/u)
-  assert.match(hook, /scaleX: 1/u)
-  assert.match(hook, /clipPath/u)
-  assert.match(hook, /stagger: \.055/u)
-  assert.match(css, /background: var\(--ops-yellow\)/u)
-  assert.match(css, /box-shadow: 18px 0 0 var\(--ops-black\)/u)
+  assert.ok(!hook.includes('scaleX: 1'))
+  assert.ok(!hook.includes('clipPath'))
+  // 旧面板退场 + 新面板 blur/3D zoom-in 入场 + stagger
+  assert.match(hook, /autoAlpha: 0, x: direction \* -30/u)
+  assert.match(hook, /rotateX: 3\.5, transformPerspective: 1200, filter: 'blur\(14px\)'/u)
+  assert.match(hook, /stagger: \.04/u)
+  assert.match(hook, /ease: 'expo\.out'/u)
+  assert.ok(!css.includes('background: var(--ops-yellow);\n    box-shadow: 18px 0 0 var(--ops-black)'))
 })
 
 test('desktop motion is reduced-motion safe and the mobile scroll path remains direct', () => {
@@ -41,10 +45,10 @@ test('every desktop card action row and both notice controls are compact at the 
 })
 
 
-test('yellow wipe is paint-clipped to the changing right business region', () => {
-  assert.match(css, /\.desktop-scene-transition-viewport \{\n    position: fixed;\n    inset: 90px 0 0 262px;\n    z-index: 120;\n    display: block;\n    overflow: hidden;\n    contain: paint;\n    isolation: isolate;/u)
-  assert.match(css, /\.desktop-scene-transition-wipe \{\n    position: absolute;\n    inset: -8% -10%;/u)
-  assert.doesNotMatch(css, /\.desktop-scene-transition-wipe \{\n    position: fixed;/u)
+test('scene transition CSS leaves no wipe surface while the right business region keeps its geometry', () => {
+  assert.ok(!css.includes('.desktop-scene-transition-viewport'))
+  assert.ok(!css.includes('.desktop-scene-transition-wipe'))
+  assert.match(css, /\.workshop-runtime\[data-desktop-scene-transitioning='true'\] :is\(\.workshop-module-header, \.workshop-module-panel\) \{[\s\S]*?will-change: transform, opacity;/u)
   assert.match(css, /\.workshop-module-header \{[\s\S]*?margin-left: 262px;/u)
   assert.match(css, /\.look-dock::after \{[^}]*top: 90px;[^}]*left: 261px;/u)
 })

@@ -25,7 +25,9 @@ test('工作台入场可跳过并在完成后把焦点交回主内容', () => {
   assert.match(app, /main-content'\)\?\.focus/)
   assert.match(launch, /reducedMotion\(\)/)
   assert.match(launch, /duration: \.12/)
-  assert.doesNotMatch(launch, /perspective|rotationX|blur/u)
+  // 2026-08-28 放开低端机限制：首屏入场允许 blur 深度感，但 reduced-motion 路径必须直接淡出
+  assert.match(launch, /filter: 'blur\(14px\)'/u)
+  assert.doesNotMatch(launch, /perspective|rotationX/u)
 })
 
 test('mobile flow stays intact and the desktop reference adds its Used board without story effects', () => {
@@ -51,7 +53,11 @@ test('module reveal only uses short distance and opacity, without three-dimensio
   assert.match(motion, /IntersectionObserver/u)
   assert.match(motion, /MutationObserver/u)
   assert.match(motion, /stagger: targets\.length/u)
-  assert.doesNotMatch(motion, /ScrollTrigger|perspective|rotationX|rotationY|filter:\s*['"]blur/u)
+  // 2026-08-28 放开低端机限制：滚动 reveal 使用 Amicro zoom-in 式 blur 入场，
+  // 动画完成后 clearProps 还原 filter，避免常驻 blur 合成层
+  assert.match(motion, /filter: 'blur\(9px\)'/u)
+  assert.match(motion, /clearProps: 'transform,opacity,visibility,filter,willChange'/u)
+  assert.doesNotMatch(motion, /ScrollTrigger/u)
   assert.match(ledger, /data-reveal-group="records"/u)
   assert.match(styles, /Normal vertical module flow/u)
 })

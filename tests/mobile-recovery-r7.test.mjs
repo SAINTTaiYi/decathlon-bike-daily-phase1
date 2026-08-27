@@ -27,7 +27,9 @@ test('accepted desktop header is frozen and restores desktop-only tools and icon
   assert.match(desktopCss, /\.workshop-header-mobile-log \{ display: none; \}/u)
   assert.match(desktopCss, /\.workshop-header-menu > svg \{ width: 28px; height: 28px; \}/u)
   assert.match(desktopCss, /\.workshop-module-header > svg \{ width: 26px; height: 26px;/u)
-  assert.match(desktopCss, /\.desktop-scene-transition-viewport \{\n    position: fixed;\n    inset: 90px 0 0 262px;/u)
+  // 2026-08-28 黄色 wipe 已移除，模块转场改为退场 + zoom-in 入场
+  assert.ok(!desktopCss.includes('.desktop-scene-transition-viewport'))
+  assert.ok(!desktopCss.includes('.desktop-scene-transition-wipe'))
 })
 
 test('desktop analytics and Used stay out of the ordinary phone DOM', () => {

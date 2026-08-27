@@ -52,7 +52,7 @@ export default function useActiveScene({ enabled = true, rootRef, viewMode = fal
     navigationRef.current = null
   }, [])
 
-  // ---- viewMode：点击导航栏切换单模块视图（复用桌面端 wipe 切换动画）----
+  // ---- viewMode：点击导航栏切换单模块视图（与桌面端一致的退场+fade-up 转场）----
   useLayoutEffect(() => {
     if (!enabled || !viewMode) return undefined
     const shell = rootRef?.current?.querySelector('.workshop-shell') || document.querySelector('.workshop-shell')
@@ -72,13 +72,13 @@ export default function useActiveScene({ enabled = true, rootRef, viewMode = fal
   const jumpView = useCallback((id) => {
     if (!enabled || id === activeSceneRef.current) return
     const shell = rootRef?.current?.querySelector('.workshop-shell') || document.querySelector('.workshop-shell')
-    const panel = moduleElement(id)
-    const wipe = rootRef?.current?.querySelector('.desktop-scene-transition-wipe') || document.querySelector('.desktop-scene-transition-wipe')
-    if (!shell || !panel) return
+    const targetPanel = moduleElement(id)
+    if (!shell || !targetPanel) return
 
     // 记忆当前场景的滚动位置，切回时恢复
     scrollPositionsRef.current[activeSceneRef.current] = window.scrollY
     const currentScene = activeSceneRef.current
+    const currentPanel = moduleElement(currentScene)
     const direction = sceneOrder.indexOf(id) >= sceneOrder.indexOf(currentScene) ? 1 : -1
     const reveal = () => {
       shell.dataset.mobileScene = id
@@ -90,46 +90,53 @@ export default function useActiveScene({ enabled = true, rootRef, viewMode = fal
         const nextPanel = moduleElement(id)
         nextPanel?.focus({ preventScroll: true })
         if (!nextPanel) return
+        // 旧面板退场残留的内联样式先清掉，避免上一轮 opacity:0/filter 泄漏
+        gsap.set(nextPanel, { clearProps: 'transform,opacity,visibility,filter' })
         const targets = entranceTargets(nextPanel)
+        // Amicro zoom-in 变体：方向位移 + scale + blur + 轻透视，expo.out 收尾
         gsap.fromTo(nextPanel,
-          // 移动端轻量化：去掉 clip-path（inset 动画在移动端 GPU 开销大易掉帧），
-          // 位移/时长按比例缩小；wipe 节奏（.34/.54）与桌面端保持一致。
-          { autoAlpha: .01, x: direction * 36, scale: .985 },
-          { autoAlpha: 1, x: 0, scale: 1, duration: .6, ease: 'expo.out', clearProps: 'transform,opacity,visibility' }
+          { autoAlpha: .01, x: direction * 28, y: 12, scale: .965, rotateX: 3, transformPerspective: 1100, filter: 'blur(12px)' },
+          { autoAlpha: 1, x: 0, y: 0, scale: 1, rotateX: 0, filter: 'blur(0px)', duration: .56, ease: 'expo.out', overwrite: 'auto', clearProps: 'transform,opacity,visibility,filter' }
         )
         if (targets.length) gsap.fromTo(targets,
-          { autoAlpha: .01, x: direction * 18, y: 24, scale: .975 },
-          { autoAlpha: 1, x: 0, y: 0, scale: 1, duration: .7, stagger: .04, ease: 'power4.out', clearProps: 'transform,opacity,visibility' }
+          { autoAlpha: .01, x: direction * 14, y: 16, scale: .975, filter: 'blur(7px)' },
+          { autoAlpha: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)', duration: .6, stagger: .035, ease: 'expo.out', overwrite: 'auto', clearProps: 'transform,opacity,visibility,filter' }
         )
       })
     }
 
-    if (reducedMotion() || !wipe) {
+    if (reducedMotion()) {
       reveal()
       return
     }
 
     timelineRef.current?.kill()
     const headerItems = [...(rootRef?.current?.querySelectorAll('.workshop-module-header > *') || [])]
-    gsap.killTweensOf([wipe, panel, ...headerItems].filter(Boolean))
-    gsap.killTweensOf(entranceTargets(panel))
+    gsap.killTweensOf([currentPanel, targetPanel, ...headerItems].filter(Boolean))
+    gsap.killTweensOf(entranceTargets(targetPanel))
 
     shell.dataset.mobileSceneDirection = direction > 0 ? 'forward' : 'backward'
     shell.dataset.mobileSceneTransitioning = 'true'
-    gsap.set(wipe, { autoAlpha: 1, scaleX: 0, transformOrigin: direction > 0 ? 'left center' : 'right center' })
 
     const finish = () => {
       delete shell.dataset.mobileSceneTransitioning
-      gsap.set(wipe, { clearProps: 'transform,opacity,visibility,transformOrigin' })
     }
 
+    // 无遮罩转场：旧面板带 blur 退场，再切换并播放新面板 zoom-in 入场
     const timeline = gsap.timeline({ onComplete: finish })
-      .to(wipe, { scaleX: 1, duration: .34, ease: 'power4.inOut' })
-      .call(reveal)
-      .set(wipe, { transformOrigin: direction > 0 ? 'right center' : 'left center' })
-      .to(wipe, { scaleX: 0, duration: .54, ease: 'expo.inOut' }, '+=.04')
+    if (currentPanel) {
+      timeline.to(currentPanel,
+        { autoAlpha: 0, x: direction * -20, scale: .98, rotateX: -1.5, transformPerspective: 1100, filter: 'blur(8px)', duration: .22, ease: 'power2.in' }
+      )
+    }
+    if (headerItems.length) {
+      timeline.to(headerItems, { autoAlpha: 0, x: direction * -12, filter: 'blur(4px)', duration: .18, stagger: .02, ease: 'power2.in' }, 0)
+    }
+    timeline.call(reveal)
     timelineRef.current = timeline
   }, [enabled, rootRef])
+
+
 
   // ---- 非 viewMode：滚动驱动的场景跟踪（桌面端与旧移动端行为）----
   useEffect(() => {
