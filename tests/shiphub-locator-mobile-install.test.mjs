@@ -38,11 +38,11 @@ test('desktop guide keeps its flow and gets an Edge store link when running in d
   assert.match(board, /重新检测/u)
 })
 
-test('locator userscript v0.3.0 ships mobile adaptations', () => {
-  assert.match(script, /@version\s+0\.3\.0/u)
+test('locator userscript v0.4.0 ships mobile + multi-page + update-check adaptations', () => {
+  assert.match(script, /@version\s+0\.4\.0/u)
   // 安装标记版本同步（Workshop 依赖 DOM 属性检测安装状态）
-  assert.match(script, /window\.__shiphubLocatorInstalled = \{ installed: true, version: '0\.3\.0' \}/u)
-  assert.match(script, /setAttribute\('data-shiphub-locator', '0\.3\.0'\)/u)
+  assert.match(script, /window\.__shiphubLocatorInstalled = \{ installed: true, version: VERSION, outdated: null \}/u)
+  assert.match(script, /setAttribute\('data-shiphub-locator', VERSION\)/u)
   // 提示浮层加大触控尺寸（手机可读性）
   assert.match(script, /font-size:15px;line-height:1\.5;box-sizing:border-box/u)
   // 手机端首屏慢时补发「待交接」导航（pushState 同路径幂等）
@@ -51,4 +51,18 @@ test('locator userscript v0.3.0 ships mobile adaptations', () => {
   assert.match(script, /@match\s+https:\/\/shiphub-asia-cn\.decathlon\.com\.cn\/\*/u)
   assert.match(script, /@match\s+https:\/\/workshop\.skin\/\*/u)
   assert.match(script, /@match\s+https:\/\/bike-ops-preview\.geeklightonefish\.workers\.dev\/\*/u)
+  // v0.4.0：三页定位（待交接/待拣货/待收货）
+  assert.match(script, /var TARGET_PAGES = \['\/to_handover', '\/to_pick', '\/to_receive'\]/u)
+  assert.match(script, /if \(TARGET_PAGES\.indexOf\(location\.pathname\) !== -1\)/u)
+  // pick 页搜索框 placeholder 为 Order id 的自定义组件，选择器放宽
+  assert.match(script, /input\[placeholder\*="Order id" i\]/u)
+  // 展开成功判定不再硬依赖「顾客取货」文案（三页共用）
+  assert.match(script, /getAttribute\('aria-expanded'\) === 'true'/u)
+  // 更新检测：对比本站脚本 @version，落后时提示并可点击直达更新
+  assert.match(script, /function checkForUpdate\(\)/u)
+  assert.match(script, /data-shiphub-locator-outdated/u)
+  assert.match(script, /isNewer\(m\[1\], VERSION\)/u)
+  // 定位成功提示按页面区分
+  assert.match(script, /Validate 拣货完成/u)
+  assert.match(script, /完成收货确认/u)
 })

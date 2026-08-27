@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Shiphub 自提定位器
 // @namespace    workshop.skin
-// @version      0.3.0
-// @description  ①在 Shiphub「待交接」页自动定位并展开指定订单卡片，人工输入取件码完成核销（只读）；②登录后自动回到待交接页继续定位；③在 Workshop 页面注入安装标记供检测；④适配手机浏览器（Edge/Firefox 安卓油猴）。不发起任何写请求。
+// @version      0.4.0
+// @description  ①在 Shiphub「待交接」页自动定位并展开指定订单卡片，人工输入取件码完成核销（只读）；②登录后自动回到待交接页继续定位；③在 Workshop 页面注入安装标记并检测脚本更新；④支持待交接/待拣货/待收货三个页面定位；⑤适配手机浏览器。不发起任何写请求（更新检测仅 GET 本站脚本文件）。
 // @match        https://shiphub-asia-cn.decathlon.com.cn/*
 // @match        https://workshop.skin/*
 // @match        https://bike-ops-preview.geeklightonefish.workers.dev/*
@@ -15,6 +15,11 @@
 
   var IS_SHIPHUB = /shiphub-asia-cn\.decathlon\.com\.cn/.test(location.hostname);
   var HASH_PREFIX = 'pickup=';
+  var TARGET_PAGES = ['/to_handover', '/to_pick', '/to_receive'];
+  var SCRIPT_URL = '/shiphub-pickup-locator.user.js';
+  var VERSION = '0.4.0';
+  var UPDATE_CHECK_KEY = 'shiphub_locator_update_check';
+  var UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000;
   var PENDING_KEY = 'shiphub_pending_pickup';
   var MAX_WAIT_MS = 30000;
   var POLL_MS = 500;
@@ -24,11 +29,43 @@
   // ---------- 安装标记（Workshop 域） ----------
   if (!IS_SHIPHUB) {
     try {
-      window.__shiphubLocatorInstalled = { installed: true, version: '0.3.0' };
+      window.__shiphubLocatorInstalled = { installed: true, version: VERSION, outdated: null };
       // DOM 属性在任意执行世界（主世界/隔离沙箱）都可见，兼容所有脚本管理器
-      document.documentElement.setAttribute('data-shiphub-locator', '0.3.0');
+      document.documentElement.setAttribute('data-shiphub-locator', VERSION);
     } catch (e) {}
-    return; // Workshop 域只做标记，不执行定位
+    checkForUpdate();
+    return; // Workshop 域只做标记与更新检测，不执行定位
+  }
+
+  // ---------- 更新检测（Workshop 域）：对比本站脚本 @version，落后则提示 ----------
+  function versionParts(v) {
+    return String(v || '').split('.').map(function (n) { return parseInt(n, 10) || 0; });
+  }
+  function isNewer(remote, local) {
+    var r = versionParts(remote), l = versionParts(local);
+    for (var i = 0; i < 3; i++) { if ((r[i] || 0) > (l[i] || 0)) return true; if ((r[i] || 0) < (l[i] || 0)) return false; }
+    return false;
+  }
+  function checkForUpdate() {
+    try {
+      var last = sessionStorage.getItem(UPDATE_CHECK_KEY);
+      if (last && Date.now() - Number(last) < UPDATE_CHECK_INTERVAL_MS) return;
+      sessionStorage.setItem(UPDATE_CHECK_KEY, String(Date.now()));
+    } catch (e) { /* sessionStorage 不可用也继续检测 */ }
+    fetch(SCRIPT_URL, { cache: 'no-store' }).then(function (res) {
+      if (!res.ok) return null;
+      return res.text();
+    }).then(function (text) {
+      if (!text) return;
+      var m = text.match(/@version\s+([0-9.]+)/);
+      if (!m || !isNewer(m[1], VERSION)) return;
+      try {
+        window.__shiphubLocatorInstalled = { installed: true, version: VERSION, outdated: m[1] };
+        document.documentElement.setAttribute('data-shiphub-locator-outdated', m[1]);
+      } catch (e) {}
+      var hintDiv = showHint('Shiphub 定位脚本有新版本 v' + m[1] + '（当前 v' + VERSION + '）。点此打开更新，装完刷新本页。', true);
+      if (hintDiv) hintDiv.addEventListener('click', function () { try { window.open(SCRIPT_URL, '_blank', 'noopener'); } catch (e) {} });
+    }).catch(function () { /* 检测失败静默 */ });
   }
 
   // ---------- Shiphub 域：立即把 hash 目标落盘（登录跳转会丢 hash） ----------
@@ -64,7 +101,11 @@
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
-  function searchInput() { return document.querySelector('input[type="search"]'); }
+  function searchInput() {
+    return document.querySelector('input[type="search"]') ||
+      document.querySelector('input[placeholder*="Order id" i]') ||
+      document.querySelector('input[placeholder*="搜索"]');
+  }
   function searchButton() {
     var inputs = document.querySelectorAll('input[type="search"]');
     for (var i = 0; i < inputs.length; i++) {
@@ -116,8 +157,8 @@
       if (!summary) { resolve(); return; }
       summary.click();
       waitFor(function () {
-        return cardEl.querySelector('.MuiExpansionPanelDetails, div[class*="ExpansionPanelDetails"]') &&
-          cardEl.textContent.indexOf('顾客取货') !== -1;
+        return cardEl.getAttribute('aria-expanded') === 'true' &&
+          Boolean(cardEl.querySelector('.MuiExpansionPanelDetails, div[class*="ExpansionPanelDetails"], div[class*="expansionPanelDetails"]'));
       }, 6000).then(function () { resolve(); });
     });
   }
@@ -147,6 +188,11 @@
     div.addEventListener('click', function () { div.remove(); });
     return div;
   }
+  function actionHint() {
+    if (location.pathname.indexOf('/to_pick') === 0) return '已定位并展开该订单 —— 请人工核对后点击「Validate 拣货完成」。';
+    if (location.pathname.indexOf('/to_receive') === 0) return '已定位并展开该订单 —— 请人工核对后完成收货确认。';
+    return '已定位并展开该订单 —— 请人工点击「顾客取货」，输入顾客取件码完成核销。';
+  }
   function goToHandover() {
     try {
       history.pushState({}, '', '/to_handover');
@@ -169,7 +215,7 @@
     var existing = findCard(orderId);
     if (existing) {
       await expandCard(existing); flash(existing);
-      showHint('已定位并展开该订单 —— 请人工点击「顾客取货」，输入顾客取件码完成核销。');
+      showHint(actionHint());
       return true;
     }
 
@@ -191,7 +237,7 @@
 
     if (found && found !== 'EMPTY') {
       await expandCard(found); flash(found);
-      showHint('已定位并展开该订单 —— 请人工点击「顾客取货」，输入顾客取件码完成核销。');
+      showHint(actionHint());
       return true;
     }
 
@@ -203,7 +249,7 @@
       var c = findCard(orderId);
       if (c) {
         await expandCard(c); flash(c);
-        showHint('已定位并展开该订单 —— 请人工点击「顾客取货」，输入顾客取件码完成核销。');
+        showHint(actionHint());
         return true;
       }
       var nb = nextButton();
@@ -222,8 +268,8 @@
     var tryCount = 0;
     var timer = setInterval(function () {
       tryCount++;
-      // 已在待交接页 → 执行定位（只跑一次）
-      if (location.pathname.indexOf('/to_handover') === 0) {
+      // 已在目标页（待交接/待拣货/待收货）→ 执行定位（只跑一次）
+      if (TARGET_PAGES.indexOf(location.pathname) !== -1) {
         clearInterval(timer);
         locate(orderId).then(function (ok) { if (ok) clearPending(); });
         return;

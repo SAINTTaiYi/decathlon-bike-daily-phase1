@@ -7,6 +7,21 @@ const readLocatorInstalled = () => typeof window !== 'undefined' && (
   Boolean(window.__shiphubLocatorInstalled) ||
   Boolean(document.documentElement && document.documentElement.getAttribute('data-shiphub-locator'))
 )
+// 脚本 v0.4.0 起在安装标记里带版本与过期信息（checkForUpdate 异步写入，recheck 可读）
+const readLocatorVersion = () => {
+  if (typeof window === 'undefined') return null
+  const marker = window.__shiphubLocatorInstalled
+  if (marker && marker.version) return String(marker.version)
+  const attr = document.documentElement && document.documentElement.getAttribute('data-shiphub-locator')
+  return attr || null
+}
+const readLocatorOutdated = () => {
+  if (typeof window === 'undefined') return null
+  const marker = window.__shiphubLocatorInstalled
+  if (marker && marker.outdated) return String(marker.outdated)
+  const attr = document.documentElement && document.documentElement.getAttribute('data-shiphub-locator-outdated')
+  return attr || null
+}
 // 仅作文案优化：油猴与页面通信走 window.external.Tampermonkey（Chrome 上还需开发者模式），
 // 普通页面全局不可靠，绝不能作为「未安装」的硬判定依据。
 const readManagerHint = () => typeof window !== 'undefined' && Boolean(
@@ -32,8 +47,8 @@ const locatorScriptUrl = ((typeof window !== 'undefined' && window.location.orig
 
 const labels = {
   hand: { en: 'SHIPHUB PICKUP', cn: 'Shiphub 自提', action: '确认取车', actionType: 'pickup' },
-  pick: { en: 'SHIPHUB PICKING', cn: '待门店拣货', action: '确认拣货', actionType: 'pick' },
-  receive: { en: 'SHIPHUB RECEIVE', cn: '待收货', action: '确认收货', actionType: 'receive' },
+  pick: { en: 'SHIPHUB PICKING', cn: '待门店拣货', action: '去 Shiphub 拣货', actionType: 'pick' },
+  receive: { en: 'SHIPHUB RECEIVE', cn: '待收货', action: '去 Shiphub 收货', actionType: 'receive' },
   ship: { en: 'SHIPHUB SHIP', cn: '待发货', action: '确认发货', actionType: 'ship' }
 }
 // 待取车模块（variant='pickup'）的展示口径：待门店收货在取车视角下标注为「在途车辆」。
@@ -50,11 +65,18 @@ function OrderCard({ order, category, closedAt, onAction, variant = 'handover' }
   const headLabel = variantTitle ? variantTitle.cn : (order.sourceLabel || meta.cn)
   const completed = order.localActionState === 'completed'
   const busy = order.localActionState === 'pending'
+  // hand → 待交接页核销；pick → 待门店拣货页；receive → 待门店收货页。hash 键决定定位脚本的落点。
+  const SHIPHUB_JUMP = {
+    hand: { path: '/to_handover', hashKey: 'pickup', title: '复制订单号并在官方 Shiphub 待交接页定位该订单，人工输入取件码核销' },
+    pick: { path: '/to_pick', hashKey: 'pickup', title: '复制订单号并在官方 Shiphub 待门店拣货页定位该订单，完成拣货 Validate' },
+    receive: { path: '/to_receive', hashKey: 'pickup', title: '复制订单号并在官方 Shiphub 待门店收货页定位该订单，完成收货上架' }
+  }
   const openShiphubVerify = () => {
+    const target = SHIPHUB_JUMP[category] || SHIPHUB_JUMP.hand
     const orderId = order.orderNumber || order.id
     if (!orderId) return
     try { void navigator.clipboard?.writeText(orderId) } catch (e) { /* 复制失败不阻塞跳转 */ }
-    window.open(`https://shiphub-asia-cn.decathlon.com.cn/to_handover#pickup=${encodeURIComponent(orderId)}`, '_blank', 'noopener')
+    window.open(`https://shiphub-asia-cn.decathlon.com.cn${target.path}#${target.hashKey}=${encodeURIComponent(orderId)}`, '_blank', 'noopener')
   }
   const title = order.displayLabel || order.items?.[0]?.productLabel || order.id
   const items = order.items || []
@@ -79,7 +101,7 @@ function OrderCard({ order, category, closedAt, onAction, variant = 'handover' }
       ) : (
         <p className="shiphub-order-empty-detail">暂无商品明细</p>
       )}
-      <footer><span>{completed ? '本地已处理 · 等待上游对齐' : order.scheduledAt ? `下单时间：${new Date(order.scheduledAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}` : '无预约时间'}</span><span className="shiphub-order-card-actions">{category === 'hand' && (order.orderNumber || order.id) ? <button type="button" className="shiphub-order-verify" title="复制订单号并在官方 Shiphub 待交接页定位该订单，人工输入取件码核销" onClick={openShiphubVerify}>Shiphub 核销 ↗</button> : null}<button type="button" onClick={() => void onAction(category, order.id, completed ? 'revoked' : 'completed')} disabled={Boolean(closedAt) || busy}>{completed ? '撤销本地确认' : <><IconCheck width={15} height={15} aria-hidden="true" />{meta.action}</>}</button></span></footer>
+      <footer><span>{completed ? '本地已处理 · 等待上游对齐' : order.scheduledAt ? `下单时间：${new Date(order.scheduledAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}` : '无预约时间'}</span><span className="shiphub-order-card-actions">{['hand', 'pick', 'receive'].includes(category) && (order.orderNumber || order.id) ? <button type="button" className="shiphub-order-verify" title={(SHIPHUB_JUMP[category] || SHIPHUB_JUMP.hand).title} onClick={openShiphubVerify}>{category === 'hand' ? 'Shiphub 核销 ↗' : '定位 ↗'}</button> : null}{category === 'hand' || category === 'ship' ? <button type="button" onClick={() => void onAction(category, order.id, completed ? 'revoked' : 'completed')} disabled={Boolean(closedAt) || busy}>{completed ? '撤销本地确认' : <><IconCheck width={15} height={15} aria-hidden="true" />{meta.action}</>}</button> : <>{completed ? <button type="button" onClick={() => void onAction(category, order.id, 'revoked')} disabled={Boolean(closedAt)}>撤销本地确认</button> : null}<button type="button" onClick={openShiphubVerify} disabled={Boolean(closedAt)}><IconBox width={15} height={15} aria-hidden="true" />{meta.action} ↗</button></>}</span></footer>
     </article>
   )
 }
@@ -90,6 +112,8 @@ export default function ShipHubOrderBoard({ category, orders = [], loading = fal
   const boardTitle = variantTitle || meta
   const [locatorInstalled, setLocatorInstalled] = useState(readLocatorInstalled)
   const [managerHint, setManagerHint] = useState(readManagerHint)
+  const [locatorVersion, setLocatorVersion] = useState(readLocatorVersion)
+  const [locatorOutdated, setLocatorOutdated] = useState(readLocatorOutdated)
   // 桌面：油猴官方一键安装中间页（Chrome 138+ 不再对 .user.js 直链弹安装框）。
   // 手机：直开 .user.js（Edge 安卓上中间页不弹安装框，Tampermonkey issue #2805）。
   const openLocatorInstall = () => {
@@ -98,10 +122,19 @@ export default function ShipHubOrderBoard({ category, orders = [], loading = fal
   }
   useEffect(() => { void onLoad?.(category) }, [category, onLoad])
   const sync = async () => { await onSync?.(); await onLoad?.(category) }
-  const recheckLocator = () => { setLocatorInstalled(readLocatorInstalled()); setManagerHint(readManagerHint()) }
+  const recheckLocator = () => { setLocatorInstalled(readLocatorInstalled()); setManagerHint(readManagerHint()); setLocatorVersion(readLocatorVersion()); setLocatorOutdated(readLocatorOutdated()) }
   return (
     <section className="shiphub-order-board" data-category={category} aria-labelledby={`shiphub-${category}-title`}>
       <header data-variant={variant}><div><span>{boardTitle.en}</span><strong id={`shiphub-${category}-title`}>{boardTitle.cn}</strong></div><div className="shiphub-order-board-meta">{stale ? <em>数据可能已过期</em> : <small>读取本站缓存</small>}<button type="button" onClick={() => void sync()} disabled={loading}><IconRefresh width={15} height={15} aria-hidden="true" />同步</button></div></header>
+      {category === 'hand' && locatorInstalled && locatorOutdated ? (
+        <div className="shiphub-locator-guide" role="status" data-outdated="true">
+          <strong>Shiphub 定位脚本有新版本 v{locatorOutdated}</strong>
+          <span>当前安装 v{locatorVersion || '?'}。更新后定位支持待拣货/待收货页面，旧版本跳转拣货或收货不会自动定位。</span>
+          <button type="button" className="shiphub-locator-install" onClick={openLocatorInstall}>去更新脚本</button>
+          <small>更新安装完成后回到本页点「重新检测」或刷新。</small>
+          <button type="button" className="shiphub-locator-recheck" onClick={recheckLocator}>重新检测</button>
+        </div>
+      ) : null}
       {category === 'hand' && !locatorInstalled ? (
         <div className="shiphub-locator-guide" role="status" data-platform={isMobileUA ? 'mobile' : 'desktop'}>
           {isMobileUA ? (
