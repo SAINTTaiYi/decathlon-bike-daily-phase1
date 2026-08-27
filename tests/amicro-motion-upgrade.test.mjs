@@ -164,3 +164,38 @@ test('移动端滚动直通路未被转场改造破坏', () => {
   assert.match(activeScene, /\['wheel', 'keydown'\]\.forEach/u)
   assert.doesNotMatch(activeScene, /preventDefault/u)
 })
+
+test('边角微交互（2026-08-28 补全）：Shiphub 同步旋转 + 订单 stagger 入场 + 本地确认反馈', () => {
+  const board = readFileSync(new URL('../apps/web/src/components/shiphub/ShipHubOrderBoard.jsx', import.meta.url), 'utf8')
+  // 同步按钮 loading 旋转（小图标 infinite tween），结束后清理
+  assert.match(board, /rotation: 360, duration: \.9, ease: 'none', repeat: -1/u)
+  assert.match(board, /clearProps: 'transform'/u)
+  // 订单集合变化时 stagger 入场；同一批 id 不重播
+  assert.match(board, /batchRef/u)
+  assert.match(board, /stagger: \.045, ease: 'expo\.out'/u)
+  // 本地确认/撤销 y-pop 反馈
+  assert.match(board, /back\.out\(2\.2\)/u)
+  // 状态行（错误/过期/读取中）淡入
+  assert.match(board, /statusRef/u)
+})
+
+test('边角微交互：更多菜单进出场、tabs 弹跳、通知反馈、计数 pop、未读点脉冲', () => {
+  const ledger = readFileSync(new URL('../apps/web/src/components/pickup/PickupLedger.jsx', import.meta.url), 'utf8')
+  const header = readFileSync(new URL('../apps/web/src/components/workshop/WorkshopShellHeader.jsx', import.meta.url), 'utf8')
+  // 原生 details 菜单：展开入场/收起退场后才改 open
+  assert.match(ledger, /function DetailsMenu/u)
+  assert.match(ledger, /event\.preventDefault\(\)/u)
+  assert.match(ledger, /onComplete: \(\) => \{ details\.open = false/u)
+  // tabs / 通知按钮 pop 反馈
+  assert.match(ledger, /popEl\(event\.currentTarget\)/u)
+  assert.match(ledger, /back\.out\(2\.4\)/u)
+  // 队列计数变化动画
+  assert.match(ledger, /function AnimatedCount/u)
+  assert.match(ledger, /back\.out\(1\.9\)/u)
+  // 筛选标签行与空状态复用 data-motion reveal
+  assert.match(ledger, /pickup-applied-filters" data-motion="row"/u)
+  assert.match(ledger, /pickup-empty-state" data-motion="summary"/u)
+  // 页头：未读点脉冲 + 待审批徽章 pop
+  assert.match(header, /repeat: -1, yoyo: true/u)
+  assert.match(header, /badgeRef/u)
+})

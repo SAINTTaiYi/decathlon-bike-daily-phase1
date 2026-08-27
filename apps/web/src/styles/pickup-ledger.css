@@ -597,3 +597,14 @@
   .pickup-card { transition: transform 180ms ease, background-color 180ms ease, box-shadow 260ms var(--ease-out, cubic-bezier(.16, 1, .3, 1)); }
   .pickup-card:hover { box-shadow: 0 12px 30px rgb(64 55 34 / .1); }
 }
+
+/* ---- 边角微交互（2026-08-28 Amicro 精致度补全）----
+   状态色过渡用 CSS transition（颜色/阴影，合成器友好）；
+   位移/进出场动画一律 GSAP（见各组件）。 */
+.shiphub-sync-icon { display: inline-flex; }
+.pickup-source-tabs button,
+.pickup-notification-buttons button,
+.shiphub-order-card footer button,
+.pickup-tool-row > button {
+  transition: background-color .18s var(--ease-out, cubic-bezier(.16, 1, .3, 1)), color .18s var(--ease-out, cubic-bezier(.16, 1, .3, 1)), box-shadow .22s var(--ease-out, cubic-bezier(.16, 1, .3, 1));
+}

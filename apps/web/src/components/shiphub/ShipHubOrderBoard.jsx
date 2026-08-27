@@ -1,5 +1,8 @@
-import { useEffect, Fragment, useState } from 'react'
+import { useEffect, Fragment, useRef, useState } from 'react'
+import { gsap } from 'gsap'
 import IconCheck from '@iconoir/Check.mjs'
+
+const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false
 import IconRefresh from '@iconoir/Refresh.mjs'
 import IconBox from '@iconoir/Box.mjs'
 
@@ -60,6 +63,16 @@ const PICKUP_VARIANT_TITLES = {
 }
 
 function OrderCard({ order, category, closedAt, onAction, variant = 'handover' }) {
+  const cardRef = useRef(null)
+  const stateRef = useRef(order.localActionState)
+  useEffect(() => {
+    // 本地确认 / 撤销：轻 y-pop 反馈（小卡片，安全）
+    if (stateRef.current === order.localActionState) return
+    stateRef.current = order.localActionState
+    const card = cardRef.current
+    if (!card || reducedMotion()) return
+    gsap.fromTo(card, { y: -4 }, { y: 0, duration: .38, ease: 'back.out(2.2)', clearProps: 'transform' })
+  }, [order.localActionState])
   const meta = labels[category]
   const variantTitle = variant === 'pickup' ? PICKUP_VARIANT_TITLES[category] : null
   const headLabel = variantTitle ? variantTitle.cn : (order.sourceLabel || meta.cn)
@@ -82,7 +95,7 @@ function OrderCard({ order, category, closedAt, onAction, variant = 'handover' }
   const items = order.items || []
   const multi = items.length > 1
   return (
-    <article className="shiphub-order-card" data-local-state={order.localActionState || 'pending'}>
+    <article ref={cardRef} className="shiphub-order-card" data-local-state={order.localActionState || 'pending'}>
       <div className="shiphub-order-card-head">
         <span><IconBox width={16} height={16} aria-hidden="true" />{headLabel}{order.channel ? ' · ' + order.channel : ''}</span>
         <strong>{title}</strong>
@@ -121,11 +134,51 @@ export default function ShipHubOrderBoard({ category, orders = [], loading = fal
     window.open('https://www.tampermonkey.net/script_installation.php#url=' + encodeURIComponent(locatorScriptUrl), '_blank', 'noopener')
   }
   useEffect(() => { void onLoad?.(category) }, [category, onLoad])
+  // 同步按钮：loading 期间刷新图标持续旋转（小图标，安全）
+  const syncIconRef = useRef(null)
+  const spinRef = useRef(null)
+  useEffect(() => {
+    const icon = syncIconRef.current
+    if (!icon) return undefined
+    if (loading && !reducedMotion()) {
+      spinRef.current?.kill()
+      spinRef.current = gsap.to(icon, { rotation: 360, duration: .9, ease: 'none', repeat: -1 })
+    } else {
+      spinRef.current?.kill()
+      spinRef.current = null
+      gsap.set(icon, { clearProps: 'transform' })
+    }
+    return () => { spinRef.current?.kill(); spinRef.current = null; gsap.set(icon, { clearProps: 'transform' }) }
+  }, [loading])
+  // 订单集合变化（同步完成/清空）时整组 stagger 入场；同一批 id 不重播
+  const gridRef = useRef(null)
+  const batchRef = useRef('')
+  useEffect(() => {
+    const grid = gridRef.current
+    if (!grid) return
+    const batch = orders.map((order) => order.id).join(',')
+    if (batch === batchRef.current) return
+    batchRef.current = batch
+    if (!orders.length || reducedMotion()) return
+    const cards = grid.querySelectorAll('.shiphub-order-card')
+    if (!cards.length) return
+    gsap.fromTo(cards,
+      { autoAlpha: .01, y: 16 },
+      { autoAlpha: 1, y: 0, duration: .5, stagger: .045, ease: 'expo.out', clearProps: 'transform,opacity,visibility' }
+    )
+  }, [orders])
+  // 状态行（过期提示 / 错误 / 占位）出现时淡入
+  const statusRef = useRef(null)
+  useEffect(() => {
+    const el = statusRef.current
+    if (!el || reducedMotion()) return
+    gsap.fromTo(el, { autoAlpha: .01, y: 8 }, { autoAlpha: 1, y: 0, duration: .4, ease: 'expo.out', clearProps: 'transform,opacity,visibility' })
+  }, [stale, error, loading])
   const sync = async () => { await onSync?.(); await onLoad?.(category) }
   const recheckLocator = () => { setLocatorInstalled(readLocatorInstalled()); setManagerHint(readManagerHint()); setLocatorVersion(readLocatorVersion()); setLocatorOutdated(readLocatorOutdated()) }
   return (
     <section className="shiphub-order-board" data-category={category} aria-labelledby={`shiphub-${category}-title`}>
-      <header data-variant={variant}><div><span>{boardTitle.en}</span><strong id={`shiphub-${category}-title`}>{boardTitle.cn}</strong></div><div className="shiphub-order-board-meta">{stale ? <em>数据可能已过期</em> : <small>读取本站缓存</small>}<button type="button" onClick={() => void sync()} disabled={loading}><IconRefresh width={15} height={15} aria-hidden="true" />同步</button></div></header>
+      <header data-variant={variant}><div><span>{boardTitle.en}</span><strong id={`shiphub-${category}-title`}>{boardTitle.cn}</strong></div><div className="shiphub-order-board-meta">{stale ? <em>数据可能已过期</em> : <small>读取本站缓存</small>}<button type="button" onClick={() => void sync()} disabled={loading}><span ref={syncIconRef} className="shiphub-sync-icon" aria-hidden="true"><IconRefresh width={15} height={15} /></span>同步</button></div></header>
       {category === 'hand' && locatorInstalled && locatorOutdated ? (
         <div className="shiphub-locator-guide" role="status" data-outdated="true">
           <strong>Shiphub 定位脚本有新版本 v{locatorOutdated}</strong>
@@ -169,8 +222,8 @@ export default function ShipHubOrderBoard({ category, orders = [], loading = fal
           <button type="button" className="shiphub-locator-recheck" onClick={recheckLocator}>重新检测</button>
         </div>
       ) : null}
-      {error ? <p className="shiphub-order-error" role="status">{error}</p> : null}
-      {loading ? <p className="shiphub-order-placeholder" role="status">正在读取缓存…</p> : orders.length ? <div className="shiphub-order-grid">{orders.map((order) => <OrderCard key={order.id} order={order} category={category} closedAt={closedAt} onAction={onAction} variant={variant} />)}</div> : <p className="shiphub-order-placeholder">当前没有 {meta.cn}。</p>}
+      <div ref={statusRef}>{error ? <p className="shiphub-order-error" role="status">{error}</p> : null}{loading ? <p className="shiphub-order-placeholder" role="status">正在读取缓存…</p> : null}</div>
+      {orders.length ? <div ref={gridRef} className="shiphub-order-grid">{orders.map((order) => <OrderCard key={order.id} order={order} category={category} closedAt={closedAt} onAction={onAction} variant={variant} />)}</div> : <p className="shiphub-order-placeholder">当前没有 {meta.cn}。</p>}
     </section>
   )
 }

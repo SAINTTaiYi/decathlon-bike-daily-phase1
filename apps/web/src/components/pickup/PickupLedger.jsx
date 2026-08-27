@@ -2,6 +2,52 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import usePortalSheetMotion from '../../hooks/usePortalSheetMotion.js'
 import { gsap } from 'gsap'
+
+const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false
+// 小元素点击反馈：轻 y-pop（带 overshoot），安全不触文字重栅格化
+const popEl = (el) => {
+  if (!el || reducedMotion()) return
+  gsap.fromTo(el, { y: -3 }, { y: 0, duration: .34, ease: 'back.out(2.4)', clearProps: 'transform' })
+}
+// 原生 details 菜单的 GSAP 进出场：展开=淡入上移，收起=淡出下移后才真正关 open。
+// summary 拦截默认 toggle，动画 onComplete 再改 open 属性。
+function DetailsMenu({ className, label, children }) {
+  const detailsRef = useRef(null)
+  const onSummaryClick = (event) => {
+    event.preventDefault()
+    const details = detailsRef.current
+    if (!details) return
+    const item = details.lastElementChild
+    if (!details.open) {
+      details.open = true
+      if (item && !reducedMotion()) gsap.fromTo(item, { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: .26, ease: 'expo.out', clearProps: 'transform,opacity,visibility' })
+    } else if (item && !reducedMotion()) {
+      gsap.to(item, { autoAlpha: 0, y: 6, duration: .15, ease: 'power2.in', onComplete: () => { details.open = false; gsap.set(item, { clearProps: 'transform,opacity,visibility' }) } })
+    } else {
+      details.open = false
+    }
+  }
+  return (
+    <details ref={detailsRef} className={className}>
+      <summary onClick={onSummaryClick}>{label}</summary>
+      {children}
+    </details>
+  )
+}
+
+// 数字变化反馈：上滑落回（用于队列计数徽章）
+function AnimatedCount({ value, pad = 0 }) {
+  const ref = useRef(null)
+  const prevRef = useRef(value)
+  useEffect(() => {
+    if (prevRef.current === value) return
+    prevRef.current = value
+    const el = ref.current
+    if (!el || reducedMotion()) return
+    gsap.fromTo(el, { y: -7, autoAlpha: .35 }, { y: 0, autoAlpha: 1, duration: .42, ease: 'back.out(1.9)', clearProps: 'transform,opacity,visibility' })
+  }, [value])
+  return <b ref={ref}>{String(value).padStart(pad, '0')}</b>
+}
 import MemberSelectSheet from '../dialogs/MemberSelectSheet.jsx'
 import ShipHubOrderBoard from '../shiphub/ShipHubOrderBoard.jsx'
 import IconArchive from '@iconoir/Archive.mjs'
@@ -188,11 +234,11 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
         {handoverMode ? <><section className="pickup-detail-wide handover-detail-full"><h4>HANDOVER <span>/ 交接事项</span></h4><p><Highlight query={query}>{handoverDetail}</Highlight></p></section><section><h4>CONTACT <span>/ 联系方式</span></h4><dl><div><dt>手机号</dt><dd>{contactValue || '无'}</dd></div><div><dt>业务编号</dt><dd>{ticketNumber}</dd></div></dl></section></> : <section><h4>CUSTOMER <span>/ 顾客</span></h4><dl><div><dt>车辆标识</dt><dd>{record.title}</dd></div><div><dt>{contact.contactType === 'member' ? '会员号' : '手机号'}</dt><dd>{contactValue || '无'}</dd></div><div><dt>{repairMode ? '预计取车' : '取车日期'}</dt><dd>{record.pickupDate ? formatScanDate(record.pickupDate) : '未指定'}</dd></div><div><dt>业务编号</dt><dd>{ticketNumber}</dd></div></dl></section>}
         {handoverMode ? null : <section><h4>{repairMode ? 'SERVICE' : 'ORIGIN'} <span>/ {repairMode ? '维修' : '来源'}</span></h4><dl><div><dt>{repairMode ? '维修类型' : '待取来源'}</dt><dd>{repairMode ? (record.repairType || '未指定') : `${pickupSourceLabel(record)}${platform ? ` · ${platform}` : ''}`}</dd></div><div><dt>{repairMode ? '当前状态' : '业务结果'}</dt><dd>{resultLabel}</dd></div></dl></section>}
         {!handoverMode && detailLine ? <section className="pickup-detail-wide"><h4>{repairPickup ? 'SERVICE / 维修' : 'NOTE / 备注'}</h4><p>{detailLine}</p></section> : null}
-        {!repairMode && !handoverMode && !pickedUp ? <section className="pickup-detail-wide pickup-notification-control"><h4>NOTICE <span>/ 通知</span></h4><div className="pickup-notification-buttons" aria-label={`${record.title}通知状态`}><button type="button" data-active={notificationStatus === 'pending'} onClick={() => onNotificationChange(record, 'pending')} disabled={Boolean(closedAt)}>等待通知</button><button type="button" data-active={notificationStatus === 'notified'} onClick={() => onNotificationChange(record, 'notified')} disabled={Boolean(closedAt)}><IconBell width={15} height={15} aria-hidden="true" />已通知</button></div></section> : null}
+        {!repairMode && !handoverMode && !pickedUp ? <section className="pickup-detail-wide pickup-notification-control"><h4>NOTICE <span>/ 通知</span></h4><div className="pickup-notification-buttons" aria-label={`${record.title}通知状态`}><button type="button" data-active={notificationStatus === 'pending'} onClick={(event) => { onNotificationChange(record, 'pending'); popEl(event.currentTarget) }} disabled={Boolean(closedAt)}>等待通知</button><button type="button" data-active={notificationStatus === 'notified'} onClick={(event) => { onNotificationChange(record, 'notified'); popEl(event.currentTarget) }} disabled={Boolean(closedAt)}><IconBell width={15} height={15} aria-hidden="true" />已通知</button></div></section> : null}
         <section className="pickup-detail-wide pickup-assignee-control"><h4>HANDOVER TO <span>/ 交接人</span></h4><div className="pickup-assignee-row"><span className="pickup-assignee-current" data-empty={record.assigneeName ? 'false' : 'true'}>{record.assigneeName ? `@${record.assigneeName}` : '未指定'}</span></div></section>
         {pickupError ? <p className="pickup-card-error" role="alert">{pickupError}</p> : null}
         {pickedUp && !handoverMode ? <p className="pickup-card-resolved">{repairMode ? '维修完成后将转入待取车辆。' : '本条今日保留，下一业务日自动移除。'}</p> : null}
-        <footer className="pickup-card-actions">{!pickedUp ? <button type="button" className="pickup-secondary-action" onClick={() => onEdit(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconEdit width={16} height={16} aria-hidden="true" />编辑记录</button> : null}{!pickedUp ? <button type="button" className="pickup-secondary-action" onClick={() => onAssignClick(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconUser width={16} height={16} aria-hidden="true" />{record.assigneeName ? '更换交接人' : '指定交接人'}</button> : null}{!pickedUp ? <details className="pickup-card-more"><summary>更多</summary><button type="button" onClick={() => onRemove(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconTrash width={15} height={15} aria-hidden="true" />删除记录</button></details> : null}{!pickedUp ? <button type="button" className="pickup-primary-action" onClick={() => handoverMode ? onHandoverComplete(record) : repairMode ? onRepairComplete(record) : onPickup(record)} disabled={locked} aria-busy={primaryProcessing || undefined}><IconCheck width={17} height={17} aria-hidden="true" />{primaryProcessing ? '确认中…' : handoverMode ? '完成交接' : repairMode ? '维修完成' : '确认取车'}</button> : null}</footer>
+        <footer className="pickup-card-actions">{!pickedUp ? <button type="button" className="pickup-secondary-action" onClick={() => onEdit(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconEdit width={16} height={16} aria-hidden="true" />编辑记录</button> : null}{!pickedUp ? <button type="button" className="pickup-secondary-action" onClick={() => onAssignClick(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconUser width={16} height={16} aria-hidden="true" />{record.assigneeName ? '更换交接人' : '指定交接人'}</button> : null}{!pickedUp ? <DetailsMenu className="pickup-card-more" label="更多"><button type="button" onClick={() => onRemove(record)} disabled={Boolean(closedAt) || primaryProcessing}><IconTrash width={15} height={15} aria-hidden="true" />删除记录</button></DetailsMenu> : null}{!pickedUp ? <button type="button" className="pickup-primary-action" onClick={() => handoverMode ? onHandoverComplete(record) : repairMode ? onRepairComplete(record) : onPickup(record)} disabled={locked} aria-busy={primaryProcessing || undefined}><IconCheck width={17} height={17} aria-hidden="true" />{primaryProcessing ? '确认中…' : handoverMode ? '完成交接' : repairMode ? '维修完成' : '确认取车'}</button> : null}</footer>
       </div>
       </div>
     </div>
@@ -276,10 +322,10 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   const closeSheet = useCallback(() => setSheet(null), [])
   const applySheet = useCallback(({ sources: nextSources, sort: nextSort }) => { setSources(nextSources); setSort(nextSort); setSheet(null) }, [])
 
-  const queueSummary = <div className="pickup-queue-summary"><h2 id={handoverMode ? 'poster-title' : repairMode ? 'repair-title' : 'pickup-title'} className="sr-only">{handoverMode ? '交接事项' : repairMode ? '维修车辆' : '待取车辆'}</h2><span>{handoverMode ? 'HANDOVER STATUS' : repairMode ? 'REPAIR STATUS' : 'QUEUE STATUS'}</span><div className="pickup-module-count"><span><b>{String(waitingRecords.length).padStart(2, '0')}</b>{handoverMode ? '事项' : repairMode ? '待完成' : '待取'}</span>{!repairMode && !handoverMode ? <span><b>{String(pickedRecords.length).padStart(2, '0')}</b>今日已取</span> : null}</div><button type="button" className="pickup-header-search" onClick={() => { window.setTimeout(() => document.getElementById(searchId)?.focus({ preventScroll: true }), 0) }} aria-label={handoverMode ? '搜索交接事项' : repairMode ? '搜索维修车辆' : '搜索待取车辆'}><IconSearch width={19} height={19} aria-hidden="true" /></button></div>
+  const queueSummary = <div className="pickup-queue-summary"><h2 id={handoverMode ? 'poster-title' : repairMode ? 'repair-title' : 'pickup-title'} className="sr-only">{handoverMode ? '交接事项' : repairMode ? '维修车辆' : '待取车辆'}</h2><span>{handoverMode ? 'HANDOVER STATUS' : repairMode ? 'REPAIR STATUS' : 'QUEUE STATUS'}</span><div className="pickup-module-count"><span><AnimatedCount value={waitingRecords.length} pad={2} />{handoverMode ? '事项' : repairMode ? '待完成' : '待取'}</span>{!repairMode && !handoverMode ? <span><AnimatedCount value={pickedRecords.length} pad={2} />今日已取</span> : null}</div><button type="button" className="pickup-header-search" onClick={() => { window.setTimeout(() => document.getElementById(searchId)?.focus({ preventScroll: true }), 0) }} aria-label={handoverMode ? '搜索交接事项' : repairMode ? '搜索维修车辆' : '搜索待取车辆'}><IconSearch width={19} height={19} aria-hidden="true" /></button></div>
   const searchField = <label className="pickup-search-field" htmlFor={searchId}><IconSearch width={17} height={17} aria-hidden="true" /><input id={searchId} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={handoverMode ? '搜索交接事项…' : repairMode ? '搜索车型、电话、维修单号…' : '搜索车型、电话、车主姓名…'} /></label>
   const toolButtons = <>{!repairMode && !handoverMode ? <button type="button" onClick={() => setSheet('filter')} data-active={sources.length ? 'true' : undefined} aria-label="筛选条件"><IconFilter width={17} height={17} aria-hidden="true" />{sources.length ? <b>{sources.length}</b> : null}</button> : null}<button type="button" onClick={() => setSheet('sort')} data-active={sort !== 'default' ? 'true' : undefined} aria-label="排序"><IconSort width={17} height={17} aria-hidden="true" /></button><button type="button" onClick={() => setDensity((current) => current === 'balanced' ? 'compact' : 'balanced')} aria-label={`切换为${density === 'balanced' ? '紧凑' : '平衡'}密度`}>{density === 'balanced' ? <IconList width={17} height={17} aria-hidden="true" /> : <IconViewColumns width={17} height={17} aria-hidden="true" />}</button><button type="button" className="pickup-collapse-all" onClick={() => setExpandedId('')} disabled={!expandedId} aria-label="全部收起"><IconNavArrowDown width={17} height={17} aria-hidden="true" /></button></>
-  const appliedFilterRow = appliedLabels.length ? <div className="pickup-applied-filters" aria-label="已应用规则">{appliedLabels.map((label) => <span key={label}>{label}</span>)}<button type="button" onClick={() => { setSources([]); setSort('default') }}>清除</button></div> : null
+  const appliedFilterRow = appliedLabels.length ? <div className="pickup-applied-filters" data-motion="row" aria-label="已应用规则">{appliedLabels.map((label) => <span key={label}>{label}</span>)}<button type="button" onClick={() => { setSources([]); setSort('default') }}>清除</button></div> : null
   const queueControls = <div className="pickup-queue-controls">{queueSummary}<div className="pickup-tools-area"><div className="pickup-tool-row">{searchField}{toolButtons}</div>{appliedFilterRow}</div></div>
 
   const ledgerMode = handoverMode ? 'handover' : repairMode ? 'repair' : 'pickup'
@@ -302,13 +348,13 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
       : ['队列号', '车辆 / 业务类型', '联系方式', '预约时间', '状态', '操作']
 
   return <div className="pickup-ledger" data-density={autoDensity} aria-label={`${handoverMode ? '交接事项' : repairMode ? '维修车辆' : '待取车辆'}台账，共 ${records.length} 条`}>
-    {shiphubEnabled ? <nav className="pickup-source-tabs" aria-label={handoverMode ? '其它交接来源' : '待取车辆来源'}>{sourceTabs.map(([value, label]) => <button type="button" key={value} data-active={shiphubTab === value ? 'true' : undefined} onClick={() => setShiphubTab(value)}>{label}</button>)}</nav> : null}
+    {shiphubEnabled ? <nav className="pickup-source-tabs" aria-label={handoverMode ? '其它交接来源' : '待取车辆来源'}>{sourceTabs.map(([value, label]) => <button type="button" key={value} data-active={shiphubTab === value ? 'true' : undefined} onClick={(event) => { setShiphubTab(value); popEl(event.currentTarget) }}>{label}</button>)}</nav> : null}
     {showManualLedger ? <>
     {queueControlsRendered}
     <section className="pickup-ledger-board" data-ledger-mode={ledgerMode}>
     <div className="pickup-ledger-intro"><div><span>{handoverMode ? 'ACTIVE HANDOVER' : repairMode ? 'ACTIVE REPAIR' : 'ACTIVE PICKUP'}</span><strong>{visible.length ? (handoverMode ? `当前显示 ${visible.length} 项，按列表顺序完成交接。` : repairMode ? `当前显示 ${visible.length} 台，按列表顺序核对并完成维修。` : `当前显示 ${visible.length} 台，按列表顺序核对并交付。`) : (handoverMode ? '当前没有交接事项。' : repairMode ? '当前规则下没有维修车辆。' : '当前规则下没有待取车辆。')}</strong></div><div className="pickup-ledger-global-actions"><button type="button" onClick={() => onHistory()}><IconJournal width={17} height={17} aria-hidden="true" />操作记录</button><button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />{handoverMode ? '增加交接事项' : repairMode ? '增加维修' : '增加待取'}</button></div></div>
     <div className="pickup-ledger-table-head" aria-hidden="true">{tableColumns.map((column) => <span key={column}>{column}</span>)}</div>
-    {visible.length ? <div className="pickup-card-grid">{visible.map((record, index) => <PickupCard key={record.id} record={record} index={index} expanded={expandedId === record.id} density={autoDensity} query={debouncedQuery} closedAt={closedAt} pickupError={pickupErrors[record.id] || ''} primaryProcessing={primaryProcessingId === record.id} primaryActionBusy={primaryActionBusy} pickupPixelFill={repairMode ? repairPixelDissolveId === record.id : pickupPixelFillId === record.id} repairMode={repairMode} handoverMode={handoverMode} handoverStampEntering={handoverStampMotionId === record.id} members={members} onToggle={(id) => setExpandedId((current) => current === id ? '' : id)} onEdit={onEdit} onRemove={onRemove} onHistory={onHistory} onPickup={onPickup} onRepairComplete={onRepairComplete} onHandoverComplete={onHandoverComplete} onNotificationChange={onPickupNotificationChange} onAssignClick={(target) => setAssignRecord(target)} onPickupPixelFillComplete={repairMode ? onRepairPixelDissolveComplete : onPickupPixelFillComplete} />)}</div> : <section className="pickup-empty-state"><IconBicycle width={34} height={34} aria-hidden="true" /><span>{waitingRecords.length ? 'NO MATCH' : 'QUEUE CLEAR'}</span><h3>{waitingRecords.length ? '没有符合条件的车辆' : repairMode ? '当前没有维修车辆' : '当前没有待取车辆'}</h3><p>{waitingRecords.length ? '清除搜索或筛选条件，恢复完整列表。' : repairMode ? '新增维修车辆记录，开始录入维修单。' : '新增顾客暂存、自提订单或二手车待取记录。'}</p>{waitingRecords.length ? <button type="button" onClick={() => { setQuery(''); setSources([]); setSort('default') }}>恢复全部车辆</button> : <button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />{repairMode ? '增加维修车辆' : '增加待取车辆'}</button>}</section>}
+    {visible.length ? <div className="pickup-card-grid">{visible.map((record, index) => <PickupCard key={record.id} record={record} index={index} expanded={expandedId === record.id} density={autoDensity} query={debouncedQuery} closedAt={closedAt} pickupError={pickupErrors[record.id] || ''} primaryProcessing={primaryProcessingId === record.id} primaryActionBusy={primaryActionBusy} pickupPixelFill={repairMode ? repairPixelDissolveId === record.id : pickupPixelFillId === record.id} repairMode={repairMode} handoverMode={handoverMode} handoverStampEntering={handoverStampMotionId === record.id} members={members} onToggle={(id) => setExpandedId((current) => current === id ? '' : id)} onEdit={onEdit} onRemove={onRemove} onHistory={onHistory} onPickup={onPickup} onRepairComplete={onRepairComplete} onHandoverComplete={onHandoverComplete} onNotificationChange={onPickupNotificationChange} onAssignClick={(target) => setAssignRecord(target)} onPickupPixelFillComplete={repairMode ? onRepairPixelDissolveComplete : onPickupPixelFillComplete} />)}</div> : <section className="pickup-empty-state" data-motion="summary"><IconBicycle width={34} height={34} aria-hidden="true" /><span>{waitingRecords.length ? 'NO MATCH' : 'QUEUE CLEAR'}</span><h3>{waitingRecords.length ? '没有符合条件的车辆' : repairMode ? '当前没有维修车辆' : '当前没有待取车辆'}</h3><p>{waitingRecords.length ? '清除搜索或筛选条件，恢复完整列表。' : repairMode ? '新增维修车辆记录，开始录入维修单。' : '新增顾客暂存、自提订单或二手车待取记录。'}</p>{waitingRecords.length ? <button type="button" onClick={() => { setQuery(''); setSources([]); setSort('default') }}>恢复全部车辆</button> : <button type="button" onClick={onAdd} disabled={Boolean(closedAt)}><IconPlus width={17} height={17} aria-hidden="true" />{repairMode ? '增加维修车辆' : '增加待取车辆'}</button>}</section>}
     {!repairMode && !handoverMode && pickedRecords.length ? <details className="pickup-completed-today"><summary><span><IconCheck width={17} height={17} aria-hidden="true" />今日已取</span><b>{String(pickedRecords.length).padStart(2, '0')}</b></summary><div>{pickedRecords.map((record) => <button type="button" key={record.id} onClick={() => onHistory(record)}><span>{record.title}</span><small>{pickupSourceLabel(record)} · 查看操作记录</small></button>)}</div></details> : null}
     </section>
     </> : null}
