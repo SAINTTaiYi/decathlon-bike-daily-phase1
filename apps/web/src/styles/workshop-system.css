@@ -81,17 +81,23 @@ button:disabled { opacity: .48; }
   inset: 0;
   z-index: -1;
   display: block;
-  background: transparent;
+  /* Crextio 式大面积暖黄 wash：右上焦点 + 左下呼应 + 顶部奶油黄铺底。
+     vmax 单位保证移动端窄竖屏同样铺满（vmin 在手机上太小会"没效果"）；
+     动态光斑叠在 wash 上负责交互动效。 */
+  background:
+    radial-gradient(120vmax 95vmax at 88% -12%, rgb(255 224 116 / .5), rgb(255 224 116 / 0) 62%),
+    radial-gradient(105vmax 85vmax at -18% 112%, rgb(255 211 122 / .32), rgb(255 211 122 / 0) 60%),
+    linear-gradient(165deg, rgb(255 243 200 / .5), rgb(255 243 200 / 0) 52%);
   overflow: hidden;
   pointer-events: none;
 }
-/* Crextio 风格环境渐变光斑：品牌黄三层，radial 自然衰减（无 filter blur，
-   合成器友好）；transform 由 useEnvironmentMotion 驱动（呼吸漂移 / 指针视差 /
+/* 动态光斑：放大并对齐参考图"右上黄角"布局；尺寸取 max(vmin, vmax) 保证
+   移动端够大；transform 由 useEnvironmentMotion 驱动（呼吸漂移 / 指针视差 /
    模块切换脉冲 / 弹窗压暗见 opacity）。 */
 .workshop-runtime .env-blob { position: absolute; border-radius: 50%; will-change: transform; }
-.workshop-runtime .env-blob-a { left: -16%; top: -18%; width: 82vmin; height: 82vmin; background: radial-gradient(circle at 44% 42%, rgb(255 222 89 / .5), rgb(255 222 89 / 0) 68%); }
-.workshop-runtime .env-blob-b { right: -10%; top: -8%; width: 58vmin; height: 58vmin; background: radial-gradient(circle at 56% 46%, rgb(255 239 176 / .55), rgb(255 239 176 / 0) 70%); }
-.workshop-runtime .env-blob-c { left: 10%; bottom: -26%; width: 76vmin; height: 76vmin; background: radial-gradient(circle at 50% 56%, rgb(255 213 101 / .42), rgb(255 213 101 / 0) 70%); }
+.workshop-runtime .env-blob-a { right: -24%; top: -26%; width: max(96vmin, 64vmax); height: max(96vmin, 64vmax); background: radial-gradient(circle at 46% 44%, rgb(255 222 89 / .55), rgb(255 222 89 / 0) 68%); }
+.workshop-runtime .env-blob-b { left: -20%; top: -16%; width: max(78vmin, 52vmax); height: max(78vmin, 52vmax); background: radial-gradient(circle at 54% 46%, rgb(255 239 176 / .5), rgb(255 239 176 / 0) 70%); }
+.workshop-runtime .env-blob-c { left: 16%; bottom: -32%; width: max(92vmin, 60vmax); height: max(92vmin, 60vmax); background: radial-gradient(circle at 50% 56%, rgb(255 213 101 / .45), rgb(255 213 101 / 0) 70%); }
 .workshop-runtime > [data-workspace-layer='navigation'] {
   position: fixed;
   inset: 0 0 auto;
