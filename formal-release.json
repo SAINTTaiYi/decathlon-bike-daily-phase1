@@ -1,126 +1,39 @@
 {
   "kind": "formal-production-release",
-  "version": "6.2.4",
+  "version": "6.2.5",
   "previewRange": {
-    "fromExclusive": "1f29de5955a5c94d89532edac74751a4e916b2fb",
-    "toInclusive": "db8099822e7ebf8bc7a12cfd31970ff44f65e58b",
+    "fromExclusive": "226a52356e8376a221c1532fb6e8e7da562340b9",
+    "toInclusive": "e4e0ca93bf619be5942831a1912d820818b6bf06",
     "commits": [
       {
-        "sha": "690869e5eae9ae56a7edbf20f82590fda57c5168",
-        "subject": "Merge pull request #234 from SAINTTaiYi/fix/locator-install-link-20260822"
+        "sha": "f184e863a9a763e49c3c60c8978211f7cd09046d",
+        "subject": "fix(shiphub): 定位脚本适配手机 Edge 安装链路（引导分流 + 直开脚本链接 + v0.3.0）"
       },
       {
-        "sha": "d48bdddc035f105593baf259d970e7334c8b4ca5",
-        "subject": "refactor(ui): 扁平化重构桌面端与移动端视觉层"
+        "sha": "66ab98b1c8b47a01d1cf26a65ab6a605ccae266a",
+        "subject": "feat(shiphub): 待取车模块接入完整取车管线（待门店拣货 + 在途车辆）"
       },
       {
-        "sha": "6af24990712a6299fb6323009ed5e425c849139d",
-        "subject": "feat(ui): 全局无边线设计层（桌面端+移动端）"
+        "sha": "f1a95da6c22383e1360f51e6798cf0b0d2a12f99",
+        "subject": "feat(shiphub): 拣货/收货按钮改为跳转 Shiphub 对应页 + 定位脚本 v0.4.0 三页定位与更新检测"
       },
       {
-        "sha": "118d70c58ec18aaeceae218e8f53ae6aeea202ae",
-        "subject": "fix(desktop): restore primary action fill and enlarge expanded card type"
-      },
-      {
-        "sha": "42ed00c95838d90171deebc016ba41ad9dccfe5f",
-        "subject": "fix(pickup): 桌面端展开卡片字号与主按钮填充"
-      },
-      {
-        "sha": "5abb089b3c6c1b2327a6de89bebfa306b566ec60",
-        "subject": "fix(pickup): clear residual pickup-card hairlines and expand jitter"
-      },
-      {
-        "sha": "000bb1641753d7198058a9c5aa0176fee0329048",
-        "subject": "fix(pickup): clear desktop-breakpoint pickup hairlines"
-      },
-      {
-        "sha": "5d5495ae7e5260040398b475791916a64e053c5a",
-        "subject": "fix(pickup): clear frame hairline and pin queue index inside desktop breakpoint"
-      },
-      {
-        "sha": "54cbb86c78502754ba057eac0349c71db20b2fb8",
-        "subject": "fix(ui): zero border-width globally so transparent hairlines stop showing parent tone"
-      },
-      {
-        "sha": "ce46eaa02230c59bfc62b3c0417b644f5ec21187",
-        "subject": "fix(ui): drop remaining real hairlines and match pickup card tone to page"
-      },
-      {
-        "sha": "3e6a4a26bb365bd47e3bb3ade51523f9a686047a",
-        "subject": "Revert \"fix(ui): drop remaining real hairlines and match pickup card tone to page\""
-      },
-      {
-        "sha": "f9e6df00cd1235def19aed146b44f283285e1d1a",
-        "subject": "feat(ui): frosted gradient header and dock, tighten mobile header gap"
-      },
-      {
-        "sha": "383d751d020f6a97bf75a836367785f4a868ce1b",
-        "subject": "style(mobile): drop dock hairline, strengthen frosted blur"
-      },
-      {
-        "sha": "c07e500a184d1fae64489585bc2c9806a5d17495",
-        "subject": "style(mobile): fade frosted edges via masked backdrop, yellow dock trail"
-      },
-      {
-        "sha": "1d25932a6b82fc7d149baf7a6ef011efb1192155",
-        "subject": "style(mobile): unify accent yellow to #fbea03 and smooth frosted ramp"
-      },
-      {
-        "sha": "d956524c511a17a1ddca28ebedd98352b91b4ee1",
-        "subject": "test: 黄色 token 断言跟随 #fbea03 规格更新"
-      },
-      {
-        "sha": "7d1f992d79cd3983b23a29381527286b0cc1d768",
-        "subject": "style: 全站主色统一为 #ffee28"
-      },
-      {
-        "sha": "4fe5bff7a68422f2232cd27855cb96f415574c0d",
-        "subject": "style: 补齐 rgb() 十进制形态旧黄与 hover 加深色"
-      },
-      {
-        "sha": "8146323c76fe39c74a70212b75514be75a550680",
-        "subject": "fix(mobile): 移除 dock 顶部实线与不透明底色，磨砂改由 frosted.css 单一接管"
-      },
-      {
-        "sha": "d29e183b2b3662794b449e2de57edb82c2946086",
-        "subject": "feat(ui): accent to #FFDD00 and add preview-only palette lab"
-      },
-      {
-        "sha": "c038a99b1cf9cab55f1a01e6cce5f6e8cb742367",
-        "subject": "fix(ui): clear legacy accent in comma-notation rgba and hover hex"
-      },
-      {
-        "sha": "b3df8c7bfc215f14a2094df943b480156805356f",
-        "subject": "test: align yellow token assertions with #ffdd00"
-      },
-      {
-        "sha": "032361c4064077f575959388261c08ea6293618c",
-        "subject": "fix(ui): 页头/底栏渐变磨砂、取消导航边线、主色改 #FF5A28；修复调色盘无法作用于展开卡与增加待取按钮；修正 CI gitSha 取值优先级"
-      },
-      {
-        "sha": "34181d6eb4b61eb8d803bb2d552e097d6bb02c13",
-        "subject": "fix(ui): 主色 token 定义与回退值统一切换为 #FF5A28（含 pressed/wash 衍生色与调色盘徽标）"
-      },
-      {
-        "sha": "ec0832873005bd111cac11524b592686eef55d99",
-        "subject": "fix(ui): 展开态台账卡洗底与渐变改为从主色派生，同步过时的主色测试断言"
-      },
-      {
-        "sha": "db8099822e7ebf8bc7a12cfd31970ff44f65e58b",
-        "subject": "feat(theme): 主色切换为 #ffde59，按下态 #14161a，展开卡同步实心主色"
+        "sha": "e4e0ca93bf619be5942831a1912d820818b6bf06",
+        "subject": "feat(closing): 闭店日报图并入 Shiphub 同步车辆并按管线阶段标识"
       }
     ]
   },
   "announcement": {
-    "title": "磨砂导航与新主色 #ffde59",
-    "summary": "页头与底部导航改为渐变透明磨砂并取消硬边线，收紧页头间隔；主色统一为 #ffde59（按下态近黑、展开卡实心主色）；新增仅 Preview 可见的调色盘编辑器；修复 CI gitSha 取值优先级与调色盘覆盖缺口。",
+    "title": "Shiphub 完整取车管线（拣货/收货/在途）+ 手机定位脚本 v0.4.0",
+    "summary": "待取车模块接入 Shiphub 完整取车管线：新增待门店拣货与在途车辆看板并按状态标识；拣货/收货改为主按钮直跳 Shiphub 官方页并自动定位订单；定位脚本升级 v0.4.0（支持三页定位、适配手机 Edge、自动检测更新）；闭店日报图并入 Shiphub 车辆按管线阶段标识。",
     "changes": [
-      "页头/底部导航改渐变透明磨砂（backdrop blur + 渐变 + 遮罩羽化），取消导航顶部硬边线",
-      "收紧页头与待取内容之间过大的间隔",
-      "主色统一为 #ffde59：pressed #14161a、展开台账卡实心主色，75 处兜底值同步",
-      "新增 PaletteLab 调色盘（仅 Preview/localhost 可见），展开卡与增加待取按钮随主色联动",
-      "修正构建元数据 gitSha 优先级：RELEASE_SHA 优先于 GITHUB_SHA，CI 缺 RELEASE_SHA 或脏树直接拒绝"
+      "待取车模块接入完整取车管线：新增「待门店拣货」「在途车辆」（待门店收货）看板，按管线状态分别标识；概览计数同步覆盖",
+      "Shiphub 同步新增待门店拣货分类（pick），节奏与待交接一致；D1 schema 0019 放宽分类约束并完整保留存量数据",
+      "拣货/收货卡片主按钮改为「去 Shiphub 拣货/收货」直跳官方对应页面，可按订单号定位",
+      "定位脚本 v0.4.0：支持待交接/待拣货/待收货三页自动定位展开订单；适配手机 Edge 安装链路（引导分流+直开脚本链接+允许用户脚本指引）",
+      "定位脚本更新检测：Workshop 页面对比最新版本，落后时提示并可一键更新",
+      "闭店日报图并入 Shiphub 同步车辆，按管线阶段标识（待交接核销/待门店拣货/在途车辆/已本地处理），失败降级不阻塞闭店"
     ]
   },
-  "preparedAt": "2026-08-27T08:52:44.497Z"
+  "preparedAt": "2026-08-27T15:16:26.679Z"
 }
