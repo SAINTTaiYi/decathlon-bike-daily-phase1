@@ -28,7 +28,7 @@ export default function useMotionSystem({ enabled, rootRef, quiet = false }) {
       x: 0,
       y: 0,
       scale: 1,
-      clearProps: 'transform,transformOrigin,opacity,visibility,willChange'
+      clearProps: 'transform,transformOrigin,opacity,visibility,filter,willChange'
     })
 
     if (reduced || !('IntersectionObserver' in window)) {
@@ -62,9 +62,10 @@ export default function useMotionSystem({ enabled, rootRef, quiet = false }) {
           }
         })
         timelines.add(timeline)
+        // reveal 目标可能是整块面板/台账：只动 transform/opacity，不用 filter blur
         timeline.fromTo(targets,
-          { autoAlpha: .001, y: profile.y, scale: .992, filter: 'blur(9px)', willChange: 'transform, opacity, filter' },
-          { autoAlpha: 1, y: 0, scale: 1, filter: 'blur(0px)', duration: profile.duration, stagger: targets.length > 1 ? .045 : 0, clearProps: 'transform,opacity,visibility,filter,willChange' }
+          { autoAlpha: .001, y: profile.y, scale: .992, willChange: 'transform, opacity' },
+          { autoAlpha: 1, y: 0, scale: 1, duration: profile.duration, stagger: targets.length > 1 ? .045 : 0, clearProps: 'transform,opacity,visibility,filter,willChange' }
         )
       })
     }, { rootMargin: '8% 0px -3% 0px', threshold: .04 })

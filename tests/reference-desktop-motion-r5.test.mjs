@@ -25,7 +25,9 @@ test('desktop scene changes use Amicro zoom-in entrances without the full-screen
   assert.ok(!hook.includes('clipPath'))
   // 旧面板退场 + 新面板 blur/3D zoom-in 入场 + stagger
   assert.match(hook, /autoAlpha: 0, x: direction \* -30/u)
-  assert.match(hook, /rotateX: 3\.5, transformPerspective: 1200, filter: 'blur\(14px\)'/u)
+  assert.match(hook, /rotateX: 3\.5, transformPerspective: 1200/u)
+  // 大面板入场不用 filter blur（逐帧重栅格化卡顿），blur 仅限小面积页头行
+  assert.match(hook, /\{ autoAlpha: \.01, x: direction \* 44, y: 18, scale: \.955, rotateX: 3\.5, transformPerspective: 1200 \}/u)
   assert.match(hook, /stagger: \.04/u)
   assert.match(hook, /ease: 'expo\.out'/u)
   assert.ok(!css.includes('background: var(--ops-yellow);\n    box-shadow: 18px 0 0 var(--ops-black)'))

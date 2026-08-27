@@ -20,13 +20,16 @@ export default function AppDialog({ open, onClose, title, eyebrow, description, 
       // Amicro 风格退场：先播面板出场动画，再真正关闭原生 dialog
       const panel = dialog.querySelector('[data-dialog-panel]')
       if (panel) panel.dataset.closing = 'true'
+      dialog.dataset.closing = 'true'
       const closeTimer = window.setTimeout(() => {
         if (panel) delete panel.dataset.closing
+        delete dialog.dataset.closing
         dialog.close()
       }, 210)
       return () => {
         window.clearTimeout(closeTimer)
         if (panel) delete panel.dataset.closing
+        delete dialog.dataset.closing
         document.body.classList.remove('dialog-open')
       }
     }

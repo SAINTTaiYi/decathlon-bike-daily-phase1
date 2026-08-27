@@ -25,9 +25,8 @@ test('工作台入场可跳过并在完成后把焦点交回主内容', () => {
   assert.match(app, /main-content'\)\?\.focus/)
   assert.match(launch, /reducedMotion\(\)/)
   assert.match(launch, /duration: \.12/)
-  // 2026-08-28 放开低端机限制：首屏入场允许 blur 深度感，但 reduced-motion 路径必须直接淡出
-  assert.match(launch, /filter: 'blur\(14px\)'/u)
-  assert.doesNotMatch(launch, /perspective|rotationX/u)
+  // 2026-08-28 二次修正：大面积 blur 会逐帧重栅格化导致卡顿，首屏入场只动 transform/opacity
+  assert.doesNotMatch(launch, /filter:\s*['"]blur|perspective|rotationX/u)
 })
 
 test('mobile flow stays intact and the desktop reference adds its Used board without story effects', () => {
@@ -53,9 +52,9 @@ test('module reveal only uses short distance and opacity, without three-dimensio
   assert.match(motion, /IntersectionObserver/u)
   assert.match(motion, /MutationObserver/u)
   assert.match(motion, /stagger: targets\.length/u)
-  // 2026-08-28 放开低端机限制：滚动 reveal 使用 Amicro zoom-in 式 blur 入场，
-  // 动画完成后 clearProps 还原 filter，避免常驻 blur 合成层
-  assert.match(motion, /filter: 'blur\(9px\)'/u)
+  // 2026-08-28 二次修正：滚动 reveal 目标含整块面板，只动 transform/opacity；
+  // clearProps 保留 filter 用于防御性清理历史残留的内联 blur
+  assert.doesNotMatch(motion, /filter:\s*['"]blur/u)
   assert.match(motion, /clearProps: 'transform,opacity,visibility,filter,willChange'/u)
   assert.doesNotMatch(motion, /ScrollTrigger/u)
   assert.match(ledger, /data-reveal-group="records"/u)

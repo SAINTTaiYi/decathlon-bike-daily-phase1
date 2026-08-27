@@ -36,6 +36,8 @@ export default function useActiveScene({ enabled = true, rootRef, viewMode = fal
   const navigationRef = useRef(null)
   const activeSceneRef = useRef('pulse')
   const timelineRef = useRef(null)
+  // 入场 tween 是 rAF 里独立创建的，timeline.kill() 管不到，单独跟踪以便打断
+  const enterTweensRef = useRef([])
   // viewMode：切换模块时按场景记忆窗口滚动位置，切回时恢复
   const scrollPositionsRef = useRef({})
 
@@ -43,7 +45,7 @@ export default function useActiveScene({ enabled = true, rootRef, viewMode = fal
     activeSceneRef.current = activeScene
   }, [activeScene])
 
-  useEffect(() => () => timelineRef.current?.kill(), [])
+  useEffect(() => () => { timelineRef.current?.kill(); enterTweensRef.current?.forEach((tween) => tween.kill()) }, [])
 
   const cancelNavigation = useCallback(() => {
     const navigation = navigationRef.current
@@ -80,40 +82,60 @@ export default function useActiveScene({ enabled = true, rootRef, viewMode = fal
     const currentScene = activeSceneRef.current
     const currentPanel = moduleElement(currentScene)
     const direction = sceneOrder.indexOf(id) >= sceneOrder.indexOf(currentScene) ? 1 : -1
-    const reveal = () => {
+    const applyScene = () => {
       shell.dataset.mobileScene = id
       rootRef?.current?.setAttribute?.('data-mobile-scene', id)
       activeSceneRef.current = id
       setActiveScene(id)
       window.scrollTo(0, scrollPositionsRef.current[id] ?? 0)
+    }
+    const reveal = (animate) => {
+      applyScene()
       window.requestAnimationFrame(() => {
         const nextPanel = moduleElement(id)
         nextPanel?.focus({ preventScroll: true })
         if (!nextPanel) return
-        // 旧面板退场残留的内联样式先清掉，避免上一轮 opacity:0/filter 泄漏
+        // 每轮转场先清残留内联样式：上一轮被打断的 tween 可能留下 opacity/blur
         gsap.set(nextPanel, { clearProps: 'transform,opacity,visibility,filter' })
+        if (!animate) return
+        // 页头子项必须重新查询：换场景后图标节点会被 React 重建，
+        // 搜索框 Portal 插槽（.workshop-module-search）也在这里，必须一并恢复
+        const nextHeaderItems = [...(rootRef?.current?.querySelectorAll('.workshop-module-header > *') || [])]
+        gsap.set(nextHeaderItems, { clearProps: 'transform,opacity,visibility,filter' })
         const targets = entranceTargets(nextPanel)
-        // Amicro zoom-in 变体：方向位移 + scale + blur + 轻透视，expo.out 收尾
-        gsap.fromTo(nextPanel,
-          { autoAlpha: .01, x: direction * 28, y: 12, scale: .965, rotateX: 3, transformPerspective: 1100, filter: 'blur(12px)' },
-          { autoAlpha: 1, x: 0, y: 0, scale: 1, rotateX: 0, filter: 'blur(0px)', duration: .56, ease: 'expo.out', overwrite: 'auto', clearProps: 'transform,opacity,visibility,filter' }
-        )
-        if (targets.length) gsap.fromTo(targets,
-          { autoAlpha: .01, x: direction * 14, y: 16, scale: .975, filter: 'blur(7px)' },
-          { autoAlpha: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)', duration: .6, stagger: .035, ease: 'expo.out', overwrite: 'auto', clearProps: 'transform,opacity,visibility,filter' }
-        )
+        // Amicro zoom-in：方向位移 + scale + 轻透视（transform/opacity 走合成器，
+        // 不给大面板加 filter blur——逐帧重栅格化会卡顿）
+        enterTweensRef.current = [
+          gsap.fromTo(nextPanel,
+            { autoAlpha: .01, x: direction * 28, y: 12, scale: .965, rotateX: 3, transformPerspective: 1100 },
+            { autoAlpha: 1, x: 0, y: 0, scale: 1, rotateX: 0, duration: .56, ease: 'expo.out', overwrite: 'auto', clearProps: 'transform,opacity,visibility,filter' }
+          ),
+          ...nextHeaderItems.map((item) => gsap.fromTo(item,
+            { autoAlpha: .01, x: direction * 16, filter: 'blur(4px)' },
+            { autoAlpha: 1, x: 0, filter: 'blur(0px)', duration: .48, ease: 'expo.out', clearProps: 'transform,opacity,visibility,filter' }
+          )),
+          ...(targets.length ? [gsap.fromTo(targets,
+            { autoAlpha: .01, x: direction * 14, y: 16, scale: .975 },
+            { autoAlpha: 1, x: 0, y: 0, scale: 1, duration: .6, stagger: .035, ease: 'expo.out', overwrite: 'auto', clearProps: 'transform,opacity,visibility,filter' }
+          )] : [])
+        ]
       })
     }
 
+    // reduced-motion：只做结构切换，不播任何 tween
     if (reducedMotion()) {
-      reveal()
+      reveal(false)
       return
     }
 
     timelineRef.current?.kill()
+    enterTweensRef.current?.forEach((tween) => tween.kill())
+    enterTweensRef.current = []
     const headerItems = [...(rootRef?.current?.querySelectorAll('.workshop-module-header > *') || [])]
     gsap.killTweensOf([currentPanel, targetPanel, ...headerItems].filter(Boolean))
     gsap.killTweensOf(entranceTargets(targetPanel))
+    // 防御性复位：把上一轮可能残留的 opacity/filter 清掉再开始新的退场
+    gsap.set([currentPanel, ...headerItems].filter(Boolean), { clearProps: 'transform,opacity,visibility,filter' })
 
     shell.dataset.mobileSceneDirection = direction > 0 ? 'forward' : 'backward'
     shell.dataset.mobileSceneTransitioning = 'true'
@@ -122,19 +144,20 @@ export default function useActiveScene({ enabled = true, rootRef, viewMode = fal
       delete shell.dataset.mobileSceneTransitioning
     }
 
-    // 无遮罩转场：旧面板带 blur 退场，再切换并播放新面板 zoom-in 入场
+    // 无遮罩转场：旧面板 + 页头行退场，再切换并播放新面板 zoom-in 入场
     const timeline = gsap.timeline({ onComplete: finish })
     if (currentPanel) {
       timeline.to(currentPanel,
-        { autoAlpha: 0, x: direction * -20, scale: .98, rotateX: -1.5, transformPerspective: 1100, filter: 'blur(8px)', duration: .22, ease: 'power2.in' }
+        { autoAlpha: 0, x: direction * -20, scale: .98, rotateX: -1.5, transformPerspective: 1100, duration: .22, ease: 'power2.in' }
       )
     }
     if (headerItems.length) {
-      timeline.to(headerItems, { autoAlpha: 0, x: direction * -12, filter: 'blur(4px)', duration: .18, stagger: .02, ease: 'power2.in' }, 0)
+      timeline.to(headerItems, { autoAlpha: 0, x: direction * -12, duration: .18, stagger: .02, ease: 'power2.in' }, 0)
     }
-    timeline.call(reveal)
+    timeline.call(() => reveal(true))
     timelineRef.current = timeline
   }, [enabled, rootRef])
+
 
 
 
