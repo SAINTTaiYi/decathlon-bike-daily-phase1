@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Shiphub 自提定位器
 // @namespace    workshop.skin
-// @version      0.2.1
-// @description  ①在 Shiphub「待交接」页自动定位并展开指定订单卡片，人工输入取件码完成核销（只读）；②登录后自动回到待交接页继续定位；③在 Workshop 页面注入安装标记供检测。不发起任何写请求。
+// @version      0.3.0
+// @description  ①在 Shiphub「待交接」页自动定位并展开指定订单卡片，人工输入取件码完成核销（只读）；②登录后自动回到待交接页继续定位；③在 Workshop 页面注入安装标记供检测；④适配手机浏览器（Edge/Firefox 安卓油猴）。不发起任何写请求。
 // @match        https://shiphub-asia-cn.decathlon.com.cn/*
 // @match        https://workshop.skin/*
 // @match        https://bike-ops-preview.geeklightonefish.workers.dev/*
@@ -24,9 +24,9 @@
   // ---------- 安装标记（Workshop 域） ----------
   if (!IS_SHIPHUB) {
     try {
-      window.__shiphubLocatorInstalled = { installed: true, version: '0.2.1' };
+      window.__shiphubLocatorInstalled = { installed: true, version: '0.3.0' };
       // DOM 属性在任意执行世界（主世界/隔离沙箱）都可见，兼容所有脚本管理器
-      document.documentElement.setAttribute('data-shiphub-locator', '0.2.1');
+      document.documentElement.setAttribute('data-shiphub-locator', '0.3.0');
     } catch (e) {}
     return; // Workshop 域只做标记，不执行定位
   }
@@ -139,7 +139,7 @@
     div.id = id;
     div.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:99999;' +
       'background:#fff8e1;color:#5d4037;border:2px solid #ff9800;border-radius:10px;' +
-      'padding:12px 18px;font-size:14px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.25);' +
+      'padding:14px 18px;font-size:15px;line-height:1.5;box-sizing:border-box;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.25);' +
       'max-width:92%;text-align:center;';
     div.textContent = msg;
     document.body.appendChild(div);
@@ -233,6 +233,9 @@
         goToHandover();
       } else if (tryCount === 6) {
         showHint('正在进入 Shiphub「待交接」页面并定位订单…请稍候。', false);
+      } else if (tryCount <= 20 && tryCount % 4 === 0) {
+        // 手机端首屏慢、路由就绪晚时补发导航（pushState 同路径幂等）
+        goToHandover();
       }
       if (tryCount > 40) clearInterval(timer); // 最长约 20s 兜底
     }, POLL_MS);
