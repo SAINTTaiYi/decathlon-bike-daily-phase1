@@ -1,12 +1,13 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import usePortalSheetMotion from '../../hooks/usePortalSheetMotion.js'
 import IconUser from '@iconoir/User.mjs'
 import IconErase from '@iconoir/Erase.mjs'
 
 const ROLE_LABELS = { operator: '店员', manager: '主管', admin: '店长' }
 
 export default function MemberSelectSheet({ open, members = [], currentId = '', title = '', onClose, onPick, onClear }) {
-  const panelRef = useRef(null)
+  const { mounted, backdropRef, panelRef } = usePortalSheetMotion({ open })
   useEffect(() => {
     if (!open) return undefined
     const previous = document.activeElement
@@ -27,9 +28,9 @@ export default function MemberSelectSheet({ open, members = [], currentId = '', 
       previous?.focus?.({ preventScroll: true })
     }
   }, [onClose, open])
-  if (!open) return null
+  if (!mounted) return null
   return createPortal(
-    <div className="member-select-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <div ref={backdropRef} className="member-select-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
       <section ref={panelRef} className="member-select-sheet" role="dialog" aria-modal="true" aria-labelledby="member-select-title" tabIndex={-1}>
         <div className="member-select-handle" aria-hidden="true" />
         <header className="member-select-head">

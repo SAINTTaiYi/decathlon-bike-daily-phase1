@@ -514,7 +514,7 @@ button:disabled { opacity: .48; }
   color: var(--ops-text);
   clip-path: none !important;
 }
-.app-dialog::backdrop { background: rgb(12 14 12 / .58); backdrop-filter: none; }
+.app-dialog::backdrop { background: rgb(12 14 12 / .58); backdrop-filter: none; opacity: var(--dialog-backdrop-o, 1); }
 .password-change-dialog { width: min(calc(100% - 16px), 560px); }
 .dialog-panel[data-dialog-panel] {
   max-height: min(90dvh,760px);
@@ -523,7 +523,6 @@ button:disabled { opacity: .48; }
   border-radius: var(--ops-radius);
   background: var(--ops-card);
   box-shadow: var(--ops-panel-shadow);
-  animation: dialog-panel-in 220ms cubic-bezier(.2,.8,.2,1) both;
 }
 .dialog-header { padding: 0; border: 0 !important; }
 .dialog-header::before { display: none !important; }
@@ -620,7 +619,6 @@ button:disabled { opacity: .48; }
 .closing-check-gate[data-ready='true'] { color: var(--ops-success); font-weight: 700; }
 
 /* 文字安全：入场只做位移+透明度，不用 scale（分数缩放会让文字重栅格化抽搐） */
-@keyframes dialog-panel-in { from { opacity: 0; transform: translateY(12px); } }
 
 /* Login, OTP, setup, security gates and explicit application states. */
 .boot-sequence {
@@ -828,7 +826,6 @@ button:disabled { opacity: .48; }
 
 @media (prefers-reduced-motion: reduce) {
   .dock-active-indicator { transition: none; }
-  .dialog-panel[data-dialog-panel] { animation: none; }
 }
 
 @media (forced-colors: active) {

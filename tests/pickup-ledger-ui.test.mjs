@@ -48,11 +48,14 @@ test('Preview 反馈修复保留 body 抽屉和滚动锁定，并让卡片只执
   assert.match(component, /className="pickup-queue-controls"/u)
   assert.doesNotMatch(component, /pickup-sticky-slot|data-pinned/u)
   assert.match(component, /new IntersectionObserver/u)
-  assert.match(component, /frame\.setAttribute\('data-entering', ''\)/u)
+  // 2026-08-28：卡片入场由 GSAP 驱动（无 CSS keyframes / data-entering）
+  assert.match(component, /gsap\.set\(frame, \{ autoAlpha: 0, y: 28 \}\)/u)
+  assert.match(component, /gsap\.to\(frame, \{ autoAlpha: 1, y: 0, duration: \.46, ease: 'expo\.out'/u)
   assert.match(component, /observer\.unobserve\(frame\)/u)
+  assert.doesNotMatch(component, /frame\.setAttribute\('data-entering'/u)
   assert.doesNotMatch(styles, /pickup-sticky-shell|data-pinned/u)
-  assert.match(styles, /\.pickup-card-frame\[data-entering\]/u)
-  assert.match(styles, /@keyframes pickup-card-enter/u)
+  assert.doesNotMatch(styles, /pickup-card-enter/u)
+  assert.doesNotMatch(styles, /\.pickup-card-frame\[data-entering\]/u)
 })
 
 test('Preview 反馈视觉取消容器描边并采用局部橙黄弥散柔光和紧凑展开', () => {

@@ -192,18 +192,14 @@
 .app-dialog { width: min(calc(100% - 1rem), 44rem); max-height: min(86dvh, 48rem); margin: auto; padding: 0; overflow: visible; border: 1px solid var(--ink); background: transparent; color: var(--ink); }
 .app-dialog::backdrop { background: rgb(8 8 10 / .48); }
 .dialog-panel { max-height: min(86dvh,48rem); overflow-y: auto; padding: 1rem; background: #fff; box-shadow: var(--shadow-panel); }
-/* 对话框 backdrop 淡入：走 opacity（合成器），不逐帧重绘 background。
-   面板入场动画由 workshop-system.css 的 220ms dialog-panel-in 统一负责，
-   不叠加第二套同名 keyframes（跨文件覆盖会打架）。 */
-.app-dialog[open]::backdrop { animation: dialog-backdrop-in .3s var(--ease-out, cubic-bezier(.16, 1, .3, 1)) both; }
-@keyframes dialog-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+/* 对话框进/出场全部由 AppDialog 的 GSAP 时间线驱动（backdrop 走
+   --dialog-backdrop-o 变量，见 workshop-system.css），此处无 CSS 动画。 */
 @media (hover: hover) {
   .dialog-action { transition: box-shadow .25s var(--ease-out, cubic-bezier(.16, 1, .3, 1)), border-color .18s ease, background-color .18s ease; }
   .dialog-action:hover { border-color: var(--ink); box-shadow: 0 10px 26px rgb(8 8 10 / .09); }
 }
 /* 关闭为直关（原生 dialog.close()），无退场动画 */
 @media (prefers-reduced-motion: reduce) {
-  .app-dialog[open]::backdrop { animation: none; }
   .dialog-action { transition: none; }
 }
 .dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }

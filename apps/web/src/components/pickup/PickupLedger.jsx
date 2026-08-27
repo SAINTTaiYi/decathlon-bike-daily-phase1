@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import usePortalSheetMotion from '../../hooks/usePortalSheetMotion.js'
+import { gsap } from 'gsap'
 import MemberSelectSheet from '../dialogs/MemberSelectSheet.jsx'
 import ShipHubOrderBoard from '../shiphub/ShipHubOrderBoard.jsx'
 import IconArchive from '@iconoir/Archive.mjs'
@@ -68,7 +70,7 @@ function PickupFilterSheet({ open, initialTab, appliedSources, appliedSort, repa
   const [tab, setTab] = useState(initialTab)
   const [sources, setSources] = useState(appliedSources)
   const [sort, setSort] = useState(appliedSort)
-  const panelRef = useRef(null)
+  const { mounted, backdropRef, panelRef } = usePortalSheetMotion({ open })
   useEffect(() => {
     if (!open) return undefined
     setTab(initialTab); setSources(appliedSources); setSort(appliedSort)
@@ -90,9 +92,9 @@ function PickupFilterSheet({ open, initialTab, appliedSources, appliedSort, repa
       previous?.focus?.({ preventScroll: true })
     }
   }, [appliedSort, appliedSources, initialTab, onClose, open])
-  if (!open) return null
+  if (!mounted) return null
   const toggleSource = (value) => setSources((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value])
-  return createPortal(<div className="pickup-sheet-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+  return createPortal(<div ref={backdropRef} className="pickup-sheet-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section ref={panelRef} className="pickup-filter-sheet" role="dialog" aria-modal="true" aria-labelledby="pickup-filter-title" tabIndex={-1}>
       <div className="pickup-sheet-handle" aria-hidden="true" />
       <header><div><span>LIST CONTROL</span><h3 id="pickup-filter-title">{repairMode ? '整理维修车辆' : '整理待取车辆'}</h3></div><button type="button" onClick={onClose}>关闭</button></header>
@@ -141,13 +143,15 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
   useEffect(() => {
     const frame = frameRef.current
     if (!frame) return undefined
-    if (!('IntersectionObserver' in window) || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      frame.setAttribute('data-entering', '')
-      return undefined
-    }
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const desktop = window.matchMedia?.('(min-width: 768px)').matches
+    // 卡片入场走 GSAP（无 CSS keyframes）：只动位移与透明度（文字安全），
+    // 桌面端保持既有行为（不播卡片级入场，模块转场已有 stagger）
+    if (reduced || desktop || !('IntersectionObserver' in window)) return undefined
+    gsap.set(frame, { autoAlpha: 0, y: 28 })
     const observer = new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting) return
-      frame.setAttribute('data-entering', '')
+      gsap.to(frame, { autoAlpha: 1, y: 0, duration: .46, ease: 'expo.out', clearProps: 'transform,opacity,visibility' })
       observer.unobserve(frame)
     }, { threshold: 0.08, rootMargin: '0px 0px -3% 0px' })
     observer.observe(frame)

@@ -283,8 +283,7 @@
   .pickup-ledger-table-head span:last-child { text-align: right; }
   .pickup-ledger-board[data-ledger-mode='handover'] .pickup-ledger-table-head { grid-template-columns: 96px minmax(0, 1fr) 240px 180px 42px; }
   .pickup-card-grid { grid-template-columns: minmax(0, 1fr); gap: 7px; }
-  .pickup-card-frame, .pickup-card-frame:not([data-expanded='true']) { min-height: auto; opacity: 1; transform: none; overflow: visible; }
-  .pickup-card-frame[data-entering] { animation: none; }
+  .pickup-card-frame { min-height: auto; overflow: visible; }
   .pickup-card-frame[data-expanded='true'] { grid-column: auto; filter: none; }
   .pickup-card-frame[data-expanded='true']::after { display: none; }
   .pickup-card { height: auto; border: 1px solid rgb(12 14 12 / .08); box-shadow: none; }

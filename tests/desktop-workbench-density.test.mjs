@@ -11,7 +11,8 @@ test('reference workbench uses its fixed rail and full-width operational ledger 
   assert.match(css, /\.look-dock \{[\s\S]*?left: 20px !important;/u)
   assert.match(css, /\.pickup-ledger-board \{[\s\S]*?margin-top: 16px;/u)
   assert.match(css, /\.pickup-card-grid \{ grid-template-columns: minmax\(0, 1fr\); gap: 7px;/u)
-  assert.match(css, /\.pickup-card-frame,[\s\S]*?\.pickup-card-frame:not\(\[data-expanded='true'\]\) \{[\s\S]*?min-height: auto;[\s\S]*?opacity: 1;/u)
+  // 2026-08-28：卡片入场转 GSAP 后 CSS 不再持有初始隐藏态，此处仅保留桌面布局约束
+  assert.match(css, /\.pickup-card-frame \{ min-height: auto; overflow: visible; \}/u)
 })
 
 test('desktop handover details retain one independent content row without overlapping pickup positions', () => {

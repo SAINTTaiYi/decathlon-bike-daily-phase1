@@ -93,24 +93,54 @@ test('framer-motion 已引入并驱动 Toast：AnimatePresence + snappy spring',
   assert.doesNotMatch(motionCss, /\.status-toast \{[^}]*transition:/u)
 })
 
-test('对话框直关无退场动画，backdrop 仅入场淡入（opacity 合成器）', () => {
-  // 2026-08-28 三修：退出动画（scale 缩小+延迟 close）被用户感知为“先缩小再关掉”的卡顿，回退直关
-  assert.match(dialog, /else if \(!open && dialog\.open\) \{\n[\s\S]*?dialog\.close\(\)/u)
-  assert.doesNotMatch(dialog, /dataset\.closing/u)
-  assert.match(componentsCss, /dialog-backdrop-in/u)
-  assert.match(componentsCss, /@keyframes dialog-backdrop-in \{ from \{ opacity: 0; \} to \{ opacity: 1; \} \}/u)
-  assert.doesNotMatch(componentsCss, /@keyframes dialog-backdrop-in \{ from \{ background/u)
-  assert.ok(!componentsCss.includes('dialog-panel-out'))
-  assert.ok(!componentsCss.includes('dialog-backdrop-out'))
-  // 面板入场动画由 workshop-system.css 220ms 统一负责；components.css 不再叠加同名 keyframes
-  assert.ok(!componentsCss.includes('dialog-panel-in .45s'))
-  assert.match(componentsCss, /prefers-reduced-motion: reduce[\s\S]*?\.app-dialog\[open\]::backdrop \{ animation: none; \}/u)
+test('对话框进/出场均为 GSAP 时间线：无 CSS keyframes，退场完成才真正关闭', () => {
+  // 2026-08-28 四修：所有操作必须进场+退场动效（用户指令），统一 GSAP、删除旧 CSS 动画
+  assert.match(dialog, /from 'gsap'/u)
+  // 入场：面板 fade-up（仅位移+透明度，文字安全）+ backdrop CSS 变量淡入
+  assert.match(dialog, /fromTo\(panel,\n            \{ autoAlpha: 0, y: 18 \}/u)
+  assert.match(dialog, /'--dialog-backdrop-o': 0[\s\S]*?'--dialog-backdrop-o': 1/u)
+  // 退场：先播动画，onComplete 才 dialog.close()
+  assert.match(dialog, /gsap\.timeline\(\{ onComplete: \(\) => dialog\.close\(\) \}\)/u)
+  assert.match(dialog, /to\(panel, \{ autoAlpha: 0, y: 14, duration: \.2, ease: 'power2\.in' \}, 0\)/u)
+  // 退场途中重开：打断退场（kill 后 close 回调不再触发）
+  assert.match(dialog, /timelineRef\.current\?\.kill\(\)/u)
+  // reduced-motion 直开直关
+  assert.match(dialog, /prefers-reduced-motion: reduce/u)
+  // CSS 侧不再有任何对话框动画：keyframes 全删，backdrop 透明度交给变量
+  const wsCss = readFileSync(new URL('../apps/web/src/styles/workshop-system.css', import.meta.url), 'utf8')
+  assert.doesNotMatch(wsCss, /dialog-panel-in/u)
+  assert.doesNotMatch(componentsCss, /dialog-backdrop-in|dialog-panel-out/u)
+  assert.match(wsCss, /\.app-dialog::backdrop \{[^}]*opacity: var\(--dialog-backdrop-o, 1\);/u)
+  // 面板动画禁 scale（文字安全）
+  assert.doesNotMatch(dialog, /scale: \./u)
 })
 
-test('workshop-system 对话框入场 keyframes 为文字安全（无 scale）', () => {
-  const wsCss = readFileSync(new URL('../apps/web/src/styles/workshop-system.css', import.meta.url), 'utf8')
-  assert.match(wsCss, /@keyframes dialog-panel-in \{ from \{ opacity: 0; transform: translateY\(12px\); \} \}/u)
-  assert.doesNotMatch(wsCss, /dialog-panel-in[^}]*scale/u)
+test('Portal 抽屉（筛选/成员选择）有 GSAP 进出场：退场完成才卸载', () => {
+  const sheetHook = readFileSync(new URL('../apps/web/src/hooks/usePortalSheetMotion.js', import.meta.url), 'utf8')
+  const ledger = readFileSync(new URL('../apps/web/src/components/pickup/PickupLedger.jsx', import.meta.url), 'utf8')
+  const member = readFileSync(new URL('../apps/web/src/components/dialogs/MemberSelectSheet.jsx', import.meta.url), 'utf8')
+  // hook：挂载后播入场；open=false 播退场，完成后才 setMounted(false)
+  assert.match(sheetHook, /setMounted\(true\)/u)
+  assert.match(sheetHook, /onComplete: \(\) => \{ if \(!openRef\.current\) setMounted\(false\) \}/u)
+  assert.match(sheetHook, /fromTo\(panel, \{ autoAlpha: 0, yPercent: 9 \}/u)
+  assert.match(sheetHook, /reducedMotion\(\)/u)
+  // 两个抽屉都接入 hook 并用 mounted 门控
+  assert.match(ledger, /usePortalSheetMotion\(\{ open \}\)/u)
+  assert.match(ledger, /if \(!mounted\) return null/u)
+  assert.match(member, /usePortalSheetMotion\(\{ open \}\)/u)
+  assert.match(member, /if \(!mounted\) return null/u)
+})
+
+test('取车卡片入场为 GSAP（无 CSS keyframes），桌面端与 reduced-motion 跳过', () => {
+  const ledger = readFileSync(new URL('../apps/web/src/components/pickup/PickupLedger.jsx', import.meta.url), 'utf8')
+  const pickupCss = readFileSync(new URL('../apps/web/src/styles/pickup-ledger.css', import.meta.url), 'utf8')
+  const desktopCss = readFileSync(new URL('../apps/web/src/styles/desktop-workbench.css', import.meta.url), 'utf8')
+  assert.match(ledger, /gsap\.set\(frame, \{ autoAlpha: 0, y: 28 \}\)/u)
+  assert.match(ledger, /ease: 'expo\.out', clearProps: 'transform,opacity,visibility' \}\)/u)
+  assert.match(ledger, /min-width: 768px/u)
+  assert.ok(!pickupCss.includes('pickup-card-enter'))
+  assert.ok(!pickupCss.includes('.pickup-card-frame[data-entering]'))
+  assert.ok(!desktopCss.includes('.pickup-card-frame[data-entering]'))
 })
 
 test('运动令牌齐备：easeOutExpo 与 spring 曲线进入 tokens', () => {
