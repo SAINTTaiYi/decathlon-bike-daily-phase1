@@ -212,9 +212,8 @@ test('Crextio 风格黄色渐变环境背景：光斑 + GSAP 交互动效（2026
   assert.match(app, /env-blob env-blob-b/u)
   assert.match(app, /env-blob env-blob-c/u)
   assert.match(app, /useEnvironmentMotion\(\{ enabled/u)
-  // CSS：大面积暖黄 wash（vmax 保证移动端铺满）+ 三个放大 radial 光斑，无 filter blur
-  assert.match(wsCss, /\.workshop-runtime \.workspace-environment \{[\s\S]*?radial-gradient\(120vmax 95vmax at 88% -12%[\s\S]*?overflow: hidden;/u)
-  assert.match(wsCss, /max\(96vmin, 64vmax\)/u)
+  // CSS：环境层透明（露出纸纹）+ 三个 radial 光斑，无 filter blur
+  assert.match(wsCss, /\.workshop-runtime \.workspace-environment \{[\s\S]*?background: transparent;[\s\S]*?overflow: hidden;/u)
   for (const name of ['env-blob-a', 'env-blob-b', 'env-blob-c']) {
     assert.match(wsCss, new RegExp(`\\.workshop-runtime \\.${name} \\{[^}]*radial-gradient\\(circle at [^)]*, rgb\\(255 \\d+ \\d+ / \\.\\d+\\), rgb\\(255 \\d+ \\d+ / 0\\) \\d+%\\);`))
   }
