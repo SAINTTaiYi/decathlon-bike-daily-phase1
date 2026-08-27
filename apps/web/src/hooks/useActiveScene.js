@@ -17,11 +17,12 @@ const isAtNavigationTarget = (section) => {
 // 与桌面端 useDesktopSceneTransition 保持同款入场目标与动画参数
 function entranceTargets(panel) {
   if (!panel) return []
+  // 注意：不含 .pickup-card-frame——卡片有自己的 CSS 入场动画（data-entering），
+  // CSS animation 会覆盖 GSAP 内联样式，两套动画同帧打架会让文字抽搐。
   const selectors = [
     '.ops-mobile-overview > *',
     '.pickup-queue-controls',
     '.pickup-ledger-board',
-    '.pickup-card-frame',
     '.sales-input-summary > *',
     '.look-section > .scene-title',
     '.look-section > .record-ledger',
@@ -95,28 +96,29 @@ export default function useActiveScene({ enabled = true, rootRef, viewMode = fal
         const nextPanel = moduleElement(id)
         nextPanel?.focus({ preventScroll: true })
         if (!nextPanel) return
-        // 每轮转场先清残留内联样式：上一轮被打断的 tween 可能留下 opacity/blur
-        gsap.set(nextPanel, { clearProps: 'transform,opacity,visibility,filter' })
-        if (!animate) return
         // 页头子项必须重新查询：换场景后图标节点会被 React 重建，
         // 搜索框 Portal 插槽（.workshop-module-search）也在这里，必须一并恢复
         const nextHeaderItems = [...(rootRef?.current?.querySelectorAll('.workshop-module-header > *') || [])]
-        gsap.set(nextHeaderItems, { clearProps: 'transform,opacity,visibility,filter' })
         const targets = entranceTargets(nextPanel)
-        // Amicro zoom-in：方向位移 + scale + 轻透视（transform/opacity 走合成器，
-        // 不给大面板加 filter blur——逐帧重栅格化会卡顿）
+        if (!animate) {
+          // reduced-motion：只做结构切换，不播任何 tween
+          gsap.set([nextPanel, ...nextHeaderItems], { clearProps: 'transform,opacity,visibility,filter' })
+          return
+        }
+        // 文字安全：面板只动 x/y/opacity（scale/rotateX 会让文字重栅格化抽搐），
+        // blur 仅用于小面积页头行
         enterTweensRef.current = [
           gsap.fromTo(nextPanel,
-            { autoAlpha: .01, x: direction * 28, y: 12, scale: .965, rotateX: 3, transformPerspective: 1100 },
-            { autoAlpha: 1, x: 0, y: 0, scale: 1, rotateX: 0, duration: .56, ease: 'expo.out', overwrite: 'auto', clearProps: 'transform,opacity,visibility,filter' }
+            { autoAlpha: .01, x: direction * 22, y: 10 },
+            { autoAlpha: 1, x: 0, y: 0, duration: .46, ease: 'expo.out', overwrite: 'auto', clearProps: 'transform,opacity,visibility' }
           ),
           ...nextHeaderItems.map((item) => gsap.fromTo(item,
-            { autoAlpha: .01, x: direction * 16, filter: 'blur(4px)' },
-            { autoAlpha: 1, x: 0, filter: 'blur(0px)', duration: .48, ease: 'expo.out', clearProps: 'transform,opacity,visibility,filter' }
+            { autoAlpha: .01, x: direction * 14, filter: 'blur(4px)' },
+            { autoAlpha: 1, x: 0, filter: 'blur(0px)', duration: .44, ease: 'expo.out', clearProps: 'transform,opacity,visibility,filter' }
           )),
           ...(targets.length ? [gsap.fromTo(targets,
-            { autoAlpha: .01, x: direction * 14, y: 16, scale: .975 },
-            { autoAlpha: 1, x: 0, y: 0, scale: 1, duration: .6, stagger: .035, ease: 'expo.out', overwrite: 'auto', clearProps: 'transform,opacity,visibility,filter' }
+            { autoAlpha: .01, x: direction * 12, y: 14 },
+            { autoAlpha: 1, x: 0, y: 0, duration: .5, stagger: .035, ease: 'expo.out', overwrite: 'auto', clearProps: 'transform,opacity,visibility' }
           )] : [])
         ]
       })
@@ -131,11 +133,13 @@ export default function useActiveScene({ enabled = true, rootRef, viewMode = fal
     timelineRef.current?.kill()
     enterTweensRef.current?.forEach((tween) => tween.kill())
     enterTweensRef.current = []
+    // 被打断的时间线不会触发 onComplete，先清掉过期标记
+    delete shell.dataset.mobileSceneTransitioning
     const headerItems = [...(rootRef?.current?.querySelectorAll('.workshop-module-header > *') || [])]
     gsap.killTweensOf([currentPanel, targetPanel, ...headerItems].filter(Boolean))
     gsap.killTweensOf(entranceTargets(targetPanel))
-    // 防御性复位：把上一轮可能残留的 opacity/filter 清掉再开始新的退场
-    gsap.set([currentPanel, ...headerItems].filter(Boolean), { clearProps: 'transform,opacity,visibility,filter' })
+    // 不做防御性 clearProps：被打断的 tween 处于中间值时清 props 会瞬间跳位（抽搐）；
+    // 退场 .to() 从当前值平滑续接，入场 fromTo 强制完整区间，不会卡死。
 
     shell.dataset.mobileSceneDirection = direction > 0 ? 'forward' : 'backward'
     shell.dataset.mobileSceneTransitioning = 'true'
@@ -144,19 +148,20 @@ export default function useActiveScene({ enabled = true, rootRef, viewMode = fal
       delete shell.dataset.mobileSceneTransitioning
     }
 
-    // 无遮罩转场：旧面板 + 页头行退场，再切换并播放新面板 zoom-in 入场
+    // 无遮罩转场：旧面板与页头行先行退场，再切换并播放新面板 fade-up 入场
     const timeline = gsap.timeline({ onComplete: finish })
     if (currentPanel) {
       timeline.to(currentPanel,
-        { autoAlpha: 0, x: direction * -20, scale: .98, rotateX: -1.5, transformPerspective: 1100, duration: .22, ease: 'power2.in' }
+        { autoAlpha: 0, x: direction * -16, duration: .18, ease: 'power2.in' }
       )
     }
     if (headerItems.length) {
-      timeline.to(headerItems, { autoAlpha: 0, x: direction * -12, duration: .18, stagger: .02, ease: 'power2.in' }, 0)
+      timeline.to(headerItems, { autoAlpha: 0, x: direction * -10, duration: .14, stagger: .02, ease: 'power2.in' }, 0)
     }
     timeline.call(() => reveal(true))
     timelineRef.current = timeline
   }, [enabled, rootRef])
+
 
 
 

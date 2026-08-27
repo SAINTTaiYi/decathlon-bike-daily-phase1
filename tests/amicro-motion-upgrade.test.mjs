@@ -22,39 +22,45 @@ test('黄色整屏 wipe 在 DOM、hooks 与两端 CSS 中全部移除', () => {
   }
 })
 
-test('两端模块转场统一为 Amicro zoom-in：退场 + 3D 入场 + stagger，大面板不用 filter blur', () => {
+test('两端模块转场为文字安全的 Amicro fade-up：大面板只动 x/y/opacity', () => {
   for (const hook of [desktopHook, activeScene]) {
     assert.match(hook, /ease: 'expo\.out'/u)
-    assert.match(hook, /transformPerspective/u)
-    assert.match(hook, /rotateX/u)
     assert.match(hook, /stagger/u)
-    assert.match(hook, /clearProps: 'transform,opacity,visibility,filter'/u)
+    assert.match(hook, /clearProps: 'transform,opacity,visibility'/u)
     assert.ok(!hook.includes('scaleX: 1'))
-    // 大面板（panel/targets）动画禁止 filter blur：逐帧重栅格化会卡顿；
-    // blur 只允许出现在小面积的页头行子项上
-    const panelTween = hook.split(/gsap\.fromTo\(panel|gsap\.fromTo\(nextPanel/u)[1]?.split(')')[0] || ''
-    assert.doesNotMatch(panelTween, /filter:\s*'blur/u)
+    // 文字载体（面板/入场目标）禁止 scale/rotateX/filter——分数缩放与逐帧 blur
+    // 都会让文字重栅格化，动画结束移除 transform 时“跳回清晰”即抽搐
+    assert.doesNotMatch(hook, /rotateX:|transformPerspective:|scale: \.9/u)
   }
-  // 页头行（小面积）保留 Amicro blur 质感
+  // 面板入场 from 必须只含位移与透明度
+  assert.match(desktopHook, /gsap\.fromTo\(panel,\n            \{ autoAlpha: \.01, x: direction \* 34, y: 14 \}/u)
+  assert.match(activeScene, /gsap\.fromTo\(nextPanel,\n            \{ autoAlpha: \.01, x: direction \* 22, y: 10 \}/u)
+  // 页头行（小面积、少文字）保留 Amicro blur 质感
   assert.match(desktopHook, /filter: 'blur\(5px\)'/u)
   assert.match(activeScene, /filter: 'blur\(4px\)'/u)
+  // 卡片帧有自己的 CSS 入场动画（data-entering），不得进入 GSAP 目标（注释提及不算）
+  for (const hook of [desktopHook, activeScene]) {
+    assert.doesNotMatch(hook, /['"]\.pickup-card-frame['"]/u)
+  }
 })
 
 test('移动端模块页头子项（含搜索框 Portal 插槽）在转场中先退场后必须恢复', () => {
   // 回归：上一版移动端只退场不恢复，导致搜索框插槽永久停留在 opacity:0
-  assert.match(activeScene, /nextHeaderItems/u)
   assert.match(activeScene, /const nextHeaderItems = /u)
   const reveal = activeScene.split('const reveal = (animate) =>')[1]?.split('const timeline =')[0] || ''
   assert.match(reveal, /gsap\.fromTo\(item/u)
   assert.match(reveal, /autoAlpha: 1/u)
-  // 每轮转场开始时防御性复位残留样式
-  assert.match(activeScene, /gsap\.set\(\[currentPanel, \.\.\.headerItems\]\.filter\(Boolean\), \{ clearProps/u)
+  // 2026-08-28 三修：不再做转场前的防御性 clearProps——被打断的 tween 处于中间值时
+  // 清 props 会瞬间跳位（抽搐）；改为退场 .to() 从当前值续接 + interrupted 标记清理
+  assert.doesNotMatch(activeScene, /gsap\.set\(\[currentPanel/u)
+  assert.match(activeScene, /delete shell\.dataset\.mobileSceneTransitioning/u)
 })
 
 test('reduced-motion 下移动端只做结构切换，不播任何 tween', () => {
   assert.match(activeScene, /if \(reducedMotion\(\)\) \{\n      reveal\(false\)\n      return\n    \}/u)
   const revealBody = activeScene.split('const reveal = (animate) =>')[1]?.split('timelineRef.current = timeline')[0] || ''
-  assert.match(revealBody, /if \(!animate\) return/u)
+  assert.match(revealBody, /if \(!animate\) \{/u)
+  assert.match(revealBody, /gsap\.set\(\[nextPanel, \.\.\.nextHeaderItems\]/u)
 })
 
 test('入场 tween 被单独跟踪，快速连续切换时可被打断复位', () => {
@@ -64,13 +70,16 @@ test('入场 tween 被单独跟踪，快速连续切换时可被打断复位', (
   }
 })
 
-test('转场期间旧面板先退场且新面板重置上轮内联样式，reduced-motion 直接切换', () => {
+test('转场期间旧面板先退场，reduced-motion 直接切换且不残留内联样式', () => {
   assert.match(desktopHook, /prefersReducedMotion\(\)/u)
   assert.match(activeScene, /reducedMotion\(\)/u)
   for (const hook of [desktopHook, activeScene]) {
     assert.match(hook, /power2\.in/u)
-    assert.match(hook, /gsap\.set\((?:panel|nextPanel), \{ clearProps/u)
   }
+  // reduced-motion 路径用 gsap.set 清残留，保证切换后无内联样式
+  assert.match(activeScene, /gsap\.set\(\[nextPanel, \.\.\.nextHeaderItems\], \{ clearProps/u)
+  // 被打断的时间线不触发 onComplete，须手动清理转场标记
+  assert.match(desktopHook, /delete root\.dataset\.desktopSceneTransitioning/u)
 })
 
 test('framer-motion 已引入并驱动 Toast：AnimatePresence + snappy spring', () => {
@@ -84,17 +93,24 @@ test('framer-motion 已引入并驱动 Toast：AnimatePresence + snappy spring',
   assert.doesNotMatch(motionCss, /\.status-toast \{[^}]*transition:/u)
 })
 
-test('对话框有 Amicro 风格入场与退场，backdrop 走 opacity 合成器动画', () => {
-  assert.match(componentsCss, /dialog-panel-in \.45s/u)
-  assert.match(componentsCss, /dialog-panel-out \.2s/u)
+test('对话框直关无退场动画，backdrop 仅入场淡入（opacity 合成器）', () => {
+  // 2026-08-28 三修：退出动画（scale 缩小+延迟 close）被用户感知为“先缩小再关掉”的卡顿，回退直关
+  assert.match(dialog, /else if \(!open && dialog\.open\) \{\n[\s\S]*?dialog\.close\(\)/u)
+  assert.doesNotMatch(dialog, /dataset\.closing/u)
   assert.match(componentsCss, /dialog-backdrop-in/u)
-  // backdrop 动画必须基于 opacity，禁止逐帧重绘 background
   assert.match(componentsCss, /@keyframes dialog-backdrop-in \{ from \{ opacity: 0; \} to \{ opacity: 1; \} \}/u)
   assert.doesNotMatch(componentsCss, /@keyframes dialog-backdrop-in \{ from \{ background/u)
-  assert.match(componentsCss, /dialog-backdrop-out/u)
-  assert.match(dialog, /dataset\.closing/u)
-  assert.match(dialog, /dialog\.close\(\)/u)
-  assert.match(componentsCss, /prefers-reduced-motion: reduce[\s\S]*?\.dialog-panel\[data-closing='true'\] \{ animation: none; \}/u)
+  assert.ok(!componentsCss.includes('dialog-panel-out'))
+  assert.ok(!componentsCss.includes('dialog-backdrop-out'))
+  // 面板入场动画由 workshop-system.css 220ms 统一负责；components.css 不再叠加同名 keyframes
+  assert.ok(!componentsCss.includes('dialog-panel-in .45s'))
+  assert.match(componentsCss, /prefers-reduced-motion: reduce[\s\S]*?\.app-dialog\[open\]::backdrop \{ animation: none; \}/u)
+})
+
+test('workshop-system 对话框入场 keyframes 为文字安全（无 scale）', () => {
+  const wsCss = readFileSync(new URL('../apps/web/src/styles/workshop-system.css', import.meta.url), 'utf8')
+  assert.match(wsCss, /@keyframes dialog-panel-in \{ from \{ opacity: 0; transform: translateY\(12px\); \} \}/u)
+  assert.doesNotMatch(wsCss, /dialog-panel-in[^}]*scale/u)
 })
 
 test('运动令牌齐备：easeOutExpo 与 spring 曲线进入 tokens', () => {

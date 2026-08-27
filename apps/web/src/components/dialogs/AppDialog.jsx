@@ -17,21 +17,9 @@ export default function AppDialog({ open, onClose, title, eyebrow, description, 
       dialog.showModal()
       window.requestAnimationFrame(() => (dialog.querySelector('[data-autofocus]') || closeRef.current || dialog.querySelector('button, input, textarea'))?.focus())
     } else if (!open && dialog.open) {
-      // Amicro 风格退场：先播面板出场动画，再真正关闭原生 dialog
-      const panel = dialog.querySelector('[data-dialog-panel]')
-      if (panel) panel.dataset.closing = 'true'
-      dialog.dataset.closing = 'true'
-      const closeTimer = window.setTimeout(() => {
-        if (panel) delete panel.dataset.closing
-        delete dialog.dataset.closing
-        dialog.close()
-      }, 210)
-      return () => {
-        window.clearTimeout(closeTimer)
-        if (panel) delete panel.dataset.closing
-        delete dialog.dataset.closing
-        document.body.classList.remove('dialog-open')
-      }
+      // 立即关闭：退出动画（scale 缩小 + 延迟 close）实测会被感知为
+      // “先突然缩小、再关掉”的卡顿，且与 workshop-system.css 原有入场动画打架，回退为直关
+      dialog.close()
     }
     return () => document.body.classList.remove('dialog-open')
   }, [open])

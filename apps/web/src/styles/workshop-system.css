@@ -619,7 +619,8 @@ button:disabled { opacity: .48; }
 .closing-check-gate { padding: 10px 11px; border-radius: var(--ops-radius-sm); background: var(--ops-page); color: var(--ops-text-muted); font-size: 12.5px; line-height: 1.45; }
 .closing-check-gate[data-ready='true'] { color: var(--ops-success); font-weight: 700; }
 
-@keyframes dialog-panel-in { from { opacity: 0; transform: translateY(12px) scale(.985); } }
+/* 文字安全：入场只做位移+透明度，不用 scale（分数缩放会让文字重栅格化抽搐） */
+@keyframes dialog-panel-in { from { opacity: 0; transform: translateY(12px); } }
 
 /* Login, OTP, setup, security gates and explicit application states. */
 .boot-sequence {
