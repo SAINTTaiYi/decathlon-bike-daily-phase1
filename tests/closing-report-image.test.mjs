@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildClosingReportModel, reportContact, reportItemDetail, selfPickupReportLabel, usedCarReportLabel } from '../apps/web/src/utils/closingReportImage.js'
+import { buildClosingReportModel, reportContact, reportItemDetail, selfPickupReportLabel, shiphubReportLabel, usedCarReportLabel } from '../apps/web/src/utils/closingReportImage.js'
+import { readFile } from 'node:fs/promises'
 
 test('闭店日报图模型只收录未完成的待取/维修/交接，并保留完整销售数据', () => {
   const model = buildClosingReportModel({
@@ -107,4 +108,45 @@ test('闭店日报图只等待站点自托管的两套字体，不再探测已�
   assert.match(source, /document\.fonts\.load\(/u)
   assert.doesNotMatch(source, /Albert Sans Local|Noto Serif SC Variable/u)
   assert.doesNotMatch(source, /CSSFontFaceRule|new FontFace\(/u)
+})
+
+test('闭店日报图并入 Shiphub 同步车辆并按管线阶段标识', () => {
+  const model = buildClosingReportModel({
+    records: [{ id: 'p1', scene: 'pickup', title: '手工待取', status: '等待取车', lifecycle: 'active' }],
+    shiphubOrders: [
+      { category: 'hand', order: { id: 'H1', orderNumber: '5127371642958017643', vehicleInfo: '城市通勤车 · 黑色 · M码', customerPhone: '17012345678', channel: '天猫', scheduledAt: '2026-08-27T02:00:00.000Z', localActionState: null } },
+      { category: 'pick', order: { id: 'P1', orderNumber: 'cn1192410922059753', items: [{ productLabel: '山地自行车' }], localActionState: null } },
+      { category: 'receive', order: { id: 'R1', orderNumber: '3602269002645552', vehicleInfo: '公路自行车 · 白色 · S码', localActionState: 'completed' } }
+    ],
+    closedAt: '2026-08-27T14:00:00.000Z'
+  })
+  // 追加在手工待取之后，顺序保持传入顺序
+  assert.deepEqual(model.pickups.map((item) => item.id), ['p1', 'shiphub-hand-H1', 'shiphub-pick-P1', 'shiphub-receive-R1'])
+  const [hand, pick, receive] = model.pickups.slice(1)
+  // 状态标识按管线阶段区分
+  assert.equal(hand.status, '待交接核销')
+  assert.equal(pick.status, '待门店拣货')
+  assert.equal(receive.status, '已本地处理')
+  // 右侧黑底标识（短词）
+  assert.equal(shiphubReportLabel(hand), '待交接')
+  assert.equal(shiphubReportLabel(pick), '待拣货')
+  assert.equal(shiphubReportLabel(receive), '已处理')
+  assert.equal(shiphubReportLabel(model.pickups[0]), '')
+  // 标题优先车辆信息，缺失时回退商品名；联系方式进入手机槽位
+  assert.equal(hand.title, '城市通勤车 · 黑色 · M码')
+  assert.equal(pick.title, '山地自行车')
+  assert.equal(reportContact(hand).contactValue, '17012345678')
+  // 订单号进入详情行与工单号
+  assert.match(reportItemDetail(hand), /订单 5127371642958017643/u)
+  assert.equal(hand.ticketNo, '5127371642958017643')
+})
+
+test('闭店导出注入 Shiphub 订单且失败不阻塞闭店流程', async () => {
+  const app = await readFile(new URL('../apps/web/src/App.jsx', import.meta.url), 'utf8')
+  // enabled 时取缓存并补拉缺失分类，任何失败降级为空数组
+  assert.match(app, /if \(shiphub\?\.enabled\)/u)
+  assert.match(app, /await shiphub\.loadOrders\(category\)/u)
+  assert.match(app, /catch \{ return \[\] \}/u)
+  assert.match(app, /shiphubOrders,/u)
+  assert.match(app, /const categories = \['hand', 'pick', 'receive'\]/u)
 })

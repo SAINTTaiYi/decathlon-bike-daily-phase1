@@ -70,12 +70,41 @@ export function usedCarReportLabel(record) {
   return inferPickupSource(record) === 'used-car' ? '二手车' : ''
 }
 
+// Shiphub 同步车辆：按取车管线阶段给出右侧黑底标识（短词，30px 显示）
+export function shiphubReportLabel(record) {
+  if (!record?.shiphub) return ''
+  if (record.localActionState === 'completed') return '已处理'
+  const labels = { hand: '待交接', pick: '待拣货', receive: '在途' }
+  return labels[record.shiphubCategory] || 'Shiphub'
+}
+
+export function shiphubReportRecord(category, order) {
+  const statusLabels = { hand: '待交接核销', pick: '待门店拣货', receive: '在途车辆' }
+  const completed = order.localActionState === 'completed'
+  const detailParts = [order.channel ? `渠道 ${order.channel}` : '', order.orderNumber ? `订单 ${order.orderNumber}` : '']
+  return {
+    id: `shiphub-${category}-${order.id}`,
+    scene: 'pickup',
+    shiphub: true,
+    shiphubCategory: category,
+    localActionState: order.localActionState || null,
+    title: order.vehicleInfo || order.items?.[0]?.productLabel || order.displayLabel || order.orderNumber || 'Shiphub 订单',
+    status: completed ? '已本地处理' : statusLabels[category] || 'Shiphub',
+    detail: detailParts.filter(Boolean).join(' · '),
+    contactType: 'phone',
+    contactValue: order.customerPhone || '',
+    ticketNo: order.orderNumber,
+    pickupDate: order.scheduledAt ? String(order.scheduledAt).slice(0, 10) : ''
+  }
+}
+
 export function buildClosingReportModel({
   businessDate = '',
   storeName = '门店',
   exporterName = '',
   kpi = {},
   records = [],
+  shiphubOrders = [],
   closedAt = '',
   appVersion = ''
 }) {
@@ -94,14 +123,18 @@ export function buildClosingReportModel({
       usedReceived: Number(kpi.usedReceived ?? 0)
     },
     // The image may be rendered asynchronously after the close request. Clone the values now so later React refreshes cannot replace this report's KPI snapshot.
-    pickups: records.filter(isOpenPickup).map((record) => ({ ...record })),
+    // Shiphub 同步车辆按取车管线阶段标识后并入待取清单（追加在手工待取之后）。
+    pickups: [
+      ...records.filter(isOpenPickup).map((record) => ({ ...record })),
+      ...shiphubOrders.map(({ category, order }) => shiphubReportRecord(category, { ...order }))
+    ],
     repairs: records.filter(isOpenRepair).map((record) => ({ ...record })),
     handovers: records.filter(isOpenHandover).map((record) => ({ ...record }))
   }
 }
 
 async function ensureReportFonts(model) {
-  const reportText = `闭店日报门店销售车辆安全检查评价二手售出收车待取维修交接${JSON.stringify(model)}`
+  const reportText = `闭店日报门店销售车辆安全检查评价二手售出收车待取维修交接待门店拣货在途已处理核销${JSON.stringify(model)}`
   const [bodyFaces, bodyDisplayFaces, displayFaces] = await Promise.all([
     document.fonts.load('500 26px "Noto Sans SC Variable"', reportText),
     document.fonts.load('900 48px "Noto Sans SC Variable"', reportText),
@@ -417,10 +450,11 @@ function drawCard(ctx, item, x, y, width, index) {
   ctx.restore()
 
   // ——— right panel: source identities replace the ordinary pickup-date display ———
+  const shiphubLabel = shiphubReportLabel(item)
   const selfPickupLabel = selfPickupReportLabel(item)
   const usedCarLabel = usedCarReportLabel(item)
-  const sourceIdentity = selfPickupLabel || usedCarLabel
-  const dateLabel = selfPickupLabel ? '自提标识' : usedCarLabel ? '二手车标识' : '取车时间'
+  const sourceIdentity = shiphubLabel || selfPickupLabel || usedCarLabel
+  const dateLabel = shiphubLabel ? 'Shiphub' : selfPickupLabel ? '自提标识' : usedCarLabel ? '二手车标识' : '取车时间'
   const dateValue = sourceIdentity || formatDateSlash(item.pickupDate)
   if (sourceIdentity) fillRound(ctx, panelX, panelY, panelW, panelH, 16, INK)
   ctx.font = `600 18px ${FONT_MONO}`

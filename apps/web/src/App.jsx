@@ -342,12 +342,24 @@ export default function App() {
     if (!closedAt) return { ok: false, error: '请先完成闭店，再导出日报图。' }
     try {
       // Never read KPI values again after canvas work begins. The close response is the server-confirmed snapshot for automatic reports.
+      // Shiphub 同步车辆并入日报图：取缓存，缺的分类现场拉取；失败时降级为不含（不阻塞闭店）。
+      let shiphubOrders = []
+      if (shiphub?.enabled) {
+        const categories = ['hand', 'pick', 'receive']
+        const lists = await Promise.all(categories.map(async (category) => {
+          const cached = shiphub.orders?.[category]
+          if (Array.isArray(cached) && cached.length) return cached
+          try { return await shiphub.loadOrders(category) } catch { return [] }
+        }))
+        shiphubOrders = lists.flatMap((orders, index) => orders.map((order) => ({ category: categories[index], order })))
+      }
       const model = buildClosingReportModel({
         businessDate: snapshot.businessDate ?? workflow.dateKey,
         storeName: currentStore?.storeName || '门店',
         exporterName: currentUser,
         kpi: { ...(snapshot.kpi ?? workflow.kpi) },
         records: (snapshot.records ?? workflow.records).map((record) => ({ ...record })),
+        shiphubOrders,
         closedAt,
         appVersion: APP_VERSION
       })
@@ -365,7 +377,7 @@ export default function App() {
       setToast({ message, tone: 'error' })
       return { ok: false, error: message }
     }
-  }, [currentStore?.storeName, currentUser, reportImage, workflow.closedAt, workflow.dateKey, workflow.kpi, workflow.records])
+  }, [currentStore?.storeName, currentUser, reportImage, shiphub, workflow.closedAt, workflow.dateKey, workflow.kpi, workflow.records])
 
   const confirmClose = async () => {
     // `result.day` is returned by the close transaction itself. It is authoritative even before React's background refresh settles.
