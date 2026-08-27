@@ -81,9 +81,17 @@ button:disabled { opacity: .48; }
   inset: 0;
   z-index: -1;
   display: block;
-  background: var(--ops-page);
+  background: transparent;
+  overflow: hidden;
   pointer-events: none;
 }
+/* Crextio 风格环境渐变光斑：品牌黄三层，radial 自然衰减（无 filter blur，
+   合成器友好）；transform 由 useEnvironmentMotion 驱动（呼吸漂移 / 指针视差 /
+   模块切换脉冲 / 弹窗压暗见 opacity）。 */
+.workshop-runtime .env-blob { position: absolute; border-radius: 50%; will-change: transform; }
+.workshop-runtime .env-blob-a { left: -16%; top: -18%; width: 82vmin; height: 82vmin; background: radial-gradient(circle at 44% 42%, rgb(255 222 89 / .5), rgb(255 222 89 / 0) 68%); }
+.workshop-runtime .env-blob-b { right: -10%; top: -8%; width: 58vmin; height: 58vmin; background: radial-gradient(circle at 56% 46%, rgb(255 239 176 / .55), rgb(255 239 176 / 0) 70%); }
+.workshop-runtime .env-blob-c { left: 10%; bottom: -26%; width: 76vmin; height: 76vmin; background: radial-gradient(circle at 50% 56%, rgb(255 213 101 / .42), rgb(255 213 101 / 0) 70%); }
 .workshop-runtime > [data-workspace-layer='navigation'] {
   position: fixed;
   inset: 0 0 auto;

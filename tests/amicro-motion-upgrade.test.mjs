@@ -199,3 +199,37 @@ test('边角微交互：更多菜单进出场、tabs 弹跳、通知反馈、计
   assert.match(header, /repeat: -1, yoyo: true/u)
   assert.match(header, /badgeRef/u)
 })
+
+test('Crextio 风格黄色渐变环境背景：光斑 + GSAP 交互动效（2026-08-28）', () => {
+  const app = readFileSync(new URL('../apps/web/src/App.jsx', import.meta.url), 'utf8')
+  const hook = readFileSync(new URL('../apps/web/src/hooks/useEnvironmentMotion.js', import.meta.url), 'utf8')
+  const wsCss = readFileSync(new URL('../apps/web/src/styles/workshop-system.css', import.meta.url), 'utf8')
+  const desktopHook = readFileSync(new URL('../apps/web/src/hooks/useDesktopSceneTransition.js', import.meta.url), 'utf8')
+  const activeScene = readFileSync(new URL('../apps/web/src/hooks/useActiveScene.js', import.meta.url), 'utf8')
+  const endfieldCss = readFileSync(new URL('../apps/web/src/styles/endfield.css', import.meta.url), 'utf8')
+  // 三层品牌黄光斑挂在环境层
+  assert.match(app, /env-blob env-blob-a/u)
+  assert.match(app, /env-blob env-blob-b/u)
+  assert.match(app, /env-blob env-blob-c/u)
+  assert.match(app, /useEnvironmentMotion\(\{ enabled/u)
+  // CSS：环境层透明（露出纸纹）+ 三个 radial 光斑，无 filter blur
+  assert.match(wsCss, /\.workshop-runtime \.workspace-environment \{[\s\S]*?background: transparent;[\s\S]*?overflow: hidden;/u)
+  for (const name of ['env-blob-a', 'env-blob-b', 'env-blob-c']) {
+    assert.match(wsCss, new RegExp(`\\.workshop-runtime \\.${name} \\{[^}]*radial-gradient\\(circle at [^)]*, rgb\\(255 \\d+ \\d+ / \\.\\d+\\), rgb\\(255 \\d+ \\d+ / 0\\) \\d+%\\);`))
+  }
+  assert.doesNotMatch(wsCss, /\.env-blob[^{]*\{[^}]*filter:/u)
+  // hook：呼吸漂移 / 转场脉冲 / 弹窗压暗 / 桌面视差 / reduced-motion / 卸载清理
+  assert.match(hook, /sine\.inOut', repeat: -1, yoyo: true/u)
+  assert.match(hook, /addEventListener\('workshop-ambient'/u)
+  assert.match(hook, /classList\.contains\('dialog-open'\)/u)
+  assert.match(hook, /MutationObserver/u)
+  assert.match(hook, /\(pointer: fine\)/u)
+  assert.match(hook, /gsap\.quickTo\(blob, 'x'/u)
+  assert.match(hook, /reducedMotion\(\)/u)
+  assert.match(hook, /clearProps: 'transform,opacity'/u)
+  // 两端转场都派发环境事件（背景跟随操作）
+  assert.match(desktopHook, /CustomEvent\('workshop-ambient', \{ detail: \{ direction \} \}\)/u)
+  assert.match(activeScene, /if \(animate\) window\.dispatchEvent\(new CustomEvent\('workshop-ambient'/u)
+  // endfield 主题不叠加光斑
+  assert.match(endfieldCss, /\.env-blob \{ display: none; \}/u)
+})

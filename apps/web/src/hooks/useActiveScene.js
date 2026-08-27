@@ -92,6 +92,8 @@ export default function useActiveScene({ enabled = true, rootRef, viewMode = fal
     }
     const reveal = (animate) => {
       applyScene()
+      // 环境光斑沿切换方向轻推（useEnvironmentMotion 监听）
+      if (animate) window.dispatchEvent(new CustomEvent('workshop-ambient', { detail: { direction } }))
       window.requestAnimationFrame(() => {
         const nextPanel = moduleElement(id)
         nextPanel?.focus({ preventScroll: true })

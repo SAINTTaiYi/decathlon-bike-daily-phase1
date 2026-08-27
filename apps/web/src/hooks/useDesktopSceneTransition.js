@@ -74,6 +74,8 @@ export default function useDesktopSceneTransition({ enabled, activeScene, rootRe
     const revealScene = () => {
       activeSceneRef.current = nextScene
       onSceneChange(nextScene)
+      // 环境光斑沿切换方向轻推（useEnvironmentMotion 监听）
+      window.dispatchEvent(new CustomEvent('workshop-ambient', { detail: { direction } }))
       window.requestAnimationFrame(() => {
         const panel = root.querySelector(`.workshop-module-panel[data-scene-id="${nextScene}"]`)
         if (!panel) return

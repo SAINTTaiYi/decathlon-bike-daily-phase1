@@ -668,3 +668,6 @@ button, input, select, textarea { border-radius: 0; }
 .directory-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; min-height: 2.75rem; padding: .45rem .55rem; border: 1px solid var(--line-strong); background: var(--surface-raised); font-size: .82rem; }
 .directory-row button { min-width: 3.75rem; min-height: 38px; border: 1px solid var(--ink); font-size: .72rem; font-weight: 800; }
 @media (max-width: 540px) { .governance-request-list > li { grid-template-columns: 1fr; } .governance-decisions { width: 100%; } }
+
+/* endfield 主题有自己的环境渐变，不叠加 workshop 品牌黄光斑 */
+.app-runtime.endfield-runtime .env-blob { display: none; }

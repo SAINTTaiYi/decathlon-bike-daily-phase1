@@ -37,6 +37,7 @@ import useActiveScene from './hooks/useActiveScene.js'
 import useDesktopSceneTransition from './hooks/useDesktopSceneTransition.js'
 import useMotionSystem from './hooks/useMotionSystem.js'
 import useWorkspaceMotion from './hooks/useWorkspaceMotion.js'
+import useEnvironmentMotion from './hooks/useEnvironmentMotion.js'
 import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
 import useShipHub from './hooks/useShipHub.js'
 import OpeningScene from './scenes/OpeningScene.jsx'
@@ -228,6 +229,7 @@ export default function App() {
   const visibleScene = desktopLayout ? desktopScene : activeScene
 
   useMotionSystem({ enabled: introDone && workflow.hydrated && !workspaceLaunching, rootRef: workspaceRootRef, quiet: taskFocused })
+  useEnvironmentMotion({ enabled: introDone && workflow.hydrated && !workspaceLaunching, rootRef: workspaceRootRef })
 
   useEffect(() => {
     if (auth.status === 'anonymous') {
@@ -641,7 +643,12 @@ export default function App() {
       {showBoot ? <BootLoader initialError={auth.error} onLogin={auth.login} onComplete={() => setLoginAnimationDone(true)} onRegister={() => setAuthMode('register')} /> : null}
       {introDone ? <a className="skip-link" href="#closing-summary-anchor">跳到闭店摘要</a> : null}
       <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
-        <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true" />
+        <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true">
+          {/* Crextio 风格环境渐变光斑：品牌黄三层，GSAP 呼吸漂移/视差/转场脉冲 */}
+          <div className="env-blob env-blob-a" />
+          <div className="env-blob env-blob-b" />
+          <div className="env-blob env-blob-c" />
+        </div>
         <div data-workspace-layer="navigation" data-workspace-priority="true">
           <WorkshopShellHeader
             activeScene={visibleScene}
