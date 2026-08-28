@@ -2,7 +2,6 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import BootLoader from './components/BootLoader.jsx'
 import InitialSetup from './components/InitialSetup.jsx'
 import PlatformAdminSetup from './components/PlatformAdminSetup.jsx'
-import RegistrationWizard from './components/RegistrationWizard.jsx'
 import PasswordChangeGate from './components/PasswordChangeGate.jsx'
 import PasswordChangeDialog from './components/dialogs/PasswordChangeDialog.jsx'
 import StatusToast from './components/StatusToast.jsx'
@@ -71,7 +70,6 @@ export default function App() {
   useVisualViewportMetrics()
   const auth = useAuth()
   const [loginAnimationDone, setLoginAnimationDone] = useState(false)
-  const [authMode, setAuthMode] = useState('login')
   const [workspaceAssemblyDone, setWorkspaceAssemblyDone] = useState(false)
   const [taskInputFocused, setTaskInputFocused] = useState(false)
   const [desktopLayout, setDesktopLayout] = useState(() => window.matchMedia?.('(min-width: 768px)').matches ?? false)
@@ -571,9 +569,6 @@ export default function App() {
     return <><PlatformAdminSetup token={platformAdminToken} onComplete={() => { setPlatformAdminToken(''); setToast('CHU13 已创建，请使用 CHU13 登录。') }} /><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
 
-  if (!authenticated && authMode === 'register') {
-    return <><RegistrationWizard onBack={() => setAuthMode('login')} onComplete={(payload) => { auth.acceptRegistration(payload); setToast('注册完成，门店已开通。') }} /><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
-  }
 
   if (auth.status === 'restoring') {
     return <><main className="hydration-state" role="status" aria-live="polite"><strong>VERIFYING SESSION</strong><span>正在验证数据库账号…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
@@ -636,11 +631,17 @@ export default function App() {
       ? sceneRecordConfig.repair
       : sceneRecordConfig[recordEditor.scene]
     : sceneRecordConfig.poster
-  const showBoot = !introDone && authMode === 'login'
+  const showBoot = !introDone
 
   return (
     <>
-      {showBoot ? <BootLoader initialError={auth.error} onLogin={auth.login} onComplete={() => setLoginAnimationDone(true)} onRegister={() => setAuthMode('register')} /> : null}
+      {showBoot ? <BootLoader
+          initialError={auth.error}
+          onLogin={auth.login}
+          onComplete={() => setLoginAnimationDone(true)}
+          onRegistered={(payload) => { auth.acceptRegistration(payload); setLoginAnimationDone(true); setToast('注册完成，门店已开通。') }}
+          onRecovered={() => { setLoginAnimationDone(false); setToast('密码已重设，请用新密码登录。') }}
+        /> : null}
       {introDone ? <a className="skip-link" href="#closing-summary-anchor">跳到闭店摘要</a> : null}
       <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true">

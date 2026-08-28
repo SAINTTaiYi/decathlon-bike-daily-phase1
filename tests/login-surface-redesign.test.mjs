@@ -189,7 +189,8 @@ test('提交态锁定由两端各自的按钮承担，行为一致', () => {
   for (const [name, source, cls] of [['移动端', mobile, 'bootm'], ['桌面端', desktop, 'bootd']]) {
     const primary = new RegExp('type="submit" className="' + cls + '-btn-primary" disabled=\\{submitting\\}', 'u')
     assert.match(source, primary, name + '主按钮须在提交中禁用')
-    assert.match(source, /className="[a-z]+-btn-secondary"[^>]*disabled=\{submitting\}/u, name + '次按钮须在提交中禁用')
+    const secondary = new RegExp('className="' + cls + '-btn-secondary"[\\s\\S]{0,240}?disabled=\\{submitting\\}', 'u')
+    assert.match(source, secondary, name + '次按钮须在提交中禁用')
   }
 })
 

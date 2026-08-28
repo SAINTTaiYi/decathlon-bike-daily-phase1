@@ -272,3 +272,118 @@
   .bootm-btn-secondary,
   .bootm-input-box { transition: none; }
 }
+
+/* ============================================================
+   登录卡内的注册 / 找回密码形态（移动端专属）
+   与登录态共用输入框与按钮样式，只补面板头、步骤条与字段辅助文案。
+   变形动效由 useAuthPanelMorph 用 GSAP 驱动（高度 FLIP），
+   这里不写 transition，避免与 GSAP 抢同一属性。
+   ============================================================ */
+
+.bootm-body {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.bootm-panel-head {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.bootm-panel-title {
+  margin: 0;
+  color: var(--ops-text, #14161a);
+  font-size: 1.14rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.bootm-panel-hint {
+  margin: 0;
+  color: var(--ops-text-muted, #6b7280);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+/* 步骤条：移动端窄，三步横排只放序号+短标签 */
+.bootm-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bootm-steps li {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  padding: 0.45rem 0.2rem;
+  border-radius: 0.65rem;
+  background: rgb(20 22 26 / 0.045);
+  color: var(--ops-text-muted, #6b7280);
+  text-align: center;
+}
+
+.bootm-steps li[aria-current='step'] {
+  background: var(--ops-yellow, #ffde59);
+  color: var(--ops-yellow-pressed, #14161a);
+}
+
+.bootm-steps li[data-complete='true'] {
+  background: rgb(255 222 89 / 0.28);
+  color: var(--ops-text, #14161a);
+}
+
+.bootm-step-dot {
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  background: rgb(20 22 26 / 0.08);
+  font-size: 0.7rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.bootm-steps li[aria-current='step'] .bootm-step-dot {
+  background: rgb(20 22 26 / 0.16);
+}
+
+.bootm-step-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* 门店编号 + 名称并排，省一行高度 */
+.bootm-field-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  gap: 0.55rem;
+}
+
+.bootm-field-hint {
+  color: var(--ops-text-muted, #6b7280);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.bootm-notice {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.6rem;
+  background: rgb(255 222 89 / 0.2);
+  color: var(--ops-text, #14161a);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+/* 极窄屏（<=360px）并排字段回落为单列，避免输入框被压扁 */
+@media (max-width: 22.5rem) {
+  .bootm-field-pair { grid-template-columns: minmax(0, 1fr); }
+  .bootm-step-label { font-size: 0.63rem; }
+}

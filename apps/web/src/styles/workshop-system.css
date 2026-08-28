@@ -630,14 +630,12 @@ button:disabled { opacity: .48; }
 
 /* Login page owns its styling in boot.css (redesigned 2026-08-28). */
 
-.initial-setup-shell,
-.registration-shell {
+.initial-setup-shell {
   min-height: 100dvh;
   padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   background: var(--ops-page) !important;
 }
-.initial-setup-panel,
-.registration-panel {
+.initial-setup-panel {
   gap: 14px;
   width: min(100%, 760px);
   padding: 16px;
@@ -648,23 +646,11 @@ button:disabled { opacity: .48; }
   box-shadow: var(--ops-panel-shadow);
   clip-path: none !important;
 }
-.initial-setup-panel header,
-.registration-panel header { gap: 6px; padding: 0 0 10px; border: 0; }
-.initial-setup-panel header > span,
-.registration-panel header > span { color: var(--ops-yellow-pressed); font-family: var(--ops-display); }
-.initial-setup-panel header h1,
-.registration-panel header h1 { font-family: var(--ops-display); font-size: 38px; line-height: .88; }
+.initial-setup-panel header { gap: 6px; padding: 0 0 10px; border: 0; }
+.initial-setup-panel header > span { color: var(--ops-yellow-pressed); font-family: var(--ops-display); }
+.initial-setup-panel header h1 { font-family: var(--ops-display); font-size: 38px; line-height: .88; }
 .initial-setup-panel header p,
-.registration-panel header p,
-.initial-setup-panel > small,
-.registration-profile-help { color: var(--ops-text-muted); }
-.registration-steps { gap: 5px; background: transparent; }
-.registration-steps li { min-height: 48px; border-radius: var(--ops-radius-sm); background: var(--ops-page); }
-.registration-steps li[aria-current='step'] { background: var(--ops-black); color: var(--ops-yellow); box-shadow: 0 0 14px var(--ops-black-glow); }
-.registration-steps li[data-complete='true'] { background: var(--ops-yellow-wash); color: var(--ops-black); }
-.registration-summary,
-.registration-notice { border: 0; border-radius: var(--ops-radius); background: var(--ops-page); }
-.registration-notice { box-shadow: inset 4px 0 0 var(--ops-yellow); }
+.initial-setup-panel > small { color: var(--ops-text-muted); }
 .hydration-state,
 .fatal-state {
   min-height: 100dvh;
@@ -745,10 +731,8 @@ button:disabled { opacity: .48; }
   .dialog-panel[data-dialog-panel] { padding: 22px; }
   .dialog-header h2,
   .data-dialog .dialog-header h2 { font-size: 40px; }
-  .initial-setup-panel,
-  .registration-panel { padding: 24px; }
-  .initial-setup-panel header h1,
-  .registration-panel header h1 { font-size: 52px; }
+  .initial-setup-panel { padding: 24px; }
+  .initial-setup-panel header h1 { font-size: 52px; }
   .workshop-footer { grid-template-columns: minmax(0,1fr) auto; align-items: center; }
   .workshop-footer .footer-identity { grid-column: 1 / -1; }
   .workshop-footer .primary-action { grid-column: 2; grid-row: 2 / 4; min-width: 180px; }
@@ -797,7 +781,6 @@ button:disabled { opacity: .48; }
   .look-number,
   .boot-login,
   .initial-setup-panel,
-  .registration-panel,
   .dialog-panel[data-dialog-panel] { forced-color-adjust: auto; box-shadow: none !important; }
   .module-flow-progress { background: Highlight; }
   .primary-action,

@@ -35,8 +35,7 @@ test('认证与安全入口不再声明已废弃主题，正文使用自托管�
     'BootLoader.jsx',
     'InitialSetup.jsx',
     'PasswordChangeGate.jsx',
-    'PlatformAdminSetup.jsx',
-    'RegistrationWizard.jsx'
+    'PlatformAdminSetup.jsx'
   ].map((name) => readFile(new URL(`../apps/web/src/components/${name}`, import.meta.url), 'utf8')))
   for (const source of sources) assert.doesNotMatch(source, /data-ark-theme|data-ark-depth|endfield/u)
   assert.match(tokens, /--font-body: 'Noto Sans SC Variable'/u)

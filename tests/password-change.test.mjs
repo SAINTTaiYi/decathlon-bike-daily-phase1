@@ -57,7 +57,7 @@ test('已登录用户可从日报菜单进入独立密码修改对话框', async
   assert.match(authSource, /changePasswordAccount\(currentPassword, nextPassword, idempotencyKey\)/u)
   assert.match(authSource, /error\?\.code === 'PASSWORD_CHANGE_CONFLICT'/u)
   assert.match(authSource, /clear\(message\)/u)
-  assert.match(appSource, /<BootLoader initialError=\{auth\.error\}/u)
+  assert.match(appSource, /<BootLoader\s+initialError=\{auth\.error\}/u)
   assert.match(bootSource, /initialError = ''/u)
   // 表单状态机已收进 useBootLoginForm（双端共用），回填断言随之指向 hook
   assert.match(bootFormSource, /if \(initialError\) setError\(initialError\)/u)

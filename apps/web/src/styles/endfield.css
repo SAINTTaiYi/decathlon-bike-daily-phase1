@@ -626,33 +626,13 @@ button, input, select, textarea { border-radius: 0; }
 }
 
 
-/* Self-service registration is an authenticated product entry, not a generic marketing form. */
-.registration-shell { display: grid; min-height: 100dvh; place-items: center; padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); background: #171917; }
-.registration-panel { display: grid; gap: 1rem; width: min(100%, 44rem); padding: clamp(1rem, 4vw, 1.75rem); border: 1px solid var(--ink); border-top: 6px solid var(--accent); background: var(--surface-raised); color: var(--ink); clip-path: polygon(0 0, calc(100% - var(--clip-cut)) 0, 100% var(--clip-cut), 100% 100%, 0 100%); }
-.registration-panel header { display: grid; gap: .5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--ink); }
-.registration-panel header > span { color: var(--ink-soft); font-family: var(--font-mono); font-size: .7rem; font-weight: 850; letter-spacing: .07em; }
-.registration-panel header h1 { font-family: var(--font-display); font-size: clamp(2.15rem, 10vw, 4.25rem); line-height: .84; letter-spacing: -.045em; text-wrap: balance; }
-.registration-panel header p { max-width: 52ch; color: var(--ink-soft); font-size: .875rem; line-height: 1.55; text-wrap: pretty; }
-.registration-profile-help { max-width: 52ch; color: var(--ink-soft); font-size: .8125rem; line-height: 1.55; text-wrap: pretty; }
-.registration-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; margin: 0; padding: 0; list-style: none; background: var(--line-strong); }
-.registration-steps li { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr); align-items: center; gap: .45rem; min-height: 3.25rem; padding: .55rem; background: var(--surface); color: var(--muted); font-size: .72rem; font-weight: 800; line-height: 1.25; }
-.registration-steps li span { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border: 1px solid currentColor; font-family: var(--font-mono); font-size: .68rem; }
-.registration-steps li[aria-current='step'] { background: var(--ink); color: var(--accent); }
-.registration-steps li[data-complete='true'] { background: var(--accent-wash); color: var(--ink); }
-.registration-directory-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
-.registration-summary, .registration-notice { padding: .8rem; border-left: 0; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-soft); font-size: .84rem; line-height: 1.5; }
-.registration-notice { border-top: 4px solid var(--accent); background: var(--accent-wash); color: var(--ink); }
 .boot-login-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .55rem; }
 .boot-register-link { min-height: 50px; padding: .55rem .7rem; border: 1px solid rgb(255 255 250 / .72); color: #fffffa; font-size: .76rem; font-weight: 850; }
 .boot-register-link:focus-visible, .boot-register-link:hover { border-color: var(--accent); color: var(--accent); }
 @media (max-width: 640px) {
-  .registration-directory-grid { grid-template-columns: 1fr; }
-  .registration-steps { grid-template-columns: 1fr; gap: 1px; }
-  .registration-steps li { min-height: 2.8rem; }
   .boot-login-actions { grid-template-columns: 1fr; }
 }
 @media (forced-colors: active) {
-  .registration-panel, .registration-steps li, .registration-summary, .registration-notice { forced-color-adjust: auto; }
 }
 
 .governance-stack { display: grid; gap: 1rem; }

@@ -288,3 +288,118 @@
   .bootd-btn-secondary,
   .bootd-input-box { transition: none; }
 }
+
+/* ============================================================
+   登录卡内的注册 / 找回密码形态（桌面端专属）
+   与移动端各写一套，互不覆盖（项目规则 2026-08-28）。
+   变形动效交给 GSAP，这里不声明 transition/height。
+   ============================================================ */
+
+.bootd-body {
+  display: grid;
+  gap: 1rem;
+}
+
+.bootd-panel-head {
+  display: grid;
+  gap: 0.34rem;
+}
+
+.bootd-panel-title {
+  margin: 0;
+  color: var(--ops-text, #14161a);
+  font-size: 1.34rem;
+  font-weight: 800;
+  letter-spacing: -0.012em;
+  line-height: 1.22;
+}
+
+.bootd-panel-hint {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--ops-text-muted, #6b7280);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+/* 步骤条：桌面横向足够，序号与标签同排 */
+.bootd-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bootd-steps li {
+  display: grid;
+  grid-template-columns: 1.45rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.7rem;
+  background: rgb(20 22 26 / 0.045);
+  color: var(--ops-text-muted, #6b7280);
+}
+
+.bootd-steps li[aria-current='step'] {
+  background: var(--ops-yellow, #ffde59);
+  color: var(--ops-yellow-pressed, #14161a);
+}
+
+.bootd-steps li[data-complete='true'] {
+  background: rgb(255 222 89 / 0.26);
+  color: var(--ops-text, #14161a);
+}
+
+.bootd-step-dot {
+  display: grid;
+  place-items: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 999px;
+  background: rgb(20 22 26 / 0.08);
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.bootd-steps li[aria-current='step'] .bootd-step-dot {
+  background: rgb(20 22 26 / 0.16);
+}
+
+.bootd-step-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.bootd-field-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 0.7rem;
+}
+
+.bootd-field-hint {
+  color: var(--ops-text-muted, #6b7280);
+  font-size: 0.73rem;
+  line-height: 1.45;
+}
+
+.bootd-notice {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.65rem;
+  background: rgb(255 222 89 / 0.18);
+  color: var(--ops-text, #14161a);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+/* 矮视口（笔电 + 浏览器工具栏）：注册三步字段多，压缩纵向留白防溢出 */
+@media (max-height: 46rem) {
+  .bootd-body { gap: 0.7rem; }
+  .bootd-panel-title { font-size: 1.18rem; }
+  .bootd-steps li { padding: 0.4rem 0.5rem; }
+}

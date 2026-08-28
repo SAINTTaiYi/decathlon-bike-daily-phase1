@@ -96,6 +96,23 @@ export const registrationCompleteSchema = z.object({
   completionToken: z.string().min(32).max(512),
   password: passwordSchema
 }).strict()
+// 自助改密（忘记密码）· 与注册链路平行但令牌不可互换。
+// 必须同时提交用户名与邮箱：仅凭用户名不得触发发信，否则任何人都能拿
+// 别人的用户名轰炸其邮箱。邮箱是否匹配一律不在响应里体现（防枚举）。
+export const passwordResetOtpSchema = z.object({
+  username: usernameSchema,
+  email: corporateEmailSchema
+}).strict()
+export const passwordResetVerifyOtpSchema = z.object({
+  challengeId: uuidSchema,
+  otp: otpCodeSchema
+}).strict()
+export const passwordResetCompleteSchema = z.object({
+  challengeId: uuidSchema,
+  completionToken: z.string().min(32).max(512),
+  password: passwordSchema
+}).strict()
+
 export const platformAdminSetupSchema = z.object({
   token: z.string().min(32).max(512),
   password: passwordSchema,
@@ -217,6 +234,8 @@ export type StoreMemberDto = { id: string; displayName: string; role: 'operator'
 export type CreateUserInput = z.infer<typeof createUserSchema>
 export type RegistrationOtpInput = z.infer<typeof registrationOtpSchema>
 export type RegistrationCompleteInput = z.infer<typeof registrationCompleteSchema>
+export type PasswordResetOtpInput = z.infer<typeof passwordResetOtpSchema>
+export type PasswordResetCompleteInput = z.infer<typeof passwordResetCompleteSchema>
 
 export const adminStoreMemberUpdateSchema = z.object({ displayName: z.string().trim().min(1).max(24).optional(), role: z.enum(['operator', 'manager', 'admin']).optional(), expectedUpdatedAt: z.string().min(1).max(80) }).strict().refine((value) => Boolean(value.displayName || value.role), { message: '至少提供一个成员字段。' })
 export const adminStoreMemberRemoveSchema = z.object({ expectedUpdatedAt: z.string().min(1).max(80) }).strict()

@@ -13,6 +13,7 @@ import { healthRoutes } from './routes/health.js'
 import { releaseRoutes } from './routes/release.js'
 import { workItemRoutes } from './routes/work-items.js'
 import { registrationRoutes } from './routes/registration.js'
+import { recoveryRoutes } from './routes/recovery.js'
 import { governanceRoutes } from './routes/governance.js'
 import { adminRoutes } from './routes/admin.js'
 import { shipHubRoutes } from './routes/shiphub.js'
@@ -96,6 +97,7 @@ app.route('/', healthRoutes())
 app.route('/', releaseRoutes())
 app.route('/', authRoutes())
 app.route('/', registrationRoutes())
+app.route('/', recoveryRoutes())
 app.route('/', governanceRoutes())
 app.route('/', adminRoutes())
 app.route('/', closingRoutes())
