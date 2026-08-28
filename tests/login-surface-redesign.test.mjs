@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises'
 const boot = await readFile(new URL('../apps/web/src/components/BootLoader.jsx', import.meta.url), 'utf8')
 const mascot = await readFile(new URL('../apps/web/src/components/BootMascot.jsx', import.meta.url), 'utf8')
 const css = await readFile(new URL('../apps/web/src/styles/boot.css', import.meta.url), 'utf8')
+const characters = await readFile(new URL('../apps/web/src/components/BootCharacters.jsx', import.meta.url), 'utf8')
 
 test('登录页顶部品牌位显示 WORKSHOP OPS 与当前版本号', () => {
   assert.match(boot, /WORKSHOP OPS/u)
@@ -40,4 +41,29 @@ test('移动端登录卡在矮视口逐级收缩，避免整页纵向滚动', ()
   assert.match(css, /@media \(max-width: 860px\) and \(max-height: 720px\)/u)
   assert.match(css, /@media \(max-width: 860px\) and \(max-height: 600px\)/u)
   assert.match(css, /\.boot-mascot-mobile \{\s*width: clamp\(/u)
+})
+
+// BOOT_CHARACTERS_REGRESSION
+test('四角色舞台缩放必须是无量纲数值，禁止 vh 与像素混算导致 clamp 整条失效', () => {
+  const scaleDecls = css.match(/--boot-char-scale:[^;]+;/gu) ?? []
+  assert.ok(scaleDecls.length > 0, '应存在 --boot-char-scale 声明')
+  for (const decl of scaleDecls) {
+    // vh/vw/px 除以裸数字会得到带单位量，scale() 上下文中整条 clamp 失效并回落 scale(1)
+    assert.doesNotMatch(decl, /\d+(vh|vw|vmin|vmax|px)\s*\//u, `缩放声明不得做单位混算: ${decl}`)
+  }
+})
+
+test('移动端窄屏为四角色舞台显式收缩，避免原尺寸被容器裁切', () => {
+  const mobileBlock = css.slice(css.indexOf('@media (max-width: 860px)'))
+  assert.match(mobileBlock, /--boot-char-scale:/u)
+})
+
+test('密码输入时四角色闭眼，密码清空或显示明文后恢复眨眼', () => {
+  // 闭眼状态由密码是否隐藏驱动
+  assert.match(characters, /isHidingPassword/u)
+  // 闭眼与随机眨眼互斥，且退出闭眼后重新排程
+  assert.match(characters, /if \(isHidingPassword\) return undefined/u)
+  assert.match(characters, /\}, \[isHidingPassword\]\)/u)
+  // 橙/黄角色只有瞳孔没有眼白，必须有独立闭眼线支撑
+  assert.match(css, /data-shut/u)
 })

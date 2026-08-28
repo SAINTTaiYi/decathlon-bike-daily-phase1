@@ -39,7 +39,7 @@ function EyeBall({
     <span
       className="boot-char-eyeball"
       data-max-distance={maxDistance}
-      style={{ width: size, height: size, backgroundColor: eyeColor }}
+      style={{ width: size, height: size, backgroundColor: eyeColor, '--boot-char-lid': pupilColor }}
     >
       <span
         className="boot-char-eyeball-pupil"
@@ -251,6 +251,8 @@ export function BootCharacters({ isTyping = false, showPassword = false, passwor
       return undefined
     }
 
+    if (isHidingPassword) return undefined
+
     const schedule = (holder, timerRef, fallbackSize) => {
       const eyeballs = holder.current?.querySelectorAll('.boot-char-eyeball')
       if (!eyeballs?.length) return
@@ -278,7 +280,7 @@ export function BootCharacters({ isTyping = false, showPassword = false, passwor
       clearTimeout(purpleBlinkTimerRef.current)
       clearTimeout(blackBlinkTimerRef.current)
     }
-  }, [])
+  }, [isHidingPassword])
 
   // ─── 输入时紫黑对视 ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -352,6 +354,33 @@ export function BootCharacters({ isTyping = false, showPassword = false, passwor
       qt.purpleFaceTop(65)
     }
   }, [isShowingPassword, isHidingPassword])
+
+  // ─── 密码输入且未明文：四角色闭眼 ─────────────────────────────────────────
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return undefined
+
+    const lids = container.querySelectorAll('.boot-char-pupil, .boot-char-eyeball')
+    if (!lids.length) return undefined
+
+    if (isHidingPassword) {
+      clearTimeout(purpleBlinkTimerRef.current)
+      clearTimeout(blackBlinkTimerRef.current)
+      lids.forEach((el) => {
+        el.dataset.shut = 'true'
+      })
+      return () => {
+        lids.forEach((el) => {
+          delete el.dataset.shut
+        })
+      }
+    }
+
+    lids.forEach((el) => {
+      delete el.dataset.shut
+    })
+    return undefined
+  }, [isHidingPassword])
 
   // ─── 密码明文时紫色角色随机偷瞄 ───────────────────────────────────────────
   useEffect(() => {

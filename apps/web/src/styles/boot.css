@@ -823,7 +823,7 @@
     order: -1;
     width: 100%;
     padding: 0.75rem 0.75rem 0;
-    height: clamp(150px, 26vh, 210px);
+    height: clamp(112px, 19vh, 158px);
   }
 
   .boot-poster-side[data-variant='characters'] .boot-characters {
@@ -832,13 +832,13 @@
   }
 
   .boot-poster-side[data-variant='characters'] .boot-characters-stage {
-    --boot-char-scale: clamp(0.34, calc(26vh / 460 * 0.96), 0.46);
+    --boot-char-scale: clamp(0.26, 0.075vh + 0.06vw, 0.4);
   }
 }
 
 @media (max-width: 860px) and (max-height: 640px) {
   .boot-poster-side[data-variant='characters'] {
-    height: clamp(120px, 20vh, 160px);
+    height: clamp(96px, 15vh, 128px);
   }
 }
 
@@ -846,6 +846,36 @@
   .boot-poster-side[data-variant='characters'] {
     padding: 0.6rem 0.6rem 0;
   }
+}
+
+/* ── 闭眼态：密码输入时四角色闭眼 ─────────────────────────────────────── */
+.boot-char-pupil[data-shut='true'],
+.boot-char-eyeball[data-shut='true'] > .boot-char-eyeball-pupil {
+  opacity: 0;
+}
+
+.boot-char-pupil[data-shut='true']::after,
+.boot-char-eyeball[data-shut='true']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 118%;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--boot-char-lid, #14161a);
+  transform: translate(-50%, -50%);
+  opacity: 1;
+}
+
+.boot-char-pupil,
+.boot-char-eyeball {
+  position: relative;
+}
+
+.boot-char-eyeball[data-shut='true']::after {
+  background: var(--boot-char-lid, #14161a);
+  height: 4px;
 }
 
 /* 降低动效偏好：保留静态构图，去掉跟随 */
