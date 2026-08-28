@@ -528,7 +528,10 @@
 @media (max-width: 860px) {
   .boot-sequence {
     padding: max(0.75rem, env(safe-area-inset-top)) max(0.9rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(0.9rem, env(safe-area-inset-left));
-    position: relative;
+    /* 必须保持 fixed + inset:0：改成 relative 会让遮罩只有内容高度，
+       底部露出主界面，同时角色层 absolute 锚点也会塌掉（曾踩） */
+    position: fixed;
+    inset: 0;
     isolation: isolate;
     align-items: flex-end;
   }
@@ -799,9 +802,27 @@
 /* ── 移动端：四角色铺满视口作为背景层，登录卡浮于其上 ─────────────────
    放在桌面规则之后，确保 padding / scale 覆盖生效（同特异性靠顺序取胜）*/
 @media (max-width: 860px) {
+  /* 卡片保留 GSAP transform（入场动画不 clearProps），transform 会让 fixed
+     子元素以卡片为包含块 —— 所以这里必须用 absolute 锚到 boot-sequence，
+     否则角色层只铺满卡片、并压住表单（曾踩，见 ERR 记录）。
+     配套：卡片放开 overflow，表单侧显式抬 z-index。 */
+  .boot-card {
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .boot-form-side {
+    position: relative;
+    z-index: 2;
+    background: #ffffff;
+    border-radius: 28px;
+    box-shadow: 0 16px 40px -10px rgba(18, 24, 38, 0.12);
+  }
+
   .boot-poster-side[data-variant='characters'] {
     display: block;
-    position: fixed;
+    position: absolute;
     inset: 0;
     z-index: 0;
     width: auto;

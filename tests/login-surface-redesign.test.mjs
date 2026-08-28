@@ -59,7 +59,10 @@ test('移动端四角色作为铺满视口的背景层，登录卡浮于其上�
   )
   assert.ok(bgBlock, '应存在移动端 characters 背景层规则')
   const decls = bgBlock[1]
-  assert.match(decls, /position: fixed/u)
+  // 卡片带 GSAP 残留 transform，会成为 fixed 子元素的包含块 ——
+  // 背景层必须用 absolute 锚到 boot-sequence，否则只铺满卡片并盖住表单
+  assert.match(decls, /position: absolute/u)
+  assert.doesNotMatch(decls, /position: fixed/u)
   assert.match(decls, /inset: 0/u)
   assert.match(decls, /pointer-events: none/u)
   assert.match(decls, /display: block/u)
@@ -71,6 +74,16 @@ test('移动端四角色作为铺满视口的背景层，登录卡浮于其上�
 
   // 卡片必须抬到背景层之上
   assert.match(css, /\.boot-card \{[^}]*z-index: 1/u)
+
+  // 表单侧显式抬层：登录框必须压在角色层前面（用户明确要求）
+  const mobileBlock = css.slice(css.indexOf('@media (max-width: 860px)'))
+  assert.match(mobileBlock, /\.boot-form-side \{[^}]*z-index: 2/u)
+
+  // 移动端遮罩必须铺满视口：改成 relative 会让底部露出主界面
+  const seqMobile = mobileBlock.match(/\.boot-sequence \{([^}]*)\}/u)
+  assert.ok(seqMobile, '应存在移动端 boot-sequence 规则')
+  assert.match(seqMobile[1], /position: fixed/u)
+  assert.doesNotMatch(seqMobile[1], /position: relative/u)
 
   // 级联顺序：移动端铺满规则必须出现在桌面 0.92 缩放之后，否则被覆盖
   const desktopIdx = css.indexOf('--boot-char-scale: 0.92')
