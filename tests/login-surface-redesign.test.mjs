@@ -234,3 +234,41 @@ test('探头角色改用品牌蓝，不得残留品牌黄糊进暖黄背景', ()
   assert.match(peeker, /#2f8bf4/iu, '身体应使用参考站蓝色渐变起点')
   assert.match(peeker, /#1d6fd8/iu, '身体应使用参考站蓝色渐变终点')
 })
+
+// -- 横向溢出回归（2026-08-29）------------------------------------
+// 症状：双端登录卡内容整体左移，桌面出现横向滚动条、标题与「忘记密码」被切。
+// 根因：.bootd-body / .bootm-body 等单列容器只写了 display:grid 而未声明轨道，
+// 隐式 auto 列的最小尺寸是 min-content，不会收缩到小于内容固有宽度，于是撑破
+// 表单列；父级 overflow-y:auto 随之变成双向可滚，输入框聚焦时浏览器
+// scrollIntoView 把容器横向滚过去，看起来就是「登录组件溢出」。
+// 约束：两端登录 CSS 里每个 display:grid 都必须显式声明可收缩轨道
+// （grid-template-columns，或 place-items 居中的定宽方块）。
+test('双端登录 CSS 的 grid 容器都声明可收缩轨道，不留 min-content 撑破风险', () => {
+  for (const [label, css] of [['boot-mobile.css', cssMobile], ['boot-desktop.css', cssDesktop]]) {
+    const blocks = css.match(/[^{}]+\{[^}]*display:\s*grid[^}]*\}/gu) ?? []
+    assert.ok(blocks.length > 0, label + ' 应存在 grid 容器')
+    for (const block of blocks) {
+      const selector = block.slice(0, block.indexOf('{')).trim()
+      const hasTrack = /grid-template-columns/u.test(block)
+      // place-items 居中的定宽方块（步骤圆点）本身不参与内容撑宽
+      const fixedSquare = /place-items:\s*center/u.test(block) && /width:\s*[\d.]+/u.test(block)
+      assert.ok(
+        hasTrack || fixedSquare,
+        label + ' 的 ' + selector + ' 声明了 display:grid 但没有轨道约束，'
+          + '隐式 auto 列会按 min-content 撑破容器并导致横向溢出',
+      )
+    }
+  }
+})
+
+test('单列 grid 轨道用 minmax(0, …) 允许收缩，避免 1fr 的 auto 最小值', () => {
+  for (const [label, css] of [['boot-mobile.css', cssMobile], ['boot-desktop.css', cssDesktop]]) {
+    const tracks = css.match(/grid-template-columns:[^;]+;/gu) ?? []
+    for (const track of tracks) {
+      assert.ok(
+        /minmax\(\s*0/u.test(track) || /^grid-template-columns:\s*[\d.]+rem/u.test(track),
+        label + ' 的轨道 ' + track.trim() + ' 须用 minmax(0, …) 显式允许收缩',
+      )
+    }
+  }
+})

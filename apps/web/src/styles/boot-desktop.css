@@ -297,11 +297,17 @@
 
 .bootd-body {
   display: grid;
+  /* 单列显式轨道：隐式 auto 列的最小尺寸是 min-content，
+     会被「忘记密码」行等内容撑破容器并让父级出现横向滚动 */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
 }
 
 .bootd-panel-head {
   display: grid;
+  /* 单列显式轨道：隐式 auto 列的最小尺寸是 min-content，
+     会被「忘记密码」行等内容撑破容器并让父级出现横向滚动 */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.34rem;
 }
 

@@ -282,11 +282,17 @@
 
 .bootm-body {
   display: grid;
+  /* 单列显式轨道：隐式 auto 列的最小尺寸是 min-content，
+     会被「忘记密码」行等内容撑破容器并让父级出现横向滚动 */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.85rem;
 }
 
 .bootm-panel-head {
   display: grid;
+  /* 单列显式轨道：隐式 auto 列的最小尺寸是 min-content，
+     会被「忘记密码」行等内容撑破容器并让父级出现横向滚动 */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.3rem;
 }
 
@@ -318,6 +324,9 @@
 
 .bootm-steps li {
   display: grid;
+  /* 单列显式轨道：隐式 auto 列的最小尺寸是 min-content，
+     会被「忘记密码」行等内容撑破容器并让父级出现横向滚动 */
+  grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   gap: 0.25rem;
   padding: 0.45rem 0.2rem;
