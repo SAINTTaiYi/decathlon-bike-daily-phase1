@@ -1,0 +1,261 @@
+/* ============================================================
+   登录页 · 移动端专属样式（仅 [data-viewport='mobile'] 生效）
+   单列纵向流：角色独占一行 → 卡片在其下方。
+   角色不再绝对定位穿透卡片，因此绝不会压住表单。
+   本文件不含任何桌面断点，桌面样式在 boot-desktop.css。
+   ============================================================ */
+
+.boot-sequence[data-viewport='mobile'] {
+  align-items: flex-start;
+  padding:
+    max(1rem, env(safe-area-inset-top))
+    max(1rem, env(safe-area-inset-right))
+    max(1.25rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+}
+
+.bootm-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 30rem;
+  margin: auto;
+  min-height: min-content;
+}
+
+/* ---------- 角色行：独立文档流，卡片之上 ---------- */
+.bootm-peeker-row {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  /* 角色底部与卡片顶端咬合，但不越界进卡片内容区 */
+  margin-bottom: -0.75rem;
+  padding-inline: 1rem;
+  pointer-events: none;
+  --boot-char-scale: 0.62;
+}
+
+.bootm-peeker-row > * {
+  max-width: 100%;
+}
+
+/* ---------- 主卡片 ---------- */
+.bootm-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  padding: 1.5rem 1.25rem 1.25rem;
+  border-radius: 1.75rem;
+  background: #fff;
+  box-shadow: 0 18px 48px rgb(18 20 28 / 0.12);
+  /* 关键：卡片自身裁剪，角色无法侵入表单区域 */
+  overflow: hidden;
+}
+
+.bootm-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.bootm-brand strong {
+  font-family: var(--font-display, inherit);
+  font-size: 1.0625rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #14161a;
+}
+
+.bootm-version {
+  flex: none;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 999px;
+  background: var(--brand-primary, #ffde59);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #14161a;
+}
+
+/* ---------- 表单 ---------- */
+.bootm-form,
+.bootm-fields-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.bootm-field-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.bootm-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.bootm-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #14161a;
+}
+
+.bootm-link-action {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.bootm-input-box {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0 0.875rem;
+  border-radius: 1rem;
+  background: #f3f4f8;
+  /* 触摸目标 ≥ 48px，移动端独立取值 */
+  min-height: 3.25rem;
+  transition: background 160ms ease, box-shadow 160ms ease;
+}
+
+.bootm-input-box:focus-within {
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--brand-primary, #ffde59);
+}
+
+.bootm-input-icon {
+  flex: none;
+  color: #9aa1ad;
+}
+
+.bootm-input-box input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: none;
+  outline: none;
+  /* 16px 起，避免 iOS Safari 聚焦自动放大 */
+  font-size: 1rem;
+  font-weight: 600;
+  color: #14161a;
+}
+
+.bootm-input-box input::placeholder {
+  font-weight: 500;
+  color: #a8aeb9;
+}
+
+.bootm-pwd-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-right: -0.375rem;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: #9aa1ad;
+  cursor: pointer;
+}
+
+.bootm-error {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.75rem;
+  background: #fdecec;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #b3261e;
+}
+
+/* ---------- 操作区 ---------- */
+.bootm-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin-top: 0.25rem;
+}
+
+.bootm-btn-primary,
+.bootm-btn-secondary {
+  width: 100%;
+  min-height: 3.25rem;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 140ms ease, opacity 140ms ease;
+}
+
+.bootm-btn-primary {
+  background: #14161a;
+  color: #fff;
+}
+
+.bootm-btn-secondary {
+  background: #f3f4f8;
+  color: #14161a;
+}
+
+.bootm-btn-primary:active,
+.bootm-btn-secondary:active {
+  transform: scale(0.985);
+}
+
+.bootm-btn-primary:disabled,
+.bootm-btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- 页脚 ---------- */
+.bootm-footer {
+  display: flex;
+  justify-content: center;
+  padding-top: 0.25rem;
+}
+
+.bootm-shield {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #8b919c;
+  text-align: center;
+}
+
+/* ---------- 极窄 / 极矮竖屏微调（仍属移动端这一套） ---------- */
+@media (max-width: 360px) {
+  .bootm-card { padding: 1.25rem 1rem 1rem; }
+  .bootm-peeker-row { --boot-char-scale: 0.54; }
+}
+
+@media (max-height: 680px) {
+  .bootm-peeker-row { --boot-char-scale: 0.48; margin-bottom: -0.5rem; }
+  .bootm-card { gap: 0.75rem; }
+  .bootm-form,
+  .bootm-fields-group { gap: 0.75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bootm-btn-primary,
+  .bootm-btn-secondary,
+  .bootm-input-box { transition: none; }
+}

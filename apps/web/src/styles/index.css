@@ -1,7 +1,9 @@
 @import './noto-sans-sc.css';
 @import './tokens.css';
 @import './base.css';
-@import './boot.css';
+@import './boot-shared.css';
+@import './boot-mobile.css';
+@import './boot-desktop.css';
 @import './layout.css';
 @import './components.css';
 @import './motion.css';
