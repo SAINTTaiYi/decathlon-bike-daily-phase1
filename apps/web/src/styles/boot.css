@@ -90,11 +90,6 @@
   line-height: 1;
 }
 
-/* 移动端顶部插图隐藏于桌面端 */
-.boot-mobile-hero {
-  display: none;
-}
-
 /* 标题组 */
 .boot-header-group {
   margin-bottom: 1.4rem;
@@ -557,13 +552,6 @@
     justify-content: center;
   }
 
-  /* 吉祥物横幅：用 clamp 吃掉多余高度，小屏自动收缩 */
-  .boot-mobile-hero {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 0.35rem;
-  }
-
   .boot-header-group {
     text-align: center;
     margin-bottom: 1.05rem;
@@ -624,10 +612,6 @@
     position: relative;
     z-index: 1;
     margin-top: auto;
-  }
-
-  .boot-mobile-hero {
-    display: none;
   }
 
   .boot-poster-side {
