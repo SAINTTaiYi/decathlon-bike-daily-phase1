@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { normalizeLoginUsername, USERNAME_MAX_LENGTH } from '../data/userSession.js'
-import { BikeWorkshopIllustration } from './BootIllustration.jsx'
+import { BootMascot } from './BootMascot.jsx'
+import { APP_VERSION } from '../data/releaseNotes.js'
 
 export default function BootLoader({ initialError = '', onLogin, onComplete, onRegister }) {
   const [username, setUsername] = useState('')
@@ -157,25 +158,17 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
             左侧：纯净极简表单区 (参考图 1/2/3 风格，高对比黄黑胶囊)
             ================================================================= */}
         <div ref={formSideRef} className="boot-form-side">
-          {/* 顶部品牌区 */}
+          {/* 顶部品牌区：WORKSHOP OPS + 当前版本号 */}
           <div className="boot-brand-row boot-stagger-item">
-            <div className="boot-logo-box">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#14161a" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="18.5" cy="17.5" r="3.5" />
-                <circle cx="5.5" cy="17.5" r="3.5" />
-                <circle cx="15" cy="5" r="1" />
-                <path d="M12 17.5V14l-3-3 4-3 2 3h2" />
-              </svg>
-            </div>
             <div className="boot-brand-text">
-              <strong>DECATHLON</strong>
-              <span>BIKE OPS</span>
+              <strong>WORKSHOP OPS</strong>
+              <span className="boot-brand-version">V{APP_VERSION}</span>
             </div>
           </div>
 
-          {/* 移动端专属顶部插图横幅 (参考图 1/3) */}
+          {/* 移动端顶部吉祥物（跟随指针转向 / 触屏自动巡视） */}
           <div className="boot-mobile-hero boot-stagger-item" aria-hidden="true">
-            <BikeWorkshopIllustration className="boot-mobile-illustration" />
+            <BootMascot className="boot-mascot-mobile" />
           </div>
 
           {/* 登录标题与注册快捷链接 */}
@@ -311,7 +304,7 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
 
             {/* 居中大插画区 */}
             <div className="boot-poster-art boot-poster-item">
-              <BikeWorkshopIllustration className="boot-hero-illustration" />
+              <BootMascot className="boot-mascot-hero" />
             </div>
 
             {/* 底部文字 Slogan & 运营特点 */}
