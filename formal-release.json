@@ -1,39 +1,133 @@
 {
   "kind": "formal-production-release",
-  "version": "6.2.5",
+  "version": "6.3.0",
   "previewRange": {
-    "fromExclusive": "226a52356e8376a221c1532fb6e8e7da562340b9",
-    "toInclusive": "e4e0ca93bf619be5942831a1912d820818b6bf06",
+    "fromExclusive": "aa361e7b11b1cee5d903005e6c2a674754ecc0a2",
+    "toInclusive": "9ee49d8e54ce366d4ed2cde385226a5dc7a0dcb5",
     "commits": [
       {
-        "sha": "f184e863a9a763e49c3c60c8978211f7cd09046d",
-        "subject": "fix(shiphub): 定位脚本适配手机 Edge 安装链路（引导分流 + 直开脚本链接 + v0.3.0）"
+        "sha": "ff1edaa12d87dd70de548a64947c8ba67a07ecd2",
+        "subject": "feat(motion): 移除模块转场黄色整屏 wipe，全面升级 Amicro 微动效"
       },
       {
-        "sha": "66ab98b1c8b47a01d1cf26a65ab6a605ccae266a",
-        "subject": "feat(shiphub): 待取车模块接入完整取车管线（待门店拣货 + 在途车辆）"
+        "sha": "11bcdd288e67bb2a8685f089022032fd33f39a94",
+        "subject": "fix(motion): 修复移动端页头搜索栏消失与转场卡顿"
       },
       {
-        "sha": "f1a95da6c22383e1360f51e6798cf0b0d2a12f99",
-        "subject": "feat(shiphub): 拣货/收货按钮改为跳转 Shiphub 对应页 + 定位脚本 v0.4.0 三页定位与更新检测"
+        "sha": "748a80fbd7fd886d0375aee159ab015f300eb862",
+        "subject": "fix(motion): 消除模块转场文字抽搐与二级页关闭的缩小卡顿"
       },
       {
-        "sha": "e4e0ca93bf619be5942831a1912d820818b6bf06",
-        "subject": "feat(closing): 闭店日报图并入 Shiphub 同步车辆并按管线阶段标识"
+        "sha": "75867142398a47676a0aba9400418bdb40cf86bd",
+        "subject": "feat(motion): 全站操作统一 GSAP 进/出场动效，删除旧 CSS 动画代码"
+      },
+      {
+        "sha": "e5b3009ef6039bddc8b2583e030f3b5849c9da34",
+        "subject": "feat(motion): 边角微交互补全——Shiphub 同步/订单卡/更多菜单/计数/未读点"
+      },
+      {
+        "sha": "2d78c6b68705e6e2b5cd9f8f71116a2acb196395",
+        "subject": "feat(theme): Crextio 风格黄色渐变环境背景 + 跟随操作的交互动效"
+      },
+      {
+        "sha": "b25ac4eca90de93ed31e2df3430d1ae59f00d146",
+        "subject": "fix(theme): 放大 Crextio 黄色渐变并增强移动端可见度"
+      },
+      {
+        "sha": "7d68f1f6d773480b3b587dc7a0af29ed38ce6b9b",
+        "subject": "revert(theme): 渐变背景回退到放大 wash 前的上一版（2d78c6b 式样的三层光斑）"
+      },
+      {
+        "sha": "e17597298ffcde7e5ef0156db2da23951c28f8b7",
+        "subject": "redesign(login): 桌面双栏 Bento + 移动端纯净浮卡 + 暖黄环境光斑"
+      },
+      {
+        "sha": "6d298c7be3ea49a99b164af7ebbaa821e4d38da4",
+        "subject": "redesign(login): 基于参考图精修 - Bento 双栏 + 纯净药丸表单 + 自行车工坊插画"
+      },
+      {
+        "sha": "433b73bc8d97f75ce49f1996f5fd99d519ff2151",
+        "subject": "fix(login): 清除 workshop/borderless/refinement 层对登录页的样式覆盖"
+      },
+      {
+        "sha": "dfe5c67ab36d522e754357308dc22cee9a626bc8",
+        "subject": "feat(login): WORKSHOP OPS 版本标识、无边线输入框、吉祥物跟随指针、移动端收紧高度"
+      },
+      {
+        "sha": "40facc5ffae222bdc8e2e04811bb21b4f075221f",
+        "subject": "feat(login): 四角色互动插画替换黑色海报，移动端去重复入口"
+      },
+      {
+        "sha": "6aa6fef01ad7116d58e79bdb4091a4f9e3fc6d05",
+        "subject": "fix(login): 移动端四角色收缩并修复密码闭眼"
+      },
+      {
+        "sha": "d87e3d0bb80173c13d01a72880e06256bc0d5c7d",
+        "subject": "fix(login): 取消密码闭眼，移动端四角色改为铺满视口背景层"
+      },
+      {
+        "sha": "3e6bedc09eccc25b8396867dc26d1330536a1d5c",
+        "subject": "chore(login): 清理 boot-mobile-hero 死规则（JSX 已无引用）"
+      },
+      {
+        "sha": "be06240b1313664f8af20b211561a48998b747f9",
+        "subject": "fix(login): 角色层锚到遮罩层并抬高表单，修复盖住登录框与底部漏出主界面"
+      },
+      {
+        "sha": "1219795d57b6fcf32b4abddda5abd16aad0d0775",
+        "subject": "fix(login): 角色层移出登录卡，恢复为铺满视口的背景层"
+      },
+      {
+        "sha": "823ee99acb4c2fa736177eb494a20d768d195d57",
+        "subject": "feat(login): 新增品牌黄探头角色，从登录框后方探出"
+      },
+      {
+        "sha": "bff53e76e0b8d6fdc95e02c6cf14879e37bb2e1a",
+        "subject": "refactor(login): 登录页拆分为移动端/桌面端两套独立实现"
+      },
+      {
+        "sha": "5ea1b9a3ff24ac5a3016ea27b89982a857ed7890",
+        "subject": "fix(login): 补回 autofill 底色兜底并按双端架构重写登录页回归测试"
+      },
+      {
+        "sha": "7ee00240a1c171453578440667c988dd8661c1ea",
+        "subject": "fix(login): 桌面端移除探头角色，角色配色改品牌蓝并修正嘴部坐标"
+      },
+      {
+        "sha": "c1aa11381a9bd618da90af80285318c467098d5d",
+        "subject": "fix(login): 去掉输入框聚焦的两层描边，桌面端登录卡纵向居中"
+      },
+      {
+        "sha": "644b79034355284b239e3ecd21954fa3acda0a57",
+        "subject": "feat(auth): 登录框就地变形承载注册/找回密码/改密，删除旧注册向导"
+      },
+      {
+        "sha": "70b11162e631a813d5b7f5240c68b253ff0ae6b5",
+        "subject": "fix(web): 移除登出重置里残留的 setAuthMode 调用"
+      },
+      {
+        "sha": "9ee49d8e54ce366d4ed2cde385226a5dc7a0dcb5",
+        "subject": "fix(boot): 修复双端登录卡横向溢出"
       }
     ]
   },
   "announcement": {
-    "title": "Shiphub 完整取车管线（拣货/收货/在途）+ 手机定位脚本 v0.4.0",
-    "summary": "待取车模块接入 Shiphub 完整取车管线：新增待门店拣货与在途车辆看板并按状态标识；拣货/收货改为主按钮直跳 Shiphub 官方页并自动定位订单；定位脚本升级 v0.4.0（支持三页定位、适配手机 Edge、自动检测更新）；闭店日报图并入 Shiphub 车辆按管线阶段标识。",
+    "title": "登录页重做 · 全站动效 · 账号自助",
+    "summary": "登录页按桌面/移动两套独立实现重做，注册与找回密码改为在登录框内就地变形；全站操作统一 GSAP 进出场动效并换上暖黄环境背景。",
     "changes": [
-      "待取车模块接入完整取车管线：新增「待门店拣货」「在途车辆」（待门店收货）看板，按管线状态分别标识；概览计数同步覆盖",
-      "Shiphub 同步新增待门店拣货分类（pick），节奏与待交接一致；D1 schema 0019 放宽分类约束并完整保留存量数据",
-      "拣货/收货卡片主按钮改为「去 Shiphub 拣货/收货」直跳官方对应页面，可按订单号定位",
-      "定位脚本 v0.4.0：支持待交接/待拣货/待收货三页自动定位展开订单；适配手机 Edge 安装链路（引导分流+直开脚本链接+允许用户脚本指引）",
-      "定位脚本更新检测：Workshop 页面对比最新版本，落后时提示并可一键更新",
-      "闭店日报图并入 Shiphub 同步车辆，按管线阶段标识（待交接核销/待门店拣货/在途车辆/已本地处理），失败降级不阻塞闭店"
+      "登录页重做：桌面双栏 Bento 布局 + 移动端浮卡，角色插画换品牌配色",
+      "注册改为在登录框内就地变形，不再跳转到独立注册页面，旧注册向导已删除",
+      "忘记密码可用：邮箱验证码找回，5 次错误锁定，改密后自动退出全部登录设备",
+      "修改密码同样在登录框内就地完成",
+      "无边线输入框，聚焦不再出现双层描边",
+      "全站操作统一进出场动效，弹窗与抽屉不再直开直关",
+      "移除模块切换时的整屏黄色扫光",
+      "页面换上暖黄渐变环境背景，随操作轻微呼吸与视差",
+      "Shiphub 同步按钮、订单卡、计数与未读提示补齐微交互反馈",
+      "修复移动端页头搜索栏在模块切换后消失",
+      "修复模块转场文字抽搐与二级页关闭卡顿",
+      "修复双端登录卡横向溢出导致标题与忘记密码入口被截断"
     ]
   },
-  "preparedAt": "2026-08-27T15:16:26.679Z"
+  "preparedAt": "2026-08-28T21:22:35.433Z"
 }
