@@ -531,12 +531,6 @@ button:not(:disabled) { transition-duration: 150ms; }
 .footer-identity { min-height: 42px; }
 .footer-utility-actions button { font-size: .72rem; }
 
-.boot-title-half::before { opacity: .2; background-size: 64px 64px; }
-.boot-title-word { font-style: normal; letter-spacing: -.055em; transform: none; }
-.boot-title-seam { box-shadow: none; }
-.boot-login { border-color: rgb(255 255 255 / .65); box-shadow: none; }
-.boot-login-heading > span { letter-spacing: .08em; }
-.boot-login-heading > strong { font-size: 1.65rem; }
 
 .initial-setup-panel { width: min(100%, 42rem); padding: clamp(1rem, 3vw, 1.5rem); }
 .initial-setup-panel header h1 { font-size: clamp(1.9rem, 7vw, 3rem); }

@@ -628,54 +628,8 @@ button:disabled { opacity: .48; }
 
 /* 文字安全：入场只做位移+透明度，不用 scale（分数缩放会让文字重栅格化抽搐） */
 
-/* Login, OTP, setup, security gates and explicit application states. */
-.boot-sequence {
-  background: var(--ops-black) !important;
-  color: var(--ops-text-inverse);
-}
-.boot-title-half { background: var(--ops-black) !important; }
-.boot-title-half::before { display: none; }
-.boot-title-half-top,
-.boot-title-half-bottom { border-color: rgb(255 253 248 / .12); }
-.boot-title-seam { height: 5px; background: var(--ops-yellow); box-shadow: 0 0 18px var(--ops-yellow-glow); }
-.boot-title-word {
-  color: var(--ops-text-inverse);
-  font-family: var(--ops-display);
-  font-style: normal;
-  letter-spacing: 0;
-  transform: none;
-}
-.boot-title-word { font-size: 56px; }
-.boot-title-word-bikeops { color: var(--ops-yellow); text-shadow: 0 0 12px var(--ops-yellow-glow); }
-.boot-login {
-  gap: 12px;
-  width: min(calc(100% - 20px), 400px);
-  padding: 16px;
-  border: 0 !important;
-  border-radius: var(--ops-radius);
-  background: var(--ops-card) !important;
-  color: var(--ops-text) !important;
-  box-shadow: var(--ops-panel-shadow);
-  clip-path: none !important;
-}
-.boot-login-heading > span { color: var(--ops-yellow-pressed) !important; font-family: var(--ops-display); }
-.boot-login-heading > strong { color: var(--ops-black); font-family: var(--ops-display); font-size: 30px; letter-spacing: 0; }
-.boot-login-heading > p,
-.boot-login > small { color: var(--ops-text-muted) !important; }
-.boot-login-field > span { color: var(--ops-text); }
-.boot-login-field input {
-  min-height: 48px;
-  padding: 10px 12px;
-  border: 1px solid var(--ops-line-strong) !important;
-  border-radius: var(--ops-radius) !important;
-  background: var(--ops-page) !important;
-  color: var(--ops-text) !important;
-}
-.boot-login-field input::placeholder { color: #77766f; }
-.boot-login-field input:focus-visible { border-color: var(--ops-black) !important; box-shadow: 0 0 0 3px var(--ops-yellow-glow); }
-.boot-login-submit { min-height: 48px; border: 0 !important; border-radius: var(--ops-radius); background: var(--ops-yellow) !important; color: var(--ops-black) !important; box-shadow: 0 0 16px var(--ops-yellow-glow); }
-.boot-register-link { min-height: 48px; border: 1px solid var(--ops-black) !important; border-radius: var(--ops-radius); color: var(--ops-black) !important; }
-.boot-login-error { color: var(--ops-danger); }
+/* Login page owns its styling in boot.css (redesigned 2026-08-28). */
+
 .initial-setup-shell,
 .registration-shell {
   min-height: 100dvh;

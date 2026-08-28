@@ -42,5 +42,9 @@ test('认证与安全入口不再声明已废弃主题，正文使用自托管�
   assert.match(tokens, /--font-body: 'Noto Sans SC Variable'/u)
   assert.match(tokens, /--font-display: 'Barlow Condensed Ops', 'Noto Sans SC Variable'/u)
   assert.doesNotMatch(tokens, /Albert Sans Local|Noto Serif SC Variable|sans-serif|system-ui/u)
-  assert.match(css, /\.boot-title-word \{ font-size: 56px; \}/u)
+  // 登录页视觉由 boot.css 独占（2026-08-28 重做）：workshop 层不得再覆盖登录表面，
+  // 否则会把 boot.css 的浅底卡片刷成旧的深色主题。
+  for (const leaked of [/^\.boot-sequence \{/mu, /^\.boot-login \{/mu, /^\.boot-login-submit \{/mu]) {
+    assert.doesNotMatch(css, leaked)
+  }
 })

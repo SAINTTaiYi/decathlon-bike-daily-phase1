@@ -228,15 +228,6 @@
   color: var(--ops-black, #0c0e0c) !important;
 }
 
-/* Boot login sits on a photographic backdrop; fill is the only separation. */
-.boot-login { background: rgb(12 14 12 / .82) !important; }
-.boot-login-field input {
-  background: rgb(255 255 255 / .16) !important;
-  border-radius: var(--ops-radius-sm, 12px);
-  padding-inline: .7rem;
-}
-.boot-login-submit { background: #fff !important; color: var(--ops-black, #14161a) !important; }
-
 /* Toast: a white hairline on ink is a line; the ink fill is enough. */
 .status-toast { box-shadow: none !important; }
 
