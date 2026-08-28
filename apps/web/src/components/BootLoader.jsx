@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { normalizeLoginUsername, USERNAME_MAX_LENGTH } from '../data/userSession.js'
-import { BootMascot } from './BootMascot.jsx'
+import { BootCharacters } from './BootCharacters.jsx'
 import { APP_VERSION } from '../data/releaseNotes.js'
 
 export default function BootLoader({ initialError = '', onLogin, onComplete, onRegister }) {
@@ -11,6 +11,7 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [hidden, setHidden] = useState(false)
+  const [usernameFocused, setUsernameFocused] = useState(false)
 
   const rootRef = useRef(null)
   const cardRef = useRef(null)
@@ -150,7 +151,7 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
       className="boot-sequence"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="login-title"
+      aria-label="登录工作台"
     >
       {/* 桌面居中沉浸式容器 / 移动端自然浮起卡片 */}
       <div ref={cardRef} className="boot-card">
@@ -166,21 +167,6 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
             </div>
           </div>
 
-          {/* 移动端顶部吉祥物（跟随指针转向 / 触屏自动巡视） */}
-          <div className="boot-mobile-hero boot-stagger-item" aria-hidden="true">
-            <BootMascot className="boot-mascot-mobile" />
-          </div>
-
-          {/* 登录标题与注册快捷链接 */}
-          <div className="boot-header-group boot-stagger-item">
-            <h1 id="login-title" className="boot-title">登录工作台</h1>
-            <p className="boot-subtitle">
-              新同事？
-              <button type="button" className="boot-link-action" onClick={onRegister} disabled={submitting}>
-                使用公司邮箱注册
-              </button>
-            </p>
-          </div>
 
           {/* 表单输入组 */}
           <form className="boot-form" onSubmit={submitLogin} noValidate>
@@ -201,6 +187,8 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
                       setUsername(event.target.value)
                       if (error) setError('')
                     }}
+                    onFocus={() => setUsernameFocused(true)}
+                    onBlur={() => setUsernameFocused(false)}
                     maxLength={USERNAME_MAX_LENGTH}
                     autoComplete="username"
                     enterKeyHint="next"
@@ -288,50 +276,13 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
           </form>
         </div>
 
-        {/* =================================================================
-            右侧：工坊艺术海报插画卡片 (参考图 4/5 风格，Bento 独立高饱和卡片)
-            ================================================================= */}
-        <div ref={posterSideRef} className="boot-poster-side">
-          <div className="boot-poster-inner">
-            {/* 顶部标签 */}
-            <div className="boot-poster-top boot-poster-item">
-              <div className="boot-status-pill">
-                <span className="boot-live-dot" aria-hidden="true" />
-                <span>WORKSHOP 2.0</span>
-              </div>
-              <span className="boot-badge-text">五象店 / 全国门店</span>
-            </div>
-
-            {/* 居中大插画区 */}
-            <div className="boot-poster-art boot-poster-item">
-              <BootMascot className="boot-mascot-hero" />
-            </div>
-
-            {/* 底部文字 Slogan & 运营特点 */}
-            <div className="boot-poster-bottom boot-poster-item">
-              <h2 className="boot-slogan-title">
-                让每一台单车<br />
-                <span className="highlight">更快、更安全</span> 重返赛道
-              </h2>
-              <p className="boot-slogan-desc">
-                维修工单 · 待取车管理 · 二手车流转 · 自动闭店日报
-              </p>
-              <div className="boot-kpi-row">
-                <div className="boot-kpi-tag">
-                  <strong>195+</strong>
-                  <span>全国覆盖门店</span>
-                </div>
-                <div className="boot-kpi-tag">
-                  <strong>0</strong>
-                  <span>数据丢失</span>
-                </div>
-                <div className="boot-kpi-tag">
-                  <strong>100%</strong>
-                  <span>免费纯净</span>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* 右侧：四角色互动插画（跟随指针 / 响应输入与密码可见性），无文案 */}
+        <div ref={posterSideRef} className="boot-poster-side" data-variant="characters">
+          <BootCharacters
+            isTyping={usernameFocused && username.length > 0}
+            showPassword={showPassword}
+            passwordLength={password.length}
+          />
         </div>
       </div>
     </section>
