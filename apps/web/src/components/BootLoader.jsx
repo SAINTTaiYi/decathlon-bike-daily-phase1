@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { normalizeLoginUsername, USERNAME_MAX_LENGTH } from '../data/userSession.js'
 import { BootCharacters } from './BootCharacters.jsx'
+import { BootPeeker } from './BootPeeker.jsx'
 import { APP_VERSION } from '../data/releaseNotes.js'
 
 export default function BootLoader({ initialError = '', onLogin, onComplete, onRegister }) {
@@ -154,11 +155,21 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
       aria-label="登录工作台"
     >
       {/* 桌面居中沉浸式容器 / 移动端自然浮起卡片 */}
-      <div ref={cardRef} className="boot-card">
+      <div ref={cardRef} className="boot-card" data-has-peeker="true">
         {/* =================================================================
             左侧：纯净极简表单区 (参考图 1/2/3 风格，高对比黄黑胶囊)
             ================================================================= */}
-        <div ref={formSideRef} className="boot-form-side">
+        <div ref={formSideRef} className="boot-form-side" data-has-peeker="true">
+          {/* 探头角色：定位在表单卡上边缘之上，z-index 沉在表单内容之下，
+              视觉上就是"从登录框后面探出头"。仅装饰，不拦截点击。 */}
+          <div className="boot-peeker-slot">
+            <BootPeeker
+              isTyping={usernameFocused && username.length > 0}
+              showPassword={showPassword}
+              passwordLength={password.length}
+            />
+          </div>
+
           {/* 顶部品牌区：WORKSHOP OPS + 当前版本号 */}
           <div className="boot-brand-row boot-stagger-item">
             <div className="boot-brand-text">

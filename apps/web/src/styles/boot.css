@@ -893,3 +893,86 @@
     transition: none;
   }
 }
+
+/* ==========================================================================
+   探头角色（Peeker）· 从登录框后面探出头
+   放在文件末尾：需要覆盖 .boot-card 的 overflow:hidden 与
+   .boot-form-side 的默认层级，同特异性靠顺序取胜。
+   ========================================================================== */
+
+/* 卡片必须放开裁切，否则探出上边缘的头会被切掉 */
+.boot-card[data-has-peeker='true'] {
+  overflow: visible;
+}
+
+/* 表单卡自身承担圆角与背景，角色沉在它后面 */
+.boot-form-side[data-has-peeker='true'] {
+  position: relative;
+  z-index: 1;
+  background: #ffffff;
+  border-top-left-radius: 36px;
+  border-bottom-left-radius: 36px;
+}
+
+/* 角色插槽：绝对定位到表单卡上边缘之上，宽度收敛在卡片中部 */
+.boot-peeker-slot {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  width: min(72%, 260px);
+  /* 负 margin 让身体下缘埋进卡片，接缝被卡片白底盖住 */
+  margin-bottom: -2px;
+  /* 表单卡 z-index:1 且自带白底，角色留在 0 层即被卡片正面遮住下缘 */
+  z-index: 0;
+  pointer-events: none;
+  line-height: 0;
+}
+
+.boot-peeker {
+  width: 100%;
+  /* viewBox 400x200 → 2:1，容器等比即可，无需固定高度 */
+  aspect-ratio: 2 / 1;
+  filter: drop-shadow(0 -6px 16px rgba(18, 24, 38, 0.1));
+}
+
+.boot-peeker svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* 桌面：角色贴在表单栏中线偏左，避开右侧插画区 */
+@media (min-width: 861px) {
+  .boot-peeker-slot {
+    left: 50%;
+    width: min(60%, 240px);
+  }
+}
+
+/* 移动端：卡片背景已被外层规则设为 transparent，
+   表单卡自己是白底圆角，角色照样贴其上边缘 */
+@media (max-width: 860px) {
+  .boot-form-side[data-has-peeker='true'] {
+    border-radius: 28px;
+  }
+
+  .boot-peeker-slot {
+    width: min(64%, 200px);
+  }
+}
+
+/* 窄屏矮屏：进一步收小，别把表单顶出视口 */
+@media (max-width: 480px) {
+  .boot-peeker-slot {
+    width: min(58%, 168px);
+  }
+}
+
+/* 降低动效偏好：静态构图，去掉投影动感 */
+@media (prefers-reduced-motion: reduce) {
+  .boot-peeker {
+    filter: none;
+  }
+}
