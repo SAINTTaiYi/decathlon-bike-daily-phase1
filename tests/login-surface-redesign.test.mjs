@@ -39,8 +39,7 @@ test('吉祥物跟随指针转向，触屏降级为自动巡视，并尊重减�
 
 test('移动端登录卡在矮视口逐级收缩，避免整页纵向滚动', () => {
   assert.match(css, /@media \(max-width: 860px\) and \(max-height: 720px\)/u)
-  assert.match(css, /@media \(max-width: 860px\) and \(max-height: 600px\)/u)
-  assert.match(css, /\.boot-mascot-mobile \{\s*width: clamp\(/u)
+  assert.match(css, /\.boot-title \{\s*font-size/u)
 })
 
 // BOOT_CHARACTERS_REGRESSION
@@ -53,17 +52,40 @@ test('四角色舞台缩放必须是无量纲数值，禁止 vh 与像素混算�
   }
 })
 
-test('移动端窄屏为四角色舞台显式收缩，避免原尺寸被容器裁切', () => {
-  const mobileBlock = css.slice(css.indexOf('@media (max-width: 860px)'))
-  assert.match(mobileBlock, /--boot-char-scale:/u)
+test('移动端四角色作为铺满视口的背景层，登录卡浮于其上而非裁切插画', () => {
+  // 背景层：fixed 铺满、不拦截触摸、位于卡片之下
+  const bgBlock = css.match(
+    /@media \(max-width: 860px\) \{[^@]*?\.boot-poster-side\[data-variant='characters'\] \{([^}]*)\}/u,
+  )
+  assert.ok(bgBlock, '应存在移动端 characters 背景层规则')
+  const decls = bgBlock[1]
+  assert.match(decls, /position: fixed/u)
+  assert.match(decls, /inset: 0/u)
+  assert.match(decls, /pointer-events: none/u)
+  assert.match(decls, /display: block/u)
+
+  // 舞台等比放大到宽度铺满视口（340 为舞台固定坐标系宽度）
+  // 缩放必须是纯数：用 tan(atan2()) 剥掉 vw 单位后再比值
+  assert.match(css, /--boot-char-scale: calc\(tan\(atan2\(100vw, 1px\)\) \/ 340\)/u)
+  assert.match(css, /@supports \(width: calc\(1px \* tan\(atan2\(1px, 1px\)\)\)\)/u)
+
+  // 卡片必须抬到背景层之上
+  assert.match(css, /\.boot-card \{[^}]*z-index: 1/u)
+
+  // 级联顺序：移动端铺满规则必须出现在桌面 0.92 缩放之后，否则被覆盖
+  const desktopIdx = css.indexOf('--boot-char-scale: 0.92')
+  const mobileIdx = css.indexOf('--boot-char-scale: calc(tan(atan2(100vw, 1px)) / 340)')
+  assert.ok(desktopIdx !== -1 && mobileIdx !== -1)
+  assert.ok(
+    mobileIdx > desktopIdx,
+    '移动端铺满缩放必须声明在桌面缩放之后，同特异性下靠顺序取胜',
+  )
 })
 
-test('密码输入时四角色闭眼，密码清空或显示明文后恢复眨眼', () => {
-  // 闭眼状态由密码是否隐藏驱动
-  assert.match(characters, /isHidingPassword/u)
-  // 闭眼与随机眨眼互斥，且退出闭眼后重新排程
-  assert.match(characters, /if \(isHidingPassword\) return undefined/u)
-  assert.match(characters, /\}, \[isHidingPassword\]\)/u)
-  // 橙/黄角色只有瞳孔没有眼白，必须有独立闭眼线支撑
-  assert.match(css, /data-shut/u)
+test('取消密码闭眼：不得残留闭眼状态属性或样式', () => {
+  assert.doesNotMatch(css, /data-shut/u)
+  assert.doesNotMatch(css, /boot-char-lid/u)
+  assert.doesNotMatch(characters, /dataset\.shut/u)
+  assert.doesNotMatch(characters, /data-shut/u)
 })
+
