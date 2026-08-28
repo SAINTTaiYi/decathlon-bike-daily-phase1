@@ -234,7 +234,6 @@ export default function App() {
       setLoginAnimationDone(false)
       setWorkspaceAssemblyDone(false)
       setPasswordChangeOpen(false)
-      setAuthMode('login')
     }
   }, [auth.status])
 
