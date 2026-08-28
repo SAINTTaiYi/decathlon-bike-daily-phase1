@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { normalizeLoginUsername, USERNAME_MAX_LENGTH } from '../data/userSession.js'
+import { BikeWorkshopIllustration } from './BootIllustration.jsx'
 
 export default function BootLoader({ initialError = '', onLogin, onComplete, onRegister }) {
   const [username, setUsername] = useState('')
@@ -14,11 +15,6 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
   const cardRef = useRef(null)
   const formSideRef = useRef(null)
   const posterSideRef = useRef(null)
-  const brandBadgeRef = useRef(null)
-  const headingRef = useRef(null)
-  const fieldsRef = useRef(null)
-  const actionsRef = useRef(null)
-  const footerNoteRef = useRef(null)
   const inputRef = useRef(null)
 
   const introTlRef = useRef(null)
@@ -46,7 +42,6 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
     if (!result?.ok) {
       setError(result?.error || '登录失败，请稍后重试。')
       inputRef.current?.focus()
-      // 错误震颤动效
       if (cardRef.current && !reduceMotionRef.current) {
         gsap.fromTo(cardRef.current, { x: -8 }, { x: 0, duration: 0.35, ease: 'elastic.out(1, 0.3)' })
       }
@@ -61,7 +56,6 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
       return
     }
 
-    // 登录成功退场动效
     exitTlRef.current = gsap.timeline({
       defaults: { ease: 'expo.inOut' },
       onComplete: () => completeLogin()
@@ -101,7 +95,7 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
       introTlRef.current
         .fromTo(cardRef.current, {
           autoAlpha: 0,
-          y: 28,
+          y: 32,
           scale: 0.98,
           filter: 'blur(12px)'
         }, {
@@ -109,44 +103,28 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
           y: 0,
           scale: 1,
           filter: 'blur(0px)',
-          duration: 0.72
+          duration: 0.75
         }, 0)
-        .fromTo([brandBadgeRef.current, headingRef.current], {
+        .fromTo('.boot-stagger-item', {
           autoAlpha: 0,
-          y: 14
+          y: 16
         }, {
           autoAlpha: 1,
           y: 0,
-          duration: 0.5,
-          stagger: 0.08
-        }, 0.15)
-        .fromTo(fieldsRef.current?.children ? Array.from(fieldsRef.current.children) : [], {
-          autoAlpha: 0,
-          y: 14
-        }, {
-          autoAlpha: 1,
-          y: 0,
-          duration: 0.5,
-          stagger: 0.07
-        }, 0.25)
-        .fromTo([actionsRef.current, footerNoteRef.current], {
-          autoAlpha: 0,
-          y: 10
-        }, {
-          autoAlpha: 1,
-          y: 0,
-          duration: 0.45,
+          duration: 0.52,
           stagger: 0.06
-        }, 0.38)
-        .fromTo(posterSideRef.current?.querySelectorAll('.boot-poster-stagger') || [], {
+        }, 0.15)
+        .fromTo('.boot-poster-item', {
           autoAlpha: 0,
-          y: 18
+          scale: 0.94,
+          y: 16
         }, {
           autoAlpha: 1,
+          scale: 1,
           y: 0,
-          duration: 0.6,
-          stagger: 0.09
-        }, 0.2)
+          duration: 0.65,
+          stagger: 0.08
+        }, 0.22)
     }, rootRef)
 
     const focusTimer = window.setTimeout(() => inputRef.current?.focus(), reduceMotionRef.current ? 0 : 500)
@@ -172,35 +150,52 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
       role="dialog"
       aria-modal="true"
       aria-labelledby="login-title"
-      aria-describedby="login-description"
     >
-      <div className="boot-bg-blobs" aria-hidden="true">
-        <div className="boot-blob boot-blob-1" />
-        <div className="boot-blob boot-blob-2" />
-        <div className="boot-blob boot-blob-3" />
-      </div>
-
+      {/* 桌面居中沉浸式容器 / 移动端自然浮起卡片 */}
       <div ref={cardRef} className="boot-card">
-        {/* 左侧：表单区 */}
+        {/* =================================================================
+            左侧：纯净极简表单区 (参考图 1/2/3 风格，高对比黄黑胶囊)
+            ================================================================= */}
         <div ref={formSideRef} className="boot-form-side">
-          <div ref={brandBadgeRef} className="boot-brand-lockup">
-            <span className="boot-brand-word">DECATHLON</span>
-            <span className="boot-brand-pill">BIKE OPS</span>
+          {/* 顶部品牌区 */}
+          <div className="boot-brand-row boot-stagger-item">
+            <div className="boot-logo-box">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#14161a" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="18.5" cy="17.5" r="3.5" />
+                <circle cx="5.5" cy="17.5" r="3.5" />
+                <circle cx="15" cy="5" r="1" />
+                <path d="M12 17.5V14l-3-3 4-3 2 3h2" />
+              </svg>
+            </div>
+            <div className="boot-brand-text">
+              <strong>DECATHLON</strong>
+              <span>BIKE OPS</span>
+            </div>
           </div>
 
-          <div ref={headingRef} className="boot-login-heading">
-            <h1 id="login-title" className="boot-login-title">登录工作台</h1>
-            <p id="login-description" className="boot-login-sub">
-              高效 · 精准 · 门店数字化工坊运营
+          {/* 移动端专属顶部插图横幅 (参考图 1/3) */}
+          <div className="boot-mobile-hero boot-stagger-item" aria-hidden="true">
+            <BikeWorkshopIllustration className="boot-mobile-illustration" />
+          </div>
+
+          {/* 登录标题与注册快捷链接 */}
+          <div className="boot-header-group boot-stagger-item">
+            <h1 id="login-title" className="boot-title">登录工作台</h1>
+            <p className="boot-subtitle">
+              新同事？
+              <button type="button" className="boot-link-action" onClick={onRegister} disabled={submitting}>
+                使用公司邮箱注册
+              </button>
             </p>
           </div>
 
-          <form className="boot-login-form" onSubmit={submitLogin} noValidate>
-            <div ref={fieldsRef} className="boot-fields-group">
-              <label className="boot-field-wrap">
-                <span className="boot-field-label">用户名</span>
+          {/* 表单输入组 */}
+          <form className="boot-form" onSubmit={submitLogin} noValidate>
+            <div className="boot-fields-group">
+              <label className="boot-field-wrap boot-stagger-item">
+                <span className="boot-label">用户名</span>
                 <div className="boot-input-box">
-                  <svg className="boot-field-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <svg className="boot-input-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                     <circle cx="12" cy="7" r="4" />
                   </svg>
@@ -222,10 +217,20 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
                 </div>
               </label>
 
-              <label className="boot-field-wrap">
-                <span className="boot-field-label">登录密码</span>
+              <label className="boot-field-wrap boot-stagger-item">
+                <div className="boot-label-row">
+                  <span className="boot-label">密码</span>
+                  <button
+                    type="button"
+                    className="boot-link-action sub-text"
+                    onClick={() => alert('请联系门店平台管理员或店长重置密码。')}
+                    tabIndex={-1}
+                  >
+                    忘记密码？
+                  </button>
+                </div>
                 <div className="boot-input-box">
-                  <svg className="boot-field-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <svg className="boot-input-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
@@ -267,55 +272,71 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
               </label>
             </div>
 
-            {error ? <p className="boot-login-error" role="alert">{error}</p> : null}
+            {error ? <p className="boot-error-pill boot-stagger-item" role="alert">{error}</p> : null}
 
-            <div ref={actionsRef} className="boot-login-actions">
-              <button type="submit" className="boot-login-submit" disabled={submitting}>
+            {/* 操作主按钮与快速注册入口 (黄黑高对比设计，参考图 3) */}
+            <div className="boot-actions boot-stagger-item">
+              <button type="submit" className="boot-btn-primary" disabled={submitting}>
                 {submitting ? '正在验证…' : '登录并进入'}
               </button>
-              <button type="button" className="boot-register-link" onClick={onRegister} disabled={submitting}>
+              <button type="button" className="boot-btn-secondary" onClick={onRegister} disabled={submitting}>
                 使用公司邮箱注册
               </button>
             </div>
 
-            <div ref={footerNoteRef} className="boot-form-footer">
-              <small className="boot-footer-shield">
+            <div className="boot-footer-note boot-stagger-item">
+              <span className="boot-shield-tag">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 </svg>
-                企业级安全认证 · 密码不写入浏览器缓存
-              </small>
+                迪卡侬门店专属 · 数据库加密直连
+              </span>
             </div>
           </form>
         </div>
 
-        {/* 右侧：工坊视觉海报区（桌面端） */}
+        {/* =================================================================
+            右侧：工坊艺术海报插画卡片 (参考图 4/5 风格，Bento 独立高饱和卡片)
+            ================================================================= */}
         <div ref={posterSideRef} className="boot-poster-side">
-          <div className="boot-poster-backdrop" aria-hidden="true" />
-          <div className="boot-poster-content">
-            <div className="boot-poster-badge boot-poster-stagger">
-              <span className="boot-pulse-dot" aria-hidden="true" />
-              <span>WORKSHOP LIVE SYNC</span>
-            </div>
-
-            <div className="boot-poster-slogan boot-poster-stagger">
-              <h2>一站式门店工坊<br />维修 · 待取车 · 二手车 · 日报协同</h2>
-              <p>实时同步 · 零数据丢失 · 快速流转</p>
-            </div>
-
-            <div className="boot-poster-cards boot-poster-stagger">
-              <div className="boot-kpi-pill">
-                <span className="boot-kpi-label">全国覆盖</span>
-                <strong>195 家</strong>
+          <div className="boot-poster-inner">
+            {/* 顶部标签 */}
+            <div className="boot-poster-top boot-poster-item">
+              <div className="boot-status-pill">
+                <span className="boot-live-dot" aria-hidden="true" />
+                <span>WORKSHOP 2.0</span>
               </div>
-              <div className="boot-kpi-pill">
-                <span className="boot-kpi-label">日均台账</span>
-                <strong>2,400+</strong>
-              </div>
+              <span className="boot-badge-text">五象店 / 全国门店</span>
             </div>
 
-            <div className="boot-poster-footer boot-poster-stagger">
-              <span className="boot-version-tag">V6.2 · 企业级私有部署</span>
+            {/* 居中大插画区 */}
+            <div className="boot-poster-art boot-poster-item">
+              <BikeWorkshopIllustration className="boot-hero-illustration" />
+            </div>
+
+            {/* 底部文字 Slogan & 运营特点 */}
+            <div className="boot-poster-bottom boot-poster-item">
+              <h2 className="boot-slogan-title">
+                让每一台单车<br />
+                <span className="highlight">更快、更安全</span> 重返赛道
+              </h2>
+              <p className="boot-slogan-desc">
+                维修工单 · 待取车管理 · 二手车流转 · 自动闭店日报
+              </p>
+              <div className="boot-kpi-row">
+                <div className="boot-kpi-tag">
+                  <strong>195+</strong>
+                  <span>全国覆盖门店</span>
+                </div>
+                <div className="boot-kpi-tag">
+                  <strong>0</strong>
+                  <span>数据丢失</span>
+                </div>
+                <div className="boot-kpi-tag">
+                  <strong>100%</strong>
+                  <span>免费纯净</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

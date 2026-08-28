@@ -1,7 +1,7 @@
 /* ==========================================================================
    BootLoader / Login Page Redesign (2026-08-28)
-   Desktop: Modern Split Bento Card with Frosted Glass & Ops Visual Board
-   Mobile: Pure Clean Rounded Floating Form with Warm Glow
+   Inspired by Minimalist App Login References (Bento Split & Yellow/Black Pill)
+   Clean, Modern, Impeccable Alignment, Decathlon Ops Yellow & Deep Charcoal
    ========================================================================== */
 
 .boot-sequence {
@@ -11,140 +11,148 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  padding: max(1.5rem, env(safe-area-inset-top)) max(1.5rem, env(safe-area-inset-right)) max(1.5rem, env(safe-area-inset-bottom)) max(1.5rem, env(safe-area-inset-left));
   overflow-y: auto;
   overflow-x: hidden;
-  background-color: #f7f6f0;
+  /* 优雅淡紫/米白渐变背景，还原参考图 4/5 干净背景质感 */
+  background: radial-gradient(circle at 10% 20%, #f4f5fa 0%, #eef0f8 100%);
   isolation: isolate;
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  box-sizing: border-box;
 }
 
-/* Ambient dynamic background blobs */
-.boot-bg-blobs {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 0;
-}
-
-.boot-blob {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(64px);
-  opacity: 0.55;
-  will-change: transform;
-}
-
-.boot-blob-1 {
-  width: 520px;
-  height: 520px;
-  top: -120px;
-  right: -80px;
-  background: radial-gradient(circle, #ffde59 0%, rgba(255, 222, 89, 0) 70%);
-}
-
-.boot-blob-2 {
-  width: 480px;
-  height: 480px;
-  bottom: -140px;
-  left: -100px;
-  background: radial-gradient(circle, #ffe98a 0%, rgba(255, 233, 138, 0) 70%);
-  opacity: 0.45;
-}
-
-.boot-blob-3 {
-  width: 320px;
-  height: 320px;
-  top: 40%;
-  left: 30%;
-  background: radial-gradient(circle, #fff3b0 0%, rgba(255, 243, 176, 0) 70%);
-  opacity: 0.35;
-}
-
-/* Main Container Bento Card */
+/* 居中主卡片：采用现代 App 极简圆角白色容器 */
 .boot-card {
   position: relative;
   z-index: 1;
   display: flex;
   width: 100%;
-  max-width: 960px;
-  min-height: 580px;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 28px;
+  max-width: 980px;
+  min-height: 600px;
+  background: #ffffff;
+  border-radius: 36px;
   box-shadow:
-    0 24px 64px -12px rgba(20, 22, 26, 0.12),
-    0 4px 16px -2px rgba(20, 22, 26, 0.04);
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
+    0 20px 50px -10px rgba(18, 24, 38, 0.08),
+    0 1px 3px rgba(18, 24, 38, 0.02);
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* --------------------------------------------------------------------------
-   Left Column: Form Area
+   左侧：纯净表单区
    -------------------------------------------------------------------------- */
 .boot-form-side {
   flex: 1 1 52%;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 3rem 3.25rem;
+  padding: 3.5rem 4rem;
   box-sizing: border-box;
 }
 
-/* Brand Lockup */
-.boot-brand-lockup {
-  display: inline-flex;
+/* 品牌 Row */
+.boot-brand-row {
+  display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
+  gap: 0.75rem;
+  margin-bottom: 2.25rem;
 }
 
-.boot-brand-word {
+.boot-logo-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: #ffde59;
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgba(255, 222, 89, 0.35);
+  flex-shrink: 0;
+}
+
+.boot-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.boot-brand-text strong {
   font-family: var(--font-display, var(--font-sans));
   font-size: 1.15rem;
   font-weight: 900;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
   color: #14161a;
+  line-height: 1.1;
+}
+
+.boot-brand-text span {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #8c93a0;
   text-transform: uppercase;
 }
 
-.boot-brand-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.18rem 0.55rem;
-  font-size: 0.68rem;
-  font-weight: 850;
-  letter-spacing: 0.04em;
-  color: #14161a;
-  background: var(--brand-primary, #ffde59);
-  border-radius: 9999px;
-  line-height: 1;
+/* 移动端顶部插图隐藏于桌面端 */
+.boot-mobile-hero {
+  display: none;
 }
 
-/* Heading */
-.boot-login-heading {
+/* 标题组 */
+.boot-header-group {
   margin-bottom: 2rem;
 }
 
-.boot-login-title {
+.boot-title {
   margin: 0;
-  font-size: 2.15rem;
+  font-size: 2.3rem;
   font-weight: 850;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.04em;
   color: #14161a;
   line-height: 1.15;
 }
 
-.boot-login-sub {
+.boot-subtitle {
   margin: 0.5rem 0 0;
   font-size: 0.92rem;
-  color: #5d636f;
-  line-height: 1.45;
+  font-weight: 500;
+  color: #646a78;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
 }
 
-/* Form & Inputs */
-.boot-login-form {
+.boot-link-action {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: inherit;
+  font-weight: 750;
+  color: #14161a;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.boot-link-action:hover {
+  opacity: 0.75;
+}
+
+.boot-link-action.sub-text {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #8c93a0;
+  text-decoration: none;
+}
+
+.boot-link-action.sub-text:hover {
+  color: #14161a;
+  text-decoration: underline;
+}
+
+/* 表单组 */
+.boot-form {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -154,75 +162,82 @@
 .boot-fields-group {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.1rem;
 }
 
 .boot-field-wrap {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.45rem;
 }
 
-.boot-field-label {
-  font-size: 0.8rem;
+.boot-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.boot-label {
+  font-size: 0.85rem;
   font-weight: 750;
-  color: #3b404a;
+  color: #2b303a;
   letter-spacing: -0.01em;
 }
 
+/* 输入框：极简轻量灰底药丸圆角设计 (参考图 1/2/4) */
 .boot-input-box {
   position: relative;
   display: flex;
   align-items: center;
   width: 100%;
-  background: #f2f3f5;
-  border-radius: 14px;
+  background: #f4f5f8;
+  border-radius: 16px;
   transition: background-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
 }
 
 .boot-input-box:focus-within {
   background: #ffffff;
-  box-shadow: 0 0 0 2px #14161a, 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 0 0 2px #14161a, 0 6px 16px rgba(0, 0, 0, 0.04);
 }
 
-.boot-field-icon {
+.boot-input-icon {
   position: absolute;
-  left: 1rem;
-  color: #8b92a0;
+  left: 1.1rem;
+  color: #9aa1b0;
   pointer-events: none;
   flex-shrink: 0;
 }
 
 .boot-input-box input {
   width: 100%;
-  min-height: 50px;
-  padding: 0.75rem 1rem 0.75rem 2.85rem;
+  min-height: 52px;
+  padding: 0.8rem 1rem 0.8rem 2.95rem;
   border: none;
   background: transparent;
   color: #14161a;
-  font-size: 0.96rem;
+  font-size: 0.98rem;
   font-weight: 600;
   outline: none;
   box-sizing: border-box;
 }
 
 .boot-input-box input::placeholder {
-  color: #9aa1af;
-  font-weight: 500;
+  color: #a6adb9;
+  font-weight: 450;
 }
 
 .boot-pwd-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 0.85rem;
-  height: 50px;
+  padding: 0 1rem;
+  height: 52px;
   border: none;
   background: transparent;
-  color: #7a8290;
+  color: #8c93a0;
   cursor: pointer;
-  border-radius: 0 14px 14px 0;
+  border-radius: 0 16px 16px 0;
   transition: color 0.15s ease;
   flex-shrink: 0;
 }
@@ -231,33 +246,35 @@
   color: #14161a;
 }
 
-.boot-login-error {
+/* 错误提示胶囊 */
+.boot-error-pill {
   margin: 0;
-  padding: 0.65rem 0.9rem;
-  font-size: 0.82rem;
+  padding: 0.7rem 1rem;
+  font-size: 0.84rem;
   font-weight: 700;
   color: #b91c1c;
   background: #fee2e2;
-  border-radius: 10px;
+  border-radius: 12px;
   line-height: 1.4;
 }
 
-/* Actions */
-.boot-login-actions {
+/* 操作按钮组 (参考图 3 高级黄黑搭配) */
+.boot-actions {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.75rem;
   margin-top: 0.5rem;
 }
 
-.boot-login-submit {
+/* 主按钮：黑底大药丸，按压微弹，极为干脆 */
+.boot-btn-primary {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 50px;
-  padding: 0.8rem 1.5rem;
-  font-size: 0.98rem;
+  min-height: 52px;
+  padding: 0.85rem 1.5rem;
+  font-size: 1.02rem;
   font-weight: 800;
   color: #ffffff;
   background: #14161a;
@@ -265,264 +282,278 @@
   border-radius: 9999px;
   cursor: pointer;
   transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.18s ease, box-shadow 0.18s ease;
-  box-shadow: 0 4px 14px rgba(20, 22, 26, 0.18);
+  box-shadow: 0 6px 18px rgba(20, 22, 26, 0.15);
 }
 
-.boot-login-submit:hover:not(:disabled) {
-  background: #252830;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(20, 22, 26, 0.26);
+.boot-btn-primary:hover:not(:disabled) {
+  background: #232730;
+  transform: translateY(-1.5px);
+  box-shadow: 0 8px 24px rgba(20, 22, 26, 0.22);
 }
 
-.boot-login-submit:active:not(:disabled) {
+.boot-btn-primary:active:not(:disabled) {
   transform: translateY(1px) scale(0.99);
 }
 
-.boot-login-submit:disabled {
+.boot-btn-primary:disabled {
   opacity: 0.65;
   cursor: wait;
 }
 
-.boot-register-link {
+/* 次按钮：轻量灰底药丸，层级清晰 */
+.boot-btn-secondary {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 44px;
-  padding: 0.65rem 1.2rem;
-  font-size: 0.86rem;
+  min-height: 48px;
+  padding: 0.75rem 1.2rem;
+  font-size: 0.9rem;
   font-weight: 750;
-  color: #4a505c;
-  background: transparent;
-  border: 1px solid rgba(20, 22, 26, 0.1);
+  color: #3b404a;
+  background: #f4f5f8;
+  border: none;
   border-radius: 9999px;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.boot-register-link:hover:not(:disabled) {
-  background: #f2f3f5;
-  border-color: rgba(20, 22, 26, 0.18);
+.boot-btn-secondary:hover:not(:disabled) {
+  background: #e9ebf0;
   color: #14161a;
 }
 
-.boot-register-link:disabled {
+.boot-btn-secondary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.boot-form-footer {
+.boot-footer-note {
   display: flex;
   align-items: center;
   justify-content: center;
   margin-top: 0.75rem;
 }
 
-.boot-footer-shield {
+.boot-shield-tag {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.72rem;
-  color: #8b92a0;
+  font-size: 0.74rem;
+  color: #8c93a0;
   font-weight: 600;
 }
 
 /* --------------------------------------------------------------------------
-   Right Column: Poster & Ops Showcase (Desktop only)
+   右侧：工坊艺术海报插画卡片 (Bento 右侧独立卡片，参考图 4/5)
    -------------------------------------------------------------------------- */
 .boot-poster-side {
   flex: 1 1 48%;
-  position: relative;
+  padding: 1rem;
+  box-sizing: border-box;
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 3rem 2.75rem;
+}
+
+.boot-poster-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 28px;
   background: #14161a;
   color: #ffffff;
-  overflow: hidden;
+  padding: 2.25rem 2.25rem;
   box-sizing: border-box;
-}
-
-.boot-poster-backdrop {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 85% 15%, rgba(255, 222, 89, 0.2) 0%, transparent 60%),
-    radial-gradient(circle at 10% 85%, rgba(255, 222, 89, 0.08) 0%, transparent 55%),
-    linear-gradient(145deg, #181b21 0%, #101215 100%);
-  pointer-events: none;
-}
-
-.boot-poster-content {
-  position: relative;
-  z-index: 2;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 100%;
-  gap: 2rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-.boot-poster-badge {
+.boot-poster-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 2;
+}
+
+.boot-status-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.3rem 0.75rem;
-  background: rgba(255, 255, 255, 0.08);
+  padding: 0.32rem 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 9999px;
   font-family: var(--font-mono, monospace);
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: 0.7rem;
+  font-weight: 750;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  align-self: flex-start;
 }
 
-.boot-pulse-dot {
+.boot-live-dot {
   width: 6px;
   height: 6px;
-  background: #22c55e;
+  background: #ffde59;
   border-radius: 9999px;
-  animation: boot-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  box-shadow: 0 0 8px #ffde59;
 }
 
-@keyframes boot-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+.boot-badge-text {
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: rgba(255, 255, 255, 0.6);
 }
 
-.boot-poster-slogan h2 {
+/* 居中插画展示 */
+.boot-poster-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 1.5rem 0;
+  z-index: 2;
+}
+
+.boot-hero-illustration {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.3));
+}
+
+/* 底部文案与指标 */
+.boot-poster-bottom {
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.boot-slogan-title {
   margin: 0;
-  font-size: 1.85rem;
-  font-weight: 800;
+  font-size: 1.65rem;
+  font-weight: 850;
   letter-spacing: -0.03em;
   line-height: 1.25;
   color: #ffffff;
 }
 
-.boot-poster-slogan p {
-  margin: 0.75rem 0 0;
-  font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.7);
-  line-height: 1.5;
+.boot-slogan-title .highlight {
+  color: #ffde59;
 }
 
-.boot-poster-cards {
+.boot-slogan-desc {
+  margin: 0;
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.45;
+}
+
+.boot-kpi-row {
   display: flex;
-  gap: 0.85rem;
-  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
 }
 
-.boot-kpi-pill {
+.boot-kpi-tag {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.75rem 1rem;
+  gap: 0.15rem;
+  padding: 0.65rem 0.85rem;
   background: rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
 }
 
-.boot-kpi-label {
-  font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.55);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.boot-kpi-pill strong {
-  font-size: 1.45rem;
+.boot-kpi-tag strong {
+  font-size: 1.2rem;
   font-weight: 850;
   color: #ffde59;
   letter-spacing: -0.02em;
 }
 
-.boot-poster-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 0.75rem;
+.boot-kpi-tag span {
+  font-size: 0.68rem;
   color: rgba(255, 255, 255, 0.5);
   font-weight: 600;
 }
 
-.boot-version-tag {
-  font-family: var(--font-mono, monospace);
-  letter-spacing: 0.03em;
-}
-
 /* --------------------------------------------------------------------------
-   Mobile Responsive Layout
+   移动端响应式 (参考图 1/2/3 竖屏精致美感)
    -------------------------------------------------------------------------- */
-@media (max-width: 768px) {
+@media (max-width: 860px) {
   .boot-sequence {
-    padding: 1.25rem;
+    padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+    align-items: flex-start;
   }
 
   .boot-card {
     flex-direction: column;
-    max-width: 100%;
+    max-width: 440px;
     min-height: auto;
-    border-radius: 24px;
+    border-radius: 32px;
+    margin: auto 0;
+    box-shadow: 0 16px 40px -10px rgba(18, 24, 38, 0.12);
   }
 
   .boot-form-side {
     flex: none;
-    padding: 2.25rem 1.75rem;
+    padding: 2.25rem 1.85rem;
   }
 
-  .boot-brand-lockup {
-    margin-bottom: 1.5rem;
+  .boot-brand-row {
+    margin-bottom: 1.25rem;
+    justify-content: center;
   }
 
-  .boot-brand-word {
-    font-size: 1rem;
+  /* 移动端展示优雅插画横幅 (参考图 1/3) */
+  .boot-mobile-hero {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.25rem;
   }
 
-  .boot-brand-pill {
-    font-size: 0.62rem;
-    padding: 0.16rem 0.5rem;
+  .boot-mobile-illustration {
+    width: 100%;
+    max-width: 220px;
+    height: auto;
   }
 
-  .boot-login-title {
-    font-size: 1.75rem;
+  .boot-header-group {
+    text-align: center;
+    margin-bottom: 1.75rem;
   }
 
-  .boot-login-sub {
-    font-size: 0.85rem;
+  .boot-subtitle {
+    justify-content: center;
   }
 
-  .boot-login-heading {
-    margin-bottom: 1.5rem;
+  .boot-title {
+    font-size: 1.85rem;
   }
 
   .boot-input-box input {
     font-size: 0.94rem;
     min-height: 48px;
-    padding: 0.7rem 1rem 0.7rem 2.75rem;
+    padding: 0.75rem 1rem 0.75rem 2.85rem;
   }
 
   .boot-pwd-toggle {
     height: 48px;
   }
 
-  .boot-login-submit {
+  .boot-btn-primary {
     min-height: 48px;
-    font-size: 0.95rem;
+    font-size: 0.98rem;
   }
 
-  .boot-register-link {
-    min-height: 42px;
-    font-size: 0.84rem;
+  .boot-btn-secondary {
+    min-height: 44px;
+    font-size: 0.86rem;
   }
 
-  .boot-footer-shield {
-    font-size: 0.7rem;
-  }
-
-  /* Hide poster side on mobile */
+  /* 隐藏右侧大海报 */
   .boot-poster-side {
     display: none;
   }
@@ -533,22 +564,15 @@
     padding: 2rem 1.5rem;
   }
 
-  .boot-login-title {
-    font-size: 1.6rem;
-  }
-
-  .boot-login-sub {
-    font-size: 0.82rem;
-  }
-
-  .boot-input-box input {
-    font-size: 0.92rem;
+  .boot-title {
+    font-size: 1.65rem;
   }
 }
 
-/* Reduced motion */
+/* 动效降低偏好 */
 @media (prefers-reduced-motion: reduce) {
-  .boot-pulse-dot {
-    animation: none;
+  .boot-btn-primary,
+  .boot-btn-secondary {
+    transition: none;
   }
 }
