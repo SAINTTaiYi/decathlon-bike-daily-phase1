@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 import { BootCharacters } from '../BootCharacters.jsx'
-import { BootPeeker } from '../BootPeeker.jsx'
 import { BootLoginFields } from './BootLoginFields.jsx'
 import { APP_VERSION } from '../../data/releaseNotes.js'
 
@@ -9,7 +8,8 @@ import { APP_VERSION } from '../../data/releaseNotes.js'
  * 登录页 · 桌面端专属实现（宽视口）。
  *
  * 与移动端完全独立：双栏卡片，左表单右插画，四角色互动面板只在这里渲染。
- * 探头角色坐在表单卡上沿之外（卡片 overflow 可见），移动端不复用这套定位。
+ * 桌面端不渲染探头角色（那是移动端专属）——它曾绝对定位压在 WORKSHOP OPS
+ * 标题上，且与右侧四角色插画重复表达。角色只出现在右栏插画面板。
  */
 export function BootLoaderDesktop({ form, onRegister, onForgotPassword, rootRef, cardRef }) {
   const introTlRef = useRef(null)
@@ -40,10 +40,6 @@ export function BootLoaderDesktop({ form, onRegister, onForgotPassword, rootRef,
   return (
     <div ref={cardRef} className="bootd-card">
       <div className="bootd-form-side">
-        <div className="bootd-peeker-slot">
-          <BootPeeker isTyping={isTyping} showPassword={showPassword} passwordLength={password.length} />
-        </div>
-
         <div className="bootd-brand bootd-item">
           <strong>WORKSHOP OPS</strong>
           <span className="bootd-version">V{APP_VERSION}</span>

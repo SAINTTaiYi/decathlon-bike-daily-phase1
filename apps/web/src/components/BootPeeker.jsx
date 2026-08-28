@@ -4,14 +4,19 @@ import { gsap } from 'gsap'
 /**
  * 登录卡背后的探头角色（Peeker）。
  *
- * 构图方法：半圆 + 向下延伸的单条 path，viewBox 只框住上半部分，
- * 下半身被自然裁掉 —— 视觉上就是"从登录框后面探出头"。
- * 配色走 workshop 品牌黄 #ffde59 / 深炭 #14161a，不使用任何外部素材。
+ * 几何与参考站（nortjobs 注册页）对齐：viewBox 400×200，身体是半径 200 的
+ * 半圆 + 向下延伸，下半身被 viewBox 裁掉 —— 视觉上就是"从登录框后面探出头"。
+ * 眼睛 cx 140 / 260、cy 95、r 46，瞳孔 r 34（= r − 12），腮红 cx 55 / 345 cy 145 r 50。
+ * 嘴在 x 中心 200、y≈157 一带，绝不放在眼睛坐标上（早期版本误把参考站的
+ * "眼睛弯月"路径当成嘴，导致左眼下方多出一条孤立弧线）。
+ *
+ * 配色：品牌蓝（#2f8bf4 → #1d6fd8 径向渐变，光源偏上），不再用品牌黄，
+ * 避免整个角色糊进登录页的暖黄环境光里。
  *
  * 行为：
  * - 瞳孔跟随指针（clamp 防止越出眼白），触屏走自动巡视
  * - 随机间隔眨眼（clipPath rect 高度动画，非 scaleY，避免形变失真）
- * - 输入用户名时上探一点并微笑加深
+ * - 输入用户名时上探一点、嘴张开
  * - 密码有值未显示时移开视线；密码明文时抬手遮眼 + 偶尔偷瞄
  *
  * 全部位移走 transform / GSAP quickTo，无 filter blur、无大表面 scale。
@@ -25,6 +30,10 @@ const EYE = {
   r: 46,
   pupilR: 34
 }
+
+// 嘴：闭合细线 / 张开的圆润形状，均以 x=200 为中心
+const MOUTH_LINE = 'M 172 157 Q 200 170 228 157'
+const MOUTH_OPEN = 'M 172 154 Q 200 162 228 154 Q 226 181 200 183 Q 174 181 172 154 Z'
 
 export function BootPeeker({ isTyping = false, showPassword = false, passwordLength = 0 }) {
   const rootRef = useRef(null)
@@ -144,15 +153,16 @@ export function BootPeeker({ isTyping = false, showPassword = false, passwordLen
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
     if (reduceMotion) return undefined
 
-    // 输入用户名：整体上探，笑意加深，腮红变明显
+    // 输入用户名：整体上探，嘴张开，腮红变明显
     gsap.to(root, {
       y: isTyping ? -14 : 0,
       duration: 0.65,
       ease: 'expo.out'
     })
     gsap.to(mouth, {
-      attr: { d: isTyping ? 'M 100 93 Q 140 116 180 93' : 'M 100 95 Q 140 108 180 95' },
-      duration: 0.45,
+      attr: { d: isTyping ? MOUTH_OPEN : MOUTH_LINE },
+      fill: isTyping ? '#141414' : 'none',
+      duration: 0.32,
       ease: 'power2.out'
     })
     gsap.to(blush, {
@@ -212,22 +222,28 @@ export function BootPeeker({ isTyping = false, showPassword = false, passwordLen
           <clipPath id="peeker-blink-clip">
             <rect ref={blinkRectRef} x="0" y="0" width="400" height="200" />
           </clipPath>
+          {/* 身体径向渐变：光源偏上，参考站同参数 */}
+          <radialGradient id="peeker-body" gradientUnits="userSpaceOnUse" cx="200" cy="40" r="330">
+            <stop offset="0%" stopColor="#2f8bf4" />
+            <stop offset="55%" stopColor="#2380ef" />
+            <stop offset="100%" stopColor="#1d6fd8" />
+          </radialGradient>
           {/* 瞳孔径向渐变，高光偏左上 */}
           <radialGradient id="peeker-pupil" cx="0.42" cy="0.35" r="0.85">
-            <stop offset="0%" stopColor="#3a3d45" />
-            <stop offset="55%" stopColor="#1c1f25" />
-            <stop offset="100%" stopColor="#0a0b0d" />
+            <stop offset="0%" stopColor="#26262c" />
+            <stop offset="55%" stopColor="#141414" />
+            <stop offset="100%" stopColor="#0a0a0c" />
           </radialGradient>
         </defs>
 
         <g ref={bodyRef} style={{ transformOrigin: '200px 200px' }}>
           {/* 身体：半圆 + 下延，下半身被 viewBox 裁掉 */}
-          <path d={BODY_PATH} fill="#ffde59" />
+          <path d={BODY_PATH} fill="url(#peeker-body)" />
 
           {/* 腮红：被身体 clipPath 裁成月牙 */}
           <g ref={blushRef} clipPath="url(#peeker-body-clip)" opacity="0.55">
-            <circle cx="55" cy="145" r="50" fill="#f7c92e" />
-            <circle cx="345" cy="145" r="50" fill="#f7c92e" />
+            <circle cx="55" cy="145" r="50" fill="#1b64c8" />
+            <circle cx="345" cy="145" r="50" fill="#1b64c8" />
           </g>
 
           <g clipPath="url(#peeker-blink-clip)">
@@ -244,11 +260,11 @@ export function BootPeeker({ isTyping = false, showPassword = false, passwordLen
             </g>
           </g>
 
-          {/* 嘴 */}
+          {/* 嘴：居中于 x=200，位于双眼下方 */}
           <path
             ref={mouthRef}
-            d="M 100 95 Q 140 108 180 95"
-            stroke="#14161a"
+            d={MOUTH_LINE}
+            stroke="#141414"
             strokeWidth="3.5"
             strokeLinecap="round"
             fill="none"
@@ -256,18 +272,18 @@ export function BootPeeker({ isTyping = false, showPassword = false, passwordLen
 
           {/* 遮眼的手：默认沉在下方，密码明文时抬起 */}
           <g ref={handsRef} opacity="0" style={{ transform: 'translateY(150px)' }}>
-            <ellipse cx={EYE.left.cx} cy={EYE.left.cy + 4} rx="58" ry="46" fill="#ffde59" />
-            <ellipse cx={EYE.right.cx} cy={EYE.right.cy + 4} rx="58" ry="46" fill="#ffde59" />
+            <ellipse cx={EYE.left.cx} cy={EYE.left.cy + 4} rx="58" ry="46" fill="#2a83f0" />
+            <ellipse cx={EYE.right.cx} cy={EYE.right.cy + 4} rx="58" ry="46" fill="#2a83f0" />
             <path
               d={`M ${EYE.left.cx - 34} ${EYE.left.cy + 22} Q ${EYE.left.cx} ${EYE.left.cy + 30} ${EYE.left.cx + 34} ${EYE.left.cy + 22}`}
-              stroke="#e8c332"
+              stroke="#1b64c8"
               strokeWidth="3"
               strokeLinecap="round"
               fill="none"
             />
             <path
               d={`M ${EYE.right.cx - 34} ${EYE.right.cy + 22} Q ${EYE.right.cx} ${EYE.right.cy + 30} ${EYE.right.cx + 34} ${EYE.right.cy + 22}`}
-              stroke="#e8c332"
+              stroke="#1b64c8"
               strokeWidth="3"
               strokeLinecap="round"
               fill="none"

@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 
 const read = (rel) => readFile(new URL(rel, import.meta.url), 'utf8')
 
-const [shell, mobile, desktop, fields, mascot, characters, cssShared, cssMobile, cssDesktop, viewportHook, formHook] =
+const [shell, mobile, desktop, fields, mascot, characters, peeker, cssShared, cssMobile, cssDesktop, viewportHook, formHook] =
   await Promise.all([
     read('../apps/web/src/components/BootLoader.jsx'),
     read('../apps/web/src/components/boot/BootLoaderMobile.jsx'),
@@ -12,6 +12,7 @@ const [shell, mobile, desktop, fields, mascot, characters, cssShared, cssMobile,
     read('../apps/web/src/components/boot/BootLoginFields.jsx'),
     read('../apps/web/src/components/BootMascot.jsx'),
     read('../apps/web/src/components/BootCharacters.jsx'),
+    read('../apps/web/src/components/BootPeeker.jsx'),
     read('../apps/web/src/styles/boot-shared.css'),
     read('../apps/web/src/styles/boot-mobile.css'),
     read('../apps/web/src/styles/boot-desktop.css'),
@@ -154,4 +155,45 @@ test('提交态锁定由两端各自的按钮承担，行为一致', () => {
     assert.match(source, primary, name + '主按钮须在提交中禁用')
     assert.match(source, /className="[a-z]+-btn-secondary"[^>]*disabled=\{submitting\}/u, name + '次按钮须在提交中禁用')
   }
+})
+
+// -- 探头角色回归（2026-08-29 用户实拍两处问题）--------------------
+// ①桌面端登录卡上还挂着黄色探头角色，压在 WORKSHOP OPS 标题上，且与右栏
+//   四角色插画重复表达 —— 用户要求桌面端彻底不要它。
+// ②角色本体与参考站（nortjobs 注册页）差得远：嘴被错放在左眼坐标上
+//   （参考站那条 "M 100 95 Q 140 108 180 95" 其实是单只眼睛的弯月，不是嘴），
+//   看起来像左眼下方多出一条孤立弧线；且通体品牌黄，糊进页面暖黄背景里。
+
+test('桌面端不得渲染探头角色：角色只属于移动端与右栏插画', () => {
+  assert.doesNotMatch(desktop, /BootPeeker/u, '桌面端不得引入探头角色组件')
+  assert.doesNotMatch(desktop, /peeker/iu, '桌面端不得残留探头角色插槽')
+  assert.doesNotMatch(cssDesktop, /peeker/iu, '桌面端样式不得残留探头角色规则')
+  // 移动端仍然保留它，且右栏四角色插画只在桌面端
+  assert.match(mobile, /BootPeeker/u, '移动端应继续渲染探头角色')
+  assert.match(desktop, /BootCharacters/u, '桌面端右栏应保留四角色插画')
+  assert.doesNotMatch(mobile, /BootCharacters/u, '移动端不渲染桌面端的四角色面板')
+})
+
+test('探头角色几何对齐参考站：双眼居中对称，嘴不得落在眼睛坐标上', () => {
+  // 参考站实测：viewBox 400x200、半径 200 半圆身体、眼 cx 140/260 cy 95 r 46
+  assert.match(peeker, /viewBox="0 0 400 200"/u)
+  assert.match(peeker, /M 0 200 A 200 200 0 0 1 400 200/u)
+  assert.match(peeker, /left: \{ cx: 140, cy: 95 \}/u)
+  assert.match(peeker, /right: \{ cx: 260, cy: 95 \}/u)
+  assert.match(peeker, /r: 46/u)
+  // 嘴必须以 x=200 为中心、位于双眼下方（y > 眼睛的 95）
+  const mouths = peeker.match(/M (\d+) (\d+) Q (\d+) (\d+) (\d+) (\d+)/gu) ?? []
+  assert.ok(mouths.length > 0, '应存在嘴部路径')
+  for (const d of mouths) {
+    const [, x1, y1, , , x2] = d.match(/M (\d+) (\d+) Q (\d+) (\d+) (\d+)/u).map(Number)
+    assert.equal((x1 + x2) / 2, 200, '嘴须左右对称居中于 x=200，不得挂在单只眼睛下: ' + d)
+    assert.ok(y1 > 95, '嘴须在双眼下方: ' + d)
+  }
+})
+
+test('探头角色改用品牌蓝，不得残留品牌黄糊进暖黄背景', () => {
+  assert.doesNotMatch(peeker, /ffde59/iu, '角色不得再用品牌黄 #ffde59')
+  assert.doesNotMatch(peeker, /f7c92e|e8c332|fff6d1/iu, '不得残留旧黄色系配色')
+  assert.match(peeker, /#2f8bf4/iu, '身体应使用参考站蓝色渐变起点')
+  assert.match(peeker, /#1d6fd8/iu, '身体应使用参考站蓝色渐变终点')
 })
