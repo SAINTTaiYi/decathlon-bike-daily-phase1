@@ -52,6 +52,36 @@ test('四角色舞台缩放必须是无量纲数值，禁止 vh 与像素混算�
   }
 })
 
+test('角色层必须渲染在 .boot-card 之外，否则被卡片包含块与 overflow 裁切', () => {
+  // 根因回归：卡片带 GSAP transform/filter 残留 + overflow:hidden，
+  // 角色层只要是它的子元素，就无法铺满视口做背景（曾连踩两轮）。
+  const cardOpen = boot.indexOf('className="boot-card"')
+  const posterIdx = boot.indexOf("className=\"boot-poster-side\"")
+  assert.ok(cardOpen !== -1 && posterIdx !== -1, '应同时存在卡片与角色层节点')
+
+  // 角色层必须在 </section> 之前、且缩进层级与 .boot-card 同级（6 空格）。
+  // 卡片子元素缩进为 8 空格，据此可判定是否已被提出卡片。
+  const posterLineStart = boot.lastIndexOf('\n', posterIdx) + 1
+  const indent = boot.slice(posterLineStart, posterIdx).match(/^ */u)[0].length
+  const cardLineStart = boot.lastIndexOf('\n', cardOpen) + 1
+  const cardIndent = boot.slice(cardLineStart, cardOpen).match(/^ */u)[0].length
+  assert.strictEqual(
+    indent,
+    cardIndent,
+    '角色层缩进须与 .boot-card 同级，即 .boot-sequence 的直接子元素',
+  )
+
+  // 角色层与卡片同级后，桌面端靠绝对定位归位到右半区
+  assert.match(
+    css,
+    /\.boot-poster-side\[data-variant='characters'\] \{[^}]*position: absolute/u,
+  )
+  assert.match(
+    css,
+    /\.boot-poster-side\[data-variant='characters'\] \{[^}]*padding-left: 52%/u,
+  )
+})
+
 test('移动端四角色作为铺满视口的背景层，登录卡浮于其上而非裁切插画', () => {
   // 背景层：fixed 铺满、不拦截触摸、位于卡片之下
   const bgBlock = css.match(

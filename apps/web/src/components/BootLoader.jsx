@@ -276,14 +276,18 @@ export default function BootLoader({ initialError = '', onLogin, onComplete, onR
           </form>
         </div>
 
-        {/* 右侧：四角色互动插画（跟随指针 / 响应输入与密码可见性），无文案 */}
-        <div ref={posterSideRef} className="boot-poster-side" data-variant="characters">
-          <BootCharacters
-            isTyping={usernameFocused && username.length > 0}
-            showPassword={showPassword}
-            passwordLength={password.length}
-          />
-        </div>
+      </div>
+
+      {/* 四角色互动插画（跟随指针 / 响应输入与密码可见性），无文案。
+          刻意渲染在 .boot-card 之外：卡片带 GSAP transform/filter 残留会成为
+          包含块并 overflow:hidden 裁切，角色层无法铺满视口做背景（曾踩两次）。
+          桌面端由 CSS 绝对定位归位到卡片右半区，视觉与此前一致。 */}
+      <div ref={posterSideRef} className="boot-poster-side" data-variant="characters">
+        <BootCharacters
+          isTyping={usernameFocused && username.length > 0}
+          showPassword={showPassword}
+          passwordLength={password.length}
+        />
       </div>
     </section>
   )

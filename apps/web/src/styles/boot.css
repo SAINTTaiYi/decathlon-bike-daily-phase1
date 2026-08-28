@@ -792,7 +792,25 @@
 
 /* ── 桌面端：占满原海报位 ─────────────────────────────────────────────── */
 .boot-poster-side[data-variant='characters'] {
+  /* 已移出 .boot-card（见 BootLoader.jsx 注释），改为绝对定位贴合卡片右半区。
+     卡片: max-width 980px 居中 / min-height 540px / 右栏 flex 1 1 48%。
+     用同一套居中约束换算左边界，视觉与原 flex 右栏一致。 */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(100% - 3rem, 980px);
+  height: max(540px, min(100vh - 3rem, 620px));
   padding: 1rem;
+  padding-left: 52%;
+  z-index: 2;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+/* 插画本身可交互（跟随指针），仅容器透传点击 */
+.boot-poster-side[data-variant='characters'] > * {
+  pointer-events: auto;
 }
 
 .boot-poster-side[data-variant='characters'] .boot-characters-stage {
@@ -802,10 +820,8 @@
 /* ── 移动端：四角色铺满视口作为背景层，登录卡浮于其上 ─────────────────
    放在桌面规则之后，确保 padding / scale 覆盖生效（同特异性靠顺序取胜）*/
 @media (max-width: 860px) {
-  /* 卡片保留 GSAP transform（入场动画不 clearProps），transform 会让 fixed
-     子元素以卡片为包含块 —— 所以这里必须用 absolute 锚到 boot-sequence，
-     否则角色层只铺满卡片、并压住表单（曾踩，见 ERR 记录）。
-     配套：卡片放开 overflow，表单侧显式抬 z-index。 */
+  /* 角色层已是 .boot-sequence 的直接子元素，absolute inset:0 即铺满整屏视口。
+     卡片本身留在 z-index:1，登录卡自然浮在角色层之上。 */
   .boot-card {
     overflow: visible;
     background: transparent;
@@ -824,11 +840,14 @@
     display: block;
     position: absolute;
     inset: 0;
+    /* 背景层：必须沉在 .boot-card(z-index:1) 之下 */
     z-index: 0;
     width: auto;
     height: auto;
     padding: 0;
+    padding-left: 0;
     margin: 0;
+    transform: none;
     order: 0;
     pointer-events: none;
   }
