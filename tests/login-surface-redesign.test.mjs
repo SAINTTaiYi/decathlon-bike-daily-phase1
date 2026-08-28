@@ -68,17 +68,53 @@ test('登录页顶部品牌位显示 WORKSHOP OPS 与当前版本号', () => {
   }
 })
 
-test('输入框遵守无边线设计：不用描边，靠填充深浅与品牌黄标识表达聚焦', () => {
+test('输入框聚焦不画任何外圈描边，只靠填充深浅表达（用户实拍两层框套嵌）', () => {
   for (const [name, css, cls] of [['移动端', cssMobile, 'bootm'], ['桌面端', cssDesktop, 'bootd']]) {
     const block = css.slice(css.indexOf('.' + cls + '-input-box:focus-within {'))
     const rule = block.slice(0, block.indexOf('}'))
     assert.doesNotMatch(rule, /border:/u, name + '聚焦态不得用 border')
-    assert.match(rule, /background:/u, name + '聚焦态应靠填充变化表达')
+    assert.match(rule, /background:\s*#fff/u, name + '聚焦态应靠填充变化表达')
+    // 外圈品牌色环是用户明确要求去掉的那一层
+    assert.doesNotMatch(
+      rule,
+      /box-shadow:[^;]*0 0 0 2px/u,
+      name + '聚焦态不得再画 2px 外扩色环（外层那个框）',
+    )
+    assert.doesNotMatch(rule, /brand-primary|ffde59/u, name + '聚焦态不得用品牌色描边')
+
+    // 全局 borderless.css 的黑色 outline 必须被定向取消（内层那个紧贴文字的框）
+    const killed = css.match(
+      new RegExp('\\.' + cls + '-input-box input:focus[\\s\\S]{0,200}?\\}', 'u'),
+    )
+    assert.ok(killed, name + '应显式取消 input 自身的 outline')
+    assert.match(killed[0], /outline:\s*none\s*!important/u, name + '需 !important 才能压过全局规则')
   }
   // autofill 不得把输入框刷回浏览器默认淡蓝底（拆分双端时曾整体漏搬）
   assert.match(cssShared, /input:-webkit-autofill/u)
   assert.match(cssShared, /-webkit-box-shadow: 0 0 0 100px #f3f4f8 inset/u)
   assert.match(cssShared, /:focus-within input:-webkit-autofill/u)
+})
+
+test('桌面端登录卡纵向居中，不贴视口顶部', () => {
+  const shellRule = cssDesktop.match(
+    /\.boot-sequence\[data-viewport='desktop'\] \{([^}]*)\}/u,
+  )
+  assert.ok(shellRule, '应存在桌面端外壳规则')
+  // 可滚动 flex 容器里靠 margin:auto 等分留白，内容超高时才退化为顶部对齐
+  assert.match(
+    cssDesktop,
+    /\.boot-sequence\[data-viewport='desktop'\] > \* \{[^}]*margin-block:\s*auto/u,
+    '桌面端应用 margin-block:auto 等分上下留白实现真正居中',
+  )
+  // 卡片高度上限必须和外壳 padding 对齐，否则矮视口会被裁
+  const pad = shellRule[1].match(/padding:\s*([\d.]+)rem/u)
+  assert.ok(pad, '桌面端外壳应声明纵向 padding')
+  const expected = Number(pad[1]) * 2
+  assert.match(
+    cssDesktop,
+    new RegExp('max-height:\\s*calc\\(100vh - ' + expected + 'rem\\)', 'u'),
+    '卡片 max-height 需扣掉上下 padding 合计 ' + expected + 'rem',
+  )
 })
 
 test('吉祥物跟随指针转向，触屏降级为自动巡视，并尊重减弱动效偏好', () => {

@@ -132,8 +132,10 @@
 }
 
 .bootm-input-box:focus-within {
+  /* 无边线设计：聚焦只靠填充由灰转白 + 轻微内投影表达层级，
+     不再画任何外圈色环（用户实拍两层框套嵌，视觉噪音）。 */
   background: #fff;
-  box-shadow: 0 0 0 2px var(--brand-primary, #ffde59);
+  box-shadow: inset 0 0 0 9999px transparent, 0 1px 2px rgb(18 20 28 / 0.06);
 }
 
 .bootm-input-icon {
@@ -157,6 +159,17 @@
   font-weight: 500;
   color: #a8aeb9;
 }
+
+/* 全局 borderless.css 给所有可聚焦元素加了 2px 黑色 outline（!important），
+   落在登录输入框上就是紧贴文字的那圈黑框。外层 .bootm-input-box 已经用
+   填充变化表达聚焦，这里定向取消 input 自身的 outline，键盘可达性
+   由外框的白底+投影承担，不影响其它页面。 */
+.bootm-input-box input:focus,
+.bootm-input-box input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 
 .bootm-pwd-toggle {
   flex: none;
