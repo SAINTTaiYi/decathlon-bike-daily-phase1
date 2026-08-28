@@ -30,14 +30,15 @@ test('首次登录改密沿用同一规则并保留临时密码语义', () => {
 })
 
 test('已登录用户可从日报菜单进入独立密码修改对话框', async () => {
-  const [appSource, menuSource, dialogSource, gateSource, authSource, bootSource, adminSource] = await Promise.all([
+  const [appSource, menuSource, dialogSource, gateSource, authSource, bootSource, adminSource, bootFormSource] = await Promise.all([
     readFile(new URL('../apps/web/src/App.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../apps/web/src/components/dialogs/MenuDialog.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../apps/web/src/components/dialogs/PasswordChangeDialog.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../apps/web/src/components/PasswordChangeGate.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../apps/web/src/hooks/useAuth.js', import.meta.url), 'utf8'),
     readFile(new URL('../apps/web/src/components/BootLoader.jsx', import.meta.url), 'utf8'),
-    readFile(new URL('../apps/web/src/components/admin/PlatformAdminConsole.jsx', import.meta.url), 'utf8')
+    readFile(new URL('../apps/web/src/components/admin/PlatformAdminConsole.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('../apps/web/src/hooks/useBootLoginForm.js', import.meta.url), 'utf8'),
   ])
 
   assert.match(menuSource, /<strong>修改密码<\/strong>/u)
@@ -58,7 +59,8 @@ test('已登录用户可从日报菜单进入独立密码修改对话框', async
   assert.match(authSource, /clear\(message\)/u)
   assert.match(appSource, /<BootLoader initialError=\{auth\.error\}/u)
   assert.match(bootSource, /initialError = ''/u)
-  assert.match(bootSource, /if \(initialError\) setError\(initialError\)/u)
+  // 表单状态机已收进 useBootLoginForm（双端共用），回填断言随之指向 hook
+  assert.match(bootFormSource, /if \(initialError\) setError\(initialError\)/u)
   assert.match(adminSource, /admin-header-security/u)
   assert.match(adminSource, /onClick=\{onChangePassword\}/u)
 })

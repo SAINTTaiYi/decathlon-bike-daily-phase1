@@ -182,3 +182,25 @@ body.is-booting {
   overflow: visible;
 }
 
+
+/* ── 浏览器自动填充兜底（两端共用） ─────────────────────────────
+   Chrome/Safari 会用 !important 的 UA 样式把 autofill 输入框刷成默认淡蓝底，
+   常规 background 覆盖不掉，只能用超大 inset box-shadow 顶掉。
+   数值须与两端输入框底色一致：静态 #f3f4f8，聚焦转 #fff。
+   拆分双端样式时这条曾整体漏搬，autofill 后输入框会突然变蓝。 */
+.bootm-input-box input:-webkit-autofill,
+.bootm-input-box input:-webkit-autofill:hover,
+.bootm-input-box input:-webkit-autofill:focus,
+.bootd-input-box input:-webkit-autofill,
+.bootd-input-box input:-webkit-autofill:hover,
+.bootd-input-box input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 100px #f3f4f8 inset;
+  -webkit-text-fill-color: #12141c;
+  caret-color: #12141c;
+  transition: background-color 9999s ease-out 0s;
+}
+
+.bootm-input-box:focus-within input:-webkit-autofill,
+.bootd-input-box:focus-within input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 100px #fff inset;
+}
