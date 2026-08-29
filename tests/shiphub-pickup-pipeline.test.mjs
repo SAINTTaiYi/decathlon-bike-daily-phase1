@@ -198,6 +198,18 @@ test('桌面三列与移动分段各有独立布局规则，同步按钮不再�
   assert.match(pipelineCss, /\.shiphub-pipeline-sync \{[^}]*background:/u)
 })
 
+test('桌面端任何宽度都不得降列数：三个框必须始终并排', () => {
+  // 用户 2026-08-29 复核：中等宽度降两列会把「在途车辆」整行推到下一排，
+  // 破坏「自提 / 拣货 / 在途 各一个框」的约定。窄档只准压内边距与字号。
+  const desktopBlock = pipelineCss.slice(pipelineCss.indexOf('.shiphub-pipeline-columns'))
+  // 唯一的列数声明就是恒定三轨；不存在任何 2 列/1 列的覆写
+  const trackDecls = desktopBlock.match(/\.shiphub-pipeline-columns[^{]*\{[^}]*grid-template-columns:[^;]+;/gu) || []
+  assert.equal(trackDecls.length, 1, '.shiphub-pipeline-columns 的列轨声明只应有一处（恒定三列）')
+  assert.match(trackDecls[0], /repeat\(3, minmax\(0, 1fr\)\)/u)
+  // 任何列都不得跨整行——grid-column: 1 / -1 会造成换行堆叠
+  assert.doesNotMatch(desktopBlock, /\.shiphub-pipeline-column[^{]*\{[^}]*grid-column:\s*1\s*\/\s*-1/u)
+})
+
 test('分段选中态使用实心主色，不引入 blur 或缩放', () => {
   // memory 19/22：大面积表面禁 filter blur 与 scale
   const block = pipelineCss.slice(pipelineCss.indexOf('.shiphub-pipeline-segments'))

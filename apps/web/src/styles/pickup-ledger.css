@@ -759,10 +759,13 @@
 .shiphub-pipeline-column .shiphub-order-card footer { flex-wrap: wrap; row-gap: 8px; }
 .shiphub-pipeline-column .shiphub-order-card-actions { flex-wrap: wrap; gap: 6px; }
 
-/* 中等宽度（860-1180px）三列会挤，降到两列 + 第三列占满 */
+/* 中等宽度（860-1180px）三列会挤：保持三列骨架，只压内边距与字号。
+   绝不降列数——降列会把在途整行推到下一排，破坏「三个框并排」的约定。 */
 @media (min-width: 861px) and (max-width: 1180px) {
-  .shiphub-pipeline-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .shiphub-pipeline-column:last-child { grid-column: 1 / -1; }
+  .shiphub-pipeline-columns { gap: 8px; }
+  .shiphub-pipeline-column { padding: 11px; }
+  .shiphub-pipeline-column-title { font-size: 13px; }
+  .shiphub-pipeline-column .shiphub-order-card { padding: 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
