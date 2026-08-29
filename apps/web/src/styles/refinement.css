@@ -35,11 +35,11 @@ button:not(:disabled) { transition-duration: 150ms; }
 .lookbook-shell {
   width: min(100%, 960px);
   margin-inline: auto;
-  background-color: var(--paper);
-  background-image: url('/textures/paper-grain.png');
-  background-repeat: repeat;
-  background-size: 256px 256px;
-  box-shadow: 0 0 0 1px rgb(11 11 12 / .055), 0 45px 140px rgb(11 11 12 / .085);
+  /* Transparent: the content shell sits above the environment glow. This was
+     the fourth opaque source (var(--paper), not --ops-page, which is why the
+     first sweep missed it). */
+  background-color: transparent;
+  background-image: none;
 }
 .lookbook-shell, body {
   /* paper grain stays very quiet: 2–4% visual weight via low-contrast asset */

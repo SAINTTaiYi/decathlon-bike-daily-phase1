@@ -240,7 +240,9 @@ button:disabled { opacity: .48; }
   min-height: calc(100dvh - var(--ops-header-height));
   margin-inline: auto;
   padding: calc(var(--ops-header-height) + 12px) 12px 0;
-  background: var(--ops-page);
+  /* Transparent: sits above .workspace-environment; an opaque fill here was
+     the fifth source hiding the ambient glow. */
+  background: transparent;
 }
 .workshop-overview-panel .ops-mobile-overview { display: block; }
 .ops-brand-header,

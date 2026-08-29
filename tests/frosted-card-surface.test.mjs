@@ -188,3 +188,83 @@ test('endfield 主题与强制高对比模式各自退出玻璃', () => {
   assert.match(section, /\[data-theme='endfield'\][\s\S]*?background:\s*var\(--ops-card\)/u, 'endfield 深色主题需退回实心')
   assert.match(section, /@media \(forced-colors: active\)/u, '强制高对比模式需退出玻璃')
 })
+
+// ---------------------------------------------------------------------------
+// 第 9 节：环境黄光的可见性链路
+//
+// 事故回顾：.workspace-environment 曾是 z-index:-1，被 .workshop-runtime 的实心
+// --ops-page 背景 + isolation:isolate 压在下面，整片弥散光斑完全不可见，卡片的
+// backdrop-filter 采样不到暖色所以看着像实心，PaletteLab 调玻璃参数也毫无反应。
+// 一个根因造成四条独立的视觉投诉。
+//
+// 更棘手的是「实心底色」有四个来源，且用词不统一（--ops-page 三处、--paper 一处），
+// 按单一关键词 grep 必然漏。这里按选择器枚举全部内容容器，杜绝第五处。
+// ---------------------------------------------------------------------------
+
+const [layoutCss, flatTokens, refinement] = await Promise.all([
+  read('../apps/web/src/styles/layout.css'),
+  read('../apps/web/src/styles/flat-tokens.css'),
+  read('../apps/web/src/styles/refinement.css'),
+])
+
+const ALL_STYLE_SOURCES = [
+  ['workshop-system.css', workshopSystem],
+  ['layout.css', layoutCss],
+  ['flat-tokens.css', flatTokens],
+  ['refinement.css', refinement],
+  ['mobile-overview.css', mobileOverview],
+  ['desktop-workbench.css', desktopWorkbench],
+]
+
+const declBlocks = (css) => {
+  const out = []
+  const re = /([^{}]+)\{([^{}]*)\}/g
+  let m
+  while ((m = re.exec(css))) out.push({ selector: m[1].trim(), body: m[2] })
+  return out
+}
+
+test('环境层不得使用负 z-index（否则被祖先背景盖死）', () => {
+  const blocks = declBlocks(workshopSystem).filter(
+    (b) => b.selector.includes('.workspace-environment') && /z-index\s*:/.test(b.body),
+  )
+  assert.ok(blocks.length > 0, '.workspace-environment 必须显式声明 z-index')
+  for (const b of blocks) {
+    const value = /z-index\s*:\s*(-?\d+)/.exec(b.body)?.[1]
+    assert.ok(value != null, `无法解析 z-index: ${b.selector}`)
+    assert.ok(
+      Number(value) >= 0,
+      `${b.selector} 的 z-index 为 ${value}；负值会把环境层推到祖先背景之下，黄光将不可见`,
+    )
+  }
+})
+
+test('内容容器不得有不透明底色（会挡住背后的环境黄光）', () => {
+  // 这些容器都在环境层之上。它们刷任何不透明色都会把弥散光完全遮死。
+  const CONTENT_SHELLS = ['.workshop-runtime', '.lookbook-shell', '.workshop-shell']
+  const OPAQUE = /background(?:-color)?\s*:\s*(var\(--(?:ops-page|paper|ops-card|card)\)|#[0-9a-f]{3,8}|rgb\(|white|hsl\()/i
+
+  const offenders = []
+  for (const [file, css] of ALL_STYLE_SOURCES) {
+    for (const { selector, body } of declBlocks(css)) {
+      const targets = selector.split(',').map((s) => s.trim())
+      // 只看容器自身（可带属性/伪类限定），不看后代 —— 后代如模块工具条本就该有底色
+      const hitsShell = targets.some((target) =>
+        CONTENT_SHELLS.some((shell) => {
+          if (!target.startsWith(shell)) return false
+          const rest = target.slice(shell.length)
+          return rest === '' || /^[[:.]/.test(rest.split(' ')[0]) && !rest.includes(' ')
+        }),
+      )
+      if (!hitsShell) continue
+      const match = OPAQUE.exec(body)
+      if (match) offenders.push(`${file} :: ${selector} -> ${match[0]}`)
+    }
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `内容容器带不透明底色，环境黄光会被遮住：\n${offenders.join('\n')}`,
+  )
+})
