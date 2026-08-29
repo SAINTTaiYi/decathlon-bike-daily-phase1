@@ -119,7 +119,7 @@ function OrderCard({ order, category, closedAt, onAction, variant = 'handover' }
   )
 }
 
-export default function ShipHubOrderBoard({ category, orders = [], loading = false, stale = false, error = '', closedAt, onLoad, onAction, onSync, variant = 'handover' }) {
+export default function ShipHubOrderBoard({ category, orders = [], loading = false, syncing = false, reconnecting = false, connectionStatus = 'connected', stale = false, error = '', closedAt, onLoad, onAction, onSync, onOpenConnection, variant = 'handover' }) {
   const meta = labels[category]
   const variantTitle = variant === 'pickup' ? PICKUP_VARIANT_TITLES[category] : null
   const boardTitle = variantTitle || meta
@@ -140,7 +140,7 @@ export default function ShipHubOrderBoard({ category, orders = [], loading = fal
   useEffect(() => {
     const icon = syncIconRef.current
     if (!icon) return undefined
-    if (loading && !reducedMotion()) {
+    if ((syncing || loading) && !reducedMotion()) {
       spinRef.current?.kill()
       spinRef.current = gsap.to(icon, { rotation: 360, duration: .9, ease: 'none', repeat: -1 })
     } else {
@@ -149,7 +149,7 @@ export default function ShipHubOrderBoard({ category, orders = [], loading = fal
       gsap.set(icon, { clearProps: 'transform' })
     }
     return () => { spinRef.current?.kill(); spinRef.current = null; gsap.set(icon, { clearProps: 'transform' }) }
-  }, [loading])
+  }, [syncing, loading])
   // 订单集合变化（同步完成/清空）时整组 stagger 入场；同一批 id 不重播
   const gridRef = useRef(null)
   const batchRef = useRef('')
@@ -173,12 +173,24 @@ export default function ShipHubOrderBoard({ category, orders = [], loading = fal
     const el = statusRef.current
     if (!el || reducedMotion()) return
     gsap.fromTo(el, { autoAlpha: .01, y: 8 }, { autoAlpha: 1, y: 0, duration: .4, ease: 'expo.out', clearProps: 'transform,opacity,visibility' })
-  }, [stale, error, loading])
-  const sync = async () => { await onSync?.(); await onLoad?.(category) }
+  }, [stale, error, loading, syncing, connectionStatus])
+  const sync = async () => {
+    if (syncing || reconnecting) return
+    await onSync?.()
+  }
   const recheckLocator = () => { setLocatorInstalled(readLocatorInstalled()); setManagerHint(readManagerHint()); setLocatorVersion(readLocatorVersion()); setLocatorOutdated(readLocatorOutdated()) }
   return (
     <section className="shiphub-order-board" data-category={category} aria-labelledby={`shiphub-${category}-title`}>
-      <header data-variant={variant}><div><span>{boardTitle.en}</span><strong id={`shiphub-${category}-title`}>{boardTitle.cn}</strong></div><div className="shiphub-order-board-meta">{stale ? <em>数据可能已过期</em> : <small>读取本站缓存</small>}<button type="button" onClick={() => void sync()} disabled={loading}><span ref={syncIconRef} className="shiphub-sync-icon" aria-hidden="true"><IconRefresh width={15} height={15} /></span>同步</button></div></header>
+      <header data-variant={variant}><div><span>{boardTitle.en}</span><strong id={`shiphub-${category}-title`}>{boardTitle.cn}</strong></div><div className="shiphub-order-board-meta">{stale ? <em>数据可能已过期</em> : <small>读取本站缓存</small>}<button type="button" className="shiphub-sync-button" onClick={() => void sync()} disabled={syncing || reconnecting || loading} aria-busy={syncing || reconnecting ? 'true' : 'false'}><span ref={syncIconRef} className="shiphub-sync-icon" aria-hidden="true"><IconRefresh width={15} height={15} /></span>{reconnecting ? '重连中…' : syncing ? '同步中…' : '同步'}</button></div></header>
+      {connectionStatus !== 'connected' && connectionStatus !== 'fixture' ? (
+        <div className="shiphub-connection-notice" role="status" data-status={connectionStatus}>
+          <strong>Shiphub 当前未连接</strong>
+          <span>{connectionStatus === 'reauth_required'
+            ? '上游授权已失效（常见原因：有人手动登录过官方 Shiphub）。点「同步」会先尝试自动重连；若仍失败，请手动重新授权。'
+            : '本门店尚未完成 Shiphub 授权，下方列表仅为本地缓存。请先完成连接。'}</span>
+          {onOpenConnection ? <button type="button" className="shiphub-connection-open" onClick={() => onOpenConnection()}>去手动重连</button> : null}
+        </div>
+      ) : null}
       {category === 'hand' && locatorInstalled && locatorOutdated ? (
         <div className="shiphub-locator-guide" role="status" data-outdated="true">
           <strong>Shiphub 定位脚本有新版本 v{locatorOutdated}</strong>

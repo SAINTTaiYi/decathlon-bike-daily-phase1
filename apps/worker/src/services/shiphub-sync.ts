@@ -2,6 +2,8 @@ import { loadConfig, type AppConfig, type WorkerEnv } from '../env.js'
 import { all, first, nowIso, run, uuid } from '../db.js'
 import { ShipHubUpstreamError, createShipHubClient, type ShipHubCategory, type ShipHubClient, type ShipHubOrder } from '../lib/shiphub-client.js'
 import { readRefreshToken, rotateRefreshToken, shipHubIdentityFingerprint } from '../lib/shiphub-oauth.js'
+import { performShipHubProgrammaticLogin, splitEncryptedBlob } from '../lib/shiphub-login.js'
+import { decryptShipHubSecret, encryptShipHubSecret } from '../lib/shiphub-crypto.js'
 import { refreshShipHubAccessToken } from '../lib/shiphub-token.js'
 import { ApiProblem } from './problems.js'
 import { sendShipHubFailureAlert, shouldAlertOnShipHubFailure } from './shiphub-alert.js'
@@ -16,6 +18,9 @@ const CATEGORIES: readonly ShipHubCategory[] = ['hand', 'pick', 'receive', 'ship
 const COUNT_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 5 * 60_000, pick: 5 * 60_000, receive: 10 * 60_000, ship: 10 * 60_000 }
 const FULL_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 15 * 60_000, pick: 15 * 60_000, receive: 30 * 60_000, ship: 30 * 60_000 }
 const MANUAL_FRESH_MS = 2 * 60_000
+// 自愈重试节流：同一门店 reauth_required 后至多每 30 分钟试一次程序化重登。
+// 上游登录有风控，不能每 5 分钟 cron 都打。
+const SELF_HEAL_COOLDOWN_MS = 30 * 60_000
 const LEASE_MS = 90_000
 
 export type ShipHubConnection = {
@@ -485,6 +490,52 @@ export async function syncStoreCategory(
   }
 }
 
+// 自愈：对 reauth_required 且持有可用登录凭据的连接，尝试程序化重登恢复。
+// 只处理能静默恢复的情形；无凭据（仅浏览器 SSO 授权）的连接保持 reauth_required，
+// 由前端提示门店手动重连。失败不抛出，不能拖坠整轮 cron。
+async function healShipHubConnections(env: WorkerEnv, config: AppConfig, now: Date): Promise<void> {
+  const key = config.SHIPHUB.loginKey
+  if (!key) return
+  const cutoff = new Date(now.getTime() - SELF_HEAL_COOLDOWN_MS).toISOString()
+  const candidates = await all<{ store_id: string; login_username_enc: string | null; login_password_enc: string | null; location_num: string | null }>(env.DB.prepare(`
+    SELECT store_id, login_username_enc, login_password_enc, location_num
+    FROM shiphub_connections
+    WHERE enabled = 1 AND authorization_status = 'reauth_required'
+      AND (updated_at IS NULL OR updated_at <= ?)
+  `).bind(cutoff))
+  for (const candidate of candidates) {
+    const perStore = Boolean(candidate.login_username_enc && candidate.login_password_enc)
+    // 无本店凭据时只能靠部署级共享凭据；两者都没就无法自愈。
+    if (!perStore && !(config.SHIPHUB.loginUsernameEnc && config.SHIPHUB.loginPasswordEnc)) continue
+    try {
+      let credentials: { username: string; password: string } | undefined
+      if (perStore) {
+        const usernameBlob = splitEncryptedBlob(candidate.login_username_enc!)
+        const passwordBlob = splitEncryptedBlob(candidate.login_password_enc!)
+        credentials = {
+          username: await decryptShipHubSecret(usernameBlob.ciphertext, usernameBlob.nonce, key),
+          password: await decryptShipHubSecret(passwordBlob.ciphertext, passwordBlob.nonce, key)
+        }
+      }
+      const token = await performShipHubProgrammaticLogin(config.SHIPHUB, credentials)
+      if (!token.refreshToken) throw new ShipHubUpstreamError('OAUTH_REFRESH_TOKEN_MISSING')
+      const encrypted = await encryptShipHubSecret(token.refreshToken, key)
+      const stamp = nowIso()
+      await run(env.DB.prepare(`
+        UPDATE shiphub_connections
+        SET refresh_token_ciphertext = ?, refresh_token_nonce = ?, refresh_token_key_version = 'v1',
+            token_expires_at = ?, token_updated_at = ?, authorization_status = 'connected',
+            last_auth_error_code = NULL, updated_at = ?
+        WHERE store_id = ?
+      `).bind(encrypted.ciphertext, encrypted.nonce, token.expiresAt, stamp, stamp, candidate.store_id))
+    } catch {
+      // 刷新 updated_at 让节流窗口重新计时，避免每轮 cron 重试同一失败凭据。
+      // 不记录凭据内容，只标记错误码。
+      await run(env.DB.prepare(`UPDATE shiphub_connections SET last_auth_error_code = 'SELF_HEAL_FAILED', updated_at = ? WHERE store_id = ?`).bind(nowIso(), candidate.store_id))
+    }
+  }
+}
+
 export async function runScheduledShipHubSync(env: WorkerEnv, now = new Date()): Promise<void> {
   const config = loadConfig(env)
   if (!config.SHIPHUB.enabled) return
@@ -493,6 +544,11 @@ export async function runScheduledShipHubSync(env: WorkerEnv, now = new Date()):
   // 立即作废（OAUTH_TOKEN_HTTP_400，全部门店翻成 reauth_required）。
   // reauth_required 连接也排除：避免对失效 token 每 5 分钟空转，待门店重新授权后恢复。
   // fixture 模式无上游调用，仍覆盖全部 active store 写入合成数据。
+  // 先尝试自愈：恢复成功的连接本轮就能参与同步，无需等下一轮。
+  // 同样受营业时间约束（不在窗口内不碰上游）。
+  if (config.SHIPHUB.mode !== 'fixture' && activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) {
+    await healShipHubConnections(env, config, now)
+  }
   const stores = config.SHIPHUB.mode === 'fixture'
     ? await all<{ id: string }>(env.DB.prepare(`SELECT s.id FROM stores s WHERE s.status = 'active'`))
     : await all<{ id: string }>(env.DB.prepare(`

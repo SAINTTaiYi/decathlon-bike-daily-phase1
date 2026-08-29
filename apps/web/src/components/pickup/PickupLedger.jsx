@@ -246,7 +246,7 @@ function PickupCard({ record, index, expanded, density, query, closedAt, pickupE
   </div>
 }
 
-export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, onRemove, onHistory, onPickup, onRepairComplete, onHandoverComplete, onPickupNotificationChange, pickupErrors = {}, primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete, repairMode = false, handoverMode = false, repairPixelDissolveId = '', onRepairPixelDissolveComplete, members = [], onAssign = null, shiphub = null }) {
+export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, onRemove, onHistory, onPickup, onRepairComplete, onHandoverComplete, onPickupNotificationChange, pickupErrors = {}, primaryProcessingId = '', primaryActionBusy = false, pickupPixelFillId = '', onPickupPixelFillComplete, repairMode = false, handoverMode = false, repairPixelDissolveId = '', onRepairPixelDissolveComplete, members = [], onAssign = null, shiphub = null, onOpenShipHubSettings = null }) {
   const [query, setQuery] = useState('')
   const [expandedId, setExpandedId] = useState('')
   const [mobileLayout, setMobileLayout] = useState(false)
@@ -360,7 +360,7 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
     </> : null}
     {showShipHub ? shiphubCategories.map((category) => {
       const categoryState = shiphub?.summary?.categories?.find((item) => item.category === category)
-      return <ShipHubOrderBoard key={category} category={category} orders={shiphub?.orders?.[category] || []} loading={Boolean(shiphub?.ordersLoading?.[category])} stale={Boolean(categoryState?.stale)} error={shiphub?.error || ''} closedAt={closedAt} onLoad={shiphub.loadOrders} onAction={shiphub.action} onSync={shiphub.sync} variant={handoverMode ? 'handover' : 'pickup'} />
+      return <ShipHubOrderBoard key={category} category={category} orders={shiphub?.orders?.[category] || []} loading={Boolean(shiphub?.ordersLoading?.[category])} syncing={Boolean(shiphub?.syncing)} reconnecting={Boolean(shiphub?.reconnecting)} connectionStatus={shiphub?.connectionStatus || 'connected'} stale={Boolean(categoryState?.stale)} error={shiphub?.error || ''} closedAt={closedAt} onLoad={shiphub.loadOrders} onAction={shiphub.action} onSync={shiphub.sync} onOpenConnection={onOpenShipHubSettings} variant={handoverMode ? 'handover' : 'pickup'} />
     }) : null}
     <PickupFilterSheet open={Boolean(sheet)} initialTab={sheet || 'filter'} appliedSources={sources} appliedSort={sort} repairMode={repairMode || handoverMode} onClose={closeSheet} onApply={applySheet} />
     <MemberSelectSheet open={Boolean(assignRecord)} members={members} currentId={assignRecord?.assignedTo || ''} title={assignRecord ? assignRecord.title : ''} onClose={() => setAssignRecord(null)} onPick={(userId) => { if (onAssign && assignRecord) void onAssign(assignRecord.id, userId) }} onClear={() => { if (onAssign && assignRecord) void onAssign(assignRecord.id, null) }} />

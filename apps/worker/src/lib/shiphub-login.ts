@@ -9,7 +9,7 @@ const LOGIN_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
 const LOGIN_HTML_ACCEPT = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
 
-function splitEncryptedBlob(blob: string): { ciphertext: string; nonce: string } {
+export function splitEncryptedBlob(blob: string): { ciphertext: string; nonce: string } {
   const [ciphertext, nonce] = blob.split('.')
   if (!ciphertext || !nonce) throw new ShipHubUpstreamError('LOGIN_CREDENTIAL_MALFORMED')
   return { ciphertext, nonce }

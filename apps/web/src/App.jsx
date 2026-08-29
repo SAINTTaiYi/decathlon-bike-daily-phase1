@@ -521,6 +521,7 @@ export default function App() {
   const recordProps = (scene) => ({
     records: workflow.recordsByScene[scene] || [],
     shiphub,
+    onOpenShipHubSettings: () => setShiphubSettingsOpen(true),
     members: workflow.members || [],
     onAssign: async (id, assignedTo) => {
       const record = workflow.records.find((item) => item.id === id)
