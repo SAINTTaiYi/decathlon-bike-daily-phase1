@@ -391,3 +391,65 @@
     transparent 100%
   ) !important;
 }
+
+/* ==================================================================
+ * 8. Frosted content cards — 2026-08-29
+ *
+ * Round 1 put this in mobile-overview.css and it never reached the
+ * desktop runtime. Two independent reasons, both now fixed at the
+ * source rather than overridden here:
+ *
+ *   1. The three glass tokens were defined inside that file's
+ *      `@media (min-width: 0px)` :root block. Desktop's rule read them
+ *      through a `var(--…, var(--ops-card))` fallback, so it silently
+ *      rendered the opaque cream fill. Tokens now live in tokens.css.
+ *
+ *   2. Seven declarations still painted `background: var(--ops-card)`
+ *      (opaque) or reset `box-shadow` on these same cards, unconditionally
+ *      and later in the cascade. Those seven are DELETED, not overridden —
+ *      mobile-overview.css lines 131/150/172/188/213, its blanket
+ *      box-shadow reset, and workshop-system.css:336.
+ *
+ * Because the opaque fills are gone, these rules need no !important and
+ * no specificity padding. That is the point: one owner per surface.
+ *
+ * No backdrop-filter. Per the motion rules, blur on a large scrolling
+ * surface re-rasterises every frame and softens CJK glyphs. The inner
+ * top highlight plus the faint warm outer edge is what reads as frosted;
+ * it composites for free.
+ * ================================================================== */
+.ops-closing-card,
+.ops-sales-panel,
+.ops-index,
+.ops-pickup-board,
+.ops-release-strip,
+.ops-analytics-panel {
+  background: var(--ops-card-translucent);
+  box-shadow:
+    inset 0 1px 0 var(--ops-card-hairline),
+    inset 0 0 0 1px var(--ops-card-edge),
+    var(--ops-card-shadow);
+}
+
+/* The endfield theme paints its own dark surfaces; glass would fight it. */
+[data-theme='endfield'] .ops-closing-card,
+[data-theme='endfield'] .ops-sales-panel,
+[data-theme='endfield'] .ops-index,
+[data-theme='endfield'] .ops-pickup-board,
+[data-theme='endfield'] .ops-release-strip,
+[data-theme='endfield'] .ops-analytics-panel {
+  background: var(--ops-card);
+  box-shadow: var(--ops-card-shadow);
+}
+
+@media (forced-colors: active) {
+  .ops-closing-card,
+  .ops-sales-panel,
+  .ops-index,
+  .ops-pickup-board,
+  .ops-release-strip,
+  .ops-analytics-panel {
+    background: Canvas;
+    box-shadow: none;
+  }
+}

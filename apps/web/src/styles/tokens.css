@@ -23,4 +23,28 @@
   --page-pad: .75rem;
   --section-air: clamp(4.5rem, 9svh, 6.75rem);
   --dock-space: 7.5rem;
+
+  /* ------------------------------------------------------------------
+   * Frosted card surface — 2026-08-29
+   *
+   * These three used to live inside mobile-overview.css's
+   * `@media (min-width: 0px)` :root block. That block does apply at every
+   * width, but it is imported BEFORE desktop-workbench.css, which is not
+   * the problem; the problem was ownership. The tokens read as
+   * mobile-only, so the desktop glass rule referenced them through a
+   * `var(--ops-card-translucent, var(--ops-card))` fallback and every
+   * reviewer assumed the fallback was the safety net rather than the
+   * value actually in use.
+   *
+   * They are global surface tokens, so they live in the global token
+   * layer. Both runtimes reference them directly, no fallback, no
+   * duplicated definition.
+   *
+   * Contrast, measured against the strongest glow the environment layer
+   * produces (#fbeaa4): body text 18.6:1, muted text 7.1:1 — both well
+   * clear of the 4.5:1 AA floor.
+   * ------------------------------------------------------------------ */
+  --ops-card-translucent: rgb(255 253 248 / .70);
+  --ops-card-hairline: rgb(255 255 255 / .62);
+  --ops-card-edge: rgb(120 104 58 / .12);
 }

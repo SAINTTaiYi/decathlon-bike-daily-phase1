@@ -236,18 +236,13 @@
   .ops-index button > b { top: 94px; left: 28px; font-size: 45px; line-height: 1; }
   .ops-index button > .ops-arrow { top: 103px; right: 26px; font-size: 24px; line-height: 1; }
   .ops-analytics-grid { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(360px, 1fr); gap: 16px; }
-  /* Frosted analytics panels: same translucent treatment as the mobile
-     overview cards so the ambient yellow reads through on wide viewports
-     too. Highlight + warm edge instead of backdrop-filter. */
+  /* Geometry only. The frosted fill for this panel — and for every other
+     card that shares it — is owned by frosted.css section 8. Do not
+     reintroduce a background or box-shadow here. */
   .ops-analytics-panel {
     min-height: 290px;
     padding: 20px 24px;
     border-radius: var(--ops-radius);
-    background: var(--ops-card-translucent, var(--ops-card));
-    box-shadow:
-      inset 0 1px 0 var(--ops-card-hairline, transparent),
-      inset 0 0 0 1px var(--ops-card-edge, transparent),
-      var(--ops-card-shadow);
   }
   .ops-analytics-panel > header { display: flex; align-items: baseline; justify-content: space-between; }
   .ops-analytics-panel > header strong { font-size: 16px; }

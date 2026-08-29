@@ -87,9 +87,11 @@ test('closed closing actions reserve their own row instead of overlapping the sa
 })
 
 test('frosted overview: ambient wash stays visible and overview cards are translucent, not opaque', async () => {
-  const [mobileCss, desktopCss] = await Promise.all([
+  const [mobileCss, desktopCss, tokensCss, frostedCss] = await Promise.all([
     read('apps/web/src/styles/mobile-overview.css'),
     read('apps/web/src/styles/desktop-workbench.css'),
+    read('apps/web/src/styles/tokens.css'),
+    read('apps/web/src/styles/frosted.css'),
   ])
 
   // The mobile overview used to hide .workspace-environment outright, which
@@ -99,31 +101,51 @@ test('frosted overview: ambient wash stays visible and overview cards are transl
   assert.doesNotMatch(mobileCss, /\.workspace-environment,\s*\n\s*\.workspace-depth-plane/u)
   assert.match(mobileCss, /\.workspace-paper-scratches\s*\{\s*display:\s*none;\s*\}/u)
 
-  // Translucent surface tokens must exist and actually be translucent.
-  const translucent = mobileCss.match(/--ops-card-translucent:\s*([^;]+);/u)
-  assert.ok(translucent, '--ops-card-translucent must be defined')
+  // Translucent surface tokens must exist and actually be translucent. They
+  // now live in tokens.css, not here: while they sat in this file they read as
+  // mobile-only and the desktop rule referenced them through a fallback, which
+  // is how the whole treatment silently stayed opaque on desktop.
+  const translucent = tokensCss.match(/--ops-card-translucent:\s*([^;]+);/u)
+  assert.ok(translucent, '--ops-card-translucent must be defined in tokens.css')
   assert.match(translucent[1], /rgb\(255 253 248 \/ \.\d+\)/u)
-  assert.match(mobileCss, /--ops-card-hairline:\s*rgb\(255 255 255 \/ \.\d+\)/u)
-  assert.match(mobileCss, /--ops-card-edge:\s*rgb\(120 104 58 \/ \.\d+\)/u)
+  assert.match(tokensCss, /--ops-card-hairline:\s*rgb\(255 255 255 \/ \.\d+\)/u)
+  assert.match(tokensCss, /--ops-card-edge:\s*rgb\(120 104 58 \/ \.\d+\)/u)
+  assert.doesNotMatch(
+    mobileCss,
+    /--ops-card-translucent\s*:/u,
+    'the glass tokens moved to tokens.css; a copy here is the duplicate that caused the desktop regression',
+  )
 
-  // All four overview cards share the translucent fill plus the highlight
-  // pairing that reads as frosted glass.
-  const frostedBlock = mobileCss.match(/\.ops-closing-card,\s*\n\s*\.ops-sales-panel,\s*\n\s*\.ops-index,\s*\n\s*\.ops-release-strip \{[^}]+\}/u)
-  assert.ok(frostedBlock, 'overview cards must share one frosted rule')
+  // The frosted fill is declared once, in frosted.css, for every card that
+  // wants glass — mobile overview cards and desktop panels alike.
+  const frostedBlock = frostedCss.match(/\.ops-closing-card,[^{]*\{[^}]+\}/u)
+  assert.ok(frostedBlock, 'frosted cards must share one rule in frosted.css')
   assert.match(frostedBlock[0], /background:\s*var\(--ops-card-translucent\)/u)
   assert.match(frostedBlock[0], /inset 0 1px 0 var\(--ops-card-hairline\)/u)
   assert.match(frostedBlock[0], /inset 0 0 0 1px var\(--ops-card-edge\)/u)
+  for (const card of ['ops-sales-panel', 'ops-index', 'ops-pickup-board', 'ops-analytics-panel']) {
+    assert.match(
+      frostedBlock[0],
+      new RegExp(`\\.${card}\\b`, 'u'),
+      `${card} must be in the shared frosted rule, not carry its own copy`,
+    )
+  }
 
-  // Desktop analytics panels get the same treatment.
+  // Desktop no longer paints .ops-analytics-panel itself, and no longer hides
+  // a missing token behind a solid fallback.
   const panel = desktopCss.match(/\.ops-analytics-panel \{[^}]+\}/u)
-  assert.ok(panel, '.ops-analytics-panel rule must exist')
-  assert.match(panel[0], /background:\s*var\(--ops-card-translucent, var\(--ops-card\)\)/u)
-  assert.match(panel[0], /var\(--ops-card-hairline/u)
+  if (panel) {
+    assert.doesNotMatch(
+      panel[0],
+      /background:\s*var\(--ops-card-translucent, var\(--ops-card\)\)/u,
+      'drop the solid fallback: a missing token should show up, not quietly render opaque',
+    )
+  }
 
   // A blur on a scrolling card surface re-rasterises every frame and softens
   // CJK glyphs, so the frost here is tint + highlight only.
   assert.doesNotMatch(frostedBlock[0], /backdrop-filter/u)
-  assert.doesNotMatch(panel[0], /backdrop-filter/u)
+  if (panel) assert.doesNotMatch(panel[0], /backdrop-filter/u)
 })
 
 test('frosted navigation is tinted warm so it carries the ambient yellow instead of cancelling it', async () => {

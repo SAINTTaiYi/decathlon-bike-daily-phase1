@@ -19,16 +19,6 @@
   :root {
     --ops-page: #f7f5ef;
     --ops-card: #fffdf8;
-    /* Translucent card surface: lets the ambient yellow wash bleed
-       through without touching text contrast. Measured against the
-       strongest glow the environment layer produces (#fbeaa4):
-       body text stays at 18.6:1 and muted text at 7.1:1, both far
-       above the 4.5:1 AA floor. No backdrop-filter — a blur on a
-       scrolling surface re-rasterises every frame and softens CJK
-       glyphs. The hairline highlight is what reads as "frosted". */
-    --ops-card-translucent: rgb(255 253 248 / .78);
-    --ops-card-hairline: rgb(255 255 255 / .58);
-    --ops-card-edge: rgb(120 104 58 / .10);
     --ops-black: #0c0e0c;
     --ops-text: #0a0b0a;
     --ops-text-muted: #55554f;
@@ -128,7 +118,7 @@
   .ops-arrow { display: inline-block; font-family: var(--ops-display); font-size: 22px; font-weight: 300; line-height: 1; transition: transform 120ms ease; }
   .ops-inline-alert { margin: 6px 0 -3px; padding: 5px 8px; border-left: 0; background: #fff2ef; color: var(--ops-danger); font-size: 9px; font-weight: 700; }
 
-  .ops-closing-card { height: 154px; margin-top: 9px; border: 0; background: var(--ops-card); }
+  .ops-closing-card { height: 154px; margin-top: 9px; border: 0; }
   .ops-closing-main { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; height: 84px; padding: 9px 13px 6px; }
   .ops-closing-title > span { font-size: 10px; font-weight: 650; line-height: 12px; }
   .ops-closing-title h2 { margin-top: 4px; color: var(--ops-text); font-family: var(--ops-display); font-size: 29px; font-weight: 700; line-height: 24px; letter-spacing: -.3px; }
@@ -147,7 +137,7 @@
   .ops-closing-next button { display: flex; align-items: center; justify-content: center; gap: 16px; width: 120px; height: 44px; background: var(--ops-yellow); box-shadow: 0 0 14px var(--ops-yellow-glow); font-size: 12px; font-weight: 750; }
   .ops-closing-next button:active { background: var(--ops-yellow-pressed); }
 
-  .ops-sales-panel { height: 196px; margin-top: 10px; border: 0; background: var(--ops-card); }
+  .ops-sales-panel { height: 196px; margin-top: 10px; border: 0; }
   .ops-sales-primary { position: relative; display: block; width: 100%; height: 111px; overflow: hidden; padding: 13px 13px; background: var(--ops-black); color: var(--ops-text-inverse); text-align: left; }
   .ops-sales-label { position: absolute; top: 9px; left: 13px; display: flex; align-items: center; gap: 7px; }
   .ops-sales-label i { width: 7px; height: 7px; background: var(--ops-yellow); }
@@ -169,7 +159,7 @@
   .ops-kpi-grid button > b[data-digits='3'] { font-size: 24px; }
   .ops-kpi-grid button > b[data-digits='4'] { font-size: 20px; }
 
-  .ops-index { height: 124px; margin-top: 10px; border: 0; background: var(--ops-card); }
+  .ops-index { height: 124px; margin-top: 10px; border: 0; }
   .ops-index-head { display: flex; align-items: center; justify-content: space-between; height: 38px; padding: 0 10px; border-bottom: 0; }
   .ops-index-label { display: flex; align-items: baseline; gap: 3px; font-family: var(--ops-display); font-size: 10px; letter-spacing: .02em; white-space: nowrap; }
   .ops-index-label-cn { display: inline-block; width: 29px; font-family: 'Noto Sans SC Variable'; font-weight: 700; letter-spacing: 0; transform: scaleX(.72); transform-origin: left center; }
@@ -185,7 +175,7 @@
   .ops-index button > b { position: absolute; top: 50px; left: 8px; font-family: var(--ops-display); font-size: 24px; line-height: 24px; }
   .ops-index button > .ops-arrow { position: absolute; top: 55px; right: 7px; left: auto; font-size: 16px; line-height: 16px; }
 
-  .ops-pickup-board { height: 105px; margin-top: 9px; border: 0; background: var(--ops-card); }
+  .ops-pickup-board { height: 105px; margin-top: 9px; border: 0; }
   .ops-pickup-board > header { display: grid; grid-template-columns: 29px auto minmax(0,1fr) auto; align-items: center; height: 25px; padding: 0 8px; border-bottom: 0; }
   .ops-pickup-board > header > span { display: grid; place-items: center; height: 20px; background: var(--ops-black); color: var(--ops-yellow); font-family: var(--ops-display); font-size: 11px; font-weight: 700; }
   .ops-pickup-board > header > strong { padding-left: 7px; font-family: var(--ops-display); font-size: 15px; line-height: 15px; }
@@ -210,7 +200,7 @@
   .ops-pickup-add { display: grid; place-items: center; align-content: center; gap: 3px; min-width: 0; background: #f0efea; font-size: 8px; }
   .ops-pickup-add b { font-family: var(--ops-display); font-size: 24px; font-weight: 500; line-height: 20px; }
 
-  .ops-release-strip { min-height: 23px; margin-top: 7px; border: 0; background: var(--ops-card); }
+  .ops-release-strip { min-height: 23px; margin-top: 7px; border: 0; }
   .ops-release-strip summary { display: grid; grid-template-columns: auto minmax(0,1fr) auto 19px; align-items: center; min-height: 21px; padding: 2px 7px; cursor: pointer; list-style: none; }
   .ops-release-strip summary::-webkit-details-marker { display: none; }
   .ops-release-strip summary > strong { min-width: 35px; height: 15px; padding: 0 4px; background: var(--ops-yellow); box-shadow: 0 0 10px var(--ops-yellow-glow); font-family: var(--ops-display); font-size: 10px; line-height: 15px; text-align: center; }
@@ -401,24 +391,6 @@
     .ops-pickup-grid { gap: 4px; padding-inline: 5px; }
   }
 
-  /* ---- Frosted surfaces (overview) ----------------------------------
-     Swap the four overview cards from an opaque cream fill to a
-     translucent one so the ambient yellow reads through them. Each card
-     also gets a 1px inner highlight along the top edge plus a faint warm
-     outer edge: that pairing is what makes a flat translucent panel read
-     as frosted glass, and it costs nothing to composite. Deliberately no
-     backdrop-filter here — see the token comment above. */
-  .ops-closing-card,
-  .ops-sales-panel,
-  .ops-index,
-  .ops-release-strip {
-    background: var(--ops-card-translucent);
-    box-shadow:
-      inset 0 1px 0 var(--ops-card-hairline),
-      inset 0 0 0 1px var(--ops-card-edge),
-      var(--ops-card-shadow);
-  }
-
   @media (min-width: 400px) {
     .lookbook-shell { padding-inline: 14px; }
     .ops-closing-main { grid-template-columns: minmax(0,1fr) auto; }
@@ -470,7 +442,7 @@
 .ops-closing-card,
 .ops-sales-panel,
 .ops-index,
-.ops-pickup-board { overflow: hidden; border-radius: var(--ops-radius); border: 0; box-shadow: var(--ops-card-shadow); }
+.ops-pickup-board { overflow: hidden; border-radius: var(--ops-radius); border: 0; }
 .ops-closing-card { height: 154px; margin-top: 16px; }
 .ops-closing-card[data-closed='true'] { height: 206px; }
 .ops-closing-main {
