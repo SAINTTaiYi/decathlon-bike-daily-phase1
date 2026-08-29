@@ -214,9 +214,23 @@ test('Crextio 风格黄色渐变环境背景：光斑 + GSAP 交互动效（2026
   assert.match(app, /useEnvironmentMotion\(\{ enabled/u)
   // CSS：环境层透明（露出纸纹）+ 三个 radial 光斑，无 filter blur
   assert.match(wsCss, /\.workshop-runtime \.workspace-environment \{[\s\S]*?background: transparent;[\s\S]*?overflow: hidden;/u)
+  // 每层光斑：多段 radial（中心 → 中段 → 完全透明），末段必须收到 alpha 0，
+  // 否则光斑边缘会出现硬切。中段色标是把"两个角的亮块"摊成大面积弥散的手段，
+  // 所以这里只约束首尾，不再把段数写死成两段。
   for (const name of ['env-blob-a', 'env-blob-b', 'env-blob-c']) {
-    assert.match(wsCss, new RegExp(`\\.workshop-runtime \\.${name} \\{[^}]*radial-gradient\\(circle at [^)]*, rgb\\(255 \\d+ \\d+ / \\.\\d+\\), rgb\\(255 \\d+ \\d+ / 0\\) \\d+%\\);`))
+    const block = wsCss.match(new RegExp(`\\.workshop-runtime \\.${name} \\{[^}]*\\}`, 'u'))
+    assert.ok(block, `${name} 必须有独立规则块`)
+    assert.match(block[0], /radial-gradient\(circle at 50% 50%, rgb\(255 \d+ \d+ \/ \.\d+\)/u)
+    assert.match(block[0], /rgb\(255 \d+ \d+ \/ 0\) \d+%\);/u)
+    // vmax 而非 vmin：桌面 1280x1168 下 vmin 是 1168 的高度，82vmin 的圆
+    // 铺不满 1280 的宽度，光就塌回左右上角两块（移动端竖屏同理）。
+    assert.match(block[0], /width: calc\(\d+vmax \* var\(--ops-glow-scale\)\)/u)
+    assert.doesNotMatch(block[0], /vmin/u, '光斑尺寸禁用 vmin，否则长边方向铺不满')
+    // 焦点由 PaletteLab token 驱动，配合 translate: -50% -50% 按圆心定位。
+    assert.match(block[0], /left: var\(--ops-glow-[abc]-x\)/u)
+    assert.match(block[0], /top: var\(--ops-glow-[abc]-y\)/u)
   }
+  assert.match(wsCss, /\.workshop-runtime \.env-blob \{[^}]*translate: -50% -50%;/u)
   assert.doesNotMatch(wsCss, /\.env-blob[^{]*\{[^}]*filter:/u)
   // hook：呼吸漂移 / 转场脉冲 / 弹窗压暗 / 桌面视差 / reduced-motion / 卸载清理
   assert.match(hook, /sine\.inOut', repeat: -1, yoyo: true/u)

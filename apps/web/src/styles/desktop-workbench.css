@@ -359,7 +359,7 @@
   .ops-trends-panel { padding: 0; overflow: hidden; }
   .ops-trends-panel > header { height: 52px; padding: 0 24px; }
   .ops-trend-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-height: 238px; }
-  .ops-trend-card { position: relative; display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; min-width: 0; padding: 14px 24px 10px; border-right: 1px solid rgb(28 28 26 / .12); background: #f0efeb; }
+  .ops-trend-card { position: relative; display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; min-width: 0; padding: 14px 24px 10px; }
   .ops-trend-card:last-child { border-right: 0; }
   .ops-lieflat-card h3 { color: #1c1c1a; font-family: var(--ops-body); font-size: 15px; font-weight: 700; line-height: 20px; letter-spacing: -.02em; }
   .ops-lieflat-sub { min-height: 16px; margin-top: 2px; color: #8f8e88; font-size: 9px; line-height: 13px; }

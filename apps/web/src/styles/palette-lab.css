@@ -256,3 +256,38 @@
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ------------------------------------------------------------------
+ * Numeric knobs (glass params + glow focus).
+ * These rows have no colour swatch, so the meta column leads and the
+ * slider takes the remaining space. minmax(0, 1fr) on the track keeps
+ * the row from being pushed wide by the readout.
+ * ------------------------------------------------------------------ */
+.palette-lab-row[data-kind='range'] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) 46px;
+  align-items: center;
+  gap: 8px;
+}
+
+.palette-lab-range {
+  width: 100%;
+  min-width: 0;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--ops-yellow, #ffde59);
+  cursor: pointer;
+}
+
+.palette-lab-readout {
+  font-family: var(--ops-display, monospace);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ops-text-muted, #6b6b66);
+  text-align: right;
+}
+
+.palette-lab-row[data-kind='range'][data-changed='true'] .palette-lab-readout {
+  color: var(--ops-black, #14161a);
+  font-weight: 700;
+}

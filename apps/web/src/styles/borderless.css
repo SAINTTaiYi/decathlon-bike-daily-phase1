@@ -279,9 +279,12 @@
  * SVG axis/grid/tick strokes are geometry, so CSS border rules never
  * reach them. Fade the chrome; data strokes stay fully legible.
  * ------------------------------------------------------------------ */
+/* Geometry only. The fill is owned by frosted.css section 8 — this rule
+ * used to force `background: var(--ops-card) !important`, which is why the
+ * two trend cards stayed opaque through the whole glass pass. Deleted, not
+ * overridden. */
 .ops-trend-card {
   border-right-width: 0 !important;
-  background: var(--ops-card, #fff) !important;
   border-radius: var(--ops-radius, 18px);
 }
 

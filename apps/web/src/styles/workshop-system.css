@@ -88,10 +88,38 @@ button:disabled { opacity: .48; }
 /* Crextio 风格环境渐变光斑：品牌黄三层，radial 自然衰减（无 filter blur，
    合成器友好）；transform 由 useEnvironmentMotion 驱动（呼吸漂移 / 指针视差 /
    模块切换脉冲 / 弹窗压暗见 opacity）。 */
-.workshop-runtime .env-blob { position: absolute; border-radius: 50%; will-change: transform; }
-.workshop-runtime .env-blob-a { left: -16%; top: -18%; width: 82vmin; height: 82vmin; background: radial-gradient(circle at 44% 42%, rgb(255 222 89 / .5), rgb(255 222 89 / 0) 68%); }
-.workshop-runtime .env-blob-b { right: -10%; top: -8%; width: 58vmin; height: 58vmin; background: radial-gradient(circle at 56% 46%, rgb(255 239 176 / .55), rgb(255 239 176 / 0) 70%); }
-.workshop-runtime .env-blob-c { left: 10%; bottom: -26%; width: 76vmin; height: 76vmin; background: radial-gradient(circle at 50% 56%, rgb(255 213 101 / .42), rgb(255 213 101 / 0) 70%); }
+.workshop-runtime .env-blob {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+  /* Positioned by its own centre so the PaletteLab focus tokens read as
+     "put the light HERE", not "offset the box edge by N%". */
+  translate: -50% -50%;
+}
+/* Sized in vmax, and each blob is wider than the viewport's long edge. Three
+   overlapping pools of light is what produces one continuous diffuse wash;
+   three separate discs sized in vmin produced the corner patches. */
+.workshop-runtime .env-blob-a {
+  left: var(--ops-glow-a-x);
+  top: var(--ops-glow-a-y);
+  width: calc(128vmax * var(--ops-glow-scale));
+  height: calc(128vmax * var(--ops-glow-scale));
+  background: radial-gradient(circle at 50% 50%, rgb(255 222 89 / .46), rgb(255 222 89 / .16) 46%, rgb(255 222 89 / 0) 76%);
+}
+.workshop-runtime .env-blob-b {
+  left: var(--ops-glow-b-x);
+  top: var(--ops-glow-b-y);
+  width: calc(104vmax * var(--ops-glow-scale));
+  height: calc(104vmax * var(--ops-glow-scale));
+  background: radial-gradient(circle at 50% 50%, rgb(255 239 176 / .52), rgb(255 239 176 / .18) 48%, rgb(255 239 176 / 0) 78%);
+}
+.workshop-runtime .env-blob-c {
+  left: var(--ops-glow-c-x);
+  top: var(--ops-glow-c-y);
+  width: calc(118vmax * var(--ops-glow-scale));
+  height: calc(118vmax * var(--ops-glow-scale));
+  background: radial-gradient(circle at 50% 50%, rgb(255 213 101 / .40), rgb(255 213 101 / .14) 46%, rgb(255 213 101 / 0) 76%);
+}
 .workshop-runtime > [data-workspace-layer='navigation'] {
   position: fixed;
   inset: 0 0 auto;

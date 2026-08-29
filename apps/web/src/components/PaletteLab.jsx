@@ -57,6 +57,33 @@ const TOKEN_GROUPS = [
       { name: '--ops-success', label: '成功' },
     ],
   },
+  /* Numeric knobs. These are not colours, so they get sliders instead of an
+   * <input type="color">, and they carry unit/min/max/step metadata because
+   * a bare number is not a valid custom-property value for most of them. */
+  {
+    id: 'glass',
+    label: '玻璃质感',
+    tokens: [
+      { name: '--ops-glass-alpha', label: '不透明度', kind: 'range', min: 0, max: 1, step: .01, unit: '', hint: '越低越透，背景光源越明显' },
+      { name: '--ops-glass-blur', label: '模糊', kind: 'range', min: 0, max: 40, step: 1, unit: 'px', hint: '0 = 关闭模糊（中文更锐利）' },
+      { name: '--ops-glass-saturate', label: '饱和度', kind: 'range', min: 100, max: 200, step: 5, unit: '%', hint: '提升透过来的黄色浓度' },
+      { name: '--ops-glass-edge-alpha', label: '描边', kind: 'range', min: 0, max: .4, step: .01, unit: '', hint: '卡片外缘暖色细线' },
+      { name: '--ops-glass-hairline-alpha', label: '顶部高光', kind: 'range', min: 0, max: 1, step: .01, unit: '', hint: '卡片内侧顶边白线' },
+    ],
+  },
+  {
+    id: 'glow',
+    label: '背景光源',
+    tokens: [
+      { name: '--ops-glow-scale', label: '光源尺寸', kind: 'range', min: .5, max: 2, step: .05, unit: '', hint: '整体缩放三层光斑' },
+      { name: '--ops-glow-a-x', label: '光斑 A 横向', kind: 'range', min: -60, max: 160, step: 1, unit: '%' },
+      { name: '--ops-glow-a-y', label: '光斑 A 纵向', kind: 'range', min: -60, max: 160, step: 1, unit: '%' },
+      { name: '--ops-glow-b-x', label: '光斑 B 横向', kind: 'range', min: -60, max: 160, step: 1, unit: '%' },
+      { name: '--ops-glow-b-y', label: '光斑 B 纵向', kind: 'range', min: -60, max: 160, step: 1, unit: '%' },
+      { name: '--ops-glow-c-x', label: '光斑 C 横向', kind: 'range', min: -60, max: 160, step: 1, unit: '%' },
+      { name: '--ops-glow-c-y', label: '光斑 C 纵向', kind: 'range', min: -60, max: 160, step: 1, unit: '%' },
+    ],
+  },
 ]
 
 const ALL_TOKENS = TOKEN_GROUPS.flatMap((group) => group.tokens)
@@ -85,6 +112,25 @@ function toHex(raw) {
   return '#000000'
 }
 
+/* Strips the unit off a computed value so it can drive a range input, e.g.
+ * "20px" -> 20, "135%" -> 135, ".34" -> 0.34. */
+function toNumber(raw, token) {
+  const parsed = Number.parseFloat(String(raw || '').trim())
+  if (Number.isFinite(parsed)) return parsed
+  return typeof token?.min === 'number' ? token.min : 0
+}
+
+/* Range tokens round-trip through the same string store as colours, so the
+ * unit has to be reattached before the value hits the DOM. */
+function formatRange(value, token) {
+  const unit = token?.unit ?? ''
+  return `${value}${unit}`
+}
+
+function isRange(token) {
+  return token?.kind === 'range'
+}
+
 function readStored() {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '{}')
@@ -102,7 +148,12 @@ function readBaseline() {
   saved.forEach(([name]) => root.style.removeProperty(name))
   const computed = getComputedStyle(root)
   const baseline = {}
-  ALL_TOKENS.forEach(({ name }) => { baseline[name] = toHex(computed.getPropertyValue(name)) })
+  ALL_TOKENS.forEach((token) => {
+    const raw = computed.getPropertyValue(token.name)
+    baseline[token.name] = isRange(token)
+      ? formatRange(toNumber(raw, token), token)
+      : toHex(raw)
+  })
   saved.forEach(([name, value]) => { if (value) root.style.setProperty(name, value) })
   return baseline
 }
@@ -145,10 +196,13 @@ export default function PaletteLab() {
   }, [baseline])
 
   const handleChange = useCallback((name, raw) => {
-    const hex = toHex(raw)
-    document.documentElement.style.setProperty(name, hex)
+    const token = ALL_TOKENS.find((entry) => entry.name === name)
+    const value = isRange(token)
+      ? formatRange(toNumber(raw, token), token)
+      : toHex(raw)
+    document.documentElement.style.setProperty(name, value)
     setValues((prev) => {
-      const next = { ...prev, [name]: hex }
+      const next = { ...prev, [name]: value }
       persist(next)
       return next
     })
@@ -221,8 +275,41 @@ export default function PaletteLab() {
               <div key={group.id} className="palette-lab-group">
                 <p className="palette-lab-group-label">{group.label}</p>
                 {group.tokens.map((token) => {
-                  const value = values[token.name] || '#000000'
+                  const fallback = isRange(token) ? formatRange(token.min ?? 0, token) : '#000000'
+                  const value = values[token.name] || fallback
                   const changed = value !== baseline[token.name]
+
+                  /* Numeric knobs: slider + live readout, no colour swatch. */
+                  if (isRange(token)) {
+                    return (
+                      <div
+                        key={token.name}
+                        className="palette-lab-row"
+                        data-kind="range"
+                        data-changed={changed ? 'true' : 'false'}
+                      >
+                        <span className="palette-lab-meta">
+                          <span className="palette-lab-name">{token.label}</span>
+                          {token.hint && <span className="palette-lab-hint">{token.hint}</span>}
+                        </span>
+                        <input
+                          id={`palette-${token.name}`}
+                          className="palette-lab-range"
+                          type="range"
+                          min={token.min}
+                          max={token.max}
+                          step={token.step}
+                          value={toNumber(value, token)}
+                          aria-label={token.label}
+                          onChange={(event) => handleChange(token.name, event.target.value)}
+                        />
+                        <output className="palette-lab-readout" htmlFor={`palette-${token.name}`}>
+                          {value}
+                        </output>
+                      </div>
+                    )
+                  }
+
                   return (
                     <div key={token.name} className="palette-lab-row" data-changed={changed ? 'true' : 'false'}>
                       <label className="palette-lab-swatch" htmlFor={`palette-${token.name}`}>

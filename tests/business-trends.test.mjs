@@ -15,6 +15,9 @@ test('desktop business trends use real bootstrap history and remove decorative h
 test('Lieflat contracts keep honest units, missing-sales semantics, accessibility and reduced motion', async () => {
   const [charts, css] = await Promise.all([read('apps/web/src/components/overview/BusinessTrendCharts.jsx'),read('apps/web/src/styles/desktop-workbench.css')])
   assert.match(charts, /salesVehicles === null/u); assert.match(charts, /空心 = 未填写/u); assert.match(charts, /一横档 = 一张新增维修单/u)
-  assert.match(charts, /role="img"/u); assert.match(charts, /tabIndex="0"/u); assert.match(css, /#1c1c1a/u); assert.match(css, /#f0efeb/u)
+  assert.match(charts, /role="img"/u); assert.match(charts, /tabIndex="0"/u); assert.match(css, /#1c1c1a/u)
+  // 趋势卡不再自带 #f0efeb 实心底：填充归 frosted.css 的玻璃规则统一管，
+  // 这里只保证桌面样式表没有把它刷回实心。
+  assert.doesNotMatch(css, /\.ops-trend-card \{[^}]*background:/u, '趋势卡填充由 frosted.css 拥有')
   assert.match(css, /prefers-reduced-motion: reduce/u); assert.doesNotMatch(css, /ops-trend-bars/u)
 })

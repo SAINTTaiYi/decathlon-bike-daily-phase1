@@ -44,7 +44,37 @@
    * produces (#fbeaa4): body text 18.6:1, muted text 7.1:1 — both well
    * clear of the 4.5:1 AA floor.
    * ------------------------------------------------------------------ */
-  --ops-card-translucent: rgb(255 253 248 / .70);
-  --ops-card-hairline: rgb(255 255 255 / .62);
-  --ops-card-edge: rgb(120 104 58 / .12);
+  /* Glass is parameterised, not hard-coded, so PaletteLab can drive every
+   * knob live (see components/PaletteLab.jsx, group `glass`).
+   *
+   * The tint is deliberately NEUTRAL white, not the cream #fffdf8 it used
+   * to be. A warm tint at 70% opacity does not read as glass: it paints
+   * its own colour over the environment glow instead of letting the glow
+   * through, which is exactly the "forced warm white" problem. Neutral
+   * white at a low alpha lifts contrast without editorialising the hue —
+   * whatever the environment layer puts behind the card is the colour you
+   * see. */
+  --ops-glass-alpha: .34;
+  --ops-glass-blur: 20px;
+  --ops-glass-saturate: 135%;
+  --ops-glass-edge-alpha: .10;
+  --ops-glass-hairline-alpha: .55;
+
+  --ops-card-translucent: rgb(255 255 255 / var(--ops-glass-alpha));
+  --ops-card-hairline: rgb(255 255 255 / var(--ops-glass-hairline-alpha));
+  --ops-card-edge: rgb(120 104 58 / var(--ops-glass-edge-alpha));
+  --ops-card-glass-filter: blur(var(--ops-glass-blur)) saturate(var(--ops-glass-saturate));
+
+  /* Environment glow geometry — focus points and spread, also PaletteLab
+   * driven. `vmax` not `vmin`: on a 1280x1168 desktop viewport vmin is the
+   * 1168px height, so a 82vmin blob never spans the 1280px width and the
+   * glow collapses into two corner patches. Same bug memory-19 hit on
+   * mobile portrait. */
+  --ops-glow-scale: 1;
+  --ops-glow-a-x: -14%;
+  --ops-glow-a-y: -20%;
+  --ops-glow-b-x: 78%;
+  --ops-glow-b-y: -14%;
+  --ops-glow-c-x: 22%;
+  --ops-glow-c-y: 74%;
 }

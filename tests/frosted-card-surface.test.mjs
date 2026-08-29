@@ -13,7 +13,9 @@ const [tokens, frosted, mobileOverview, desktopWorkbench, workshopSystem, styleI
   read('../apps/web/src/styles/index.css'),
 ])
 
-// 本轮六张玻璃卡。frosted.css 第 8 节是它们填充色的唯一所有者。
+// 本轮九张玻璃卡。frosted.css 第 8 节是它们填充色的唯一所有者。
+// 上一轮漏了后四个：.ops-analytics-panel 只是网格里的一层容器，真正带背景的
+// 是数据健康度 / 业务趋势外框与趋势内卡，所以它们在整轮玻璃化里始终是实心的。
 const GLASS_CARDS = [
   'ops-closing-card',
   'ops-sales-panel',
@@ -21,6 +23,9 @@ const GLASS_CARDS = [
   'ops-pickup-board',
   'ops-release-strip',
   'ops-analytics-panel',
+  'ops-health-panel',
+  'ops-trends-panel',
+  'ops-trend-card',
 ]
 
 // 除 frosted.css 外的所有样式表：任何一处重新给这些卡片刷背景/阴影，
@@ -115,7 +120,7 @@ test('六张卡的玻璃填充由 frosted.css 声明，且每个类名都真的�
   assert.match(rule, /inset 0 0 0 1px var\(--ops-card-edge\)/u, '暖色内描边')
 })
 
-test('除 frosted.css 外，无人再给这六张卡刷背景或阴影', () => {
+test('除 frosted.css 外，无人再给这九张卡刷背景或阴影', () => {
   // 这条是本轮的核心回归：上两轮都是「新规则写了但被旧规则盖掉」。
   for (const [name, sheet] of OTHER_SHEETS) {
     for (const card of GLASS_CARDS) {
@@ -156,18 +161,25 @@ test('frosted.css 在样式入口里晚于两端样式表导入', () => {
   assert.ok(frostedAt > order('desktop-workbench.css'), 'frosted.css 应晚于 desktop-workbench.css')
 })
 
-test('玻璃不靠 backdrop-filter，大面积滚动表面禁模糊', () => {
-  // 只看规则本身，不看注释：注释里出现 "backdrop-filter" 是在解释为何不用它。
+test('模糊必须走可调 token（能一键归零），大面积表面仍禁 scale', () => {
+  // 本轮起卡面带 backdrop-filter：模糊是玻璃质感的本体，用户要求先看一版。
+  // 但 memory 22 ② 的顾虑（大表面模糊糊中文字形）依然成立，所以约束从
+  // 「禁止模糊」改成「模糊必须可调」——半径走 --ops-glass-blur，PaletteLab
+  // 能实时拖到 0px 关掉，不必改代码重新部署一轮。
   // 第 8 节标题写在块注释内部，必须回退到注释起始的 "/*" 再切，
   // 否则残留的 "*/" 会让注释剥离失配、把说明文字当成规则读。
   const headingAt = frosted.indexOf('8. Frosted content cards')
   const sectionAt = frosted.lastIndexOf('/*', headingAt)
   const section = frosted.slice(sectionAt).replace(/\/\*[\s\S]*?\*\//gu, '')
-  assert.equal(
-    (section.match(/backdrop-filter/gu) ?? []).length,
-    0,
-    'blur 会让大表面每帧重栅格化并糊掉中文字形（动效规则第 ② 条）',
+
+  assert.match(
+    section,
+    /backdrop-filter:\s*var\(--ops-card-glass-filter\)/u,
+    '模糊必须引用可调 token，不能写死 blur(20px)',
   )
+  const hardCoded = section.match(/backdrop-filter:\s*blur\(/gu) ?? []
+  assert.equal(hardCoded.length, 0, '不允许硬编码模糊半径，否则 PaletteLab 调不动')
+  assert.match(tokens, /--ops-card-glass-filter:\s*blur\(var\(--ops-glass-blur\)\)/u)
   assert.equal((section.match(/scale\(/gu) ?? []).length, 0, '大面积表面禁 scale')
 })
 

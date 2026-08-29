@@ -105,11 +105,23 @@ test('frosted overview: ambient wash stays visible and overview cards are transl
   // now live in tokens.css, not here: while they sat in this file they read as
   // mobile-only and the desktop rule referenced them through a fallback, which
   // is how the whole treatment silently stayed opaque on desktop.
+  // The tint is NEUTRAL white driven by --ops-glass-alpha, not the cream
+  // rgb(255 253 248) it started as. A warm tint at high opacity paints its own
+  // colour over the environment glow instead of letting it through, which is
+  // the "forced warm white" the glass pass was supposed to remove. Every knob
+  // is a variable so PaletteLab can drive it live.
   const translucent = tokensCss.match(/--ops-card-translucent:\s*([^;]+);/u)
   assert.ok(translucent, '--ops-card-translucent must be defined in tokens.css')
-  assert.match(translucent[1], /rgb\(255 253 248 \/ \.\d+\)/u)
-  assert.match(tokensCss, /--ops-card-hairline:\s*rgb\(255 255 255 \/ \.\d+\)/u)
-  assert.match(tokensCss, /--ops-card-edge:\s*rgb\(120 104 58 \/ \.\d+\)/u)
+  assert.match(translucent[1], /rgb\(255 255 255 \/ var\(--ops-glass-alpha\)\)/u)
+  assert.match(tokensCss, /--ops-card-hairline:\s*rgb\(255 255 255 \/ var\(--ops-glass-hairline-alpha\)\)/u)
+  assert.match(tokensCss, /--ops-card-edge:\s*rgb\(120 104 58 \/ var\(--ops-glass-edge-alpha\)\)/u)
+  for (const knob of ['--ops-glass-alpha', '--ops-glass-blur', '--ops-glass-saturate', '--ops-glass-edge-alpha', '--ops-glass-hairline-alpha']) {
+    assert.strictEqual(
+      (tokensCss.match(new RegExp(`${knob}:`, 'gu')) || []).length,
+      1,
+      `${knob} must be defined exactly once, in tokens.css`,
+    )
+  }
   assert.doesNotMatch(
     mobileCss,
     /--ops-card-translucent\s*:/u,
@@ -142,9 +154,14 @@ test('frosted overview: ambient wash stays visible and overview cards are transl
     )
   }
 
-  // A blur on a scrolling card surface re-rasterises every frame and softens
-  // CJK glyphs, so the frost here is tint + highlight only.
-  assert.doesNotMatch(frostedBlock[0], /backdrop-filter/u)
+  // Cards now DO blur: a tint alone reads as flat paper, and the blur is what
+  // makes the glow behind the card look like it is being refracted rather than
+  // just showing through. The CJK-softening concern from the earlier pass is
+  // handled by keeping the radius on a live token (--ops-glass-blur) that
+  // PaletteLab can drag to 0px, instead of by banning blur outright.
+  assert.match(frostedBlock[0], /backdrop-filter:\s*var\(--ops-card-glass-filter\)/u)
+  assert.doesNotMatch(frostedBlock[0], /backdrop-filter:\s*blur\(\d/u, 'radius must stay adjustable')
+  // Desktop still must not paint its own frost on top of the shared rule.
   if (panel) assert.doesNotMatch(panel[0], /backdrop-filter/u)
 })
 
