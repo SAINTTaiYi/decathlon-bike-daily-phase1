@@ -51,7 +51,8 @@ test('useShipHub 支持 pick 分类并在同步后刷新全部四类', () => {
   assert.match(hook, /const EMPTY = \{ hand: \[\], pick: \[\], receive: \[\], ship: \[\] \}/u)
   assert.match(hook, /const CATEGORIES = \['hand', 'pick', 'receive', 'ship'\]/u)
   assert.match(hook, /if \(!enabled \|\| !CATEGORIES\.includes\(category\)\) return \[\]/u)
-  assert.match(hook, /for \(const category of CATEGORIES\) void loadOrders\(category\)/u)
+  // \u540c\u6b65\u540e\u7b49\u56db\u7c7b\u771f\u6b63\u56de\u635e\u5b8c\u624d\u89e3\u9664\u6309\u94ae\u7981\u7528\uff08\u4e0d\u80fd fire-and-forget\uff0c\u5426\u5219\u65cb\u8f6c\u52a8\u6548\u63d0\u524d\u7ed3\u675f\uff09
+  assert.match(hook, /await Promise\.all\(CATEGORIES\.map\(\(category\) => loadOrders\(category\)\)\)/u)
 })
 
 test('概览待取车辆计数覆盖完整取车管线（含待拣货与在途）', () => {
@@ -82,4 +83,32 @@ test('脚本更新检测：过期标记驱动更新提示条', () => {
   assert.match(board, /locatorInstalled && locatorOutdated/u)
   assert.match(board, /去更新脚本/u)
   assert.match(board, /定位脚本有新版本 v\{locatorOutdated\}/u)
+})
+
+test('待取车看板展示连接状态，未连接时提示手动重连', () => {
+  // 状态由 hook 从 summary 归一化（fixture 不当故障），看板不自己猜
+  assert.match(hook, /connectionStatus: summary\?\.mode === 'fixture' \? 'fixture' : \(summary\?\.connection\?\.authorizationStatus \|\| 'disconnected'\)/u)
+  // 仅在非 connected 且非 fixture 时展示提示条
+  assert.match(board, /connectionStatus !== 'connected' && connectionStatus !== 'fixture'/u)
+  assert.match(board, /shiphub-connection-notice/u)
+  // 区分「授权失效」与「从未授权」两种文案
+  assert.match(board, /connectionStatus === 'reauth_required'/u)
+  // 手动重连入口，且由台账透传到设置弹窗
+  assert.match(board, /onOpenConnection \? <button type="button" className="shiphub-connection-open"/u)
+  assert.match(ledger, /onOpenConnection=\{onOpenShipHubSettings\}/u)
+})
+
+test('cron 同步前自愈 reauth_required 连接，并按门店节流', () => {
+  assert.match(sync, /const SELF_HEAL_COOLDOWN_MS = 30 \* 60_000/u)
+  assert.match(sync, /async function healShipHubConnections/u)
+  // 只挑 reauth_required 且启用的连接
+  assert.match(sync, /authorization_status = 'reauth_required'/u)
+  // 节流依据 updated_at，避免每轮 cron 重打上游登录
+  assert.match(sync, /updated_at IS NULL OR updated_at <= \?/u)
+  // 成功后回写 connected 并清空错误码
+  assert.match(sync, /authorization_status = 'connected',\s*\n\s*last_auth_error_code = NULL/u)
+  // 失败只记错误码，绝不落凭据内容
+  assert.match(sync, /last_auth_error_code = 'SELF_HEAL_FAILED'/u)
+  // fixture 模式不碰上游；自愈受营业时间窗口约束
+  assert.match(sync, /if \(config\.SHIPHUB\.mode !== 'fixture' && activeInStoreTimezone\(/u)
 })
