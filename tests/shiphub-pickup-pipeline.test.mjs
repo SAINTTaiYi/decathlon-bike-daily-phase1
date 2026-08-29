@@ -213,7 +213,47 @@ test('桌面端任何宽度都不得降列数：三个框必须始终并排', ()
 test('分段选中态使用实心主色，不引入 blur 或缩放', () => {
   // memory 19/22：大面积表面禁 filter blur 与 scale
   const block = pipelineCss.slice(pipelineCss.indexOf('.shiphub-pipeline-segments'))
-  assert.match(block, /aria-selected="true"\]\s*\{[^}]*var\(--ops-yellow/u)
+  // 主色现在由滑块承担（原来是选中段自己画底色，见滑动指示块一节）
+  assert.match(block, /\.shiphub-pipeline-segment-pill \{[^}]*background: var\(--ops-yellow/u)
+  assert.match(block, /aria-selected="true"\]\s*\{[^}]*color: var\(--ops-ink/u)
   assert.doesNotMatch(block, /filter:\s*blur/u)
   assert.doesNotMatch(block, /transform:\s*scale/u)
+})
+
+test('分段切换是滑动指示块，不是原地换底色', async () => {
+  // 用户 2026-08-29：切换要丝滑。原实现 transition background-color 直接换色，
+  // 段间没有位移连续性；且选中段 scale pop 会让中文糊一下（memory 22 禁 scale）。
+  const pill = await read('apps/web/src/hooks/useSegmentedPill.js')
+
+  // ① 滑块位移走 GSAP tween x/width，CSS 不参与位移
+  assert.match(pill, /gsap\.to\(pill, \{\s*\n?\s*x, width/u)
+  assert.match(pill, /ease: 'expo\.out'/u)
+  // ② 首次挂载只 set 不 tween，黄块不会从左上角飞进来
+  assert.match(pill, /place\(placedRef\.current\)/u)
+  assert.match(pill, /gsap\.set\(pill, \{ x, width/u)
+  // ③ 连点不叠加：每次 tween 前 kill 上一条
+  assert.match(pill, /tweenRef\.current\?\.kill\(\)/u)
+  // ④ reduced-motion 降级为直接定位
+  assert.match(pill, /prefers-reduced-motion/u)
+  // ⑤ 轨道尺寸变化（旋屏/展开/字体加载）重新贴合
+  assert.match(pill, /ResizeObserver/u)
+  // 卸载清理，避免 tween 泄漏
+  assert.match(pill, /useEffect\(\(\) => \(\) => \{ tweenRef\.current\?\.kill\(\)/u)
+
+  // 组件侧：轨道挂 trackRef，滑块是轨道内独立元素且对无障碍隐藏
+  assert.match(surfaceMobile, /useSegmentedPill\(activeCategory\)/u)
+  assert.match(surfaceMobile, /ref=\{trackRef\} className="shiphub-pipeline-segments"/u)
+  assert.match(surfaceMobile, /ref=\{pillRef\} className="shiphub-pipeline-segment-pill" aria-hidden="true"/u)
+  // 旧的 scale pop 必须已移除
+  assert.doesNotMatch(surfaceMobile, /scale: \.96/u)
+
+  // CSS 侧：滑块绝对定位在轨道内、不吃点击、初始不可见（交给 GSAP autoAlpha）
+  const block = pipelineCss.slice(pipelineCss.indexOf('.shiphub-pipeline-segment-pill'))
+  assert.match(block, /position: absolute/u)
+  assert.match(block, /pointer-events: none/u)
+  assert.match(block, /visibility: hidden/u)
+  // 轨道需 position: relative，否则滑块会相对页面定位
+  assert.match(pipelineCss, /\.shiphub-pipeline-segments \{[^}]*position: relative/u)
+  // 段位于滑块之上，文字不被黄块盖住
+  assert.match(pipelineCss, /\.shiphub-pipeline-segment \{[^}]*z-index: 1/u)
 })

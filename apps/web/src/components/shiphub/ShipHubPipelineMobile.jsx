@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 import IconRefresh from '@iconoir/Refresh.mjs'
 import { OrderCard } from './ShipHubOrderBoard.jsx'
+import useSegmentedPill from '../../hooks/useSegmentedPill.js'
 
 /* 待取车整合看板 · 移动端整面实现（桌面见 ShipHubPipelineDesktop）。
  *
@@ -55,15 +56,28 @@ export default function ShipHubPipelineMobile({
     return () => { spinRef.current?.kill(); spinRef.current = null }
   }, [syncing, loading])
 
-  // 选中段轻 pop，确认切换已生效
-  const listRef = useRef(null)
+  /* 分段选中态：黄块滑过去，不是原地换色。
+   * 旧实现是 CSS transition 换 background-color + 选中段 scale pop，
+   * 段间没有位移连续性（观感「跳」），且 scale 会让中文糊一下
+   * （memory 22：大面积表面禁 scale）。改为轨道内独立滑块 tween x/width。 */
+  const { trackRef, pillRef } = useSegmentedPill(activeCategory)
+
+  // 选中段的文字轻微落位，给切换一个落点，不动整块表面
+  const labelRef = useRef(null)
   useEffect(() => {
-    const list = listRef.current
-    if (!list || reducedMotion()) return
-    const active = list.querySelector('[data-active="true"]')
-    if (!active) return
-    gsap.fromTo(active, { scale: .96 }, { scale: 1, duration: .32, ease: 'back.out(2.2)', clearProps: 'transform' })
-  }, [activeCategory])
+    const track = trackRef.current
+    if (!track || reducedMotion()) return
+    const active = track.querySelector('[data-active="true"] .shiphub-pipeline-segment-label')
+    const count = track.querySelector('[data-active="true"] .shiphub-pipeline-segment-count')
+    const targets = [active, count].filter(Boolean)
+    if (!targets.length) return
+    labelRef.current?.kill()
+    labelRef.current = gsap.fromTo(targets,
+      { y: 4, autoAlpha: .55 },
+      { y: 0, autoAlpha: 1, duration: .34, stagger: .04, ease: 'expo.out', clearProps: 'transform,opacity,visibility' }
+    )
+  }, [activeCategory, trackRef])
+  useEffect(() => () => { labelRef.current?.kill(); labelRef.current = null }, [])
 
   // 切换分类 / 同步完成后卡片 stagger 入场；同一批 id 不重播
   const gridRef = useRef(null)
@@ -109,7 +123,8 @@ export default function ShipHubPipelineMobile({
         <p className="shiphub-pipeline-synced" data-stale={stale ? 'true' : 'false'} role="status">
           {syncLabel}{stale ? ' · 数据可能已过期' : ''}
         </p>
-        <div ref={listRef} className="shiphub-pipeline-segments" role="tablist" aria-label="待取车分类">
+        <div ref={trackRef} className="shiphub-pipeline-segments" role="tablist" aria-label="待取车分类">
+          <span ref={pillRef} className="shiphub-pipeline-segment-pill" aria-hidden="true" />
           {segments.map((segment) => (
             <button
               key={segment.category}

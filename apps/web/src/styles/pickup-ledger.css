@@ -697,19 +697,29 @@
 
 /* 分段切换：一行三段等宽，选中段实心主色 */
 .shiphub-pipeline-segments {
+  position: relative;
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;
   padding: 4px; border-radius: 999px;
   background: color-mix(in srgb, var(--ops-ink, #202020) 7%, transparent);
 }
+/* 滑动指示块：位置与宽度由 useSegmentedPill 用 GSAP tween，
+   CSS 不参与位移（避免与 JS 抢 transform）。visibility 由 GSAP autoAlpha 接管。 */
+.shiphub-pipeline-segment-pill {
+  position: absolute; left: 4px; top: 4px; bottom: 4px;
+  width: 0; border-radius: 999px;
+  background: var(--ops-yellow, #ffde59);
+  pointer-events: none; visibility: hidden;
+}
 .shiphub-pipeline-segment {
+  position: relative; z-index: 1;
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; justify-items: center;
   border: 0; border-radius: 999px; padding: 8px 6px;
   background: transparent; color: var(--ops-muted, #6a6a6a); cursor: pointer;
-  transition: background-color .18s ease, color .18s ease;
+  transition: color .22s ease;
 }
 .shiphub-pipeline-segment-label { font-size: 12px; font-weight: 650; line-height: 1.3; letter-spacing: 0; white-space: nowrap; }
 .shiphub-pipeline-segment-count { font-size: 11px; font-weight: 700; line-height: 1.2; opacity: .75; }
-.shiphub-pipeline-segment[aria-selected="true"] { background: var(--ops-yellow, #ffde59); color: var(--ops-ink, #202020); }
+.shiphub-pipeline-segment[aria-selected="true"] { color: var(--ops-ink, #202020); }
 .shiphub-pipeline-segment[aria-selected="true"] .shiphub-pipeline-segment-count { opacity: 1; }
 .shiphub-pipeline-segment:disabled { cursor: default; opacity: .55; }
 
@@ -770,4 +780,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .shiphub-pipeline-segment, .shiphub-pipeline-sync { transition: none; }
+  /* 滑块仍需可见（位置由 hook 直接 set，不 tween） */
+  .shiphub-pipeline-segment-pill { transition: none; }
 }
