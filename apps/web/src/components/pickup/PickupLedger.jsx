@@ -50,6 +50,7 @@ function AnimatedCount({ value, pad = 0 }) {
 }
 import MemberSelectSheet from '../dialogs/MemberSelectSheet.jsx'
 import ShipHubOrderBoard from '../shiphub/ShipHubOrderBoard.jsx'
+import ShipHubPipelineBoard from '../shiphub/ShipHubPipelineBoard.jsx'
 import IconArchive from '@iconoir/Archive.mjs'
 import IconBell from '@iconoir/Bell.mjs'
 import IconBicycle from '@iconoir/Bicycle.mjs'
@@ -274,6 +275,25 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   // 待取车模块呈现完整取车管线：待取(hand) → 待门店拣货(pick) → 待门店收货/在途(receive)。
   // 其它交接场景（handoverMode）仍按 tab 单类呈现。
   const shiphubCategories = handoverMode ? [shiphubTab] : ['hand', 'pick', 'receive']
+  // 整合看板用：各类总数取服务端 summary（未加载的分类也有数），过期取任一类过期
+  const shiphubSummaryCategories = shiphub?.summary?.categories || []
+  const shiphubPipelineCounts = useMemo(() => {
+    const counts = {}
+    for (const entry of shiphubSummaryCategories) {
+      if (!entry || !entry.category) continue
+      // worker getShipHubSummary 返回的字段名是 count（见 shiphub-sync.ts）
+      if (Number.isFinite(entry.count)) counts[entry.category] = entry.count
+    }
+    return counts
+  }, [shiphubSummaryCategories])
+  const shiphubPipelineStale = useMemo(
+    () => shiphubSummaryCategories.some((entry) => entry && entry.stale && ['hand', 'pick', 'receive'].includes(entry.category)),
+    [shiphubSummaryCategories]
+  )
+  const shiphubPipelineErrors = useMemo(() => {
+    const message = shiphub?.error || ''
+    return message ? { hand: message, pick: message, receive: message } : {}
+  }, [shiphub?.error])
 
   useEffect(() => {
     if (!showShipHub || !shiphub?.loadOrders) return
@@ -358,10 +378,32 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
     {!repairMode && !handoverMode && pickedRecords.length ? <details className="pickup-completed-today"><summary><span><IconCheck width={17} height={17} aria-hidden="true" />今日已取</span><b>{String(pickedRecords.length).padStart(2, '0')}</b></summary><div>{pickedRecords.map((record) => <button type="button" key={record.id} onClick={() => onHistory(record)}><span>{record.title}</span><small>{pickupSourceLabel(record)} · 查看操作记录</small></button>)}</div></details> : null}
     </section>
     </> : null}
-    {showShipHub ? shiphubCategories.map((category) => {
+    {showShipHub ? (handoverMode ? shiphubCategories.map((category) => {
       const categoryState = shiphub?.summary?.categories?.find((item) => item.category === category)
-      return <ShipHubOrderBoard key={category} category={category} orders={shiphub?.orders?.[category] || []} loading={Boolean(shiphub?.ordersLoading?.[category])} syncing={Boolean(shiphub?.syncing)} reconnecting={Boolean(shiphub?.reconnecting)} connectionStatus={shiphub?.connectionStatus || 'connected'} stale={Boolean(categoryState?.stale)} error={shiphub?.error || ''} closedAt={closedAt} onLoad={shiphub.loadOrders} onAction={shiphub.action} onSync={shiphub.sync} onOpenConnection={onOpenShipHubSettings} variant={handoverMode ? 'handover' : 'pickup'} simulationAvailable={Boolean(shiphub?.simulationAvailable)} simulatedStatus={shiphub?.simulatedStatus || ''} onSimulateStatus={shiphub?.simulateStatus} />
-    }) : null}
+      return <ShipHubOrderBoard key={category} category={category} orders={shiphub?.orders?.[category] || []} loading={Boolean(shiphub?.ordersLoading?.[category])} syncing={Boolean(shiphub?.syncing)} reconnecting={Boolean(shiphub?.reconnecting)} connectionStatus={shiphub?.connectionStatus || 'connected'} stale={Boolean(categoryState?.stale)} error={shiphub?.error || ''} closedAt={closedAt} onLoad={shiphub.loadOrders} onAction={shiphub.action} onSync={shiphub.sync} onOpenConnection={onOpenShipHubSettings} variant="handover" simulationAvailable={Boolean(shiphub?.simulationAvailable)} simulatedStatus={shiphub?.simulatedStatus || ''} onSimulateStatus={shiphub?.simulateStatus} />
+    }) : (
+      /* 待取车视角：自提 / 待拣货 / 在途三类合并为一块整合看板（原先三块竖排把移动端页面拉得很长）。
+         其它交接（handoverMode）仍是单类一块，沿用原看板。 */
+      <ShipHubPipelineBoard
+        ordersByCategory={shiphub?.orders || {}}
+        countsByCategory={shiphubPipelineCounts}
+        summaryCategories={shiphub?.summary?.categories || []}
+        loadingByCategory={shiphub?.ordersLoading || {}}
+        errorByCategory={shiphubPipelineErrors}
+        syncing={Boolean(shiphub?.syncing)}
+        reconnecting={Boolean(shiphub?.reconnecting)}
+        connectionStatus={shiphub?.connectionStatus || 'connected'}
+        stale={shiphubPipelineStale}
+        closedAt={closedAt}
+        onLoad={shiphub.loadOrders}
+        onAction={shiphub.action}
+        onSync={shiphub.sync}
+        onOpenConnection={onOpenShipHubSettings}
+        simulationAvailable={Boolean(shiphub?.simulationAvailable)}
+        simulatedStatus={shiphub?.simulatedStatus || ''}
+        onSimulateStatus={shiphub?.simulateStatus}
+      />
+    )) : null}
     <PickupFilterSheet open={Boolean(sheet)} initialTab={sheet || 'filter'} appliedSources={sources} appliedSort={sort} repairMode={repairMode || handoverMode} onClose={closeSheet} onApply={applySheet} />
     <MemberSelectSheet open={Boolean(assignRecord)} members={members} currentId={assignRecord?.assignedTo || ''} title={assignRecord ? assignRecord.title : ''} onClose={() => setAssignRecord(null)} onPick={(userId) => { if (onAssign && assignRecord) void onAssign(assignRecord.id, userId) }} onClear={() => { if (onAssign && assignRecord) void onAssign(assignRecord.id, null) }} />
   </div>

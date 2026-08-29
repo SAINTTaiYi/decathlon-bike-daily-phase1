@@ -3,8 +3,9 @@ import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
+// 定位脚本安装/更新引导已抽成 ShipHubLocatorGuide，供单类看板与整合看板共用
 const [board, script] = await Promise.all([
-  read('apps/web/src/components/shiphub/ShipHubOrderBoard.jsx'),
+  read('apps/web/src/components/shiphub/ShipHubLocatorGuide.jsx'),
   read('apps/web/public/shiphub-pickup-locator.user.js')
 ])
 

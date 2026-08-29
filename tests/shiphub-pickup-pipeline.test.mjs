@@ -3,8 +3,14 @@ import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
-const [board, ledger, hook, overview, client, sync, routes] = await Promise.all([
+const [board, guide, pipeline, headMobile, headDesktop, pipelineCss, ledger, hook, overview, client, sync, routes] = await Promise.all([
   read('apps/web/src/components/shiphub/ShipHubOrderBoard.jsx'),
+  // 定位脚本引导已抽成独立组件，被单类看板与整合看板共用
+  read('apps/web/src/components/shiphub/ShipHubLocatorGuide.jsx'),
+  read('apps/web/src/components/shiphub/ShipHubPipelineBoard.jsx'),
+  read('apps/web/src/components/shiphub/ShipHubPipelineHeadMobile.jsx'),
+  read('apps/web/src/components/shiphub/ShipHubPipelineHeadDesktop.jsx'),
+  read('apps/web/src/styles/pickup-ledger.css'),
   read('apps/web/src/components/pickup/PickupLedger.jsx'),
   read('apps/web/src/hooks/useShipHub.js'),
   read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'),
@@ -28,12 +34,34 @@ test('上游新增 pick 分类：计数路径、来源标签与同步节奏', ()
   assert.match(routes, /module: selected === 'hand' \|\| selected === 'pick' \? 'pickup' : 'handover'/u)
 })
 
-test('待取车模块呈现 hand/pick/receive 三块并透传 pickup 展示口径', () => {
-  assert.match(ledger, /const shiphubCategories = handoverMode \? \[shiphubTab\] : \['hand', 'pick', 'receive'\]/u)
+test('待取车模块把 hand/pick/receive 整合为单一看板，其它交接保持单类', () => {
+  // 待取车场景：三类合成一个 ShipHubPipelineBoard（分段切换），不再纵向堆三块
+  assert.match(ledger, /<ShipHubPipelineBoard/u)
+  assert.match(ledger, /summaryCategories=\{shiphub\?\.summary\?\.categories \|\| \[\]\}/u)
   assert.match(ledger, /\['shiphub', 'Shiphub 车辆'\]/u)
-  assert.match(ledger, /variant=\{handoverMode \? 'handover' : 'pickup'\}/u)
-  // 其它交接场景保持单类呈现不动
+  // 其它交接场景仍走单类 ShipHubOrderBoard，variant 固定 handover
+  assert.match(ledger, /<ShipHubOrderBoard[\s\S]{0,2000}?variant="handover"/u)
   assert.match(ledger, /\[\['other', '其它交接'\], \['receive', '待收货'\], \['ship', '待发货'\]\]/u)
+})
+
+test('整合看板：分段切换、汇总计数与同步时间共用单一头部', () => {
+  // 三类固定在组件内，切换只换 activeCategory 不重挂看板
+  assert.match(pipeline, /const PIPELINE_CATEGORIES = \['hand', 'pick', 'receive'\]/u)
+  assert.match(pipeline, /const \[activeCategory, setActiveCategory\] = useState\('hand'\)/u)
+  // 单一头部：一条同步时间由 describeSyncState 汇总，而不是每类各一套
+  assert.match(pipeline, /describeSyncState\(summaryCategories\)/u)
+  // 定位脚本引导只在自提分段出现
+  assert.match(pipeline, /<ShipHubLocatorGuide visible=\{activeCategory === 'hand'\} \/>/u)
+})
+
+test('整合看板头部按双端拆分，分段为无障碍 tablist', () => {
+  // memory 23：桌面/移动两套独立实现，由视口选择
+  assert.match(pipeline, /useViewportKind/u)
+  for (const head of [headMobile, headDesktop]) {
+    assert.match(head, /role="tablist"/u)
+    assert.match(head, /role="tab"/u)
+    assert.match(head, /aria-label="待取车分类"/u)
+  }
 })
 
 test('看板按待取车口径标注：待门店拣货 与 在途车辆', () => {
@@ -78,11 +106,13 @@ test('pick/receive 主按钮跳转 Shiphub 对应页面，ship 与本地确认�
 })
 
 test('脚本更新检测：过期标记驱动更新提示条', () => {
-  assert.match(board, /const readLocatorOutdated = \(\)/u)
-  assert.match(board, /data-shiphub-locator-outdated/u)
-  assert.match(board, /locatorInstalled && locatorOutdated/u)
-  assert.match(board, /去更新脚本/u)
-  assert.match(board, /定位脚本有新版本 v\{locatorOutdated\}/u)
+  assert.match(guide, /const readLocatorOutdated = \(\)/u)
+  assert.match(guide, /data-shiphub-locator-outdated/u)
+  assert.match(guide, /locatorInstalled && locatorOutdated/u)
+  assert.match(guide, /去更新脚本/u)
+  assert.match(guide, /定位脚本有新版本 v\{locatorOutdated\}/u)
+  // 单类看板与整合看板都必须挂上引导组件，否则安装/更新提示会在某个视图消失
+  assert.match(board, /<ShipHubLocatorGuide visible=\{category === 'hand'\} \/>/u)
 })
 
 test('待取车看板展示连接状态，未连接时提示手动重连', () => {
@@ -113,4 +143,28 @@ test('cron 同步前自愈 reauth_required 连接，并按门店节流', () => {
   assert.match(sync, /last_auth_error_code = 'SELF_HEAL_FAILED'/u)
   // fixture 模式不碰上游；自愈受营业时间窗口约束
   assert.match(sync, /if \(config\.SHIPHUB\.mode !== 'fixture' && activeInStoreTimezone\(/u)
+})
+
+test('整合看板的每个类名都有样式落地（防样式缺失回归）', () => {
+  // 上一轮真实事故：JSX 与测试都通过，但分段样式整块缺失，线上会渲染成裸列表。
+  // 从三个组件源码里抽出所有 shiphub-pipeline-* 类名，逐个要求样式表里有对应选择器。
+  const used = new Set()
+  for (const src of [pipeline, headMobile, headDesktop]) {
+    for (const [, value] of src.matchAll(/className="([^"]+)"/gu)) {
+      for (const name of value.split(/\s+/u)) {
+        if (name.startsWith('shiphub-pipeline')) used.add(name)
+      }
+    }
+  }
+  assert.ok(used.size >= 8, `应抽到整合看板类名，实际 ${used.size}`)
+  const missing = [...used].filter((name) => !new RegExp(`\\.${name}[\\s,{:[]`, 'u').test(pipelineCss))
+  assert.deepEqual(missing, [], `以下类名缺少样式: ${missing.join(', ')}`)
+})
+
+test('分段选中态使用实心主色，不引入 blur 或缩放', () => {
+  // memory 19/22：大面积表面禁 filter blur 与 scale
+  const block = pipelineCss.slice(pipelineCss.indexOf('.shiphub-pipeline-segments'))
+  assert.match(block, /aria-selected="true"\]\s*\{[^}]*var\(--ops-yellow/u)
+  assert.doesNotMatch(block, /filter:\s*blur/u)
+  assert.doesNotMatch(block, /transform:\s*scale/u)
 })

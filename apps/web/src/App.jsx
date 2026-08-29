@@ -46,6 +46,10 @@ import ResaleScene from './scenes/ResaleScene.jsx'
 import SalesScene from './scenes/SalesScene.jsx'
 import { getAdminPendingCount } from './api/admin.js'
 
+// 闭店自动同步 Shiphub 的等待上限：sync() 内部含 202 回捞等待，
+// 超过这个时间就先出图（用已有数据），不让闭店卡在网络上。
+const CLOSING_SHIPHUB_SYNC_TIMEOUT_MS = 12000
+
 // 平台管理后台仅平台管理员在 #admin 下访问：切成异步 chunk，
 // 让门店工作台首屏不必下载后台的组件与样式。
 const PlatformAdminConsole = lazy(() => import('./components/admin/PlatformAdminConsole.jsx'))
@@ -341,10 +345,22 @@ export default function App() {
     if (!closedAt) return { ok: false, error: '请先完成闭店，再导出日报图。' }
     try {
       // Never read KPI values again after canvas work begins. The close response is the server-confirmed snapshot for automatic reports.
-      // Shiphub 同步车辆并入日报图：取缓存，缺的分类现场拉取；失败时降级为不含（不阻塞闭店）。
+      // Shiphub 同步车辆并入日报图。
+      // 闭店（automatic）时先强制向上游同步一次，确保日报图里的车辆是最新的——
+      // 否则会把几小时前的缓存画进图里。同步有超时上限，失败/超时都降级为读现有数据，绝不阻塞闭店。
       let shiphubOrders = []
       if (shiphub?.enabled) {
         const categories = ['hand', 'pick', 'receive']
+        if (automatic && shiphub.sync) {
+          try {
+            await Promise.race([
+              shiphub.sync(),
+              new Promise((resolve) => window.setTimeout(resolve, CLOSING_SHIPHUB_SYNC_TIMEOUT_MS))
+            ])
+          } catch {
+            // 同步失败不影响闭店，下面照旧读取现有数据
+          }
+        }
         const lists = await Promise.all(categories.map(async (category) => {
           const cached = shiphub.orders?.[category]
           if (Array.isArray(cached) && cached.length) return cached

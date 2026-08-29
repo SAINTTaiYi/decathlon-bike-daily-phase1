@@ -628,3 +628,42 @@
 .shiphub-connection-sim-options { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
 .shiphub-connection-sim-options button { padding: 4px 10px; border-radius: 999px; border: 1px solid rgb(12 14 12 / .18); background: #fff; color: #333; cursor: pointer; font-size: 11px; }
 .shiphub-connection-sim-options button[data-active='true'] { border-color: transparent; background: var(--ops-black, #14161a); color: #fff; }
+
+/* Shiphub 待取车整合看板（feat/shiphub-pipeline-consolidation）：
+   hand/pick/receive 三类合成单一看板，分段切换取代纵向堆叠，移动端不再被拉长。
+   头部按双端拆分（ShipHubPipelineHead{Mobile,Desktop}），共用一套 token 与配色。
+   遵循无边线/无 blur 规则：分段选中用实心主色底，不用滤镜或缩放。
+   .shiphub-pipeline-board 与 .shiphub-order-board 同时挂载，仅覆盖差异部分。 */
+.shiphub-pipeline-board { padding-bottom: 14px; }
+.shiphub-pipeline-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-bottom: 12px; }
+.shiphub-pipeline-titlerow { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.shiphub-pipeline-title { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
+.shiphub-pipeline-title span { display: flex; align-items: center; gap: 6px; color: var(--ops-muted, #6a6a6a); font-size: 10px; letter-spacing: .12em; }
+.shiphub-pipeline-title strong { font-size: 18px; }
+.shiphub-pipeline-headtail { display: flex; align-items: center; gap: 10px; color: var(--ops-muted, #6a6a6a); font-size: 12px; }
+.shiphub-pipeline-headtail em { color: #a56500; font-style: normal; }
+
+/* 上次同步时间：正常态灰字，陈旧态转琥珀提示 */
+.shiphub-pipeline-synced { color: var(--ops-muted, #6a6a6a); font-size: 12px; white-space: nowrap; }
+.shiphub-pipeline-synced[data-stale="true"] { color: #a56500; }
+
+/* 分段切换：一行三段，选中段实心主色 */
+.shiphub-pipeline-segments { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 4px; border-radius: 999px; background: color-mix(in srgb, var(--ops-ink, #202020) 7%, transparent); }
+.shiphub-pipeline-segment { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; justify-items: center; border: 0; border-radius: 999px; padding: 7px 8px; background: transparent; color: var(--ops-muted, #6a6a6a); cursor: pointer; transition: background-color .18s ease, color .18s ease; }
+.shiphub-pipeline-segment-label { font-size: 12px; font-weight: 600; line-height: 1.3; white-space: nowrap; }
+.shiphub-pipeline-segment-count { font-size: 11px; line-height: 1.2; opacity: .75; }
+.shiphub-pipeline-segment[aria-selected="true"] { background: var(--ops-yellow, #ffde59); color: var(--ops-ink, #202020); }
+.shiphub-pipeline-segment[aria-selected="true"] .shiphub-pipeline-segment-count { opacity: 1; }
+.shiphub-pipeline-segment:disabled { cursor: default; opacity: .55; }
+
+@media (max-width: 640px) {
+  .shiphub-pipeline-board { padding-bottom: 10px; }
+  .shiphub-pipeline-titlerow { align-items: flex-start; }
+  .shiphub-pipeline-headtail { flex-direction: column; align-items: flex-end; gap: 5px; }
+  .shiphub-pipeline-segment { padding: 6px 4px; }
+  .shiphub-pipeline-segment-label { font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shiphub-pipeline-segment { transition: none; }
+}
