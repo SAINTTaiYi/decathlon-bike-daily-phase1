@@ -92,7 +92,7 @@ body,
 }
 
 body { background-color: var(--ops-page); }
-.lookbook-shell { background-color: var(--ops-page); }
+.lookbook-shell { background-color: transparent; }
 
 /* ------------------------------------------------------------------
  * pickup-ledger keeps its own --pickup-* glow vars, which the --ops-*

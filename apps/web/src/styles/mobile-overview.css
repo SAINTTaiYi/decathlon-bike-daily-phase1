@@ -50,7 +50,9 @@
     width: min(100%, 426px);
     margin-inline: auto;
     padding: calc(14px + env(safe-area-inset-top)) 12px calc(78px + env(safe-area-inset-bottom) + var(--visual-viewport-bottom));
-    background: var(--ops-page);
+    /* Transparent: this is the content container that sits ON TOP of the
+       environment glow. An opaque fill here hid the wash on mobile. */
+    background: transparent;
     background-image: none;
     box-shadow: none;
   }

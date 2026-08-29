@@ -72,18 +72,35 @@ button:disabled { opacity: .48; }
 /* Application shell and shared module header */
 .workshop-runtime {
   min-height: 100dvh;
-  background: var(--ops-page);
+  /* No opaque fill here. The environment layer is a real in-flow child at
+     z-index 0; an opaque background on this element (which also creates a
+     stacking context via `isolation`) painted straight over the glow and was
+     why only the header/dock edges showed any yellow. The page colour lives
+     on html/body, which sits behind the environment layer. */
+  background: transparent;
   color: var(--ops-text);
   isolation: isolate;
 }
 .workshop-runtime .workspace-environment {
   position: fixed;
   inset: 0;
-  z-index: -1;
+  /* z-index 0, NOT -1. A negative index puts the layer behind the background
+     of the nearest stacking-context ancestor, so the glow was invisible and
+     card `backdrop-filter` had nothing warm to sample. Content layers below
+     lift themselves above it explicitly. */
+  z-index: 0;
   display: block;
   background: transparent;
   overflow: hidden;
   pointer-events: none;
+}
+/* Every sibling layer paints above the glow. */
+.workshop-runtime > [data-workspace-layer='structure'],
+.workshop-runtime > [data-workspace-layer='navigation'],
+.workshop-runtime > [data-workspace-layer='dock'],
+.workshop-runtime > [data-workspace-layer='focus'] {
+  position: relative;
+  z-index: 1;
 }
 /* Crextio 风格环境渐变光斑：品牌黄三层，radial 自然衰减（无 filter blur，
    合成器友好）；transform 由 useEnvironmentMotion 驱动（呼吸漂移 / 指针视差 /
