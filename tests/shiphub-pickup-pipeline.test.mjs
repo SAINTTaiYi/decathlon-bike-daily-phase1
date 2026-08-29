@@ -3,13 +3,13 @@ import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
-const [board, guide, pipeline, headMobile, headDesktop, pipelineCss, ledger, hook, overview, client, sync, routes] = await Promise.all([
+const [board, guide, pipeline, surfaceMobile, surfaceDesktop, pipelineCss, ledger, hook, overview, client, sync, routes] = await Promise.all([
   read('apps/web/src/components/shiphub/ShipHubOrderBoard.jsx'),
   // 定位脚本引导已抽成独立组件，被单类看板与整合看板共用
   read('apps/web/src/components/shiphub/ShipHubLocatorGuide.jsx'),
   read('apps/web/src/components/shiphub/ShipHubPipelineBoard.jsx'),
-  read('apps/web/src/components/shiphub/ShipHubPipelineHeadMobile.jsx'),
-  read('apps/web/src/components/shiphub/ShipHubPipelineHeadDesktop.jsx'),
+  read('apps/web/src/components/shiphub/ShipHubPipelineMobile.jsx'),
+  read('apps/web/src/components/shiphub/ShipHubPipelineDesktop.jsx'),
   read('apps/web/src/styles/pickup-ledger.css'),
   read('apps/web/src/components/pickup/PickupLedger.jsx'),
   read('apps/web/src/hooks/useShipHub.js'),
@@ -51,17 +51,42 @@ test('整合看板：分段切换、汇总计数与同步时间共用单一头�
   // 单一头部：一条同步时间由 describeSyncState 汇总，而不是每类各一套
   assert.match(pipeline, /describeSyncState\(summaryCategories\)/u)
   // 定位脚本引导只在自提分段出现
-  assert.match(pipeline, /<ShipHubLocatorGuide visible=\{activeCategory === 'hand'\} \/>/u)
+  assert.match(pipeline, /const locatorVisible = viewport === 'mobile' \? activeCategory === 'hand' : true/u)
+  assert.match(pipeline, /<ShipHubLocatorGuide visible=\{locatorVisible\} \/>/u)
 })
 
-test('整合看板头部按双端拆分，分段为无障碍 tablist', () => {
-  // memory 23：桌面/移动两套独立实现，由视口选择
+test('整合看板按双端拆分成两套整面实现，由视口择一挂载', () => {
+  // memory 23：桌面/移动两套独立 DOM，不靠 @media 硬凑
   assert.match(pipeline, /useViewportKind/u)
-  for (const head of [headMobile, headDesktop]) {
-    assert.match(head, /role="tablist"/u)
-    assert.match(head, /role="tab"/u)
-    assert.match(head, /aria-label="待取车分类"/u)
+  assert.match(pipeline, /import ShipHubPipelineMobile from '\.\/ShipHubPipelineMobile\.jsx'/u)
+  assert.match(pipeline, /import ShipHubPipelineDesktop from '\.\/ShipHubPipelineDesktop\.jsx'/u)
+  assert.match(pipeline, /if \(viewport === 'mobile'\) \{/u)
+  // 两端根节点各自独立类名，样式互不覆盖
+  assert.match(surfaceMobile, /className="shiphub-pipeline shiphub-pipeline-mobile"/u)
+  assert.match(surfaceDesktop, /className="shiphub-pipeline shiphub-pipeline-desktop"/u)
+  // 老看板 .shiphub-order-board > header (0,1,1) 会压过 .shiphub-pipeline-head (0,1,0)
+  // 把页头压成单行 flex（中文竖排 = 「挤在一起」），因此两端都不得再挂该类
+  for (const surface of [surfaceMobile, surfaceDesktop]) {
+    // 只查 className 实际用法，注释里解释这条约束的散文不算违规
+    assert.doesNotMatch(surface, /className="[^"]*shiphub-order-board/u)
   }
+})
+
+test('移动端保留分段切换，桌面端改为三列并排且空列显示「无」', () => {
+  // 移动端：分段 tablist，一次看一类，页面不被拉长
+  assert.match(surfaceMobile, /role="tablist"/u)
+  assert.match(surfaceMobile, /role="tab"/u)
+  assert.match(surfaceMobile, /aria-label="待取车分类"/u)
+  // 桌面端：三列并排，无分段
+  assert.doesNotMatch(surfaceDesktop, /role="tablist"/u)
+  assert.match(surfaceDesktop, /className="shiphub-pipeline-columns"/u)
+  assert.match(surfaceDesktop, /columns\.map\(\(column\) =>/u)
+  // 空列显示「无」而不是隐藏：列骨架恒定三列，宽度不跳
+  assert.match(surfaceDesktop, /data-placeholder="none">无<\/p>/u)
+  assert.match(surfaceDesktop, /data-empty=\{column\.orders\.length \? 'false' : 'true'\}/u)
+  // 三列由数据层一次构建，含各列计数 / 载入 / 错误态
+  assert.match(pipeline, /const columns = useMemo\(\(\) => PIPELINE_CATEGORIES\.map/u)
+  assert.match(pipeline, /orders: ordersByCategory\[category\] \|\| \[\]/u)
 })
 
 test('看板按待取车口径标注：待门店拣货 与 在途车辆', () => {
@@ -149,7 +174,7 @@ test('整合看板的每个类名都有样式落地（防样式缺失回归）',
   // 上一轮真实事故：JSX 与测试都通过，但分段样式整块缺失，线上会渲染成裸列表。
   // 从三个组件源码里抽出所有 shiphub-pipeline-* 类名，逐个要求样式表里有对应选择器。
   const used = new Set()
-  for (const src of [pipeline, headMobile, headDesktop]) {
+  for (const src of [pipeline, surfaceMobile, surfaceDesktop]) {
     for (const [, value] of src.matchAll(/className="([^"]+)"/gu)) {
       for (const name of value.split(/\s+/u)) {
         if (name.startsWith('shiphub-pipeline')) used.add(name)
@@ -159,6 +184,18 @@ test('整合看板的每个类名都有样式落地（防样式缺失回归）',
   assert.ok(used.size >= 8, `应抽到整合看板类名，实际 ${used.size}`)
   const missing = [...used].filter((name) => !new RegExp(`\\.${name}[\\s,{:[]`, 'u').test(pipelineCss))
   assert.deepEqual(missing, [], `以下类名缺少样式: ${missing.join(', ')}`)
+})
+
+test('桌面三列与移动分段各有独立布局规则，同步按钮不再是裸按钮', () => {
+  // 两端布局规则必须分别落地，且不共用同一条 display 声明
+  assert.match(pipelineCss, /\.shiphub-pipeline-mobile \.shiphub-pipeline-head \{[^}]*display: grid/u)
+  assert.match(pipelineCss, /\.shiphub-pipeline-desktop \.shiphub-pipeline-head \{[^}]*display: flex/u)
+  // 桌面三列：恒定三轨，可收缩（memory 25：单列容器漏 minmax(0,…) 会撑破）
+  assert.match(pipelineCss, /\.shiphub-pipeline-columns \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/u)
+  // 空列占位「无」有独立样式，保证三列基线高度一致
+  assert.match(pipelineCss, /\.shiphub-pipeline-empty\[data-placeholder="none"\]/u)
+  // 同步按钮此前零样式（渲染成裸按钮），必须有实体表面
+  assert.match(pipelineCss, /\.shiphub-pipeline-sync \{[^}]*background:/u)
 })
 
 test('分段选中态使用实心主色，不引入 blur 或缩放', () => {

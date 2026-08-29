@@ -629,41 +629,142 @@
 .shiphub-connection-sim-options button { padding: 4px 10px; border-radius: 999px; border: 1px solid rgb(12 14 12 / .18); background: #fff; color: #333; cursor: pointer; font-size: 11px; }
 .shiphub-connection-sim-options button[data-active='true'] { border-color: transparent; background: var(--ops-black, #14161a); color: #fff; }
 
-/* Shiphub 待取车整合看板（feat/shiphub-pipeline-consolidation）：
-   hand/pick/receive 三类合成单一看板，分段切换取代纵向堆叠，移动端不再被拉长。
-   头部按双端拆分（ShipHubPipelineHead{Mobile,Desktop}），共用一套 token 与配色。
-   遵循无边线/无 blur 规则：分段选中用实心主色底，不用滤镜或缩放。
-   .shiphub-pipeline-board 与 .shiphub-order-board 同时挂载，仅覆盖差异部分。 */
-.shiphub-pipeline-board { padding-bottom: 14px; }
-.shiphub-pipeline-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-bottom: 12px; }
-.shiphub-pipeline-titlerow { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.shiphub-pipeline-title { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
-.shiphub-pipeline-title span { display: flex; align-items: center; gap: 6px; color: var(--ops-muted, #6a6a6a); font-size: 10px; letter-spacing: .12em; }
-.shiphub-pipeline-title strong { font-size: 18px; }
-.shiphub-pipeline-headtail { display: flex; align-items: center; gap: 10px; color: var(--ops-muted, #6a6a6a); font-size: 12px; }
-.shiphub-pipeline-headtail em { color: #a56500; font-style: normal; }
+/* ==================================================================
+ * Shiphub 待取车管线看板（feat/shiphub-pipeline-consolidation）
+ *
+ * 双端两套独立样式（memory 23）：
+ *   .shiphub-pipeline-mobile  → ShipHubPipelineMobile.jsx（分段切换，竖向分层）
+ *   .shiphub-pipeline-desktop → ShipHubPipelineDesktop.jsx（三列并排）
+ * 共用 token 只有配色与圆角，布局规则互不覆盖。
+ *
+ * 为什么外层不再挂 .shiphub-order-board：
+ * 老看板的 `.shiphub-order-board > header{display:flex;align-items:center}`
+ * 特异性 0,1,1，压过 .shiphub-pipeline-head 0,1,0，会把页头强制成单行 flex
+ * （中文标题竖排换行 = 用户反馈的「都挤在一起」），并且
+ * `.shiphub-order-board > header span{font-size:10px;letter-spacing:.12em}`
+ * 会把分段标签打成散字距小字。结构上断开继承，比反复加特异性可靠。
+ *
+ * 无边线 / 无 blur 规则（memory 19、22）：分段与列都用表面色阶 + 间距分隔，
+ * 选中态用实心主色，不用滤镜、不用 scale。
+ * ================================================================== */
+.shiphub-pipeline {
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--ops-paper, #fff) 92%, var(--ops-ink, #202020));
+}
+
+/* 标题：小字 kicker + 主标题，两端都一样 */
+.shiphub-pipeline-title { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; margin: 0; }
+.shiphub-pipeline-title-kicker { color: var(--ops-muted, #6a6a6a); font-size: 10px; font-weight: 600; letter-spacing: .12em; }
+.shiphub-pipeline-title-text { font-size: 18px; font-weight: 800; line-height: 1.2; }
+
+/* 同步按钮：老代码这个类零样式，渲染成裸按钮（用户截图里那个没有边界的「同步」）。
+   给它实体表面 + 图标文字同基线，作为看板里的次要动作存在。 */
+.shiphub-pipeline-sync {
+  display: inline-flex; align-items: center; gap: 6px;
+  flex: 0 0 auto;
+  padding: 7px 14px;
+  border: 0; border-radius: 999px;
+  background: var(--ops-surface-sunken, #f4f1e8);
+  color: var(--ops-ink, #202020);
+  font-size: 12px; font-weight: 650; white-space: nowrap; cursor: pointer;
+  transition: background-color .18s ease, color .18s ease;
+}
+.shiphub-pipeline-sync:hover:not(:disabled) { background: color-mix(in srgb, var(--ops-ink, #202020) 10%, transparent); }
+.shiphub-pipeline-sync:disabled { opacity: .55; cursor: default; }
+.shiphub-pipeline-sync-icon { display: inline-flex; }
 
 /* 上次同步时间：正常态灰字，陈旧态转琥珀提示 */
-.shiphub-pipeline-synced { color: var(--ops-muted, #6a6a6a); font-size: 12px; white-space: nowrap; }
+.shiphub-pipeline-synced { margin: 0; color: var(--ops-muted, #6a6a6a); font-size: 12px; }
 .shiphub-pipeline-synced[data-stale="true"] { color: #a56500; }
 
-/* 分段切换：一行三段，选中段实心主色 */
-.shiphub-pipeline-segments { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 4px; border-radius: 999px; background: color-mix(in srgb, var(--ops-ink, #202020) 7%, transparent); }
-.shiphub-pipeline-segment { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; justify-items: center; border: 0; border-radius: 999px; padding: 7px 8px; background: transparent; color: var(--ops-muted, #6a6a6a); cursor: pointer; transition: background-color .18s ease, color .18s ease; }
-.shiphub-pipeline-segment-label { font-size: 12px; font-weight: 600; line-height: 1.3; white-space: nowrap; }
-.shiphub-pipeline-segment-count { font-size: 11px; line-height: 1.2; opacity: .75; }
+/* 空态 / 错误：两端共用文案样式 */
+.shiphub-pipeline-empty, .shiphub-pipeline-error { margin: 0; color: var(--ops-muted, #6a6a6a); font-size: 13px; }
+.shiphub-pipeline-error { color: #a33b31; }
+
+/* ---------- 移动端：竖向分层 ---------- */
+/* 一层一行，各层职责单一。旧版三层塞进一个 flex 行 → 中文竖排换行。 */
+.shiphub-pipeline-mobile .shiphub-pipeline-head {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin-bottom: 12px;
+}
+.shiphub-pipeline-mobile .shiphub-pipeline-titlerow {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.shiphub-pipeline-mobile .shiphub-pipeline-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.shiphub-pipeline-mobile .shiphub-pipeline-empty,
+.shiphub-pipeline-mobile .shiphub-pipeline-error { padding: 12px 0 2px; }
+
+/* 分段切换：一行三段等宽，选中段实心主色 */
+.shiphub-pipeline-segments {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;
+  padding: 4px; border-radius: 999px;
+  background: color-mix(in srgb, var(--ops-ink, #202020) 7%, transparent);
+}
+.shiphub-pipeline-segment {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; justify-items: center;
+  border: 0; border-radius: 999px; padding: 8px 6px;
+  background: transparent; color: var(--ops-muted, #6a6a6a); cursor: pointer;
+  transition: background-color .18s ease, color .18s ease;
+}
+.shiphub-pipeline-segment-label { font-size: 12px; font-weight: 650; line-height: 1.3; letter-spacing: 0; white-space: nowrap; }
+.shiphub-pipeline-segment-count { font-size: 11px; font-weight: 700; line-height: 1.2; opacity: .75; }
 .shiphub-pipeline-segment[aria-selected="true"] { background: var(--ops-yellow, #ffde59); color: var(--ops-ink, #202020); }
 .shiphub-pipeline-segment[aria-selected="true"] .shiphub-pipeline-segment-count { opacity: 1; }
 .shiphub-pipeline-segment:disabled { cursor: default; opacity: .55; }
 
-@media (max-width: 640px) {
-  .shiphub-pipeline-board { padding-bottom: 10px; }
-  .shiphub-pipeline-titlerow { align-items: flex-start; }
-  .shiphub-pipeline-headtail { flex-direction: column; align-items: flex-end; gap: 5px; }
-  .shiphub-pipeline-segment { padding: 6px 4px; }
+/* 窄屏（≤380px）三段标签换更小字号，避免「待门店拣货」被压断 */
+@media (max-width: 380px) {
+  .shiphub-pipeline-mobile { padding: 12px; border-radius: 14px; }
+  .shiphub-pipeline-segment { padding: 7px 3px; }
   .shiphub-pipeline-segment-label { font-size: 11px; }
 }
 
+/* ---------- 桌面端：三列并排 ---------- */
+/* 用户 2026-08-29 指定：自提 / 待门店拣货 / 在途车辆各一个框，
+   空的显示「无」。列不隐藏，骨架恒定三列，宽度不跳。 */
+.shiphub-pipeline-desktop .shiphub-pipeline-head {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 14px;
+}
+.shiphub-pipeline-headtail { display: flex; align-items: center; gap: 12px; }
+.shiphub-pipeline-columns {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start;
+}
+.shiphub-pipeline-column {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start;
+  padding: 14px; border-radius: 16px;
+  background: var(--ops-paper, #fff);
+}
+.shiphub-pipeline-column[data-empty="true"] { background: color-mix(in srgb, var(--ops-paper, #fff) 55%, transparent); }
+.shiphub-pipeline-column-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.shiphub-pipeline-column-title { margin: 0; font-size: 14px; font-weight: 750; line-height: 1.3; }
+.shiphub-pipeline-column-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 26px; padding: 3px 9px; border-radius: 999px;
+  background: var(--ops-yellow, #ffde59); color: var(--ops-ink, #202020);
+  font-size: 12px; font-weight: 800; line-height: 1.2;
+}
+.shiphub-pipeline-column-count[data-empty="true"] {
+  background: color-mix(in srgb, var(--ops-ink, #202020) 8%, transparent);
+  color: var(--ops-muted, #6a6a6a);
+}
+.shiphub-pipeline-column-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+/* 空列的「无」：居中占位，让三列高度基线一致 */
+.shiphub-pipeline-column .shiphub-pipeline-empty[data-placeholder="none"] {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 64px; font-size: 20px; font-weight: 700; color: color-mix(in srgb, var(--ops-muted, #6a6a6a) 62%, transparent);
+}
+/* 列内卡片比整行卡窄，压紧内边距并允许长订单号断行 */
+.shiphub-pipeline-column .shiphub-order-card { padding: 12px; }
+.shiphub-pipeline-column .shiphub-order-card footer { flex-wrap: wrap; row-gap: 8px; }
+.shiphub-pipeline-column .shiphub-order-card-actions { flex-wrap: wrap; gap: 6px; }
+
+/* 中等宽度（860-1180px）三列会挤，降到两列 + 第三列占满 */
+@media (min-width: 861px) and (max-width: 1180px) {
+  .shiphub-pipeline-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shiphub-pipeline-column:last-child { grid-column: 1 / -1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .shiphub-pipeline-segment { transition: none; }
+  .shiphub-pipeline-segment, .shiphub-pipeline-sync { transition: none; }
 }
