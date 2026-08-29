@@ -26,6 +26,23 @@
  */
 
 /* ------------------------------------------------------------------
+ * 0. Glass tint token — 2026-08-29
+ *
+ * The glass was originally tinted cool grey (244 245 247). The page base is
+ * warm cream (#f7f5ef) and the brand accent is warm yellow, so a cool pane
+ * over the ambient yellow wash desaturated it: measured residual chroma at
+ * the header's top edge was 13/255 cool vs 23/255 warm. The yellow read as
+ * grey-white, which is why the ambient glow stayed invisible behind the bars.
+ *
+ * Retinted to warm white so the glass carries the yellow instead of
+ * cancelling it. Kept as a token because the value feeds 19 declarations
+ * across this file.
+ * ------------------------------------------------------------------ */
+:root {
+  --glass-tint: 250 248 241;
+}
+
+/* ------------------------------------------------------------------
  * 1. Header: gradient frosted glass.
  * ------------------------------------------------------------------ */
 .workshop-runtime > [data-workspace-layer='navigation'] {
@@ -34,9 +51,9 @@
    * are visible through the lower part of the bar. */
   background: linear-gradient(
     to bottom,
-    rgb(244 245 247 / .72) 0%,
-    rgb(244 245 247 / .56) 55%,
-    rgb(244 245 247 / .34) 100%
+    rgb(var(--glass-tint) / .72) 0%,
+    rgb(var(--glass-tint) / .56) 55%,
+    rgb(var(--glass-tint) / .34) 100%
   ) !important;
   -webkit-backdrop-filter: blur(28px) saturate(180%);
   backdrop-filter: blur(28px) saturate(180%);
@@ -61,9 +78,9 @@
 .workshop-runtime[data-mobile-scene] .look-dock {
   background: linear-gradient(
     to top,
-    rgb(244 245 247 / .76) 0%,
-    rgb(244 245 247 / .58) 55%,
-    rgb(244 245 247 / .30) 100%
+    rgb(var(--glass-tint) / .76) 0%,
+    rgb(var(--glass-tint) / .58) 55%,
+    rgb(var(--glass-tint) / .30) 100%
   ) !important;
   -webkit-backdrop-filter: blur(28px) saturate(180%);
   backdrop-filter: blur(28px) saturate(180%);
@@ -117,11 +134,11 @@
  * ------------------------------------------------------------------ */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .workshop-runtime > [data-workspace-layer='navigation'] {
-    background: rgb(244 245 247 / .92) !important;
+    background: rgb(var(--glass-tint) / .92) !important;
   }
   .look-dock,
   .workshop-runtime[data-mobile-scene] .look-dock {
-    background: rgb(244 245 247 / .92) !important;
+    background: rgb(var(--glass-tint) / .92) !important;
   }
 }
 
@@ -181,9 +198,9 @@
 .workshop-runtime[data-mobile-scene] > [data-workspace-layer='navigation']::before {
   background: linear-gradient(
     to bottom,
-    rgb(244 245 247 / .82) 0%,
-    rgb(244 245 247 / .68) 58%,
-    rgb(244 245 247 / .42) 100%
+    rgb(var(--glass-tint) / .82) 0%,
+    rgb(var(--glass-tint) / .68) 58%,
+    rgb(var(--glass-tint) / .42) 100%
   ) !important;
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 68%, rgb(0 0 0 / .78) 84%, rgb(0 0 0 / .32) 94%, transparent 100%);
   mask-image: linear-gradient(to bottom, #000 0%, #000 68%, rgb(0 0 0 / .78) 84%, rgb(0 0 0 / .32) 94%, transparent 100%);
@@ -193,9 +210,9 @@
 .workshop-runtime[data-mobile-scene] .look-dock::before {
   background: linear-gradient(
     to top,
-    rgb(244 245 247 / .86) 0%,
-    rgb(244 245 247 / .70) 58%,
-    rgb(244 245 247 / .44) 100%
+    rgb(var(--glass-tint) / .86) 0%,
+    rgb(var(--glass-tint) / .70) 58%,
+    rgb(var(--glass-tint) / .44) 100%
   ) !important;
   -webkit-mask-image: linear-gradient(to top, #000 0%, #000 72%, rgb(0 0 0 / .78) 86%, rgb(0 0 0 / .32) 95%, transparent 100%);
   mask-image: linear-gradient(to top, #000 0%, #000 72%, rgb(0 0 0 / .78) 86%, rgb(0 0 0 / .32) 95%, transparent 100%);
@@ -215,7 +232,7 @@
   .workshop-runtime[data-mobile-scene] .look-dock::before {
     -webkit-mask-image: none;
     mask-image: none;
-    background: rgb(244 245 247 / .92) !important;
+    background: rgb(var(--glass-tint) / .92) !important;
   }
 }
 
@@ -316,8 +333,8 @@
 .workshop-runtime[data-mobile-scene] > [data-workspace-layer='navigation']::before {
   background: linear-gradient(
     to bottom,
-    rgb(244 245 247 / .70) 0%,
-    rgb(244 245 247 / .62) 100%
+    rgb(var(--glass-tint) / .70) 0%,
+    rgb(var(--glass-tint) / .62) 100%
   ) !important;
   -webkit-mask-image: linear-gradient(
     to bottom,
@@ -348,8 +365,8 @@
 .workshop-runtime[data-mobile-scene] .look-dock::before {
   background: linear-gradient(
     to top,
-    rgb(244 245 247 / .72) 0%,
-    rgb(244 245 247 / .64) 100%
+    rgb(var(--glass-tint) / .72) 0%,
+    rgb(var(--glass-tint) / .64) 100%
   ) !important;
   -webkit-mask-image: linear-gradient(
     to top,

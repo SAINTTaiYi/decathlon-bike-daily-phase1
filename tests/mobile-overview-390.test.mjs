@@ -85,3 +85,62 @@ test('closed closing actions reserve their own row instead of overlapping the sa
   assert.match(systemCss, /\.ops-closing-actions button \{ min-height: 42px;/u)
   assert.match(desktopCss, /\.ops-closing-card\[data-closed='true'\] \{ grid-template-rows: minmax\(0, 1fr\) 104px 52px; \}/u)
 })
+
+test('frosted overview: ambient wash stays visible and overview cards are translucent, not opaque', async () => {
+  const [mobileCss, desktopCss] = await Promise.all([
+    read('apps/web/src/styles/mobile-overview.css'),
+    read('apps/web/src/styles/desktop-workbench.css'),
+  ])
+
+  // The mobile overview used to hide .workspace-environment outright, which
+  // made the ambient yellow wash impossible to see through any card. It must
+  // stay displayed; the paper-grain layers are the ones that stay off.
+  assert.match(mobileCss, /\.workspace-environment\s*\{\s*display:\s*block;\s*\}/u)
+  assert.doesNotMatch(mobileCss, /\.workspace-environment,\s*\n\s*\.workspace-depth-plane/u)
+  assert.match(mobileCss, /\.workspace-paper-scratches\s*\{\s*display:\s*none;\s*\}/u)
+
+  // Translucent surface tokens must exist and actually be translucent.
+  const translucent = mobileCss.match(/--ops-card-translucent:\s*([^;]+);/u)
+  assert.ok(translucent, '--ops-card-translucent must be defined')
+  assert.match(translucent[1], /rgb\(255 253 248 \/ \.\d+\)/u)
+  assert.match(mobileCss, /--ops-card-hairline:\s*rgb\(255 255 255 \/ \.\d+\)/u)
+  assert.match(mobileCss, /--ops-card-edge:\s*rgb\(120 104 58 \/ \.\d+\)/u)
+
+  // All four overview cards share the translucent fill plus the highlight
+  // pairing that reads as frosted glass.
+  const frostedBlock = mobileCss.match(/\.ops-closing-card,\s*\n\s*\.ops-sales-panel,\s*\n\s*\.ops-index,\s*\n\s*\.ops-release-strip \{[^}]+\}/u)
+  assert.ok(frostedBlock, 'overview cards must share one frosted rule')
+  assert.match(frostedBlock[0], /background:\s*var\(--ops-card-translucent\)/u)
+  assert.match(frostedBlock[0], /inset 0 1px 0 var\(--ops-card-hairline\)/u)
+  assert.match(frostedBlock[0], /inset 0 0 0 1px var\(--ops-card-edge\)/u)
+
+  // Desktop analytics panels get the same treatment.
+  const panel = desktopCss.match(/\.ops-analytics-panel \{[^}]+\}/u)
+  assert.ok(panel, '.ops-analytics-panel rule must exist')
+  assert.match(panel[0], /background:\s*var\(--ops-card-translucent, var\(--ops-card\)\)/u)
+  assert.match(panel[0], /var\(--ops-card-hairline/u)
+
+  // A blur on a scrolling card surface re-rasterises every frame and softens
+  // CJK glyphs, so the frost here is tint + highlight only.
+  assert.doesNotMatch(frostedBlock[0], /backdrop-filter/u)
+  assert.doesNotMatch(panel[0], /backdrop-filter/u)
+})
+
+test('frosted navigation is tinted warm so it carries the ambient yellow instead of cancelling it', async () => {
+  const css = await read('apps/web/src/styles/frosted.css')
+
+  // The tint is a token, not 19 copies of a literal.
+  const tint = css.match(/--glass-tint:\s*([\d\s]+);/u)
+  assert.ok(tint, '--glass-tint must be defined')
+  const [r, g, b] = tint[1].trim().split(/\s+/u).map(Number)
+  assert.ok(r > b, `glass tint must be warm (r ${r} > b ${b}), a cool tint desaturates the yellow wash`)
+
+  // No declaration may reintroduce the old cool grey.
+  assert.doesNotMatch(css, /rgb\(244 245 247 \//u)
+  assert.ok(css.match(/rgb\(var\(--glass-tint\) \//gu).length >= 19)
+
+  // The header/dock frost itself must survive: real blur on a ::before
+  // backdrop, with a mask so the edge ramps out instead of hard-clipping.
+  assert.match(css, /backdrop-filter:\s*blur\(30px\) saturate\(180%\)/u)
+  assert.match(css, /-webkit-mask-image:\s*linear-gradient/u)
+})

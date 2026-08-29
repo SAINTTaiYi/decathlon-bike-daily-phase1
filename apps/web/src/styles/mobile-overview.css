@@ -19,6 +19,16 @@
   :root {
     --ops-page: #f7f5ef;
     --ops-card: #fffdf8;
+    /* Translucent card surface: lets the ambient yellow wash bleed
+       through without touching text contrast. Measured against the
+       strongest glow the environment layer produces (#fbeaa4):
+       body text stays at 18.6:1 and muted text at 7.1:1, both far
+       above the 4.5:1 AA floor. No backdrop-filter — a blur on a
+       scrolling surface re-rasterises every frame and softens CJK
+       glyphs. The hairline highlight is what reads as "frosted". */
+    --ops-card-translucent: rgb(255 253 248 / .78);
+    --ops-card-hairline: rgb(255 255 255 / .58);
+    --ops-card-edge: rgb(120 104 58 / .10);
     --ops-black: #0c0e0c;
     --ops-text: #0a0b0a;
     --ops-text-muted: #55554f;
@@ -39,11 +49,13 @@
   html, body { background: var(--ops-page); }
   body { background-image: none; }
   .app-runtime.endfield-runtime { background: var(--ops-page); }
-  .workspace-environment,
   .workspace-depth-plane,
   .workspace-paper-film,
   .workspace-paper-fibre,
   .workspace-paper-scratches { display: none; }
+  /* Frosted overview: keep the ambient yellow wash visible so the
+     translucent cards can let it bleed through. Paper grain stays off. */
+  .workspace-environment { display: block; }
   .lookbook-shell {
     width: min(100%, 426px);
     margin-inline: auto;
@@ -387,6 +399,24 @@
     .ops-index button { padding-inline: 5px; }
     .ops-index button > span strong { font-size: 10px; }
     .ops-pickup-grid { gap: 4px; padding-inline: 5px; }
+  }
+
+  /* ---- Frosted surfaces (overview) ----------------------------------
+     Swap the four overview cards from an opaque cream fill to a
+     translucent one so the ambient yellow reads through them. Each card
+     also gets a 1px inner highlight along the top edge plus a faint warm
+     outer edge: that pairing is what makes a flat translucent panel read
+     as frosted glass, and it costs nothing to composite. Deliberately no
+     backdrop-filter here — see the token comment above. */
+  .ops-closing-card,
+  .ops-sales-panel,
+  .ops-index,
+  .ops-release-strip {
+    background: var(--ops-card-translucent);
+    box-shadow:
+      inset 0 1px 0 var(--ops-card-hairline),
+      inset 0 0 0 1px var(--ops-card-edge),
+      var(--ops-card-shadow);
   }
 
   @media (min-width: 400px) {
