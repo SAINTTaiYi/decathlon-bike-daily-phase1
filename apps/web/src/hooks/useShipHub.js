@@ -1,7 +1,42 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { disconnectShipHub, getShipHubOrders, getShipHubSummary, requestShipHubSync, setShipHubOrderAction, startShipHubConnection } from '../api/shiphub.js'
+import { isPreviewHost } from '../utils/previewGate.js'
 
 const EMPTY = { hand: [], pick: [], receive: [], ship: [] }
+
+/* Preview-only connection-state simulator.
+ *
+ * Preview runs in fixture mode, so the disconnected / reauth_required states
+ * never occur naturally there and their appearance cannot be reviewed without
+ * waiting for a real token to expire on staging. This lets the state be forced
+ * from the browser for visual review.
+ *
+ * Deliberately display-layer only: it overrides the status the UI renders and
+ * nothing else. No fake summary payloads, no fake orders, and the reconnect
+ * button still performs the real server-side action, so a simulated state can
+ * never be mistaken for a healthy connection or hide a genuine outage.
+ */
+const SIMULATION_KEY = 'workshop.shiphub-connection-sim.v1'
+export const SIMULATED_STATUSES = ['fixture', 'connected', 'reauth_required', 'disconnected']
+
+export function readSimulatedStatus() {
+  if (!isPreviewHost()) return ''
+  try {
+    const raw = window.localStorage.getItem(SIMULATION_KEY) || ''
+    return SIMULATED_STATUSES.includes(raw) ? raw : ''
+  } catch { return '' }
+}
+
+export function writeSimulatedStatus(status) {
+  if (!isPreviewHost()) return ''
+  const next = SIMULATED_STATUSES.includes(status) ? status : ''
+  try {
+    if (next) window.localStorage.setItem(SIMULATION_KEY, next)
+    else window.localStorage.removeItem(SIMULATION_KEY)
+  } catch { /* storage blocked; simulation just does not persist */ }
+  return next
+}
+
 const CATEGORIES = ['hand', 'pick', 'receive', 'ship']
 
 export default function useShipHub(enabled) {
@@ -12,6 +47,7 @@ export default function useShipHub(enabled) {
   const [error, setError] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [reconnecting, setReconnecting] = useState(false)
+  const [simulatedStatus, setSimulatedStatus] = useState(() => readSimulatedStatus())
   const requestRef = useRef(null)
   const syncingRef = useRef(false)
 
@@ -135,7 +171,11 @@ export default function useShipHub(enabled) {
     loading,
     syncing,
     reconnecting,
-    connectionStatus: summary?.mode === 'fixture' ? 'fixture' : (summary?.connection?.authorizationStatus || 'disconnected'),
+    // 真实判定；preview 模拟开关只覆盖这一个展示值，后端与动作路径不受影响
+    connectionStatus: simulatedStatus || (summary?.mode === 'fixture' ? 'fixture' : (summary?.connection?.authorizationStatus || 'disconnected')),
+    simulatedStatus,
+    simulationAvailable: isPreviewHost(),
+    simulateStatus: (status) => setSimulatedStatus(writeSimulatedStatus(status)),
     error,
     loadOrders,
     action,

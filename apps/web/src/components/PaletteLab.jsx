@@ -15,6 +15,8 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { isPreviewHost } from '../utils/previewGate.js'
+
 const STORAGE_KEY = 'workshop.palette-lab.v1'
 
 /* Tokens exposed for editing, grouped for a sane UI order. Keys map 1:1 to
@@ -59,12 +61,10 @@ const TOKEN_GROUPS = [
 
 const ALL_TOKENS = TOKEN_GROUPS.flatMap((group) => group.tokens)
 
-/* Only ever active on preview + local hosts. Checked at runtime rather than
- * build time because preview and production share one build artifact. */
+/* Only ever active on preview + local hosts. Shares one runtime host check with
+ * the other preview-only surfaces (see utils/previewGate.js). */
 export function isPaletteLabEnabled() {
-  if (typeof window === 'undefined') return false
-  const host = window.location.hostname
-  return host === 'localhost' || host === '127.0.0.1' || host.endsWith('.workers.dev')
+  return isPreviewHost()
 }
 
 /* Normalises whatever getComputedStyle hands back into #rrggbb so it can feed

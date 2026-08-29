@@ -619,3 +619,12 @@
 .pickup-tool-row > button {
   transition: background-color .18s var(--ease-out, cubic-bezier(.16, 1, .3, 1)), color .18s var(--ease-out, cubic-bezier(.16, 1, .3, 1)), box-shadow .22s var(--ease-out, cubic-bezier(.16, 1, .3, 1));
 }
+
+/* Preview-only connection simulator. Deliberately styled as a dev tool strip
+ * (dashed outline, muted palette) so it can never read as business UI. */
+.shiphub-connection-sim { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 10px 0 2px; padding: 8px 10px; border-radius: 10px; border: 1px dashed rgb(12 14 12 / .28); background: rgb(12 14 12 / .03); color: #4a4a4a; font-size: 11px; }
+.shiphub-connection-sim strong { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+.shiphub-connection-sim small { color: #6d6d6d; }
+.shiphub-connection-sim-options { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.shiphub-connection-sim-options button { padding: 4px 10px; border-radius: 999px; border: 1px solid rgb(12 14 12 / .18); background: #fff; color: #333; cursor: pointer; font-size: 11px; }
+.shiphub-connection-sim-options button[data-active='true'] { border-color: transparent; background: var(--ops-black, #14161a); color: #fff; }

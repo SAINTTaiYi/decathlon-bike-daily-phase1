@@ -86,8 +86,10 @@ test('脚本更新检测：过期标记驱动更新提示条', () => {
 })
 
 test('待取车看板展示连接状态，未连接时提示手动重连', () => {
-  // 状态由 hook 从 summary 归一化（fixture 不当故障），看板不自己猜
-  assert.match(hook, /connectionStatus: summary\?\.mode === 'fixture' \? 'fixture' : \(summary\?\.connection\?\.authorizationStatus \|\| 'disconnected'\)/u)
+  // 状态由 hook 从 summary 归一化（fixture 不当故障），看板不自己猜。
+  // preview 模拟开关可在其前叠加一层覆盖值，故此处不锚定行首。
+  assert.match(hook, /summary\?\.mode === 'fixture' \? 'fixture' : \(summary\?\.connection\?\.authorizationStatus \|\| 'disconnected'\)/u)
+  assert.match(hook, /connectionStatus: (?:simulatedStatus \|\| )?\(?summary\?\.mode === 'fixture'/u)
   // 仅在非 connected 且非 fixture 时展示提示条
   assert.match(board, /connectionStatus !== 'connected' && connectionStatus !== 'fixture'/u)
   assert.match(board, /shiphub-connection-notice/u)
