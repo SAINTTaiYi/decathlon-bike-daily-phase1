@@ -272,3 +272,51 @@ test('单列 grid 轨道用 minmax(0, …) 允许收缩，避免 1fr 的 auto �
     }
   }
 })
+
+// -- 矮视口纵向截断回归（2026-08-29）------------------------------
+// 症状：屏幕纵向高度较低的电脑上，注册界面 / 忘记密码界面被截断——
+// 「发送验证码」「返回登录」和页脚被卡片底边裁掉，且无法滚动到。
+// 根因：.bootd-card 是 grid 且只声明了列轨道，隐式行是 auto——auto 行的尺寸
+// 取自内容而不受 max-height 约束，于是 743px 的注册表单被原样塞进 553px 的
+// 卡片里，再被 .bootd-card 的 overflow:hidden 裁掉。同时 .bootd-form-side 作为
+// flex 列默认 min-height:auto，拒绝收缩到内容高度以下，它自己的
+// overflow-y:auto 永远等不到可滚条件，所以既看不到也滚不到。
+// 约束：卡片声明可收缩行轨道，两个子栏都能收缩，表单栏成为真正的滚动容器。
+test('桌面登录卡声明可收缩行轨道，矮视口下不靠内容撑破 max-height', () => {
+  const card = cssDesktop.match(/\.bootd-card\s*\{[^}]*\}/u)?.[0] ?? ''
+  assert.ok(card, '应存在 .bootd-card 规则')
+  assert.match(card, /max-height:/u, '卡片仍应受视口高度约束')
+  assert.match(
+    card,
+    /grid-template-rows:\s*minmax\(\s*0/u,
+    '.bootd-card 必须显式声明 minmax(0, …) 行轨道，否则隐式 auto 行按内容定尺寸，'
+      + '会顶穿 max-height 并被 overflow:hidden 裁掉底部按钮',
+  )
+})
+
+test('桌面表单栏可收缩且自带滚动，矮视口下按钮始终可达', () => {
+  const formSide = cssDesktop.match(/\.bootd-form-side\s*\{[^}]*\}/u)?.[0] ?? ''
+  assert.ok(formSide, '应存在 .bootd-form-side 规则')
+  assert.match(formSide, /overflow-y:\s*auto/u, '表单栏应是滚动容器')
+  assert.match(
+    formSide,
+    /min-height:\s*0/u,
+    '.bootd-form-side 需 min-height:0——flex 列默认 min-height:auto 拒绝收缩到'
+      + '内容以下，overflow-y:auto 就永远不会激活',
+  )
+})
+
+test('桌面插画栏不靠内容撑高卡片行，且矮视口下角色随之缩放', () => {
+  const poster = cssDesktop.match(/\.bootd-poster-side\s*\{[^}]*\}/u)?.[0] ?? ''
+  assert.match(
+    poster,
+    /min-height:\s*0/u,
+    '.bootd-poster-side 需 min-height:0，否则插画列会替内容把行撑回去',
+  )
+  const shortViewport = cssDesktop.match(/@media\s*\(max-height:[^)]*\)\s*\{[\s\S]*?\n\}/gu) ?? []
+  const scaled = shortViewport.filter((block) => /--boot-char-scale/u.test(block))
+  assert.ok(
+    scaled.length >= 2,
+    '矮视口断点需下调 --boot-char-scale，否则短卡下角色会被 overflow:hidden 削掉头顶',
+  )
+})

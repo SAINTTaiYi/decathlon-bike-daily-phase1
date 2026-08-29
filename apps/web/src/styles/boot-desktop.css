@@ -22,6 +22,11 @@
   display: grid;
   /* 表单列定宽，插画列吃掉剩余空间，避免右栏溢出视口 */
   grid-template-columns: minmax(20rem, 25rem) minmax(0, 1fr);
+  /* 显式行轨道 + minmax(0,…)：隐式 auto 行的尺寸取自内容，不受 max-height
+     约束，会把 743px 的注册表单原样塞进 553px 的卡里，再被下面的
+     overflow:hidden 裁掉（矮视口下「发送验证码」永久点不到）。
+     minmax(0,1fr) 让行随卡片的实际高度收缩，子栏才有机会自己滚。 */
+  grid-template-rows: minmax(0, 1fr);
   align-items: stretch;
   width: 100%;
   max-width: 60rem;
@@ -41,7 +46,26 @@
   gap: 1.125rem;
   padding: 2.5rem 2.25rem 2rem;
   min-width: 0;
+  /* flex 列的默认 min-height:auto 会拒绝收缩到内容高度以下，
+     overflow-y:auto 就永远等不到可滚条件 */
+  min-height: 0;
   overflow-y: auto;
+  /* 圆角卡内不出现整条系统滚动条，与无边线设计保持一致 */
+  scrollbar-width: thin;
+  scrollbar-color: rgb(20 22 26 / 0.22) transparent;
+}
+
+.bootd-form-side::-webkit-scrollbar {
+  width: 0.375rem;
+}
+
+.bootd-form-side::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgb(20 22 26 / 0.22);
+}
+
+.bootd-form-side::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .bootd-brand {
@@ -259,6 +283,7 @@
   align-items: center;
   justify-content: center;
   min-width: 0;
+  min-height: 0;
   padding: 2rem;
   background: #f3f4f8;
   /* 插画超出即裁剪，绝不把卡片撑宽 */
@@ -281,6 +306,16 @@
   .bootd-form-side { padding: 1.75rem 2rem 1.5rem; gap: 0.875rem; }
   .bootd-form,
   .bootd-fields-group { gap: 0.75rem; }
+  /* 角色插画随卡片一起缩，否则短卡下会被 overflow:hidden 削掉头顶 */
+  .bootd-poster-side { --boot-char-scale: 0.82; padding: 1.5rem; }
+}
+
+@media (max-height: 660px) {
+  .bootd-poster-side { --boot-char-scale: 0.68; padding: 1.25rem; }
+}
+
+@media (max-height: 580px) {
+  .bootd-poster-side { --boot-char-scale: 0.56; padding: 1rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
