@@ -119,7 +119,7 @@ test('frosted overview: ambient wash stays visible and overview cards are transl
   assert.match(translucent[1], /rgb\(255 255 255 \/ var\(--ops-glass-alpha\)\)/u)
   assert.match(tokensCss, /--ops-card-hairline:\s*rgb\(255 255 255 \/ var\(--ops-glass-hairline-alpha\)\)/u)
   assert.match(tokensCss, /--ops-card-edge:\s*rgb\(120 104 58 \/ var\(--ops-glass-edge-alpha\)\)/u)
-  for (const knob of ['--ops-glass-alpha', '--ops-glass-blur', '--ops-glass-saturate', '--ops-glass-edge-alpha', '--ops-glass-hairline-alpha']) {
+  for (const knob of ['--ops-glass-alpha', '--ops-glass-edge-alpha', '--ops-glass-hairline-alpha']) {
     assert.strictEqual(
       (tokensCss.match(new RegExp(`${knob}:`, 'gu')) || []).length,
       1,
@@ -158,14 +158,11 @@ test('frosted overview: ambient wash stays visible and overview cards are transl
     )
   }
 
-  // Cards now DO blur: a tint alone reads as flat paper, and the blur is what
-  // makes the glow behind the card look like it is being refracted rather than
-  // just showing through. The CJK-softening concern from the earlier pass is
-  // handled by keeping the radius on a live token (--ops-glass-blur) that
-  // PaletteLab can drag to 0px, instead of by banning blur outright.
-  assert.match(frostedBlock[0], /backdrop-filter:\s*var\(--ops-card-glass-filter\)/u)
-  assert.doesNotMatch(frostedBlock[0], /backdrop-filter:\s*blur\(\d/u, 'radius must stay adjustable')
-  // Desktop still must not paint its own frost on top of the shared rule.
+  // 卡面不blur。此前一轮加过 backdrop-filter，理由是"tint 单独看像纸"，
+  // 但滚动表面逐帧重栅格会卡顿，且中文字形被糊一下再跳回清晰（memory 22 ②）。
+  // 折射感改由 inset 高光 + 暖边承担，环境黄光靠半透明底色透过来即可。
+  assert.doesNotMatch(frostedBlock[0], /backdrop-filter/u, '卡面不得带 backdrop-filter：滚动重栅格 + 糊中文')
+  // 桌面同样不得自己再刷一层。
   if (panel) assert.doesNotMatch(panel[0], /backdrop-filter/u)
 })
 

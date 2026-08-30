@@ -55,15 +55,12 @@
    * whatever the environment layer puts behind the card is the colour you
    * see. */
   --ops-glass-alpha: .25;
-  --ops-glass-blur: 12px;
-  --ops-glass-saturate: 100%;
   --ops-glass-edge-alpha: 0;
   --ops-glass-hairline-alpha: .99;
 
   --ops-card-translucent: rgb(255 255 255 / var(--ops-glass-alpha));
   --ops-card-hairline: rgb(255 255 255 / var(--ops-glass-hairline-alpha));
   --ops-card-edge: rgb(120 104 58 / var(--ops-glass-edge-alpha));
-  --ops-card-glass-filter: blur(var(--ops-glass-blur)) saturate(var(--ops-glass-saturate));
 
   /* Environment glow geometry — focus points, spread and alpha. Single source;
    * the .env-blob-* rules in workshop-system.css only reference these tokens,

@@ -286,7 +286,7 @@
   .pickup-tool-row .pickup-search-field { min-height: 60px; padding: 0 20px; }
   .pickup-tool-row .pickup-search-field input { font-size: 16px; }
   .pickup-tool-row > button { height: 60px; font-size: 12px; }
-  .pickup-ledger-board { margin-top: 16px; padding: 0 16px 18px; border-radius: var(--ops-radius); background: var(--ops-card-translucent); -webkit-backdrop-filter: var(--ops-card-glass-filter); backdrop-filter: var(--ops-card-glass-filter); box-shadow: inset 0 1px 0 var(--ops-card-hairline), inset 0 0 0 1px var(--ops-card-edge), var(--ops-card-shadow); }
+  .pickup-ledger-board { margin-top: 16px; padding: 0 16px 18px; border-radius: var(--ops-radius); background: var(--ops-card-translucent); box-shadow: inset 0 1px 0 var(--ops-card-hairline), inset 0 0 0 1px var(--ops-card-edge), var(--ops-card-shadow); }
   .pickup-ledger-intro { min-height: 86px; margin: 0; padding: 16px 10px; border-bottom: 1px solid rgb(12 14 12 / .08); }
   .pickup-ledger-intro span { font-size: 13px; }
   .pickup-ledger-intro strong { font-size: 15px; line-height: 22px; }

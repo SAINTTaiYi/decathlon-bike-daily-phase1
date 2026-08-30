@@ -65,8 +65,6 @@ const TOKEN_GROUPS = [
     label: '玻璃质感',
     tokens: [
       { name: '--ops-glass-alpha', label: '不透明度', kind: 'range', min: 0, max: 1, step: .01, unit: '', hint: '越低越透，背景光源越明显' },
-      { name: '--ops-glass-blur', label: '模糊', kind: 'range', min: 0, max: 40, step: 1, unit: 'px', hint: '0 = 关闭模糊（中文更锐利）' },
-      { name: '--ops-glass-saturate', label: '饱和度', kind: 'range', min: 100, max: 200, step: 5, unit: '%', hint: '提升透过来的黄色浓度' },
       { name: '--ops-glass-edge-alpha', label: '描边', kind: 'range', min: 0, max: .4, step: .01, unit: '', hint: '卡片外缘暖色细线' },
       { name: '--ops-glass-hairline-alpha', label: '顶部高光', kind: 'range', min: 0, max: 1, step: .01, unit: '', hint: '卡片内侧顶边白线' },
     ],

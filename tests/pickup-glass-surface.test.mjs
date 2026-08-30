@@ -54,15 +54,20 @@ test('玻璃 token 单一定义在 tokens.css，且引用处不得带 fallback',
   }
 })
 
-test('滚动的订单卡与输入控件不带 backdrop blur，只有板级容器带', () => {
-  const tail = frosted.slice(frosted.indexOf('Pickup ledger:'))
-  assert.match(tail, /backdrop-filter:\s*none/u, '缺少列表卡取消 blur 的规则')
-  for (const sel of ['.pickup-card', '.pickup-search-field', '.pickup-sheet-tabs']) {
-    assert.ok(tail.includes(sel), `${sel} 应在免 blur 名单内`)
+test('待取车面上任何容器都不带 backdrop blur，板级容器也不例外', () => {
+  // 板级容器曾保留 blur（"只有大容器带、滚动卡不带"），但待取车板本身就在
+  // 滚动流里，滚动时同样逐帧重栅格。玻璃感全部由半透明 + 高光 + 暖边承担。
+  for (const [name, css] of Object.entries(all)) {
+    const hits = (css.match(/backdrop-filter:\s*var\(--ops-card-glass-filter\)/gu) || []).length
+    assert.equal(hits, 0, `${name}.css 仍有 ${hits} 处卡面 backdrop-filter`)
   }
-  // 板级容器保留 blur
-  assert.match(pickup, /\.shiphub-pipeline\s*\{[^}]*backdrop-filter:\s*var\(--ops-card-glass-filter\)/u)
-  assert.match(desktop, /\.pickup-ledger-board\s*\{[^}]*backdrop-filter:\s*var\(--ops-card-glass-filter\)/u)
+  for (const sel of ['.shiphub-pipeline', '.pickup-ledger-board']) {
+    const esc = sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    for (const [name, css] of Object.entries(all)) {
+      const rule = css.match(new RegExp(esc + '\\s*(,[^{]*)?\\{[^}]*\\}', 'u'))
+      if (rule) assert.doesNotMatch(rule[0], /backdrop-filter/u, `${name}.css 的 ${sel} 仍带 blur`)
+    }
+  }
 })
 
 test('workshop-system.css 不得把 box-shadow 重置掉玻璃的高光与暖边', () => {

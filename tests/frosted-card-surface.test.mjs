@@ -4,12 +4,13 @@ import { readFile } from 'node:fs/promises'
 
 const read = (rel) => readFile(new URL(rel, import.meta.url), 'utf8')
 
-const [tokens, frosted, mobileOverview, desktopWorkbench, workshopSystem, styleIndex] = await Promise.all([
+const [tokens, frosted, mobileOverview, desktopWorkbench, workshopSystem, pickupLedger, styleIndex] = await Promise.all([
   read('../apps/web/src/styles/tokens.css'),
   read('../apps/web/src/styles/frosted.css'),
   read('../apps/web/src/styles/mobile-overview.css'),
   read('../apps/web/src/styles/desktop-workbench.css'),
   read('../apps/web/src/styles/workshop-system.css'),
+  read('../apps/web/src/styles/pickup-ledger.css'),
   read('../apps/web/src/styles/index.css'),
 ])
 
@@ -161,25 +162,42 @@ test('frosted.css 在样式入口里晚于两端样式表导入', () => {
   assert.ok(frostedAt > order('desktop-workbench.css'), 'frosted.css 应晚于 desktop-workbench.css')
 })
 
-test('模糊必须走可调 token（能一键归零），大面积表面仍禁 scale', () => {
-  // 本轮起卡面带 backdrop-filter：模糊是玻璃质感的本体，用户要求先看一版。
-  // 但 memory 22 ② 的顾虑（大表面模糊糊中文字形）依然成立，所以约束从
-  // 「禁止模糊」改成「模糊必须可调」——半径走 --ops-glass-blur，PaletteLab
-  // 能实时拖到 0px 关掉，不必改代码重新部署一轮。
-  // 第 8 节标题写在块注释内部，必须回退到注释起始的 "/*" 再切，
-  // 否则残留的 "*/" 会让注释剥离失配、把说明文字当成规则读。
+test('卡面禁 backdrop-filter：全仓零引用，且死 token 已删除', () => {
+  // 2026-08-31 决定：卡面模糊删除，回归 memory 22②/28⑤ 的原始结论 ——
+  // 大面积滚动表面 blur 逐帧重栅格 + 糊中文字形。页头/底栏/弹窗遮罩的 blur
+  // 是设计保留项（memory 10），只有内容卡不许模糊。
+  //
+  // 上一版断言为什么形同虚设：它只在第 8 节切片里找单条 backdrop-filter，
+  // 而真实规则是 18 个选择器合并成一条。切片匹配到「有 token 引用」就算过，
+  // 反而把模糊锁成了必须存在。这里改成两条硬约束：
+  //   1. 六张玻璃卡 + pickup 全族所在的样式表里，一律不得出现卡面模糊；
+  //   2. --ops-card-glass-filter 及其两个入参 token 必须彻底删除，
+  //      留着零引用的死 token 会让下一轮有人「顺手」再接回去。
+  const cardSheets = {
+    'frosted.css': frosted,
+    'pickup-ledger.css': pickupLedger,
+    'desktop-workbench.css': desktopWorkbench,
+  }
+  for (const [name, sheet] of Object.entries(cardSheets)) {
+    const hits = sheet.match(/backdrop-filter:\s*var\(--ops-card-glass-filter\)/gu) ?? []
+    assert.equal(hits.length, 0, `${name} 不得给内容卡设 backdrop-filter（命中 ${hits.length} 处）`)
+  }
+
+  for (const dead of ['--ops-card-glass-filter', '--ops-glass-blur', '--ops-glass-saturate']) {
+    assert.equal(
+      tokens.includes(dead),
+      false,
+      `${dead} 已无人引用，必须从 tokens.css 删除而不是留成死 token`,
+    )
+  }
+
+  // 玻璃观感由「内侧顶部高光 + 暖色外缘 + 半透明填充」承担，这三样必须还在。
   const headingAt = frosted.indexOf('8. Frosted content cards')
   const sectionAt = frosted.lastIndexOf('/*', headingAt)
   const section = frosted.slice(sectionAt).replace(/\/\*[\s\S]*?\*\//gu, '')
-
-  assert.match(
-    section,
-    /backdrop-filter:\s*var\(--ops-card-glass-filter\)/u,
-    '模糊必须引用可调 token，不能写死 blur(20px)',
-  )
-  const hardCoded = section.match(/backdrop-filter:\s*blur\(/gu) ?? []
-  assert.equal(hardCoded.length, 0, '不允许硬编码模糊半径，否则 PaletteLab 调不动')
-  assert.match(tokens, /--ops-card-glass-filter:\s*blur\(var\(--ops-glass-blur\)\)/u)
+  assert.match(section, /background:\s*var\(--ops-card-translucent\)/u, '半透明填充必须保留')
+  assert.match(section, /inset 0 1px 0 var\(--ops-card-hairline\)/u, '顶部高光必须保留')
+  assert.match(section, /inset 0 0 0 1px var\(--ops-card-edge\)/u, '暖色外缘必须保留')
   assert.equal((section.match(/scale\(/gu) ?? []).length, 0, '大面积表面禁 scale')
 })
 
