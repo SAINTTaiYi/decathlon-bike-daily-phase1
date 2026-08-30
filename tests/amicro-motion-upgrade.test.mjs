@@ -207,6 +207,7 @@ test('Crextio 风格黄色渐变环境背景：光斑 + GSAP 交互动效（2026
   const desktopHook = readFileSync(new URL('../apps/web/src/hooks/useDesktopSceneTransition.js', import.meta.url), 'utf8')
   const activeScene = readFileSync(new URL('../apps/web/src/hooks/useActiveScene.js', import.meta.url), 'utf8')
   const endfieldCss = readFileSync(new URL('../apps/web/src/styles/endfield.css', import.meta.url), 'utf8')
+  const tokensCss = readFileSync(new URL('../apps/web/src/styles/tokens.css', import.meta.url), 'utf8')
   // 三层品牌黄光斑挂在环境层
   assert.match(app, /env-blob env-blob-a/u)
   assert.match(app, /env-blob env-blob-b/u)
@@ -220,11 +221,14 @@ test('Crextio 风格黄色渐变环境背景：光斑 + GSAP 交互动效（2026
   for (const name of ['env-blob-a', 'env-blob-b', 'env-blob-c']) {
     const block = wsCss.match(new RegExp(`\\.workshop-runtime \\.${name} \\{[^}]*\\}`, 'u'))
     assert.ok(block, `${name} 必须有独立规则块`)
-    assert.match(block[0], /radial-gradient\(circle at 50% 50%, rgb\(255 \d+ \d+ \/ \.\d+\)/u)
+    // 首段 alpha 与尺寸已收敛为 token（tokens.css 单一来源，横屏/竖屏各一套），
+    // 规则本体只做引用；具体取值与竖屏约束见 environment-glow-portrait.test.mjs。
+    assert.match(block[0], /radial-gradient\(circle at 50% 50%, rgb\(255 \d+ \d+ \/ var\(--ops-glow-[abc]-core\)\)/u)
     assert.match(block[0], /rgb\(255 \d+ \d+ \/ 0\) \d+%\);/u)
+    assert.match(block[0], /width: calc\(var\(--ops-glow-[abc]-size\) \* var\(--ops-glow-scale\)\)/u)
     // vmax 而非 vmin：桌面 1280x1168 下 vmin 是 1168 的高度，82vmin 的圆
-    // 铺不满 1280 的宽度，光就塌回左右上角两块（移动端竖屏同理）。
-    assert.match(block[0], /width: calc\(\d+vmax \* var\(--ops-glow-scale\)\)/u)
+    // 铺不满 1280 的宽度，光就塌回左右上角两块。横屏尺寸在 tokens.css 顶层。
+    assert.match(tokensCss, new RegExp(`--ops-glow-${name.slice(-1)}-size: \\d+vmax`, 'u'))
     assert.doesNotMatch(block[0], /vmin/u, '光斑尺寸禁用 vmin，否则长边方向铺不满')
     // 焦点由 PaletteLab token 驱动，配合 translate: -50% -50% 按圆心定位。
     assert.match(block[0], /left: var\(--ops-glow-[abc]-x\)/u)

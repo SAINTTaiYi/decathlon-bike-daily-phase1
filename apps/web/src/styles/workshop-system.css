@@ -113,29 +113,30 @@ button:disabled { opacity: .48; }
      "put the light HERE", not "offset the box edge by N%". */
   translate: -50% -50%;
 }
-/* Sized in vmax, and each blob is wider than the viewport's long edge. Three
-   overlapping pools of light is what produces one continuous diffuse wash;
-   three separate discs sized in vmin produced the corner patches. */
+/* Blob size and alpha are tokens (single source, per-orientation values in
+   tokens.css). Portrait phones must NOT use vmax: there vmax is the viewport
+   HEIGHT, so 128vmax became a ~3000px saturated disc covering the whole
+   screen. Landscape/desktop keeps the wide diffuse wash. */
 .workshop-runtime .env-blob-a {
   left: var(--ops-glow-a-x);
   top: var(--ops-glow-a-y);
-  width: calc(128vmax * var(--ops-glow-scale));
-  height: calc(128vmax * var(--ops-glow-scale));
-  background: radial-gradient(circle at 50% 50%, rgb(255 222 89 / .46), rgb(255 222 89 / .16) 46%, rgb(255 222 89 / 0) 76%);
+  width: calc(var(--ops-glow-a-size) * var(--ops-glow-scale));
+  height: calc(var(--ops-glow-a-size) * var(--ops-glow-scale));
+  background: radial-gradient(circle at 50% 50%, rgb(255 222 89 / var(--ops-glow-a-core)), rgb(255 222 89 / var(--ops-glow-a-mid)) 46%, rgb(255 222 89 / 0) 76%);
 }
 .workshop-runtime .env-blob-b {
   left: var(--ops-glow-b-x);
   top: var(--ops-glow-b-y);
-  width: calc(104vmax * var(--ops-glow-scale));
-  height: calc(104vmax * var(--ops-glow-scale));
-  background: radial-gradient(circle at 50% 50%, rgb(255 239 176 / .52), rgb(255 239 176 / .18) 48%, rgb(255 239 176 / 0) 78%);
+  width: calc(var(--ops-glow-b-size) * var(--ops-glow-scale));
+  height: calc(var(--ops-glow-b-size) * var(--ops-glow-scale));
+  background: radial-gradient(circle at 50% 50%, rgb(255 239 176 / var(--ops-glow-b-core)), rgb(255 239 176 / var(--ops-glow-b-mid)) 48%, rgb(255 239 176 / 0) 78%);
 }
 .workshop-runtime .env-blob-c {
   left: var(--ops-glow-c-x);
   top: var(--ops-glow-c-y);
-  width: calc(118vmax * var(--ops-glow-scale));
-  height: calc(118vmax * var(--ops-glow-scale));
-  background: radial-gradient(circle at 50% 50%, rgb(255 213 101 / .40), rgb(255 213 101 / .14) 46%, rgb(255 213 101 / 0) 76%);
+  width: calc(var(--ops-glow-c-size) * var(--ops-glow-scale));
+  height: calc(var(--ops-glow-c-size) * var(--ops-glow-scale));
+  background: radial-gradient(circle at 50% 50%, rgb(255 213 101 / var(--ops-glow-c-core)), rgb(255 213 101 / var(--ops-glow-c-mid)) 46%, rgb(255 213 101 / 0) 76%);
 }
 .workshop-runtime > [data-workspace-layer='navigation'] {
   position: fixed;

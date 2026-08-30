@@ -65,11 +65,16 @@
   --ops-card-edge: rgb(120 104 58 / var(--ops-glass-edge-alpha));
   --ops-card-glass-filter: blur(var(--ops-glass-blur)) saturate(var(--ops-glass-saturate));
 
-  /* Environment glow geometry — focus points and spread, also PaletteLab
-   * driven. `vmax` not `vmin`: on a 1280x1168 desktop viewport vmin is the
-   * 1168px height, so a 82vmin blob never spans the 1280px width and the
-   * glow collapses into two corner patches. Same bug memory-19 hit on
-   * mobile portrait. */
+  /* Environment glow geometry — focus points, spread and alpha. Single source;
+   * the .env-blob-* rules in workshop-system.css only reference these tokens,
+   * so there is exactly one place per orientation to tune.
+   *
+   * Landscape / desktop: `vmax` not `vmin`. On a 1280x1168 viewport vmin is
+   * the 1168px height, so an 82vmin blob never spans the 1280px width and the
+   * glow collapses into two corner patches.
+   *
+   * Portrait phones get their own values further down — see the portrait
+   * override block. Do NOT add vmax sizes there. */
   --ops-glow-scale: 1;
   --ops-glow-a-x: -14%;
   --ops-glow-a-y: -20%;
@@ -77,4 +82,39 @@
   --ops-glow-b-y: -14%;
   --ops-glow-c-x: 22%;
   --ops-glow-c-y: 74%;
+  --ops-glow-a-size: 128vmax;
+  --ops-glow-b-size: 104vmax;
+  --ops-glow-c-size: 118vmax;
+  --ops-glow-a-core: .46;
+  --ops-glow-a-mid: .16;
+  --ops-glow-b-core: .52;
+  --ops-glow-b-mid: .18;
+  --ops-glow-c-core: .40;
+  --ops-glow-c-mid: .14;
+}
+
+/* Portrait phones. `vmax` here resolves to the viewport HEIGHT (~2400px on a
+   modern phone), so the landscape sizes rendered as one saturated disc filling
+   the entire screen. Width-based sizing keeps the wash proportional to the
+   narrow axis, the focus points are pushed further outside the viewport so
+   only the falloff edge bleeds in, and the core alphas drop to roughly a third
+   — an ambient warm tint at the corners instead of a yellow field. */
+@media (max-width: 767px) and (orientation: portrait) {
+  :root {
+    --ops-glow-a-x: -26%;
+    --ops-glow-a-y: -14%;
+    --ops-glow-b-x: 112%;
+    --ops-glow-b-y: -8%;
+    --ops-glow-c-x: -8%;
+    --ops-glow-c-y: 104%;
+    --ops-glow-a-size: 96vw;
+    --ops-glow-b-size: 84vw;
+    --ops-glow-c-size: 92vw;
+    --ops-glow-a-core: .17;
+    --ops-glow-a-mid: .06;
+    --ops-glow-b-core: .19;
+    --ops-glow-b-mid: .07;
+    --ops-glow-c-core: .15;
+    --ops-glow-c-mid: .05;
+  }
 }
