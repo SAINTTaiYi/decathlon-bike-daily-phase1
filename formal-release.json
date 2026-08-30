@@ -1,91 +1,24 @@
 {
   "kind": "formal-production-release",
-  "version": "6.4.0",
+  "version": "6.4.1",
   "previewRange": {
-    "fromExclusive": "ad1a0b7eb72c549e6e85b77c0ba5aa8466cc049a",
-    "toInclusive": "551696133dff989ea92842967858211992d0c1c6",
+    "fromExclusive": "196c3da14f86c6fa501338b12164e465dd75c703",
+    "toInclusive": "d74ee6cd32c79975eeaf98b6dff8ec14826ebef9",
     "commits": [
       {
-        "sha": "75cc0957bf7ac1373ae72d9e8f9c6265bb1a1ff3",
-        "subject": "feat(shiphub): 待取车展示连接状态并支持自愈重连"
-      },
-      {
-        "sha": "5b57673700a863d6005858a568a058ad3b8eb2a6",
-        "subject": "test(shiphub): 覆盖连接状态条与自愈重连回归"
-      },
-      {
-        "sha": "68af38dfc212ef711f0e6f1250f8f48161693030",
-        "subject": "feat(shiphub): preview-only 连接状态模拟开关"
-      },
-      {
-        "sha": "679d373dc577b8a9243eee5d306f15263d52ea78",
-        "subject": "feat(shiphub): 整合待取车三管线为分段看板并显示上次同步时间"
-      },
-      {
-        "sha": "579d03c37c3935ef3d32ea71211611fc6f838d89",
-        "subject": "fix(pickup): 移动端待取车看板重排，桌面端改三列并排"
-      },
-      {
-        "sha": "da88ccc3ba75402d9c16fe452ef315ba3444d4dd",
-        "subject": "fix(pickup): 桌面看板恒定三列，不再中等宽度降级"
-      },
-      {
-        "sha": "9643829ae0605d98cefb0365fee70987f0acccf3",
-        "subject": "feat(shiphub): 分段切换改为 GSAP 滑动指示块"
-      },
-      {
-        "sha": "d61c44faf8d1465879472967a6af88d5eccfba17",
-        "subject": "feat(overview): 总览改真磨砂——页头暖色玻璃 + 卡片半透明"
-      },
-      {
-        "sha": "8705693277bc1669795303baf488e422f904de3f",
-        "subject": "fix(web): 玻璃卡样式收敛到单一来源，清掉九处旧实心声明"
-      },
-      {
-        "sha": "b8905614f30c8e4494774ceaa1c412fabfb01176",
-        "subject": "feat(overview): 玻璃卡透出环境黄光、光源铺满视口、玻璃参数并入 PaletteLab"
-      },
-      {
-        "sha": "e2cbc4a78ca8620beb22ce3394e2cf394a0f8024",
-        "subject": "fix(web): 让环境黄光真正透到卡片背后"
-      },
-      {
-        "sha": "8493ccf418e943053e38d99c89ea1c76703145ad",
-        "subject": "fix(web): 清掉遮挡环境黄光的第四、五处实心底色 + 加回归断言"
-      },
-      {
-        "sha": "4452f219b8ad52045471ab95203cebd639417129",
-        "subject": "fix(overview): 恢复桌面左侧栏总览选中项，销售车辆卡改回玻璃"
-      },
-      {
-        "sha": "a73cde54764058b544c9558fcf49a6e0ca93a81c",
-        "subject": "fix(desktop): 撤销左侧栏黑块，改修几何遮挡"
-      },
-      {
-        "sha": "87be9f0e0c96bb9bf1de57bae3695cd3229dfbdd",
-        "subject": "fix(desktop): 删除基础组件层遗留的 rail 选中态黑底"
-      },
-      {
-        "sha": "551696133dff989ea92842967858211992d0c1c6",
-        "subject": "fix(desktop): 消除 rail 选中项上的白色背景块"
+        "sha": "d74ee6cd32c79975eeaf98b6dff8ec14826ebef9",
+        "subject": "fix(web): 竖屏环境光斑改用视口宽度基准，消除移动端整屏黄"
       }
     ]
   },
   "announcement": {
-    "title": "待取车整合看板与总览磨砂质感",
-    "summary": "待取车三条管线合并为单看板分段切换，总览改磨砂玻璃透出环境光，并修掉桌面左侧栏的遮挡问题。",
+    "title": "修复手机竖屏整屏泛黄",
+    "summary": "手机竖屏下背景光晕铺满全屏、界面整体发黄的问题已修复，桌面端视觉保持不变。",
     "changes": [
-      "待取车看板整合：自提待交接、待门店拣货、在途车辆三块合并为一个看板，用分段切换查看，移动端页面长度明显收敛",
-      "分段切换改用 GSAP 滑动指示块，黄色高亮在段之间连续滑动，不再原地闪现",
-      "待取车顶部显示上次同步时间，一小时内显示分钟、超过显示小时，数据陈旧时转琥珀色提醒",
-      "待取车显示 Shiphub 连接状态，掉线时可一键自愈重连",
-      "闭店时自动刷新全部 Shiphub 分类，保证日报图数据是最新的",
-      "桌面端待取车看板恒定三列并排，任何窗口宽度都不再降级换行",
-      "总览四张卡改为磨砂玻璃，透出背景环境暖光；页头同步改磨砂质感",
-      "玻璃卡样式收敛到单一来源，清掉九处互相打架的旧实心底色声明",
-      "修复桌面左侧导航总览项上的白色背景块",
-      "玻璃质感参数并入 PaletteLab 调色盘（仅 Preview 环境可见）"
+      "修复手机竖屏时背景光晕按屏幕高度放大、盖满整屏导致界面整体发黄",
+      "竖屏背景光晕改用屏幕宽度作基准，亮度降至原来约三分之一，焦点移出可视区只保留柔和边缘",
+      "桌面端与横屏取值保持不变，调色盘的整体缩放与焦点调节两端继续生效"
     ]
   },
-  "preparedAt": "2026-08-30T11:11:05.810Z"
+  "preparedAt": "2026-08-30T11:40:25.877Z"
 }
