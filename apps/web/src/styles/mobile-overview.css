@@ -140,7 +140,7 @@
   .ops-closing-next button:active { background: var(--ops-yellow-pressed); }
 
   .ops-sales-panel { height: 196px; margin-top: 10px; border: 0; }
-  .ops-sales-primary { position: relative; display: block; width: 100%; height: 111px; overflow: hidden; padding: 13px 13px; background: var(--ops-black); color: var(--ops-text-inverse); text-align: left; }
+  .ops-sales-primary { position: relative; display: block; width: 100%; height: 111px; overflow: hidden; padding: 13px 13px; color: var(--ops-text); text-align: left; }
   .ops-sales-label { position: absolute; top: 9px; left: 13px; display: flex; align-items: center; gap: 7px; }
   .ops-sales-label i { width: 7px; height: 7px; background: var(--ops-yellow); }
   .ops-sales-label strong { font-family: var(--ops-display); font-size: 11px; font-weight: 500; line-height: 12px; letter-spacing: .04em; }
@@ -505,7 +505,7 @@
   filter: drop-shadow(0 0 3px var(--ops-black-glow));
 }
 .ops-sales-panel { height: 214px; }
-.ops-sales-primary { height: 128px; background: var(--ops-card); color: var(--ops-text); }
+.ops-sales-primary { height: 128px; color: var(--ops-text); }
 .ops-sales-label strong,
 .ops-sales-primary > time { letter-spacing: 0; }
 .ops-sales-primary > small { top: 30px; }

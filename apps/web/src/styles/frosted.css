@@ -95,7 +95,7 @@
 }
 
 /* The active pill keeps its solid fill — it is the only selection signal. */
-.look-dock button[data-active='true'],
+.workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'],
 .workshop-runtime[data-mobile-scene] .look-dock .dock-active-indicator {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -268,27 +268,35 @@
   box-shadow: none !important;
 }
 
-/* Active item: the icon carries the state, no inverted pill text. */
-.look-dock button[data-active='true'],
+/* Active item: the icon carries the state, no inverted pill text.
+ *
+ * SCOPED TO MOBILE (2026-08-30). These declarations were originally written
+ * with bare `.look-dock button[data-active='true']` selectors. The desktop
+ * left rail reuses the same class names, so `background: transparent` also
+ * erased the desktop selection — desktop-workbench.css:125 paints the active
+ * rail item solid black with yellow text, and a transparent fill on the cream
+ * page made the whole row read as an empty gap. Desktop also hides
+ * .dock-active-indicator, so nothing else marked the current module.
+ *
+ * The mobile treatment now lives only under [data-mobile-scene], which is set
+ * on the runtime root by useActiveScene and only exists in the mobile
+ * single-scene runtime. Desktop keeps its own black pill, untouched. */
 .workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] {
   background: transparent !important;
   color: var(--ops-yellow) !important;
 }
-.look-dock button[data-active='true'] svg,
 .workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] svg,
-.look-dock button[data-active='true'] span,
 .workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] span {
   color: var(--ops-yellow) !important;
   transition: color 240ms ease-out;
 }
-.look-dock button[data-active='true'] small,
 .workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] small {
   color: var(--ops-text-muted) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .look-dock button[data-active='true'] svg,
-  .look-dock button[data-active='true'] span { transition: none; }
+  .workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] svg,
+  .workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] span { transition: none; }
 }
 
 /* ==================================================================

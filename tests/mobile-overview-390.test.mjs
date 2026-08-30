@@ -47,7 +47,11 @@ test('reference hierarchy uses real identity, binary closing status and stable m
   assert.match(overview, /销售数据是唯一闭店要求/u)
   assert.match(overview, /salesValue === '—' \? 'unavailable'/u)
   assert.match(overview, /data-value=\{String\(value\)\.toLowerCase\(\)\}/u)
-  assert.match(css, /\.ops-sales-primary \{ height: 128px; background: var\(--ops-card\); color: var\(--ops-text\); \}/u)
+  // 2026-08-30: 这条原本把上半区的高度、背景、文字色逐字绑死。销售车辆卡整卡玻璃化后，
+  // 背景所有权移交 frosted.css —— 上半区自己刷 var(--ops-card) 会把玻璃盖成实心。
+  // 断言随之收窄到它真正要守的东西（几何 + 文字色），实心检查见 frosted-card-surface。
+  assert.match(css, /\.ops-sales-primary \{ height: 128px; color: var\(--ops-text\); \}/u)
+  assert.doesNotMatch(css, /\.ops-sales-primary \{[^}]*background/u)
   assert.match(css, /\.ops-closing-card \{ height: 154px;/u)
   assert.match(overview, /<StatusValue value=\{progress\} available=\{available && !error\}/u)
   assert.doesNotMatch(overview, /StatusRing|ops-status-ring|<p>\{explanation\}<\/p>/u)

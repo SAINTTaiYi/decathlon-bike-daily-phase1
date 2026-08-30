@@ -216,11 +216,15 @@ const ALL_STYLE_SOURCES = [
   ['desktop-workbench.css', desktopWorkbench],
 ]
 
+// 注释里出现的 CSS 片段（例如说明文档里引用的选择器）会被正则当成真规则，
+// 所以先剥掉 /* ... */ 再解析。用等长空白替换以保持偏移可读。
+const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, ' '))
+
 const declBlocks = (css) => {
   const out = []
   const re = /([^{}]+)\{([^{}]*)\}/g
   let m
-  while ((m = re.exec(css))) out.push({ selector: m[1].trim(), body: m[2] })
+  while ((m = re.exec(stripComments(css)))) out.push({ selector: m[1].trim(), body: m[2] })
   return out
 }
 
@@ -266,5 +270,71 @@ test('内容容器不得有不透明底色（会挡住背后的环境黄光）',
     offenders,
     [],
     `内容容器带不透明底色，环境黄光会被遮住：\n${offenders.join('\n')}`,
+  )
+})
+
+
+test("桌面左侧栏选中项必须保留实心黑底 —— frosted.css 不得用裸选择器抹掉", () => {
+  // 2026-08-30 回归：frosted.css 第 6 节把移动端底栏选中态改成"图标变黄、不要
+  // 黑框"时用了裸 `.look-dock button[data-active='true']` 选择器。桌面左侧栏复用
+  // 同一批类名，于是 background: transparent 把 desktop-workbench.css 的黑底选中
+  // 态一起抹了 —— 桌面「总览」那一格变成透明底 + 黄字，压在奶白页面上就是一片空白，
+  // 而桌面又把 .dock-active-indicator 设为 display:none，没有任何替代标记。
+  //
+  // 修法不是提高桌面特异性，而是把移动端的规则关进 [data-mobile-scene] 作用域。
+  const offenders = []
+  for (const { selector, body } of declBlocks(frosted)) {
+    if (!selector.includes("[data-active='true']")) continue
+    if (!/background|^\s*color\s*:/m.test(body)) continue
+    for (const target of selector.split(",").map((s) => s.trim())) {
+      if (!target.includes("[data-active='true']")) continue
+      if (!target.includes("[data-mobile-scene]")) {
+        offenders.push(`${target} -> ${body.trim().replace(/\s+/g, " ").slice(0, 60)}`)
+      }
+    }
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    `frosted.css 的 dock 选中态必须限定在 [data-mobile-scene] 内，否则会抹掉桌面左侧栏的选中项：\n${offenders.join("\n")}`,
+  )
+})
+
+test("桌面左侧栏选中态在 desktop-workbench.css 里仍然实心可见", () => {
+  // 与上一条互补：上面证明没人抹它，这里证明它确实存在。
+  const desktopActive = declBlocks(desktopWorkbench).filter(({ selector }) =>
+    selector.includes(".look-dock button[data-active='true']") && !selector.includes("small"),
+  )
+  assert.ok(desktopActive.length >= 1, "desktop-workbench.css 必须为左侧栏选中项声明可见填充")
+  const paint = desktopActive.map(({ body }) => body).join("\n")
+  assert.match(paint, /background:\s*var\(--ops-black\)/, "桌面选中项应为实心黑底")
+  assert.match(paint, /color:\s*var\(--ops-yellow\)/, "桌面选中项文字应为主色黄")
+})
+
+test("销售车辆卡上半区不得刷不透明底色（否则整卡看起来是实心的）", () => {
+  // 2026-08-30 回归：玻璃收敛只处理了 .ops-sales-panel 外壳，卡内上半区
+  // .ops-sales-primary 仍有两处无条件实心填充（mobile-overview.css 的
+  // var(--ops-black) 与后面覆盖它的 var(--ops-card)），刷在半透明外壳之上，
+  // 于是这张卡在任何视口都渲染成实心奶白。两处已删除，不是被覆盖。
+  const OPAQUE = /background(?:-color)?\s*:\s*(var\(--(?:ops-black|ops-card|ops-page|paper|card)\)|#[0-9a-f]{3,8}|rgb\(|white|hsl\()/i
+  const offenders = []
+  for (const [file, css] of [["mobile-overview.css", mobileOverview], ["desktop-workbench.css", desktopWorkbench], ["workshop-system.css", workshopSystem], ["frosted.css", frosted]]) {
+    for (const { selector, body } of declBlocks(css)) {
+      const targets = selector.split(",").map((s) => s.trim())
+      // 只看 .ops-sales-primary 自身，后代（黄点 .ops-sales-label i 等）不算
+      const hitsSelf = targets.some((target) => {
+        const idx = target.indexOf(".ops-sales-primary")
+        if (idx === -1) return false
+        return !target.slice(idx + ".ops-sales-primary".length).includes(" ")
+      })
+      if (!hitsSelf) continue
+      const match = OPAQUE.exec(body)
+      if (match) offenders.push(`${file} :: ${selector} -> ${match[0]}`)
+    }
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    `.ops-sales-primary 带不透明底色，销售车辆卡会渲染成实心：\n${offenders.join("\n")}`,
   )
 })
