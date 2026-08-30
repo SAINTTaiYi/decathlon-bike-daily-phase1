@@ -220,7 +220,12 @@
      0,2,0 + important 保证任何后加载同特异性规则都无法压过。 */
   /* 移动端 dock：指示器为唯一选中标识（滑动动画 360ms）。
      按钮的透明底与黄色选中态在 frosted.css 统一声明（双端共享），此处不重复。 */
-  .workshop-runtime[data-mobile-scene] .look-dock .dock-active-indicator { display: block !important; }
+  /* 作用域必须显式排除桌面：本块是 @media (min-width: 0px)，对桌面同样生效。
+     这条 !important 曾在桌面压过 desktop-workbench 的隐藏声明，让指示器
+     在 rail 上渲染成一个包住选中项的色块（黑底改黄后读作白块）。 */
+  @media (max-width: 767px) {
+    .workshop-runtime[data-mobile-scene] .look-dock .dock-active-indicator { display: block !important; }
+  }
 
   .workshop-runtime[data-mobile-scene] .look-dock {
     left: 0 !important;

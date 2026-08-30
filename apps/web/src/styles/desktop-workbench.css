@@ -110,7 +110,11 @@
   /* Divider starts below the 156px fixed navigation layer, matching the rail. */
   .look-dock::after { content: ''; position: fixed; top: 156px; bottom: 0; left: 261px; width: 1px; background: rgb(12 14 12 / .07); pointer-events: none; }
   .look-dock ul { display: grid !important; grid-template-columns: 1fr !important; gap: 12px; }
-  .dock-active-indicator { display: none; }
+  /* 桌面 rail 的选中态由图标变黄承载，没有滑块。特异性与作用域必须与
+     mobile-overview.css 的移动端显示声明对称（同 0,2,0 + !important），
+     否则那条会赢，指示器在 rail 上渲染成包住选中项的色块。 */
+  .workshop-runtime[data-mobile-scene] .look-dock .dock-active-indicator,
+  .dock-active-indicator { display: none !important; }
   .look-dock button {
     grid-template-columns: 38px minmax(0, 1fr);
     grid-template-rows: 19px 15px !important;
