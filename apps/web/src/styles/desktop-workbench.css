@@ -278,7 +278,7 @@
   /* The target board begins 24px below the module bar; remove legacy section air. */
   .workshop-shell[data-desktop-scene='pickup'] .pickup-operations-section { padding-top: 0; border-top: 0; }
   .pickup-queue-controls { display: grid; grid-template-columns: 312px minmax(0, 1fr); gap: 24px; margin: 0; }
-  .pickup-queue-summary { min-height: 72px; padding: 10px 18px; border-radius: var(--ops-radius); background: var(--ops-card); }
+  .pickup-queue-summary { min-height: 72px; padding: 10px 18px; border-radius: var(--ops-radius); }
   .pickup-queue-summary > span { font-size: 13px; line-height: 18px; }
   .pickup-module-count { align-items: center; }
   .pickup-module-count span { grid-template-rows: 34px 16px; align-items: end; justify-items: center; font-size: 12px; line-height: 16px; }
@@ -288,7 +288,7 @@
   .pickup-tool-row .pickup-search-field { min-height: 60px; padding: 0 20px; }
   .pickup-tool-row .pickup-search-field input { font-size: 16px; }
   .pickup-tool-row > button { height: 60px; font-size: 12px; }
-  .pickup-ledger-board { margin-top: 16px; padding: 0 16px 18px; border-radius: var(--ops-radius); background: var(--ops-card); box-shadow: var(--ops-card-shadow); }
+  .pickup-ledger-board { margin-top: 16px; padding: 0 16px 18px; border-radius: var(--ops-radius); background: var(--ops-card-translucent); -webkit-backdrop-filter: var(--ops-card-glass-filter); backdrop-filter: var(--ops-card-glass-filter); box-shadow: inset 0 1px 0 var(--ops-card-hairline), inset 0 0 0 1px var(--ops-card-edge), var(--ops-card-shadow); }
   .pickup-ledger-intro { min-height: 86px; margin: 0; padding: 16px 10px; border-bottom: 1px solid rgb(12 14 12 / .08); }
   .pickup-ledger-intro span { font-size: 13px; }
   .pickup-ledger-intro strong { font-size: 15px; line-height: 22px; }

@@ -15,8 +15,6 @@
   align-items: center;
   min-height: 52px;
   padding: 4px 12px;
-  background: var(--ops-card);
-  box-shadow: 0 5px 18px rgb(64 55 34 / .055);
 }
 .pickup-queue-summary > span, .pickup-module-count b, .pickup-ledger-intro span, .pickup-sheet-tabs, .pickup-filter-sheet legend, .pickup-card-index, .pickup-card-detail h4 { font-family: var(--ops-display, var(--font-display)); }
 .pickup-queue-summary > span { color: var(--ops-text-muted); font-size: 10px; font-weight: 700; }
@@ -25,7 +23,7 @@
 .pickup-module-count b { color: var(--ops-black); font-size: 19px; line-height: 18px; }
 .pickup-header-search { display: grid; place-items: center; width: 44px; height: 44px; margin-right: -8px; }
 .pickup-tool-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, 50px); gap: 4px; min-height: 52px; padding: 4px 12px 6px; background: var(--ops-page); }
-.pickup-search-field { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 6px; min-width: 0; height: 42px; padding: 0 9px; border: 1px solid var(--ops-line); border-radius: var(--ops-radius); background: var(--ops-card); }
+.pickup-search-field { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 6px; min-width: 0; height: 42px; padding: 0 9px; border: 0; border-radius: var(--ops-radius); }
 .pickup-search-field input { min-width: 0; width: 100%; border: 0; outline: 0; background: transparent; color: var(--ops-text); font-size: 12px; }
 .pickup-tool-row > button { position: relative; display: grid; place-items: center; align-content: center; gap: 1px; min-width: 44px; height: 42px; border: 1px solid var(--ops-line); border-radius: var(--ops-radius); background: var(--ops-card); font-size: 9px; }
 .pickup-tool-row > button[data-active='true'] { border-color: var(--ops-black); background: var(--ops-black); color: var(--ops-yellow); }
@@ -45,7 +43,7 @@
 .pickup-card-frame { position: relative; min-width: 0; overflow: hidden; border-radius: var(--ops-radius); background: var(--ops-black); }
 .pickup-card-frame[data-expanded='true'] { grid-column: 1 / -1; }
 .pickup-delete-reveal { position: absolute; inset: 0 0 0 auto; display: grid; place-items: center; align-content: center; gap: 3px; width: 82px; background: var(--ops-danger, #c63b2e); color: white !important; font-size: 11px; font-weight: 800; }
-.pickup-card { position: relative; z-index: 1; min-width: 0; overflow: hidden; border: 1px solid var(--ops-line); border-radius: var(--ops-radius); background: var(--ops-card); box-shadow: 0 5px 18px rgb(64 55 34 / .045); transition: transform 180ms ease, background-color 180ms ease; }
+.pickup-card { position: relative; z-index: 1; min-width: 0; overflow: hidden; border: 0; border-radius: var(--ops-radius); background: var(--ops-card-translucent); box-shadow: inset 0 1px 0 var(--ops-card-hairline), inset 0 0 0 1px var(--ops-card-edge), 0 5px 18px rgb(64 55 34 / .045); transition: transform 180ms ease, background-color 180ms ease; }
 .pickup-card-frame[data-delete-open='true'] .pickup-card { transform: translateX(-82px); }
 .pickup-card[data-expanded='true'] { background: var(--ops-pickup-expanded); }
 .pickup-card[data-error='true'] { border-color: var(--ops-danger, #c63b2e); }
@@ -86,12 +84,12 @@
 .pickup-card-resolved { color: var(--ops-text-muted); }
 .pickup-complete-wash { position: absolute; z-index: 4; inset: 0; pointer-events: none; background: var(--ops-black); transform: translateY(100%); animation: pickup-complete-wash 460ms cubic-bezier(.16, 1, .3, 1) forwards; }
 @keyframes pickup-complete-wash { 45% { transform: translateY(0); } 100% { transform: translateY(-100%); } }
-.pickup-empty-state { display: grid; justify-items: start; gap: 5px; min-height: 220px; padding: 28px 18px; border: 1px solid var(--ops-line); border-radius: var(--ops-radius); background: var(--ops-card); }
+.pickup-empty-state { display: grid; justify-items: start; gap: 5px; min-height: 220px; padding: 28px 18px; border: 0; border-radius: var(--ops-radius); }
 .pickup-empty-state > span { margin-top: 10px; color: var(--ops-text-muted); font-family: var(--ops-display, var(--font-display)); font-size: 11px; font-weight: 700; }
 .pickup-empty-state h3 { margin: 0; font-size: 19px; }
 .pickup-empty-state p { max-width: 28rem; margin: 0; color: var(--ops-text-muted); font-size: 12px; line-height: 18px; }
 .pickup-empty-state button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; margin-top: 12px; padding-inline: 14px; border-radius: var(--ops-radius); background: var(--ops-yellow); font-size: 11px; font-weight: 800; }
-.pickup-completed-today { margin-top: 10px; border: 1px solid var(--ops-line); border-radius: var(--ops-radius); background: var(--ops-card); }
+.pickup-completed-today { margin-top: 10px; border: 0; border-radius: var(--ops-radius); }
 .pickup-completed-today summary { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 12px; cursor: pointer; list-style: none; }
 .pickup-completed-today summary::-webkit-details-marker { display: none; }
 .pickup-completed-today summary span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; }
@@ -101,7 +99,7 @@
 .pickup-completed-today > div button span { font-size: 12px; font-weight: 750; }
 .pickup-completed-today > div button small { color: var(--ops-text-muted); font-size: 10px; }
 .pickup-sheet-backdrop { position: fixed; z-index: 1000; inset: 0; display: grid; align-items: end; background: rgb(12 14 12 / .38); }
-.pickup-filter-sheet { width: min(100%, 520px); max-height: min(82dvh, 700px); margin-inline: auto; overflow-y: auto; border-radius: 8px 8px 0 0; background: var(--ops-card); color: var(--ops-text); box-shadow: 0 -18px 54px rgb(12 14 12 / .18); }
+.pickup-filter-sheet { width: min(100%, 520px); max-height: min(82dvh, 700px); margin-inline: auto; overflow-y: auto; border-radius: 8px 8px 0 0; color: var(--ops-text); box-shadow: 0 -18px 54px rgb(12 14 12 / .18); }
 .pickup-sheet-handle { width: 42px; height: 4px; margin: 8px auto 4px; border-radius: 2px; background: rgb(12 14 12 / .3); }
 .pickup-filter-sheet > header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; }
 .pickup-filter-sheet > header span { color: var(--ops-text-muted); font-family: var(--ops-display, var(--font-display)); font-size: 10px; font-weight: 700; }
@@ -194,16 +192,16 @@
 .pickup-ledger :is(.pickup-search-field, .pickup-tool-row > button, .pickup-applied-filters span, .pickup-ledger-global-actions button, .pickup-card, .pickup-card-status b, .pickup-notification-buttons button, .pickup-card-actions button, .pickup-card-more summary, .pickup-card-error, .pickup-empty-state, .pickup-completed-today),
 .pickup-queue-controls :is(.pickup-search-field, .pickup-tool-row > button, .pickup-applied-filters span),
 .pickup-filter-sheet :is(.pickup-sheet-tabs button, .pickup-sheet-options label, footer button) { border: 0; }
-.pickup-queue-summary, .pickup-tool-row, .pickup-filter-sheet > footer { background: color-mix(in srgb, var(--ops-card) 94%, transparent); }
+.pickup-tool-row, .pickup-filter-sheet > footer { background: color-mix(in srgb, var(--ops-card) 94%, transparent); }
 .pickup-module-count b { text-shadow: 0 0 14px var(--ops-yellow-glow); }
-.pickup-search-field, .pickup-tool-row > button { background: var(--ops-card); box-shadow: 0 4px 14px rgb(64 55 34 / .055); }
+.pickup-search-field, .pickup-tool-row > button { box-shadow: 0 4px 14px rgb(64 55 34 / .055); }
 .pickup-tool-row > button[data-active='true'], .pickup-sheet-tabs button[aria-selected='true'] { background: var(--ops-black); color: var(--ops-yellow); box-shadow: 0 0 18px var(--ops-yellow-glow), 0 8px 22px rgb(12 14 12 / .12); }
 .pickup-applied-filters span { background: #fff2cf; box-shadow: 0 0 14px var(--ops-yellow-glow); }
 .pickup-applied-filters button { text-decoration: none; }
 .pickup-ledger-global-actions button { box-shadow: 0 5px 16px rgb(64 55 34 / .07); }
 .pickup-ledger-global-actions button:last-child { box-shadow: 0 0 22px var(--ops-yellow-glow), 0 7px 18px rgb(64 55 34 / .1); }
 /* 卡片入场动画由 GSAP 驱动（PickupLedger.jsx 内 IntersectionObserver + tween），无 CSS keyframes */
-.pickup-card { background: var(--ops-card); box-shadow: 0 8px 24px rgb(64 55 34 / .075); }
+.pickup-card { box-shadow: 0 8px 24px rgb(64 55 34 / .075); }
 .pickup-card[data-expanded='true'] { background: radial-gradient(circle at 78% 12%, color-mix(in srgb, var(--ops-yellow, #ffde59) 32%, transparent), transparent 34%), linear-gradient(145deg, color-mix(in srgb, var(--ops-yellow, #ffde59) 7%, #fffdf8), var(--ops-pickup-expanded)); box-shadow: 0 0 30px var(--ops-yellow-glow), 0 10px 28px rgb(64 55 34 / .09); }
 .pickup-card-index { border-right: 0; }
 .pickup-card-status b { padding: 4px 7px; background: rgb(12 14 12 / .06); }
@@ -232,7 +230,7 @@
 .pickup-empty-state, .pickup-completed-today { box-shadow: 0 7px 22px rgb(64 55 34 / .065); }
 .pickup-completed-today > div button { border-top: 0; }
 .pickup-sheet-backdrop { overscroll-behavior: contain; touch-action: none; }
-.pickup-filter-sheet { background: var(--ops-card); color: var(--ops-text); touch-action: pan-y; }
+.pickup-filter-sheet { color: var(--ops-text); touch-action: pan-y; }
 .pickup-sheet-handle { display: none; }
 .pickup-sheet-tabs button { background: rgb(12 14 12 / .04); }
 .pickup-sheet-options label { background: var(--ops-page); box-shadow: 0 3px 12px rgb(64 55 34 / .055); }
@@ -504,7 +502,7 @@
   gap: 6px;
   margin: 0 0 12px;
   padding: 4px;
-  border: 1px solid color-mix(in srgb, var(--ops-ink, #202020) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ops-text) 14%, transparent);
   border-radius: 999px;
   width: fit-content;
   max-width: 100%;
@@ -515,33 +513,33 @@
   border-radius: 999px;
   padding: 7px 12px;
   background: transparent;
-  color: var(--ops-muted, #6a6a6a);
+  color: var(--ops-text-muted);
   white-space: nowrap;
   cursor: pointer;
 }
-.pickup-source-tabs button[data-active="true"] { background: var(--ops-ink, #202020); color: #fff; }
-.shiphub-order-board { margin-top: 14px; padding: 16px; border: 1px solid color-mix(in srgb, var(--ops-ink, #202020) 16%, transparent); border-radius: 18px; background: color-mix(in srgb, var(--ops-paper, #fff) 92%, var(--ops-ink, #202020)); }
+.pickup-source-tabs button[data-active="true"] { background: var(--ops-text); color: #fff; }
+.shiphub-order-board { margin-top: 14px; padding: 16px; border: 0; border-radius: 18px; background: var(--ops-card-translucent); -webkit-backdrop-filter: var(--ops-card-glass-filter); backdrop-filter: var(--ops-card-glass-filter); box-shadow: inset 0 1px 0 var(--ops-card-hairline), inset 0 0 0 1px var(--ops-card-edge), var(--ops-card-shadow); }
 .shiphub-order-board > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.shiphub-order-board > header span, .shiphub-order-card-head span { display: flex; align-items: center; gap: 6px; color: var(--ops-muted, #6a6a6a); font-size: 10px; letter-spacing: .12em; }
+.shiphub-order-board > header span, .shiphub-order-card-head span { display: flex; align-items: center; gap: 6px; color: var(--ops-text-muted); font-size: 10px; letter-spacing: .12em; }
 .shiphub-order-board > header strong { display: block; margin-top: 3px; font-size: 18px; }
-.shiphub-order-board-meta { display: flex; align-items: center; gap: 10px; color: var(--ops-muted, #6a6a6a); font-size: 12px; }
+.shiphub-order-board-meta { display: flex; align-items: center; gap: 10px; color: var(--ops-text-muted); font-size: 12px; }
 .shiphub-order-board-meta em { color: #a56500; font-style: normal; }
 .shiphub-order-board-meta button { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; color: inherit; cursor: pointer; }
 .shiphub-order-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
-.shiphub-order-card { padding: 12px; border: 1px solid color-mix(in srgb, var(--ops-ink, #202020) 12%, transparent); border-radius: 14px; background: var(--ops-paper, #fff); }
+.shiphub-order-card { padding: 12px; border: 0; border-radius: 14px; background: var(--ops-card-translucent); box-shadow: inset 0 1px 0 var(--ops-card-hairline), inset 0 0 0 1px var(--ops-card-edge); }
 .shiphub-order-card-head { display: grid; grid-template-columns: 1fr; gap: 4px 8px; }
 .shiphub-order-card-head span { grid-column: 1 / -1; }
 .shiphub-order-card-head strong { overflow-wrap: anywhere; line-height: 1.35; }
-.shiphub-order-card-head small { color: var(--ops-muted, #6a6a6a); overflow-wrap: anywhere; line-height: 1.3; }
+.shiphub-order-card-head small { color: var(--ops-text-muted); overflow-wrap: anywhere; line-height: 1.3; }
 .shiphub-order-card-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .shiphub-order-items { display: grid; gap: 5px; margin: 12px 0; padding: 0; list-style: none; font-size: 13px; }
 .shiphub-order-items li { display: flex; justify-content: space-between; gap: 10px; }
-.shiphub-order-items b { color: var(--ops-muted, #6a6a6a); font-weight: 500; }
-.shiphub-order-card footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ops-muted, #6a6a6a); font-size: 11px; }
-.shiphub-order-card footer button { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--ops-ink, #202020); border-radius: 999px; padding: 6px 9px; background: var(--ops-ink, #202020); color: #fff; cursor: pointer; white-space: nowrap; }
+.shiphub-order-items b { color: var(--ops-text-muted); font-weight: 500; }
+.shiphub-order-card footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ops-text-muted); font-size: 11px; }
+.shiphub-order-card footer button { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--ops-text); border-radius: 999px; padding: 6px 9px; background: var(--ops-text); color: #fff; cursor: pointer; white-space: nowrap; }
 .shiphub-order-card footer button:disabled { opacity: .5; cursor: not-allowed; }
 .shiphub-order-card[data-local-state="completed"] { border-color: color-mix(in srgb, #39855a 38%, transparent); }
-.shiphub-order-placeholder, .shiphub-order-error { margin: 0; padding: 12px 0 2px; color: var(--ops-muted, #6a6a6a); font-size: 13px; }
+.shiphub-order-placeholder, .shiphub-order-error { margin: 0; padding: 12px 0 2px; color: var(--ops-text-muted); font-size: 13px; }
 .shiphub-order-error { color: #a33b31; }
 @media (max-width: 640px) {
   .shiphub-order-board { padding: 12px; border-radius: 14px; }
@@ -553,8 +551,8 @@
 /* Shiphub 核销跳转（feat/shiphub-verify-jump）：虚拟号标识 + 官方核销入口 */
 .shiphub-order-virtual-tag { font-style: normal; margin-left: 4px; padding: 1px 7px; border-radius: 999px; background: #fff3e0; color: #a56500; font-size: 10px; line-height: 1.5; border: 1px solid #ffd591; white-space: nowrap; }
 .shiphub-order-card-actions { display: inline-flex; align-items: center; gap: 6px; }
-.shiphub-order-card-actions .shiphub-order-verify { background: transparent; color: var(--ops-ink, #202020); border: 1px dashed color-mix(in srgb, var(--ops-ink, #202020) 45%, transparent); }
-.shiphub-order-card-actions .shiphub-order-verify:hover { background: color-mix(in srgb, var(--ops-ink, #202020) 6%, transparent); }
+.shiphub-order-card-actions .shiphub-order-verify { background: transparent; color: var(--ops-text); border: 1px dashed color-mix(in srgb, var(--ops-text) 45%, transparent); }
+.shiphub-order-card-actions .shiphub-order-verify:hover { background: color-mix(in srgb, var(--ops-text) 6%, transparent); }
 @media (max-width: 640px) {
   .shiphub-order-card footer { flex-wrap: wrap; }
 }
@@ -565,7 +563,7 @@
 .shiphub-connection-notice { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 10px 0 2px; padding: 12px; border-radius: 12px; background: #fdecea; color: #7a2318; font-size: 12px; }
 .shiphub-connection-notice strong { font-size: 13px; }
 .shiphub-connection-notice span { line-height: 1.55; }
-.shiphub-connection-notice .shiphub-connection-open { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 999px; border: 0; background: var(--ops-ink, #202020); color: #fff; cursor: pointer; font-size: 12px; white-space: nowrap; }
+.shiphub-connection-notice .shiphub-connection-open { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 999px; border: 0; background: var(--ops-text); color: #fff; cursor: pointer; font-size: 12px; white-space: nowrap; }
 .shiphub-connection-notice .shiphub-connection-open:hover { background: #3a3a3a; }
 .shiphub-connection-notice[data-status='disconnected'] { background: #f1f0ee; color: #4a4a4a; }
 @media (max-width: 640px) { .shiphub-connection-notice { align-items: stretch; } .shiphub-connection-notice .shiphub-connection-open { justify-content: center; } }
@@ -573,11 +571,11 @@
 .shiphub-order-board-meta .shiphub-sync-button:disabled { opacity: .55; cursor: default; }
 .shiphub-locator-guide { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 10px 0 2px; padding: 12px; border: 1px solid #ffd591; border-radius: 12px; background: #fff8e1; color: #5d4037; font-size: 12px; }
 .shiphub-locator-guide strong { font-size: 13px; }
-.shiphub-locator-guide a { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; background: var(--ops-ink, #202020); color: #fff; text-decoration: none; white-space: nowrap; }
+.shiphub-locator-guide a { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; background: var(--ops-text); color: #fff; text-decoration: none; white-space: nowrap; }
 .shiphub-locator-guide small { color: #a56500; }
 .shiphub-locator-guide-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
 .shiphub-locator-guide-steps li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; line-height: 1.5; }
-.shiphub-locator-guide .shiphub-locator-install { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; border: 0; background: var(--ops-ink, #202020); color: #fff; cursor: pointer; font-size: 12px; white-space: nowrap; }
+.shiphub-locator-guide .shiphub-locator-install { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; border: 0; background: var(--ops-text); color: #fff; cursor: pointer; font-size: 12px; white-space: nowrap; }
 .shiphub-locator-guide .shiphub-locator-install:hover { background: #3a3a3a; }
 .shiphub-locator-guide .shiphub-locator-recheck { padding: 5px 12px; border-radius: 999px; border: 1px solid #d9a441; background: transparent; color: #8a5a00; cursor: pointer; font-size: 12px; }
 .shiphub-locator-guide .shiphub-locator-recheck:hover { background: #ffe9b8; }
@@ -631,12 +629,18 @@
   margin-top: 14px;
   padding: 16px;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--ops-paper, #fff) 92%, var(--ops-ink, #202020));
+  background: var(--ops-card-translucent);
+  -webkit-backdrop-filter: var(--ops-card-glass-filter);
+  backdrop-filter: var(--ops-card-glass-filter);
+  box-shadow:
+    inset 0 1px 0 var(--ops-card-hairline),
+    inset 0 0 0 1px var(--ops-card-edge),
+    var(--ops-card-shadow);
 }
 
 /* 标题：小字 kicker + 主标题，两端都一样 */
 .shiphub-pipeline-title { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; margin: 0; }
-.shiphub-pipeline-title-kicker { color: var(--ops-muted, #6a6a6a); font-size: 10px; font-weight: 600; letter-spacing: .12em; }
+.shiphub-pipeline-title-kicker { color: var(--ops-text-muted); font-size: 10px; font-weight: 600; letter-spacing: .12em; }
 .shiphub-pipeline-title-text { font-size: 18px; font-weight: 800; line-height: 1.2; }
 
 /* 同步按钮：老代码这个类零样式，渲染成裸按钮（用户截图里那个没有边界的「同步」）。
@@ -646,21 +650,22 @@
   flex: 0 0 auto;
   padding: 7px 14px;
   border: 0; border-radius: 999px;
-  background: var(--ops-surface-sunken, #f4f1e8);
-  color: var(--ops-ink, #202020);
+  background: var(--ops-card-translucent);
+  box-shadow: inset 0 0 0 1px var(--ops-card-edge);
+  color: var(--ops-text);
   font-size: 12px; font-weight: 650; white-space: nowrap; cursor: pointer;
   transition: background-color .18s ease, color .18s ease;
 }
-.shiphub-pipeline-sync:hover:not(:disabled) { background: color-mix(in srgb, var(--ops-ink, #202020) 10%, transparent); }
+.shiphub-pipeline-sync:hover:not(:disabled) { background: color-mix(in srgb, var(--ops-text) 10%, transparent); }
 .shiphub-pipeline-sync:disabled { opacity: .55; cursor: default; }
 .shiphub-pipeline-sync-icon { display: inline-flex; }
 
 /* 上次同步时间：正常态灰字，陈旧态转琥珀提示 */
-.shiphub-pipeline-synced { margin: 0; color: var(--ops-muted, #6a6a6a); font-size: 12px; }
+.shiphub-pipeline-synced { margin: 0; color: var(--ops-text-muted); font-size: 12px; }
 .shiphub-pipeline-synced[data-stale="true"] { color: #a56500; }
 
 /* 空态 / 错误：两端共用文案样式 */
-.shiphub-pipeline-empty, .shiphub-pipeline-error { margin: 0; color: var(--ops-muted, #6a6a6a); font-size: 13px; }
+.shiphub-pipeline-empty, .shiphub-pipeline-error { margin: 0; color: var(--ops-text-muted); font-size: 13px; }
 .shiphub-pipeline-error { color: #a33b31; }
 
 /* ---------- 移动端：竖向分层 ---------- */
@@ -680,7 +685,7 @@
   position: relative;
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;
   padding: 4px; border-radius: 999px;
-  background: color-mix(in srgb, var(--ops-ink, #202020) 7%, transparent);
+  background: color-mix(in srgb, var(--ops-text) 7%, transparent);
 }
 /* 滑动指示块：位置与宽度由 useSegmentedPill 用 GSAP tween，
    CSS 不参与位移（避免与 JS 抢 transform）。visibility 由 GSAP autoAlpha 接管。 */
@@ -694,12 +699,12 @@
   position: relative; z-index: 1;
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; justify-items: center;
   border: 0; border-radius: 999px; padding: 8px 6px;
-  background: transparent; color: var(--ops-muted, #6a6a6a); cursor: pointer;
+  background: transparent; color: var(--ops-text-muted); cursor: pointer;
   transition: color .22s ease;
 }
 .shiphub-pipeline-segment-label { font-size: 12px; font-weight: 650; line-height: 1.3; letter-spacing: 0; white-space: nowrap; }
 .shiphub-pipeline-segment-count { font-size: 11px; font-weight: 700; line-height: 1.2; opacity: .75; }
-.shiphub-pipeline-segment[aria-selected="true"] { color: var(--ops-ink, #202020); }
+.shiphub-pipeline-segment[aria-selected="true"] { color: var(--ops-text); }
 .shiphub-pipeline-segment[aria-selected="true"] .shiphub-pipeline-segment-count { opacity: 1; }
 .shiphub-pipeline-segment:disabled { cursor: default; opacity: .55; }
 
@@ -723,26 +728,26 @@
 .shiphub-pipeline-column {
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start;
   padding: 14px; border-radius: 16px;
-  background: var(--ops-paper, #fff);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--ops-card-edge);
 }
-.shiphub-pipeline-column[data-empty="true"] { background: color-mix(in srgb, var(--ops-paper, #fff) 55%, transparent); }
 .shiphub-pipeline-column-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .shiphub-pipeline-column-title { margin: 0; font-size: 14px; font-weight: 750; line-height: 1.3; }
 .shiphub-pipeline-column-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 26px; padding: 3px 9px; border-radius: 999px;
-  background: var(--ops-yellow, #ffde59); color: var(--ops-ink, #202020);
+  background: var(--ops-yellow, #ffde59); color: var(--ops-text);
   font-size: 12px; font-weight: 800; line-height: 1.2;
 }
 .shiphub-pipeline-column-count[data-empty="true"] {
-  background: color-mix(in srgb, var(--ops-ink, #202020) 8%, transparent);
-  color: var(--ops-muted, #6a6a6a);
+  background: color-mix(in srgb, var(--ops-text) 8%, transparent);
+  color: var(--ops-text-muted);
 }
 .shiphub-pipeline-column-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 /* 空列的「无」：居中占位，让三列高度基线一致 */
 .shiphub-pipeline-column .shiphub-pipeline-empty[data-placeholder="none"] {
   display: flex; align-items: center; justify-content: center;
-  min-height: 64px; font-size: 20px; font-weight: 700; color: color-mix(in srgb, var(--ops-muted, #6a6a6a) 62%, transparent);
+  min-height: 64px; font-size: 20px; font-weight: 700; color: color-mix(in srgb, var(--ops-text-muted) 62%, transparent);
 }
 /* 列内卡片比整行卡窄，压紧内边距并允许长订单号断行 */
 .shiphub-pipeline-column .shiphub-order-card { padding: 12px; }

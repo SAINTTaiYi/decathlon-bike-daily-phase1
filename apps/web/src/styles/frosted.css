@@ -400,7 +400,16 @@
 .ops-analytics-panel,
 .ops-health-panel,
 .ops-trends-panel,
-.ops-trend-card {
+.ops-trend-card,
+.pickup-card,
+.pickup-ledger-intro,
+.pickup-empty-state,
+.pickup-completed-today,
+.pickup-queue-summary,
+.pickup-search-field,
+.pickup-filter-sheet,
+.pickup-sheet-tabs,
+.pickup-ledger-board {
   background: var(--ops-card-translucent);
   -webkit-backdrop-filter: var(--ops-card-glass-filter);
   backdrop-filter: var(--ops-card-glass-filter);
@@ -430,7 +439,16 @@
 [data-theme='endfield'] .ops-health-panel,
 [data-theme='endfield'] .ops-trends-panel,
 [data-theme='endfield'] .ops-trend-card,
-[data-theme='endfield'] .ops-trends-panel .ops-trend-card {
+[data-theme='endfield'] .ops-trends-panel .ops-trend-card,
+[data-theme='endfield'] .pickup-card,
+[data-theme='endfield'] .pickup-ledger-intro,
+[data-theme='endfield'] .pickup-empty-state,
+[data-theme='endfield'] .pickup-completed-today,
+[data-theme='endfield'] .pickup-queue-summary,
+[data-theme='endfield'] .pickup-search-field,
+[data-theme='endfield'] .pickup-filter-sheet,
+[data-theme='endfield'] .pickup-sheet-tabs,
+[data-theme='endfield'] .pickup-ledger-board {
   background: var(--ops-card);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -447,10 +465,32 @@
   .ops-health-panel,
   .ops-trends-panel,
   .ops-trend-card,
-  .ops-trends-panel .ops-trend-card {
+  .ops-trends-panel .ops-trend-card,
+  .pickup-card,
+  .pickup-ledger-intro,
+  .pickup-empty-state,
+  .pickup-completed-today,
+  .pickup-queue-summary,
+  .pickup-search-field,
+  .pickup-filter-sheet,
+  .pickup-sheet-tabs,
+  .pickup-ledger-board {
     background: Canvas;
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     box-shadow: none;
   }
+}
+
+/* ------------------------------------------------------------------
+ * Pickup ledger: the two board-level containers carry the blur; the
+ * per-order cards inside them do NOT. A ledger scrolls, and blur on
+ * every row re-rasterises each frame and softens the CJK glyphs
+ * (same reason the trend cards only carry the edge).
+ * ------------------------------------------------------------------ */
+.pickup-card,
+.pickup-search-field,
+.pickup-sheet-tabs {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
