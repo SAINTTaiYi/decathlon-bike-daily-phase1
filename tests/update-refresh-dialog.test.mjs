@@ -51,3 +51,21 @@ test('工作台入场期间可延迟版本弹窗，避免抢占跳过动画的�
   assert.match(appSource, /deferUpdatePrompt = auth\.source === 'login'/)
   assert.match(appSource, /<UpdateRefreshDialog enabled=\{!deferUpdatePrompt && !workspaceLaunching\}/)
 })
+
+test('登录界面不得卸载版本公告：主渲染树的挂载点不能被 introDone 条件门包裹', () => {
+  // 回归 2026-08-31：主 return 里写成 {introDone ? <UpdateRefreshDialog … /> : null}，
+  // 而 introDone 要求 authenticated，于是未登录时组件整体缺席。
+  // 重载登录页会先经 auth.status === 'restoring' 分支（那里有挂载）弹出公告，
+  // 随后切到主分支被卸载，内部 useState(open) 一并丢弃 —— 表现为「一闪而过」。
+  const conditionalMount = new RegExp('introDone[^\\n]{0,40}\\\\?[^\\n]{0,40}<UpdateRefreshDialog')
+  assert.doesNotMatch(appSource, conditionalMount)
+
+  // introDone 的定义必须仍然依赖 authenticated，否则上面的断言失去意义。
+  assert.match(appSource, /const introDone = authenticated &&/)
+
+  // 未登录路径同样要能弹：enabled 只在 auth.source === 'login' 时才延迟。
+  assert.match(appSource, /deferUpdatePrompt = auth\.source === 'login'/)
+
+  // enabled 只用于抑制检查，不得反向关闭已打开的公告。
+  assert.doesNotMatch(source, /if \(!enabled\)[^\n]{0,40}setOpen\(false\)/)
+})

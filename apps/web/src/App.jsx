@@ -774,7 +774,7 @@ export default function App() {
         filename={reportImage?.filename || ''}
         onDownload={redownloadReportImage}
       />
-      {introDone ? <UpdateRefreshDialog enabled={!deferUpdatePrompt && !workspaceLaunching} /> : null}
+      <UpdateRefreshDialog enabled={!deferUpdatePrompt && !workspaceLaunching} />
       <StatusToast notice={toast} />
       <PaletteLab />
       <PromptLab onResetReconnect={shiphubReconnectPrompt.reset} />
