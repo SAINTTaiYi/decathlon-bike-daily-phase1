@@ -42,7 +42,6 @@
   --ops-line-strong: transparent;
   --ops-border: transparent;
   --ops-border-strong: transparent;
-  --pickup-line: transparent;
   --line: transparent;
   --line-strong: transparent;
 }
@@ -58,7 +57,6 @@
     --ops-line-strong: transparent;
     --ops-border: transparent;
     --ops-border-strong: transparent;
-    --pickup-line: transparent;
     --line: transparent;
     --line-strong: transparent;
   }
@@ -489,7 +487,7 @@
   .pickup-card-detail dl { gap: 8px !important; }
   .pickup-card-detail dl div { grid-template-columns: 92px minmax(0, 1fr) !important; }
   .pickup-card-detail dt {
-    color: var(--pickup-muted, #55554f) !important;
+    color: var(--ops-text-muted, #55554f) !important;
     font-size: 13px !important;
     line-height: 1.45 !important;
   }
@@ -513,7 +511,7 @@
   /* Primary action keeps its ink fill; only a real disabled state greys
    * out, and it must still look deliberately disabled rather than flat. */
   .pickup-card-actions .pickup-primary-action {
-    background: var(--pickup-black, #14161a) !important;
+    background: var(--ops-black, #14161a) !important;
     color: var(--ops-text-inverse, #fffdf8) !important;
   }
   .pickup-card-actions .pickup-primary-action:disabled {
@@ -526,7 +524,7 @@
  * Section 9 — Pickup ledger: residual hairlines + expand jitter
  * ============================================================
  * Section 3a only cleared box-shadow on .pickup-card, leaving
- * pickup-ledger.css's own `border: 1px solid var(--pickup-line)`
+ * pickup-ledger.css's own `border: 1px solid var(--ops-line)`
  * alive. --pickup-line is rgb(12 14 12 / .18); over the warm
  * #fffdf8 card fill it composites to a warm brown hairline —
  * the "red line" still visible on the board. Clear the borders

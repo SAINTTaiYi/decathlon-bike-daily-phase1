@@ -323,7 +323,7 @@
   .pickup-ledger-board[data-ledger-mode='pickup'] :is(.pickup-card-scan, .pickup-card-status) { display: contents; }
   .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-card-contact { grid-area: contact; }
   .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-card-appointment { grid-area: appointment; }
-  .pickup-ledger-board[data-ledger-mode='pickup'] :is(.pickup-card-contact, .pickup-card-appointment) { display: inline-flex; align-items: center; gap: 6px; color: var(--pickup-muted); font-size: 14px; font-weight: 650; }
+  .pickup-ledger-board[data-ledger-mode='pickup'] :is(.pickup-card-contact, .pickup-card-appointment) { display: inline-flex; align-items: center; gap: 6px; color: var(--ops-text-muted); font-size: 14px; font-weight: 650; }
   .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-card-status b { grid-area: status; align-self: center; justify-self: start; }
   .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-card-status svg { grid-area: operation; align-self: center; justify-self: end; margin-top: 0; }
     .pickup-ledger-board[data-ledger-mode='handover'] .pickup-card-summary { grid-template-columns: 96px minmax(0, 1fr) 240px 180px; grid-template-areas: 'index core scan status'; }

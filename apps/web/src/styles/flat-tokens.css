@@ -101,8 +101,6 @@ body { background-color: var(--ops-page); }
  * ------------------------------------------------------------------ */
 .pickup-ledger,
 :root {
-  --pickup-glow: transparent;
-  --pickup-glow-soft: transparent;
 }
 
 /* Expanded pickup card: opaque flat wash instead of radial + linear gradients */
