@@ -28,6 +28,32 @@ test('desktop left rail clears the fixed navigation layer', async () => {
   )
 })
 
+test('no default-theme layer refills the rail active state with a solid fill', async () => {
+  // 黑底曾有四个来源：components.css（基础层）、desktop-workbench.css（桌面层）、
+  // frosted.css、endfield.css（独立主题）。前三个已删，只有 endfield 这套独立
+  // 主题保留自己的实心态；默认主题任何一层都不得再刷实心背景。
+  const files = [
+    'components.css',
+    'desktop-workbench.css',
+    'frosted.css',
+    'refinement.css',
+    'workshop-system.css',
+    'mobile-overview.css',
+    'responsive.css',
+  ]
+  for (const file of files) {
+    const text = await readFile(new URL(`../apps/web/src/styles/${file}`, import.meta.url), 'utf8')
+    const blocks = text.match(/\.look-dock button\[data-active='true'\][^{]*\{[^}]*\}/gu) ?? []
+    // transparent / none 是本次撤销黑块所写的声明，必须放行；
+    // 只拦真正的实心色值（var(--ink) / var(--ops-black) / #hex / rgb() 等）。
+    const solid = blocks.filter((block) => {
+      const decl = block.match(/background(?:-color)?:\s*([^;}]+)/u)?.[1]?.trim()
+      return decl !== undefined && !/^(?:transparent|none)\b/u.test(decl)
+    })
+    assert.deepStrictEqual(solid, [], `${file} 又给 rail 选中态刷了实心背景：${solid.join(' | ')}`)
+  }
+})
+
 test('dock active state has a single source of truth and no filled pill', async () => {
   const files = ['workshop-system.css', 'mobile-overview.css', 'desktop-workbench.css', 'refinement.css', 'frosted.css']
   const fills = []

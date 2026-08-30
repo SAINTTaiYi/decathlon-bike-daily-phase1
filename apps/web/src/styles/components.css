@@ -184,7 +184,6 @@
 .look-dock ul { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); list-style: none; }
 .look-dock li { min-width: 0; }
 .look-dock button { position: relative; display: grid; place-items: center; width: 100%; min-width: 44px; min-height: 48px; color: var(--muted); }
-.look-dock button[data-active='true'] { background: var(--ink); color: #fff; }
 .look-dock small { position: absolute; right: .2rem; bottom: .16rem; font-family: var(--font-mono); font-size: .75rem; }
 .dock-status { padding-inline: .4rem; color: var(--critical); font-family: var(--font-mono); font-size: .7rem; font-weight: 700; }
 .dock-status[data-closed='true'] { color: var(--success); }
