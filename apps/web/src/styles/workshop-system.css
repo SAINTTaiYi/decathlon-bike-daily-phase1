@@ -283,11 +283,25 @@ button:disabled { opacity: .48; }
   top: 6px;
   bottom: 6px;
   left: 6px;
-  z-index: 0;
+  z-index: 1;
   width: calc((100% - 12px) / 5);
-  border-radius: var(--ops-radius-sm);
-  background: var(--ops-black);
-  box-shadow: 0 0 16px var(--ops-black-glow);
+  border-radius: 999px;
+  /* Travelling highlight: soft yellow wash + short underline, so the moving
+   * element reads as the highlight itself rather than a box drawn around the
+   * icon. Single source of truth — do not re-declare this paint downstream. */
+  background:
+    radial-gradient(
+      62% 56% at 50% 40%,
+      color-mix(in srgb, var(--ops-yellow) 32%, transparent) 0%,
+      color-mix(in srgb, var(--ops-yellow) 13%, transparent) 58%,
+      color-mix(in srgb, var(--ops-yellow) 0%, transparent) 100%
+    ),
+    linear-gradient(
+      to top,
+      color-mix(in srgb, var(--ops-yellow) 58%, transparent) 0%,
+      color-mix(in srgb, var(--ops-yellow) 0%, transparent) 32%
+    );
+  box-shadow: none;
   transform: translateX(calc(var(--dock-active-index) * 100%));
   transition: transform 360ms cubic-bezier(.2,.8,.2,1);
 }

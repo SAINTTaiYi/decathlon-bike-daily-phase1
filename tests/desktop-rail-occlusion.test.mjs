@@ -124,3 +124,67 @@ test('dock active indicator stays off the desktop rail', async () => {
     'the desktop hide must match the mobile selector specificity (0,2,0), not rely on source order',
   )
 })
+
+test('dock indicator paint is declared once, in the base layer', async () => {
+  // 旧形态：workshop-system.css 留着 background: var(--ops-black) 不删，
+  // 由 frosted.css 用 !important 覆盖成浅黄渐变。两层同时存在，任何第三处
+  // 声明都会再触发一轮特异性战争，因此 paint 只允许有一个来源。
+  const files = [
+    'workshop-system.css',
+    'frosted.css',
+    'desktop-workbench.css',
+    'mobile-overview.css',
+    'refinement.css',
+    'components.css',
+    'responsive.css',
+  ]
+
+  const paints = []
+  for (const name of files) {
+    const css = await read(name)
+    const blocks = css.match(/[^{}]*\.dock-active-indicator[^{]*\{[^}]*\}/gu) ?? []
+    for (const block of blocks) {
+      if (!/(?:^|[;{\s])background(?:-color)?\s*:/u.test(block)) continue
+      paints.push({ name, block: block.trim() })
+    }
+  }
+
+  assert.equal(
+    paints.length,
+    1,
+    `指示器 paint 必须只声明一次，实际 ${paints.length} 处：${paints.map((p) => p.name).join(', ')}`,
+  )
+  assert.equal(
+    paints[0].name,
+    'workshop-system.css',
+    'paint 归属基础层；上层不得再刷一遍背景',
+  )
+  assert.ok(
+    !/var\(--ops-black\)/u.test(paints[0].block),
+    '实心黑底已按设计移除，不得回归',
+  )
+  assert.match(paints[0].block, /color-mix\(in srgb, var\(--ops-yellow\)/u)
+  assert.ok(
+    !/!important/u.test(paints[0].block),
+    '单一来源不需要 !important；出现即说明又在打特异性战争',
+  )
+})
+
+test('dock indicator paint reads brand tokens without fallbacks', async () => {
+  // --ops-yellow 在 flat-tokens / workshop-system / mobile-overview 三处都有
+  // 真实定义，fallback 只会在 token 断链时静默回退、把 bug 藏起来。
+  const css = await read('workshop-system.css')
+  const block = css.match(/\.dock-active-indicator\s*\{[^}]*\}/u)
+  assert.ok(block, '.dock-active-indicator 基础规则必须存在')
+
+  const yellowRefs = block[0].match(/var\(--ops-yellow[^)]*\)/gu) ?? []
+  assert.ok(yellowRefs.length > 0, '指示器 paint 必须引用 --ops-yellow')
+  for (const ref of yellowRefs) {
+    assert.equal(ref, 'var(--ops-yellow)', `${ref} 带了 fallback，token 断链会被静默吞掉`)
+  }
+
+  assert.ok(
+    !/box-shadow:\s*0 0 16px var\(--ops-black-glow\)/u.test(block[0]),
+    '黑色外发光属于旧实心形态，已随黑底一起移除',
+  )
+})
