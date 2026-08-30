@@ -283,15 +283,31 @@ export function shipHubRoutes() {
     const result = await idempotent(c, body, async (db) => {
       const now = new Date()
       const batchId = crypto.randomUUID()
-      const job = (async () => {
-        for (const selected of ['hand', 'pick', 'receive', 'ship'] as const) {
-          await syncStoreCategory(db, config, context.storeId, selected, { trigger: 'manual', batchId, now })
+      // 手动同步必须等真实结果再回响应：旧实现 202 + waitUntil + 同步前 summary，
+      // 后台失败时前端只看到转圈结束、数据没变、没有任何报错（2026-08-30 事故的
+      // 「点同步没反应」正是这个）。四个分类逐个执行并回报每类结果。
+      const results: Record<string, { status: string; reason: string | null }> = {}
+      for (const selected of ['hand', 'pick', 'receive', 'ship'] as const) {
+        try {
+          const outcome = await syncStoreCategory(db, config, context.storeId, selected, { trigger: 'manual', batchId, now })
+          results[selected] = { status: outcome.status, reason: outcome.reason ?? null }
+        } catch (error) {
+          results[selected] = { status: 'failed', reason: error instanceof Error ? error.message : 'SYNC_FAILED' }
         }
-      })()
-      const waitUntil = c.executionCtx?.waitUntil?.bind(c.executionCtx)
-      if (waitUntil) waitUntil(job)
-      else void job
-      return { status: 202, body: { queued: true, summary: await getShipHubSummary(db, config, context.storeId) } }
+      }
+      // skipped 分为两类：CACHE_FRESH/NOT_DUE 是健康结果（数据已新鲜），
+      // 不能报成失败；只有真 failed 才算同步没成。
+      const failed = Object.entries(results).filter(([, value]) => value.status === 'failed')
+      return {
+        status: 200,
+        body: {
+          synced: failed.length === 0,
+          results,
+          failedCategories: failed.map(([category]) => category),
+          errorCode: failed[0]?.[1]?.reason ?? null,
+          summary: await getShipHubSummary(db, config, context.storeId)
+        }
+      }
     })
     return c.json(result.body, result.status as any)
   })

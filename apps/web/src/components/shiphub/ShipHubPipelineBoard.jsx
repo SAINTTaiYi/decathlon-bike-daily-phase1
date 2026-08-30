@@ -96,8 +96,10 @@ export default function ShipHubPipelineBoard({
       <ShipHubConnectionSimulator available={simulationAvailable} active={simulatedStatus} onSimulate={onSimulateStatus} />
       {connectionStatus !== 'connected' && connectionStatus !== 'fixture' ? (
         <div className="shiphub-connection-notice" role="status" data-status={connectionStatus}>
-          <strong>Shiphub 当前未连接</strong>
-          <span>{connectionStatus === 'reauth_required'
+          <strong>{connectionStatus === 'degraded' ? 'Shiphub 同步异常' : 'Shiphub 当前未连接'}</strong>
+          <span>{connectionStatus === 'degraded'
+            ? '上一轮同步失败了（连接状态显示正常但实际取数出错）。点「同步」查看具体错误；若提示授权失效，请手动重新授权。'
+            : connectionStatus === 'reauth_required'
             ? '上游授权已失效（常见原因：有人手动登录过官方 Shiphub）。点「同步」会先尝试自动重连；若仍失败，请手动重新授权。'
             : '本门店尚未完成 Shiphub 授权，下方列表仅为本地缓存。请先完成连接。'}</span>
           {onOpenConnection ? <button type="button" className="shiphub-connection-open" onClick={() => onOpenConnection()}>去手动重连</button> : null}

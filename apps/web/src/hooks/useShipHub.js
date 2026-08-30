@@ -17,7 +17,7 @@ const EMPTY = { hand: [], pick: [], receive: [], ship: [] }
  * never be mistaken for a healthy connection or hide a genuine outage.
  */
 const SIMULATION_KEY = 'workshop.shiphub-connection-sim.v1'
-export const SIMULATED_STATUSES = ['fixture', 'connected', 'reauth_required', 'disconnected']
+export const SIMULATED_STATUSES = ['fixture', 'connected', 'degraded', 'reauth_required', 'disconnected']
 
 export function readSimulatedStatus() {
   if (!isPreviewHost()) return ''
@@ -35,6 +35,16 @@ export function writeSimulatedStatus(status) {
     else window.localStorage.removeItem(SIMULATION_KEY)
   } catch { /* storage blocked; simulation just does not persist */ }
   return next
+}
+
+// 真实连接状态：authorization_status 说「connected」但 last_auth_error_code 还留着
+// 未清空的错误，说明上一轮同步实际失败了（2026-08-30 的「假绿」——状态绿、
+// 148 次同步全挂）。这种情况必须降级为 degraded，让门店看到需要处理。
+export function deriveConnectionStatus(connection) {
+  if (!connection) return 'disconnected'
+  const status = connection.authorizationStatus || 'disconnected'
+  if (status === 'connected' && connection.lastAuthErrorCode) return 'degraded'
+  return status
 }
 
 const CATEGORIES = ['hand', 'pick', 'receive', 'ship']
@@ -151,10 +161,18 @@ export default function useShipHub(enabled) {
       }
       requestRef.current = result
       await refreshSummary()
-      // 后端 202 后真同步在 waitUntil 里跑，回捞期间保持按钮禁用
-      await new Promise((resolve) => window.setTimeout(resolve, 1200))
-      await refreshSummary()
       await Promise.all(CATEGORIES.map((category) => loadOrders(category)))
+      // 后端现在同步等真实结果再回（不再是 202 + waitUntil 后台跑），失败必须显式
+      // 报出来，不能再出现「转圈结束、数据没变、没有任何提示」。
+      if (result && result.synced === false) {
+        const failedList = Array.isArray(result.failedCategories) ? result.failedCategories.join('、') : ''
+        const message = result.errorCode === 'REFRESH_TOKEN_UNDECRYPTABLE'
+          ? 'Shiphub 授权已失效（凭据无法解密），请在「Shiphub 连接」中重新授权。'
+          : `Shiphub 同步失败${failedList ? `（${failedList}）` : ''}：${result.errorCode || '未知错误'}`
+        setError(message)
+        return { ...result, message }
+      }
+      setError(null)
       return result
     } finally {
       syncingRef.current = false
@@ -172,7 +190,7 @@ export default function useShipHub(enabled) {
     syncing,
     reconnecting,
     // 真实判定；preview 模拟开关只覆盖这一个展示值，后端与动作路径不受影响
-    connectionStatus: simulatedStatus || (summary?.mode === 'fixture' ? 'fixture' : (summary?.connection?.authorizationStatus || 'disconnected')),
+    connectionStatus: simulatedStatus || (summary?.mode === 'fixture' ? 'fixture' : deriveConnectionStatus(summary?.connection)),
     simulatedStatus,
     simulationAvailable: isPreviewHost(),
     simulateStatus: (status) => setSimulatedStatus(writeSimulatedStatus(status)),

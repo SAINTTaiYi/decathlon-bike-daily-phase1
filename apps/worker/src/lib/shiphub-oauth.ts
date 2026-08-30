@@ -113,7 +113,14 @@ async function exchangeAuthorizationCode(config: AppConfig, code: string, codeVe
 
 export async function readRefreshToken(config: AppConfig, row: { refresh_token_ciphertext: string; refresh_token_nonce: string }): Promise<string> {
   if (!config.SHIPHUB.tokenEncryptionKey) throw new ShipHubUpstreamError('TOKEN_ENCRYPTION_NOT_CONFIGURED')
-  return decryptShipHubSecret(row.refresh_token_ciphertext, row.refresh_token_nonce, config.SHIPHUB.tokenEncryptionKey)
+  try {
+    return await decryptShipHubSecret(row.refresh_token_ciphertext, row.refresh_token_nonce, config.SHIPHUB.tokenEncryptionKey)
+  } catch {
+    // 解密失败说明库里的密文与当前 tokenEncryptionKey 不匹配（换密钥或写入端用错密钥）。
+    // 必须抛可识别错误码，否则会被归入通用 SYNC_FAILED、既不触发 reauth_required
+    // 也无法自愈，连接将永久卡在假 connected 状态（2026-08-30 事故）。
+    throw new ShipHubUpstreamError('REFRESH_TOKEN_UNDECRYPTABLE')
+  }
 }
 
 export async function rotateRefreshToken(

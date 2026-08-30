@@ -16,6 +16,7 @@ import { SIMULATED_STATUSES } from '../../hooks/useShipHub.js'
 const LABELS = {
   fixture: '演示数据',
   connected: '已连接',
+  degraded: '同步异常',
   reauth_required: '需重新授权',
   disconnected: '未连接',
 }

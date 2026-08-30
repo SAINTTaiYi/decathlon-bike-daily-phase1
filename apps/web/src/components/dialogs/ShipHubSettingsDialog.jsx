@@ -43,7 +43,7 @@ export default function ShipHubSettingsDialog({ open, onClose, shiphub, onNotify
   }
   return (
     <AppDialog open={open} onClose={() => { if (!busy) onClose() }} title="Shiphub 连接" eyebrow="SINGLE-STORE SSO" description="只连接当前账号主动授权的门店。凭据以 AES-256-GCM 加密存储，仅用于向 Decathlon IdP 完成登录，绝不落日志或业务库。">
-      <div className="signed-in-user"><span>当前状态 · {fixture ? 'Preview fixture' : status === 'connected' ? '已连接' : status === 'reauth_required' ? '需要重新授权' : '未连接'}</span><strong>{fixture ? 'Synthetic data only' : 'Shiphub read-only'}</strong></div>
+      <div className="signed-in-user"><span>当前状态 · {fixture ? 'Preview fixture' : status === 'connected' ? '已连接' : status === 'degraded' ? '同步异常' : status === 'reauth_required' ? '需要重新授权' : '未连接'}</span><strong>{fixture ? 'Synthetic data only' : 'Shiphub read-only'}</strong></div>
       <p className="dialog-copy">页面打开、切换模块和普通刷新只读取 Workshop D1 缓存，不直接访问 Shiphub。手工确认也只写入本地操作覆盖层。</p>
       {fixture ? <p className="dialog-copy">Preview 只使用仓库内人工构造的 fixture，不启用 SSO，也不会访问真实 Shiphub。</p> : status === 'connected' ? <button type="button" className="dialog-action" onClick={disconnect} disabled={busy}><span><strong>{busy ? '正在断开…' : '断开 Shiphub'}</strong><small>删除当前门店的本地 refresh token，不影响手工台账。</small></span></button> : <>
         <button type="button" className="dialog-action" onClick={connect} disabled={busy}><span><strong>{busy ? '正在自动授权…' : '连接 Shiphub'}</strong><small>{showStoreLogin ? '使用下方本店账号完成 IdP 登录与授权（OAuth2 authorization code + PKCE）。' : '使用门店账号自动完成 IdP 登录与授权（OAuth2 authorization code + PKCE）。'}</small></span></button>
@@ -56,6 +56,7 @@ export default function ShipHubSettingsDialog({ open, onClose, shiphub, onNotify
         </form> : null}
       </>}
       {status === 'reauth_required' ? <p className="dialog-error" role="alert">上次同步需要重新授权；点击「连接 Shiphub」即可自动恢复。</p> : null}
+      {status === 'degraded' ? <p className="dialog-error" role="alert">连接状态正常但上一轮同步失败，可能是授权凭据已失效。请点击「连接 Shiphub」重新授权。</p> : null}
     </AppDialog>
   )
 }

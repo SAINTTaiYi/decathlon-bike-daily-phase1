@@ -34,19 +34,24 @@ test('模拟开关的宿主门控：仅 preview/localhost，且与 PaletteLab �
 test('模拟开关只覆盖展示层状态，不伪造后端数据也不改动作路径', () => {
   // 覆盖点只有 connectionStatus 一处
   assert.match(hook, /connectionStatus: simulatedStatus \|\| \(summary\?\.mode === 'fixture'/u)
-  // 真实判定链保持完整：fixture 优先、其次 authorizationStatus、兜底 disconnected
-  assert.match(hook, /summary\?\.connection\?\.authorizationStatus \|\| 'disconnected'/u)
+  // 真实判定链保持完整：fixture 优先、其次 deriveConnectionStatus、兜底 disconnected。
+  // 归一化搬进 deriveConnectionStatus，断言跟着搬（不把代码退回旧字面量）。
+  assert.match(hook, /: deriveConnectionStatus\(summary\?\.connection\)/u)
+  assert.match(hook, /const status = connection\.authorizationStatus \|\| 'disconnected'/u)
+  // 「假绿」必须降级：状态 connected 但仍留着未清空的错误码 = degraded
+  assert.match(hook, /if \(status === 'connected' && connection\.lastAuthErrorCode\) return 'degraded'/u)
   // 不得把模拟值写进 summary / orders，否则会污染业务数据与同步判断
   assert.doesNotMatch(hook, /setSummary\([^)]*simulated/u)
   assert.doesNotMatch(hook, /setOrders\([^)]*simulated/u)
   // sync 的重连前置判断必须读真实 summary，不能读被模拟的值
   assert.match(hook, /const status = summary\?\.connection\?\.authorizationStatus/u)
+  assert.doesNotMatch(hook, /const status = simulatedStatus/u)
   // 模拟状态只落 localStorage，不产生任何请求
   assert.doesNotMatch(sim, /fetch\(|getShipHub|requestShipHub/u)
 })
 
 test('四种状态可从开关强制，未连接态仍给出手动重连入口', () => {
-  assert.match(hook, /export const SIMULATED_STATUSES = \['fixture', 'connected', 'reauth_required', 'disconnected'\]/u)
+  assert.match(hook, /export const SIMULATED_STATUSES = \['fixture', 'connected', 'degraded', 'reauth_required', 'disconnected'\]/u)
   // 白名单校验：非法值一律落空串（回到真实状态），不得直接透传
   assert.match(hook, /SIMULATED_STATUSES\.includes\(raw\) \? raw : ''/u)
   assert.match(hook, /SIMULATED_STATUSES\.includes\(status\) \? status : ''/u)

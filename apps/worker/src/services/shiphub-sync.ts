@@ -471,7 +471,7 @@ export async function syncStoreCategory(
     await db.batch([
       db.prepare(`UPDATE shiphub_category_state SET last_attempt_at = ?, last_error_code = ?, consecutive_failures = consecutive_failures + 1, updated_at = ? WHERE store_id = ? AND category = ?`).bind(stamp, code, failedAt, storeId, category),
       db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'failed', error_code = ? WHERE id = ?`).bind(failedAt, code, runId),
-      db.prepare(`UPDATE shiphub_connections SET authorization_status = CASE WHEN ? = 'REFRESH_TOKEN_MISSING' OR ? LIKE 'OAUTH_TOKEN_HTTP_4%' THEN 'reauth_required' ELSE authorization_status END, last_auth_error_code = ?, updated_at = ? WHERE store_id = ?`).bind(code, code, code, failedAt, storeId)
+      db.prepare(`UPDATE shiphub_connections SET authorization_status = CASE WHEN ? IN ('REFRESH_TOKEN_MISSING', 'REFRESH_TOKEN_UNDECRYPTABLE') OR ? LIKE 'OAUTH_TOKEN_HTTP_4%' THEN 'reauth_required' ELSE authorization_status END, last_auth_error_code = ?, updated_at = ? WHERE store_id = ?`).bind(code, code, code, failedAt, storeId)
     ])
     // 连续失败告警：连接级错误（token/授权）在三类分类上同步出现，只在 hand 类触发避免三连发；
     // 首次跨过 3 次 + 每再失败 10 次各补一封（邮件可选，未配置时仅状态可见）。
@@ -494,8 +494,15 @@ export async function syncStoreCategory(
 // 只处理能静默恢复的情形；无凭据（仅浏览器 SSO 授权）的连接保持 reauth_required，
 // 由前端提示门店手动重连。失败不抛出，不能拖坠整轮 cron。
 async function healShipHubConnections(env: WorkerEnv, config: AppConfig, now: Date): Promise<void> {
-  const key = config.SHIPHUB.loginKey
-  if (!key) return
+  // 两把密钥职责不同，绝不可混用：
+  //   loginKey            解密门店登录凭据（用户名/密码）
+  //   tokenEncryptionKey  加解密 refresh token（授权回调与轮换均用它）
+  // 2026-08-30 事故根因：自愈曾用 loginKey 加密 refresh token 写库，
+  // 同步侧 readRefreshToken 用 tokenEncryptionKey 解密 -> AES-GCM 抛错，
+  // 连接却已被置为 connected，148 次同步静默失败且无法自我恢复。
+  const loginKey = config.SHIPHUB.loginKey
+  const tokenKey = config.SHIPHUB.tokenEncryptionKey
+  if (!loginKey || !tokenKey) return
   const cutoff = new Date(now.getTime() - SELF_HEAL_COOLDOWN_MS).toISOString()
   const candidates = await all<{ store_id: string; login_username_enc: string | null; login_password_enc: string | null; location_num: string | null }>(env.DB.prepare(`
     SELECT store_id, login_username_enc, login_password_enc, location_num
@@ -513,13 +520,18 @@ async function healShipHubConnections(env: WorkerEnv, config: AppConfig, now: Da
         const usernameBlob = splitEncryptedBlob(candidate.login_username_enc!)
         const passwordBlob = splitEncryptedBlob(candidate.login_password_enc!)
         credentials = {
-          username: await decryptShipHubSecret(usernameBlob.ciphertext, usernameBlob.nonce, key),
-          password: await decryptShipHubSecret(passwordBlob.ciphertext, passwordBlob.nonce, key)
+          username: await decryptShipHubSecret(usernameBlob.ciphertext, usernameBlob.nonce, loginKey),
+          password: await decryptShipHubSecret(passwordBlob.ciphertext, passwordBlob.nonce, loginKey)
         }
       }
       const token = await performShipHubProgrammaticLogin(config.SHIPHUB, credentials)
       if (!token.refreshToken) throw new ShipHubUpstreamError('OAUTH_REFRESH_TOKEN_MISSING')
-      const encrypted = await encryptShipHubSecret(token.refreshToken, key)
+      const encrypted = await encryptShipHubSecret(token.refreshToken, tokenKey)
+      // 写库前先按同步侧的读取路径回验一次：确认密文能用 tokenEncryptionKey 解出原值。
+      // 自愈只有在「同步真能用这份 token」时才允许把状态置为 connected，
+      // 否则宁可留在 reauth_required 让门店手动重连，也不制造假 connected。
+      const verified = await decryptShipHubSecret(encrypted.ciphertext, encrypted.nonce, tokenKey)
+      if (verified !== token.refreshToken) throw new ShipHubUpstreamError('SELF_HEAL_TOKEN_VERIFY_FAILED')
       const stamp = nowIso()
       await run(env.DB.prepare(`
         UPDATE shiphub_connections
