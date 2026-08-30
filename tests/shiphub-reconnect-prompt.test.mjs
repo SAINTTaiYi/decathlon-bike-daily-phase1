@@ -45,21 +45,30 @@ test('日期键用本地时区，不用 UTC', async () => {
   assert.ok(!/toISOString\(\)/u.test(source), '不得用 toISOString 派生日期键（会跨时区错日）')
 })
 
-test('互斥信号读公告的显示状态，不依赖关闭回调', async () => {
+test('互斥信号读公告的占位状态，不依赖关闭回调', async () => {
   const hook = await read(HOOK)
   // 公告有多个渲染点（登录前的引导页/恢复页/同步页），登录界面那些实例不接
-  // 父级回调，所以 onDismissed 不是可靠信号。必须订阅模块级显示状态。
+  // 父级回调，所以 onDismissed 不是可靠信号。必须订阅模块级占位状态。
   assert.ok(
-    /subscribeAnnouncementVisibility/u.test(hook),
-    'hook 必须订阅公告的显示状态'
+    /subscribeAnnouncementBlocking/u.test(hook),
+    'hook 必须订阅公告的占位状态'
   )
   assert.ok(
-    /const active = enabled && canManage && !announcementVisible/u.test(hook),
-    '公告正在显示时不得激活提示；不显示即放行'
+    /const active = enabled && canManage && !announcementBlocking/u.test(hook),
+    '公告占位（显示中或判定中）时不得激活提示'
   )
   assert.ok(
     !/announcementCleared|clearAnnouncement/u.test(hook),
     '不得残留「等公告关闭事件」的旧编排'
+  )
+  assert.ok(
+    !/isAnnouncementVisible|subscribeAnnouncementVisibility/u.test(hook),
+    '不得残留只看「正在显示」的旧信号（判定中的空窗会被抢占）'
+  )
+  // SSR/首帧默认必须是「占位」而不是「放行」，否则首帧就可能抢在公告之前。
+  assert.ok(
+    /typeof window === 'undefined' \? true : isAnnouncementBlocking\(\)/u.test(hook),
+    '初值必须默认占位，避免首帧抢占'
   )
 
   const app = await read(APP)
@@ -69,7 +78,7 @@ test('互斥信号读公告的显示状态，不依赖关闭回调', async () =>
   )
 })
 
-test('公告的每个渲染点都登记显示状态，登录界面关掉也算', async () => {
+test('公告的每个渲染点都登记占位，登录界面关掉也算', async () => {
   const dialog = await read(DIALOG)
   assert.ok(
     /registerVisibleAnnouncement\(\)/u.test(dialog),
@@ -88,21 +97,51 @@ test('公告的每个渲染点都登记显示状态，登录界面关掉也算',
   )
 })
 
-test('公告可见性是引用计数，多实例并存不会提前放行', async () => {
-  const { registerVisibleAnnouncement, isAnnouncementVisible, resetAnnouncementVisibility } =
+test('公告判定期间也占位，远端检查的空窗不得被抢占', async () => {
+  const dialog = await read(DIALOG)
+  // 远端版本走 await fetch 才 setOpen(true)。若判定期间不占位，重连提示会在
+  // 这段空窗里先弹出来，随后被公告直接覆盖（用户实测现象）。
+  assert.ok(
+    /registerPendingAnnouncement\(\)/u.test(dialog),
+    '判定期间必须登记 pending 占位'
+  )
+  const pending = dialog.slice(dialog.indexOf('if (!enabled || settled) return undefined'))
+  assert.ok(
+    pending.startsWith('if (!enabled || settled) return undefined'),
+    'pending 占位必须以 enabled + settled 为条件'
+  )
+  assert.ok(
+    /return registerPendingAnnouncement\(\)/u.test(pending.slice(0, 200)),
+    'pending 登记必须作为 effect 清理返回，保证配对注销'
+  )
+  // 判定必须有终局，否则离线/隐藏标签页会永久占位、提示再也不弹。
+  assert.ok(
+    /\.finally\(\(\) => \{\s*setSettled\(true\)/u.test(dialog),
+    '首轮远端检查必须在 finally 里置 settled，避免永久占位'
+  )
+})
+
+test('公告占位是引用计数，多实例并存不会提前放行', async () => {
+  const { registerVisibleAnnouncement, registerPendingAnnouncement, isAnnouncementBlocking, resetAnnouncementVisibility } =
     await import('../apps/web/src/utils/announcementVisibility.js')
   resetAnnouncementVisibility()
 
-  assert.equal(isAnnouncementVisible(), false, '初始应无公告')
+  assert.equal(isAnnouncementBlocking(), false, '初始应无占位')
   const releaseA = registerVisibleAnnouncement()
   const releaseB = registerVisibleAnnouncement()
-  assert.equal(isAnnouncementVisible(), true, '有实例显示时应为可见')
+  assert.equal(isAnnouncementBlocking(), true, '有实例显示时应占位')
   releaseA()
-  assert.equal(isAnnouncementVisible(), true, '仍有一个实例显示，不得放行')
+  assert.equal(isAnnouncementBlocking(), true, '仍有一个实例显示，不得放行')
   releaseB()
-  assert.equal(isAnnouncementVisible(), false, '全部注销后应放行')
+  assert.equal(isAnnouncementBlocking(), false, '全部注销后应放行')
   releaseB()
-  assert.equal(isAnnouncementVisible(), false, '重复注销不得把计数压成负数')
+  assert.equal(isAnnouncementBlocking(), false, '重复注销不得把计数压成负数')
+
+  // pending 与 visible 是两个独立计数，任一非零都算占位。
+  const releasePending = registerPendingAnnouncement()
+  assert.equal(isAnnouncementBlocking(), true, '判定中应占位')
+  releasePending()
+  assert.equal(isAnnouncementBlocking(), false, '判定结束应放行')
   resetAnnouncementVisibility()
 })
 
@@ -110,9 +149,28 @@ test('提示仅限已进入 ops 主工作台，登录界面不弹', async () => 
   const app = await read(APP)
   const call = app.slice(app.indexOf('useShipHubReconnectPrompt({'))
   const enabled = call.slice(call.indexOf('enabled:'), call.indexOf('\n', call.indexOf('enabled:')))
-  for (const guard of ['authenticated', '!mustChangePassword', 'introDone', 'workflow.hydrated', '!workspaceLaunching']) {
-    assert.ok(enabled.includes(guard), `enabled 必须包含 ${guard}，否则登录/中间页也会弹`)
+  assert.ok(
+    /enabled: workspaceReady,/u.test(enabled),
+    'enabled 必须用 workspaceReady 单一判定，而不是散落的条件串'
+  )
+  // introDone 在 auth.source === 'restore' 时不等任何动画立即为真，
+  // workspaceLaunching 又只在 source === 'login' 时为真；两者组合在恢复路径下
+  // 会让「已进入工作台」在登录/引导画面上就成立。
+  assert.ok(
+    !/introDone/u.test(enabled),
+    'enabled 不得直接依赖 introDone（恢复路径会在登录界面就成立）'
+  )
+
+  const ready = app.slice(app.indexOf('const workspaceReady ='))
+  const readyExpr = ready.slice(0, ready.indexOf('\n\n'))
+  for (const guard of ['authenticated', '!mustChangePassword', 'workflow.hydrated', 'workflow.hasSnapshot']) {
+    assert.ok(readyExpr.includes(guard), `workspaceReady 必须包含 ${guard}`)
   }
+  // 登录路径要等入场动画装配完；恢复/注册路径没有入场动画。
+  assert.ok(
+    /auth\.source === 'login' \? workspaceAssemblyDone : introDone/u.test(readyExpr),
+    'workspaceReady 必须按登录来源区分：login 等装配完成，其余走 introDone'
+  )
 })
 
 test('先记账再开弹窗，关闭后当天不复现', async () => {

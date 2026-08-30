@@ -169,14 +169,27 @@ export default function App() {
 
   const workspaceLaunching = authenticated && auth.source === 'login' && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone
 
+  // 工作台是否真的已经呈现在用户面前。
+  //
+  // 不能用 introDone 代替：introDone 在 auth.source === 'restore' 时不等任何动画
+  // 立即为真，而 workspaceLaunching 又要求 source === 'login'，恢复路径下恒为
+  // false —— 两者叠加会让「已进入工作台」在登录/引导画面上就成立。
+  //
+  // 登录路径要等入场动画装配完成；恢复与注册路径没有入场动画，台账水合完即就绪。
+  const workspaceReady = authenticated
+    && !mustChangePassword
+    && workflow.hydrated
+    && workflow.hasSnapshot
+    && (auth.source === 'login' ? workspaceAssemblyDone : introDone)
+
   // 夜间掉线的 Shiphub 授权无法自愈（营业时间外不调上游）。第二天首个进入
   // 工作台的管理者收到一次重连提示，每店每天仅一次。
   //
-  // enabled 的四个条件共同限定「已进入 ops 主工作台」：登录界面、密码修改页、
-  // 同步页、同步失败页在 App 里都是提前 return 的独立分支，不满足这组条件。
-  // 公告的互斥由 hook 内部订阅显示状态处理，不在这里接回调。
+  // enabled 用 workspaceReady：登录界面、密码修改页、同步页、同步失败页都不满足，
+  // 保证提示只在主工作台出现。公告的互斥（含判定中的空窗）由 hook 内部订阅模块级
+  // 占位状态处理，不在这里接回调。
   const shiphubReconnectPrompt = useShipHubReconnectPrompt({
-    enabled: authenticated && !mustChangePassword && introDone && workflow.hydrated && !workspaceLaunching,
+    enabled: workspaceReady,
     connectionStatus: shiphub.connectionStatus,
     storeId: currentStore?.storeId || '',
     canManage: role === 'manager' || role === 'admin'

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { isAnnouncementVisible, subscribeAnnouncementVisibility } from '../utils/announcementVisibility.js'
+import { isAnnouncementBlocking, subscribeAnnouncementBlocking } from '../utils/announcementVisibility.js'
 
 /**
  * 每日首个登录用户的 Shiphub 重连提示。
@@ -12,10 +12,14 @@ import { isAnnouncementVisible, subscribeAnnouncementVisibility } from '../utils
  * 判定按「日期 + 门店」记账：同一门店同一天只提示一次，谁先登录谁看到。
  * 用 localStorage 而非会话内存，避免刷新页面重复弹。
  *
- * 与更新公告的互斥：公告有多个渲染点（登录前的引导页、会话恢复页、同步页都会
- * 挂载它），且用户通常在登录界面就把公告关掉了。因此不能依赖公告的关闭「事件」
- * 来放行——那个事件在登录前的渲染点上根本不会接到调用方。改为读取公告此刻
- * 是否正在显示这个「状态」：没有公告就立即放行，有公告就等它消失。
+ * 时序要求（用户明确）：打开 ops → 登录界面弹更新公告 → 点「立即刷新」→ 正常
+ * 登录 → 进入主界面后才弹重连提示。因此这里有两道闸：
+ *
+ * 1) 工作台就绪（调用方传入 enabled）。登录界面、密码修改页、同步页都不算。
+ * 2) 公告已让开。公告有多个渲染点，用户通常在登录界面就关掉它，那个实例并不接
+ *    onDismissed 回调，所以「关闭事件」不是可靠信号；改读模块级占位状态。占位
+ *    包含「判定中」——远端版本检查要等一次 fetch 往返才显示，若只看「正在显示」
+ *    会在空窗里抢先弹出，随后被公告覆盖。
  */
 const STORAGE_KEY = 'workshop.ledger.shiphub-reconnect-prompt'
 
@@ -63,21 +67,21 @@ export default function useShipHubReconnectPrompt({
   canManage = false
 } = {}) {
   const [shouldOpen, setShouldOpen] = useState(false)
-  const [announcementVisible, setAnnouncementVisible] = useState(
-    () => (typeof window === 'undefined' ? false : isAnnouncementVisible())
+  const [announcementBlocking, setAnnouncementBlocking] = useState(
+    () => (typeof window === 'undefined' ? true : isAnnouncementBlocking())
   )
   const markedRef = useRef('')
 
-  // 订阅公告的显示状态。读状态而非等关闭事件：公告有多个渲染点，用户常在登录
+  // 订阅公告占位状态。读状态而非等关闭事件：公告有多个渲染点，用户常在登录
   // 界面就关掉它，那个实例不接回调，事件永远等不到。
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
-    setAnnouncementVisible(isAnnouncementVisible())
-    return subscribeAnnouncementVisibility(setAnnouncementVisible)
+    setAnnouncementBlocking(isAnnouncementBlocking())
+    return subscribeAnnouncementBlocking(setAnnouncementBlocking)
   }, [])
 
-  // 公告正在显示时不抢占；公告不显示即放行，无论它是否曾经出现过。
-  const active = enabled && canManage && !announcementVisible
+  // 公告仍占位（显示中或判定中）时不抢占，让它先弹完。
+  const active = enabled && canManage && !announcementBlocking
 
   useEffect(() => {
     if (!active || typeof window === 'undefined') return

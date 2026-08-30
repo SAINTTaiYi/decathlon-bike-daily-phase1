@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import AppDialog from './AppDialog.jsx'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
 import { fetchReleaseInfo, onServerVersion } from '../../api/client.js'
-import { registerVisibleAnnouncement } from '../../utils/announcementVisibility.js'
+import { registerPendingAnnouncement, registerVisibleAnnouncement } from '../../utils/announcementVisibility.js'
 
 const STORAGE_KEY = 'workshop.ledger.seen-app-version'
 const DISMISSED_REMOTE_KEY = 'workshop.ledger.dismissed-remote-version'
@@ -56,6 +56,8 @@ async function fetchRemoteAppVersion(signal) {
 
 export default function UpdateRefreshDialog({ enabled = true, onDismissed }) {
   const [open, setOpen] = useState(false)
+  // 首轮版本判定是否已出结论（含「无需公告」）。判定期间对外占位。
+  const [settled, setSettled] = useState(false)
   const [previousVersion, setPreviousVersion] = useState('')
   const [availableVersion, setAvailableVersion] = useState(APP_VERSION)
   const [remoteUpdate, setRemoteUpdate] = useState(false)
@@ -76,6 +78,14 @@ export default function UpdateRefreshDialog({ enabled = true, onDismissed }) {
     if (!open) return undefined
     return registerVisibleAnnouncement()
   }, [open])
+
+  // 判定期间占位：远端版本检查要等一次 fetch 往返才 setOpen(true)，这段空窗里
+  // 公告尚未显示。若不占位，Shiphub 重连提示会抢先弹出，随后被公告覆盖。
+  // settled 一旦为真就不再占位（包括「本次无需公告」的结论）。
+  useEffect(() => {
+    if (!enabled || settled) return undefined
+    return registerPendingAnnouncement()
+  }, [enabled, settled])
 
   // 拉取服务端发布的公告正文。失败时静默降级：弹窗仍显示版本号对比。
   const loadReleaseInfo = useCallback(async () => {
@@ -185,7 +195,10 @@ export default function UpdateRefreshDialog({ enabled = true, onDismissed }) {
 
     // One immediate remote check after mount so a long-lived tab that just
     // received this bundle still learns about a newer server release quickly.
-    runRemoteCheck({ force: true })
+    // 首轮结束即视为判定完成：此后 open 要么已为真，要么本次确实无需公告。
+    void checkRemoteVersion({ force: true, signal: controller.signal }).finally(() => {
+      setSettled(true)
+    })
 
     return () => {
       controller.abort()
