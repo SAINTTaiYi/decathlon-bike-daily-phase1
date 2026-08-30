@@ -42,9 +42,13 @@
 .pickup-card-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .pickup-card-frame { position: relative; min-width: 0; overflow: hidden; border-radius: var(--ops-radius); background: var(--ops-black); }
 .pickup-card-frame[data-expanded='true'] { grid-column: 1 / -1; }
-.pickup-delete-reveal { position: absolute; inset: 0 0 0 auto; display: grid; place-items: center; align-content: center; gap: 3px; width: 82px; background: var(--ops-danger, #c63b2e); color: white !important; font-size: 11px; font-weight: 800; }
+/* 左滑删除层。绝对定位铺在卡片下方，只在 data-delete-open 时显现。
+   不靠上层卡片的不透明背景遮盖 —— 卡面已是 --ops-card-translucent 半透明，
+   遮盖不成立；隐藏必须由本规则显式承担。visibility 同时切掉键盘可聚焦性。 */
+.pickup-delete-reveal { position: absolute; inset: 0 0 0 auto; display: grid; place-items: center; align-content: center; gap: 3px; width: 82px; background: var(--ops-danger, #c63b2e); color: white !important; font-size: 11px; font-weight: 800; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 180ms ease, visibility 180ms ease; }
 .pickup-card { position: relative; z-index: 1; min-width: 0; overflow: hidden; border: 0; border-radius: var(--ops-radius); background: var(--ops-card-translucent); box-shadow: inset 0 1px 0 var(--ops-card-hairline), inset 0 0 0 1px var(--ops-card-edge), 0 5px 18px rgb(64 55 34 / .045); transition: transform 180ms ease, background-color 180ms ease; }
 .pickup-card-frame[data-delete-open='true'] .pickup-card { transform: translateX(-82px); }
+.pickup-card-frame[data-delete-open='true'] .pickup-delete-reveal { opacity: 1; visibility: visible; pointer-events: auto; }
 .pickup-card[data-expanded='true'] { background: var(--ops-pickup-expanded); }
 .pickup-card[data-error='true'] { border-color: var(--ops-danger, #c63b2e); }
 .pickup-card-summary { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; grid-template-areas: 'index core status' 'index scan scan'; gap: 7px 8px; width: 100%; min-height: 112px; padding: 10px; text-align: left; }
@@ -150,7 +154,7 @@
   .pickup-ledger-intro { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pickup-card, .pickup-card-status svg { transition: none !important; }
+  .pickup-card, .pickup-card-status svg, .pickup-delete-reveal { transition: none !important; }
   .pickup-complete-wash { animation: none; transform: none; background: var(--ops-black); }
 }
 @media (forced-colors: active) {

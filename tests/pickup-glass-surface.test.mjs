@@ -85,3 +85,32 @@ test('endfield 与 forced-colors 都有完整退出路径', () => {
   const fc = frosted.slice(frosted.indexOf('@media (forced-colors: active)'))
   for (const sel of GLASS) assert.ok(fc.includes(sel), `${sel} 缺 forced-colors 退出`)
 })
+
+// 回归：卡面是 --ops-card-translucent 半透明后，任何铺在它下层的绝对定位面
+// 都不能再靠「被不透明卡片盖住」来隐藏，必须自带显式隐藏。
+// 事故：左滑删除层 .pickup-delete-reveal 整块红底常显于移动端与桌面端。
+test('半透明卡下的左滑删除层必须自带显式隐藏，不靠卡片遮盖', () => {
+  const decl = pickup.match(/\.pickup-delete-reveal\s*\{[^}]*\}/u)
+  assert.ok(decl, '.pickup-delete-reveal 声明缺失')
+  const body = decl[0]
+
+  assert.match(body, /opacity:\s*0/u, '删除层默认必须 opacity:0')
+  assert.match(body, /visibility:\s*hidden/u,
+    '删除层默认必须 visibility:hidden，否则不可见时仍会被键盘 Tab 聚焦')
+  assert.match(body, /pointer-events:\s*none/u, '删除层默认必须 pointer-events:none')
+
+  // 卡面确实是半透明的 —— 前提成立才谈得上这条约束
+  const card = pickup.match(/\.pickup-card\s*\{[^}]*\}/u)
+  assert.ok(card, '.pickup-card 声明缺失')
+  assert.match(card[0], /background:\s*var\(--ops-card-translucent\)/u,
+    '卡面应为半透明 token；若改回实心需重新评估本约束')
+})
+
+test('删除层仅在 data-delete-open 时显现', () => {
+  const open = pickup.match(
+    /\.pickup-card-frame\[data-delete-open='true'\]\s+\.pickup-delete-reveal\s*\{[^}]*\}/u)
+  assert.ok(open, '缺少 [data-delete-open=true] 下的显现规则，删除层将永久不可见')
+  assert.match(open[0], /opacity:\s*1/u)
+  assert.match(open[0], /visibility:\s*visible/u)
+  assert.match(open[0], /pointer-events:\s*auto/u)
+})
