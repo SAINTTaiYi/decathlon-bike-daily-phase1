@@ -6,6 +6,7 @@ import PasswordChangeGate from './components/PasswordChangeGate.jsx'
 import PasswordChangeDialog from './components/dialogs/PasswordChangeDialog.jsx'
 import StatusToast from './components/StatusToast.jsx'
 import PaletteLab from './components/PaletteLab.jsx'
+import PromptLab from './components/PromptLab.jsx'
 import { APP_VERSION } from './data/releaseNotes.js'
 import { buildClosingReportModel, exportClosingReportImage } from './utils/closingReportImage.js'
 import ActionDock from './components/lookbook/ActionDock.jsx'
@@ -168,14 +169,17 @@ export default function App() {
 
   const workspaceLaunching = authenticated && auth.source === 'login' && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone
 
-  // 夜间掉线的 Shiphub 授权无法自愈（营业时间外不调上游）。第二天首个登录的
-  // 管理者在更新公告关闭后收到一次重连提示，每店每天仅一次。
+  // 夜间掉线的 Shiphub 授权无法自愈（营业时间外不调上游）。第二天首个进入
+  // 工作台的管理者收到一次重连提示，每店每天仅一次。
+  //
+  // enabled 的四个条件共同限定「已进入 ops 主工作台」：登录界面、密码修改页、
+  // 同步页、同步失败页在 App 里都是提前 return 的独立分支，不满足这组条件。
+  // 公告的互斥由 hook 内部订阅显示状态处理，不在这里接回调。
   const shiphubReconnectPrompt = useShipHubReconnectPrompt({
     enabled: authenticated && !mustChangePassword && introDone && workflow.hydrated && !workspaceLaunching,
     connectionStatus: shiphub.connectionStatus,
     storeId: currentStore?.storeId || '',
-    canManage: role === 'manager' || role === 'admin',
-    appVersion: APP_VERSION
+    canManage: role === 'manager' || role === 'admin'
   })
   const loginScrollResetRef = useRef(false)
   useLayoutEffect(() => {
@@ -757,9 +761,10 @@ export default function App() {
         filename={reportImage?.filename || ''}
         onDownload={redownloadReportImage}
       />
-      {introDone ? <UpdateRefreshDialog enabled={!deferUpdatePrompt && !workspaceLaunching} onDismissed={shiphubReconnectPrompt.clearAnnouncement} /> : null}
+      {introDone ? <UpdateRefreshDialog enabled={!deferUpdatePrompt && !workspaceLaunching} /> : null}
       <StatusToast notice={toast} />
       <PaletteLab />
+      <PromptLab onResetReconnect={shiphubReconnectPrompt.reset} />
     </>
   )
 }

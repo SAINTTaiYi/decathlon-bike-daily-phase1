@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import AppDialog from './AppDialog.jsx'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
 import { fetchReleaseInfo, onServerVersion } from '../../api/client.js'
+import { registerVisibleAnnouncement } from '../../utils/announcementVisibility.js'
 
 const STORAGE_KEY = 'workshop.ledger.seen-app-version'
 const DISMISSED_REMOTE_KEY = 'workshop.ledger.dismissed-remote-version'
@@ -66,6 +67,14 @@ export default function UpdateRefreshDialog({ enabled = true, onDismissed }) {
 
   useEffect(() => {
     openRef.current = open
+  }, [open])
+
+  // 公告显示期间登记到模块级广播，供其他提示（Shiphub 重连）判断是否该让路。
+  // 用 effect 而非 dismiss 回调：这里有多个渲染点，用户常在登录界面就关掉公告，
+  // 那个实例并不接父级回调，只有状态登记才对所有实例都成立。
+  useEffect(() => {
+    if (!open) return undefined
+    return registerVisibleAnnouncement()
   }, [open])
 
   // 拉取服务端发布的公告正文。失败时静默降级：弹窗仍显示版本号对比。

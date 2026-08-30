@@ -45,30 +45,74 @@ test('日期键用本地时区，不用 UTC', async () => {
   assert.ok(!/toISOString\(\)/u.test(source), '不得用 toISOString 派生日期键（会跨时区错日）')
 })
 
-test('公告先行：弹窗排在更新公告关闭之后', async () => {
-  const dialog = await read(DIALOG)
-  assert.ok(/onDismissed\?\.\(\)/u.test(dialog), '公告 dismiss 必须回调 onDismissed')
+test('互斥信号读公告的显示状态，不依赖关闭回调', async () => {
+  const hook = await read(HOOK)
+  // 公告有多个渲染点（登录前的引导页/恢复页/同步页），登录界面那些实例不接
+  // 父级回调，所以 onDismissed 不是可靠信号。必须订阅模块级显示状态。
+  assert.ok(
+    /subscribeAnnouncementVisibility/u.test(hook),
+    'hook 必须订阅公告的显示状态'
+  )
+  assert.ok(
+    /const active = enabled && canManage && !announcementVisible/u.test(hook),
+    '公告正在显示时不得激活提示；不显示即放行'
+  )
+  assert.ok(
+    !/announcementCleared|clearAnnouncement/u.test(hook),
+    '不得残留「等公告关闭事件」的旧编排'
+  )
 
   const app = await read(APP)
   assert.ok(
-    /<UpdateRefreshDialog[^>]*onDismissed=\{shiphubReconnectPrompt\.clearAnnouncement\}/u.test(app),
-    '工作台内的公告必须把关闭事件接到重连提示上'
-  )
-  const hook = await read(HOOK)
-  assert.ok(/announcementCleared/u.test(hook), 'hook 必须显式跟踪公告是否已让路')
-  assert.ok(
-    /const active = enabled && canManage && announcementCleared/u.test(hook),
-    '公告未关闭前不得激活提示'
+    !/onDismissed=\{shiphubReconnectPrompt/u.test(app),
+    'App 不得再把公告关闭事件接到重连提示上（旧设计）'
   )
 })
 
-test('公告不会出现时直接放行，避免永久等待', async () => {
-  const hook = await read(HOOK)
-  assert.ok(/SEEN_VERSION_KEY/u.test(hook), '需读取公告已读键判断公告是否会出现')
+test('公告的每个渲染点都登记显示状态，登录界面关掉也算', async () => {
+  const dialog = await read(DIALOG)
   assert.ok(
-    /readVersionSeen\(\) === appVersion/u.test(hook),
-    '当前版本已确认过则公告不弹，必须直接放行'
+    /registerVisibleAnnouncement\(\)/u.test(dialog),
+    '公告显示期间必须登记到模块级广播'
   )
+  // 登记必须在 effect 里按 open 生效，而不是塞进某个按钮的 handler，
+  // 否则非工作台的渲染点仍然无法参与互斥。
+  const effect = dialog.slice(dialog.indexOf('if (!open) return undefined'))
+  assert.ok(
+    effect.startsWith('if (!open) return undefined'),
+    '需要一个以 open 为条件的登记 effect'
+  )
+  assert.ok(
+    /return registerVisibleAnnouncement\(\)/u.test(effect.slice(0, 200)),
+    '登记函数的返回值必须作为 effect 清理，保证配对注销'
+  )
+})
+
+test('公告可见性是引用计数，多实例并存不会提前放行', async () => {
+  const { registerVisibleAnnouncement, isAnnouncementVisible, resetAnnouncementVisibility } =
+    await import('../apps/web/src/utils/announcementVisibility.js')
+  resetAnnouncementVisibility()
+
+  assert.equal(isAnnouncementVisible(), false, '初始应无公告')
+  const releaseA = registerVisibleAnnouncement()
+  const releaseB = registerVisibleAnnouncement()
+  assert.equal(isAnnouncementVisible(), true, '有实例显示时应为可见')
+  releaseA()
+  assert.equal(isAnnouncementVisible(), true, '仍有一个实例显示，不得放行')
+  releaseB()
+  assert.equal(isAnnouncementVisible(), false, '全部注销后应放行')
+  releaseB()
+  assert.equal(isAnnouncementVisible(), false, '重复注销不得把计数压成负数')
+  resetAnnouncementVisibility()
+})
+
+test('提示仅限已进入 ops 主工作台，登录界面不弹', async () => {
+  const app = await read(APP)
+  const call = app.slice(app.indexOf('useShipHubReconnectPrompt({'))
+  const enabled = call.slice(call.indexOf('enabled:'), call.indexOf('\n', call.indexOf('enabled:')))
+  for (const guard of ['authenticated', '!mustChangePassword', 'introDone', 'workflow.hydrated', '!workspaceLaunching']) {
+    assert.ok(enabled.includes(guard), `enabled 必须包含 ${guard}，否则登录/中间页也会弹`)
+  }
 })
 
 test('先记账再开弹窗，关闭后当天不复现', async () => {

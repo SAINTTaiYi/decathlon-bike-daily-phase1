@@ -1,18 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { isAnnouncementVisible, subscribeAnnouncementVisibility } from '../utils/announcementVisibility.js'
+
 /**
  * 每日首个登录用户的 Shiphub 重连提示。
  *
  * 背景：门店营业时间规则（10:00-22:00）之外不调用上游 API，因此夜间掉线的授权
  * 无法自愈，必须靠人工点一次「连接 Shiphub」。这个 hook 负责在第二天第一个
- * 登录的用户面前把提示推出来——但要排在更新公告之后，不与公告同时出现。
+ * 进入工作台的管理者面前把提示推出来。
  *
  * 判定按「日期 + 门店」记账：同一门店同一天只提示一次，谁先登录谁看到。
  * 用 localStorage 而非会话内存，避免刷新页面重复弹。
+ *
+ * 与更新公告的互斥：公告有多个渲染点（登录前的引导页、会话恢复页、同步页都会
+ * 挂载它），且用户通常在登录界面就把公告关掉了。因此不能依赖公告的关闭「事件」
+ * 来放行——那个事件在登录前的渲染点上根本不会接到调用方。改为读取公告此刻
+ * 是否正在显示这个「状态」：没有公告就立即放行，有公告就等它消失。
  */
 const STORAGE_KEY = 'workshop.ledger.shiphub-reconnect-prompt'
-/** 更新公告的已读键，与 UpdateRefreshDialog 保持一致。 */
-const SEEN_VERSION_KEY = 'workshop.ledger.seen-app-version'
 
 /** 需要人工重新授权的连接状态。connected 正常、fixture 是 Preview 假数据。 */
 const NEEDS_RECONNECT = new Set(['reauth_required', 'degraded'])
@@ -20,14 +25,6 @@ const NEEDS_RECONNECT = new Set(['reauth_required', 'degraded'])
 function readStorage() {
   try {
     return window.localStorage.getItem(STORAGE_KEY) || ''
-  } catch {
-    return ''
-  }
-}
-
-function readVersionSeen() {
-  try {
-    return window.localStorage.getItem(SEEN_VERSION_KEY) || ''
   } catch {
     return ''
   }
@@ -63,22 +60,24 @@ export default function useShipHubReconnectPrompt({
   enabled = false,
   connectionStatus = '',
   storeId = '',
-  canManage = false,
-  appVersion = ''
+  canManage = false
 } = {}) {
-  // 公告是否已让路。公告不会出现时（当前版本已确认过）无需等待。
-  const [announcementCleared, setAnnouncementCleared] = useState(false)
   const [shouldOpen, setShouldOpen] = useState(false)
+  const [announcementVisible, setAnnouncementVisible] = useState(
+    () => (typeof window === 'undefined' ? false : isAnnouncementVisible())
+  )
   const markedRef = useRef('')
 
-  // 公告只在「捆绑版本未被确认」时弹出。已确认过就不会有公告，直接放行，
-  // 否则提示会永远等一个不会到来的关闭事件。
+  // 订阅公告的显示状态。读状态而非等关闭事件：公告有多个渲染点，用户常在登录
+  // 界面就关掉它，那个实例不接回调，事件永远等不到。
   useEffect(() => {
-    if (!enabled || announcementCleared || typeof window === 'undefined') return
-    if (readVersionSeen() === appVersion) setAnnouncementCleared(true)
-  }, [announcementCleared, appVersion, enabled])
+    if (typeof window === 'undefined') return undefined
+    setAnnouncementVisible(isAnnouncementVisible())
+    return subscribeAnnouncementVisibility(setAnnouncementVisible)
+  }, [])
 
-  const active = enabled && canManage && announcementCleared
+  // 公告正在显示时不抢占；公告不显示即放行，无论它是否曾经出现过。
+  const active = enabled && canManage && !announcementVisible
 
   useEffect(() => {
     if (!active || typeof window === 'undefined') return
@@ -92,8 +91,14 @@ export default function useShipHubReconnectPrompt({
     setShouldOpen(true)
   }, [active, connectionStatus, shouldOpen, storeId])
 
-  const clearAnnouncement = useCallback(() => setAnnouncementCleared(true), [])
   const dismiss = useCallback(() => setShouldOpen(false), [])
 
-  return { shouldOpen, clearAnnouncement, dismiss }
+  // 调试面板清掉当天记账键后，需要让 hook 忘记本会话已记账的事实，
+  // 否则 markedRef 会挡住重放。
+  const reset = useCallback(() => {
+    markedRef.current = ''
+    setShouldOpen(false)
+  }, [])
+
+  return { shouldOpen, dismiss, reset }
 }
