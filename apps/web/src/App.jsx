@@ -126,16 +126,6 @@ export default function App() {
   const currentStore = auth.stores.find((store) => store.storeId === auth.currentStoreId) || auth.stores[0] || null
   const role = currentStore?.role || 'operator'
 
-  // 夜间掉线的 Shiphub 授权无法自愈（营业时间外不调上游）。第二天首个登录的
-  // 管理者在更新公告关闭后收到一次重连提示，每店每天仅一次。
-  const shiphubReconnectPrompt = useShipHubReconnectPrompt({
-    enabled: authenticated && !mustChangePassword && introDone && workflow.hydrated && !workspaceLaunching,
-    connectionStatus: shiphub.connectionStatus,
-    storeId: currentStore?.storeId || '',
-    canManage: role === 'manager' || role === 'admin',
-    appVersion: APP_VERSION
-  })
-
   useEffect(() => {
     const onHashChange = () => setAdminMode(/^#admin(?:[/=]|$)/u.test(window.location.hash))
     window.addEventListener('hashchange', onHashChange)
@@ -177,6 +167,16 @@ export default function App() {
   const writeLocked = Boolean(workflow.closedAt) || !online || Boolean(workflow.storageError)
 
   const workspaceLaunching = authenticated && auth.source === 'login' && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone
+
+  // 夜间掉线的 Shiphub 授权无法自愈（营业时间外不调上游）。第二天首个登录的
+  // 管理者在更新公告关闭后收到一次重连提示，每店每天仅一次。
+  const shiphubReconnectPrompt = useShipHubReconnectPrompt({
+    enabled: authenticated && !mustChangePassword && introDone && workflow.hydrated && !workspaceLaunching,
+    connectionStatus: shiphub.connectionStatus,
+    storeId: currentStore?.storeId || '',
+    canManage: role === 'manager' || role === 'admin',
+    appVersion: APP_VERSION
+  })
   const loginScrollResetRef = useRef(false)
   useLayoutEffect(() => {
     if (!authenticated) {
