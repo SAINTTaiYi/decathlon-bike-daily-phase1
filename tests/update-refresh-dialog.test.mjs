@@ -45,8 +45,9 @@ test('已打开页面通过前台聚焦、定时轮询与交互节流检查服�
 
 
 test('工作台入场期间可延迟版本弹窗，避免抢占跳过动画的焦点', () => {
-  assert.match(source, /function UpdateRefreshDialog\(\{ enabled = true \}\)/)
+  // 绑行为而非参数列表：enabled 仍是可延迟开关，但允许新增其它 props。
+  assert.match(source, /function UpdateRefreshDialog\(\{[^}]*\benabled = true\b[^}]*\}\)/)
   assert.match(source, /if \(!enabled \|\| typeof window === 'undefined'\) return undefined/)
   assert.match(appSource, /deferUpdatePrompt = auth\.source === 'login'/)
-  assert.match(appSource, /<UpdateRefreshDialog enabled=\{!deferUpdatePrompt && !workspaceLaunching\} \/>/)
+  assert.match(appSource, /<UpdateRefreshDialog enabled=\{!deferUpdatePrompt && !workspaceLaunching\}/)
 })

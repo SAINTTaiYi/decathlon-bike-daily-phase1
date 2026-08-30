@@ -53,7 +53,7 @@ async function fetchRemoteAppVersion(signal) {
   return isValidVersion(version) ? version : ''
 }
 
-export default function UpdateRefreshDialog({ enabled = true }) {
+export default function UpdateRefreshDialog({ enabled = true, onDismissed }) {
   const [open, setOpen] = useState(false)
   const [previousVersion, setPreviousVersion] = useState('')
   const [availableVersion, setAvailableVersion] = useState(APP_VERSION)
@@ -199,6 +199,8 @@ export default function UpdateRefreshDialog({ enabled = true }) {
       writeSeenVersion(APP_VERSION)
     }
     setOpen(false)
+    // 公告已关闭：让父级接续后续提示（例如 Shiphub 需要重新授权）。
+    onDismissed?.()
   }
 
   const refreshNow = () => {

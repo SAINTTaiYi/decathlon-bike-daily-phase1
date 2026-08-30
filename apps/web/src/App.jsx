@@ -39,6 +39,7 @@ import useWorkspaceMotion from './hooks/useWorkspaceMotion.js'
 import useEnvironmentMotion from './hooks/useEnvironmentMotion.js'
 import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
 import useShipHub from './hooks/useShipHub.js'
+import useShipHubReconnectPrompt from './hooks/useShipHubReconnectPrompt.js'
 import OpeningScene from './scenes/OpeningScene.jsx'
 import PickupScene from './scenes/PickupScene.jsx'
 import RepairScene from './scenes/RepairScene.jsx'
@@ -124,6 +125,16 @@ export default function App() {
   const currentUser = auth.user?.displayName || ''
   const currentStore = auth.stores.find((store) => store.storeId === auth.currentStoreId) || auth.stores[0] || null
   const role = currentStore?.role || 'operator'
+
+  // 夜间掉线的 Shiphub 授权无法自愈（营业时间外不调上游）。第二天首个登录的
+  // 管理者在更新公告关闭后收到一次重连提示，每店每天仅一次。
+  const shiphubReconnectPrompt = useShipHubReconnectPrompt({
+    enabled: authenticated && !mustChangePassword && introDone && workflow.hydrated && !workspaceLaunching,
+    connectionStatus: shiphub.connectionStatus,
+    storeId: currentStore?.storeId || '',
+    canManage: role === 'manager' || role === 'admin',
+    appVersion: APP_VERSION
+  })
 
   useEffect(() => {
     const onHashChange = () => setAdminMode(/^#admin(?:[/=]|$)/u.test(window.location.hash))
@@ -718,7 +729,7 @@ export default function App() {
         <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} onChangePassword={() => setPasswordChangeOpen(true)} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} canShipHub={Boolean(shiphub.summary?.enabled && (role === 'manager' || role === 'admin'))} onShipHubSettings={() => setShiphubSettingsOpen(true)} canAdmin={auth.user?.isPlatformAdmin} onAdmin={() => { setMenuOpen(false); window.location.hash = '#admin' }} adminPending={adminPending} />
         <PasswordChangeDialog open={passwordChangeOpen} userName={currentUser} onClose={() => setPasswordChangeOpen(false)} onChangePassword={auth.changePassword} onComplete={completePasswordChange} />
         <GovernanceDialog open={governanceOpen} onClose={() => setGovernanceOpen(false)} currentStoreId={currentStore?.storeId || auth.currentStoreId} onNotify={setToast} />
-        <ShipHubSettingsDialog open={shiphubSettingsOpen} onClose={() => setShiphubSettingsOpen(false)} shiphub={shiphub} onNotify={setToast} canManage={role === 'manager' || role === 'admin'} />
+        <ShipHubSettingsDialog open={shiphubSettingsOpen || shiphubReconnectPrompt.shouldOpen} onClose={() => { setShiphubSettingsOpen(false); shiphubReconnectPrompt.dismiss() }} shiphub={shiphub} onNotify={setToast} canManage={role === 'manager' || role === 'admin'} />
         <LogDialog open={logOpen} onClose={() => setLogOpen(false)} events={workflow.events} />
         <PermanentHistoryDialog open={permanentHistoryOpen} onClose={() => setPermanentHistoryOpen(false)} onLoad={workflow.getPermanentHistory} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
         <OperationHistoryDialog open={Boolean(historyTarget)} onClose={() => setHistoryTarget(null)} title={historyTitle} events={historyEvents} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
@@ -746,7 +757,7 @@ export default function App() {
         filename={reportImage?.filename || ''}
         onDownload={redownloadReportImage}
       />
-      {introDone ? <UpdateRefreshDialog enabled={!deferUpdatePrompt && !workspaceLaunching} /> : null}
+      {introDone ? <UpdateRefreshDialog enabled={!deferUpdatePrompt && !workspaceLaunching} onDismissed={shiphubReconnectPrompt.clearAnnouncement} /> : null}
       <StatusToast notice={toast} />
       <PaletteLab />
     </>
