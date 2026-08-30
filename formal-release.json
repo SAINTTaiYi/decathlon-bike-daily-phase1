@@ -1,25 +1,77 @@
 {
   "kind": "formal-production-release",
-  "version": "6.4.2",
+  "version": "6.4.3",
   "previewRange": {
-    "fromExclusive": "10aefbde38edff780adeb0e2d121f7061fc51ee2",
-    "toInclusive": "d67bfffde1eef6ef4b911b324c38a2cc3c70e941",
+    "fromExclusive": "2586dc1a811d86e2461f5880b6f26c39b1374229",
+    "toInclusive": "f24a2f8ff51de099b1e02de55fc581ad354cab9f",
     "commits": [
       {
-        "sha": "d67bfffde1eef6ef4b911b324c38a2cc3c70e941",
-        "subject": "fix(shiphub): 修复自愈写错密钥导致的同步\"假绿\"与静默失败"
+        "sha": "50eecb1213fc0b41da169ffb8a30dcac060fba6b",
+        "subject": "feat(shiphub): 次日首个登录者在公告后收到一次重连提示"
+      },
+      {
+        "sha": "8af4b5fefba529a0f7b5c43132b926606ab201de",
+        "subject": "fix(shiphub): 修复重连提示导致的渲染期 TDZ 白屏"
+      },
+      {
+        "sha": "6c4e72ed64f5ee2f2a372e8df35160233e90152d",
+        "subject": "fix(web): 重连提示改由公告可见性驱动，并加 preview 调试面板"
+      },
+      {
+        "sha": "a3c48041f4dee4033ec20f75ae53412c95f8c250",
+        "subject": "fix(web): 公告判定期间占位，重连提示改用工作台就绪判定"
+      },
+      {
+        "sha": "023f9bb6b2ce8c08ddadbe2969c8b8a9bb957f3f",
+        "subject": "fix(web): 登录界面版本公告不再被 introDone 条件门卸载"
+      },
+      {
+        "sha": "4df73fa1fa05f06df06b312b31ee1e8dfaaffb02",
+        "subject": "refactor(web): 移除 pickup 别名 token 转发层，收敛到 --ops-* 单一来源"
+      },
+      {
+        "sha": "9df6be2f2b2e0762b75a251c3c296ea9de3e7f3e",
+        "subject": "refactor(nav): 指示器 paint 收敛到基础层单一来源"
+      },
+      {
+        "sha": "4ef4bb139e6a0e2d0f1139a7521e61ffe06a650c",
+        "subject": "style(pickup): 待取车面统一玻璃层，清除实心残留与悬空 token"
+      },
+      {
+        "sha": "5c107200cf6e2b70600cd9dbf01db94a872430d3",
+        "subject": "fix(web): 下沉表面收敛到真实 token，删除死规则"
+      },
+      {
+        "sha": "fd3a693187ea955b933d0ac44dfc433d4f413965",
+        "subject": "merge: 合入全局 UI token 收敛（feat/shiphub-reconnect-status-20260829）"
+      },
+      {
+        "sha": "b18f978f40dbe3b262d26ade89794ed633aed3b8",
+        "subject": "fix(web): 移除卡面 backdrop-filter，清掉玻璃模糊死 token"
+      },
+      {
+        "sha": "16e8e2c186e699323cd93098add1774d3f7c3810",
+        "subject": "refactor(web): 清掉卡面模糊删除后留下的空转规则"
+      },
+      {
+        "sha": "f24a2f8ff51de099b1e02de55fc581ad354cab9f",
+        "subject": "fix(pickup): 左滑删除层自带显式隐藏，不再依赖卡片不透明遮盖"
       }
     ]
   },
   "announcement": {
-    "title": "修复 Shiphub 同步假成功",
-    "summary": "修复待取车同步显示已连接却持续失败、且点同步无任何提示的问题；失败现在会明确报错并引导重新授权。",
+    "title": "待取车界面修复与 Shiphub 重连提示",
+    "summary": "修复待取车卡片右侧常显的红色删除底、桌面导航选中项白块，并新增次日首个登录者的 Shiphub 重连提示。",
     "changes": [
-      "修复自愈流程写入 refresh token 时用错密钥，导致同步始终解密失败",
-      "同步失败不再显示为已连接，界面会降级提示并引导重新授权",
-      "手动同步改为返回真实结果，失败时明确显示错误原因与失败分类",
-      "自愈写入前回验凭据可用性，避免再次出现看似已连接实际失效的状态"
+      "修复待取车卡片右侧红色删除面常显，现在只在左滑时出现",
+      "修复删除按钮在未左滑时仍可被键盘选中的问题",
+      "新增次日首个登录者在更新公告后收到一次 Shiphub 重连提示",
+      "修复重连提示导致登录后白屏的问题",
+      "修复登录界面版本公告一闪而过、无法看完的问题",
+      "修复桌面左侧导航选中项被白色方块包住",
+      "统一待取车与总览卡片的玻璃质感，移除残留实心底色",
+      "移除卡面模糊以消除滚动时中文字形发虚"
     ]
   },
-  "preparedAt": "2026-08-30T17:02:33.693Z"
+  "preparedAt": "2026-08-30T19:36:47.730Z"
 }
