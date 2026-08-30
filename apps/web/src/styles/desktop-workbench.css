@@ -260,8 +260,6 @@
   .ops-activity-metrics small { grid-column: 1 / -1; color: var(--ops-text-muted); font-size: 13px; }
   .ops-activity-metrics b { font-family: var(--ops-display); font-size: 46px; line-height: .8; }
   .ops-activity-metrics em { padding-bottom: 3px; color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 12px; font-style: normal; }
-  .ops-activity-bars { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: end; gap: 18px; height: 112px; margin-top: 19px; padding: 0 8px; border-bottom: 1px solid rgb(12 14 12 / .1); }
-  .ops-activity-bars i { display: block; height: var(--ops-bar-value); background: var(--ops-yellow); opacity: .88; }
   .ops-activity-panel footer { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 18px; padding: 8px; color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 11px; text-align: center; }
   .ops-health-panel { display: grid; grid-template-columns: 154px minmax(0, 1fr); column-gap: 18px; }
   .ops-health-panel > header { grid-column: 1 / -1; }
@@ -278,7 +276,7 @@
   /* The target board begins 24px below the module bar; remove legacy section air. */
   .workshop-shell[data-desktop-scene='pickup'] .pickup-operations-section { padding-top: 0; border-top: 0; }
   .pickup-queue-controls { display: grid; grid-template-columns: 312px minmax(0, 1fr); gap: 24px; margin: 0; }
-  .pickup-queue-summary { min-height: 72px; padding: 10px 18px; border-radius: var(--ops-radius); background: var(--ops-card); }
+  .pickup-queue-summary { min-height: 72px; padding: 10px 18px; border-radius: var(--ops-radius); }
   .pickup-queue-summary > span { font-size: 13px; line-height: 18px; }
   .pickup-module-count { align-items: center; }
   .pickup-module-count span { grid-template-rows: 34px 16px; align-items: end; justify-items: center; font-size: 12px; line-height: 16px; }
@@ -288,7 +286,7 @@
   .pickup-tool-row .pickup-search-field { min-height: 60px; padding: 0 20px; }
   .pickup-tool-row .pickup-search-field input { font-size: 16px; }
   .pickup-tool-row > button { height: 60px; font-size: 12px; }
-  .pickup-ledger-board { margin-top: 16px; padding: 0 16px 18px; border-radius: var(--ops-radius); background: var(--ops-card); box-shadow: var(--ops-card-shadow); }
+  .pickup-ledger-board { margin-top: 16px; padding: 0 16px 18px; border-radius: var(--ops-radius); background: var(--ops-card-translucent); -webkit-backdrop-filter: var(--ops-card-glass-filter); backdrop-filter: var(--ops-card-glass-filter); box-shadow: inset 0 1px 0 var(--ops-card-hairline), inset 0 0 0 1px var(--ops-card-edge), var(--ops-card-shadow); }
   .pickup-ledger-intro { min-height: 86px; margin: 0; padding: 16px 10px; border-bottom: 1px solid rgb(12 14 12 / .08); }
   .pickup-ledger-intro span { font-size: 13px; }
   .pickup-ledger-intro strong { font-size: 15px; line-height: 22px; }
@@ -323,7 +321,7 @@
   .pickup-ledger-board[data-ledger-mode='pickup'] :is(.pickup-card-scan, .pickup-card-status) { display: contents; }
   .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-card-contact { grid-area: contact; }
   .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-card-appointment { grid-area: appointment; }
-  .pickup-ledger-board[data-ledger-mode='pickup'] :is(.pickup-card-contact, .pickup-card-appointment) { display: inline-flex; align-items: center; gap: 6px; color: var(--pickup-muted); font-size: 14px; font-weight: 650; }
+  .pickup-ledger-board[data-ledger-mode='pickup'] :is(.pickup-card-contact, .pickup-card-appointment) { display: inline-flex; align-items: center; gap: 6px; color: var(--ops-text-muted); font-size: 14px; font-weight: 650; }
   .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-card-status b { grid-area: status; align-self: center; justify-self: start; }
   .pickup-ledger-board[data-ledger-mode='pickup'] .pickup-card-status svg { grid-area: operation; align-self: center; justify-self: end; margin-top: 0; }
     .pickup-ledger-board[data-ledger-mode='handover'] .pickup-card-summary { grid-template-columns: 96px minmax(0, 1fr) 240px 180px; grid-template-areas: 'index core scan status'; }

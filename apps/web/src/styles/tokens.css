@@ -54,11 +54,11 @@
    * white at a low alpha lifts contrast without editorialising the hue —
    * whatever the environment layer puts behind the card is the colour you
    * see. */
-  --ops-glass-alpha: .34;
-  --ops-glass-blur: 20px;
-  --ops-glass-saturate: 135%;
-  --ops-glass-edge-alpha: .10;
-  --ops-glass-hairline-alpha: .55;
+  --ops-glass-alpha: .25;
+  --ops-glass-blur: 12px;
+  --ops-glass-saturate: 100%;
+  --ops-glass-edge-alpha: 0;
+  --ops-glass-hairline-alpha: .99;
 
   --ops-card-translucent: rgb(255 255 255 / var(--ops-glass-alpha));
   --ops-card-hairline: rgb(255 255 255 / var(--ops-glass-hairline-alpha));
@@ -75,13 +75,13 @@
    *
    * Portrait phones get their own values further down — see the portrait
    * override block. Do NOT add vmax sizes there. */
-  --ops-glow-scale: 1;
-  --ops-glow-a-x: -14%;
-  --ops-glow-a-y: -20%;
-  --ops-glow-b-x: 78%;
-  --ops-glow-b-y: -14%;
-  --ops-glow-c-x: 22%;
-  --ops-glow-c-y: 74%;
+  --ops-glow-scale: .5;
+  --ops-glow-a-x: -21%;
+  --ops-glow-a-y: -22%;
+  --ops-glow-b-x: 96%;
+  --ops-glow-b-y: 11%;
+  --ops-glow-c-x: 150%;
+  --ops-glow-c-y: 20%;
   --ops-glow-a-size: 128vmax;
   --ops-glow-b-size: 104vmax;
   --ops-glow-c-size: 118vmax;

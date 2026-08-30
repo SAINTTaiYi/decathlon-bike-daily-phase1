@@ -215,7 +215,7 @@ test('分段选中态使用实心主色，不引入 blur 或缩放', () => {
   const block = pipelineCss.slice(pipelineCss.indexOf('.shiphub-pipeline-segments'))
   // 主色现在由滑块承担（原来是选中段自己画底色，见滑动指示块一节）
   assert.match(block, /\.shiphub-pipeline-segment-pill \{[^}]*background: var\(--ops-yellow/u)
-  assert.match(block, /aria-selected="true"\]\s*\{[^}]*color: var\(--ops-ink/u)
+  assert.match(block, /aria-selected="true"\]\s*\{[^}]*color: var\(--ops-text\)/u)
   assert.doesNotMatch(block, /filter:\s*blur/u)
   assert.doesNotMatch(block, /transform:\s*scale/u)
 })

@@ -236,38 +236,6 @@
   }
 }
 
-/* ==================================================================
- * 6. Dock selection: yellow icon + sliding trail, no black pill
- *
- * User feedback: "不要加那个黑框里，图标变黄就可以了，然后再加一个
- * 图标变黄的轨迹动效".
- *
- * .dock-active-indicator already slides via
- * `transform: translateX(calc(var(--dock-active-index) * 100%))` with a
- * 360ms cubic-bezier (workshop-system.css:225). Only its paint changes:
- * the solid black fill becomes a soft yellow wash plus a short underline,
- * so the moving element reads as the travelling highlight itself instead
- * of a box drawn around the icon.
- * ================================================================== */
-.look-dock .dock-active-indicator,
-.workshop-runtime[data-mobile-scene] .look-dock .dock-active-indicator {
-  z-index: 1 !important;
-  border-radius: 999px !important;
-  background:
-    radial-gradient(
-      62% 56% at 50% 40%,
-      color-mix(in srgb, var(--ops-yellow, #ffde59) 32%, transparent) 0%,
-      color-mix(in srgb, var(--ops-yellow, #ffde59) 13%, transparent) 58%,
-      color-mix(in srgb, var(--ops-yellow, #ffde59) 0%, transparent) 100%
-    ),
-    linear-gradient(
-      to top,
-      color-mix(in srgb, var(--ops-yellow, #ffde59) 58%, transparent) 0%,
-      color-mix(in srgb, var(--ops-yellow, #ffde59) 0%, transparent) 32%
-    ) !important;
-  box-shadow: none !important;
-}
-
 /* Active item: the icon carries the state, no filled pill.
  *
  * This is the shared treatment for BOTH runtimes. The filled black pill was
@@ -432,7 +400,16 @@
 .ops-analytics-panel,
 .ops-health-panel,
 .ops-trends-panel,
-.ops-trend-card {
+.ops-trend-card,
+.pickup-card,
+.pickup-ledger-intro,
+.pickup-empty-state,
+.pickup-completed-today,
+.pickup-queue-summary,
+.pickup-search-field,
+.pickup-filter-sheet,
+.pickup-sheet-tabs,
+.pickup-ledger-board {
   background: var(--ops-card-translucent);
   -webkit-backdrop-filter: var(--ops-card-glass-filter);
   backdrop-filter: var(--ops-card-glass-filter);
@@ -462,7 +439,16 @@
 [data-theme='endfield'] .ops-health-panel,
 [data-theme='endfield'] .ops-trends-panel,
 [data-theme='endfield'] .ops-trend-card,
-[data-theme='endfield'] .ops-trends-panel .ops-trend-card {
+[data-theme='endfield'] .ops-trends-panel .ops-trend-card,
+[data-theme='endfield'] .pickup-card,
+[data-theme='endfield'] .pickup-ledger-intro,
+[data-theme='endfield'] .pickup-empty-state,
+[data-theme='endfield'] .pickup-completed-today,
+[data-theme='endfield'] .pickup-queue-summary,
+[data-theme='endfield'] .pickup-search-field,
+[data-theme='endfield'] .pickup-filter-sheet,
+[data-theme='endfield'] .pickup-sheet-tabs,
+[data-theme='endfield'] .pickup-ledger-board {
   background: var(--ops-card);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -479,10 +465,32 @@
   .ops-health-panel,
   .ops-trends-panel,
   .ops-trend-card,
-  .ops-trends-panel .ops-trend-card {
+  .ops-trends-panel .ops-trend-card,
+  .pickup-card,
+  .pickup-ledger-intro,
+  .pickup-empty-state,
+  .pickup-completed-today,
+  .pickup-queue-summary,
+  .pickup-search-field,
+  .pickup-filter-sheet,
+  .pickup-sheet-tabs,
+  .pickup-ledger-board {
     background: Canvas;
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     box-shadow: none;
   }
+}
+
+/* ------------------------------------------------------------------
+ * Pickup ledger: the two board-level containers carry the blur; the
+ * per-order cards inside them do NOT. A ledger scrolls, and blur on
+ * every row re-rasterises each frame and softens the CJK glyphs
+ * (same reason the trend cards only carry the edge).
+ * ------------------------------------------------------------------ */
+.pickup-card,
+.pickup-search-field,
+.pickup-sheet-tabs {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }

@@ -283,11 +283,25 @@ button:disabled { opacity: .48; }
   top: 6px;
   bottom: 6px;
   left: 6px;
-  z-index: 0;
+  z-index: 1;
   width: calc((100% - 12px) / 5);
-  border-radius: var(--ops-radius-sm);
-  background: var(--ops-black);
-  box-shadow: 0 0 16px var(--ops-black-glow);
+  border-radius: 999px;
+  /* Travelling highlight: soft yellow wash + short underline, so the moving
+   * element reads as the highlight itself rather than a box drawn around the
+   * icon. Single source of truth — do not re-declare this paint downstream. */
+  background:
+    radial-gradient(
+      62% 56% at 50% 40%,
+      color-mix(in srgb, var(--ops-yellow) 32%, transparent) 0%,
+      color-mix(in srgb, var(--ops-yellow) 13%, transparent) 58%,
+      color-mix(in srgb, var(--ops-yellow) 0%, transparent) 100%
+    ),
+    linear-gradient(
+      to top,
+      color-mix(in srgb, var(--ops-yellow) 58%, transparent) 0%,
+      color-mix(in srgb, var(--ops-yellow) 0%, transparent) 32%
+    );
+  box-shadow: none;
   transform: translateX(calc(var(--dock-active-index) * 100%));
   transition: transform 360ms cubic-bezier(.2,.8,.2,1);
 }
@@ -479,7 +493,7 @@ button:disabled { opacity: .48; }
 .pickup-ledger { color: var(--ops-text); }
 .pickup-queue-controls,
 .pickup-queue-summary,
-.pickup-tools-area { background: var(--ops-page); }
+.pickup-tools-area { background: transparent; }
 .pickup-queue-summary {
   border-radius: var(--ops-radius);
   box-shadow: 0 6px 20px rgb(39 34 24 / .08);
@@ -487,13 +501,13 @@ button:disabled { opacity: .48; }
 .pickup-card,
 .pickup-ledger-intro,
 .pickup-empty-state,
-.pickup-completed-today { border: 0 !important; border-radius: var(--ops-radius) !important; box-shadow: var(--ops-card-shadow); }
+.pickup-completed-today { border: 0 !important; border-radius: var(--ops-radius) !important; }
 .pickup-card[data-expanded='true'] { background: var(--ops-pickup-expanded); }
 .pickup-tool-row button,
 .pickup-search-field,
 .pickup-header-search { border-radius: var(--ops-radius) !important; }
-.pickup-filter-sheet { border-radius: var(--ops-radius) var(--ops-radius) 0 0 !important; background: var(--ops-card); }
-.pickup-sheet-tabs { position: relative; padding: 4px; border-radius: var(--ops-radius); background: var(--ops-page); }
+.pickup-filter-sheet { border-radius: var(--ops-radius) var(--ops-radius) 0 0 !important; }
+.pickup-sheet-tabs { position: relative; padding: 4px; border-radius: var(--ops-radius); }
 .pickup-sheet-tabs button { border-radius: var(--ops-radius-sm) !important; }
 .pickup-sheet-tabs button[aria-selected='true'] { background: var(--ops-black); color: var(--ops-yellow); }
 .pickup-sheet-apply { border-radius: var(--ops-radius) !important; background: var(--ops-yellow) !important; color: var(--ops-black) !important; }

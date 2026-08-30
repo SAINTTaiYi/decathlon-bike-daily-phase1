@@ -151,8 +151,6 @@ export default function BlurText({
         const stagger = clamp(scrollStagger, 0, 0.78)
         const span = Math.max(0.22, 1 - stagger)
 
-        element.style.setProperty('--blur-progress', baseProgress.toFixed(3))
-
         const nextInView = baseProgress > 0
         if (inViewRef.current !== nextInView) {
           inViewRef.current = nextInView
@@ -232,7 +230,6 @@ export default function BlurText({
             className="blur-text__unit"
             aria-hidden="true"
             style={{
-              '--blur-index': unitIndex,
               '--blur-delay': `${unitIndex * delay}ms`,
               '--blur-duration': `${duration}ms`
             }}

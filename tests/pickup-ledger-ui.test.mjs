@@ -34,10 +34,11 @@ test('待取台账支持单卡展开、双列跨栏、搜索筛选排序与密�
 })
 
 test('待取卡片遵循暖纸、黑色结构、黄色信号和浅橙展开态', () => {
-  assert.match(styles, /--pickup-page: var\(--ops-page/u)
-  assert.match(styles, /--pickup-yellow: var\(--ops-yellow/u)
-  assert.match(styles, /--pickup-orange-wash: var\(--ops-pickup-expanded, #fff1dc\)/u)
-  assert.match(styles, /\.pickup-card\[data-expanded='true'\] \{ background: var\(--pickup-orange-wash\); \}/u)
+  // Pickup 不再维护 --pickup-* 别名转发层：直接消费 --ops-* 单一来源。
+  assert.doesNotMatch(styles, /--pickup-(?:page|card|black|text|muted|yellow|orange-wash|action-yellow|line|glow)\s*:/u)
+  assert.match(styles, /var\(--ops-page\)/u)
+  assert.match(styles, /var\(--ops-yellow\)/u)
+  assert.match(styles, /\.pickup-card\[data-expanded='true'\] \{ background: var\(--ops-pickup-expanded\); \}/u)
   assert.match(styles, /\.pickup-card-status b\[data-repair='true'\]/u)
 })
 
@@ -59,7 +60,7 @@ test('Preview 反馈修复保留 body 抽屉和滚动锁定，并让卡片只执
 })
 
 test('Preview 反馈视觉取消容器描边并采用局部橙黄弥散柔光和紧凑展开', () => {
-  assert.match(styles, /--pickup-glow:/u)
+  assert.match(styles, /var\(--ops-yellow-glow\)/u)
   assert.match(styles, /\.pickup-ledger :is\([^)]+\),[\s\S]*\.pickup-queue-controls :is\([^)]+\),[\s\S]*\.pickup-filter-sheet :is\([^)]+\) \{ border: 0; \}/u)
   assert.match(styles, /\.pickup-queue-summary/u)
   assert.match(styles, /\.pickup-card\[data-expanded='true'\][\s\S]*radial-gradient/u)
