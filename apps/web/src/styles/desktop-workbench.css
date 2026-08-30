@@ -92,8 +92,11 @@
   /* Reference left rail: six destinations plus release card. */
   .look-dock {
     left: 20px !important;
-    /* Align the first destination to the reference rail directly below the 90px global header. */
-    top: 112px !important;
+    /* The fixed navigation layer (z-index 80) is .workshop-shell-header, 156px
+     * tall on desktop (90px global header + 66px module header). The rail sits
+     * at z-index 2, so any top < 156px is hidden behind its frosted backdrop --
+     * that is what made the first destination look like it had vanished. */
+    top: 168px !important;
     bottom: auto !important;
     width: 218px !important;
     min-height: 0;
@@ -104,7 +107,8 @@
     box-shadow: none !important;
     transform: none !important;
   }
-  .look-dock::after { content: ''; position: fixed; top: 90px; bottom: 0; left: 261px; width: 1px; background: rgb(12 14 12 / .07); pointer-events: none; }
+  /* Divider starts below the 156px fixed navigation layer, matching the rail. */
+  .look-dock::after { content: ''; position: fixed; top: 156px; bottom: 0; left: 261px; width: 1px; background: rgb(12 14 12 / .07); pointer-events: none; }
   .look-dock ul { display: grid !important; grid-template-columns: 1fr !important; gap: 12px; }
   .dock-active-indicator { display: none; }
   .look-dock button {
@@ -120,8 +124,8 @@
   .look-dock button svg { grid-row: 1 / 3; width: 29px; height: 29px; }
   .look-dock button span { align-self: end; font-size: 15px !important; line-height: 17px; }
   .look-dock button small { align-self: start; font-size: 12px !important; line-height: 14px; }
-  .look-dock button[data-active='true'] { background: var(--ops-black) !important; color: var(--ops-yellow) !important; box-shadow: 0 0 16px var(--ops-black-glow) !important; }
-  .look-dock button[data-active='true'] small { color: var(--ops-text-inverse); }
+  /* Active state (yellow icon + label, no filled pill) is declared once in
+   * frosted.css and shared by both runtimes. Nothing to override here. */
   .dock-release-card {
     position: absolute;
     top: 764px;

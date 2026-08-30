@@ -274,42 +274,12 @@ test('内容容器不得有不透明底色（会挡住背后的环境黄光）',
 })
 
 
-test("桌面左侧栏选中项必须保留实心黑底 —— frosted.css 不得用裸选择器抹掉", () => {
-  // 2026-08-30 回归：frosted.css 第 6 节把移动端底栏选中态改成"图标变黄、不要
-  // 黑框"时用了裸 `.look-dock button[data-active='true']` 选择器。桌面左侧栏复用
-  // 同一批类名，于是 background: transparent 把 desktop-workbench.css 的黑底选中
-  // 态一起抹了 —— 桌面「总览」那一格变成透明底 + 黄字，压在奶白页面上就是一片空白，
-  // 而桌面又把 .dock-active-indicator 设为 display:none，没有任何替代标记。
-  //
-  // 修法不是提高桌面特异性，而是把移动端的规则关进 [data-mobile-scene] 作用域。
-  const offenders = []
-  for (const { selector, body } of declBlocks(frosted)) {
-    if (!selector.includes("[data-active='true']")) continue
-    if (!/background|^\s*color\s*:/m.test(body)) continue
-    for (const target of selector.split(",").map((s) => s.trim())) {
-      if (!target.includes("[data-active='true']")) continue
-      if (!target.includes("[data-mobile-scene]")) {
-        offenders.push(`${target} -> ${body.trim().replace(/\s+/g, " ").slice(0, 60)}`)
-      }
-    }
-  }
-  assert.deepEqual(
-    offenders,
-    [],
-    `frosted.css 的 dock 选中态必须限定在 [data-mobile-scene] 内，否则会抹掉桌面左侧栏的选中项：\n${offenders.join("\n")}`,
-  )
-})
-
-test("桌面左侧栏选中态在 desktop-workbench.css 里仍然实心可见", () => {
-  // 与上一条互补：上面证明没人抹它，这里证明它确实存在。
-  const desktopActive = declBlocks(desktopWorkbench).filter(({ selector }) =>
-    selector.includes(".look-dock button[data-active='true']") && !selector.includes("small"),
-  )
-  assert.ok(desktopActive.length >= 1, "desktop-workbench.css 必须为左侧栏选中项声明可见填充")
-  const paint = desktopActive.map(({ body }) => body).join("\n")
-  assert.match(paint, /background:\s*var\(--ops-black\)/, "桌面选中项应为实心黑底")
-  assert.match(paint, /color:\s*var\(--ops-yellow\)/, "桌面选中项文字应为主色黄")
-})
+/* 2026-08-30：此处原有两条断言要求桌面左侧栏选中项「必须保留实心黑底」，
+ * 是对 bug 的误诊。「总览」看不见的真因是几何遮挡：.workshop-shell-header
+ * 桌面高 156px、z-index 80，而 .look-dock 是 z-index 2 且 top 只有 112px，
+ * 第一格被磨砂背板整块盖住。当时给它补黑底，只是把被遮的那块画成了可见黑条。
+ * 真修法是把 rail 推到 156px 之下，选中态回归「黄图标 + 黄文字」的双端共享设计。
+ * 几何约束与单一来源现由 tests/desktop-rail-occlusion.test.mjs 保护。 */
 
 test("销售车辆卡上半区不得刷不透明底色（否则整卡看起来是实心的）", () => {
   // 2026-08-30 回归：玻璃收敛只处理了 .ops-sales-panel 外壳，卡内上半区

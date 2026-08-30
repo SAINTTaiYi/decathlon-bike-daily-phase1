@@ -12,8 +12,10 @@ test('desktop operations index uses full desktop line boxes', () => {
 
 test('desktop left rail clears the complete navigation header stack', () => {
   assert.match(css, /--ops-header-height: 156px/u)
-  assert.match(css, /\.look-dock \{[\s\S]*?top: 112px !important;/u)
-  assert.match(css, /\.look-dock::after \{[^}]*top: 90px;[^}]*left: 261px;/u)
+  assert.match(css, /\.look-dock \{[\s\S]*?top: 168px !important;/u)
+  // 分隔线与 rail 一样必须起于 156px 固定导航层之下：90px 只是全局页头高度，
+  // 漏算了 66px 模块页头，线会穿过页头区域。
+  assert.match(css, /\.look-dock::after \{[^}]*top: 156px;[^}]*left: 261px;/u)
   assert.doesNotMatch(css, /\.workshop-runtime > \[data-workspace-layer='navigation'\] \{[^}]*box-shadow: 0 1px 0/u)
 })
 

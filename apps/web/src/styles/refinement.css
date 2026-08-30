@@ -514,14 +514,6 @@ button:not(:disabled) { transition-duration: 150ms; }
   background: rgb(255 255 255 / .985);
   box-shadow: 0 14px 50px rgb(11 11 12 / .12);
 }
-.look-dock button[data-active='true'] {
-  background: var(--ink);
-  color: #fff;
-}
-.look-dock button:not([data-active='true']) {
-  background: #fff;
-  color: var(--ink);
-}
 .look-dock button { grid-template-rows: auto auto; gap: .1rem; min-height: 48px; }
 .look-dock button span { font-size: .56rem; font-weight: 750; }
 .look-dock small { display: none; }

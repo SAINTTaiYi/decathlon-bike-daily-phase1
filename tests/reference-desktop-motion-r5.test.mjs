@@ -10,7 +10,7 @@ const css = await readFile(new URL('../apps/web/src/styles/desktop-workbench.css
 test('desktop navigation uses the full reference labels while mobile keeps existing dock labels', () => {
   for (const label of ['待取车辆', '其它交接', '维修交接', '二手台账', '销售数据']) assert.ok(dock.includes(label))
   assert.ok(dock.includes('desktopLayout ? desktopLabels[id] : dock'))
-  assert.match(css, /top: 112px !important/u)
+  assert.match(css, /top: 168px !important/u)
   assert.match(css, /top: 764px;\n    left: 18px;/u)
 })
 
@@ -52,7 +52,7 @@ test('scene transition CSS leaves no wipe surface while the right business regio
   assert.ok(!css.includes('.desktop-scene-transition-wipe'))
   assert.match(css, /\.workshop-runtime\[data-desktop-scene-transitioning='true'\] :is\(\.workshop-module-header, \.workshop-module-panel\) \{[\s\S]*?will-change: transform, opacity;/u)
   assert.match(css, /\.workshop-module-header \{[\s\S]*?margin-left: 262px;/u)
-  assert.match(css, /\.look-dock::after \{[^}]*top: 90px;[^}]*left: 261px;/u)
+  assert.match(css, /\.look-dock::after \{[^}]*top: 156px;[^}]*left: 261px;/u)
 })
 
 

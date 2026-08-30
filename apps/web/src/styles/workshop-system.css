@@ -311,7 +311,6 @@ button:disabled { opacity: .48; }
 .look-dock button svg { width: 20px; height: 20px; }
 .look-dock button span { display: block !important; font-size: 9px !important; font-weight: 800; line-height: 10px; }
 .look-dock button small { position: static !important; display: block !important; color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 8px !important; line-height: 8px; }
-.look-dock button[data-active='true'] small { color: var(--ops-text-inverse); }
 .look-dock .dock-status { display: none !important; }
 
 /* Desktop reference-only structures must not participate in ordinary-phone layout. */

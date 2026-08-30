@@ -218,14 +218,9 @@
   /* 特异性必须 .workshop-runtime 前缀：workshop-system.css 等后于本文件加载，
      其悬浮胶囊 .look-dock 规则（全 !important）会以同特异性覆盖贴底定位。
      0,2,0 + important 保证任何后加载同特异性规则都无法压过。 */
-  /* 移动端 dock：指示器为唯一选中标识（滑动动画 360ms），
-     按钮不再黑底（之前与指示器叠加错位导致凸出）；光晕去掉 */
+  /* 移动端 dock：指示器为唯一选中标识（滑动动画 360ms）。
+     按钮的透明底与黄色选中态在 frosted.css 统一声明（双端共享），此处不重复。 */
   .workshop-runtime[data-mobile-scene] .look-dock .dock-active-indicator { display: block !important; }
-  .workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] {
-    background: transparent !important;
-    box-shadow: none !important;
-    color: var(--ops-yellow) !important;
-  }
 
   .workshop-runtime[data-mobile-scene] .look-dock {
     left: 0 !important;
@@ -248,11 +243,9 @@
   .look-dock ul { display: grid !important; grid-template-columns: repeat(5, minmax(0,1fr)) !important; height: 58px; overflow: visible !important; }
   .look-dock li { min-width: 0 !important; }
   .look-dock button { display: grid !important; grid-template-rows: 21px 11px 9px !important; place-items: center; gap: 1px !important; min-width: 0 !important; min-height: 58px !important; padding: 7px 1px 3px !important; color: var(--ops-black) !important; }
-  .look-dock button[data-active='true'] { background: var(--ops-black) !important; box-shadow: 0 0 16px var(--ops-black-glow) !important; color: var(--ops-yellow) !important; }
   .look-dock button svg { width: 20px; height: 20px; }
   .look-dock button span { display: block !important; font-family: var(--ops-body); font-size: 9px !important; font-weight: 700; line-height: 10px; }
   .look-dock button small { position: static !important; display: block !important; color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 8px !important; line-height: 8px; }
-  .look-dock button[data-active='true'] small { color: var(--ops-text-inverse); }
 
 
   /* 移动端页头工具条（portal 目标）：搜索/排序/密度栏是「02/06 待取车辆」行下方固定页头的一部分。

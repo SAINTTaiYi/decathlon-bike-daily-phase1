@@ -268,35 +268,33 @@
   box-shadow: none !important;
 }
 
-/* Active item: the icon carries the state, no inverted pill text.
+/* Active item: the icon carries the state, no filled pill.
  *
- * SCOPED TO MOBILE (2026-08-30). These declarations were originally written
- * with bare `.look-dock button[data-active='true']` selectors. The desktop
- * left rail reuses the same class names, so `background: transparent` also
- * erased the desktop selection — desktop-workbench.css:125 paints the active
- * rail item solid black with yellow text, and a transparent fill on the cream
- * page made the whole row read as an empty gap. Desktop also hides
- * .dock-active-indicator, so nothing else marked the current module.
+ * This is the shared treatment for BOTH runtimes. The filled black pill was
+ * removed by design in an earlier round; do not scope this to mobile and do
+ * not reintroduce a background on the desktop rail.
  *
- * The mobile treatment now lives only under [data-mobile-scene], which is set
- * on the runtime root by useActiveScene and only exists in the mobile
- * single-scene runtime. Desktop keeps its own black pill, untouched. */
-.workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] {
+ * The "总览 disappeared on desktop" bug was NOT caused by this transparent
+ * fill. The rail (z-index 2) was positioned at top:112px while the fixed
+ * navigation layer (.workshop-shell-header, z-index 80) is 156px tall on
+ * desktop, so the first destination sat behind the frosted backdrop.
+ * Fixed by moving the rail below 156px in desktop-workbench.css. */
+.look-dock button[data-active='true'] {
   background: transparent !important;
   color: var(--ops-yellow) !important;
 }
-.workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] svg,
-.workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] span {
+.look-dock button[data-active='true'] svg,
+.look-dock button[data-active='true'] span {
   color: var(--ops-yellow) !important;
   transition: color 240ms ease-out;
 }
-.workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] small {
+.look-dock button[data-active='true'] small {
   color: var(--ops-text-muted) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] svg,
-  .workshop-runtime[data-mobile-scene] .look-dock button[data-active='true'] span { transition: none; }
+  .look-dock button[data-active='true'] svg,
+  .look-dock button[data-active='true'] span { transition: none; }
 }
 
 /* ==================================================================
