@@ -181,7 +181,7 @@
 .project-select-trigger,
 .role-option,
 .metric-input input {
-  background: var(--ops-surface-sunken, #f4f1e8) !important;
+  background: var(--ops-card-sunken) !important;
 }
 
 .field-row input:focus,
@@ -205,7 +205,7 @@
 .record-history-mark,
 .pickup-filter-sheet > footer button,
 .pickup-tool-row > button {
-  background: var(--ops-surface-sunken, #f4f1e8) !important;
+  background: var(--ops-card-sunken) !important;
 }
 
 /* Dark ledger context: a sunken grey fill disappears on ink. */
@@ -237,7 +237,7 @@
 .contact-callout,
 .pickup-date-callout,
 .summary-topline strong {
-  background: var(--ops-surface-sunken, #f4f1e8);
+  background: var(--ops-card-sunken);
   border-radius: var(--ops-radius-sm, 12px);
   padding-inline: .4rem;
 }
@@ -373,7 +373,7 @@
 .admin-console input,
 .admin-console select,
 .admin-console textarea {
-  background: var(--ops-surface-sunken, #f4f1e8) !important;
+  background: var(--ops-card-sunken) !important;
 }
 .admin-console input:focus,
 .admin-console select:focus,

@@ -260,8 +260,6 @@
   .ops-activity-metrics small { grid-column: 1 / -1; color: var(--ops-text-muted); font-size: 13px; }
   .ops-activity-metrics b { font-family: var(--ops-display); font-size: 46px; line-height: .8; }
   .ops-activity-metrics em { padding-bottom: 3px; color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 12px; font-style: normal; }
-  .ops-activity-bars { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: end; gap: 18px; height: 112px; margin-top: 19px; padding: 0 8px; border-bottom: 1px solid rgb(12 14 12 / .1); }
-  .ops-activity-bars i { display: block; height: var(--ops-bar-value); background: var(--ops-yellow); opacity: .88; }
   .ops-activity-panel footer { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 18px; padding: 8px; color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 11px; text-align: center; }
   .ops-health-panel { display: grid; grid-template-columns: 154px minmax(0, 1fr); column-gap: 18px; }
   .ops-health-panel > header { grid-column: 1 / -1; }
