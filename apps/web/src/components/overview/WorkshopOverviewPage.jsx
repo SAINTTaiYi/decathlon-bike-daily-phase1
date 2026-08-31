@@ -7,6 +7,7 @@ import IconLabel from '@iconoir/Label.mjs'
 import IconCheck from '@iconoir/Check.mjs'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
 import { RepairRungChart, SalesHairlineChart } from './BusinessTrendCharts.jsx'
+import { BiInsightPanel } from './BiInsightCharts.jsx'
 
 const operations = [
   { id: 'pickup', no: '02', en: 'PICKUP', cn: '待取车辆', Icon: IconDelivery },
@@ -179,6 +180,7 @@ function OverviewAnalytics({ workflow, shiphubSummary }) {
       <div className="ops-health-score" style={{ '--ops-health-percent': `${completeness}%` }}><b>{available ? completeness : '—'}</b><span>{available ? '%' : ''}</span><small>数据完整度</small></div>
       <ul>{healthRows.map(([label, value]) => <li key={label}><IconCheck width={14} height={14} aria-hidden="true" /><span>{label}</span><strong>{value}</strong></li>)}</ul>
     </article>
+    <BiInsightPanel />
   </section>
 }
 
