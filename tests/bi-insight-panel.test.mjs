@@ -7,16 +7,34 @@ import { readFile } from 'node:fs/promises'
 const root = new URL('../', import.meta.url)
 const read = (file) => readFile(new URL(file, root), 'utf8')
 
-test('BI 面板挂载进桌面总览分析区，三卡齐全', async () => {
+test('BI 面板挂载进桌面总览分析区，两行五卡齐全', async () => {
   const [overview, charts] = await Promise.all([read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'), read('apps/web/src/components/overview/BiInsightCharts.jsx')])
   assert.match(overview, /import \{ BiInsightPanel \} from '\.\/BiInsightCharts\.jsx'/u)
   assert.match(overview, /<BiInsightPanel \/>/u)
   // 面板位于 OverviewAnalytics（showAnalytics 桌面门控内），不改动既有门控
   assert.match(overview, /showAnalytics \? <OverviewAnalytics/u)
-  assert.match(charts, /export function BiStatCard/u)
-  assert.match(charts, /export function BiDisField/u)
-  assert.match(charts, /export function BiOnlineGauge/u)
-  assert.match(charts, /export function BiInsightPanel/u)
+  for (const name of ['BiStatCard', 'BiDisField', 'BiOnlineGauge', 'BiRepairTrend', 'BiRepairStat', 'BiInsightPanel']) {
+    assert.match(charts, new RegExp(`export function ${name}`), `缺少组件 ${name}`)
+  }
+  // 面板两行结构：经济三卡 + 维修两卡
+  assert.match(charts, /ops-bi-grid/u); assert.match(charts, /ops-bi-repair-grid/u)
+})
+
+test('维修数据诚实：门店级 35 周序列，全国值不得混入', async () => {
+  const [data, charts] = await Promise.all([read('apps/web/src/data/biSnapshot.js'), read('apps/web/src/components/overview/BiInsightCharts.jsx')])
+  // 2026-08-31 提取定案的门店级统计
+  for (const value of ['114267', '3265', '4205', "week: 'W01', value: 7665", "week: 'W05', value: 551"]) {
+    assert.ok(data.includes(value), `维修快照缺少 ${value}`)
+  }
+  assert.equal((data.match(/^\s*\{ week: 'W\d\d', value: \d+/gmu) ?? []).length, 35, '维修周序列必须是 35 周')
+  // 全国上下文的 1,299,657 / +5.0% 不得上门店卡（曾误判为门店 KPI）
+  assert.doesNotMatch(data, /1299657/u)
+  assert.match(data, /未采用/u)
+  // 图内单位注记
+  assert.match(charts, /1 根发丝 = 1 周维修营业额/u)
+  assert.match(charts, /ONE HAIRLINE = ONE WEEK/u)
+  assert.match(charts, /HAIRLINE AREA · BI M348/u)
+  assert.match(charts, /春节/u)
 })
 
 test('数据诚实：快照值、单位注记与 100 点账目', async () => {
@@ -69,8 +87,13 @@ test('CSS 落地：每个 BI 类名都有真实声明，布局约束不降级', 
   assert.match(columnRules[0], /repeat\(3, minmax\(0, 1fr\)\)/u)
   assert.doesNotMatch(css, /\.ops-bi-grid[^{]*\{[^}]*repeat\(2/u)
   assert.doesNotMatch(css, /\.ops-bi-card[^{]*\{[^}]*grid-column: 1 \/ -1/u)
-  // SVG 变换锚定自身包围盒（GSAP scale 不跑偏）
+  // SVG 变换锚定自身包围盒（GSAP scale 不跑偏），含趋势图峰值/谷值标记
   assert.match(css, /\.ops-bi-chart \[data-bi-dot\][^{]*\{ transform-box: fill-box/u)
+  assert.match(css, /\[data-bi-marker\] \{ transform-box: fill-box/u)
+  // 维修行两列宽窄布局只声明一处，不降级
+  const repairRules = css.match(/\.ops-bi-repair-grid[^{]*\{[^}]*grid-template-columns:[^}]*\}/gu) ?? []
+  assert.equal(repairRules.length, 1, 'ops-bi-repair-grid 列轨道只允许一处声明')
+  assert.match(repairRules[0], /minmax\(0, 2fr\) minmax\(0, 1fr\)/u)
   // 填充不由 BI 块私自刷实心（归 frosted.css 统一管）
   assert.doesNotMatch(css, /\.ops-bi-card \{[^}]*background:/u)
   assert.doesNotMatch(css, /\.ops-bi-panel \{[^}]*background:/u)

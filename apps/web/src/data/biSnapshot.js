@@ -23,6 +23,55 @@ export const BI_SNAPSHOT = {
   storeSummary: {
     weeklyTo: 309252,    // 周 TO（YW Trend · Calculation_2654590530342019091）
     onlineShare: 0.318   // 线上 TO 占比（Online TO Icon：31.82%）
+  },
+  // M348 维修（过滤响应 repair.bin · zone 192 'TO' 趋势区 ·
+  // fn Calculation_7473160664074379287，valueIndices 0..34 → 列池 col1）。
+  // 周序按全国同构结构对齐（谷值同位 W05=春节；2026-08-31 为 W36 周一，最新完整周 = W35）。
+  // ⚠️ 1,299,657 / +5.0% 出自全国上下文（列池中不存在该值），未采用。
+  repair: {
+    unit: '元 / 周',
+    total: 114267,       // 35 周累计
+    avg: 3265,           // 周均
+    recentAvg: 4205,     // 近 8 周周均（站稳 4 千周线的依据）
+    peak: { week: 'W01', value: 7665 },    // 春节前保养高峰
+    trough: { week: 'W05', value: 551 },   // 春节假期
+    weeks: [
+    { week: 'W01', value: 7665 },
+    { week: 'W02', value: 1353 },
+    { week: 'W03', value: 647 },
+    { week: 'W04', value: 2311 },
+    { week: 'W05', value: 551 },
+    { week: 'W06', value: 1660 },
+    { week: 'W07', value: 2220 },
+    { week: 'W08', value: 2808 },
+    { week: 'W09', value: 1681 },
+    { week: 'W10', value: 2735 },
+    { week: 'W11', value: 3860 },
+    { week: 'W12', value: 3632 },
+    { week: 'W13', value: 3323 },
+    { week: 'W14', value: 2867 },
+    { week: 'W15', value: 2451 },
+    { week: 'W16', value: 3412 },
+    { week: 'W17', value: 2086 },
+    { week: 'W18', value: 4434 },
+    { week: 'W19', value: 3745 },
+    { week: 'W20', value: 2641 },
+    { week: 'W21', value: 3130 },
+    { week: 'W22', value: 2608 },
+    { week: 'W23', value: 3866 },
+    { week: 'W24', value: 3169 },
+    { week: 'W25', value: 3623 },
+    { week: 'W26', value: 3644 },
+    { week: 'W27', value: 4509 },
+    { week: 'W28', value: 4464 },
+    { week: 'W29', value: 4361 },
+    { week: 'W30', value: 4613 },
+    { week: 'W31', value: 4933 },
+    { week: 'W32', value: 3465 },
+    { week: 'W33', value: 3872 },
+    { week: 'W34', value: 3382 },
+    { week: 'W35', value: 4546 }
+    ]
   }
   // M330 回收 weekly 1,503 / M219 线上 TO 54,553 等字段↔值配对尚未精修，暂不上屏。
 }

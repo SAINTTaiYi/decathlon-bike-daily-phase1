@@ -227,6 +227,92 @@ export function BiOnlineGauge({ snapshot }) {
   )
 }
 
+/* ── F3 Hairline Area · 维修 TO 35 周趋势（1 根发丝 = 1 周）── */
+export function BiRepairTrend({ snapshot }) {
+  const weeks = snapshot.repair.weeks
+  const { ref, revealed, replay, replayChart } = useBiReveal()
+  const reduced = usePrefersReducedMotion()
+  const geom = useMemo(() => {
+    const base = 122
+    const max = Math.max(...weeks.map((week) => week.value))
+    const x = (index) => 24 + index * (352 / (weeks.length - 1))
+    const y = (value) => base - (value / max) * (base - 20)
+    const points = weeks.map((week, index) => ({ ...week, x: x(index), y: y(week.value) }))
+    const peak = points.reduce((a, b) => (b.value > a.value ? b : a))
+    const trough = points.reduce((a, b) => (b.value < a.value ? b : a))
+    return { base, points, peak, trough }
+  }, [weeks])
+  const build = useMemo(() => (timeline, node) => {
+    timeline.from(node.querySelectorAll('[data-bi-hair]'), { opacity: 0, duration: 0.4, stagger: 0.012, ease: 'power2.out' }, 0)
+    const contour = node.querySelector('[data-bi-contour]')
+    if (contour) timeline.from(contour, { strokeDashoffset: 1, duration: 1.1, ease: 'expo.inOut' }, 0.35)
+    timeline.from(node.querySelectorAll('[data-bi-marker]'), { scale: 0, duration: 0.45, ease: 'back.out(2)', stagger: 0.15 }, 1.1)
+  }, [])
+  useBiMotion(ref, revealed, replay, reduced, build)
+  const contour = `M ${geom.points.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' L ')}`
+  const axis = [0, 8, 17, 26, 34]
+  return (
+    <section ref={ref} className="ops-lieflat-card ops-bi-card" data-replay={replay}>
+      <h3>维修 TO 站稳 4 千周线</h3>
+      <div className="ops-lieflat-sub"><span>1 根发丝 = 1 周维修营业额 · 春节前 W01 冲顶 · 维修报表 M348</span></div>
+      <ChartSvg label={`2026 年 W01 至 W35 共 35 周维修 TO 趋势：累计 ¥${snapshot.repair.total.toLocaleString('en-US')}，峰值 ${geom.peak.week} ¥${geom.peak.value.toLocaleString('en-US')}，春节谷值 ${geom.trough.week} ¥${geom.trough.value}，最新 W35 ¥${geom.points[geom.points.length - 1].value.toLocaleString('en-US')}`} replayChart={replayChart} viewBox="0 0 400 158">
+        <line data-bi-hair="" x1="20" y1={geom.base} x2="380" y2={geom.base} stroke={MONO.grid} strokeWidth="0.8" />
+        {geom.points.map((p, index) => (
+          <line key={p.week} data-bi-hair="" x1={p.x} y1={geom.base} x2={p.x} y2={p.y} stroke={p.week === geom.peak.week ? MONO.ink : MONO.muted} strokeWidth={p.week === geom.peak.week ? 1.1 : 0.55} opacity={p.week === geom.peak.week ? 1 : 0.5 + rnd(index + 1, 7) * 0.45} />
+        ))}
+        <path data-bi-contour="" d={contour} fill="none" stroke={MONO.ink} strokeWidth="1.2" pathLength="1" strokeDasharray="1" />
+        <g data-bi-marker="">
+          <circle cx={geom.peak.x} cy={geom.peak.y} r="3.4" fill={MONO.ink}><title>{`峰值 ${geom.peak.week} · ¥${geom.peak.value.toLocaleString('en-US')}（春节前保养高峰）`}</title></circle>
+          <text x={geom.peak.x + 7} y={geom.peak.y + 3} fontSize="8.5" fontWeight="800" fill={MONO.ink} style={{ paintOrder: 'stroke', stroke: '#F6F4EE', strokeWidth: 3 }}>{`¥${geom.peak.value.toLocaleString('en-US')}`}</text>
+        </g>
+        <g data-bi-marker="">
+          <circle cx={geom.trough.x} cy={geom.trough.y} r="2.8" fill="#F6F4EE" stroke={MONO.ink} strokeWidth="1"><title>{`春节周 ${geom.trough.week} · ¥${geom.trough.value}`}</title></circle>
+          <text x={geom.trough.x} y={geom.trough.y - 8} fontSize="7" fontWeight="650" fill={MONO.muted} textAnchor="middle" style={{ paintOrder: 'stroke', stroke: '#F6F4EE', strokeWidth: 3 }}>春节</text>
+        </g>
+        {axis.map((index) => <text key={index} data-bi-hair="" x={geom.points[index].x} y={geom.base + 16} fontSize="7" fontWeight="600" fill={MONO.faint} textAnchor="middle" letterSpacing=".08em">{geom.points[index].week}</text>)}
+        <text data-bi-hair="" x="200" y="152" fontSize="7" fontWeight="600" fill={MONO.faint} textAnchor="middle" letterSpacing=".12em">ONE HAIRLINE = ONE WEEK · 2026 W01–W35 · STORE 1299</text>
+      </ChartSvg>
+      <div className="ops-lieflat-src">HAIRLINE AREA · BI M348 REPAIR TO · STORE 1299</div>
+    </section>
+  )
+}
+
+/* ── G18 语义 · 维修累计指标卡 ─────────────────────────────── */
+export function BiRepairStat({ snapshot }) {
+  const { total, avg, recentAvg, peak, weeks } = snapshot.repair
+  const latest = weeks[weeks.length - 1]
+  const { ref, revealed, replay, replayChart } = useBiReveal()
+  const reduced = usePrefersReducedMotion()
+  const build = useMemo(() => (timeline, node) => {
+    node.querySelectorAll('[data-bi-counter]').forEach((element, index) => {
+      const target = Number(element.dataset.biCounter)
+      const state = { value: 0 }
+      timeline.to(state, {
+        value: target, duration: 1.05, ease: 'expo.out',
+        onUpdate: () => { element.textContent = money(state.value) }
+      }, index * 0.14)
+    })
+    const chip = node.querySelector('[data-bi-chip]')
+    if (chip) timeline.from(chip, { opacity: 0, y: 6, duration: 0.5, ease: 'power3.out' }, 0.6)
+  }, [])
+  useBiMotion(ref, revealed, replay, reduced, build)
+  return (
+    <section ref={ref} className="ops-lieflat-card ops-bi-card ops-bi-stat-card" data-replay={replay} onClick={replayChart} aria-label={`维修 TO 35 周累计 ${money(total)}，周均 ${money(avg)}，点击重播入场动画`}>
+      <h3>维修生意平稳 · 周均 {money(avg)}</h3>
+      <div className="ops-lieflat-sub"><span>2026 W01–W35 · BI 维修报表 M348 · 门店 1299</span></div>
+      <div className="ops-bi-stat-main">
+        <b data-bi-counter={total}>{money(total)}</b>
+        <span className="ops-bi-yoy" data-bi-chip="" data-positive="true">▴ 近 8 周周均 {money(recentAvg)}</span>
+      </div>
+      <div className="ops-bi-stat-extra">
+        <div><small>{`PEAK · ${peak.week} 春节前`}</small><b data-bi-counter={peak.value}>{money(peak.value)}</b></div>
+        <div><small>{`LATEST · ${latest.week}`}</small><b data-bi-counter={latest.value}>{money(latest.value)}</b></div>
+      </div>
+      <div className="ops-lieflat-src">DRAW-IN COUNTER · BI M348 REPAIR · STORE 1299</div>
+    </section>
+  )
+}
+
 /* ── 面板：挂载进 OverviewAnalytics（桌面总览）──────────────── */
 export function BiInsightPanel({ snapshot = BI_SNAPSHOT }) {
   return (
@@ -236,6 +322,10 @@ export function BiInsightPanel({ snapshot = BI_SNAPSHOT }) {
         <BiStatCard snapshot={snapshot} />
         <BiDisField snapshot={snapshot} />
         <BiOnlineGauge snapshot={snapshot} />
+      </div>
+      <div className="ops-bi-repair-grid">
+        <BiRepairTrend snapshot={snapshot} />
+        <BiRepairStat snapshot={snapshot} />
       </div>
     </article>
   )
