@@ -95,6 +95,14 @@ function ClosingStatusCard({ workflow, online, onEditKpi, onCompleteClosing, onH
   )
 }
 
+function operationSummary(workflow) {
+  if (workflow.storageError) return '同步异常'
+  if (!workflow.hydrated || !workflow.hasSnapshot) return '业务数据加载中'
+  if (workflow.closedAt) return '今日已闭店'
+  if (!workflow.kpiReady) return '销售数据待填写'
+  return '销售数据已保存 · 可闭店'
+}
+
 function OperationsIndex({ workflow, shiphubSummary, onJump, showUsed = false }) {
   const available = workflow.hydrated && workflow.hasSnapshot && !workflow.storageError
   return (

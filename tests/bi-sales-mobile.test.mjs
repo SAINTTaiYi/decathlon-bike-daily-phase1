@@ -13,6 +13,8 @@ test('销售模块换血：旧 KPI 销售组件删除，BI 双端挂载', async 
   assert.match(overview, /useViewportKind/u, '运行时视口择一挂载')
   assert.match(overview, /viewport === 'desktop' \? <BiInsightPanel \/> : <BiSalesMobile \/>/u, '桌面 BI / 移动 BI 双实现')
   assert.match(overview, /ops-overview-left/u, '桌面左栏包装存在')
+  assert.match(overview, /function operationSummary/u, '台账索引摘要函数不得误删')
+  assert.match(overview, /operationSummary\(workflow\)/u)
 })
 
 test('移动端 BI 独立实现：组件与 CSS 齐全', async () => {
