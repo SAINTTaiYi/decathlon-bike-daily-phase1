@@ -95,6 +95,11 @@ function ClosingStatusCard({ workflow, online, onEditKpi, onCompleteClosing, onH
   )
 }
 
+function displayMetric(value, available = true) {
+  if (!available || value === null || value === undefined || Number.isNaN(Number(value))) return '—'
+  return String(Math.max(0, Number(value))).padStart(2, '0')
+}
+
 function operationSummary(workflow) {
   if (workflow.storageError) return '同步异常'
   if (!workflow.hydrated || !workflow.hasSnapshot) return '业务数据加载中'
