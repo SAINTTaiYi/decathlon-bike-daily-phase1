@@ -199,9 +199,9 @@
     margin: -24px -16px 0;
   }
   .workshop-overview-panel .ops-mobile-overview > .ops-closing-card { grid-column: 1; min-height: 292px; margin: 0; }
-  .workshop-overview-panel .ops-mobile-overview > .ops-overview-left { grid-column: 1; display: grid; gap: 16px; align-content: start; margin: 0; min-width: 0; }
-  .workshop-overview-panel .ops-mobile-overview > .ops-sales-slot { grid-column: 2; margin: 0; min-width: 0; }
+  .workshop-overview-panel .ops-mobile-overview > .ops-sales-panel { grid-column: 2; height: 292px; margin: 0; }
   .workshop-overview-panel .ops-mobile-overview > .ops-index { grid-column: 1 / -1; height: 204px; margin: 0; }
+  .workshop-overview-panel .ops-mobile-overview > .ops-analytics-grid { grid-column: 1 / -1; }
   .workshop-overview-panel .ops-mobile-overview > :is(.ops-release-strip, .ops-first-screen-spacer) { display: none; }
   .ops-closing-card { display: grid; grid-template-rows: 1fr 104px; overflow: hidden; }
   .ops-closing-card[data-closed='true'] { grid-template-rows: minmax(0, 1fr) 104px 52px; }
@@ -217,6 +217,21 @@
   .ops-closing-next strong { font-size: 18px; line-height: 23px; }
   .ops-closing-next em { font-size: 12px; line-height: 16px; }
   .ops-closing-next button { width: 224px; height: 62px; font-size: 17px; }
+  .ops-sales-primary { height: 156px; }
+  .ops-sales-label { top: 21px; left: 26px; }
+  .ops-sales-label strong { font-size: 16px; }
+  .ops-sales-primary > time { top: 22px; right: 28px; font-size: 15px; }
+  .ops-sales-primary > small { top: 49px; left: 26px; font-size: 13px; }
+  .ops-sales-primary > b { top: 78px; left: 26px; font-size: 86px; }
+  .ops-blueprint { right: 26px; bottom: 13px; width: 258px; height: 110px; }
+  .ops-blueprint em { font-size: 13px; }
+  .ops-kpi-grid { height: 136px; }
+  .ops-kpi-grid button { padding: 0 14px; }
+  .ops-kpi-grid button > small { top: 14px; left: 18px; font-size: 12px; }
+  .ops-kpi-grid button > span { top: 37px; right: 18px; left: 18px; }
+  .ops-kpi-grid button strong { font-size: 13px; line-height: 16px; }
+  .ops-kpi-grid button > em { top: 58px; right: 18px; left: 18px; font-size: 10px; }
+  .ops-kpi-grid button > b { top: 85px; right: 19px; font-size: 39px; }
   .ops-index-head { height: 54px; padding: 0 28px; }
   .ops-index-label { font-size: 15px; }
   .ops-index-head strong { font-size: 13px; }
@@ -228,7 +243,7 @@
   .ops-index button > em { top: 69px; right: 22px; left: 28px; font-size: 13px; line-height: 18px; }
   .ops-index button > b { top: 94px; left: 28px; font-size: 45px; line-height: 1; }
   .ops-index button > .ops-arrow { top: 103px; right: 26px; font-size: 24px; line-height: 1; }
-  .ops-analytics-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .ops-analytics-grid { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(360px, 1fr); gap: 16px; }
   /* Geometry only. The frosted fill for this panel — and for every other
      card that shares it — is owned by frosted.css section 8. Do not
      reintroduce a background or box-shadow here. */
@@ -334,11 +349,11 @@
 
   /* Sales check: one full reference card, real KPI fields and original actions. */
   .closing-look .scene-title { display: none; }
-  .closing-look .sales-input-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; min-height: 542px; margin: 38px 18px 0; padding: 34px 28px; border-radius: var(--ops-radius); }
-  .sales-input-summary > div { display: grid; align-content: space-between; min-height: 184px; padding: 28px 22px; border-radius: var(--ops-radius); }
-  .sales-input-summary > div span { font-size: 18px; }
-  .sales-input-summary > div strong { font-size: 46px; }
-  .sales-input-summary > button { grid-column: 1 / -1; min-height: 70px; font-size: 21px; }
+  .closing-look .sales-bi-slot { margin: 38px 18px 0; min-height: 542px; }
+  .closing-look .sales-bi-slot .ops-bi-panel { grid-column: auto; }
+  .closing-look .sales-closing-strip { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr); gap: 16px; align-items: center; margin: 16px 18px 0; }
+  .closing-look .sales-closing-strip > button { min-height: 70px; font-size: 21px; }
+  .closing-look .sales-closing-strip p { margin: 0; color: var(--ops-text-muted); font-size: 13px; }
   .sales-input-summary > p { grid-column: 1 / -1; padding: 0; font-size: 16px; }
 }
 
@@ -376,6 +391,7 @@
   /* BI 门店经营面板 · lieflat 语法（G18 counter / L14 hundred field / F11 tick gauge）。
      几何与排版在此；卡面填充若有，归 frosted.css 统一管。动效走 GSAP（BiInsightCharts.jsx），
      无 CSS keyframes，因此本块没有动画规则可降级。 */
+  .ops-bi-panel { grid-column: 1 / -1; }
   .ops-bi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 10px; }
   .ops-bi-card { position: relative; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; min-width: 0; padding: 14px 24px 10px; }
   .ops-bi-stat-card { grid-template-rows: auto auto auto minmax(0, 1fr) auto; cursor: pointer; }

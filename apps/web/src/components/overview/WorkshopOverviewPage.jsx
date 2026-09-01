@@ -7,9 +7,6 @@ import IconLabel from '@iconoir/Label.mjs'
 import IconCheck from '@iconoir/Check.mjs'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
 import { RepairRungChart, SalesHairlineChart } from './BusinessTrendCharts.jsx'
-import { BiInsightPanel } from './BiInsightCharts.jsx'
-import BiSalesMobile from './BiSalesMobile.jsx'
-import { useViewportKind } from '../../hooks/useViewportKind.js'
 
 const operations = [
   { id: 'pickup', no: '02', en: 'PICKUP', cn: '待取车辆', Icon: IconDelivery },
@@ -19,6 +16,12 @@ const operations = [
   { id: 'sales', no: '06', en: 'SALES', cn: '销售数据', Icon: IconCash }
 ]
 
+const kpiItems = [
+  { key: 'safetyChecks', no: '01', cn: '安全检查开单', en: 'MODEL' },
+  { key: 'validReviews', no: '02', cn: '顾客有效评价', en: 'VALID REVIEWS' },
+  { key: 'usedSold', no: '03', cn: '销售二手车', en: 'USED SOLD' },
+  { key: 'usedReceived', no: '04', cn: '收二手车', en: 'USED RECEIVED' }
+]
 
 function dateParts(dateKey) {
   const source = dateKey ? new Date(`${dateKey}T12:00:00`) : new Date()
@@ -30,6 +33,10 @@ function dateParts(dateKey) {
   return { full: `${year} / ${month} / ${day} 周${weekday}`, short: `${month} / ${day} 周${weekday}` }
 }
 
+function displayMetric(value, available = true) {
+  if (!available || value === null || value === undefined || Number.isNaN(Number(value))) return '—'
+  return String(Math.max(0, Number(value))).padStart(2, '0')
+}
 
 function ArrowGlyph() { return <span className="ops-arrow" aria-hidden="true">›</span> }
 
@@ -95,9 +102,26 @@ function ClosingStatusCard({ workflow, online, onEditKpi, onCompleteClosing, onH
   )
 }
 
-function displayMetric(value, available = true) {
-  if (!available || value === null || value === undefined || Number.isNaN(Number(value))) return '—'
-  return String(Math.max(0, Number(value))).padStart(2, '0')
+function SalesVehiclesPanel({ dateKey, kpi, available, onEditKpi }) {
+  const date = dateParts(dateKey)
+  const salesValue = displayMetric(kpi?.salesVehicles, available)
+  return (
+    <section className="ops-sales-panel" aria-labelledby="ops-sales-title">
+      <button type="button" className="ops-sales-primary" onClick={onEditKpi} aria-label="填写或修改当日销售数据">
+        <span className="ops-sales-label"><i /><strong id="ops-sales-title">SALES VEHICLES</strong></span>
+        <time dateTime={dateKey || undefined}>{date.full.replace(/ 周.$/u, '')}</time>
+        <small>销售车辆 · {available ? '读取真实业务数据' : '数据暂不可用'}</small>
+        <b data-digits={salesValue === '—' ? 'unavailable' : String(salesValue.length)}>{salesValue}</b>
+        <span className="ops-blueprint" aria-hidden="true"><img src="/images/ops/bicycle-workshop-blueprint.svg" alt="" /><em>UNIT</em></span>
+      </button>
+      <div className="ops-kpi-grid">
+        {kpiItems.map((item) => {
+          const value = displayMetric(kpi?.[item.key], available)
+          return <button type="button" key={item.key} onClick={onEditKpi}><small>{item.no}</small><span><strong>{item.cn}</strong></span><em>{item.key === 'safetyChecks' && kpi?.safetyModel ? `MODEL · ${kpi.safetyModel}` : item.en}</em><b data-digits={value === '—' ? 'unavailable' : String(value.length)}>{value}</b></button>
+        })}
+      </div>
+    </section>
+  )
 }
 
 function operationSummary(workflow) {
@@ -188,18 +212,14 @@ function ReleaseStrip() {
 }
 
 export default function WorkshopOverviewPage({ workflow, shiphubSummary, online, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport, onJump, showUsed = false, showAnalytics = false }) {
-  const viewport = useViewportKind()
+  const available = workflow.hydrated && workflow.hasSnapshot
   return (
     <div className="ops-mobile-overview" data-workspace-module="true" aria-label="Workshop 业务总览">
       {!online ? <p className="ops-inline-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据</p> : null}
-      <div className="ops-overview-left">
-        <ClosingStatusCard workflow={workflow} online={online} onEditKpi={onEditKpi} onCompleteClosing={onCompleteClosing} onHistory={onHistory} onRefresh={onRefresh} onReopenClosing={onReopenClosing} onExportReport={onExportReport} />
-        {showAnalytics ? <OverviewAnalytics workflow={workflow} shiphubSummary={shiphubSummary} /> : null}
-      </div>
-      <section className="ops-sales-slot" aria-label="销售数据 · BI">
-        {viewport === 'desktop' ? <BiInsightPanel /> : <BiSalesMobile />}
-      </section>
+      <ClosingStatusCard workflow={workflow} online={online} onEditKpi={onEditKpi} onCompleteClosing={onCompleteClosing} onHistory={onHistory} onRefresh={onRefresh} onReopenClosing={onReopenClosing} onExportReport={onExportReport} />
+      <SalesVehiclesPanel dateKey={workflow.dateKey} kpi={workflow.kpi} available={available} onEditKpi={onEditKpi} />
       <OperationsIndex workflow={workflow} shiphubSummary={shiphubSummary} onJump={onJump} showUsed={showUsed} />
+      {showAnalytics ? <OverviewAnalytics workflow={workflow} shiphubSummary={shiphubSummary} /> : null}
       <ReleaseStrip />
       <div className="ops-first-screen-spacer" aria-hidden="true" />
     </div>

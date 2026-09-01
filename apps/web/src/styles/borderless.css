@@ -130,7 +130,7 @@
 /* 3d. 1px/2px grid gaps exposing a coloured parent as faux rules.
  * Collapse to a real gap so cells read as separate tiles. */
 .metric-input-grid,
-.sales-input-summary,
+.sales-closing-strip,
 .migration-summary,
 .admin-directory-store-list,
 .admin-directory-member-list {

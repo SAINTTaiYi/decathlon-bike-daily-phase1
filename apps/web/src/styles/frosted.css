@@ -393,6 +393,7 @@
  * it composites for free.
  * ================================================================== */
 .ops-closing-card,
+.ops-sales-panel,
 .ops-index,
 .ops-pickup-board,
 .ops-release-strip,
@@ -426,6 +427,7 @@
 
 /* The endfield theme paints its own dark surfaces; glass would fight it. */
 [data-theme='endfield'] .ops-closing-card,
+[data-theme='endfield'] .ops-sales-panel,
 [data-theme='endfield'] .ops-index,
 [data-theme='endfield'] .ops-pickup-board,
 [data-theme='endfield'] .ops-release-strip,
@@ -449,6 +451,7 @@
 
 @media (forced-colors: active) {
   .ops-closing-card,
+  .ops-sales-panel,
   .ops-index,
   .ops-pickup-board,
   .ops-release-strip,

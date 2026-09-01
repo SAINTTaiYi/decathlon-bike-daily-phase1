@@ -164,7 +164,7 @@
   .look-section > .kpi-sheet,
   .look-section > .handover-index,
   .look-section > .record-ledger,
-  .look-section > .sales-input-summary { min-width: 0; }
+  .look-section > .sales-bi-slot { min-width: 0; }
 
   .kpi-sheet { grid-template-columns: minmax(20rem, 1.04fr) minmax(18rem, .96fr); }
   .kpi-primary { min-height: 28rem; padding: clamp(1.4rem, 2.5vw, 2.25rem); }
