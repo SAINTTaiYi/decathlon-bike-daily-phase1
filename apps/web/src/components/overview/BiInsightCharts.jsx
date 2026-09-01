@@ -326,6 +326,8 @@ const MODEL_TABS = [
 // 仅收录经外部确认的码→名；其余码 M218 不带名称，保留码（不编造）。
 const ALLCHANNEL_NAMES = {
   '8640568': 'Fit3 Jr 儿童轮滑鞋',
+  '8984795': 'EXPLORE 900 24" 青少年山地车',
+  '8949264': 'RCR 骑行服',
 }
 const deltaText = (value, label) => value === null || value === undefined ? null : `${label} ${value > 0 ? '▴' : value < 0 ? '▾' : ''}${Math.abs(value).toFixed(1)}%`
 const modelDelta = (row) => deltaText(row.wow, '环比') ?? deltaText(row.yoy, '同比') ?? '—'
