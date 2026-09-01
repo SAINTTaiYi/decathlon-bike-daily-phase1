@@ -416,7 +416,9 @@
   .ops-bi-model-row > .rank { color: #8f8e88; font-family: var(--ops-display); font-size: 10px; font-weight: 650; letter-spacing: .04em; }
   .ops-bi-model-row > .name { color: #1c1c1a; font-size: 12px; font-weight: 620; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ops-bi-model-row > .name .code { color: #b0afa9; font-family: var(--ops-display); font-size: 9px; font-weight: 550; letter-spacing: .05em; margin-left: 6px; }
-  .ops-bi-model-row > .val { color: #55554f; font-family: var(--ops-display); font-size: 11px; font-weight: 650; white-space: nowrap; }
+  .ops-bi-model-row > .val { display: grid; justify-items: end; row-gap: 1px; }
+  .ops-bi-model-row > .val b { color: #1c1c1a; font-family: var(--ops-display); font-size: 11px; font-weight: 680; line-height: 1; white-space: nowrap; }
+  .ops-bi-model-row > .val small { color: #8f8e88; font-family: var(--ops-display); font-size: 8.5px; font-weight: 600; letter-spacing: .03em; white-space: nowrap; }
   .ops-bi-model-bar { grid-column: 2 / 3; display: block; height: 2px; margin: 3px 0 2px; border-radius: 1px; background: rgb(28 28 26 / .08); overflow: hidden; }
   .ops-bi-model-bar > i { display: block; height: 100%; border-radius: 1px; background: #1c1c1a; transform-origin: left center; }
   .ops-bi-review-card .ops-bi-stat-extra { grid-template-columns: repeat(3, minmax(0, 1fr)); }

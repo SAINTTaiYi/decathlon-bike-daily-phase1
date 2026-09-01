@@ -21,24 +21,37 @@ test('第三行挂载：销售榜 + 评价卡组件齐全并装进面板', async
   assert.match(charts, /ops-bi-model-pill/u)
 })
 
-test('车型榜数据诚实：Top/Flop 各 10 行，口径只上已定案两列', async () => {
+test('车型榜数据诚实：Top/Flop 各 10 行，数量/金额/占比/同比/环比全定案', async () => {
   const { BI_SNAPSHOT } = await import('../apps/web/src/data/biSnapshot.js')
   const { models } = BI_SNAPSHOT
   assert.equal(models.top.length, 10)
   assert.equal(models.flop.length, 10)
+  assert.match(models.week, /2026-08-23/u)
   for (const row of [...models.top, ...models.flop]) {
-    assert.deepEqual(Object.keys(row).sort(), ['code', 'model', 'rank', 'share', 'yoy'], '行字段只允许定案列')
+    assert.deepEqual(Object.keys(row).sort(), ['code', 'model', 'qty', 'rank', 'share', 'to', 'wow', 'yoy'], '行字段必须是定案列集合')
     assert.ok(typeof row.share === 'number')
+    assert.ok(Number.isInteger(row.qty) && row.qty >= 0, 'qty 必须是非负整数')
+    assert.ok(typeof row.to === 'number' && row.to > 0, 'to 必须是正金额')
     assert.ok(row.yoy === null || typeof row.yoy === 'number')
+    assert.ok(row.wow === null || typeof row.wow === 'number')
   }
-  // 2026-09-01 提取定案锚点
+  // 2026-09-01 两轮提取定案锚点（占比=zone 解码，数量/金额=DataTable 直读）
   assert.equal(models.top[0].model, '26" EXPL 500 CN YELLOW')
   assert.equal(models.top[0].share, 4.5)
-  assert.equal(models.top[0].code, '8927179')
-  assert.equal(models.top[8].yoy, 292.7)
+  assert.equal(models.top[0].qty, 1)
+  assert.equal(models.top[0].to, 1479.9)
+  assert.equal(models.top[8].qty, 4)
+  assert.equal(models.top[8].to, 510.14)
+  assert.equal(models.top[8].wow, 292.7)
+  assert.equal(models.top[6].yoy, -3.0)
   assert.equal(models.flop[0].model, 'MINERAL WATER 500ML*')
-  assert.equal(models.flop[0].yoy, -66.7)
-  // 口径未定案的三列度量值（1K/0K 格式化串等）不得进入快照
+  assert.equal(models.flop[0].to, 2.85)
+  assert.equal(models.flop[0].yoy, -80.1)
+  assert.equal(models.flop[0].wow, -66.7)
+  assert.equal(models.flop[1].qty, 0)
+  // 口径纠错：旧轮误标的"同比"实为环比——快照必须区分两列，不得合并
+  assert.ok('wow' in models.top[1] && 'yoy' in models.top[1])
+  // 口径未定案的度量（1K/0K 格式化串等）不得进入快照
   const serialized = JSON.stringify(models)
   assert.ok(!serialized.includes('1K') && !serialized.includes('Calculation_'), '未定案度量不得上屏')
 })
@@ -78,6 +91,8 @@ test('CSS 落地：每个新类名都有真实声明（防样式缺失假绿）'
   assert.match(css, /\.ops-bi-model-row\s*>\s*\.rank\s*\{/u)
   assert.match(css, /\.ops-bi-model-row\s*>\s*\.name\s*\{/u)
   assert.match(css, /\.ops-bi-model-row\s*>\s*\.val\s*\{/u)
+  assert.match(css, /\.ops-bi-model-row\s*>\s*\.val\s+b\s*\{/u)
+  assert.match(css, /\.ops-bi-model-row\s*>\s*\.val\s+small\s*\{/u)
   assert.match(css, /\.ops-bi-model-bar\s*>\s*i\s*\{/u)
   assert.match(css, /\.ops-bi-review-card\s+\.ops-bi-stat-extra\s*\{/u)
 })
