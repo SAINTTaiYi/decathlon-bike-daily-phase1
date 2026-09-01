@@ -402,9 +402,9 @@
   .ops-bi-stat-extra small { display: block; color: #8f8e88; font-family: var(--ops-display); font-size: 8px; font-weight: 600; letter-spacing: .1em; }
   .ops-bi-stat-extra b { margin-top: 3px; color: #1c1c1a; font-family: var(--ops-display); font-size: 17px; font-weight: 800; line-height: 1; }
   .ops-bi-chart [data-bi-dot], .ops-bi-chart [data-bi-core], .ops-bi-chart [data-bi-bead], .ops-bi-chart [data-bi-marker] { transform-box: fill-box; transform-origin: center; }
-  .ops-bi-repair-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+  .ops-bi-mid-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+  .ops-bi-bottom-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
   /* 第三行：商品销售榜（宽）+ 顾客评价 360 分（窄）。列数固定不随宽度降列。 */
-  .ops-bi-models-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
   .ops-bi-models-card { padding-bottom: 16px; }
   .ops-bi-model-tabs { position: relative; display: inline-flex; gap: 4px; margin-top: 10px; padding: 3px; border-radius: 999px; background: rgb(28 28 26 / .05); }
   .ops-bi-model-pill { position: absolute; top: 3px; left: 0; height: calc(100% - 6px); width: 40px; border-radius: 999px; background: var(--ops-yellow); }

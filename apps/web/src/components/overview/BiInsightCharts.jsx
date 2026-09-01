@@ -92,8 +92,8 @@ export function BiStatCard({ snapshot }) {
   const yoyPercent = Math.abs(economic.toYoy * 100).toFixed(1)
   return (
     <section ref={ref} className="ops-lieflat-card ops-bi-card ops-bi-stat-card" data-replay={replay} onClick={replayChart} aria-label={`门店 TO ${money(economic.to)}，同比 ${economic.toYoy >= 0 ? '增长' : '下降'} ${yoyPercent}%，点击重播入场动画`}>
-      <h3>门店 TO 同比回落 {yoyPercent}%</h3>
-      <div className="ops-lieflat-sub"><span>BI 本周期门店营业额 · 单位元 · 经济表现 M216</span></div>
+      <h3>门店 TO 同比回落 {yoyPercent}%（全店口径）</h3>
+      <div className="ops-lieflat-sub"><span>BI 本周期门店营业额 · 单位元 · 经济表现 M216 · ⚠ 全店口径：BI 经济表暂未开放自行车维度</span></div>
       <div className="ops-bi-stat-main">
         <b data-bi-counter={economic.to}>{money(economic.to)}</b>
         <span className="ops-bi-yoy" data-bi-yoy="" data-negative={economic.toYoy < 0 ? 'true' : 'false'}>{economic.toYoy < 0 ? '▾' : '▴'} {yoyPercent}% 同比</span>
@@ -140,7 +140,7 @@ export function BiDisField({ snapshot }) {
   const { dis } = snapshot.economic
   return (
     <section ref={ref} className="ops-lieflat-card ops-bi-card" data-replay={replay}>
-      <h3>DIS 销售：全渠道与线下几乎对半</h3>
+      <h3>DIS 销售：全渠道与线下几乎对半（全店口径）</h3>
       <div className="ops-lieflat-sub"><span>1 点 = DIS 的 1 个百分点 · 全渠道 {money(dis.omni)} · 线下 {money(dis.offline)}</span></div>
       <ChartSvg label={`DIS 构成单位分解：全渠道 ${BI_DIS_DOTS.omni} 点，线下 ${BI_DIS_DOTS.offline} 点，共 100 点`} replayChart={replayChart} viewBox="0 0 400 158">
         <line data-bi-hairline="" x1={DIS_SEGMENTS[0].cx} y1={DIS_SEGMENTS[0].cy} x2={DIS_SEGMENTS[1].cx} y2={DIS_SEGMENTS[1].cy} stroke={MONO.grid} strokeWidth="0.7" strokeDasharray="2 5" />
@@ -208,7 +208,7 @@ export function BiOnlineGauge({ snapshot }) {
   return (
     <section ref={ref} className="ops-lieflat-card ops-bi-card" data-replay={replay}>
       <h3>线上占去门店 TO 三成出头</h3>
-      <div className="ops-lieflat-sub"><span>1 刻度 = 门店 TO 的 1% · 上墨 = 线上份额 {(share * 100).toFixed(1)}% · 门店汇总 M214</span></div>
+      <div className="ops-lieflat-sub"><span>1 刻度 = 门店 TO 的 1% · 上墨 = 线上份额 {(share * 100).toFixed(1)}% · 门店汇总 M214 · 全店口径</span></div>
       <ChartSvg label={`线上占门店 TO 的 ${(share * 100).toFixed(1)}%，100 刻度中上墨 ${inked} 格`} replayChart={replayChart} viewBox="0 0 400 158">
         {ticks.map((tick, index) => (
           <line key={index} data-bi-tick="" x1={tick.x1} y1={tick.y1} x2={tick.x2} y2={tick.y2} stroke={tick.isInked ? MONO.ink : MONO.grid} strokeWidth={tick.isInked ? 1 : 0.6} />
@@ -255,8 +255,8 @@ export function BiRepairTrend({ snapshot }) {
   const axis = [0, 8, 17, 26, 34]
   return (
     <section ref={ref} className="ops-lieflat-card ops-bi-card" data-replay={replay}>
-      <h3>维修 TO 站稳 4 千周线</h3>
-      <div className="ops-lieflat-sub"><span>1 根发丝 = 1 周维修营业额 · 春节前 W01 冲顶 · 维修报表 M348</span></div>
+      <h3>{`自行车+工作室 维修 TO · 周均 ${money(snapshot.repair.avg)}`}</h3>
+      <div className="ops-lieflat-sub"><span>1 根发丝 = 1 周维修营业额 · Universe=自行车+工作室 源端过滤 · 维修报表 M348</span></div>
       <ChartSvg label={`2026 年 W01 至 W35 共 35 周维修 TO 趋势：累计 ¥${snapshot.repair.total.toLocaleString('en-US')}，峰值 ${geom.peak.week} ¥${geom.peak.value.toLocaleString('en-US')}，春节谷值 ${geom.trough.week} ¥${geom.trough.value}，最新 W35 ¥${geom.points[geom.points.length - 1].value.toLocaleString('en-US')}`} replayChart={replayChart} viewBox="0 0 400 158">
         <line data-bi-hair="" x1="20" y1={geom.base} x2="380" y2={geom.base} stroke={MONO.grid} strokeWidth="0.8" />
         {geom.points.map((p, index) => (
@@ -300,8 +300,8 @@ export function BiRepairStat({ snapshot }) {
   useBiMotion(ref, revealed, replay, reduced, build)
   return (
     <section ref={ref} className="ops-lieflat-card ops-bi-card ops-bi-stat-card" data-replay={replay} onClick={replayChart} aria-label={`维修 TO 35 周累计 ${money(total)}，周均 ${money(avg)}，点击重播入场动画`}>
-      <h3>维修生意平稳 · 周均 {money(avg)}</h3>
-      <div className="ops-lieflat-sub"><span>2026 W01–W35 · BI 维修报表 M348 · 门店 1299</span></div>
+      <h3>近 8 周周均 {money(recentAvg)} · 最新周 {money(latest.value)}</h3>
+      <div className="ops-lieflat-sub"><span>2026 W01–W35 · BI 维修报表 M348 · Universe=自行车+工作室</span></div>
       <div className="ops-bi-stat-main">
         <b data-bi-counter={total}>{money(total)}</b>
         <span className="ops-bi-yoy" data-bi-chip="" data-positive="true">▴ 近 8 周周均 {money(recentAvg)}</span>
@@ -354,7 +354,7 @@ export function BiModelRanking({ snapshot }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(() => { placePill(true) /* 切换时滑块位移 */ }, [tab, reduced]) // eslint-disable-line react-hooks/exhaustive-deps
-  const rows = tab === 'allChannel' ? models.allChannel.rows : models[tab]
+  const rows = tab === 'allChannel' ? models.allChannel.rows.slice(0, 10) : models[tab]
   const metric = (row) => tab === 'top' ? row.share : tab === 'allChannel' ? row.qty : Math.abs(row.wow ?? row.yoy ?? 0)
   const maxMetric = Math.max(...rows.map(metric), 0.001)
   const build = useMemo(() => (timeline, node) => {
@@ -374,8 +374,8 @@ export function BiModelRanking({ snapshot }) {
   const active = MODEL_TABS.find((entry) => entry.key === tab)
   return (
     <section ref={ref} className="ops-lieflat-card ops-bi-card ops-bi-models-card" data-replay={replay} aria-label="商品销售榜，可在热销、下滑与全渠道车型之间切换">
-      <h3>{`销售榜前 ${Math.min(6, models.top.length)} 名里 ${models.top.slice(0, 6).filter((row) => /BIKE|EXPL|MOVE|RC100|900 GREEN/.test(row.model)).length} 台是自行车`}</h3>
-      <div className="ops-lieflat-sub"><span>{`BI ${models.report} · 周 ${models.week} · STORE 1299`}</span></div>
+      <h3>销售榜已按 自行车+工作室 源端过滤</h3>
+      <div className="ops-lieflat-sub"><span>{`BI ${models.report} · 周 ${models.week} · STORE 1299 · Universe=${'Cycling + Workshop'}`}</span></div>
       <div className="ops-bi-model-tabs" role="tablist" ref={trackRef}>
         <i className="ops-bi-model-pill" ref={pillRef} aria-hidden="true" />
         {MODEL_TABS.map((entry) => (
@@ -412,38 +412,56 @@ export function BiModelRanking({ snapshot }) {
   )
 }
 
-/* ── G18 语义 · 顾客评价 360 分卡（M243 I Listen）────────── */
+/* ── F12 Dumbbell Queue · 顾客评价 360（本店 vs 南区 vs 全国）────── */
 export function BiReviewCard({ snapshot }) {
   const { review } = snapshot
   const { ref, revealed, replay, replayChart } = useBiReveal()
   const reduced = usePrefersReducedMotion()
+  const beads = [
+    { key: 'store', label: '本店', value: review.score360, fill: MONO.ink },
+    { key: 'zone', label: `${review.zoneName} 区`, value: review.benchmark.zone, fill: MONO.muted },
+    { key: 'china', label: '全国', value: review.benchmark.china, fill: MONO.faint }
+  ]
+  const X = (v) => 24 + (v / 100) * 352
   const build = useMemo(() => (timeline, node) => {
-    const counter = node.querySelector('[data-bi-score]')
-    if (counter) {
-      const state = { value: 0 }
-      timeline.to(state, { value: review.score360, duration: 1.05, ease: 'expo.out', onUpdate: () => { counter.textContent = state.value.toFixed(2) } }, 0)
-    }
+    timeline.from(node.querySelectorAll('[data-bi-axis]'), { opacity: 0, duration: 0.6, ease: 'power2.out' }, 0)
+    timeline.from(node.querySelectorAll('[data-bi-bead]'), { scale: 0, duration: 0.5, ease: 'back.out(2.2)', stagger: 0.12 }, 0.3)
+    timeline.from(node.querySelectorAll('[data-bi-beadlabel]'), { opacity: 0, y: 6, duration: 0.4, ease: 'power3.out', stagger: 0.1 }, 0.55)
     node.querySelectorAll('[data-bi-chip]').forEach((element, index) => {
-      timeline.from(element, { opacity: 0, y: 6, duration: 0.5, ease: 'power3.out' }, 0.5 + index * 0.12)
+      timeline.from(element, { opacity: 0, y: 6, duration: 0.5, ease: 'power3.out' }, 0.8 + index * 0.12)
     })
-  }, [review.score360])
+  }, [])
   useBiMotion(ref, revealed, replay, reduced, build)
   const gap = (review.benchmark.china - review.score360).toFixed(1)
   return (
-    <section ref={ref} className="ops-lieflat-card ops-bi-card ops-bi-stat-card ops-bi-review-card" data-replay={replay} onClick={replayChart} aria-label={`顾客评价 360 综合分 ${review.score360.toFixed(2)}，全国第 ${review.rankChina}，点击重播入场动画`}>
-      <h3>{`满意度 360 分 ${review.score360.toFixed(1)} · 低于全国均值`}</h3>
-      <div className="ops-lieflat-sub"><span>{`BI I Listen M243 · 数据周 ${review.week} · STORE 1299`}</span></div>
-      <div className="ops-bi-stat-main">
-        <b data-bi-score="">{review.score360.toFixed(2)}</b>
-        <span className="ops-bi-yoy" data-bi-chip="">{`全国第 ${review.rankChina} · ${review.zoneName} 区第 ${review.rankZone}`}</span>
-      </div>
+    <section ref={ref} className="ops-lieflat-card ops-bi-card ops-bi-review-card" data-replay={replay} onClick={replayChart} aria-label={`顾客评价 360 综合分 本店 ${review.score360.toFixed(2)}，全国 ${review.benchmark.china.toFixed(2)}，点击重播入场动画`}>
+      <h3>{`满意度 360 分 · 本店落后全国 ${gap} 分`}</h3>
+      <div className="ops-lieflat-sub"><span>{`BI I Listen M243 · 数据周 ${review.week} · 1 珠 = 1 实体 · STORE 1299`}</span></div>
+      <ChartSvg label={`360 分哑铃：本店 ${review.score360}，南区 ${review.benchmark.zone}，全国 ${review.benchmark.china}`} replayChart={replayChart} viewBox="0 0 400 118">
+        <line data-bi-axis="" x1={X(0)} y1={62} x2={X(100)} y2={62} stroke={MONO.grid} strokeWidth="0.7" />
+        {[0, 25, 50, 75, 100].map((mark) => (
+          <g key={mark} data-bi-axis="">
+            <line x1={X(mark)} y1={58} x2={X(mark)} y2={66} stroke={MONO.hairline} strokeWidth="0.6" />
+            <text x={X(mark)} y={78} fontSize="7" fontWeight="600" fill={MONO.faint} textAnchor="middle">{mark}</text>
+          </g>
+        ))}
+        {beads.map((bead, index) => (
+          <g key={bead.key}>
+            <circle data-bi-bead="" cx={X(bead.value)} cy={62 - index * 0} r={bead.key === 'store' ? 5 : 3.6} fill={bead.fill} opacity={bead.key === 'store' ? 1 : 0.75}>
+              <title>{`${bead.label} ${bead.value.toFixed(2)}`}</title>
+            </circle>
+            <text data-bi-beadlabel="" x={X(bead.value)} y={30 + index * 11} fontSize="8" fontWeight="800" fill={bead.key === 'store' ? MONO.ink : MONO.muted} textAnchor="middle" letterSpacing=".06em">{`${bead.label} ${bead.value.toFixed(1)}`}</text>
+          </g>
+        ))}
+        <text data-bi-axis="" x="200" y={106} fontSize="7" fontWeight="600" fill={MONO.faint} textAnchor="middle" letterSpacing=".12em">ONE BEAD = ONE ENTITY · 360 SCORE 0–100</text>
+      </ChartSvg>
       <div className="ops-bi-stat-extra">
         <div><small>TILL · 收银满意</small><b>{`${review.till.satisfaction.toFixed(2)}%`}</b></div>
         <div><small>COVERAGE · 覆盖</small><b>{`${review.till.coverage}% · ${review.till.orders.toLocaleString('en-US')} 单`}</b></div>
-        <div><small>BENCHMARK · 全国均值</small><b>{review.benchmark.china.toFixed(2)}</b></div>
+        <div><small>NEW · 本周新增</small><b>{`${review.newReviews.store + review.newReviews.workshop + review.newReviews.dianping} 条`}</b></div>
       </div>
-      <p className="ops-bi-review-note" data-bi-chip="">{`${review.newReviews.note} · 与全国均值差 ${gap} 分`}</p>
-      <div className="ops-lieflat-src">SUMMARY DATA · BI M243 I LISTEN · STORE 1299</div>
+      <p className="ops-bi-review-note" data-bi-chip="">{`${review.newReviews.note} · ${review.detail.note}`}</p>
+      <div className="ops-lieflat-src">DUMBBELL QUEUE · BI M243 I LISTEN · STORE 1299</div>
     </section>
   )
 }
@@ -458,13 +476,13 @@ export function BiInsightPanel({ snapshot = BI_SNAPSHOT }) {
         <BiDisField snapshot={snapshot} />
         <BiOnlineGauge snapshot={snapshot} />
       </div>
-      <div className="ops-bi-repair-grid">
+      <div className="ops-bi-mid-grid">
         <BiRepairTrend snapshot={snapshot} />
-        <BiRepairStat snapshot={snapshot} />
-      </div>
-      <div className="ops-bi-models-grid">
-        <BiModelRanking snapshot={snapshot} />
         <BiReviewCard snapshot={snapshot} />
+      </div>
+      <div className="ops-bi-bottom-grid">
+        <BiModelRanking snapshot={snapshot} />
+        <BiRepairStat snapshot={snapshot} />
       </div>
     </article>
   )

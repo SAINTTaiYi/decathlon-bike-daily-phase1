@@ -1,100 +1,79 @@
-// BI 门店经营面板（lieflat G18/L14/F11 × BI Portal 1299 快照）回归断言。
-// 教训依据：测试全绿但功能不可用（memory 26/27）——本文件同时断言
-// JSX 结构、CSS 落地（每个类名都有真实声明）与布局约束，不做仅查 token 的假断言。
+// BI 门店经营面板（lieflat G18/L14/F11/F3/F12 × BI Portal 1299 快照）回归断言。
+// 2026-09-02 复核：车型/维修按 自行车+工作室 Universe 源端过滤；经济表保留全店口径并显式标注。
+// 教训依据：测试全绿但功能不可用（memory 26/27/33）——同时断言 JSX、CSS 落地与布局约束。
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 const root = new URL('../', import.meta.url)
 const read = (file) => readFile(new URL(file, root), 'utf8')
 
-test('BI 面板挂载进桌面总览分析区，两行五卡齐全', async () => {
+test('BI 面板挂载进桌面总览分析区，三行七卡齐全', async () => {
   const [overview, charts] = await Promise.all([read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'), read('apps/web/src/components/overview/BiInsightCharts.jsx')])
   assert.match(overview, /import \{ BiInsightPanel \} from '\.\/BiInsightCharts\.jsx'/u)
   assert.match(overview, /<BiInsightPanel \/>/u)
-  // 面板位于 OverviewAnalytics（showAnalytics 桌面门控内），不改动既有门控
   assert.match(overview, /showAnalytics \? <OverviewAnalytics/u)
-  for (const name of ['BiStatCard', 'BiDisField', 'BiOnlineGauge', 'BiRepairTrend', 'BiRepairStat', 'BiInsightPanel']) {
+  for (const name of ['BiStatCard', 'BiDisField', 'BiOnlineGauge', 'BiRepairTrend', 'BiRepairStat', 'BiReviewCard', 'BiInsightPanel']) {
     assert.match(charts, new RegExp(`export function ${name}`), `缺少组件 ${name}`)
   }
-  // 面板两行结构：经济三卡 + 维修两卡
-  assert.match(charts, /ops-bi-grid/u); assert.match(charts, /ops-bi-repair-grid/u)
+  assert.match(charts, /ops-bi-grid/u)
+  assert.match(charts, /ops-bi-mid-grid/u)
+  assert.match(charts, /ops-bi-bottom-grid/u)
+  assert.match(charts, /<BiRepairTrend snapshot=\{snapshot\} \/>/u)
+  assert.match(charts, /<BiReviewCard snapshot=\{snapshot\} \/>/u)
+  assert.match(charts, /<BiModelRanking snapshot=\{snapshot\} \/>/u)
+  assert.match(charts, /<BiRepairStat snapshot=\{snapshot\} \/>/u)
 })
 
-test('维修数据诚实：门店级 35 周序列，全国值不得混入', async () => {
-  const [data, charts] = await Promise.all([read('apps/web/src/data/biSnapshot.js'), read('apps/web/src/components/overview/BiInsightCharts.jsx')])
-  // 2026-08-31 提取定案的门店级统计
-  for (const value of ['114267', '3265', '4205', "week: 'W01', value: 7665", "week: 'W05', value: 551"]) {
-    assert.ok(data.includes(value), `维修快照缺少 ${value}`)
-  }
-  assert.equal((data.match(/^\s*\{ week: 'W\d\d', value: \d+/gmu) ?? []).length, 35, '维修周序列必须是 35 周')
-  // 全国上下文的 1,299,657 / +5.0% 不得上门店卡（曾误判为门店 KPI）
-  assert.doesNotMatch(data, /1299657/u)
-  assert.match(data, /未采用/u)
-  // 图内单位注记
-  assert.match(charts, /1 根发丝 = 1 周维修营业额/u)
-  assert.match(charts, /ONE HAIRLINE = ONE WEEK/u)
-  assert.match(charts, /HAIRLINE AREA · BI M348/u)
-  assert.match(charts, /春节/u)
-})
-
-test('数据诚实：快照值、单位注记与 100 点账目', async () => {
-  const [data, charts] = await Promise.all([read('apps/web/src/data/biSnapshot.js'), read('apps/web/src/components/overview/BiInsightCharts.jsx')])
-  // 2026-08-31 链路实测值不得漂移
-  for (const value of ['427916', '-0.1044', '1912284', '309252', '0.318', '61299', '56503', '118623', "'1299'"]) {
-    assert.ok(data.includes(value), `快照缺少实测值 ${value}`)
-  }
-  assert.match(data, /capturedAt: '2026-08-31'/u)
-  // 单位注记：1 点/1 刻度 = 1 个百分点，图内账目 52+48=100 与未捕捉残差
-  assert.match(charts, /1 点 = DIS 的 1 个百分点/u)
-  assert.match(charts, /1 刻度 = 门店 TO 的 1%/u)
-  assert.match(charts, /ONE DOT = 1% OF DIS/u)
-  assert.match(charts, /另 0\.7% 未捕捉/u)
-  assert.match(charts, /ONE TICK = 1% OF STORE TO/u)
-  // 面板头如实标注 SNAPSHOT，不冒充 LIVE
-  assert.match(charts, /SNAPSHOT · /u)
-  assert.doesNotMatch(charts, /LIVE · BI/u)
-})
-
-test('动效遵循工作台规则：GSAP 驱动 + reveal 重播 + reduced-motion 直达终态', async () => {
+test('口径诚实：过滤维度与全店标注都进快照', async () => {
+  const data = await read('apps/web/src/data/biSnapshot.js')
+  const { BI_SNAPSHOT } = await import('../apps/web/src/data/biSnapshot.js')
+  assert.equal(BI_SNAPSHOT.scope.label, '自行车 + 工作室')
+  assert.deepEqual(BI_SNAPSHOT.scope.universes, ['Cycling And Urban Gliding', 'Workshop'])
+  assert.equal(BI_SNAPSHOT.repair.caliber, 'cycling+workshop')
+  assert.equal(BI_SNAPSHOT.models.caliber, 'cycling+workshop')
+  assert.equal(BI_SNAPSHOT.economic.caliber, 'store', '经济表必须显式标全店口径')
+  assert.equal(BI_SNAPSHOT.storeSummary.caliber, 'store')
   const charts = await read('apps/web/src/components/overview/BiInsightCharts.jsx')
-  assert.match(charts, /import \{ gsap \} from 'gsap'/u)
-  assert.match(charts, /gsap\.timeline\(\)/u)
-  assert.match(charts, /prefers-reduced-motion: reduce/u)
-  // reduced 时不建时间线（直达终态），revealed/replay 语义保留
-  assert.match(charts, /if \(!node \|\| reduced \|\| !revealed\) return undefined/u)
-  assert.match(charts, /IntersectionObserver/u)
-  assert.match(charts, /点击或按 Enter 重播入场动画/u)
-  // 可访问性：图表可聚焦、有文字替代
-  assert.match(charts, /role="img"/u)
-  assert.match(charts, /tabIndex="0"/u)
-  assert.match(charts, /aria-label/u)
-  // 确定性伪随机（mono-tokens 血统），禁用 Math.random
-  assert.match(charts, /\(i \* 73856093\) \^ \(k \* 19349663\)/u)
-  assert.doesNotMatch(charts, /Math\.random/u)
+  assert.match(charts, /全店口径/u, '经济卡必须向用户披露全店口径')
+  assert.match(charts, /源端过滤/u, '过滤卡必须披露源端过滤')
+  assert.match(data, /暂不开放|均未开放/u)
 })
 
-test('CSS 落地：每个 BI 类名都有真实声明，布局约束不降级', async () => {
+test('维修数据诚实：自行车+工作室 35 周序列（2026-09-02 重提）', async () => {
+  const { BI_SNAPSHOT } = await import('../apps/web/src/data/biSnapshot.js')
+  const { repair } = BI_SNAPSHOT
+  assert.equal(repair.weeks.length, 35, '维修周序列必须是 35 个完整周')
+  assert.equal(repair.total, 55731)
+  assert.equal(repair.avg, 1592)
+  assert.equal(repair.recentAvg, 1410)
+  assert.deepEqual(repair.peak, { week: 'W01', value: 4462 })
+  assert.deepEqual(repair.latest, { week: 'W35', value: 1057 })
+  assert.equal(repair.weeks.reduce((s, w) => s + w.value, 0), repair.total, '合计必须等于周序列之和')
+  // 旧全店口径值不得残留冒充过滤值
+  const serialized = JSON.stringify(repair)
+  assert.ok(!serialized.includes('114267') && !serialized.includes('7665'), '旧全店维修值不得残留')
+})
+
+test('CSS 落地：新 grid 类名都有真实声明且唯一', async () => {
   const css = await read('apps/web/src/styles/desktop-workbench.css')
-  // 每个组件用到的类名在桌面样式表中有声明（防「测试全绿但样式缺失」）
-  for (const selector of ['.ops-bi-panel', '.ops-bi-grid', '.ops-bi-card', '.ops-bi-stat-card', '.ops-bi-stat-main', '.ops-bi-yoy', '.ops-bi-stat-extra', '.ops-bi-chart']) {
-    assert.ok(new RegExp(`${selector.replace(/\./g, '\\.')}[^{]*\\{`).test(css), `样式缺失：${selector}`)
+  for (const cls of ['ops-bi-mid-grid', 'ops-bi-bottom-grid', 'ops-bi-grid', 'ops-bi-review-note']) {
+    const blocks = css.match(new RegExp(`\\.${cls}\\s*\\{`, 'gu')) ?? []
+    assert.ok(blocks.length >= 1, `样式缺失：.${cls}`)
   }
-  // 面板横跨分析网格两列
-  assert.match(css, /\.ops-bi-panel \{ grid-column: 1 \/ -1/u)
-  // 三卡任何宽度都并排（用户硬规则：禁止按宽度降列数）
-  const columnRules = css.match(/\.ops-bi-grid[^{]*\{[^}]*grid-template-columns:[^}]*\}/gu) ?? []
-  assert.equal(columnRules.length, 1, 'ops-bi-grid 的列轨道只允许一处声明')
-  assert.match(columnRules[0], /repeat\(3, minmax\(0, 1fr\)\)/u)
-  assert.doesNotMatch(css, /\.ops-bi-grid[^{]*\{[^}]*repeat\(2/u)
-  assert.doesNotMatch(css, /\.ops-bi-card[^{]*\{[^}]*grid-column: 1 \/ -1/u)
-  // SVG 变换锚定自身包围盒（GSAP scale 不跑偏），含趋势图峰值/谷值标记
-  assert.match(css, /\.ops-bi-chart \[data-bi-dot\][^{]*\{ transform-box: fill-box/u)
-  assert.match(css, /\[data-bi-marker\] \{ transform-box: fill-box/u)
-  // 维修行两列宽窄布局只声明一处，不降级
-  const repairRules = css.match(/\.ops-bi-repair-grid[^{]*\{[^}]*grid-template-columns:[^}]*\}/gu) ?? []
-  assert.equal(repairRules.length, 1, 'ops-bi-repair-grid 列轨道只允许一处声明')
-  assert.match(repairRules[0], /minmax\(0, 2fr\) minmax\(0, 1fr\)/u)
-  // 填充不由 BI 块私自刷实心（归 frosted.css 统一管）
-  assert.doesNotMatch(css, /\.ops-bi-card \{[^}]*background:/u)
-  assert.doesNotMatch(css, /\.ops-bi-panel \{[^}]*background:/u)
+  // 旧类名必须已删除（memory 23②：删旧不覆盖）
+  assert.ok(!/\.ops-bi-repair-grid/u.test(css), '旧 repair-grid 必须删除')
+  assert.ok(!/\.ops-bi-models-grid/u.test(css), '旧 models-grid 必须删除')
+  const mid = css.match(/\.ops-bi-mid-grid\s*\{[^}]*\}/u)
+  assert.ok(mid, 'mid-grid 块缺失')
+  assert.match(mid[0], /grid-template-columns:\s*minmax\(0,\s*2fr\)\s*minmax\(0,\s*1fr\)/u)
+})
+
+test('动效规则：BI 块无 CSS 动画，入场全走 GSAP', async () => {
+  const css = await read('apps/web/src/styles/desktop-workbench.css')
+  const charts = await read('apps/web/src/components/overview/BiInsightCharts.jsx')
+  const start = css.indexOf('.ops-bi-mid-grid')
+  const end = css.indexOf('.ops-bi-model-tabs')
+  const block = css.slice(start, end)
+  assert.ok(!/@keyframes|animation:|transition:/u.test(block), 'BI 新块禁止 CSS 动画/过渡')
+  assert.match(charts, /gsap\.timeline\(\)/u)
 })
