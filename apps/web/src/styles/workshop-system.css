@@ -371,7 +371,7 @@ button:disabled { opacity: .48; }
 .scene-note { max-width: 68ch; color: var(--ops-text-muted); font-size: 13px; line-height: 1.55; }
 .scene-actions { display: flex; gap: 8px; }
 
-/* Solid surfaces. The four frosted cards (ops-closing-card, ops-sales-panel,
+/* Solid surfaces. The frosted cards (ops-closing-card, ops-sales-slot/BI,
    ops-index, ops-pickup-board) used to sit in this group and were getting a
    solid fill from here — that is why the glass never showed up. Their fill
    now lives only in frosted.css section 8. Everything below still wants an
@@ -385,13 +385,12 @@ button:disabled { opacity: .48; }
 
 /* The frosted cards still want the border reset + radius from the group
    above; only the paint moved out. */
-:is(.ops-closing-card, .ops-sales-panel, .ops-index, .ops-pickup-board) {
+:is(.ops-closing-card, .ops-index, .ops-pickup-board) {
   border: 0 !important;
   border-radius: var(--ops-radius) !important;
 }
 .ops-mobile-overview { color: var(--ops-text); font-family: var(--ops-body); }
 .ops-closing-card,
-.ops-sales-panel,
 .ops-index,
 .ops-pickup-board { margin-top: 12px; }
 .ops-closing-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; padding: 0 10px 10px; }
@@ -401,8 +400,6 @@ button:disabled { opacity: .48; }
 .ops-index li { border-color: var(--ops-line) !important; }
 .ops-index button { border-radius: 0; }
 .ops-index button:hover { background: var(--ops-yellow-wash); }
-.ops-sales-primary,
-.ops-kpi-grid button,
 .ops-pickup-card,
 .ops-pickup-empty,
 .ops-pickup-add { border-radius: var(--ops-radius-sm) !important; }
