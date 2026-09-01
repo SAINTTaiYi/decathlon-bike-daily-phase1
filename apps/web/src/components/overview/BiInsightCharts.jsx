@@ -50,7 +50,9 @@ function useBiReveal() {
 
 // GSAP 时间线：revealed/replay 变化时重建并播放；.from() 语义保证重播从初始偏移开始
 function useBiMotion(ref, revealed, replay, reduced, build) {
+  const firstTabRender = useRef(true)
   useEffect(() => {
+    if (firstTabRender.current) { firstTabRender.current = false; return undefined }
     const node = ref.current
     if (!node || reduced || !revealed) return undefined
     const timeline = gsap.timeline()
@@ -313,6 +315,124 @@ export function BiRepairStat({ snapshot }) {
   )
 }
 
+
+/* ── 商品销售榜 · M332 Omni 周报（TOP 占比 / FLOP 同比）────── */
+const MODEL_TABS = [
+  { key: 'top', label: 'TOP 10 热销', basis: '条长 = 占门店 TO 份额' },
+  { key: 'flop', label: 'FLOP 10 下滑', basis: '条长 = 同比变化幅度 · 占比均≈0' }
+]
+const yoyText = (value) => value === null || value === undefined ? '—' : `${value > 0 ? '▴' : value < 0 ? '▾' : ''} ${Math.abs(value).toFixed(1)}%`
+
+export function BiModelRanking({ snapshot }) {
+  const { models } = snapshot
+  const [tab, setTab] = useState('top')
+  const { ref, revealed, replay, replayChart } = useBiReveal()
+  const reduced = usePrefersReducedMotion()
+  const trackRef = useRef(null)
+  const pillRef = useRef(null)
+  const buttonRefs = useRef({})
+  const placePill = (animate) => {
+    const button = buttonRefs.current[tab]
+    const pill = pillRef.current
+    if (!button || !pill) return
+    if (animate && !reduced) {
+      gsap.killTweensOf(pill)
+      gsap.to(pill, { x: button.offsetLeft, width: button.offsetWidth, duration: 0.42, ease: 'expo.out' })
+    } else {
+      gsap.set(pill, { x: button.offsetLeft, width: button.offsetWidth })
+    }
+  }
+  useEffect(() => {
+    placePill(false)
+    if (!('ResizeObserver' in window)) return undefined
+    const observer = new ResizeObserver(() => placePill(false))
+    if (trackRef.current) observer.observe(trackRef.current)
+    return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  useEffect(() => { placePill(true) /* 切换时滑块位移 */ }, [tab, reduced]) // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = models[tab]
+  const metric = (row) => tab === 'top' ? row.share : (row.yoy === null ? 0 : Math.abs(row.yoy))
+  const maxMetric = Math.max(...rows.map(metric), 0.001)
+  const build = useMemo(() => (timeline, node) => {
+    timeline.from(node.querySelectorAll('.ops-bi-model-row'), { opacity: 0, y: 8, duration: 0.5, ease: 'power3.out', stagger: 0.045 }, 0)
+    timeline.from(node.querySelectorAll('.ops-bi-model-bar > i'), { scaleX: 0, duration: 0.6, ease: 'expo.out', stagger: 0.05, transformOrigin: 'left center' }, 0.1)
+  }, [])
+  useBiMotion(ref, revealed, replay, reduced, build)
+  useEffect(() => {
+    const node = ref.current
+    if (!node || reduced || !revealed) return undefined
+    const timeline = gsap.timeline()
+    timeline.fromTo(node.querySelectorAll('.ops-bi-model-row'), { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out', stagger: 0.03 })
+    timeline.fromTo(node.querySelectorAll('.ops-bi-model-bar > i'), { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: 'expo.out', stagger: 0.035, transformOrigin: 'left center' }, 0.05)
+    return () => { timeline.kill() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, reduced, revealed, replay])
+  const active = MODEL_TABS.find((entry) => entry.key === tab)
+  return (
+    <section ref={ref} className="ops-lieflat-card ops-bi-card ops-bi-models-card" data-replay={replay} aria-label="商品销售榜，可在热销与下滑之间切换">
+      <h3>{`销售榜前 ${Math.min(6, models.top.length)} 名里 ${models.top.slice(0, 6).filter((row) => /BIKE|EXPL|MOVE|RC100|900 GREEN/.test(row.model)).length} 台是自行车`}</h3>
+      <div className="ops-lieflat-sub"><span>{`BI ${models.report} · STORE 1299`}</span></div>
+      <div className="ops-bi-model-tabs" role="tablist" ref={trackRef}>
+        <i className="ops-bi-model-pill" ref={pillRef} aria-hidden="true" />
+        {MODEL_TABS.map((entry) => (
+          <button key={entry.key} type="button" role="tab" aria-selected={tab === entry.key} className="ops-bi-model-tab" ref={(node) => { buttonRefs.current[entry.key] = node }} onClick={() => setTab(entry.key)}>
+            {entry.label}
+          </button>
+        ))}
+      </div>
+      <p className="ops-bi-model-basis" data-bi-basis="">{active.basis}</p>
+      <ol className="ops-bi-model-rows" data-bi-tab={tab}>
+        {rows.map((row) => (
+          <li key={`${tab}-${row.code}`} className="ops-bi-model-row">
+            <span className="rank">{String(row.rank).padStart(2, '0')}</span>
+            <span className="name">{row.model}<span className="code">{row.code}</span></span>
+            <span className="val">{tab === 'top' ? `${row.share.toFixed(1)}% 占比` : yoyText(row.yoy)}</span>
+            <i className="ops-bi-model-bar"><i style={{ width: `${Math.max((metric(row) / maxMetric) * 100, row.rank <= 3 ? 4 : 1.5)}%` }} /></i>
+          </li>
+        ))}
+      </ol>
+      <div className="ops-lieflat-src">MODEL RANKING · BI M332 OMNI WEEKLY · STORE 1299</div>
+    </section>
+  )
+}
+
+/* ── G18 语义 · 顾客评价 360 分卡（M243 I Listen）────────── */
+export function BiReviewCard({ snapshot }) {
+  const { review } = snapshot
+  const { ref, revealed, replay, replayChart } = useBiReveal()
+  const reduced = usePrefersReducedMotion()
+  const build = useMemo(() => (timeline, node) => {
+    const counter = node.querySelector('[data-bi-score]')
+    if (counter) {
+      const state = { value: 0 }
+      timeline.to(state, { value: review.score360, duration: 1.05, ease: 'expo.out', onUpdate: () => { counter.textContent = state.value.toFixed(2) } }, 0)
+    }
+    node.querySelectorAll('[data-bi-chip]').forEach((element, index) => {
+      timeline.from(element, { opacity: 0, y: 6, duration: 0.5, ease: 'power3.out' }, 0.5 + index * 0.12)
+    })
+  }, [review.score360])
+  useBiMotion(ref, revealed, replay, reduced, build)
+  const gap = (review.benchmark.china - review.score360).toFixed(1)
+  return (
+    <section ref={ref} className="ops-lieflat-card ops-bi-card ops-bi-stat-card ops-bi-review-card" data-replay={replay} onClick={replayChart} aria-label={`顾客评价 360 综合分 ${review.score360.toFixed(2)}，全国第 ${review.rankChina}，点击重播入场动画`}>
+      <h3>{`满意度 360 分 ${review.score360.toFixed(1)} · 低于全国均值`}</h3>
+      <div className="ops-lieflat-sub"><span>{`BI I Listen M243 · 数据周 ${review.week} · STORE 1299`}</span></div>
+      <div className="ops-bi-stat-main">
+        <b data-bi-score="">{review.score360.toFixed(2)}</b>
+        <span className="ops-bi-yoy" data-bi-chip="">{`全国第 ${review.rankChina} · ${review.zoneName} 区第 ${review.rankZone}`}</span>
+      </div>
+      <div className="ops-bi-stat-extra">
+        <div><small>TILL · 收银满意</small><b>{`${review.till.satisfaction.toFixed(2)}%`}</b></div>
+        <div><small>COVERAGE · 覆盖</small><b>{`${review.till.coverage}% · ${review.till.orders.toLocaleString('en-US')} 单`}</b></div>
+        <div><small>BENCHMARK · 全国均值</small><b>{review.benchmark.china.toFixed(2)}</b></div>
+      </div>
+      <p className="ops-bi-review-note" data-bi-chip="">{`${review.newReviews.note} · 与全国均值差 ${gap} 分`}</p>
+      <div className="ops-lieflat-src">SUMMARY DATA · BI M243 I LISTEN · STORE 1299</div>
+    </section>
+  )
+}
+
 /* ── 面板：挂载进 OverviewAnalytics（桌面总览）──────────────── */
 export function BiInsightPanel({ snapshot = BI_SNAPSHOT }) {
   return (
@@ -326,6 +446,10 @@ export function BiInsightPanel({ snapshot = BI_SNAPSHOT }) {
       <div className="ops-bi-repair-grid">
         <BiRepairTrend snapshot={snapshot} />
         <BiRepairStat snapshot={snapshot} />
+      </div>
+      <div className="ops-bi-models-grid">
+        <BiModelRanking snapshot={snapshot} />
+        <BiReviewCard snapshot={snapshot} />
       </div>
     </article>
   )
