@@ -116,19 +116,20 @@ export const BI_SNAPSHOT = {
     // 2026-09-01 getSummaryDataAsync 直读（~/bi_probe/cdp_cap/v32_explore.json）。
     // 把各渠道榜里的自行车按车型聚合 → 全渠道周销量（台/元）。
     // ⚠️ 每渠道只展示前 5：到店（Offline）实际卖出的车型可能比这更多——这是报表口径上限。
-    // 自行车合计 26 台 / ¥25,906.89。名称未知的行以商品码显示。
+    // 自行车合计 48 台 / ¥59,952.04（第一版 26 台系单渠道错读，已按跨渠道聚合修正）。
+    // 名称未知的行以商品码显示。
     allChannel: {
-      total: { qty: 26, to: 25906.89 },
+      total: { qty: 48, to: 59952.04 },
       rows: [
-        { rank: 1, model: '16\" BIKE 500 RED CN', code: '8871303', qty: 13, to: 8943.61, channel: '到店' },
-        { rank: 2, model: "16'' 900 GREEN SHINY CN", code: '8944122', qty: 4, to: 3802.19, channel: 'Tmall' },
-        { rank: 3, model: 'RC100 V2 CN', code: '8882002', qty: 2, to: 2961.79, channel: 'Tmall' },
-        { rank: 4, model: 'RC100 V3 CN Silver', code: '9010483', qty: 2, to: 2949.80, channel: 'Tmall' },
-        { rank: 5, model: '8984793', code: '8984793', qty: 1, to: 1969.90, channel: 'JD' },
-        { rank: 6, model: '8984795', code: '8984795', qty: 1, to: 1899.90, channel: '到店' },
-        { rank: 7, model: '26\" EXPL 500 CN YELLOW', code: '8927179', qty: 1, to: 1499.90, channel: 'JD' },
-        { rank: 8, model: '8585071', code: '8585071', qty: 1, to: 999.90, channel: '小程序' },
-        { rank: 9, model: 'TILT 100 折叠车', code: '8480236', qty: 1, to: 879.90, channel: '抖音' }
+        { rank: 1, model: '16\" BIKE 500 RED CN', code: '8871303', qty: 13, to: 8943.61, channels: '到店 13' },
+        { rank: 2, model: 'RC100 V3 CN Silver', code: '9010483', qty: 12, to: 17844.35, channels: 'Tmall 7 · JD 2 · 抖音 2 · 小程序 1' },
+        { rank: 3, model: 'RC100 V2 CN', code: '8882002', qty: 7, to: 10212.91, channels: 'Tmall 5 · JD 2' },
+        { rank: 4, model: '8984795', code: '8984795', qty: 6, to: 10869.58, channels: '到店 5 · JD 1' },
+        { rank: 5, model: "16'' 900 GREEN SHINY CN", code: '8944122', qty: 4, to: 3802.19, channels: 'Tmall 4' },
+        { rank: 6, model: '26\" EXPL 500 CN YELLOW', code: '8927179', qty: 3, to: 4429.70, channels: 'JD 2 · 抖音 1' },
+        { rank: 7, model: '8984793', code: '8984793', qty: 1, to: 1969.90, channels: 'JD 1' },
+        { rank: 8, model: '8585071', code: '8585071', qty: 1, to: 999.90, channels: '小程序 1' },
+        { rank: 9, model: 'TILT 100 折叠车', code: '8480236', qty: 1, to: 879.90, channels: '抖音 1' }
       ]
     }
   },

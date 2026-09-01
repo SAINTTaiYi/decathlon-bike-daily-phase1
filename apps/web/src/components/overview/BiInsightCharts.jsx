@@ -394,7 +394,7 @@ export function BiModelRanking({ snapshot }) {
               {tab === 'allChannel' ? (
                 <>
                   <b>{`${row.qty} 台`}</b>
-                  <small>{`${yuan(row.to)} · ${row.channel}`}</small>
+                  <small>{`${yuan(row.to)} · ${row.channels}`}</small>
                 </>
               ) : (
                 <>

@@ -62,18 +62,23 @@ test('全渠道车型：M218 渠道榜聚合，数量与合计诚实', async () 
   const { allChannel } = BI_SNAPSHOT.models
   assert.ok(allChannel && Array.isArray(allChannel.rows) && allChannel.rows.length === 9, '全渠道榜应为 9 行车型')
   for (const row of allChannel.rows) {
-    assert.deepEqual(Object.keys(row).sort(), ['channel', 'code', 'model', 'qty', 'rank', 'to'], '全渠道行字段固定')
+    assert.deepEqual(Object.keys(row).sort(), ['channels', 'code', 'model', 'qty', 'rank', 'to'], '全渠道行字段固定')
     assert.ok(Number.isInteger(row.qty) && row.qty >= 1, '全渠道行只收录有销量的车型')
     assert.ok(typeof row.to === 'number' && row.to > 0)
-    assert.ok(row.channel, '每行必须标渠道')
+    assert.ok(row.channels, '每行必须标渠道构成')
   }
-  // 2026-09-01 M218 直读定案锚点
+  // 2026-09-01 M218 直读定案锚点（跨渠道聚合）
   assert.equal(allChannel.rows[0].code, '8871303')
+  // 跨渠道聚合校验：9010483 在 Tmall7+JD2+抖音2+小程序1 = 12 台，是跨渠道合并而非单渠道
+  const rc100v3 = allChannel.rows.find(r => r.code === '9010483')
+  assert.equal(rc100v3.qty, 12)
+  assert.equal(rc100v3.to, 17844.35)
+  assert.match(rc100v3.channels, /Tmall 7/u)
   assert.equal(allChannel.rows[0].qty, 13)
   assert.equal(allChannel.rows[0].to, 8943.61)
-  assert.equal(allChannel.rows[0].channel, '到店')
-  assert.equal(allChannel.total.qty, 26)
-  assert.equal(allChannel.total.to, 25906.89)
+  assert.equal(allChannel.rows[0].channels, '到店 13')
+  assert.equal(allChannel.total.qty, 48)
+  assert.equal(allChannel.total.to, 59952.04)
   // 合计必须等于各行之和（防口径漂移）
   assert.equal(allChannel.rows.reduce((sum, row) => sum + row.qty, 0), allChannel.total.qty)
   assert.ok(Math.abs(allChannel.rows.reduce((sum, row) => sum + row.to, 0) - allChannel.total.to) < 0.01)
