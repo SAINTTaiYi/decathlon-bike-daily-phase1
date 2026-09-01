@@ -19,7 +19,6 @@ const [tokens, frosted, mobileOverview, desktopWorkbench, workshopSystem, pickup
 // 是数据健康度 / 业务趋势外框与趋势内卡，所以它们在整轮玻璃化里始终是实心的。
 const GLASS_CARDS = [
   'ops-closing-card',
-  'ops-sales-panel',
   'ops-index',
   'ops-pickup-board',
   'ops-release-strip',

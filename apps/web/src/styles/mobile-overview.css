@@ -139,28 +139,9 @@
   .ops-closing-next button { display: flex; align-items: center; justify-content: center; gap: 16px; width: 120px; height: 44px; background: var(--ops-yellow); box-shadow: 0 0 14px var(--ops-yellow-glow); font-size: 12px; font-weight: 750; }
   .ops-closing-next button:active { background: var(--ops-yellow-pressed); }
 
-  .ops-sales-panel { height: 196px; margin-top: 10px; border: 0; }
-  .ops-sales-primary { position: relative; display: block; width: 100%; height: 111px; overflow: hidden; padding: 13px 13px; color: var(--ops-text); text-align: left; }
-  .ops-sales-label { position: absolute; top: 9px; left: 13px; display: flex; align-items: center; gap: 7px; }
-  .ops-sales-label i { width: 7px; height: 7px; background: var(--ops-yellow); }
-  .ops-sales-label strong { font-family: var(--ops-display); font-size: 11px; font-weight: 500; line-height: 12px; letter-spacing: .04em; }
-  .ops-sales-primary > time { position: absolute; top: 13px; right: 13px; font-family: var(--ops-display); font-size: 10px; font-weight: 500; letter-spacing: .08em; }
-  .ops-sales-primary > small { position: absolute; top: 25px; left: 13px; font-size: 9px; line-height: 11px; }
-  .ops-sales-primary > b { position: absolute; top: 38px; left: 13px; color: var(--ops-yellow); font-family: var(--ops-display); font-size: 66px; line-height: .82; letter-spacing: -2px; }
-  .ops-blueprint { position: absolute; right: 10px; bottom: 3px; width: 154px; height: 73px; color: #deded8; opacity: .4; }
-  .ops-blueprint img { width: 100%; height: 100%; object-fit: contain; }
-  .ops-blueprint em { position: absolute; right: 7px; top: 22px; color: var(--ops-yellow); font-family: var(--ops-display); font-size: 9px; font-style: normal; font-weight: 700; opacity: 1; }
-  .ops-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); height: 83px; }
-  .ops-kpi-grid button { position: relative; min-width: 0; padding: 0; border: 0; text-align: left; }
-  .ops-kpi-grid button:last-child { border-right: 0; }
-  .ops-kpi-grid button > small { position: absolute; top: 6px; left: 6px; display: block; color: var(--ops-yellow-pressed); font-family: var(--ops-display); font-size: 9px; line-height: 10px; }
-  .ops-kpi-grid button > span { position: absolute; top: 21px; right: 6px; left: 6px; display: block; }
-  .ops-kpi-grid button strong { display: block; overflow: hidden; font-size: 9px; line-height: 11px; text-overflow: ellipsis; white-space: nowrap; }
-  .ops-kpi-grid button > em { position: absolute; top: 35px; right: 6px; left: 6px; display: block; overflow: hidden; color: var(--ops-text-muted); font-family: var(--ops-display); font-size: 8px; font-style: normal; line-height: 9px; text-overflow: ellipsis; white-space: nowrap; }
-  .ops-kpi-grid button > b { position: absolute; top: 45px; right: 7px; font-family: var(--ops-display); font-size: 29px; line-height: 29px; }
-  .ops-kpi-grid button > b[data-digits='3'] { font-size: 24px; }
-  .ops-kpi-grid button > b[data-digits='4'] { font-size: 20px; }
 
+  .ops-overview-left { display: contents; }
+  .ops-sales-slot { margin-top: 10px; }
   .ops-index { height: 124px; margin-top: 10px; border: 0; }
   .ops-index-head { display: flex; align-items: center; justify-content: space-between; height: 38px; padding: 0 10px; border-bottom: 0; }
   .ops-index-label { display: flex; align-items: baseline; gap: 3px; font-family: var(--ops-display); font-size: 10px; letter-spacing: .02em; white-space: nowrap; }
@@ -383,9 +364,6 @@
     .ops-status-value strong { font-size: 58px; }
     .ops-closing-next { grid-template-columns: 27px minmax(0,1fr) 112px; margin-inline: 10px; }
     .ops-closing-next button { width: 112px; }
-    .ops-blueprint { right: 3px; width: 142px; }
-    .ops-kpi-grid button { padding-inline: 4px; }
-    .ops-kpi-grid button strong { font-size: 8px; }
     .ops-index button { padding-inline: 5px; }
     .ops-index button > span strong { font-size: 10px; }
     .ops-pickup-grid { gap: 4px; padding-inline: 5px; }
@@ -404,8 +382,7 @@
   }
 
   @media (forced-colors: active) {
-    .ops-sales-primary,
-    .ops-store-context > button,
+    .ops-store-context > button
     .look-dock button[data-active='true'] { forced-color-adjust: none; }
     .ops-status-value { color: CanvasText; text-shadow: none; }
   }
@@ -439,9 +416,7 @@
   border-radius: var(--ops-radius);
 }
 
-.ops-closing-card,
-.ops-sales-panel,
-.ops-index,
+
 .ops-pickup-board { overflow: hidden; border-radius: var(--ops-radius); border: 0; }
 .ops-closing-card { height: 154px; margin-top: 16px; }
 .ops-closing-card[data-closed='true'] { height: 206px; }
@@ -462,10 +437,6 @@
 .ops-bell-glyph b,
 .ops-document-glyph,
 .ops-clock-glyph,
-.ops-sales-label i,
-.ops-sales-primary > b,
-.ops-blueprint em,
-.ops-kpi-grid button > small,
 .ops-index button > small,
 .ops-index button > b[data-value='due'],
 .ops-pickup-board > header > span,
@@ -480,7 +451,6 @@
 .look-dock button[data-active='true'] svg {
   filter: drop-shadow(0 0 4px var(--ops-yellow-glow));
 }
-.ops-sales-label i,
 .ops-bell-glyph b,
 .ops-pickup-card em,
 .ops-release-strip summary > strong,
@@ -490,7 +460,6 @@
 .ops-brand-lockup strong,
 .ops-store-identity strong,
 .ops-closing-title h2,
-.ops-kpi-grid button > b,
 .ops-index button > b:not([data-value='due']):not([data-value='ready']):not([data-value='done']),
 .ops-pickup-card strong {
   text-shadow: 0 0 7px var(--ops-black-glow);
@@ -502,22 +471,6 @@
 .look-dock button:not([data-active='true']) svg {
   filter: drop-shadow(0 0 3px var(--ops-black-glow));
 }
-.ops-sales-panel { height: 214px; }
-.ops-sales-primary { height: 128px; color: var(--ops-text); }
-.ops-sales-label strong,
-.ops-sales-primary > time { letter-spacing: 0; }
-.ops-sales-primary > small { top: 30px; }
-.ops-sales-primary > b { top: 45px; font-size: 68px; letter-spacing: 0; }
-.ops-sales-primary > b[data-digits='3'] { font-size: 54px; }
-.ops-sales-primary > b[data-digits='4'] { font-size: 46px; }
-.ops-sales-primary > b[data-digits='unavailable'] { font-size: 54px; }
-.ops-blueprint { right: 13px; bottom: 7px; opacity: .46; }
-.ops-kpi-grid { height: 85px; border-top: 0; }
-.ops-kpi-grid button { min-height: 44px; }
-.ops-kpi-grid button > b { font-size: 32px; letter-spacing: 0; }
-.ops-kpi-grid button > b[data-digits='3'] { font-size: 26px; }
-.ops-kpi-grid button > b[data-digits='4'] { font-size: 22px; }
-.ops-kpi-grid button > b[data-digits='unavailable'] { font-size: 27px; }
 
 .ops-index { height: 130px; }
 .ops-index-label { letter-spacing: 0; }
@@ -556,8 +509,6 @@
   .ops-mobile-overview { max-width: none; }
   .ops-store-context { margin-top: 24px; }
   .ops-closing-main { grid-template-columns: minmax(0,1fr) auto; }
-  .ops-sales-primary { min-height: 128px; }
-  .ops-blueprint { right: 32px; width: 210px; }
   .look-dock {
     bottom: calc(16px + var(--visual-viewport-bottom)) !important;
     width: min(calc(100% - 32px), 728px) !important;
@@ -577,15 +528,11 @@
   .ops-first-screen-spacer { grid-column: 1 / -1; }
   .ops-store-context,
   .ops-closing-card,
-  .ops-sales-panel,
-  .ops-index,
+
   .ops-pickup-board,
   .ops-release-strip { margin-top: 0; }
   .ops-closing-card { grid-column: span 7; height: 174px; }
   .ops-closing-main { grid-template-columns: minmax(0,1fr) auto; height: 104px; }
-  .ops-sales-panel { grid-column: span 5; }
-  .ops-sales-primary > small { max-width: 45%; }
-  .ops-blueprint { right: 12px; width: 48%; }
   .ops-pickup-board { height: 132px; }
   .ops-pickup-grid { height: 99px; }
 }

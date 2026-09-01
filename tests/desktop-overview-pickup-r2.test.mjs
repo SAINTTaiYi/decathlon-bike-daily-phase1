@@ -9,7 +9,7 @@ test('desktop reference uses the physical-pixel canvas and stable two-panel firs
   assert.match(css, /@media \(min-width: 768px\)/u)
   assert.match(css, /zoom: calc\(100vw \/ 1536px\)/u)
   assert.match(css, /ops-closing-card \{ grid-column: 1;/u)
-  assert.match(css, /ops-sales-panel \{ grid-column: 2;/u)
+  assert.match(css, /ops-sales-slot \{ grid-column: 2;/u)
   assert.match(css, /ops-analytics-grid/u)
 })
 

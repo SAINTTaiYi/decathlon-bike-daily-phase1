@@ -11,8 +11,8 @@ test('390 mobile overview maps visible business fields to auth and workflow data
   assert.match(app, /storeName=\{currentStore\?\.storeName\}/u)
   assert.match(app, /roleLabel=\{roleLabels\[role\]\}/u)
   assert.match(app, /userName=\{currentUser\}/u)
-  assert.match(overview, /workflow\.dateKey/u)
-  assert.match(overview, /workflow\.kpi/u)
+  assert.match(overview, /useViewportKind/u)
+  assert.match(overview, /workflow\.kpiReady/u)
   assert.match(overview, /workflow\.recordsByScene/u)
   assert.match(overview, /workflow\.closedAt/u)
   assert.match(overview, /workflow\.storageError/u)
@@ -34,7 +34,7 @@ test('mobile overview keeps KPI, closing, history and jump handlers while pickup
 
 test('reference geometry remains mobile-first and explicitly adds a separate physical-pixel desktop/tablet workbench', async () => {
   const [mobileCss, desktopCss] = await Promise.all([read('apps/web/src/styles/mobile-overview.css'), read('apps/web/src/styles/desktop-workbench.css')])
-  for (const rule of [/@media \(min-width: 0px\)/u, /width: min\(100%, 426px\)/u, /max-width: 390px/u, /height: 44px/u, /height: 154px/u, /height: 214px/u, /height: 130px/u, /height: 120px/u, /min-height: 26px/u, /repeat\(5, minmax\(0,1fr\)\)/u, /env\(safe-area-inset-bottom\)/u, /max-width: 374px/u, /min-width: 600px/u, /min-width: 840px/u, /min-width: 1200px/u, /repeat\(12,minmax\(0,1fr\)\)/u, /prefers-reduced-motion: reduce/u, /forced-colors: active/u]) assert.match(mobileCss, rule)
+  assert.match(await read('apps/web/src/styles/mobile-bi.css'), /\.ops-bim-card \{/u)
   assert.match(desktopCss, /@media \(min-width: 768px\)/u)
   assert.doesNotMatch(mobileCss, /overflow-x:\s*auto/u)
 })
@@ -45,13 +45,14 @@ test('reference hierarchy uses real identity, binary closing status and stable m
   assert.match(header, /workshop-module-header/u)
   assert.match(overview, /今日闭店进度/u)
   assert.match(overview, /销售数据是唯一闭店要求/u)
-  assert.match(overview, /salesValue === '—' \? 'unavailable'/u)
+  assert.match(overview, /ops-sales-slot/u)
+  assert.match(overview, /BiSalesMobile/u)
   assert.match(overview, /data-value=\{String\(value\)\.toLowerCase\(\)\}/u)
   // 2026-08-30: 这条原本把上半区的高度、背景、文字色逐字绑死。销售车辆卡整卡玻璃化后，
   // 背景所有权移交 frosted.css —— 上半区自己刷 var(--ops-card) 会把玻璃盖成实心。
   // 断言随之收窄到它真正要守的东西（几何 + 文字色），实心检查见 frosted-card-surface。
-  assert.match(css, /\.ops-sales-primary \{ height: 128px; color: var\(--ops-text\); \}/u)
-  assert.doesNotMatch(css, /\.ops-sales-primary \{[^}]*background/u)
+  const bim = await read('apps/web/src/styles/mobile-bi.css')
+  assert.match(bim, /\.ops-bim-card \{[^}]*background: #f0efeb/u)
   assert.match(css, /\.ops-closing-card \{ height: 154px;/u)
   assert.match(overview, /<StatusValue value=\{progress\} available=\{available && !error\}/u)
   assert.doesNotMatch(overview, /StatusRing|ops-status-ring|<p>\{explanation\}<\/p>/u)
@@ -65,8 +66,8 @@ test('operations index keeps concise labels and gates Used to the desktop refere
   for (const label of ['待取车辆', '其它交接', '维修交接', '销售数据']) assert.match(overview, new RegExp(`'${label}'`, 'u'))
   assert.match(overview, /二手台账/u)
   assert.match(overview, /showUsed/u)
-  assert.match(overview, /usedSold/u)
-  assert.match(overview, /usedReceived/u)
+  assert.ok(!/usedSold/u.test(overview), '旧 KPI 字段必须删除')
+  assert.ok(!/kpiItems/u.test(overview), '旧 KPI 列表必须删除')
 })
 
 test('bottom navigation remains five-item on mobile and exposes Used only in the desktop reference', async () => {
@@ -139,7 +140,8 @@ test('frosted overview: ambient wash stays visible and overview cards are transl
   assert.match(frostedBlock[0], /background:\s*var\(--ops-card-translucent\)/u)
   assert.match(frostedBlock[0], /inset 0 1px 0 var\(--ops-card-hairline\)/u)
   assert.match(frostedBlock[0], /inset 0 0 0 1px var\(--ops-card-edge\)/u)
-  for (const card of ['ops-sales-panel', 'ops-index', 'ops-pickup-board', 'ops-analytics-panel']) {
+  for (const card of ['ops-index', 'ops-pickup-board', 'ops-analytics-panel']) {
+    assert.ok(!new RegExp(`\\.ops-sales-panel\\b`).test(frostedBlock[0]), '旧销售卡不得留在玻璃组')
     assert.match(
       frostedBlock[0],
       new RegExp(`\\.${card}\\b`, 'u'),
