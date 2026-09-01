@@ -17,10 +17,6 @@ export default function SalesScene({ kpi, kpiReady, savedAt, closedAt, onEditKpi
       <div className="sales-bi-slot" data-motion="data">
         {viewport === 'desktop' ? <BiInsightPanel /> : <BiSalesMobile />}
       </div>
-      <div className="sales-closing-strip" data-ready={kpiReady ? 'true' : 'false'}>
-        <button type="button" className="primary-action sales-reference-submit" onClick={onEditKpi} disabled={Boolean(closedAt)}>{kpiReady ? '修改当日数据' : '填写当日数据'}</button>
-        <p className="sales-reference-note">{kpiReady && savedAt ? `已于 ${new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(savedAt))} 已同步至数据库，可以完成闭店。` : '填写并保存当日销售数据后即可闭店；其它业务台账不会阻止闭店。'}</p>
-      </div>
     </section>
   )
 }

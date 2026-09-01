@@ -292,8 +292,6 @@
 .form-error { padding: .65rem; border: 1px solid var(--critical); color: var(--critical); font-size: .875rem; }
 .text-danger-action { justify-self: start; min-height: 44px; border-bottom: 1px solid var(--critical); color: var(--critical); font-size: .8125rem; font-weight: 800; }
 .sales-bi-slot { margin-top: 1.25rem; }
-.sales-closing-strip { display: grid; gap: .75rem; margin-top: 1.25rem; }
-.sales-closing-strip p { color: var(--muted); font-size: .875rem; line-height: 1.5; }
 .danger-confirm { display: grid; gap: .8rem; padding: .8rem; border: 1px solid var(--critical); color: var(--critical); }
 .danger-confirm > div, .dialog-footer { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .6rem; }
 .danger-confirm button { min-height: 44px; border: 1px solid var(--critical); }

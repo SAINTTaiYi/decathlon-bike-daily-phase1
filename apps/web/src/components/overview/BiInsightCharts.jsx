@@ -62,9 +62,9 @@ function useBiMotion(ref, revealed, replay, reduced, build) {
   }, [revealed, replay, reduced, build])
 }
 
-function ChartSvg({ label, replayChart, children, viewBox }) {
+function ChartSvg({ label, replayChart, children, viewBox, preserveAspectRatio = 'xMidYMid meet' }) {
   return (
-    <svg className="ops-lieflat-chart ops-bi-chart" viewBox={viewBox} role="img" tabIndex="0" aria-label={label} onClick={replayChart} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') replayChart() }}>
+    <svg className="ops-lieflat-chart ops-bi-chart" viewBox={viewBox} preserveAspectRatio={preserveAspectRatio} role="img" tabIndex="0" aria-label={label} onClick={replayChart} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') replayChart() }}>
       <title>点击或按 Enter 重播入场动画</title>
       {children}
     </svg>
@@ -237,7 +237,7 @@ export function BiRepairTrend({ snapshot }) {
   const geom = useMemo(() => {
     const base = 122
     const max = Math.max(...weeks.map((week) => week.value))
-    const x = (index) => 24 + index * (352 / (weeks.length - 1))
+    const x = (index) => 24 + index * (832 / (weeks.length - 1))
     const y = (value) => base - (value / max) * (base - 20)
     const points = weeks.map((week, index) => ({ ...week, x: x(index), y: y(week.value) }))
     const peak = points.reduce((a, b) => (b.value > a.value ? b : a))
@@ -257,8 +257,8 @@ export function BiRepairTrend({ snapshot }) {
     <section ref={ref} className="ops-lieflat-card ops-bi-card" data-replay={replay}>
       <h3>{`自行车+工作室 维修 TO · 周均 ${money(snapshot.repair.avg)}`}</h3>
       <div className="ops-lieflat-sub"><span>1 根发丝 = 1 周维修营业额 · Universe=自行车+工作室 源端过滤 · 维修报表 M348</span></div>
-      <ChartSvg label={`2026 年 W01 至 W35 共 35 周维修 TO 趋势：累计 ¥${snapshot.repair.total.toLocaleString('en-US')}，峰值 ${geom.peak.week} ¥${geom.peak.value.toLocaleString('en-US')}，春节谷值 ${geom.trough.week} ¥${geom.trough.value}，最新 W35 ¥${geom.points[geom.points.length - 1].value.toLocaleString('en-US')}`} replayChart={replayChart} viewBox="0 0 400 158">
-        <line data-bi-hair="" x1="20" y1={geom.base} x2="380" y2={geom.base} stroke={MONO.grid} strokeWidth="0.8" />
+      <ChartSvg label={`2026 年 W01 至 W35 共 35 周维修 TO 趋势：累计 ¥${snapshot.repair.total.toLocaleString('en-US')}，峰值 ${geom.peak.week} ¥${geom.peak.value.toLocaleString('en-US')}，春节谷值 ${geom.trough.week} ¥${geom.trough.value}，最新 W35 ¥${geom.points[geom.points.length - 1].value.toLocaleString('en-US')}`} replayChart={replayChart} viewBox="0 0 880 158" preserveAspectRatio="none">
+        <line data-bi-hair="" x1="20" y1={geom.base} x2="860" y2={geom.base} stroke={MONO.grid} strokeWidth="0.8" />
         {geom.points.map((p, index) => (
           <line key={p.week} data-bi-hair="" x1={p.x} y1={geom.base} x2={p.x} y2={p.y} stroke={p.week === geom.peak.week ? MONO.ink : MONO.muted} strokeWidth={p.week === geom.peak.week ? 1.1 : 0.55} opacity={p.week === geom.peak.week ? 1 : 0.5 + rnd(index + 1, 7) * 0.45} />
         ))}
@@ -272,7 +272,7 @@ export function BiRepairTrend({ snapshot }) {
           <text x={geom.trough.x} y={geom.trough.y - 8} fontSize="7" fontWeight="650" fill={MONO.muted} textAnchor="middle" style={{ paintOrder: 'stroke', stroke: '#F6F4EE', strokeWidth: 3 }}>春节</text>
         </g>
         {axis.map((index) => <text key={index} data-bi-hair="" x={geom.points[index].x} y={geom.base + 16} fontSize="7" fontWeight="600" fill={MONO.faint} textAnchor="middle" letterSpacing=".08em">{geom.points[index].week}</text>)}
-        <text data-bi-hair="" x="200" y="152" fontSize="7" fontWeight="600" fill={MONO.faint} textAnchor="middle" letterSpacing=".12em">ONE HAIRLINE = ONE WEEK · 2026 W01–W35 · STORE 1299</text>
+        <text data-bi-hair="" x="440" y="152" fontSize="7" fontWeight="600" fill={MONO.faint} textAnchor="middle" letterSpacing=".12em">ONE HAIRLINE = ONE WEEK · 2026 W01–W35 · STORE 1299</text>
       </ChartSvg>
       <div className="ops-lieflat-src">HAIRLINE AREA · BI M348 REPAIR TO · STORE 1299</div>
     </section>
