@@ -471,9 +471,6 @@ button:not(:disabled) { transition-duration: 150ms; }
 .project-select-menu { box-shadow: 0 16px 40px rgb(11 11 12 / .12); }
 .project-select-option { font-size: .78rem; }
 
-.sales-input-summary { margin-top: 1.4rem; }
-.sales-input-summary > div { min-height: 6rem; }
-.sales-input-summary strong { font-size: 2rem; }
 
 .primary-action, .secondary-action, .text-action { font-size: .76rem; }
 .primary-action { background: var(--ink); }
