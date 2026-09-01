@@ -87,7 +87,7 @@ export const BI_SNAPSHOT = {
   models: {
     report: 'M332 · Omni Fulfillment 周报',
     week: '2026-08-23 → 08-29',
-    basis: { top: '条长 = 占门店 TO 份额 · 右侧 = 周销量与金额', flop: '条长 = 环比变化幅度 · 右侧 = 周销量与金额' },
+    basis: { top: '条长 = 占门店 TO 份额 · 右侧 = 周销量与金额', flop: '条长 = 环比变化幅度 · 右侧 = 周销量与金额', allChannel: '条长 = 周销量（台）· 各渠道榜里的自行车聚合 · 每渠道仅前 5' },
     top: [
       { rank: 1, model: '26\" EXPL 500 CN YELLOW', code: '8927179', share: 4.5, qty: 1, to: 1479.90, yoy: null, wow: null },
       { rank: 2, model: 'RC100 V3 CN Silver', code: '9010483', share: 4.5, qty: 1, to: 1469.90, yoy: null, wow: -2.0 },
@@ -111,7 +111,26 @@ export const BI_SNAPSHOT = {
       { rank: 8, model: 'FRUIT & VEGE PUREE Kale Rasp Hawthorn CN', code: '8901950', share: 0.0, qty: 1, to: 9.90, yoy: null, wow: null },
       { rank: 9, model: 'FIRST KICK CN VERSION S3', code: '8968893', share: 0.0, qty: 1, to: 9.90, yoy: null, wow: null },
       { rank: 10, model: 'CEREAL BAR Chocolate 23g x 4', code: '8495330', share: 0.0, qty: 1, to: 14.34, yoy: null, wow: null }
-    ]
+    ],
+    // M218 All Channel Top Sales · 门店 1299 · 各渠道（到店/天猫/小程序/京东/抖音/官网）各取前 5 名，
+    // 2026-09-01 getSummaryDataAsync 直读（~/bi_probe/cdp_cap/v32_explore.json）。
+    // 把各渠道榜里的自行车按车型聚合 → 全渠道周销量（台/元）。
+    // ⚠️ 每渠道只展示前 5：到店（Offline）实际卖出的车型可能比这更多——这是报表口径上限。
+    // 自行车合计 26 台 / ¥25,906.89。名称未知的行以商品码显示。
+    allChannel: {
+      total: { qty: 26, to: 25906.89 },
+      rows: [
+        { rank: 1, model: '16\" BIKE 500 RED CN', code: '8871303', qty: 13, to: 8943.61, channel: '到店' },
+        { rank: 2, model: "16'' 900 GREEN SHINY CN", code: '8944122', qty: 4, to: 3802.19, channel: 'Tmall' },
+        { rank: 3, model: 'RC100 V2 CN', code: '8882002', qty: 2, to: 2961.79, channel: 'Tmall' },
+        { rank: 4, model: 'RC100 V3 CN Silver', code: '9010483', qty: 2, to: 2949.80, channel: 'Tmall' },
+        { rank: 5, model: '8984793', code: '8984793', qty: 1, to: 1969.90, channel: 'JD' },
+        { rank: 6, model: '8984795', code: '8984795', qty: 1, to: 1899.90, channel: '到店' },
+        { rank: 7, model: '26\" EXPL 500 CN YELLOW', code: '8927179', qty: 1, to: 1499.90, channel: 'JD' },
+        { rank: 8, model: '8585071', code: '8585071', qty: 1, to: 999.90, channel: '小程序' },
+        { rank: 9, model: 'TILT 100 折叠车', code: '8480236', qty: 1, to: 879.90, channel: '抖音' }
+      ]
+    }
   },
   // M243 I Listen 门店满意度 · 门店级周数据（2026-09-01 实测，getSummaryDataAsync DataTable 直读，
   // 数据周 2026-08-22→08-29，来自 Report Info 工作表）。

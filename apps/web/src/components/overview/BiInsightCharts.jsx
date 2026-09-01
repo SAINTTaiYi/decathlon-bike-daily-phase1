@@ -319,7 +319,8 @@ export function BiRepairStat({ snapshot }) {
 /* ── 商品销售榜 · M332 Omni 周报（TOP 占比 / FLOP 同比）────── */
 const MODEL_TABS = [
   { key: 'top', label: 'TOP 10 热销' },
-  { key: 'flop', label: 'FLOP 10 下滑' }
+  { key: 'flop', label: 'FLOP 10 下滑' },
+  { key: 'allChannel', label: '全渠道车型' }
 ]
 const deltaText = (value, label) => value === null || value === undefined ? null : `${label} ${value > 0 ? '▴' : value < 0 ? '▾' : ''}${Math.abs(value).toFixed(1)}%`
 const modelDelta = (row) => deltaText(row.wow, '环比') ?? deltaText(row.yoy, '同比') ?? '—'
@@ -353,8 +354,8 @@ export function BiModelRanking({ snapshot }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(() => { placePill(true) /* 切换时滑块位移 */ }, [tab, reduced]) // eslint-disable-line react-hooks/exhaustive-deps
-  const rows = models[tab]
-  const metric = (row) => tab === 'top' ? row.share : Math.abs(row.wow ?? row.yoy ?? 0)
+  const rows = tab === 'allChannel' ? models.allChannel.rows : models[tab]
+  const metric = (row) => tab === 'top' ? row.share : tab === 'allChannel' ? row.qty : Math.abs(row.wow ?? row.yoy ?? 0)
   const maxMetric = Math.max(...rows.map(metric), 0.001)
   const build = useMemo(() => (timeline, node) => {
     timeline.from(node.querySelectorAll('.ops-bi-model-row'), { opacity: 0, y: 8, duration: 0.5, ease: 'power3.out', stagger: 0.045 }, 0)
@@ -372,7 +373,7 @@ export function BiModelRanking({ snapshot }) {
   }, [tab, reduced, revealed, replay])
   const active = MODEL_TABS.find((entry) => entry.key === tab)
   return (
-    <section ref={ref} className="ops-lieflat-card ops-bi-card ops-bi-models-card" data-replay={replay} aria-label="商品销售榜，可在热销与下滑之间切换">
+    <section ref={ref} className="ops-lieflat-card ops-bi-card ops-bi-models-card" data-replay={replay} aria-label="商品销售榜，可在热销、下滑与全渠道车型之间切换">
       <h3>{`销售榜前 ${Math.min(6, models.top.length)} 名里 ${models.top.slice(0, 6).filter((row) => /BIKE|EXPL|MOVE|RC100|900 GREEN/.test(row.model)).length} 台是自行车`}</h3>
       <div className="ops-lieflat-sub"><span>{`BI ${models.report} · 周 ${models.week} · STORE 1299`}</span></div>
       <div className="ops-bi-model-tabs" role="tablist" ref={trackRef}>
@@ -383,21 +384,30 @@ export function BiModelRanking({ snapshot }) {
           </button>
         ))}
       </div>
-      <p className="ops-bi-model-basis" data-bi-basis="">{models.basis[tab]}</p>
+      <p className="ops-bi-model-basis" data-bi-basis="">{tab === 'allChannel' ? `${models.basis.allChannel} · 合计 ${models.allChannel.total.qty} 台 ${yuan(models.allChannel.total.to)}` : models.basis[tab]}</p>
       <ol className="ops-bi-model-rows" data-bi-tab={tab}>
         {rows.map((row) => (
           <li key={`${tab}-${row.code}`} className="ops-bi-model-row">
             <span className="rank">{String(row.rank).padStart(2, '0')}</span>
             <span className="name">{row.model}<span className="code">{row.code}</span></span>
             <span className="val">
-              <b>{yuan(row.to)}</b>
-              <small>{`${row.qty} 台 · ${tab === 'top' ? `${row.share.toFixed(1)}% 占比` : modelDelta(row)}`}</small>
+              {tab === 'allChannel' ? (
+                <>
+                  <b>{`${row.qty} 台`}</b>
+                  <small>{`${yuan(row.to)} · ${row.channel}`}</small>
+                </>
+              ) : (
+                <>
+                  <b>{yuan(row.to)}</b>
+                  <small>{`${row.qty} 台 · ${tab === 'top' ? `${row.share.toFixed(1)}% 占比` : modelDelta(row)}`}</small>
+                </>
+              )}
             </span>
             <i className="ops-bi-model-bar"><i style={{ width: `${Math.max((metric(row) / maxMetric) * 100, row.rank <= 3 ? 4 : 1.5)}%` }} /></i>
           </li>
         ))}
       </ol>
-      <div className="ops-lieflat-src">MODEL RANKING · BI M332 OMNI WEEKLY · STORE 1299</div>
+      <div className="ops-lieflat-src">{tab === 'allChannel' ? 'ALL CHANNEL TOP SALES · BI M218 · STORE 1299' : 'MODEL RANKING · BI M332 OMNI WEEKLY · STORE 1299'}</div>
     </section>
   )
 }

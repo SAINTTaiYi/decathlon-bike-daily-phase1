@@ -56,6 +56,33 @@ test('车型榜数据诚实：Top/Flop 各 10 行，数量/金额/占比/同比/
   assert.ok(!serialized.includes('1K') && !serialized.includes('Calculation_'), '未定案度量不得上屏')
 })
 
+test('全渠道车型：M218 渠道榜聚合，数量与合计诚实', async () => {
+  const { BI_SNAPSHOT } = await import('../apps/web/src/data/biSnapshot.js')
+  const charts = await read('apps/web/src/components/overview/BiInsightCharts.jsx')
+  const { allChannel } = BI_SNAPSHOT.models
+  assert.ok(allChannel && Array.isArray(allChannel.rows) && allChannel.rows.length === 9, '全渠道榜应为 9 行车型')
+  for (const row of allChannel.rows) {
+    assert.deepEqual(Object.keys(row).sort(), ['channel', 'code', 'model', 'qty', 'rank', 'to'], '全渠道行字段固定')
+    assert.ok(Number.isInteger(row.qty) && row.qty >= 1, '全渠道行只收录有销量的车型')
+    assert.ok(typeof row.to === 'number' && row.to > 0)
+    assert.ok(row.channel, '每行必须标渠道')
+  }
+  // 2026-09-01 M218 直读定案锚点
+  assert.equal(allChannel.rows[0].code, '8871303')
+  assert.equal(allChannel.rows[0].qty, 13)
+  assert.equal(allChannel.rows[0].to, 8943.61)
+  assert.equal(allChannel.rows[0].channel, '到店')
+  assert.equal(allChannel.total.qty, 26)
+  assert.equal(allChannel.total.to, 25906.89)
+  // 合计必须等于各行之和（防口径漂移）
+  assert.equal(allChannel.rows.reduce((sum, row) => sum + row.qty, 0), allChannel.total.qty)
+  assert.ok(Math.abs(allChannel.rows.reduce((sum, row) => sum + row.to, 0) - allChannel.total.to) < 0.01)
+  // 组件必须有三标签与全渠道渲染分支
+  assert.match(charts, /key: 'allChannel', label: '全渠道车型'/u)
+  assert.match(charts, /models\.allChannel\.rows/u)
+  assert.match(charts, /ALL CHANNEL TOP SALES · BI M218/u)
+})
+
 test('评价数据诚实：门店级定案值齐全，疑似池值不得冒充', async () => {
   const { BI_SNAPSHOT } = await import('../apps/web/src/data/biSnapshot.js')
   const { review } = BI_SNAPSHOT
