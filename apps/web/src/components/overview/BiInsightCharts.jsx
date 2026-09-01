@@ -318,17 +318,22 @@ export function BiRepairStat({ snapshot }) {
 
 /* ── 商品销售榜 · M332 Omni 周报（TOP 占比 / FLOP 同比）────── */
 const MODEL_TABS = [
+  { key: 'allChannel', label: '全渠道车型' },
   { key: 'top', label: 'TOP 10 热销' },
-  { key: 'flop', label: 'FLOP 10 下滑' },
-  { key: 'allChannel', label: '全渠道车型' }
+  { key: 'flop', label: 'FLOP 10 下滑' }
 ]
+// M218 全渠道表不带产品名，仅商品码；能确认的码补名字，其余保留码（诚实）。
+// 仅收录经外部确认的码→名；其余码 M218 不带名称，保留码（不编造）。
+const ALLCHANNEL_NAMES = {
+  '8640568': 'Fit3 Jr 儿童轮滑鞋',
+}
 const deltaText = (value, label) => value === null || value === undefined ? null : `${label} ${value > 0 ? '▴' : value < 0 ? '▾' : ''}${Math.abs(value).toFixed(1)}%`
 const modelDelta = (row) => deltaText(row.wow, '环比') ?? deltaText(row.yoy, '同比') ?? '—'
 const yuan = (value) => `¥${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 export function BiModelRanking({ snapshot }) {
   const { models } = snapshot
-  const [tab, setTab] = useState('top')
+  const [tab, setTab] = useState('allChannel')
   const { ref, revealed, replay, replayChart } = useBiReveal()
   const reduced = usePrefersReducedMotion()
   const trackRef = useRef(null)
@@ -389,7 +394,7 @@ export function BiModelRanking({ snapshot }) {
         {rows.map((row) => (
           <li key={`${tab}-${row.code}`} className="ops-bi-model-row">
             <span className="rank">{String(row.rank).padStart(2, '0')}</span>
-            <span className="name">{row.model}<span className="code">{row.code}</span></span>
+            <span className="name">{(tab === 'allChannel' && ALLCHANNEL_NAMES[row.code]) || row.model}<span className="code">{row.code}</span></span>
             <span className="val">
               {tab === 'allChannel' ? (
                 <>
