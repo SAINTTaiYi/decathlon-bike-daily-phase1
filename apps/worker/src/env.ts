@@ -40,6 +40,12 @@ export interface WorkerEnv {
   SHIPHUB_LOGIN_USERNAME_ENC?: string
   SHIPHUB_LOGIN_PASSWORD_ENC?: string
   SHIPHUB_ALERT_EMAIL?: string
+  BI_MASTERDATA_CLIENT_ID?: string
+  BI_MASTERDATA_CLIENT_SECRET?: string
+  BI_MASTERDATA_API_KEY?: string
+  BI_MASTERDATA_LOGIN_KEY?: string
+  BI_MASTERDATA_LOGIN_USERNAME_ENC?: string
+  BI_MASTERDATA_LOGIN_PASSWORD_ENC?: string
 }
 
 export interface ShipHubConfig {
@@ -84,6 +90,43 @@ export interface AppConfig {
   RESEND_API_KEY?: string
   RESEND_FROM?: string
   SHIPHUB: ShipHubConfig
+  MASTERDATA: MasterDataConfig
+}
+
+// BI 车型名 masterdata 同步配置：CubeInStore 联邦 OAuth（全球 IdP，PKCE）+
+// masterdata 网关 key。凭据/密钥为 secret，URL 为固定事实不保密。
+export type MasterDataConfig = {
+  clientId?: string
+  clientSecret?: string
+  apiKey?: string
+  loginKey?: string
+  loginUsernameEnc?: string
+  loginPasswordEnc?: string
+  authorizeUrl: string
+  tokenUrl: string
+  redirectUri: string
+  scope: string
+  baseUrl: string
+}
+
+export function isMasterDataConfigured(config: MasterDataConfig): boolean {
+  return Boolean(config.clientId && config.clientSecret && config.apiKey && config.loginKey && config.loginUsernameEnc && config.loginPasswordEnc)
+}
+
+function loadMasterDataConfig(env: WorkerEnv): MasterDataConfig {
+  return {
+    clientId: env.BI_MASTERDATA_CLIENT_ID,
+    clientSecret: env.BI_MASTERDATA_CLIENT_SECRET,
+    apiKey: env.BI_MASTERDATA_API_KEY,
+    loginKey: env.BI_MASTERDATA_LOGIN_KEY,
+    loginUsernameEnc: env.BI_MASTERDATA_LOGIN_USERNAME_ENC,
+    loginPasswordEnc: env.BI_MASTERDATA_LOGIN_PASSWORD_ENC,
+    authorizeUrl: 'https://idpdecathlon.oxylane.com/as/authorization.oauth2',
+    tokenUrl: 'https://idpdecathlon.oxylane.com/as/token.oauth2',
+    redirectUri: 'com.decathlon.authentication://com.oxylane.android.cubeinstore',
+    scope: 'openid profile',
+    baseUrl: 'https://api-cn.decathlon.com.cn'
+  }
 }
 
 export function isAllowedOrigin(origin: string | undefined, allowedOrigins: readonly string[]): boolean {
@@ -149,6 +192,7 @@ export function loadConfig(env: WorkerEnv): AppConfig {
     REGISTRATION_SECRET: env.REGISTRATION_SECRET,
     RESEND_API_KEY: env.RESEND_API_KEY,
     RESEND_FROM: env.RESEND_FROM,
-    SHIPHUB: loadShipHubConfig(env)
+    SHIPHUB: loadShipHubConfig(env),
+    MASTERDATA: loadMasterDataConfig(env)
   }
 }

@@ -331,7 +331,6 @@ button:disabled { opacity: .48; }
 /* Desktop reference-only structures must not participate in ordinary-phone layout. */
 .pickup-ledger-table-head,
 .dock-release-card { display: none; }
-.sales-input-summary > .sales-reference-intro { display: none; }
 
 /* Module headings and operational surfaces */
 .scene-title {
@@ -376,7 +375,7 @@ button:disabled { opacity: .48; }
    solid fill from here — that is why the glass never showed up. Their fill
    now lives only in frosted.css section 8. Everything below still wants an
    opaque card, so it keeps the solid treatment. */
-:is(.sales-input-summary, .record-ledger-head, .record-row, .governance-section, .dialog-action, .dialog-empty, .conditional-field-note, .migration-summary) {
+, .record-row, .governance-section, .dialog-action, .dialog-empty, .conditional-field-note, .migration-summary) {
   border: 0 !important;
   border-radius: var(--ops-radius) !important;
   background: var(--ops-card);
@@ -484,10 +483,6 @@ button:disabled { opacity: .48; }
   color: var(--ops-text-muted);
   text-align: center;
 }
-.sales-input-summary { gap: 8px; margin-top: 0; padding: 12px; }
-.sales-input-summary > div { border-radius: var(--ops-radius-sm); background: var(--ops-page); }
-.sales-input-summary > button { background: var(--ops-yellow); color: var(--ops-black); }
-.sales-input-summary > p { background: transparent; }
 
 /* Pickup-specific adoption of the same primitive language. */
 .pickup-ledger { color: var(--ops-text); }

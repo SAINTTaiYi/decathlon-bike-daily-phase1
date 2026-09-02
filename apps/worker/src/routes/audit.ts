@@ -78,13 +78,20 @@ export async function listAudit(db: D1Database, storeId: string, businessDate?: 
         SELECT e.id, e.action, e.entity_type, e.entity_id, e.actor_name_snapshot, e.business_date, e.summary,
                e.reversible, e.before_state, e.after_state, e.audit_module, e.created_at,
                rev.id AS reverted_by, rev.created_at AS reverted_at,
-               CASE WHEN EXISTS (
-                 SELECT 1 FROM audit_events later
-                 WHERE later.store_id = e.store_id
-                   AND later.entity_type = e.entity_type
-                   AND ((later.entity_id IS NULL AND e.entity_id IS NULL) OR later.entity_id = e.entity_id)
-                   AND later.created_at > e.created_at
-               ) THEN 1 ELSE 0 END AS has_later_event,
+               CASE WHEN
+                 (e.entity_id IS NOT NULL AND EXISTS (
+                   SELECT 1 FROM audit_events later
+                   WHERE later.entity_type = e.entity_type
+                     AND later.entity_id = e.entity_id
+                     AND later.store_id = e.store_id
+                     AND later.created_at > e.created_at))
+                 OR (e.entity_id IS NULL AND EXISTS (
+                   SELECT 1 FROM audit_events later
+                   WHERE later.entity_type = e.entity_type
+                     AND later.entity_id IS NULL
+                     AND later.store_id = e.store_id
+                     AND later.created_at > e.created_at))
+               THEN 1 ELSE 0 END AS has_later_event,
                current_item.kind AS current_kind
         FROM audit_events e
         LEFT JOIN audit_events rev ON rev.reverted_event_id = e.id
@@ -97,13 +104,20 @@ export async function listAudit(db: D1Database, storeId: string, businessDate?: 
         SELECT e.id, e.action, e.entity_type, e.entity_id, e.actor_name_snapshot, e.business_date, e.summary,
                e.reversible, e.before_state, e.after_state, e.audit_module, e.created_at,
                rev.id AS reverted_by, rev.created_at AS reverted_at,
-               CASE WHEN EXISTS (
-                 SELECT 1 FROM audit_events later
-                 WHERE later.store_id = e.store_id
-                   AND later.entity_type = e.entity_type
-                   AND ((later.entity_id IS NULL AND e.entity_id IS NULL) OR later.entity_id = e.entity_id)
-                   AND later.created_at > e.created_at
-               ) THEN 1 ELSE 0 END AS has_later_event,
+               CASE WHEN
+                 (e.entity_id IS NOT NULL AND EXISTS (
+                   SELECT 1 FROM audit_events later
+                   WHERE later.entity_type = e.entity_type
+                     AND later.entity_id = e.entity_id
+                     AND later.store_id = e.store_id
+                     AND later.created_at > e.created_at))
+                 OR (e.entity_id IS NULL AND EXISTS (
+                   SELECT 1 FROM audit_events later
+                   WHERE later.entity_type = e.entity_type
+                     AND later.entity_id IS NULL
+                     AND later.store_id = e.store_id
+                     AND later.created_at > e.created_at))
+               THEN 1 ELSE 0 END AS has_later_event,
                current_item.kind AS current_kind
         FROM audit_events e
         LEFT JOIN audit_events rev ON rev.reverted_event_id = e.id
@@ -145,12 +159,20 @@ export async function listPermanentAudit(db: D1Database, storeId: string, filter
     SELECT e.id, e.action, e.entity_type, e.entity_id, e.actor_name_snapshot, e.business_date, e.summary,
            e.reversible, e.before_state, e.after_state, e.audit_module, e.created_at,
            rev.id AS reverted_by, rev.created_at AS reverted_at,
-           CASE WHEN EXISTS (
-             SELECT 1 FROM audit_events later
-             WHERE later.store_id = e.store_id AND later.entity_type = e.entity_type
-               AND ((later.entity_id IS NULL AND e.entity_id IS NULL) OR later.entity_id = e.entity_id)
-               AND later.created_at > e.created_at
-           ) THEN 1 ELSE 0 END AS has_later_event,
+           CASE WHEN
+             (e.entity_id IS NOT NULL AND EXISTS (
+               SELECT 1 FROM audit_events later
+               WHERE later.entity_type = e.entity_type
+                 AND later.entity_id = e.entity_id
+                 AND later.store_id = e.store_id
+                 AND later.created_at > e.created_at))
+             OR (e.entity_id IS NULL AND EXISTS (
+               SELECT 1 FROM audit_events later
+               WHERE later.entity_type = e.entity_type
+                 AND later.entity_id IS NULL
+                 AND later.store_id = e.store_id
+                 AND later.created_at > e.created_at))
+           THEN 1 ELSE 0 END AS has_later_event,
            current_item.kind AS current_kind
     FROM audit_events e
     LEFT JOIN audit_events rev ON rev.reverted_event_id = e.id
@@ -196,12 +218,17 @@ export function auditRoutes() {
       `).bind(targetId, context.storeId))
       if (!target || !target.reversible) throw new ApiProblem(409, 'UNDO_NOT_AVAILABLE', '该操作不能撤回。')
       if (target.business_date !== businessDate) throw new ApiProblem(409, 'UNDO_EXPIRED', '跨日操作只能查看，不能在当前业务日撤回。')
+      const hasEntityId = target.entity_id !== null && target.entity_id !== undefined
+      const entityIdClause = hasEntityId ? 'e.entity_id = ?' : 'e.entity_id IS NULL'
+      const laterBinds: Array<string> = [context.storeId, target.entity_type]
+      if (hasEntityId) laterBinds.push(target.entity_id)
+      laterBinds.push(target.created_at)
       const later = await first<{ n: number }>(db.prepare(`
         SELECT COUNT(*) AS n FROM audit_events e
         WHERE e.store_id = ? AND e.entity_type = ?
-          AND ((e.entity_id IS NULL AND ? IS NULL) OR e.entity_id = ?)
+          AND ${entityIdClause}
           AND e.created_at > ?
-      `).bind(context.storeId, target.entity_type, target.entity_id, target.entity_id, target.created_at))
+      `).bind(...laterBinds))
       if ((later?.n ?? 0) > 0) throw new ApiProblem(409, 'UNDO_NOT_LATEST', '该对象已有后续操作，不能撤回旧操作。')
       const already = await first(db.prepare('SELECT id FROM audit_events WHERE reverted_event_id = ?').bind(target.id))
       if (already) throw new ApiProblem(409, 'ALREADY_UNDONE', '该操作已经撤回。')

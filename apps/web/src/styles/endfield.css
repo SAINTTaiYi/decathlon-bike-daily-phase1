@@ -584,7 +584,6 @@ button, input, select, textarea { border-radius: 0; }
   .look-section > .kpi-sheet,
   .look-section > .handover-index,
   .look-section > .record-ledger,
-  .look-section > .sales-input-summary { grid-column: 2; }
   .look-section > .pickup-folio { grid-column: 2; grid-row: 1; margin-top: 0; margin-bottom: 1rem; }
   .pickup-look > .record-ledger { margin-top: 0; }
   .scene-title h2 { font-size: clamp(2.5rem, 4.1vw, 4.5rem); }

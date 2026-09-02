@@ -11,6 +11,11 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      # generate-build-metadata.mjs 在 CI 强制要求显式 RELEASE_SHA（防止 GITHUB_SHA 在
+      # workflow_dispatch 下指向触发 ref 而非发布提交）。CI 只做验证不做发布，
+      # 用触发提交（PR 合并 SHA 或 push 的 HEAD）作为盖章对象即可。
+      RELEASE_SHA: ${{ github.sha }}
     services:
       postgres:
         image: postgres:16

@@ -291,13 +291,7 @@
 .form-meta { color: var(--muted); font-size: .75rem; }
 .form-error { padding: .65rem; border: 1px solid var(--critical); color: var(--critical); font-size: .875rem; }
 .text-danger-action { justify-self: start; min-height: 44px; border-bottom: 1px solid var(--critical); color: var(--critical); font-size: .8125rem; font-weight: 800; }
-.sales-input-summary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1px; margin-top: 1.65rem; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); background: var(--line); }
-.sales-input-summary > div { display: grid; gap: .5rem; min-height: 7rem; align-content: space-between; padding: .75rem; background: var(--paper); }
-.sales-input-summary span { color: var(--muted); font-size: .7rem; font-weight: 700; }
-.sales-input-summary strong { font-family: var(--font-display); font-size: 2.4rem; line-height: .8; }
-.sales-input-summary button { grid-column: 1 / -1; }
-.sales-input-summary p { grid-column: 1 / -1; padding: .75rem 0 0; background: var(--paper); color: var(--muted); font-size: .875rem; line-height: 1.5; }
-.sales-input-summary[data-ready='true'] { border-top-color: var(--success); }
+.sales-bi-slot { margin-top: 1.25rem; }
 .danger-confirm { display: grid; gap: .8rem; padding: .8rem; border: 1px solid var(--critical); color: var(--critical); }
 .danger-confirm > div, .dialog-footer { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .6rem; }
 .danger-confirm button { min-height: 44px; border: 1px solid var(--critical); }
