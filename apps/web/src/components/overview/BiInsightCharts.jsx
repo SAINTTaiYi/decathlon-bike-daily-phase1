@@ -7,6 +7,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { BI_SNAPSHOT, BI_DIS_DOTS } from '../../data/biSnapshot.js'
+import { ALLCHANNEL_NAMES } from '../../data/biSkuNames.js'
+import useBiSkuNames from '../../hooks/useBiSkuNames.js'
 
 const MONO = {
   ink: '#1C1C1A', mid: '#55554F', muted: '#8F8E88', faint: '#B0AFA9', hairline: '#CDCCC5', grid: '#DEDDD6'
@@ -324,11 +326,6 @@ const MODEL_TABS = [
 ]
 // M218 全渠道表不带产品名，仅商品码；能确认的码补名字，其余保留码（诚实）。
 // 仅收录经外部确认的码→名；其余码 M218 不带名称，保留码（不编造）。
-const ALLCHANNEL_NAMES = {
-  '8640568': 'Fit3 Jr 儿童轮滑鞋',
-  '8984795': 'EXPLORE 900 24" 青少年山地车',
-  '8949264': 'RCR 骑行服',
-}
 const deltaText = (value, label) => value === null || value === undefined ? null : `${label} ${value > 0 ? '▴' : value < 0 ? '▾' : ''}${Math.abs(value).toFixed(1)}%`
 const modelDelta = (row) => deltaText(row.wow, '环比') ?? deltaText(row.yoy, '同比') ?? '—'
 const yuan = (value) => `¥${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -336,6 +333,7 @@ const yuan = (value) => `¥${value.toLocaleString('en-US', { minimumFractionDigi
 export function BiModelRanking({ snapshot }) {
   const { models } = snapshot
   const [tab, setTab] = useState('allChannel')
+  const skuNames = useBiSkuNames()
   const { ref, revealed, replay, replayChart } = useBiReveal()
   const reduced = usePrefersReducedMotion()
   const trackRef = useRef(null)
@@ -396,7 +394,7 @@ export function BiModelRanking({ snapshot }) {
         {rows.map((row) => (
           <li key={`${tab}-${row.code}`} className="ops-bi-model-row">
             <span className="rank">{String(row.rank).padStart(2, '0')}</span>
-            <span className="name">{(tab === 'allChannel' && ALLCHANNEL_NAMES[row.code]) || row.model}<span className="code">{row.code}</span></span>
+            <span className="name">{(tab === 'allChannel' && (ALLCHANNEL_NAMES[row.code] || skuNames[row.code])) || row.model}<span className="code">{row.code}</span></span>
             <span className="val">
               {tab === 'allChannel' ? (
                 <>

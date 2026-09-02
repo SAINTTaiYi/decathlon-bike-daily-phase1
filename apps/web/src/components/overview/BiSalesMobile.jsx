@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { BI_SNAPSHOT, BI_DIS_DOTS } from '../../data/biSnapshot.js'
+import { ALLCHANNEL_NAMES } from '../../data/biSkuNames.js'
+import useBiSkuNames from '../../hooks/useBiSkuNames.js'
 
 const MONO = { ink: '#1C1C1A', mid: '#55554F', muted: '#8F8E88', faint: '#B0AFA9', hairline: '#CDCCC5', grid: '#DEDDD6' }
 const D2R = Math.PI / 180
@@ -225,6 +227,7 @@ const MODEL_TABS = [
 function BimRanking({ snapshot }) {
   const { models } = snapshot
   const [tab, setTab] = useState('top')
+  const skuNames = useBiSkuNames()
   const { ref, revealed, replay } = useBiReveal()
   const reduced = usePrefersReducedMotion()
   const trackRef = useRef(null)
@@ -276,7 +279,7 @@ function BimRanking({ snapshot }) {
         {rows.map((row) => (
           <li key={`${tab}-${row.code}`} className="ops-bim-row">
             <span className="rank">{String(row.rank).padStart(2, '0')}</span>
-            <span className="name">{row.model}<span className="code">{row.code}</span></span>
+            <span className="name">{(tab === 'allChannel' && (ALLCHANNEL_NAMES[row.code] || skuNames[row.code])) || row.model}<span className="code">{row.code}</span></span>
             <span className="val">
               {tab === 'allChannel' ? <><b>{`${row.qty} 台`}</b><small>{yuan(row.to)}</small></> : <><b>{yuan(row.to)}</b><small>{`${row.qty} 台 · ${tab === 'top' ? `${row.share.toFixed(0)}%` : modelDelta(row)}`}</small></>}
             </span>

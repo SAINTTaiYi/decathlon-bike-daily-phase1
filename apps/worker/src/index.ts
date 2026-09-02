@@ -17,7 +17,9 @@ import { recoveryRoutes } from './routes/recovery.js'
 import { governanceRoutes } from './routes/governance.js'
 import { adminRoutes } from './routes/admin.js'
 import { shipHubRoutes } from './routes/shiphub.js'
+import { biRoutes } from './routes/bi.js'
 import { runScheduledShipHubSync } from './services/shiphub-sync.js'
+import { runScheduledBiSkuSync } from './services/bi-sku-sync.js'
 import { ApiProblem } from './services/problems.js'
 import { routeIncomingRequest } from './request-routing.js'
 
@@ -63,7 +65,8 @@ app.use('*', async (c, next) => {
         SESSION_SECRET: 'public-route-placeholder-not-used',
         CSRF_SECRET: 'public-route-placeholder-not-used',
         PASSWORD_PEPPER: 'public-route-placeholder-not-used',
-        SHIPHUB: { enabled: false, mode: 'fixture', liveConfirmed: false, oauthScope: 'read', requestTimeoutMs: 8000, activeStartHour: 10, activeEndHour: 22 }
+        SHIPHUB: { enabled: false, mode: 'fixture', liveConfirmed: false, oauthScope: 'read', requestTimeoutMs: 8000, activeStartHour: 10, activeEndHour: 22 },
+        MASTERDATA: { authorizeUrl: 'https://idpdecathlon.oxylane.com/as/authorization.oauth2', tokenUrl: 'https://idpdecathlon.oxylane.com/as/token.oauth2', redirectUri: 'com.decathlon.authentication://com.oxylane.android.cubeinstore', scope: 'openid profile', baseUrl: 'https://api-cn.decathlon.com.cn' }
       })
     }
     const origin = c.req.header('origin')
@@ -105,6 +108,7 @@ app.route('/', workItemRoutes())
 app.route('/', auditRoutes())
 app.route('/', bootstrapRoutes())
 app.route('/', shipHubRoutes())
+app.route('/', biRoutes())
 
 app.all('/api/v1/attachments/*', (c) => c.json({
   error: 'MEDIA_DISABLED',
@@ -136,5 +140,8 @@ export default {
   fetch: handleRequest,
   scheduled(_controller: ScheduledController, env: WorkerEnv, executionCtx: ExecutionContext): void {
     executionCtx.waitUntil(runScheduledShipHubSync(env))
+    // BI 车型名同步自带 24h 陈旧度守卫，挂在同一 cron 上自然收敛为每日一次；
+    // 异常只记日志，绝不影响 Shiphub 同步。
+    executionCtx.waitUntil(runScheduledBiSkuSync(env))
   }
 }
