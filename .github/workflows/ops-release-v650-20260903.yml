@@ -1,0 +1,204 @@
+name: ops-release-v650-20260903
+
+# 一次性发布接力（2026-09-03 晨，用户已批准自动执行）：
+# 1. 睡到 UTC 00:10（北京 08:10，D1 限额重置后）
+# 2. 等 ops-pause-non-chu13-users（run 33659176111）成功完成
+# 3. 轮询确认 D1 写已恢复
+# 4. dispatch deploy-cloudflare-staging（release_sha=本提交，main HEAD）
+# 5. 轮询部署运行至完成，验证 /health/live+ready（V6.5.0 + gitSha）
+# 6. 恢复前一日暂停的 13 个用户
+# 任何一步失败即停止（用户保持 disabled，安全默认），晨间人工接管。
+# 监控：gh run watch <run-id>；取消：gh run cancel <run-id>
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  wait-part-1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - name: Sleep until 2026-09-03T00:10Z (part 1 of 2)
+        run: |
+          target=$(date -u -d "2026-09-03T00:10:00Z" +%s)
+          now=$(date -u +%s)
+          remaining=$(( target - now ))
+          chunk=$(( remaining > 20400 ? 20400 : remaining ))
+          echo "remaining=${remaining}s; sleeping chunk=${chunk}s"
+          sleep "$chunk"
+
+  release-staging-v650:
+    needs: wait-part-1
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    environment: staging
+    env:
+      PAUSE_RUN_ID: "33659176111"
+      REPO: SAINTTaiYi/decathlon-bike-daily-phase1
+    steps:
+      - name: Sleep until 2026-09-03T00:10Z (part 2 of 2)
+        run: |
+          target=$(date -u -d "2026-09-03T00:10:00Z" +%s)
+          now=$(date -u +%s)
+          remaining=$(( target - now ))
+          if [ "$remaining" -gt 0 ]; then
+            echo "sleeping remaining ${remaining}s"
+            sleep "$remaining"
+          fi
+
+      - name: Wait for the pause workflow to complete successfully
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 120); do
+            status=$(gh api "repos/$REPO/actions/runs/$PAUSE_RUN_ID" --jq '{status: .status, conclusion: .conclusion}' 2>/dev/null || echo '{"status":"unknown"}')
+            echo "attempt $i: $status"
+            if echo "$status" | grep -q '"status":"completed"'; then
+              if echo "$status" | grep -q '"conclusion":"success"'; then
+                echo "pause workflow completed successfully"
+                exit 0
+              fi
+              echo "::error::pause workflow completed with failure - aborting release (users remain paused)"
+              exit 1
+            fi
+            sleep 30
+          done
+          echo "::error::pause workflow did not complete within 60 minutes"
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install pinned Wrangler through the network guard
+        run: node scripts/ops/network-guard.mjs npm/pnpm npm install --global wrangler@4.112.0
+
+      - name: Write one-off wrangler config
+        run: |
+          cat > wrangler.ops.jsonc <<'JSON'
+          {
+            "name": "ops-release-oneoff",
+            "compatibility_date": "2026-07-17",
+            "d1_databases": [{
+              "binding": "DB",
+              "database_name": "bike-ops-staging",
+              "database_id": "91e78387-9b24-4126-a5a1-27f9c1792975"
+            }]
+          }
+          JSON
+
+      - name: Wait for D1 daily quota reset (poll up to 20 min)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 40); do
+            if wrangler d1 execute bike-ops-staging --remote --config wrangler.ops.jsonc \
+                 --command "SELECT COUNT(*) AS active_users FROM users WHERE status = 'active'" --json > /tmp/probe.json 2> /tmp/probe.err; then
+              echo "D1 quota reset confirmed (attempt $i):"
+              cat /tmp/probe.json
+              exit 0
+            fi
+            echo "attempt $i not ready: $(tail -2 /tmp/probe.err | tr '\n' ' ')"
+            sleep 30
+          done
+          echo "::error::D1 still blocked 20 minutes after expected reset"
+          exit 1
+
+      - name: Dispatch the Staging deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          R=$(gh api "repos/$REPO/commits/main" --jq '.sha')
+          [[ "$R" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::resolved main HEAD is not a full SHA: $R"; exit 1; }
+          echo "RELEASE_SHA=$R" >> "$GITHUB_ENV"
+          echo "dispatching deploy-cloudflare-staging with release_sha=$R"
+          date -u +"DISPATCHED_AT=%Y-%m-%dT%H:%M:%SZ" >> "$GITHUB_ENV"
+          sleep 20
+          gh api -X POST "repos/$REPO/actions/workflows/deploy-cloudflare-staging.yml/dispatches" \
+            -f ref=main \
+            -F "inputs[release_sha]=$R" \
+            -F "inputs[confirm_free_plan]=true" \
+            -F "inputs[confirm_no_billing]=true" \
+            -F "inputs[confirm_staging_only]=true"
+
+      - name: Poll the deployment run until it finishes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sleep 45
+          for i in $(seq 1 60); do
+            latest=$(gh api "repos/$REPO/actions/workflows/deploy-cloudflare-staging.yml/runs?per_page=1" --jq '.workflow_runs[0] // empty')
+            if [ -n "$latest" ]; then
+              created=$(echo "$latest" | jq -r '.created_at')
+              if [[ "$created" > "$DISPATCHED_AT" ]]; then
+                run_id=$(echo "$latest" | jq -r '.id')
+                status=$(echo "$latest" | jq -r '.status')
+                conclusion=$(echo "$latest" | jq -r '.conclusion // "running"')
+                echo "attempt $i: run $run_id status=$status conclusion=$conclusion"
+                if [ "$conclusion" = "success" ]; then
+                  echo "deployment run $run_id succeeded"
+                  exit 0
+                fi
+                if [ "$conclusion" = "failure" ] || [ "$conclusion" = "cancelled" ] || [ "$conclusion" = "timed_out" ]; then
+                  echo "::error::deployment run $run_id finished with $conclusion - users remain paused"
+                  exit 1
+                fi
+              else
+                echo "attempt $i: latest deploy run predates dispatch (created=$created), waiting"
+              fi
+            else
+              echo "attempt $i: no deploy run found yet"
+            fi
+            sleep 60
+          done
+          echo "::error::deployment did not finish within 60 minutes"
+          exit 1
+
+      - name: Verify live Staging identity
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 10); do
+            live=$(curl -sf -m 15 https://workshop.skin/health/live || true)
+            if echo "$live" | grep -q "\"version\":\"6.5.0\"" && echo "$live" | grep -q "$RELEASE_SHA"; then
+              echo "health/live OK: $live"
+              break
+            fi
+            if [ "$i" = 10 ]; then echo "::error::health/live did not converge: $live"; exit 1; fi
+            sleep 30
+          done
+          ready=$(curl -sf -m 15 https://workshop.skin/health/ready)
+          echo "$ready" | grep -q "\"status\":\"ready\"" || { echo "::error::health/ready not ready: $ready"; exit 1; }
+          echo "health/ready OK: $ready"
+
+      - name: Restore the 13 paused users
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          cat > restore.sql <<'SQL'
+          UPDATE users
+            SET status = 'active', updated_at = '2026-09-03T00:45:00.000Z'
+            WHERE username_key IN ('admin','bbbb','byang16','chuang5a','jli96','lcui26','lcui260','lliang07','szhu53','test1','xwei07','yliu5d','ylu24')
+              AND status = 'disabled';
+          SQL
+          wrangler d1 execute bike-ops-staging --remote --config wrangler.ops.jsonc --file restore.sql
+
+      - name: Final verification and summary
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          wrangler d1 execute bike-ops-staging --remote --config wrangler.ops.jsonc \
+            --command "SELECT status, COUNT(*) AS n FROM users GROUP BY status" --json
+          echo "=== V6.5.0 自动发布完成：部署成功、健康验证通过、用户已恢复 ==="
+          echo "后续：观察当日 D1 行读（CF GraphQL d1QueriesAdaptiveGroups），audit 家族应 <1M/日"
