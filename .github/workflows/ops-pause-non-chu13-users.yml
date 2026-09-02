@@ -1,0 +1,106 @@
+name: ops-pause-non-chu13-users
+
+# 一次性运维动作（2026-09-02 D1 免费层行读限额烧穿应急）：
+# 等 D1 每日限额重置（UTC 00:00 = 北京 08:00）后，禁用 staging 除 chu13
+# 以外的全部用户并吊销其会话，防止次日门店正常使用再次烧穿限额。
+# 恢复方式：见仓库外 Termux ~/d1-quota-incident-20260902/PAUSE-RESTORE.md。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wait-part-1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - name: Sleep until 2026-09-03T00:05Z (part 1 of 2)
+        run: |
+          target=$(date -u -d "2026-09-03T00:05:00Z" +%s)
+          now=$(date -u +%s)
+          remaining=$(( target - now ))
+          chunk=$(( remaining > 20400 ? 20400 : remaining ))
+          echo "remaining=${remaining}s; sleeping chunk=${chunk}s"
+          sleep "$chunk"
+
+  pause-non-chu13-users:
+    needs: wait-part-1
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    environment: staging
+    steps:
+      - name: Sleep until 2026-09-03T00:05Z (part 2 of 2)
+        run: |
+          target=$(date -u -d "2026-09-03T00:05:00Z" +%s)
+          now=$(date -u +%s)
+          remaining=$(( target - now ))
+          if [ "$remaining" -gt 0 ]; then
+            echo "sleeping remaining ${remaining}s"
+            sleep "$remaining"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install pinned Wrangler through the network guard
+        run: node scripts/ops/network-guard.mjs npm/pnpm npm install --global wrangler@4.112.0
+
+      - name: Write one-off wrangler config
+        run: |
+          cat > wrangler.ops.jsonc <<'JSON'
+          {
+            "name": "ops-pause-users-oneoff",
+            "compatibility_date": "2026-07-17",
+            "d1_databases": [{
+              "binding": "DB",
+              "database_name": "bike-ops-staging",
+              "database_id": "91e78387-9b24-4126-a5a1-27f9c1792975"
+            }]
+          }
+          JSON
+
+      - name: Wait for D1 daily quota reset (poll up to 20 min)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 40); do
+            if wrangler d1 execute bike-ops-staging --remote --config wrangler.ops.jsonc \
+                 --command "SELECT COUNT(*) AS active_users FROM users WHERE status = 'active'" --json > /tmp/probe.json 2> /tmp/probe.err; then
+              echo "D1 quota reset confirmed (attempt $i):"
+              cat /tmp/probe.json
+              exit 0
+            fi
+            echo "attempt $i not ready: $(tail -2 /tmp/probe.err | tr '\n' ' ')"
+            sleep 30
+          done
+          echo "::error::D1 still blocked 20 minutes after expected reset"
+          exit 1
+
+      - name: Pause all non-CHU13 users (disable + revoke sessions)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          cat > pause.sql <<'SQL'
+          UPDATE users
+            SET status = 'disabled', updated_at = '2026-09-03T00:10:00.000Z'
+            WHERE username_key != 'chu13' AND status = 'active';
+          UPDATE auth_sessions
+            SET revoked_at = '2026-09-03T00:10:00.000Z'
+            WHERE user_id IN (SELECT id FROM users WHERE status = 'disabled')
+              AND revoked_at IS NULL;
+          SQL
+          wrangler d1 execute bike-ops-staging --remote --config wrangler.ops.jsonc --file pause.sql
+
+      - name: Verify final user states
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          wrangler d1 execute bike-ops-staging --remote --config wrangler.ops.jsonc \
+            --command "SELECT username_key, status, is_platform_admin FROM users ORDER BY username_key" --json

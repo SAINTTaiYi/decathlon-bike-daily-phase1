@@ -47,7 +47,7 @@ try {
   if (!/Cannot find module/u.test(String(error?.message || error))) failures.push(`YAML parse failed: ${error.message}`)
 }
 
-assert(workflowNames.join(',') === 'ci.yml,deploy-cloudflare-preview.yml,deploy-cloudflare-staging.yml,deploy-production.yml,deploy-staging.yml,onboard-workshop-skin-staging.yml', 'workflows: expected workflow set is present')
+assert(workflowNames.join(',') === 'ci.yml,deploy-cloudflare-preview.yml,deploy-cloudflare-staging.yml,deploy-production.yml,deploy-staging.yml,onboard-workshop-skin-staging.yml,ops-pause-non-chu13-users.yml', 'workflows: expected workflow set is present')
 for (const [name, source] of Object.entries(workflows)) {
   assert(!source.includes('\t'), `${name}: tabs are forbidden in YAML`)
   assert(/^name:\s+.+/mu.test(source), `${name}: name is required`)
