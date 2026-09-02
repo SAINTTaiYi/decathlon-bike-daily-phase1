@@ -1,77 +1,119 @@
 {
   "kind": "formal-production-release",
-  "version": "6.4.3",
+  "version": "6.5.0",
   "previewRange": {
-    "fromExclusive": "2586dc1a811d86e2461f5880b6f26c39b1374229",
-    "toInclusive": "f24a2f8ff51de099b1e02de55fc581ad354cab9f",
+    "fromExclusive": "84fc6c77ea4710dcaa9dbdb55fd13a09a48e3d25",
+    "toInclusive": "fe28760727d00363f7e175c4baf0eca0b1e81e17",
     "commits": [
       {
-        "sha": "50eecb1213fc0b41da169ffb8a30dcac060fba6b",
-        "subject": "feat(shiphub): 次日首个登录者在公告后收到一次重连提示"
+        "sha": "79526b3f934a67c4ec8bf139fb491d769e10da51",
+        "subject": "feat(overview): 总览新增 BI 门店经营面板"
       },
       {
-        "sha": "8af4b5fefba529a0f7b5c43132b926606ab201de",
-        "subject": "fix(shiphub): 修复重连提示导致的渲染期 TDZ 白屏"
+        "sha": "37c975058abc3d87cb96b5e319a7805a017e831d",
+        "subject": "feat(overview): BI 面板新增维修两卡（F3 发丝面积 35 周趋势 + 累计指标）"
       },
       {
-        "sha": "6c4e72ed64f5ee2f2a372e8df35160233e90152d",
-        "subject": "fix(web): 重连提示改由公告可见性驱动，并加 preview 调试面板"
+        "sha": "bda5cf176417e1f02cacacd3872ce5ef15f032d5",
+        "subject": "feat(overview): BI 面板第三行——商品销售榜（M332 TOP/FLOP）与顾客评价 360 分卡（M243）"
       },
       {
-        "sha": "a3c48041f4dee4033ec20f75ae53412c95f8c250",
-        "subject": "fix(web): 公告判定期间占位，重连提示改用工作台就绪判定"
+        "sha": "362ae14f1babc0b60f5816c11aeb00aef20d47ea",
+        "subject": "feat(overview): 车型榜补周销量与金额（M332 DataTable 直读），口径纠错环比/同比分列"
       },
       {
-        "sha": "023f9bb6b2ce8c08ddadbe2969c8b8a9bb957f3f",
-        "subject": "fix(web): 登录界面版本公告不再被 introDone 条件门卸载"
+        "sha": "9a2989268104a4c03c06c28d01a33bbd5a21a791",
+        "subject": "feat(overview): 车型榜新增全渠道标签（M218 各渠道榜聚合自行车周销量）"
       },
       {
-        "sha": "4df73fa1fa05f06df06b312b31ee1e8dfaaffb02",
-        "subject": "refactor(web): 移除 pickup 别名 token 转发层，收敛到 --ops-* 单一来源"
+        "sha": "9f0aed0140b895da9112bf2ab723d4923c0fc2bb",
+        "subject": "fix(overview): 全渠道车型聚合修正——跨渠道合并 48 台/¥59,952.04，附渠道构成"
       },
       {
-        "sha": "9df6be2f2b2e0762b75a251c3c296ea9de3e7f3e",
-        "subject": "refactor(nav): 指示器 paint 收敛到基础层单一来源"
+        "sha": "f10de2d8367cd7407a169e44c8522d8dc21e76f8",
+        "subject": "feat(overview): BI 面板 2026-09-02 复核——自行车+工作室源端过滤与图表重排"
       },
       {
-        "sha": "4ef4bb139e6a0e2d0f1139a7521e61ffe06a650c",
-        "subject": "style(pickup): 待取车面统一玻璃层，清除实心残留与悬空 token"
+        "sha": "9531318253e0402541716414e34d44e3dc0d8a76",
+        "subject": "feat(overview): BI 数据移入销售数据模块, 移动端 BI 独立实现"
       },
       {
-        "sha": "5c107200cf6e2b70600cd9dbf01db94a872430d3",
-        "subject": "fix(web): 下沉表面收敛到真实 token，删除死规则"
+        "sha": "8120269c4b0fa037375228e18db2f2fcc5c7c43c",
+        "subject": "fix(styles): 清掉 workshop-system.css 旧销售模块选择器残留"
       },
       {
-        "sha": "fd3a693187ea955b933d0ac44dfc433d4f413965",
-        "subject": "merge: 合入全局 UI token 收敛（feat/shiphub-reconnect-status-20260829）"
+        "sha": "a97c10d81e30b97fa9dbf65c7e12e62aaa102573",
+        "subject": "fix(overview): 恢复误删的 operationSummary, 修复移动端白屏崩溃"
       },
       {
-        "sha": "b18f978f40dbe3b262d26ade89794ed633aed3b8",
-        "subject": "fix(web): 移除卡面 backdrop-filter，清掉玻璃模糊死 token"
+        "sha": "dbf004162daaa5f87748551626c3f75f96e234b2",
+        "subject": "fix(overview): 恢复被误删的 displayMetric, OperationsIndex 计数依赖它"
       },
       {
-        "sha": "16e8e2c186e699323cd93098add1774d3f7c3810",
-        "subject": "refactor(web): 清掉卡面模糊删除后留下的空转规则"
+        "sha": "1604d935db182eb303b977269c7600447e0e0c7c",
+        "subject": "chore: 移除误提交的临时 bundle"
       },
       {
-        "sha": "f24a2f8ff51de099b1e02de55fc581ad354cab9f",
-        "subject": "fix(pickup): 左滑删除层自带显式隐藏，不再依赖卡片不透明遮盖"
+        "sha": "e43e8ec31293f69d55053854c98a3cde122db730",
+        "subject": "fix(overview): BI 移入销售数据场景, 总览页恢复原布局"
+      },
+      {
+        "sha": "4b225faa73a38a237e103c78d5459aee41eae1a9",
+        "subject": "chore(styles): 清除 sales-input-summary/sales-reference-intro 死规则"
+      },
+      {
+        "sha": "09a3f7507b8ff7fd38302facc841d175d7e15c49",
+        "subject": "fix(bi-sales): 发丝表加宽填满/统计卡不拉伸/删除底部填写条"
+      },
+      {
+        "sha": "5edfe96ff0c4659d3a7b917640cd1fc4d55524fb",
+        "subject": "feat(bi-sales): 全渠道车型置首并默认, 已确认码补名(不编造)"
+      },
+      {
+        "sha": "77964af1739866bcd812ec13f1a2e2b57a1c38e6",
+        "subject": "feat(bi-sales): 补全渠道榜已确认车型名(不编造)"
+      },
+      {
+        "sha": "cbc16553360280bf310a5638fd45faffd60840b6",
+        "subject": "feat(bi): 车型码全量官方名(masterdata)三层解析链 + Worker 定时同步落 D1"
+      },
+      {
+        "sha": "7127190edc1597cb5e9a0ce5cc00a24a65d16d3b",
+        "subject": "fix(worker): 审计 has_later_event/undo 计数拆两分支走 entity 索引，消除 bootstrap 每次数万行读"
+      },
+      {
+        "sha": "4dd3c2cc7b148ba0c6a550784026622b4d4d591b",
+        "subject": "ops: one-off workflow to pause non-CHU13 staging users after D1 quota reset"
+      },
+      {
+        "sha": "8f13c19418d5d6d3fd3be6a233d1ff4cdba70a02",
+        "subject": "ops: allowlist the pause workflow in validate-workflows"
+      },
+      {
+        "sha": "c5c1c7e154f9801b56e4bf0759d5367cfeba18af",
+        "subject": "merge: 预合并 main（ops 暂停 workflow + 校验器白名单）进 BI+D1 修复列车"
+      },
+      {
+        "sha": "5decdfb580ebd00b2b1611511977c6a16d45cf45",
+        "subject": "fix(ci): verify 任务补 RELEASE_SHA，修复 main CI 自 V6.2.4 起全红的元数据守卫拒绝"
+      },
+      {
+        "sha": "fe28760727d00363f7e175c4baf0eca0b1e81e17",
+        "subject": "Merge pull request #235 from SAINTTaiYi/fix/d1-audit-row-reads-20260903"
       }
     ]
   },
   "announcement": {
-    "title": "待取车界面修复与 Shiphub 重连提示",
-    "summary": "修复待取车卡片右侧常显的红色删除底、桌面导航选中项白块，并新增次日首个登录者的 Shiphub 重连提示。",
+    "title": "BI 门店经营面板与 D1 限额修复",
+    "summary": "销售数据场景新增 BI 门店经营面板（经济、维修、评价、车型榜）与车型官方名同步；修复审计查询把 D1 免费层每日行读限额烧穿的问题。",
     "changes": [
-      "修复待取车卡片右侧红色删除面常显，现在只在左滑时出现",
-      "修复删除按钮在未左滑时仍可被键盘选中的问题",
-      "新增次日首个登录者在更新公告后收到一次 Shiphub 重连提示",
-      "修复重连提示导致登录后白屏的问题",
-      "修复登录界面版本公告一闪而过、无法看完的问题",
-      "修复桌面左侧导航选中项被白色方块包住",
-      "统一待取车与总览卡片的玻璃质感，移除残留实心底色",
-      "移除卡面模糊以消除滚动时中文字形发虚"
+      "销售数据场景新增 BI 门店经营面板：经济表现、维修统计、顾客评价、商品销售榜",
+      "新增全渠道车型榜：各线上渠道自行车销量跨渠道合并，附渠道构成",
+      "车型商品码接入官方主数据（CubeInStore masterdata），展示官方品名与产品类型",
+      "总览页恢复原有布局，BI 面板移入销售数据模块，移动端独立实现",
+      "修复审计事件查询退化为区间扫描，bootstrap 单次数万行读降为千行级，D1 免费限额不再被烧穿",
+      "修复撤回（undo）后续计数查询同样无法命中索引的问题"
     ]
   },
-  "preparedAt": "2026-08-30T19:36:47.730Z"
+  "preparedAt": "2026-09-02T17:40:28.753Z"
 }
