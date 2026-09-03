@@ -104,11 +104,16 @@ async function fetchPerfecoEntries(env: WorkerEnv, params: Record<string, string
       }
     })
     if (!response.ok) throw new PerfecoUpstreamError(`PERFECO_HTTP_${response.status}`, response.status, response.status >= 500)
-    payload = await response.json().catch(() => null)
+    const text = await response.text()
+    // 实测：查询日尚无任何销售时上游返回 200 + 空 body（凌晨/营业前常态），
+    // 这不是故障——按「当日无数据」处理（entries 空 → 快照 0 台），
+    // 只有非空但结构异常的 body 才算上游故障。
+    payload = text.trim() ? JSON.parse(text) : null
   } catch (error) {
     if (error instanceof PerfecoUpstreamError) throw error
     throw new PerfecoUpstreamError('PERFECO_NETWORK', 502, true)
   }
+  if (payload === null) return []
   const dateList = (payload as { date_list?: Array<{ agg_level_list?: PerfecoEntry[] }> } | null)?.date_list
   if (!Array.isArray(dateList) || !Array.isArray(dateList[0]?.agg_level_list)) {
     throw new PerfecoUpstreamError('PERFECO_INVALID_RESPONSE', 502, true)

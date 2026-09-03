@@ -58,7 +58,10 @@ function mockFetch(handlers: { perfeco?: () => unknown; articleinfo?: () => unkn
       return { url: u, ok: true, status: 200, text: async () => '', json: async () => ({ access_token: 'jwt-x' }), headers: new Headers() } as unknown as Response
     }
     if (u.includes('/perfeco/')) {
-      return { url: u, ok: true, status: 200, text: async () => '', json: async () => handlers.perfeco?.() ?? { date_list: [] }, headers: new Headers() } as unknown as Response
+      // 真实链路读 text()（空 body = 当日无数据），mock 同样走 text 通道。
+      const body = handlers.perfeco?.() ?? ''
+      const text = typeof body === 'string' ? body : JSON.stringify(body)
+      return { url: u, ok: true, status: 200, text: async () => text, json: async () => JSON.parse(text), headers: new Headers() } as unknown as Response
     }
     if (u.includes('/arbo/articleinfos/')) {
       return { url: u, ok: true, status: 200, text: async () => '', json: async () => handlers.articleinfo?.() ?? [], headers: new Headers() } as unknown as Response
@@ -213,6 +216,20 @@ test('resolveArticleVehicleInfo：日报分类（整车/非整车/二手三态�
     assert.equal(info.get('4265914')?.isBike, false) // 轮滑鞋 → 日报剔除
     assert.equal(info.get('5312006')?.isBike, true)
     assert.equal(info.get('5312006')?.isBuyback, true)
+  } finally { mocked.restore() }
+})
+
+test('syncBikeDay：上游空 body（当日数据未入库）= 0 台而非 503', async () => {
+  const env = await makeEnv()
+  const mocked = mockFetch({
+    // 真实行为复刻：营业前查当日，perfeco 返回 200 + 空 body
+    perfeco: () => ''
+  })
+  try {
+    const snapshot = await syncBikeDay(env, { ...STORE, businessDate: '2026-09-04', now: NOW })
+    assert.equal(snapshot?.newBikes, 0)
+    assert.equal(snapshot?.usedBikes, 0)
+    assert.deepEqual(snapshot?.detail, [])
   } finally { mocked.restore() }
 })
 
