@@ -190,8 +190,11 @@ async function resolveModelInfo(env: WorkerEnv, modelCodes: readonly string[], j
   const out = new Map<string, VehicleInfo>()
   if (!modelCodes.length) return out
   const unique = [...new Set(modelCodes)].slice(0, 200)
+  // 缓存命中判据 = family_id 非空（已分类）。迁移 0023 给旧行加的 is_bike 默认 0
+  // 并不代表「已分类为非整车」——BI_SEED_CODES 等登录同步写入的旧行必须重新过
+  // families 白名单，否则整车会被默认值永久误判（真实事故：20" EXPL 120 被剔除）。
   const cached = await all<{ code: string; label: string; family_id: number | null; is_bike: number; is_buyback: number }>(
-    env.DB.prepare(`SELECT code, label, family_id, is_bike, is_buyback FROM bi_sku_names WHERE code IN (${unique.map(() => '?').join(',')})`).bind(...unique)
+    env.DB.prepare(`SELECT code, label, family_id, is_bike, is_buyback FROM bi_sku_names WHERE code IN (${unique.map(() => '?').join(',')}) AND family_id IS NOT NULL`).bind(...unique)
   )
   const known = new Set<string>()
   for (const row of cached) {

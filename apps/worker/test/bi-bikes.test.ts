@@ -219,6 +219,30 @@ test('resolveArticleVehicleInfo：日报分类（整车/非整车/二手三态�
   } finally { mocked.restore() }
 })
 
+test('resolveModelInfo：迁移前旧行（family_id NULL）不污染分类，强制重拉白名单', async () => {
+  const env = await makeEnv()
+  // 事故复刻：登录同步时代写入的 seed 行，迁移 0023 给它 is_bike 默认 0、family_id NULL。
+  // 8797823 = 20" EXPL 120 CN（fam 5039 整车），绝不能因默认值被误判为非整车。
+  await env.DB.prepare(`INSERT INTO bi_sku_names (code, label, production_label, conception_code, product_type, universe_id, family_id, is_bike, is_buyback, synced_at) VALUES (?, ?, NULL, NULL, 'Z001', NULL, NULL, 0, 0, ?)`)
+    .bind('8797823', '20" EXPL 120 CN', new Date().toISOString()).run()
+  const mocked = mockFetch({
+    articleinfo: () => [{ item_id: '4810987', model_id: '8797823' }],
+    modelslist: () => [{ r3code: '8797823', label: '20" EXPL 120 CN', store_treeview: { universe_id: 2, family_id: 5039 } }]
+  })
+  try {
+    const info = await resolveArticleVehicleInfo(env, ['4810987'])
+    const articleinfo = await (env.DB as TestD1Database).prepare('SELECT model_code FROM bi_article_map WHERE article_code = ?').bind('4810987').first()
+    // article → model 缓存先行
+    assert.equal((articleinfo as any)?.model_code, '8797823')
+    // model 重新分类：整车判定生效
+    assert.equal(info.get('4810987')?.isBike, true)
+    // 分类结果回写，旧行被升级
+    const row = await (env.DB as TestD1Database).prepare('SELECT family_id, is_bike FROM bi_sku_names WHERE code = ?').bind('8797823').first()
+    assert.equal((row as any)?.family_id, 5039)
+    assert.equal((row as any)?.is_bike, 1)
+  } finally { mocked.restore() }
+})
+
 test('syncBikeDay：上游空 body（当日数据未入库）= 0 台而非 503', async () => {
   const env = await makeEnv()
   const mocked = mockFetch({
