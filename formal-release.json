@@ -1,37 +1,29 @@
 {
   "kind": "formal-production-release",
-  "version": "6.5.1",
+  "version": "6.5.2",
   "previewRange": {
-    "fromExclusive": "2f757673e5b1298b3dfcd74a4bef00545c173bd1",
-    "toInclusive": "e5d774aa2c89da268390dc68b899190adc336b9a",
+    "fromExclusive": "4ee14049e261b7cc51612968afb10928a1fa4676",
+    "toInclusive": "221c89e43be75faf61ba302b8513da6488f62abf",
     "commits": [
       {
-        "sha": "23efb43f07f2b8e1484ae6dc433675d4b0930e7d",
-        "subject": "ops: V6.5.0 自动发布接力 workflow——等暂停/限额重置后自动部署 staging 并恢复用户"
+        "sha": "aed73f82f4df6b0b5fcecb2d77821975f83c407d",
+        "subject": "perf(bootstrap): D1 行读预算收敛——有界审计 feed + 清理门控 + 轮询降频"
       },
       {
-        "sha": "ad695db0198a5a96e7589e798caa28d163512f1c",
-        "subject": "feat(bi): 车型名同步改为当日首个成功登录触发一次，Staging 启用 masterdata 凭据注入"
-      },
-      {
-        "sha": "3b4949cf001c38aeccc11821736c634e50758dd8",
-        "subject": "test(web): bi-sku 挂载点断言跟随登录触发新实现（cron 零 BI 逻辑 + 登录路由触发）"
-      },
-      {
-        "sha": "e5d774aa2c89da268390dc68b899190adc336b9a",
-        "subject": "Merge pull request #236 from SAINTTaiYi/feat/bi-login-sync-20260903"
+        "sha": "221c89e43be75faf61ba302b8513da6488f62abf",
+        "subject": "Merge pull request #237 from SAINTTaiYi/perf/bootstrap-budget-20260903"
       }
     ]
   },
   "announcement": {
-    "title": "BI 车型名同步改为登录触发",
-    "summary": "车型名同步从定时轮询改为当天首个成功登录自动触发一次；Staging 配置 CubeInStore 官方凭据后，车型榜显示官方名称与产品类型。",
+    "title": "D1 行读预算收敛",
+    "summary": "Bootstrap 审计数据改为当天事件加在册记录事件史两条有界查询，自动清理只在当日首次访问执行，页面轮询从 45 秒放宽到 5 分钟；单店全天的数据库读取量压到免费限额的百分之三以内。",
     "changes": [
-      "BI 车型名同步不再挂在每 5 分钟定时任务上，改为当天（北京时间）首个成功登录自动触发一次",
-      "同步守卫按自然日判定：跨天即重新同步，同日后续登录不再重复请求上游",
-      "Staging 部署自动注入 CubeInStore 官方凭据，车型商品码显示官方品名与产品类型",
-      "手动同步入口保留，管理员仍可强制刷新并补充新码"
+      "Bootstrap 审计改为两条有界查询：当天事件走门店业务日索引，在册记录事件史走实体索引，不再随历史总量增长",
+      "自动清理已完成记录只在当日首次访问触发一次，后续刷新不再重复扫描",
+      "页面数据轮询从 45 秒放宽到 5 分钟，窗口聚焦刷新增加 60 秒去抖",
+      "记录操作记录抽屉跨天事件史完整保留，撤回判定语义不变"
     ]
   },
-  "preparedAt": "2026-09-03T05:55:52.268Z"
+  "preparedAt": "2026-09-03T11:39:08.656Z"
 }
