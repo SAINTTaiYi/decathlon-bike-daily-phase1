@@ -81,6 +81,18 @@ test('useBiBikesWeek：perfeco 周榜适配 + allChannel 整车过滤 + 回退�
   assert.match(hook, /row\.share/u)
 })
 
+test('useBiBikesWeek：会话级缓存 + TTL，场景切换不再重复打 API', async () => {
+  const hook = await read('hooks/useBiBikesWeek.js')
+  // 会话级模块缓存存在：面板随场景切换反复挂载时数据只拉一次
+  assert.match(hook, /let sessionCache = null/u)
+  assert.match(hook, /SESSION_TTL_MS = 30 \* 60 \* 1000/u)
+  assert.match(hook, /freshCache\(\)/u)
+  // 挂载时缓存新鲜则不 fetch
+  assert.match(hook, /if \(freshCache\(\)\) return undefined/u)
+  // 周榜失败不缓存（下次挂载自动重试，失败态不污染会话缓存）
+  assert.match(hook, /if \(next\.week\) sessionCache = next/u)
+})
+
 test('useBikeDaySync：失败静默降级，不影响表单', async () => {
   const hook = await read('hooks/useBikeDaySync.js')
   assert.match(hook, /getBikeDay\(\)/u)

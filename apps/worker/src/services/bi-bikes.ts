@@ -27,7 +27,10 @@ export const BIKE_FAMILY_IDS: readonly number[] = [
 const BUYBACK_FAMILY_ID = 34906
 
 export const BI_BIKES_TZ = 'Asia/Shanghai'
-const SNAPSHOT_MAX_AGE_MS = 10 * 60 * 1000
+// 读行/上游预算（2026-09-04 优化）：日快照 10 分钟（KPI 弹窗要当日实销，取新鲜）；
+// 周榜 30 分钟（滚动 7 天聚合变化慢，拉长缓存减少 IdP 登录与 perfeco 调用次数）。
+const DAY_SNAPSHOT_MAX_AGE_MS = 10 * 60 * 1000
+const WEEK_SNAPSHOT_MAX_AGE_MS = 30 * 60 * 1000
 const CHUNK_SIZE = 20
 
 export type BikeDaySnapshot = {
@@ -137,9 +140,25 @@ async function loginJwt(env: WorkerEnv): Promise<string> {
   return accessToken
 }
 
+// 惰性登录（2026-09-04 读行/上游预算优化）：D1 缓存全覆盖的请求零上游调用——
+// 只有确有未解析码需要 masterdata 补齐时才打 IdP。promise 级 memoize 天然防
+// 并发双登录；失败自动清空，下一次调用重试。perfeco 查询每次都要即时 token
+// （上游 2h 过期且不缓存），provider 复用同一 token 避免同请求内重复登录。
+type JwtProvider = () => Promise<string>
+function lazyLoginJwt(env: WorkerEnv): JwtProvider {
+  let inflight: Promise<string> | null = null
+  return () => {
+    if (!inflight) {
+      inflight = loginJwt(env)
+      inflight.catch(() => { inflight = null })
+    }
+    return inflight
+  }
+}
+
 // ── article 码（Shiphub item sku / perfeco ARTICLES id，7 位）→ model r3code 反查 ──
 // bi_article_map 缓存优先，未知码才打 masterdata articleinfos（逗号批量，20/批）。
-async function resolveArticleModels(env: WorkerEnv, articleCodes: readonly string[], jwt: string): Promise<Map<string, string>> {
+async function resolveArticleModels(env: WorkerEnv, articleCodes: readonly string[], getJwt: JwtProvider): Promise<Map<string, string>> {
   const out = new Map<string, string>()
   if (!articleCodes.length) return out
   const unique = [...new Set(articleCodes)].slice(0, 200)
@@ -149,6 +168,7 @@ async function resolveArticleModels(env: WorkerEnv, articleCodes: readonly strin
   for (const row of cached) out.set(row.article_code, row.model_code)
   const missing = unique.filter((code) => !out.has(code) && /^\d{4,10}$/u.test(code))
   if (!missing.length) return out
+  const jwt = await getJwt()
   const config = loadConfig(env).MASTERDATA
   const stamp = new Date().toISOString()
   const upserts: Array<{ article: string; model: string }> = []
@@ -186,7 +206,7 @@ async function resolveArticleModels(env: WorkerEnv, articleCodes: readonly strin
 }
 
 // ── model r3code → 整车分类（bi_sku_names 扩展列缓存，未知 model 现场 modelslist 拉取）──
-async function resolveModelInfo(env: WorkerEnv, modelCodes: readonly string[], jwt: string): Promise<Map<string, VehicleInfo>> {
+async function resolveModelInfo(env: WorkerEnv, modelCodes: readonly string[], getJwt: JwtProvider): Promise<Map<string, VehicleInfo>> {
   const out = new Map<string, VehicleInfo>()
   if (!modelCodes.length) return out
   const unique = [...new Set(modelCodes)].slice(0, 200)
@@ -209,6 +229,7 @@ async function resolveModelInfo(env: WorkerEnv, modelCodes: readonly string[], j
   }
   const missing = unique.filter((code) => !known.has(code) && /^\d{4,10}$/u.test(code))
   if (!missing.length) return out
+  const jwt = await getJwt()
   const config = loadConfig(env).MASTERDATA
   const stamp = new Date().toISOString()
   const upserts: Array<{ code: string; label: string; universe: number | null; family: number | null; bike: number; buyback: number }> = []
@@ -260,10 +281,11 @@ async function resolveModelInfo(env: WorkerEnv, modelCodes: readonly string[], j
 export async function resolveArticleVehicleInfo(env: WorkerEnv, articleCodes: readonly string[]): Promise<Map<string, VehicleInfo>> {
   const out = new Map<string, VehicleInfo>()
   if (!isPerfecoConfigured(env) || !articleCodes.length) return out
-  const jwt = await loginJwt(env)
-  const articleToModel = await resolveArticleModels(env, articleCodes, jwt)
+  // 读行/上游预算：先查 D1 缓存，全覆盖时下面两个 resolver 都不触发 IdP 登录。
+  const getJwt = lazyLoginJwt(env)
+  const articleToModel = await resolveArticleModels(env, articleCodes, getJwt)
   const models = [...new Set([...articleToModel.values()])]
-  const modelInfo = await resolveModelInfo(env, models, jwt)
+  const modelInfo = await resolveModelInfo(env, models, getJwt)
   for (const [article, model] of articleToModel) {
     const info = modelInfo.get(model)
     if (info) out.set(article, info)
@@ -274,8 +296,8 @@ export async function resolveArticleVehicleInfo(env: WorkerEnv, articleCodes: re
 // ── 公开分类查询（model 码直查：BI 旧 M218 allChannel 行过滤用）──
 export async function resolveModelVehicleInfo(env: WorkerEnv, modelCodes: readonly string[]): Promise<Map<string, VehicleInfo>> {
   if (!isPerfecoConfigured(env) || !modelCodes.length) return new Map()
-  const jwt = await loginJwt(env)
-  return resolveModelInfo(env, modelCodes, jwt)
+  const getJwt = lazyLoginJwt(env)
+  return resolveModelInfo(env, modelCodes, getJwt)
 }
 
 // ── 当日 KPI 快照（闭店弹窗「填写数据」自动同步新车/二手车台数）──
@@ -287,23 +309,23 @@ export async function syncBikeDay(
   const now = options.now ?? new Date()
   if (!options.force) {
     const cached = await readBikeDay(env, options.storeId, options.businessDate)
-    if (cached && now.getTime() - Date.parse(cached.syncedAt) < SNAPSHOT_MAX_AGE_MS) return cached
+    if (cached && now.getTime() - Date.parse(cached.syncedAt) < DAY_SNAPSHOT_MAX_AGE_MS) return cached
   }
-  const jwt = await loginJwt(env)
+  const getJwt = lazyLoginJwt(env)
   const entries = await fetchPerfecoEntries(env, {
     from: options.businessDate,
     to: options.businessDate,
     aggLevel: 'ARTICLES',
     stores: [options.storeCode],
     families: BIKE_FAMILY_IDS.map(String)
-  }, jwt)
+  }, await getJwt())
   const rows = entries.map((entry) => {
     const id = typeof entry.id === 'string' ? entry.id : String(entry.id ?? '')
     return { article: id, qty: channelsSum(entry.quantity as Record<string, unknown>, true), to: channelsSum(entry.turnover as Record<string, unknown>, false) }
   }).filter((row) => row.qty > 0 && /^\d{4,10}$/u.test(row.article))
-  const articleToModel = await resolveArticleModels(env, rows.map((row) => row.article), jwt)
+  const articleToModel = await resolveArticleModels(env, rows.map((row) => row.article), getJwt)
   const models = [...new Set([...articleToModel.values()])]
-  const modelInfo = await resolveModelInfo(env, models, jwt)
+  const modelInfo = await resolveModelInfo(env, models, getJwt)
 
   const detail = new Map<string, { model: string; label: string | null; qty: number; to: number; buyback: boolean }>()
   for (const row of rows) {
@@ -359,7 +381,7 @@ export async function getBikeWeek(
   const cachedRow = await first<{ detail: string; synced_at: string }>(
     env.DB.prepare(`SELECT detail, synced_at FROM bi_bikes_snapshot WHERE store_id = ? AND business_date = 'week'`).bind(options.storeId)
   )
-  if (cachedRow && now.getTime() - Date.parse(cachedRow.synced_at) < SNAPSHOT_MAX_AGE_MS) {
+  if (cachedRow && now.getTime() - Date.parse(cachedRow.synced_at) < WEEK_SNAPSHOT_MAX_AGE_MS) {
     try {
       const parsed = JSON.parse(cachedRow.detail) as BikeWeekPayload
       if (parsed && Array.isArray(parsed.rows)) return parsed
@@ -369,13 +391,14 @@ export async function getBikeWeek(
   const prev = weekRange(new Date(now.getTime() - 7 * 86400 * 1000))
   const prevFrom = prev.from
   const prevTo = prev.to
-  const jwt = await loginJwt(env)
+  const getJwt = lazyLoginJwt(env)
+  const jwt = await getJwt()
   const [currentEntries, prevEntries] = await Promise.all([
     fetchPerfecoEntries(env, { from, to, aggLevel: 'MODELS', stores: [options.storeCode], families: BIKE_FAMILY_IDS.map(String) }, jwt),
     fetchPerfecoEntries(env, { from: prevFrom, to: prevTo, aggLevel: 'MODELS', stores: [options.storeCode], families: BIKE_FAMILY_IDS.map(String) }, jwt)
   ])
   const models = [...new Set([...currentEntries, ...prevEntries].map((entry) => String(entry.id ?? '')).filter((id) => /^\d{4,10}$/u.test(id)))]
-  const modelInfo = await resolveModelInfo(env, models, jwt)
+  const modelInfo = await resolveModelInfo(env, models, getJwt)
   const currentMap = new Map<string, { qty: number; to: number }>()
   for (const entry of currentEntries) {
     const qty = channelsSum(entry.quantity as Record<string, unknown>, true)

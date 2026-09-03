@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { encryptShipHubSecret } from '../src/lib/shiphub-crypto.js'
-import { BIKE_FAMILY_IDS, getBikeWeek, isPerfecoConfigured, readBikeDay, resolveArticleVehicleInfo, syncBikeDay } from '../src/services/bi-bikes.js'
+import { BIKE_FAMILY_IDS, getBikeWeek, isPerfecoConfigured, readBikeDay, resolveArticleVehicleInfo, resolveModelVehicleInfo, syncBikeDay } from '../src/services/bi-bikes.js'
 import { loadConfig, type WorkerEnv } from '../src/env.js'
 import { migratedTestDatabase, type TestD1Database } from '../security/d1-test-adapter.js'
 
@@ -241,6 +241,44 @@ test('resolveModelInfo：迁移前旧行（family_id NULL）不污染分类，�
     assert.equal((row as any)?.family_id, 5039)
     assert.equal((row as any)?.is_bike, 1)
   } finally { mocked.restore() }
+})
+
+test('resolveArticleVehicleInfo：D1 缓存全覆盖 → 零上游调用（读行/登录预算）', async () => {
+  const env = await makeEnv()
+  // 预置缓存：article→model 映射 + 已分类 model 行（family_id 非空）。
+  const stamp = new Date().toISOString()
+  await env.DB.prepare(`INSERT INTO bi_article_map (article_code, model_code, synced_at) VALUES (?, ?, ?)`).bind('4810987', '8797823', stamp).run()
+  await env.DB.prepare(`INSERT INTO bi_sku_names (code, label, universe_id, family_id, is_bike, is_buyback, synced_at) VALUES (?, ?, 2, 5039, 1, 0, ?)`).bind('8797823', '20" EXPL 120 CN', stamp).run()
+  // 任何 fetch 都记为违规：缓存全覆盖时连 IdP 登录都不该发生。
+  const calls: string[] = []
+  const original = globalThis.fetch
+  globalThis.fetch = (async (url: any) => {
+    calls.push(String(url))
+    throw new Error('unexpected upstream call')
+  }) as typeof fetch
+  try {
+    const info = await resolveArticleVehicleInfo(env, ['4810987'])
+    assert.equal(info.get('4810987')?.isBike, true)
+    assert.equal(info.get('4810987')?.label, '20" EXPL 120 CN')
+    assert.equal(calls.length, 0)
+  } finally { globalThis.fetch = original }
+})
+
+test('resolveModelVehicleInfo：已分类 model → 零上游调用（不登录 IdP）', async () => {
+  const env = await makeEnv()
+  const stamp = new Date().toISOString()
+  await env.DB.prepare(`INSERT INTO bi_sku_names (code, label, universe_id, family_id, is_bike, is_buyback, synced_at) VALUES (?, ?, 2, 886, 0, 0, ?)`).bind('8640568', 'RS ILS FIT3 CN LIGHT PURPLE', stamp).run()
+  const calls: string[] = []
+  const original = globalThis.fetch
+  globalThis.fetch = (async (url: any) => {
+    calls.push(String(url))
+    throw new Error('unexpected upstream call')
+  }) as typeof fetch
+  try {
+    const info = await resolveModelVehicleInfo(env, ['8640568'])
+    assert.equal(info.get('8640568')?.isBike, false)
+    assert.equal(calls.length, 0)
+  } finally { globalThis.fetch = original }
 })
 
 test('syncBikeDay：上游空 body（当日数据未入库）= 0 台而非 503', async () => {
