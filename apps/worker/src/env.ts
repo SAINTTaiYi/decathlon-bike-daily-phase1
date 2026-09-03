@@ -46,6 +46,7 @@ export interface WorkerEnv {
   BI_MASTERDATA_LOGIN_KEY?: string
   BI_MASTERDATA_LOGIN_USERNAME_ENC?: string
   BI_MASTERDATA_LOGIN_PASSWORD_ENC?: string
+  D1_METRICS_TOKEN?: string
 }
 
 export interface ShipHubConfig {

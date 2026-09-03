@@ -167,6 +167,15 @@ jobs:
           for secret in SHIPHUB_LOCATION_NUM SHIPHUB_OAUTH_BASIC_TOKEN SHIPHUB_BOOTSTRAP_REFRESH_TOKEN SHIPHUB_TOKEN_ENCRYPTION_KEY ADMIN_SETUP_TOKEN_HASH; do
             wrangler secret delete "$secret" --config wrangler.preview.jsonc || true
           done
+      - name: Inject D1 metrics read token into the Preview Worker
+        env:
+          D1_METRICS_TOKEN: ${{ secrets.D1_METRICS_TOKEN }}
+        run: |
+          set -euo pipefail
+          # 可选凭据：缺失时 D1 监控卡片优雅隐藏（available:false），不阻塞部署。
+          if [ -n "$D1_METRICS_TOKEN" ]; then
+            printf '%s' "$D1_METRICS_TOKEN" | wrangler secret put D1_METRICS_TOKEN --config wrangler.preview.jsonc
+          fi
       - name: Deploy the Preview Worker with Static Assets and D1
         run: wrangler deploy --config wrangler.preview.jsonc
       - name: Verify the deployed Preview API, release identity, and Web shell
