@@ -1,8 +1,8 @@
 // D1 当日读行监控（桌面 · admin）—— lieflat 语法 × Cloudflare D1 GraphQL Analytics。
 // 图型血缘（结构正本见 ~/lieflat-charts/templates/basics-gallery.html）：
 //   · D1UsageCard     ← G18 Draw-in + Counter（大数字计数 + 横向 10% 刻度进度条，同 BiStatCard 家族）
-//   · D1HourlyCard     ← B2 Hairline Line（1 点 = 1 小时读行，日历地板 + 发丝折线）
-//   · D1TopQueriesCard ← C1 Tick Rows（1 tick ≈ 1 千行读行，行 = Top 查询）
+//   · D1HourlyCard     ← B2 Hairline Line（1 点 = 1 小时读行，日历地板 + 发丝折线；viewBox 640 宽随卡伸缩）
+//   · D1TopQueriesCard ← C1 Tick Rows（1 tick ≈ 1 千行读行，行 = Top 查询；viewBox 1000 宽通栏铺满）
 // 动效遵循工作台规则：GSAP 驱动，滚入播放 + 点击重播，prefers-reduced-motion 直达终态。
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
@@ -120,7 +120,7 @@ export function D1HourlyCard({ snapshot }) {
   const reduced = usePrefersReducedMotion()
   const geometry = useMemo(() => {
     const N = 24
-    const width = 400, x0 = 30, x1 = 376, base = 262, top = 48
+    const width = 640, x0 = 48, x1 = 592, base = 262, top = 48
     const values = Array.from({ length: N }, (_, hour) => series.find((point) => point.hour === hour)?.rowsRead ?? 0)
     const max = Math.max(1, ...values)
     const x = (hour) => x0 + (x1 - x0) * (hour / (N - 1))
@@ -149,9 +149,9 @@ export function D1HourlyCard({ snapshot }) {
     <section ref={ref} className="ops-lieflat-card d1-md-card d1-md-hourly" data-replay={replay} onClick={replayChart} aria-label={`当日逐小时 D1 读行趋势，累计 ${fmtRows(totals.rowsRead)} 行`}>
       <h3>逐小时读行：峰值出现在 {peak ? `北京时间 ${String((peak.hour + 8) % 24).padStart(2, '0')}:00` : '—'}</h3>
       <div className="ops-lieflat-sub d1-md-sub"><span>1 点 = 1 个 UTC 小时读行 · 横轴 UTC，括号为北京时间 · 点击重播</span></div>
-      <D1ChartSvg label={`当日逐小时读行曲线，峰值 UTC ${peak?.hour ?? 0} 时 ${fmtRows(peak?.value ?? 0)} 行，累计 ${fmtRows(totals.rowsRead)} 行`} replayChart={replayChart} viewBox="0 0 400 300">
+      <D1ChartSvg label={`当日逐小时读行曲线，峰值 UTC ${peak?.hour ?? 0} 时 ${fmtRows(peak?.value ?? 0)} 行，累计 ${fmtRows(totals.rowsRead)} 行`} replayChart={replayChart} viewBox="0 0 640 300" fill>
         {geometry.points.map((point) => <line key={point.hour} data-d1-floor="" x1={point.x} y1={geometry.base} x2={point.x} y2={geometry.base - 7} stroke="#CFCEC7" strokeWidth="0.6" />)}
-        <line x1="24" y1={geometry.base} x2="376" y2={geometry.base} stroke={MONO.grid} strokeWidth="0.8" />
+        <line x1="40" y1={geometry.base} x2="600" y2={geometry.base} stroke={MONO.grid} strokeWidth="0.8" />
         <path data-d1-line="" d={`M ${geometry.path}`} fill="none" stroke={MONO.ink} strokeWidth="1" />
         {geometry.points.map((point) => {
           const hasData = series.some((entry) => entry.hour === point.hour)
@@ -163,7 +163,7 @@ export function D1HourlyCard({ snapshot }) {
           </g>
         })}
         {[0, 6, 12, 18, 23].map((hour) => <text key={hour} data-d1-label="" x={geometry.x(hour)} y={geometry.base + 18} fontSize="7.5" fontWeight="600" fill={MONO.muted} textAnchor="middle" letterSpacing=".1em">{`${String(hour).padStart(2, '0')}(${String((hour + 8) % 24).padStart(2, '0')})`}</text>)}
-        <text x="200" y="292" fontSize="7" fontWeight="600" fill={MONO.faint} textAnchor="middle" letterSpacing=".12em" data-d1-label="">ONE DOT = ONE UTC HOUR · BRACKETS = BEIJING HOUR</text>
+        <text x="320" y="292" fontSize="7" fontWeight="600" fill={MONO.faint} textAnchor="middle" letterSpacing=".12em" data-d1-label="">ONE DOT = ONE UTC HOUR · BRACKETS = BEIJING HOUR</text>
       </D1ChartSvg>
       <div className="ops-lieflat-src d1-md-src">HAIRLINE LINE · CF GRAPHQL d1AnalyticsAdaptiveGroups · TODAY</div>
     </section>
@@ -187,29 +187,29 @@ export function D1TopQueriesCard({ snapshot }) {
   }, [])
   useD1Motion(ref, revealed, replay, reduced, build)
   const y0 = (index) => 52 + index * 44
-  const PX = Math.min(6.9, 240 / maxTicks)
+  const PX = Math.min(17.25, 600 / maxTicks)
   return (
     <section ref={ref} className="ops-lieflat-card d1-md-card d1-md-top" data-replay={replay} onClick={replayChart} aria-label={`当日烧行 Top 5 查询，首位 ${fmtRows(rows[0]?.rowsRead ?? 0)} 行`}>
       <h3>烧行 Top 5：{rows[0] ? `${rows[0].label} ${fmtRows(rows[0].rowsRead)} 行 × ${rows[0].count} 次` : '暂无数据'}</h3>
       <div className="ops-lieflat-sub d1-md-sub"><span>1 tick ≈ 1 千行读行 · 今日共 {fmtRows(totals.rowsRead)} 行 · 悬停看 SQL</span></div>
-      <D1ChartSvg label={`当日烧行 Top 5 查询横条图，1 tick 约等于 1 千行，首位 ${rows[0]?.label ?? ''} ${fmtRows(rows[0]?.rowsRead ?? 0)} 行`} replayChart={replayChart} viewBox="0 0 400 308" fill>
+      <D1ChartSvg label={`当日烧行 Top 5 查询横条图，1 tick 约等于 1 千行，首位 ${rows[0]?.label ?? ''} ${fmtRows(rows[0]?.rowsRead ?? 0)} 行`} replayChart={replayChart} viewBox="0 0 1000 308" fill>
         {rows.map((row) => {
           const y = y0(row.index)
           return (
             <g key={row.index}>
               <title>{`${row.label} — ${row.rowsRead} 行 × ${row.count} 次：${row.query.slice(0, 80)}…`}</title>
-              <text data-d1-row-label="" x="94" y={y + 3} fontSize="8" fontWeight="700" fill="#6A6963" textAnchor="end" letterSpacing=".08em">{row.label}</text>
-              <line x1="104" y1={y + 9} x2="392" y2={y + 9} stroke={MONO.grid} strokeWidth="0.6" />
+              <text data-d1-row-label="" x="235" y={y + 3} fontSize="8" fontWeight="700" fill="#6A6963" textAnchor="end" letterSpacing=".08em">{row.label}</text>
+              <line x1="260" y1={y + 9} x2="980" y2={y + 9} stroke={MONO.grid} strokeWidth="0.6" />
               {Array.from({ length: row.ticks }, (_, k) => {
-                const x = 104 + k * PX + PX / 2
+                const x = 260 + k * PX + PX / 2
                 const h = 9 + rnd(k + 1, row.index + 2) * 6
                 return <line key={k} data-d1-tickrow-tick="" x1={x} y1={y + 9} x2={x} y2={y + 9 - h} stroke={MONO.ink} strokeWidth="0.9" opacity={0.55 + rnd(k + 3, row.index + 5) * 0.45} />
               })}
-              <text data-d1-row-value="" x={104 + row.ticks * PX + 10} y={y + 4} fontSize="11" fontWeight="800" fill={MONO.ink}>{fmtRows(row.rowsRead)}</text>
+              <text data-d1-row-value="" x={260 + row.ticks * PX + 25} y={y + 4} fontSize="11" fontWeight="800" fill={MONO.ink}>{fmtRows(row.rowsRead)}</text>
             </g>
           )
         })}
-        <text x="200" y="304" fontSize="7" fontWeight="600" fill="#B0AFA9" textAnchor="middle" letterSpacing=".12em" data-d1-row-value="">ONE TICK ≈ 1K ROWS · 悬停查看 SQL</text>
+        <text x="500" y="304" fontSize="7" fontWeight="600" fill="#B0AFA9" textAnchor="middle" letterSpacing=".12em" data-d1-row-value="">ONE TICK ≈ 1K ROWS · 悬停查看 SQL</text>
       </D1ChartSvg>
       <div className="ops-lieflat-src d1-md-src">TICK ROWS · CF GRAPHQL d1QueriesAdaptiveGroups · TODAY</div>
     </section>
