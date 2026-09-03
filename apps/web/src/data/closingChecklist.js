@@ -151,7 +151,7 @@ export function buildModuleChanges(scene, events = []) {
     entries,
     tally: [...counts.entries()].map(([action, count]) => ({ action, actionLabel: changeActionLabel(action), count })),
     // Identity of exactly what the operator was shown. The workflow keeps polling while the
-    // dialog is open (45s interval plus window focus), so a colleague editing the same store
+    // dialog is open (5min interval plus window focus), so a colleague editing the same store
     // from another device can change this set after it was acknowledged. Binding the
     // acknowledgement to this fingerprint makes such a confirmation drop itself instead of
     // silently vouching for a ledger the operator never saw.

@@ -18,10 +18,11 @@ export default function useRemoteClosingWorkflow(enabled) {
   const [lastSyncedAt, setLastSyncedAt] = useState('')
   const hasSnapshotRef = useRef(false)
   const inFlightRef = useRef(null)
+  const lastSyncRef = useRef(0)
 
   const refresh = useCallback(async (signal) => {
     if (!enabled) return null
-    // A submission triggers a background refresh, and the 45s poll plus window focus can land
+    // A submission triggers a background refresh, and the 5min poll plus window focus can land
     // on top of it. Bootstrap is the heaviest endpoint in the app (day + every record with
     // per-row contact decryption + audit + seven-day trends), so overlapping calls queued up
     // on D1 and slowed down the very submission that was waiting. Callers without their own
@@ -35,6 +36,7 @@ export default function useRemoteClosingWorkflow(enabled) {
         setState(normalizedPayload)
         hasSnapshotRef.current = true
         setLastSyncedAt(new Date().toISOString())
+        lastSyncRef.current = Date.now()
         setError('')
         setHydrated(true)
         return normalizedPayload
@@ -67,9 +69,12 @@ export default function useRemoteClosingWorkflow(enabled) {
     }
     const controller = new AbortController()
     void refresh(controller.signal)
-    const focus = () => void refresh()
+    // 2026-09-03 D1 免费限额预算：跨用户新鲜度由 5 分钟轮询 + 窗口聚焦 + 提交后刷新
+    // 共同保障；自身操作经 applyServerResult 即时应用。45 秒轮询是单店单日上千次
+    // bootstrap 的主要来源，已删除。聚焦刷新做 60 秒去抖，避免连续解锁屏幕重复拉取。
+    const focus = () => { if (Date.now() - lastSyncRef.current > 60_000) void refresh() }
     window.addEventListener('focus', focus)
-    const timer = window.setInterval(() => { if (!document.hidden && navigator.onLine) void refresh() }, 45_000)
+    const timer = window.setInterval(() => { if (!document.hidden && navigator.onLine) void refresh() }, 300_000)
     return () => { controller.abort(); window.removeEventListener('focus', focus); window.clearInterval(timer) }
   }, [enabled, refresh])
 

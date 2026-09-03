@@ -43,9 +43,9 @@ const selectDay = `
   WHERE store_id = ? AND business_date = ?
 `
 
-export async function getOrCreateDay(db: D1Database, storeId: string, businessDate: string): Promise<DayRow> {
+export async function getOrCreateDay(db: D1Database, storeId: string, businessDate: string): Promise<{ day: DayRow; created: boolean }> {
   const existing = await first<DayRow>(db.prepare(selectDay).bind(storeId, businessDate))
-  if (existing) return existing
+  if (existing) return { day: existing, created: false }
   const stamp = nowIso()
   const id = uuid()
   await db.prepare(`
@@ -54,7 +54,7 @@ export async function getOrCreateDay(db: D1Database, storeId: string, businessDa
       used_sold, used_received, closing_status, revision, created_at, updated_at
     ) VALUES (?, ?, ?, 0, 0, '', 0, 0, 0, 'open', 1, ?, ?)
   `).bind(id, storeId, businessDate, stamp, stamp).run()
-  const created = await first<DayRow>(db.prepare(selectDay).bind(storeId, businessDate))
-  if (!created) throw new Error('DAY_UPSERT_FAILED')
-  return created
+  const createdRow = await first<DayRow>(db.prepare(selectDay).bind(storeId, businessDate))
+  if (!createdRow) throw new Error('DAY_UPSERT_FAILED')
+  return { day: createdRow, created: true }
 }

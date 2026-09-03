@@ -27,7 +27,7 @@ export function closingRoutes() {
   app.get('/api/v1/daily-closing/current', ...read, async (c) => {
     const context = c.get('auth')!
     const businessDate = await businessDateFor(context)
-    return c.json({ day: mapDay(await getOrCreateDay(c.env.DB, context.storeId, businessDate)) })
+    return c.json({ day: mapDay((await getOrCreateDay(c.env.DB, context.storeId, businessDate)).day) })
   })
 
   app.put('/api/v1/daily-closing/current/sales', ...write, async (c) => {
@@ -39,7 +39,7 @@ export function closingRoutes() {
     }
     const result = await idempotent(c, body, async (db) => {
       const businessDate = await businessDateFor(context)
-      const before = mapDay(await getOrCreateDay(db, context.storeId, businessDate))
+      const before = mapDay((await getOrCreateDay(db, context.storeId, businessDate)).day)
       if (before.closedAt) throw new ApiProblem(423, 'DAY_CLOSED', '今日闭店已锁定，请先重新打开。')
       if (input.expectedRevision !== undefined && input.expectedRevision !== before.revision) {
         throw new ApiProblem(409, 'REVISION_CONFLICT', '销售数据已被其他同事修改，请刷新后重试。')
@@ -76,7 +76,7 @@ export function closingRoutes() {
     try { body = await c.req.json() } catch { body = {} }
     const result = await idempotent(c, body, async (db) => {
       const businessDate = await businessDateFor(context)
-      const before = mapDay(await getOrCreateDay(db, context.storeId, businessDate))
+      const before = mapDay((await getOrCreateDay(db, context.storeId, businessDate)).day)
       if (before.closedAt) throw new ApiProblem(423, 'DAY_CLOSED', '今日闭店已锁定，请先重新打开。')
       if (body.expectedRevision !== undefined && body.expectedRevision !== before.revision) {
         throw new ApiProblem(409, 'REVISION_CONFLICT', '销售数据已被其他同事修改。')
@@ -108,7 +108,7 @@ export function closingRoutes() {
     try { body = await c.req.json() } catch { body = {} }
     const result = await idempotent(c, body, async (db) => {
       const businessDate = await businessDateFor(context)
-      const before = mapDay(await getOrCreateDay(db, context.storeId, businessDate))
+      const before = mapDay((await getOrCreateDay(db, context.storeId, businessDate)).day)
       if (!before.kpiSavedAt) throw new ApiProblem(409, 'SALES_REQUIRED', '请先填写今天的销售数据。')
       if (before.closedAt) return { status: 200, body: { ok: true, day: before } }
       const stamp = nowIso()
@@ -135,7 +135,7 @@ export function closingRoutes() {
     try { body = await c.req.json() } catch { body = {} }
     const result = await idempotent(c, body, async (db) => {
       const businessDate = await businessDateFor(context)
-      const before = mapDay(await getOrCreateDay(db, context.storeId, businessDate))
+      const before = mapDay((await getOrCreateDay(db, context.storeId, businessDate)).day)
       if (!before.closedAt) return { status: 200, body: { ok: true, day: before } }
       const stamp = nowIso()
       const updated = await db.prepare(`
