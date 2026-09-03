@@ -19,7 +19,6 @@ import { adminRoutes } from './routes/admin.js'
 import { shipHubRoutes } from './routes/shiphub.js'
 import { biRoutes } from './routes/bi.js'
 import { runScheduledShipHubSync } from './services/shiphub-sync.js'
-import { runScheduledBiSkuSync } from './services/bi-sku-sync.js'
 import { ApiProblem } from './services/problems.js'
 import { routeIncomingRequest } from './request-routing.js'
 
@@ -140,8 +139,5 @@ export default {
   fetch: handleRequest,
   scheduled(_controller: ScheduledController, env: WorkerEnv, executionCtx: ExecutionContext): void {
     executionCtx.waitUntil(runScheduledShipHubSync(env))
-    // BI 车型名同步自带 24h 陈旧度守卫，挂在同一 cron 上自然收敛为每日一次；
-    // 异常只记日志，绝不影响 Shiphub 同步。
-    executionCtx.waitUntil(runScheduledBiSkuSync(env))
   }
 }

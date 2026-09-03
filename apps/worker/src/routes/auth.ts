@@ -11,6 +11,7 @@ import { ApiProblem } from '../services/problems.js'
 import { prepareAudit, prepareConditionalAudit } from '../services/business.js'
 import { idempotent } from '../services/idempotency.js'
 import { requireJsonBody } from '../lib/json.js'
+import { runLoginBiSkuSync } from '../services/bi-sku-sync.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
 type MembershipRow = { store_id: string; store_code: string; store_name: string; timezone: string; role: 'operator' | 'manager' | 'admin' }
@@ -179,6 +180,11 @@ export function authRoutes() {
     ])
     if (!sessionCreated?.meta.changes) return c.json(genericFailure, 401)
     setSessionCookie(c, secrets.token, config)
+    // BI 车型名同步：当天首个成功登录触发一次（登录成功即代表当天有人使用工作台）。
+    // 异步执行，绝不阻塞登录响应；未配置凭据时服务内部优雅跳过。
+    const waitUntil = c.executionCtx?.waitUntil?.bind(c.executionCtx)
+    if (waitUntil) waitUntil(runLoginBiSkuSync(c.env))
+    else void runLoginBiSkuSync(c.env)
     return c.json({ user: { id: user.id, displayName: user.display_name, mustChangePassword: user.must_change_password === 1, isPlatformAdmin: user.is_platform_admin === 1 }, stores: mapMemberships(memberships), currentStoreId: primaryStore.store_id, csrfToken: secrets.csrfToken })
   })
 

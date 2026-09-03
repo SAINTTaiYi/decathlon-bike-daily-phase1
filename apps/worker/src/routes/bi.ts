@@ -31,7 +31,7 @@ export function biRoutes() {
     return c.json({ names, syncedAt: latestSyncedAt(rows) })
   })
 
-  // 手动同步（强制刷新，忽略 24h 陈旧度守卫）。codes 可选：补充 BI 快照新增码。
+  // 手动同步（强制刷新，忽略当日守卫）。codes 可选：补充 BI 快照新增码。
   app.post('/api/v1/bi/sku-names/sync', requireJsonBody, ...managerWrite, async (c) => {
     const body = await c.req.json().catch(() => ({})) as { codes?: unknown }
     const extraCodes = Array.isArray(body.codes)

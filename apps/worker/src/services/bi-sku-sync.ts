@@ -1,13 +1,13 @@
 import { loadConfig, type WorkerEnv } from '../env.js'
 import { isMasterDataConfigured } from '../env.js'
-import { all, first, nowIso } from '../db.js'
+import { all } from '../db.js'
 import { performMasterDataLogin, MasterDataUpstreamError } from '../lib/masterdata-login.js'
 
 // BI 车型码 → 官方品名同步（CubeInStore masterdata）。
 // 数据源：GET {baseUrl}/masterdata/v2/modelslist/{codes}/infos（逗号批量，实测可用），
 // 头 = Bearer JWT + x-api-key(masterdata key) + target-country: CN。
 // JWT 每次同步全新登录获取（CHU13 全球 IdP 免 OTP），不持久化任何 token。
-// 定时入口挂在既有 cron（*/5）上，靠 24h 陈旧度守卫自然收敛为每日一次。
+// 触发入口：当天（Asia/Shanghai）首个成功登录触发一次（auth 登录路由 waitUntil 挂载）。
 
 // 快照 2026-09-02 过滤定案（自行车+工作室）车型码全集 33 码：
 // models.top(10) ∪ flop(10) ∪ allChannel(17) 去重，全部已经 masterdata 官方确认。
@@ -18,7 +18,19 @@ export const BI_SEED_CODES: readonly string[] = [
   '8967120', '8984793', '8984795', '8987064', '9002783', '9010483'
 ]
 
-const STALE_MS = 24 * 60 * 60 * 1000
+// 同步窗口硬规则：与 Shiphub 一致固定 Asia/Shanghai，不随门店 timezone 字段或部署环境变化。
+export const BI_SYNC_TIMEZONE = 'Asia/Shanghai'
+
+function timezoneDateKey(timezone: string, value: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(value)
+}
+
+function syncedThisDay(latest: string | null, now: Date): boolean {
+  if (!latest) return false
+  const parsed = Date.parse(latest)
+  if (!Number.isFinite(parsed)) return false
+  return timezoneDateKey(BI_SYNC_TIMEZONE, new Date(parsed)) === timezoneDateKey(BI_SYNC_TIMEZONE, now)
+}
 const CODE_PATTERN = /^\d{6,10}$/u
 // 批量上限：单请求码数保守切 20（masterdata 网关实测无强限流，但绝不冒进）。
 const CHUNK_SIZE = 20
@@ -47,7 +59,7 @@ export function latestSyncedAt(rows: readonly BiSkuNameRow[]): string | null {
 
 export type BiSkuSyncResult = {
   status: 'skipped' | 'succeeded'
-  reason?: 'MASTERDATA_NOT_CONFIGURED' | 'FRESH'
+  reason?: 'MASTERDATA_NOT_CONFIGURED' | 'FRESH_TODAY'
   rows?: number
 }
 
@@ -81,7 +93,7 @@ function toRow(item: MasterdataItem, stamp: string): BiSkuNameRow | null {
 
 export async function syncBiSkuNames(
   env: WorkerEnv,
-  options: { trigger: 'scheduled' | 'manual'; force?: boolean; extraCodes?: readonly string[]; now?: Date } = { trigger: 'scheduled' }
+  options: { trigger: 'login' | 'manual'; force?: boolean; extraCodes?: readonly string[]; now?: Date } = { trigger: 'login' }
 ): Promise<BiSkuSyncResult> {
   const config = loadConfig(env).MASTERDATA
   if (!isMasterDataConfigured(config)) return { status: 'skipped', reason: 'MASTERDATA_NOT_CONFIGURED' }
@@ -89,7 +101,7 @@ export async function syncBiSkuNames(
     const rows = await listBiSkuNames(env.DB)
     const latest = latestSyncedAt(rows)
     const now = options.now ?? new Date()
-    if (latest && now.getTime() - Date.parse(latest) < STALE_MS) return { status: 'skipped', reason: 'FRESH' }
+    if (syncedThisDay(latest, now)) return { status: 'skipped', reason: 'FRESH_TODAY' }
   }
   const existing = await all<{ code: string }>(env.DB.prepare(`SELECT code FROM bi_sku_names`))
   const extra = (options.extraCodes ?? []).map((value) => String(value)).filter((value) => CODE_PATTERN.test(value))
@@ -107,7 +119,8 @@ export async function syncBiSkuNames(
     loginPasswordEnc: config.loginPasswordEnc!
   })
 
-  const stamp = nowIso()
+  // 同步戳跟随 options.now：测试可注入跨天场景，生产行为不变（undefined → 当前时间）。
+  const stamp = (options.now ?? new Date()).toISOString()
   const upserts: BiSkuNameRow[] = []
   const failures: string[] = []
   for (const part of chunk(codes, CHUNK_SIZE)) {
@@ -160,11 +173,12 @@ export async function syncBiSkuNames(
   return { status: 'succeeded', rows: upserts.length }
 }
 
-// scheduled() 入口：与 Shiphub 同步并行；任何异常只记日志，绝不影响 Shiphub。
-export async function runScheduledBiSkuSync(env: WorkerEnv): Promise<void> {
+// 登录触发入口：当天首个成功登录拉起一次同步；任何异常只记日志，绝不影响登录主流程。
+// 多个登录并发触发只多花一次上游调用（upsert 幂等），无需分布式锁。
+export async function runLoginBiSkuSync(env: WorkerEnv): Promise<void> {
   try {
-    await syncBiSkuNames(env, { trigger: 'scheduled' })
+    await syncBiSkuNames(env, { trigger: 'login' })
   } catch (error) {
-    console.warn('[bi-sku-sync] scheduled sync failed:', error instanceof Error ? error.message : String(error))
+    console.warn('[bi-sku-sync] login-triggered sync failed:', error instanceof Error ? error.message : String(error))
   }
 }
