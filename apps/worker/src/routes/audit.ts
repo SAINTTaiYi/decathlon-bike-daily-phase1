@@ -129,6 +129,56 @@ export async function listAudit(db: D1Database, storeId: string, businessDate?: 
   return rows.map((row) => mapAuditEvent(row, undoBusinessDate))
 }
 
+// Bootstrap 审计 feed（2026-09-03 D1 限额预算重构）：当天事件 + 在册记录的完整事件史。
+// 旧版 bootstrap 走无日期 LIMIT 500（按 created_at 截断），每次读 1.2k+ 行且随历史总量
+// 增长；新版两条有界查询合计只读「当天事件数 + 在册记录事件数」级别：
+//   1) 当天事件：走 0022 索引 (store_id, business_date) 前缀；撤回判定（has_later_event）
+//      只对当天事件计算——canUndo 本就要求 business_date === undoBusinessDate。
+//   2) 在册记录事件史：跨天维修/待取卡片的操作记录抽屉依赖它；entity 点查走
+//      audit_events_entity_idx。历史行的 has_later_event 恒为 0（撤回只对当天开放）。
+export async function listBootstrapAuditFeed(db: D1Database, storeId: string, businessDate: string, openRecordIds: readonly string[] = []) {
+  const feedColumns = `e.id, e.action, e.entity_type, e.entity_id, e.actor_name_snapshot, e.business_date, e.summary,
+               e.reversible, e.before_state, e.after_state, e.audit_module, e.created_at,
+               rev.id AS reverted_by, rev.created_at AS reverted_at,
+               current_item.kind AS current_kind`
+  const fromJoins = `FROM audit_events e
+        LEFT JOIN audit_events rev ON rev.reverted_event_id = e.id
+        LEFT JOIN work_items current_item ON current_item.id = e.entity_id AND current_item.store_id = e.store_id`
+  const todayRows = await all(db.prepare(`
+        SELECT ${feedColumns},
+               CASE WHEN
+                 (e.entity_id IS NOT NULL AND EXISTS (
+                   SELECT 1 FROM audit_events later
+                   WHERE later.entity_type = e.entity_type
+                     AND later.entity_id = e.entity_id
+                     AND later.store_id = e.store_id
+                     AND later.created_at > e.created_at))
+                 OR (e.entity_id IS NULL AND EXISTS (
+                   SELECT 1 FROM audit_events later
+                   WHERE later.entity_type = e.entity_type
+                     AND later.entity_id IS NULL
+                     AND later.store_id = e.store_id
+                     AND later.created_at > e.created_at))
+               THEN 1 ELSE 0 END AS has_later_event
+        ${fromJoins}
+        WHERE e.store_id = ? AND e.business_date = ?
+        ORDER BY e.created_at DESC
+        LIMIT 500
+      `).bind(storeId, businessDate))
+  const ids = openRecordIds.slice(0, 200)
+  const historyRows = ids.length ? await all(db.prepare(`
+        SELECT ${feedColumns}, 0 AS has_later_event
+        ${fromJoins}
+        WHERE e.entity_type = 'work-item' AND e.entity_id IN (${ids.map(() => '?').join(',')})
+          AND e.store_id = ? AND e.business_date != ?
+        ORDER BY e.created_at DESC
+        LIMIT 500
+      `).bind(...ids, storeId, businessDate)) : []
+  const merged = [...todayRows, ...historyRows]
+  merged.sort((a: any, b: any) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0))
+  return merged.slice(0, 500).map((row: any) => mapAuditEvent(row, businessDate))
+}
+
 type HistoryFilters = { date?: string; module?: string; cursor?: string; limit?: number }
 
 function parseHistoryFilters(query: (key: string) => string | undefined): Required<HistoryFilters> {

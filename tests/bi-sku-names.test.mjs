@@ -77,7 +77,7 @@ test('Worker：GET 登录态可读，手动同步需 CSRF + 管理员；迁移�
   assert.match(login, /redirect: 'manual'/u, '自定义 scheme 必须手工截获')
   assert.match(login, /code_verifier/u, 'PKCE 交换必须带 verifier（memory 13 ⑤）')
   const schema = await read('apps/worker/src/schema-version.ts')
-  assert.match(schema, /'0021_bi_sku_names'/u)
+  assert.match(schema, /'0022_audit_feed_store_date_index'/u)
   const migration = await read('migrations/d1/0021_bi_sku_names.sql')
   assert.match(migration, /CREATE TABLE bi_sku_names/u)
   assert.match(migration, /synced_at TEXT NOT NULL/u)

@@ -12,8 +12,8 @@ import { DatabaseSync } from 'node:sqlite'
 test('has_later_event 使用两分支 EXISTS，禁止回退 OR 合并条件', async () => {
   const source = await readFile(new URL('../src/routes/audit.ts', import.meta.url), 'utf8')
   assert.equal((source.match(/\(\(later\.entity_id IS NULL AND e\.entity_id IS NULL\) OR later\.entity_id = e\.entity_id\)/gu) || []).length, 0, '旧 OR 合并条件必须清零（listAudit×2 + listPermanentAudit）')
-  assert.equal((source.match(/\(e\.entity_id IS NOT NULL AND EXISTS \(/gu) || []).length, 3, '非空 entity_id 的索引点查分支应出现 3 次')
-  assert.equal((source.match(/OR \(e\.entity_id IS NULL AND EXISTS \(/gu) || []).length, 3, 'NULL entity_id 分支应出现 3 次')
+  assert.equal((source.match(/\(e\.entity_id IS NOT NULL AND EXISTS \(/gu) || []).length, 4, '非空 entity_id 的索引点查分支应出现 4 次（listAudit×2 + listPermanentAudit + bootstrap feed）')
+  assert.equal((source.match(/OR \(e\.entity_id IS NULL AND EXISTS \(/gu) || []).length, 4, 'NULL entity_id 分支应出现 4 次')
 })
 
 test('undo 后续计数按 entity_id 空否构造点查条件，不再绑定可空参数两次', async () => {
