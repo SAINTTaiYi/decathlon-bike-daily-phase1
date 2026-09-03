@@ -1,13 +1,10 @@
 // 移动端 D1 读行监控 —— 独立实现（memory 23①：双端两套 DOM + 两套 CSS）。
-// 图型血缘与桌面端一致（basics-gallery C7 tick gauge / B2 hairline line / C1 tick rows），
-// 几何按移动竖屏重排：量表缩半径、曲线压高、Top 榜转紧凑行 + 底部进度条。
+// 图型血缘与桌面端一致（G18 draw-in counter / B2 hairline line / C1 tick rows），
+// 几何按移动竖屏重排：用量卡大数字+刻度条、曲线压高、Top 榜转紧凑行 + 底部进度条。
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 
 const MONO = { ink: '#1C1C1A', mid: '#55554F', muted: '#8F8E88', faint: '#B0AFA9', grid: '#DEDDD6' }
-const D2R = Math.PI / 180
-const rnd = (i, k) => Math.abs(((i * 73856093) ^ (k * 19349663)) % 1000) / 1000
-const pol = (cx, cy, r, deg) => [cx + r * Math.cos(deg * D2R), cy + r * Math.sin(deg * D2R)]
 const fmtRows = (value) => Number(value ?? 0).toLocaleString('en-US')
 const pct = (value, limit) => Math.max(0, Math.min(100, Math.round((Number(value) / Math.max(1, limit)) * 100)))
 
@@ -54,48 +51,44 @@ function useD1Motion(ref, revealed, replay, reduced, build) {
   }, [revealed, replay, reduced, build])
 }
 
-/* ── C7 量表 · 已用 % + 预计全天（移动小表盘）────────────────── */
-const GAUGE = { cx: 150, cy: 84, R0: 52, A0: -195, sweep: 210 }
-
-export function D1MobileGauge({ snapshot, stale }) {
-  const { totals, limit, projectedFullDay } = snapshot
+/* ── G18 · 今日读行大数字 + 刻度进度条（移动版）────────────── */
+export function D1MobileUsage({ snapshot, stale }) {
+  const { totals, limit, projectedFullDay, databases } = snapshot
   const usedPct = pct(totals.rowsRead, limit)
   const projectedPct = pct(projectedFullDay, limit)
   const { ref, revealed, replay, replayChart } = useD1Reveal()
   const reduced = usePrefersReducedMotion()
-  const ticks = useMemo(() => Array.from({ length: 50 }, (_, k) => {
-    const angle = GAUGE.A0 + (k / 50) * GAUGE.sweep
-    const isInked = k < usedPct / 2
-    const len = isInked ? 7 + rnd(k + 1, 3) * 3.5 : 2.6 + rnd(k + 1, 7) * 1.4
-    const [x1, y1] = pol(GAUGE.cx, GAUGE.cy, GAUGE.R0, angle)
-    const [x2, y2] = pol(GAUGE.cx, GAUGE.cy, GAUGE.R0 + len, angle)
-    return { x1, y1, x2, y2, isInked }
-  }), [usedPct])
   const build = useMemo(() => (timeline, node) => {
-    timeline.from(node.querySelectorAll('[data-d1m-tick]'), { opacity: 0, duration: 0.3, stagger: 0.008, ease: 'power2.out' }, 0)
     const state = { value: 0 }
     timeline.to(state, { value: totals.rowsRead, duration: 1.0, ease: 'expo.out', onUpdate: () => {
       const el = node.querySelector('[data-d1m-counter]')
       if (el) el.textContent = fmtRows(Math.round(state.value))
-    } }, 0.3)
-    timeline.from(node.querySelectorAll('[data-d1m-chip]'), { opacity: 0, y: 6, duration: 0.5, ease: 'power3.out' }, 0.55)
+    } }, 0.15)
+    timeline.from(node.querySelectorAll('[data-d1m-chip]'), { opacity: 0, y: 6, duration: 0.5, ease: 'power3.out', stagger: 0.07 }, 0.5)
+    timeline.from(node.querySelectorAll('[data-d1m-bar-tick]'), { opacity: 0, duration: 0.3, stagger: 0.02 }, 0.25)
+    timeline.fromTo(node.querySelector('[data-d1m-bar-fill]'), { scaleX: 0 }, { scaleX: 1, duration: 0.9, ease: 'expo.out' }, 0.3)
+    timeline.from(node.querySelector('[data-d1m-bar-mark]'), { opacity: 0, duration: 0.4 }, 0.95)
   }, [totals.rowsRead])
   useD1Motion(ref, revealed, replay, reduced, build)
   return (
-    <section ref={ref} className="d1-mm-card d1-mm-gauge" data-replay={replay} onClick={replayChart} aria-label={`当日 D1 读行 ${fmtRows(totals.rowsRead)} 行，占免费限额 ${usedPct}%`}>
-      <h3>D1 读行 · 已用 {usedPct}%</h3>
+    <section ref={ref} className="d1-mm-card d1-mm-usage" data-replay={replay} onClick={replayChart} aria-label={`当日 D1 读行 ${fmtRows(totals.rowsRead)} 行，占免费限额 ${usedPct}%`}>
+      <h3>D1 读行 · 今日已用 {usedPct}%</h3>
       <div className="d1-mm-sub">免费限额 500 万行/日 · 北京 08:00 归零{stale ? ' · 同步失败，显示最近数据' : ''}</div>
-      <div className="d1-mm-gauge-body">
-        <svg className="d1-mm-chart" viewBox="0 0 300 168" role="img" aria-label={`已读行 ${fmtRows(totals.rowsRead)}，占限额 ${usedPct}%，预计全天 ${fmtRows(projectedFullDay)} 行`}>
-          <title>点击重播入场动画</title>
-          {ticks.map((tick, index) => <line key={index} data-d1m-tick="" x1={tick.x1} y1={tick.y1} x2={tick.x2} y2={tick.y2} stroke={tick.isInked ? MONO.ink : '#CFCEC7'} strokeWidth={tick.isInked ? 1 : 0.55} />)}
-          <text x={GAUGE.cx} y={GAUGE.cy - 2} fontSize="24" fontWeight="800" fill={MONO.ink} textAnchor="middle" data-d1m-counter="">{fmtRows(totals.rowsRead)}</text>
-          <text x={GAUGE.cx} y={GAUGE.cy + 13} fontSize="7" fontWeight="600" fill={MONO.muted} textAnchor="middle" letterSpacing=".1em" data-d1m-chip="">ROWS READ</text>
-        </svg>
-        <div className="d1-mm-gauge-side">
-          <div data-d1m-chip=""><small>预计全天</small><b>{fmtRows(projectedFullDay)}</b><em>{projectedPct}%</em></div>
-          <div data-d1m-chip=""><small>写行</small><b>{fmtRows(totals.rowsWritten)}</b><em>{fmtRows(totals.readQueries + totals.writeQueries)} 次</em></div>
-        </div>
+      <div className="d1-mm-usage-main" data-d1m-chip="">
+        <b data-d1m-counter="">{fmtRows(totals.rowsRead)}</b>
+        <span className="d1-mm-usage-chip">{projectedPct}%</span>
+        <small>预计全天</small>
+      </div>
+      <div className="d1-mm-usage-bar" role="img" aria-label={`用量进度：当前 ${usedPct}%，预计全天 ${projectedPct}%`}>
+        <i className="d1-mm-bar-track" />
+        <i className="d1-mm-bar-fill" data-d1m-bar-fill="" style={{ '--d1-bar-scale': usedPct / 100 }} />
+        {[10, 20, 30, 40, 50, 60, 70, 80, 90].map((mark) => <span key={mark} className="d1-mm-bar-tick" data-d1m-bar-tick="" style={{ left: `${mark}%` }} />)}
+        <em className="d1-mm-bar-mark" data-d1m-bar-mark="" style={{ left: `${projectedPct}%` }} title={`预计全天 ${fmtRows(projectedFullDay)} 行`} />
+      </div>
+      <div className="d1-mm-db-strip" data-d1m-chip="">
+        {databases.map(({ database, rowsRead }) => (
+          <div key={database} className="d1-mm-db-item"><small>{database === 'staging' ? '正式库' : '预览库'}</small><b>{fmtRows(rowsRead)}</b></div>
+        ))}
       </div>
     </section>
   )
@@ -108,7 +101,7 @@ export function D1MobileHourly({ snapshot }) {
   const reduced = usePrefersReducedMotion()
   const geometry = useMemo(() => {
     const N = 24
-    const x0 = 18, x1 = 282, base = 96, top = 12
+    const x0 = 18, x1 = 282, base = 96, top = 32
     const values = Array.from({ length: N }, (_, hour) => series.find((point) => point.hour === hour)?.rowsRead ?? 0)
     const max = Math.max(1, ...values)
     const x = (hour) => x0 + (x1 - x0) * (hour / (N - 1))
@@ -157,7 +150,7 @@ export function D1MobileHourly({ snapshot }) {
 
 /* ── C1 tick rows · Top 榜（移动紧凑行 + 进度条）────────────── */
 const TOP_TICK = 1000
-const TOP_LABELS = ['AUDIT FEED', 'WORK ITEMS', 'WORK REV', 'AUDIT 7D', 'SHIPHUB RUN']
+const TOP_LABELS = ['审计事件流', '工作单列表', '工作单版本', '审计回溯', 'Shiphub 同步']
 
 export function D1MobileTop({ snapshot }) {
   const { top, totals } = snapshot
@@ -177,7 +170,7 @@ export function D1MobileTop({ snapshot }) {
   return (
     <section ref={ref} className="d1-mm-card d1-mm-top" data-replay={replay} onClick={replayChart} aria-label={`当日烧行 Top 5 查询，首位 ${fmtRows(rows[0]?.rowsRead ?? 0)} 行`}>
       <h3>烧行 Top 5 · {rows[0] ? `${rows[0].label} ${fmtRows(rows[0].rowsRead)}` : '暂无数据'}</h3>
-      <div className="d1-mm-sub">1 tick ≈ 1 千行 · {fmtRows(totals.rowsRead)} 行已读 · 点行看 SQL</div>
+      <div className="d1-mm-sub">今日共 {fmtRows(totals.rowsRead)} 行 · 悬停看 SQL</div>
       <ol className="d1-mm-rows">
         {rows.map((row) => (
           <li key={row.index} data-d1m-row="" title={`${row.label} — ${fmtRows(row.rowsRead)} 行 × ${row.count} 次`}>
@@ -197,7 +190,7 @@ export default function D1MetricsMobile({ snapshot, stale }) {
   if (!snapshot) return null
   return (
     <div className="d1-mm-panel" aria-label="D1 当日读行监控">
-      <D1MobileGauge snapshot={snapshot} stale={stale} />
+      <D1MobileUsage snapshot={snapshot} stale={stale} />
       <D1MobileHourly snapshot={snapshot} />
       <D1MobileTop snapshot={snapshot} />
     </div>

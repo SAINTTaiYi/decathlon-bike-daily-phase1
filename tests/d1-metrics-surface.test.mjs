@@ -51,15 +51,21 @@ test('前端：总览页接线（admin gating + 双端择一 + 插入位置）',
 })
 
 test('前端：桌面面板 JSX 结构（三卡 + 图型血缘注释）', () => {
-  for (const name of ['D1UsageGaugeCard', 'D1HourlyCard', 'D1TopQueriesCard', 'D1MetricsPanel']) {
+  for (const name of ['D1UsageCard', 'D1HourlyCard', 'D1TopQueriesCard', 'D1MetricsPanel']) {
     assert.ok(panel.includes(`export function ${name}`), `missing export ${name}`)
   }
-  assert.match(panel, /C7 Tick Gauge/u)
+  assert.match(panel, /G18 Draw-in \+ Counter/u)
   assert.match(panel, /B2 Hairline Line/u)
   assert.match(panel, /C1 Tick Rows/u)
   assert.match(panel, /data-d1-counter/u)
+  assert.match(panel, /data-d1-bar-fill/u)
   assert.match(panel, /data-d1-line/u)
   assert.match(panel, /const N = 24/u)
+  // 旧表盘零残留（memory 23②：删旧不覆盖）
+  assert.doesNotMatch(panel, /D1UsageGaugeCard|data-d1-tick\b|const GAUGE/u)
+  // Top5 中文标签
+  assert.match(panel, /审计事件流/u)
+  assert.match(panel, /Shiphub 同步/u)
 })
 
 test('前端：移动端独立实现（memory 23：双端两套 DOM 两套 CSS）', () => {
@@ -67,6 +73,9 @@ test('前端：移动端独立实现（memory 23：双端两套 DOM 两套 CSS�
   assert.ok(mobile.includes('d1-mm-') && !mobile.includes('d1-md-'))
   assert.ok(!panel.includes('d1-mm-'))
   assert.match(mobile, /data-d1m-counter/u)
+  assert.match(mobile, /data-d1m-bar-fill/u)
+  assert.match(mobile, /审计事件流/u)
+  assert.doesNotMatch(mobile, /D1MobileGauge|d1-mm-gauge-body/u)
 })
 
 test('CSS：落地断言——每个 JSX 类名都有样式', () => {
@@ -85,7 +94,7 @@ test('CSS：布局约束断言（桌面列数唯一 + 桌面规则包媒体块�
   const desktopBlock = css.indexOf('@media (min-width: 768px)')
   assert.ok(desktopBlock >= 0)
   const desktopEnd = css.indexOf('\n}\n', desktopBlock)
-  for (const decl of ['.d1-md-panel', '.d1-md-card', '.d1-md-chart']) {
+  for (const decl of ['.d1-md-panel', '.d1-md-card', '.d1-md-usage-bar']) {
     const pos = css.indexOf(decl + ' {')
     assert.ok(pos > desktopBlock && pos < desktopEnd, `${decl} 必须在桌面媒体块内`)
   }

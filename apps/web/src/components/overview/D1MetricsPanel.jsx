@@ -1,6 +1,6 @@
 // D1 当日读行监控（桌面 · admin）—— lieflat 语法 × Cloudflare D1 GraphQL Analytics。
 // 图型血缘（结构正本见 ~/lieflat-charts/templates/basics-gallery.html）：
-//   · D1UsageGaugeCard ← C7 Tick Gauge（1 刻度 = 限额的 1%，上墨 = 已读行）
+//   · D1UsageCard     ← G18 Draw-in + Counter（大数字计数 + 横向 10% 刻度进度条，同 BiStatCard 家族）
 //   · D1HourlyCard     ← B2 Hairline Line（1 点 = 1 小时读行，日历地板 + 发丝折线）
 //   · D1TopQueriesCard ← C1 Tick Rows（1 tick ≈ 1 千行读行，行 = Top 查询）
 // 动效遵循工作台规则：GSAP 驱动，滚入播放 + 点击重播，prefers-reduced-motion 直达终态。
@@ -67,66 +67,48 @@ function D1ChartSvg({ label, replayChart, children, viewBox }) {
   )
 }
 
-/* ── C7 Tick Gauge · 已用读行占当日限额的 1% 刻度 ─────────────── */
-const GAUGE = { cx: 200, cy: 108, R0: 76, A0: -195, sweep: 210 }
-
-export function D1UsageGaugeCard({ snapshot, stale }) {
+/* ── G18 Draw-in + Counter · 今日读行大数字 + 刻度进度条 ────── */
+export function D1UsageCard({ snapshot, stale }) {
   const { totals, limit, projectedFullDay, databases } = snapshot
   const usedPct = pct(totals.rowsRead, limit)
   const projectedPct = pct(projectedFullDay, limit)
   const { ref, revealed, replay, replayChart } = useD1Reveal()
   const reduced = usePrefersReducedMotion()
-  const ticks = useMemo(() => Array.from({ length: 100 }, (_, k) => {
-    const angle = GAUGE.A0 + (k / 100) * GAUGE.sweep
-    const isInked = k < usedPct
-    const len = isInked ? 10 + rnd(k + 1, 3) * 5 : 4 + rnd(k + 1, 7) * 2
-    const [x1, y1] = pol(GAUGE.cx, GAUGE.cy, GAUGE.R0, angle)
-    const [x2, y2] = pol(GAUGE.cx, GAUGE.cy, GAUGE.R0 + len, angle)
-    return { x1, y1, x2, y2, isInked }
-  }), [usedPct])
-  const milestones = useMemo(() => [25, 50, 75, 100].map((mark) => {
-    const angle = GAUGE.A0 + (mark / 100) * GAUGE.sweep
-    const [dx, dy] = pol(GAUGE.cx, GAUGE.cy, GAUGE.R0 - 7, angle)
-    const [tx, ty] = pol(GAUGE.cx, GAUGE.cy, GAUGE.R0 - 18, angle)
-    return { mark, dx, dy, tx, ty: ty + 3 }
-  }), [])
-  const tip = useMemo(() => {
-    const angle = GAUGE.A0 + (usedPct / 100) * GAUGE.sweep
-    return pol(GAUGE.cx, GAUGE.cy, GAUGE.R0 + 19, angle)
-  }, [usedPct])
   const build = useMemo(() => (timeline, node) => {
-    timeline.from(node.querySelectorAll('[data-d1-tick]'), { opacity: 0, duration: 0.3, stagger: 0.006, ease: 'power2.out' }, 0)
-    timeline.from(node.querySelectorAll('[data-d1-milestone]'), { opacity: 0, duration: 0.4, ease: 'power2.out' }, 0.5)
     const state = { value: 0 }
-    timeline.to(state, {
-      value: totals.rowsRead, duration: 1.1, ease: 'expo.out', onUpdate: () => {
-        const el = node.querySelector('[data-d1-counter]')
-        if (el) el.textContent = fmtRows(Math.round(state.value))
-      }
-    }, 0.35)
-    timeline.from(node.querySelectorAll('[data-d1-count-label]'), { opacity: 0, duration: 0.5, ease: 'power2.out' }, 0.7)
+    timeline.to(state, { value: totals.rowsRead, duration: 1.1, ease: 'expo.out', onUpdate: () => {
+      const el = node.querySelector('[data-d1-counter]')
+      if (el) el.textContent = fmtRows(Math.round(state.value))
+    } }, 0.15)
+    timeline.from(node.querySelectorAll('[data-d1-usage-part]'), { opacity: 0, y: 8, duration: 0.5, ease: 'power3.out', stagger: 0.08 }, 0.55)
+    timeline.from(node.querySelectorAll('[data-d1-bar-tick]'), { opacity: 0, duration: 0.3, stagger: 0.02, ease: 'power2.out' }, 0.3)
+    timeline.fromTo(node.querySelector('[data-d1-bar-fill]'), { scaleX: 0 }, { scaleX: 1, duration: 0.9, ease: 'expo.out' }, 0.35)
+    timeline.from(node.querySelector('[data-d1-bar-mark]'), { opacity: 0, duration: 0.4, ease: 'power2.out' }, 1.0)
   }, [totals.rowsRead])
   useD1Motion(ref, revealed, replay, reduced, build)
   return (
-    <section ref={ref} className="ops-lieflat-card d1-md-card d1-md-gauge" data-replay={replay} onClick={replayChart} aria-label={`当日 D1 读行 ${fmtRows(totals.rowsRead)} 行，占免费限额 ${usedPct}%，点击重播入场动画`}>
-      <h3>D1 读行：已用 {usedPct}%，预计全天 {projectedPct}%</h3>
+    <section ref={ref} className="ops-lieflat-card d1-md-card d1-md-usage" data-replay={replay} onClick={replayChart} aria-label={`当日 D1 读行 ${fmtRows(totals.rowsRead)} 行，占免费限额 ${usedPct}%，预计全天 ${projectedPct}%，点击重播入场动画`}>
+      <h3>D1 读行：今日已用 {usedPct}%，预计全天 {projectedPct}%</h3>
       <div className="ops-lieflat-sub d1-md-sub"><span>Cloudflare D1 免费限额 500 万行/日 · UTC 日窗口（北京 08:00 归零）{stale ? ' · 同步失败，显示最近成功数据' : ''}</span></div>
-      <D1ChartSvg label={`已读行 ${fmtRows(totals.rowsRead)} 占 500 万限额 ${usedPct}%，预计全天 ${fmtRows(projectedFullDay)} 行`} replayChart={replayChart} viewBox="0 0 400 190">
-        {ticks.map((tick, index) => <line key={index} data-d1-tick="" x1={tick.x1} y1={tick.y1} x2={tick.x2} y2={tick.y2} stroke={tick.isInked ? MONO.ink : '#CFCEC7'} strokeWidth={tick.isInked ? 1 : 0.6} />)}
-        {milestones.map(({ mark, dx, dy, tx, ty }) => <g key={mark} data-d1-milestone="">
-          <circle cx={dx} cy={dy} r="1" fill={MONO.faint} />
-          <text x={tx} y={ty} fontSize="7" fontWeight="600" fill="#C6C5BF" textAnchor="middle">{mark}</text>
-        </g>)}
-        <circle data-d1-bead="" cx={tip[0]} cy={tip[1]} r="2.4" fill={MONO.ink} />
-        <text x={GAUGE.cx} y={GAUGE.cy - 4} fontSize="34" fontWeight="800" fill={MONO.ink} textAnchor="middle" data-d1-counter="">{fmtRows(totals.rowsRead)}</text>
-        <text x={GAUGE.cx} y={GAUGE.cy + 16} fontSize="8" fontWeight="600" fill={MONO.muted} textAnchor="middle" letterSpacing=".1em" data-d1-count-label="">ROWS READ · {databases.length} DATABASES</text>
-      </D1ChartSvg>
-      <div className="d1-md-db-strip" data-d1-count-label="">
+      <div className="d1-md-usage-main" data-d1-usage-part="">
+        <b data-d1-counter="">{fmtRows(totals.rowsRead)}</b>
+        <span className="d1-md-usage-chip" data-d1-danger={projectedPct >= 80 ? 'true' : 'false'}>已用 {usedPct}% / 5,000,000</span>
+      </div>
+      <div className="d1-md-usage-bar" role="img" aria-label={`用量进度：当前 ${usedPct}%，预计全天 ${projectedPct}%`}>
+        <i className="d1-md-bar-track" />
+        <i className="d1-md-bar-fill" data-d1-bar-fill="" style={{ '--d1-bar-scale': usedPct / 100 }} />
+        {[10, 20, 30, 40, 50, 60, 70, 80, 90].map((mark) => <span key={mark} className="d1-md-bar-tick" data-d1-bar-tick="" style={{ left: `${mark}%` }} />)}
+        <em className="d1-md-bar-mark" data-d1-bar-mark="" style={{ left: `${projectedPct}%` }} title={`预计全天 ${fmtRows(projectedFullDay)} 行（${projectedPct}%）`} />
+        <span className="d1-md-bar-label d1-md-bar-zero">0</span>
+        <span className="d1-md-bar-label d1-md-bar-half">50%</span>
+        <span className="d1-md-bar-label d1-md-bar-full">100%</span>
+      </div>
+      <div className="d1-md-db-strip" data-d1-usage-part="">
         {databases.map(({ database, rowsRead }) => (
-          <div key={database} className="d1-md-db-item"><small>{database.toUpperCase()}</small><b>{fmtRows(rowsRead)}</b></div>
+          <div key={database} className="d1-md-db-item"><small>{database === 'staging' ? '正式库 STAGING' : '预览库 PREVIEW'}</small><b>{fmtRows(rowsRead)}</b></div>
         ))}
       </div>
-      <div className="ops-lieflat-src d1-md-src">TICK GAUGE · CF GRAPHQL D1 ANALYTICS · ACCOUNT QUOTA</div>
+      <div className="ops-lieflat-src d1-md-src">DRAW-IN COUNTER · CF GRAPHQL D1 ANALYTICS · ACCOUNT QUOTA</div>
     </section>
   )
 }
@@ -138,7 +120,7 @@ export function D1HourlyCard({ snapshot }) {
   const reduced = usePrefersReducedMotion()
   const geometry = useMemo(() => {
     const N = 24
-    const width = 400, x0 = 30, x1 = 376, base = 262, top = 26
+    const width = 400, x0 = 30, x1 = 376, base = 262, top = 48
     const values = Array.from({ length: N }, (_, hour) => series.find((point) => point.hour === hour)?.rowsRead ?? 0)
     const max = Math.max(1, ...values)
     const x = (hour) => x0 + (x1 - x0) * (hour / (N - 1))
@@ -190,7 +172,7 @@ export function D1HourlyCard({ snapshot }) {
 
 /* ── C1 Tick Rows · Top 5 烧行查询（1 tick ≈ 1 千行）────────── */
 const TOP_TICK = 1000
-const TOP_LABELS = ['AUDIT FEED', 'WORK ITEMS', 'WORK REV', 'AUDIT 7D', 'SHIPHUB RUN']
+const TOP_LABELS = ['审计事件流', '工作单列表', '工作单版本', '审计回溯', 'Shiphub 同步']
 
 export function D1TopQueriesCard({ snapshot }) {
   const { top, totals } = snapshot
@@ -209,7 +191,7 @@ export function D1TopQueriesCard({ snapshot }) {
   return (
     <section ref={ref} className="ops-lieflat-card d1-md-card d1-md-top" data-replay={replay} onClick={replayChart} aria-label={`当日烧行 Top 5 查询，首位 ${fmtRows(rows[0]?.rowsRead ?? 0)} 行`}>
       <h3>烧行 Top 5：{rows[0] ? `${rows[0].label} ${fmtRows(rows[0].rowsRead)} 行 × ${rows[0].count} 次` : '暂无数据'}</h3>
-      <div className="ops-lieflat-sub d1-md-sub"><span>1 tick ≈ 1 千行读行 · {fmtRows(totals.rowsRead)} 行已读 · 覆盖当日前五名查询</span></div>
+      <div className="ops-lieflat-sub d1-md-sub"><span>1 tick ≈ 1 千行读行 · 今日共 {fmtRows(totals.rowsRead)} 行 · 悬停看 SQL</span></div>
       <D1ChartSvg label={`当日烧行 Top 5 查询横条图，1 tick 约等于 1 千行，首位 ${rows[0]?.label ?? ''} ${fmtRows(rows[0]?.rowsRead ?? 0)} 行`} replayChart={replayChart} viewBox="0 0 400 308">
         {rows.map((row) => {
           const y = y0(row.index)
@@ -227,7 +209,7 @@ export function D1TopQueriesCard({ snapshot }) {
             </g>
           )
         })}
-        <text x="200" y="304" fontSize="7" fontWeight="600" fill="#B0AFA9" textAnchor="middle" letterSpacing=".12em" data-d1-row-value="">ONE TICK ≈ 1K ROWS READ · HOVER FOR SQL</text>
+        <text x="200" y="304" fontSize="7" fontWeight="600" fill="#B0AFA9" textAnchor="middle" letterSpacing=".12em" data-d1-row-value="">ONE TICK ≈ 1K ROWS · 悬停查看 SQL</text>
       </D1ChartSvg>
       <div className="ops-lieflat-src d1-md-src">TICK ROWS · CF GRAPHQL d1QueriesAdaptiveGroups · TODAY</div>
     </section>
@@ -239,7 +221,7 @@ export function D1MetricsPanel({ snapshot, stale }) {
   return (
     <section className="d1-md-panel" aria-label="D1 当日读行监控">
       <div className="d1-md-grid">
-        <D1UsageGaugeCard snapshot={snapshot} stale={stale} />
+        <D1UsageCard snapshot={snapshot} stale={stale} />
         <D1HourlyCard snapshot={snapshot} />
         <D1TopQueriesCard snapshot={snapshot} />
       </div>
