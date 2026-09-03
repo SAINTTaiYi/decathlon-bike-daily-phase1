@@ -187,7 +187,7 @@ export function D1TopQueriesCard({ snapshot }) {
   }, [])
   useD1Motion(ref, revealed, replay, reduced, build)
   const y0 = (index) => 52 + index * 44
-  const PX = Math.min(17.25, 600 / maxTicks)
+  const PX = Math.min(17.25, 790 / maxTicks)
   return (
     <section ref={ref} className="ops-lieflat-card d1-md-card d1-md-top" data-replay={replay} onClick={replayChart} aria-label={`当日烧行 Top 5 查询，首位 ${fmtRows(rows[0]?.rowsRead ?? 0)} 行`}>
       <h3>烧行 Top 5：{rows[0] ? `${rows[0].label} ${fmtRows(rows[0].rowsRead)} 行 × ${rows[0].count} 次` : '暂无数据'}</h3>
@@ -198,14 +198,14 @@ export function D1TopQueriesCard({ snapshot }) {
           return (
             <g key={row.index}>
               <title>{`${row.label} — ${row.rowsRead} 行 × ${row.count} 次：${row.query.slice(0, 80)}…`}</title>
-              <text data-d1-row-label="" x="235" y={y + 3} fontSize="8" fontWeight="700" fill="#6A6963" textAnchor="end" letterSpacing=".08em">{row.label}</text>
-              <line x1="260" y1={y + 9} x2="980" y2={y + 9} stroke={MONO.grid} strokeWidth="0.6" />
+              <text data-d1-row-label="" x="110" y={y + 3} fontSize="8" fontWeight="700" fill="#6A6963" textAnchor="end" letterSpacing=".08em">{row.label}</text>
+              <line x1="130" y1={y + 9} x2="980" y2={y + 9} stroke={MONO.grid} strokeWidth="0.6" />
               {Array.from({ length: row.ticks }, (_, k) => {
-                const x = 260 + k * PX + PX / 2
+                const x = 130 + k * PX + PX / 2
                 const h = 9 + rnd(k + 1, row.index + 2) * 6
                 return <line key={k} data-d1-tickrow-tick="" x1={x} y1={y + 9} x2={x} y2={y + 9 - h} stroke={MONO.ink} strokeWidth="0.9" opacity={0.55 + rnd(k + 3, row.index + 5) * 0.45} />
               })}
-              <text data-d1-row-value="" x={260 + row.ticks * PX + 25} y={y + 4} fontSize="11" fontWeight="800" fill={MONO.ink}>{fmtRows(row.rowsRead)}</text>
+              <text data-d1-row-value="" x={130 + row.ticks * PX + 25} y={y + 4} fontSize="11" fontWeight="800" fill={MONO.ink}>{fmtRows(row.rowsRead)}</text>
             </g>
           )
         })}
