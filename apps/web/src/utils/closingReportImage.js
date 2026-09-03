@@ -70,25 +70,39 @@ export function usedCarReportLabel(record) {
   return inferPickupSource(record) === 'used-car' ? '二手车' : ''
 }
 
-// Shiphub 同步车辆：按取车管线阶段给出右侧黑底标识（短词，30px 显示）
+// Shiphub 同步车辆右侧黑底标识（2026-09-04 用户定案）：
+// 与手动添加的自提车辆同构——标识显示订单渠道（天猫/京东/小程序…），
+// 在途（receive）在渠道名后加「在途」；无渠道时退回管线阶段词。
 export function shiphubReportLabel(record) {
   if (!record?.shiphub) return ''
   if (record.localActionState === 'completed') return '已处理'
+  const channel = record.shiphubChannel ? String(record.shiphubChannel).trim() : ''
+  const suffix = record.shiphubCategory === 'receive' ? '在途' : ''
+  if (channel) return suffix ? `${channel}${suffix}` : channel
   const labels = { hand: '待交接', pick: '待拣货', receive: '在途' }
   return labels[record.shiphubCategory] || 'Shiphub'
 }
 
-export function shiphubReportRecord(category, order) {
+// Shiphub 订单 → 日报卡片记录。vehicleInfo 参数（可选）来自 perfeco 整车分类：
+// - title 用 masterdata 官方车型名（不再显示上游的颜色/尺码串）；
+// - 非整车（轮滑鞋/头盔/手套等，families 白名单外）整条剔除，返回 null；
+// - 分类缺失（同步失败/未配置）时降级旧行为：不过滤，title 退回 vehicleInfo。
+export function shiphubReportRecord(category, order, vehicleLookup) {
   const statusLabels = { hand: '待交接核销', pick: '待门店拣货', receive: '在途车辆' }
   const completed = order.localActionState === 'completed'
+  const sku = String(order.items?.[0]?.sku ?? '')
+  const info = vehicleLookup && /^\d{4,10}$/u.test(sku) ? vehicleLookup[sku] : undefined
+  if (info && !info.isBike) return null
+  const bikeTitle = info?.label || null
   const detailParts = [order.channel ? `渠道 ${order.channel}` : '', order.orderNumber ? `订单 ${order.orderNumber}` : '']
   return {
     id: `shiphub-${category}-${order.id}`,
     scene: 'pickup',
     shiphub: true,
     shiphubCategory: category,
+    shiphubChannel: order.channel || null,
     localActionState: order.localActionState || null,
-    title: order.vehicleInfo || order.items?.[0]?.productLabel || order.displayLabel || order.orderNumber || 'Shiphub 订单',
+    title: bikeTitle || order.vehicleInfo || order.items?.[0]?.productLabel || order.displayLabel || order.orderNumber || 'Shiphub 订单',
     status: completed ? '已本地处理' : statusLabels[category] || 'Shiphub',
     detail: detailParts.filter(Boolean).join(' · '),
     contactType: 'phone',
@@ -105,6 +119,7 @@ export function buildClosingReportModel({
   kpi = {},
   records = [],
   shiphubOrders = [],
+  shiphubVehicleLookup = null,
   closedAt = '',
   appVersion = ''
 }) {
@@ -126,7 +141,7 @@ export function buildClosingReportModel({
     // Shiphub 同步车辆按取车管线阶段标识后并入待取清单（追加在手工待取之后）。
     pickups: [
       ...records.filter(isOpenPickup).map((record) => ({ ...record })),
-      ...shiphubOrders.map(({ category, order }) => shiphubReportRecord(category, { ...order }))
+      ...shiphubOrders.map(({ category, order }) => shiphubReportRecord(category, { ...order }, shiphubVehicleLookup)).filter(Boolean)
     ],
     repairs: records.filter(isOpenRepair).map((record) => ({ ...record })),
     handovers: records.filter(isOpenHandover).map((record) => ({ ...record }))

@@ -739,3 +739,12 @@ button:not(:disabled) {
     order: 1;
   }
 }
+
+/* 闭店 KPI 弹窗：perfeco 当日自行车实销同步行（2026-09-04）。
+   同步成功显示建议值 + 填入入口；同步中/失败只降级为文字提示。 */
+.bike-day-sync { display: flex; align-items: center; gap: .5rem; margin: 0 0 .35rem; }
+.bike-day-sync[data-bike-sync='syncing'] { color: var(--muted); }
+.bike-day-sync[data-bike-sync='error'] { color: var(--muted); }
+.bike-day-sync[data-bike-sync='ok'] { color: var(--ink-soft, var(--muted)); }
+.bike-day-sync .bike-sync-note { color: var(--muted); }
+.bike-day-sync .text-action { margin-left: auto; }

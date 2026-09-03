@@ -110,35 +110,49 @@ test('闭店日报图只等待站点自托管的两套字体，不再探测已�
   assert.doesNotMatch(source, /CSSFontFaceRule|new FontFace\(/u)
 })
 
-test('闭店日报图并入 Shiphub 同步车辆并按管线阶段标识', () => {
+test('闭店日报图并入 Shiphub 同步车辆：右侧标识=渠道名（在途后缀），整车过滤与官方车型名', () => {
   const model = buildClosingReportModel({
     records: [{ id: 'p1', scene: 'pickup', title: '手工待取', status: '等待取车', lifecycle: 'active' }],
     shiphubOrders: [
-      { category: 'hand', order: { id: 'H1', orderNumber: '5127371642958017643', vehicleInfo: '城市通勤车 · 黑色 · M码', customerPhone: '17012345678', channel: '天猫', scheduledAt: '2026-08-27T02:00:00.000Z', localActionState: null } },
-      { category: 'pick', order: { id: 'P1', orderNumber: 'cn1192410922059753', items: [{ productLabel: '山地自行车' }], localActionState: null } },
-      { category: 'receive', order: { id: 'R1', orderNumber: '3602269002645552', vehicleInfo: '公路自行车 · 白色 · S码', localActionState: 'completed' } }
+      { category: 'hand', order: { id: 'H1', orderNumber: '5127371642958017643', vehicleInfo: '城市通勤车 · 黑色 · M码', customerPhone: '17012345678', channel: '天猫', scheduledAt: '2026-08-27T02:00:00.000Z', localActionState: null, items: [{ sku: '4810987' }] } },
+      { category: 'pick', order: { id: 'P1', orderNumber: 'cn1192410922059753', items: [{ productLabel: '山地自行车', sku: '5493775' }], localActionState: null, channel: '京东' } },
+      { category: 'receive', order: { id: 'R1', orderNumber: '3602269002645552', vehicleInfo: '公路自行车 · 白色 · S码', localActionState: 'completed', channel: '小程序', items: [{ sku: '4265914' }] } }
     ],
+    shiphubVehicleLookup: {
+      '4810987': { model: '8797823', label: '20" EXPL 120 CN', isBike: true, isBuyback: false },
+      '5493775': { model: '8480274', label: 'TUC 100 ELOPS LF CN BLACK', isBike: true, isBuyback: false },
+      '4265914': { model: '8640568', label: 'RS ILS FIT3 CN LIGHT PURPLE', isBike: false, isBuyback: false }
+    },
     closedAt: '2026-08-27T14:00:00.000Z'
   })
-  // 追加在手工待取之后，顺序保持传入顺序
-  assert.deepEqual(model.pickups.map((item) => item.id), ['p1', 'shiphub-hand-H1', 'shiphub-pick-P1', 'shiphub-receive-R1'])
-  const [hand, pick, receive] = model.pickups.slice(1)
-  // 状态标识按管线阶段区分
+  // 追加在手工待取之后；非整车（4265914 轮滑鞋）被剔除
+  assert.deepEqual(model.pickups.map((item) => item.id), ['p1', 'shiphub-hand-H1', 'shiphub-pick-P1'])
+  const [hand, pick] = model.pickups.slice(1)
+  // 状态标识按管线阶段区分（左侧 status chip 不变）
   assert.equal(hand.status, '待交接核销')
   assert.equal(pick.status, '待门店拣货')
-  assert.equal(receive.status, '已本地处理')
-  // 右侧黑底标识（短词）
-  assert.equal(shiphubReportLabel(hand), '待交接')
-  assert.equal(shiphubReportLabel(pick), '待拣货')
-  assert.equal(shiphubReportLabel(receive), '已处理')
+  // 右侧黑底标识（2026-09-04 定案）：显示渠道名，与手动自提车辆标识同构
+  assert.equal(shiphubReportLabel(hand), '天猫')
+  assert.equal(shiphubReportLabel({ ...pick, shiphubChannel: '京东', shiphubCategory: 'receive', localActionState: null }), '京东在途')
   assert.equal(shiphubReportLabel(model.pickups[0]), '')
-  // 标题优先车辆信息，缺失时回退商品名；联系方式进入手机槽位
-  assert.equal(hand.title, '城市通勤车 · 黑色 · M码')
-  assert.equal(pick.title, '山地自行车')
+  // 无渠道时退回管线阶段词
+  assert.equal(shiphubReportLabel({ shiphub: true, shiphubCategory: 'hand', shiphubChannel: null, localActionState: null }), '待交接')
+  // 已本地处理仍显示已处理
+  assert.equal(shiphubReportLabel({ shiphub: true, shiphubCategory: 'receive', shiphubChannel: '小程序', localActionState: 'completed' }), '已处理')
+  // 标题用 perfeco 官方车型名（不再是上游的颜色/尺码串）
+  assert.equal(hand.title, '20" EXPL 120 CN')
+  assert.equal(pick.title, 'TUC 100 ELOPS LF CN BLACK')
   assert.equal(reportContact(hand).contactValue, '17012345678')
   // 订单号进入详情行与工单号
   assert.match(reportItemDetail(hand), /订单 5127371642958017643/u)
   assert.equal(hand.ticketNo, '5127371642958017643')
+  // 分类缺失（无 lookup）时降级旧行为：不过滤、显示 vehicleInfo
+  const degraded = buildClosingReportModel({
+    shiphubOrders: [{ category: 'hand', order: { id: 'H2', orderNumber: 'X1', vehicleInfo: '旧颜色 · 尺码', channel: '天猫', items: [{ sku: '4265914' }] } }],
+    closedAt: '2026-08-27T14:00:00.000Z'
+  })
+  assert.equal(degraded.pickups.length, 1)
+  assert.equal(degraded.pickups[0].title, '旧颜色 · 尺码')
 })
 
 test('闭店导出注入 Shiphub 订单且失败不阻塞闭店流程', async () => {

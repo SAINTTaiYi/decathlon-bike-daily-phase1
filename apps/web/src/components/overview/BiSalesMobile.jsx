@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { BI_SNAPSHOT, BI_DIS_DOTS } from '../../data/biSnapshot.js'
+import useBiBikesWeek from '../../hooks/useBiBikesWeek.js'
 import { ALLCHANNEL_NAMES } from '../../data/biSkuNames.js'
 import useBiSkuNames from '../../hooks/useBiSkuNames.js'
 
@@ -225,7 +226,9 @@ const MODEL_TABS = [
   { key: 'allChannel', label: '全渠道' }
 ]
 function BimRanking({ snapshot }) {
-  const { models } = snapshot
+  // 2026-09-04：top/flop 换源 perfeco 周实销（只含整车），allChannel 旧快照经整车分类过滤。
+  const bikeWeek = useBiBikesWeek()
+  const models = bikeWeek.models
   const [tab, setTab] = useState('top')
   const skuNames = useBiSkuNames()
   const { ref, revealed, replay } = useBiReveal()
@@ -267,8 +270,8 @@ function BimRanking({ snapshot }) {
   const maxMetric = Math.max(...rows.map(metric), 0.001)
   return (
     <section ref={ref} className="ops-bim-card ops-bim-ranking" aria-label="自行车+工作室 商品销售榜">
-      <h3>销售榜已按 自行车+工作室 源端过滤</h3>
-      <div className="ops-bim-sub">{`BI M332/M218 · 周 ${models.week}`}</div>
+      <h3>销售榜已按整车口径过滤</h3>
+      <div className="ops-bim-sub">{`BI ${models.report} · 周 ${models.week} · 整车口径`}</div>
       <div className="ops-bim-tabs" role="tablist" ref={trackRef}>
         <i className="ops-bim-pill" ref={pillRef} aria-hidden="true" />
         {MODEL_TABS.map((entry) => (
@@ -288,7 +291,7 @@ function BimRanking({ snapshot }) {
         ))}
       </ol>
       {tab === 'allChannel' ? <p className="ops-bim-note">{`合计 ${models.allChannel.total.qty} 台 · ${yuan(models.allChannel.total.to)} · 每渠道仅前 5`}</p> : null}
-      <div className="ops-bim-src">MODEL RANKING · BI M332/M218 · STORE 1299</div>
+      <div className="ops-bim-src">MODEL RANKING · PERFECO 整车周实销 · STORE 1299</div>
     </section>
   )
 }

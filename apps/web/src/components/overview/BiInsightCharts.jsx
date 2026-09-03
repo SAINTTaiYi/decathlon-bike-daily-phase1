@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { BI_SNAPSHOT, BI_DIS_DOTS } from '../../data/biSnapshot.js'
 import { ALLCHANNEL_NAMES } from '../../data/biSkuNames.js'
+import useBiBikesWeek from '../../hooks/useBiBikesWeek.js'
 import useBiSkuNames from '../../hooks/useBiSkuNames.js'
 
 const MONO = {
@@ -331,7 +332,10 @@ const modelDelta = (row) => deltaText(row.wow, '环比') ?? deltaText(row.yoy, '
 const yuan = (value) => `¥${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 export function BiModelRanking({ snapshot }) {
-  const { models } = snapshot
+  // 2026-09-04：top/flop 换源 perfeco 周实销（只含整车），allChannel 旧快照经整车分类过滤。
+  // 上游不可用时 hook 回退 BI_SNAPSHOT 旧行为，面板永远有数据。
+  const bikeWeek = useBiBikesWeek()
+  const models = bikeWeek.models
   const [tab, setTab] = useState('allChannel')
   const skuNames = useBiSkuNames()
   const { ref, revealed, replay, replayChart } = useBiReveal()
@@ -379,8 +383,8 @@ export function BiModelRanking({ snapshot }) {
   const active = MODEL_TABS.find((entry) => entry.key === tab)
   return (
     <section ref={ref} className="ops-lieflat-card ops-bi-card ops-bi-models-card" data-replay={replay} aria-label="商品销售榜，可在热销、下滑与全渠道车型之间切换">
-      <h3>销售榜已按 自行车+工作室 源端过滤</h3>
-      <div className="ops-lieflat-sub"><span>{`BI ${models.report} · 周 ${models.week} · STORE 1299 · Universe=${'Cycling + Workshop'}`}</span></div>
+      <h3>销售榜已按整车口径过滤</h3>
+      <div className="ops-lieflat-sub"><span>{`BI ${models.report} · 周 ${models.week} · STORE 1299 · 口径=整车（${models.caliber}）`}</span></div>
       <div className="ops-bi-model-tabs" role="tablist" ref={trackRef}>
         <i className="ops-bi-model-pill" ref={pillRef} aria-hidden="true" />
         {MODEL_TABS.map((entry) => (
@@ -412,7 +416,7 @@ export function BiModelRanking({ snapshot }) {
           </li>
         ))}
       </ol>
-      <div className="ops-lieflat-src">{tab === 'allChannel' ? 'ALL CHANNEL TOP SALES · BI M218 · STORE 1299' : 'MODEL RANKING · BI M332 OMNI WEEKLY · STORE 1299'}</div>
+      <div className="ops-lieflat-src">{tab === 'allChannel' ? 'ALL CHANNEL TOP SALES · BI M218（整车过滤）· STORE 1299' : 'MODEL RANKING · PERFECO 整车周实销 · STORE 1299'}</div>
     </section>
   )
 }
