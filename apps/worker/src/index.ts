@@ -18,6 +18,7 @@ import { governanceRoutes } from './routes/governance.js'
 import { adminRoutes } from './routes/admin.js'
 import { shipHubRoutes } from './routes/shiphub.js'
 import { biRoutes } from './routes/bi.js'
+import { d1MetricsRoutes } from './routes/d1-metrics.js'
 import { runScheduledShipHubSync } from './services/shiphub-sync.js'
 import { ApiProblem } from './services/problems.js'
 import { routeIncomingRequest } from './request-routing.js'
@@ -108,6 +109,7 @@ app.route('/', auditRoutes())
 app.route('/', bootstrapRoutes())
 app.route('/', shipHubRoutes())
 app.route('/', biRoutes())
+app.route('/', d1MetricsRoutes())
 
 app.all('/api/v1/attachments/*', (c) => c.json({
   error: 'MEDIA_DISABLED',

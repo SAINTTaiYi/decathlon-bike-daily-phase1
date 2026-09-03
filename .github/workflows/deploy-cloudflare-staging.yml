@@ -196,6 +196,15 @@ jobs:
           else
             echo "BI masterdata secrets not fully configured; skipping injection (SKU name sync stays gracefully disabled)."
           fi
+      - name: Inject D1 metrics read token into the Staging Worker
+        env:
+          D1_METRICS_TOKEN: ${{ secrets.D1_METRICS_TOKEN }}
+        run: |
+          set -euo pipefail
+          # 可选凭据：缺失时总览页 D1 监控卡优雅隐藏（available:false），不阻塞部署。
+          if [ -n "$D1_METRICS_TOKEN" ]; then
+            printf '%s' "$D1_METRICS_TOKEN" | wrangler secret put D1_METRICS_TOKEN --config wrangler.deploy.jsonc
+          fi
       - name: Deploy the Staging Worker with Static Assets and D1
         run: wrangler deploy --config wrangler.deploy.jsonc
       - name: Verify the deployed Staging API, release identity, and Web shell

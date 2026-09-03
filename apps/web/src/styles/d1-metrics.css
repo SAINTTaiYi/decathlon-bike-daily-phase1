@@ -1,0 +1,53 @@
+/* ── D1 读行监控 · 双端双命名空间（memory 23：两套独立实现互不覆盖）──
+   桌面 .d1-md-*：无填充，叠暖白底（同 .ops-bi-card 归属 frosted 玻璃家族）；
+   移动 .d1-mm-*：实心纸灰卡 #f0efeb（同 .ops-bim-card）。动效全 GSAP，无 CSS keyframes。 */
+
+/* ═══ 桌面端（≥768px 断点内）═══ */
+@media (min-width: 768px) {
+  .d1-md-panel { grid-column: 1 / -1; }
+  .d1-md-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.35fr); gap: 16px; margin-top: 16px; align-items: stretch; }
+  .d1-md-card { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; min-width: 0; padding: 14px 24px 10px; }
+  .d1-md-card h3 { color: #1c1c1a; font-family: var(--ops-body); font-size: 15px; font-weight: 700; line-height: 20px; letter-spacing: -.02em; margin: 0; }
+  .d1-md-sub { min-height: 16px; margin-top: 2px; color: #8f8e88; font-size: 9px; line-height: 13px; }
+  .d1-md-chart { align-self: end; width: 100%; height: 168px; margin-top: 0; overflow: visible; cursor: pointer; }
+  .d1-md-chart text { font-family: var(--ops-display); }
+  .d1-md-src { color: #b0afa9; font-family: var(--ops-display); font-size: 7px; font-weight: 600; line-height: 10px; letter-spacing: .08em; }
+  .d1-md-gauge { grid-column: 1; }
+  .d1-md-hourly { grid-column: 2; }
+  .d1-md-top { grid-column: 1 / -1; }
+  .d1-md-gauge .d1-md-chart { height: 190px; }
+  .d1-md-top .d1-md-chart { height: 308px; }
+  .d1-md-db-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 2px; }
+  .d1-md-db-item small { display: block; color: #8f8e88; font-family: var(--ops-display); font-size: 8px; font-weight: 600; letter-spacing: .1em; }
+  .d1-md-db-item b { margin-top: 2px; color: var(--ops-black, #1c1c1a); font-family: var(--ops-display); font-size: 14px; font-weight: 800; }
+  .d1-md-db-strip { font-family: var(--ops-display); }
+}
+
+/* ═══ 移动端（≤860px 才渲染对应 DOM，此处仅需基础规则）═══ */
+.d1-mm-panel { display: grid; gap: 10px; margin-top: 8px; }
+.d1-mm-card { background: #f0efeb; border-radius: 18px; padding: 12px 14px 10px; cursor: pointer; }
+.d1-mm-card h3 { margin: 0; color: #1c1c1a; font-family: var(--ops-body); font-size: 13px; font-weight: 700; line-height: 17px; letter-spacing: -.01em; }
+.d1-mm-sub { margin-top: 3px; color: #8f8e88; font-family: var(--ops-display); font-size: 9px; font-weight: 600; letter-spacing: .06em; }
+.d1-mm-chart { display: block; width: 100%; margin-top: 6px; }
+.d1-mm-chart text { font-family: var(--ops-display); }
+.d1-mm-gauge-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; margin-top: 6px; }
+.d1-mm-gauge-body .d1-mm-chart { margin-top: 0; }
+.d1-mm-gauge-side { display: grid; gap: 8px; }
+.d1-mm-gauge-side > div { padding: 7px 10px; border-radius: 12px; background: rgb(28 28 26 / .05); }
+.d1-mm-gauge-side small { display: block; color: #8f8e88; font-family: var(--ops-display); font-size: 8px; font-weight: 600; letter-spacing: .1em; }
+.d1-mm-gauge-side b { display: block; margin-top: 2px; color: #1c1c1a; font-family: var(--ops-display); font-size: 15px; font-weight: 800; }
+.d1-mm-gauge-side em { display: block; margin-top: 1px; color: #55554f; font-style: normal; font-family: var(--ops-display); font-size: 8.5px; font-weight: 600; }
+.d1-mm-rows { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 7px; }
+.d1-mm-rows li { display: grid; grid-template-columns: 20px minmax(0, 1fr); column-gap: 8px; align-items: center; }
+.d1-mm-rank { color: #8f8e88; font-family: var(--ops-display); font-size: 10px; font-weight: 650; }
+.d1-mm-rowmain { min-width: 0; }
+.d1-mm-rowline { display: flex; align-items: baseline; gap: 6px; }
+.d1-mm-name { flex: 1; min-width: 0; color: #1c1c1a; font-size: 11px; font-weight: 620; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.d1-mm-rowline b { color: #1c1c1a; font-family: var(--ops-display); font-size: 10px; font-weight: 680; white-space: nowrap; }
+.d1-mm-rowline small { color: #8f8e88; font-family: var(--ops-display); font-size: 8px; font-weight: 600; white-space: nowrap; }
+.d1-mm-bar { display: block; height: 2px; margin-top: 3px; border-radius: 1px; background: rgb(28 28 26 / .08); overflow: hidden; }
+.d1-mm-bar > i { display: block; height: 100%; border-radius: 1px; background: #1c1c1a; transform-origin: left center; }
+/* 卡片变体：表盘限宽防右侧统计挤压；曲线卡收紧间距；Top 榜行距放宽 */
+.d1-mm-gauge .d1-mm-chart { max-width: 216px; }
+.d1-mm-hourly .d1-mm-chart-wide { margin-top: 4px; }
+.d1-mm-top .d1-mm-rows { margin-top: 10px; }

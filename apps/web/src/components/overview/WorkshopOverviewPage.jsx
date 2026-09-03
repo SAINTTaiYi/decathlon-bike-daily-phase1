@@ -7,6 +7,10 @@ import IconLabel from '@iconoir/Label.mjs'
 import IconCheck from '@iconoir/Check.mjs'
 import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
 import { RepairRungChart, SalesHairlineChart } from './BusinessTrendCharts.jsx'
+import { D1MetricsPanel } from './D1MetricsPanel.jsx'
+import D1MetricsMobile from './D1MetricsMobile.jsx'
+import useD1Metrics from '../../hooks/useD1Metrics.js'
+import { useViewportKind } from '../../hooks/useViewportKind.js'
 
 const operations = [
   { id: 'pickup', no: '02', en: 'PICKUP', cn: '待取车辆', Icon: IconDelivery },
@@ -211,8 +215,10 @@ function ReleaseStrip() {
   )
 }
 
-export default function WorkshopOverviewPage({ workflow, shiphubSummary, online, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport, onJump, showUsed = false, showAnalytics = false }) {
+export default function WorkshopOverviewPage({ workflow, shiphubSummary, online, onEditKpi, onCompleteClosing, onHistory, onRefresh, onReopenClosing, onExportReport, onJump, showUsed = false, showAnalytics = false, isAdmin = false }) {
   const available = workflow.hydrated && workflow.hasSnapshot
+  const viewport = useViewportKind()
+  const { snapshot: d1Snapshot, stale: d1Stale } = useD1Metrics(isAdmin)
   return (
     <div className="ops-mobile-overview" data-workspace-module="true" aria-label="Workshop 业务总览">
       {!online ? <p className="ops-inline-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据</p> : null}
@@ -220,6 +226,7 @@ export default function WorkshopOverviewPage({ workflow, shiphubSummary, online,
       <SalesVehiclesPanel dateKey={workflow.dateKey} kpi={workflow.kpi} available={available} onEditKpi={onEditKpi} />
       <OperationsIndex workflow={workflow} shiphubSummary={shiphubSummary} onJump={onJump} showUsed={showUsed} />
       {showAnalytics ? <OverviewAnalytics workflow={workflow} shiphubSummary={shiphubSummary} /> : null}
+      {isAdmin && d1Snapshot ? (viewport === 'desktop' ? <D1MetricsPanel snapshot={d1Snapshot} stale={d1Stale} /> : <D1MetricsMobile snapshot={d1Snapshot} stale={d1Stale} />) : null}
       <ReleaseStrip />
       <div className="ops-first-screen-spacer" aria-hidden="true" />
     </div>

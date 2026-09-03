@@ -727,6 +727,7 @@ export default function App() {
                 onJump={jumpFromOverview}
                 showUsed={desktopLayout}
                 showAnalytics={desktopLayout}
+                isAdmin={role === 'admin'}
               />
             </WorkshopModuleSection>
             <WorkshopModuleSection sceneId="pickup"><PickupScene {...recordProps('pickup')} /></WorkshopModuleSection>

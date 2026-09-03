@@ -21,6 +21,7 @@
 @import './flat-tokens.css';
 @import './borderless.css';
 @import './frosted.css';
+@import './d1-metrics.css';
 
 @import './palette-lab.css';
 @import './prompt-lab.css';
