@@ -58,9 +58,9 @@ function useD1Motion(ref, revealed, replay, reduced, build) {
   }, [revealed, replay, reduced, build])
 }
 
-function D1ChartSvg({ label, replayChart, children, viewBox }) {
+function D1ChartSvg({ label, replayChart, children, viewBox, fill = false }) {
   return (
-    <svg className="ops-lieflat-chart d1-md-chart" viewBox={viewBox} preserveAspectRatio="xMidYMid meet" role="img" tabIndex="0" aria-label={label} onClick={replayChart} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') replayChart() }}>
+    <svg className={`ops-lieflat-chart d1-md-chart${fill ? ' d1-md-chart-fill' : ''}`} viewBox={viewBox} preserveAspectRatio="xMidYMid meet" role="img" tabIndex="0" aria-label={label} onClick={replayChart} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') replayChart() }}>
       <title>点击或按 Enter 重播入场动画</title>
       {children}
     </svg>
@@ -192,14 +192,14 @@ export function D1TopQueriesCard({ snapshot }) {
     <section ref={ref} className="ops-lieflat-card d1-md-card d1-md-top" data-replay={replay} onClick={replayChart} aria-label={`当日烧行 Top 5 查询，首位 ${fmtRows(rows[0]?.rowsRead ?? 0)} 行`}>
       <h3>烧行 Top 5：{rows[0] ? `${rows[0].label} ${fmtRows(rows[0].rowsRead)} 行 × ${rows[0].count} 次` : '暂无数据'}</h3>
       <div className="ops-lieflat-sub d1-md-sub"><span>1 tick ≈ 1 千行读行 · 今日共 {fmtRows(totals.rowsRead)} 行 · 悬停看 SQL</span></div>
-      <D1ChartSvg label={`当日烧行 Top 5 查询横条图，1 tick 约等于 1 千行，首位 ${rows[0]?.label ?? ''} ${fmtRows(rows[0]?.rowsRead ?? 0)} 行`} replayChart={replayChart} viewBox="0 0 400 308">
+      <D1ChartSvg label={`当日烧行 Top 5 查询横条图，1 tick 约等于 1 千行，首位 ${rows[0]?.label ?? ''} ${fmtRows(rows[0]?.rowsRead ?? 0)} 行`} replayChart={replayChart} viewBox="0 0 400 308" fill>
         {rows.map((row) => {
           const y = y0(row.index)
           return (
             <g key={row.index}>
               <title>{`${row.label} — ${row.rowsRead} 行 × ${row.count} 次：${row.query.slice(0, 80)}…`}</title>
               <text data-d1-row-label="" x="94" y={y + 3} fontSize="8" fontWeight="700" fill="#6A6963" textAnchor="end" letterSpacing=".08em">{row.label}</text>
-              <line x1="104" y1={y + 9} x2={104 + 34 * Math.min(PX, 6.9)} y2={y + 9} stroke={MONO.grid} strokeWidth="0.6" />
+              <line x1="104" y1={y + 9} x2="392" y2={y + 9} stroke={MONO.grid} strokeWidth="0.6" />
               {Array.from({ length: row.ticks }, (_, k) => {
                 const x = 104 + k * PX + PX / 2
                 const h = 9 + rnd(k + 1, row.index + 2) * 6

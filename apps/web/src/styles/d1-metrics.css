@@ -15,7 +15,7 @@
   .d1-md-usage { grid-column: 1; align-self: start; }
   .d1-md-hourly { grid-column: 2; }
   .d1-md-top { grid-column: 1 / -1; }
-  .d1-md-top .d1-md-chart { height: 308px; }
+  .d1-md-top .d1-md-chart-fill { align-self: stretch; width: 100%; height: auto; aspect-ratio: 400 / 308; max-height: 380px; margin-top: 4px; }
   .d1-md-db-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 2px; }
   .d1-md-db-item small { display: block; color: #8f8e88; font-family: var(--ops-display); font-size: 8px; font-weight: 600; letter-spacing: .1em; }
   .d1-md-db-item b { margin-top: 2px; color: var(--ops-black, #1c1c1a); font-family: var(--ops-display); font-size: 14px; font-weight: 800; }
