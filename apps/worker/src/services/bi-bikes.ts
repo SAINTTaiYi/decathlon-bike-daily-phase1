@@ -28,9 +28,60 @@ const BUYBACK_FAMILY_ID = 34906
 
 export const BI_BIKES_TZ = 'Asia/Shanghai'
 // 读行/上游预算（2026-09-04 优化）：日快照 10 分钟（KPI 弹窗要当日实销，取新鲜）；
-// 周榜 30 分钟（滚动 7 天聚合变化慢，拉长缓存减少 IdP 登录与 perfeco 调用次数）。
+// 周榜 30 分钟（周聚合变化慢，拉长缓存减少 IdP 登录与 perfeco 调用次数）。
 const DAY_SNAPSHOT_MAX_AGE_MS = 10 * 60 * 1000
 const WEEK_SNAPSHOT_MAX_AGE_MS = 30 * 60 * 1000
+
+// ── 渠道拆分（2026-09-04 第二轮：销售榜 全渠道/线上/线下 三分）──
+// perfeco 渠道桶求和恰好等于 total（实测 08-28→09-03：385,189+15,808+1,552+28,960=431,509）。
+// 线上 = 电商发货 + 到店自提（线上下单）；线下 = 实体店 + 会员卡 + 其他/decapro。
+// 拆分定义随卡片 basis 明示，绝不静默归类。
+const ONLINE_CHANNEL_KEYS: readonly string[] = ['amount_digital_store', 'amount_click_and_collect', 'amount_ecommerce', 'amount_zip_code']
+
+function channelSplit(record: Record<string, unknown> | null | undefined, round: boolean): { online: number; offline: number } {
+  let online = 0
+  let total = 0
+  if (record && typeof record === 'object') {
+    for (const [key, value] of Object.entries(record)) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) continue
+      total += value
+      if (ONLINE_CHANNEL_KEYS.includes(key)) online += value
+    }
+  }
+  const offline = total - online
+  return round ? { online: Math.round(online), offline: Math.round(offline) } : { online: Math.round(online * 100) / 100, offline: Math.round(offline * 100) / 100 }
+}
+
+// ── 周口径（2026-09-04）：对齐 BI 快照的 Sun→Sat 周（M332 W35=08-23→08-29 实证），
+// W 编号取周六所在 ISO 周。当前周窗口 = 本周日 → min(今天, 本周六)。
+function parseDay(day: string): Date {
+  const [year = 0, month = 1, date = 1] = day.split('-').map((part) => Number(part) || 0)
+  return new Date(Date.UTC(year, month - 1, date))
+}
+function fmtDay(date: Date): string {
+  return date.toISOString().slice(0, 10)
+}
+function isoWeekOf(day: string): { week: number; label: string } {
+  const date = parseDay(day)
+  const dayNum = date.getUTCDay() || 7
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+  return { week, label: `W${String(week).padStart(2, '0')}` }
+}
+export function currentWeekWindow(now: Date): { from: string; to: string; toComplete: boolean; weekNumber: number; weekLabel: string } {
+  const today = isoDay(now)
+  const date = parseDay(today)
+  const sunday = new Date(date)
+  sunday.setUTCDate(date.getUTCDate() - date.getUTCDay())
+  const saturday = new Date(sunday)
+  saturday.setUTCDate(sunday.getUTCDate() + 6)
+  const from = fmtDay(sunday)
+  const saturdayStr = fmtDay(saturday)
+  const toComplete = today === saturdayStr
+  const { week, label } = isoWeekOf(saturdayStr)
+  return { from, to: toComplete ? saturdayStr : today, toComplete, weekNumber: week, weekLabel: label }
+}
 const CHUNK_SIZE = 20
 
 export type BikeDaySnapshot = {
@@ -44,12 +95,36 @@ export type BikeDaySnapshot = {
   syncedAt: string
 }
 
+export type BikeWeekRow = {
+  code: string
+  label: string | null
+  qty: number
+  to: number
+  buyback: boolean
+  onlineQty: number
+  onlineTo: number
+  offlineQty: number
+  offlineTo: number
+}
 export type BikeWeekPayload = {
   available: true
+  source: 'CIS perfeco'
+  weekNumber: number
+  weekLabel: string
   from: string
   to: string
-  rows: Array<{ code: string; label: string | null; qty: number; to: number; share: number; wow: number | null; buyback: boolean }>
-  total: { qty: number; to: number }
+  toComplete: boolean
+  rows: BikeWeekRow[]
+  totals: { all: { qty: number; to: number }; online: { qty: number; to: number }; offline: { qty: number; to: number } }
+  syncedAt: string
+}
+export type StoreWeekPayload = {
+  available: true
+  source: 'CIS perfeco + SPD'
+  from: string
+  to: string
+  turnover: { total: number; online: number; offline: number; quantity: number }
+  dis: { amount: number; taxExcluded: number; quantity: number } | null
   syncedAt: string
 }
 
@@ -64,12 +139,6 @@ export class PerfecoUpstreamError extends Error {
 
 export function isPerfecoConfigured(env: WorkerEnv): boolean {
   return isMasterDataConfigured(loadConfig(env).MASTERDATA) && Boolean(loadConfig(env).MASTERDATA.perfecoApiKey)
-}
-
-function weekRange(now: Date): { from: string; to: string } {
-  const to = new Date(now)
-  const from = new Date(now.getTime() - 6 * 86400 * 1000)
-  return { from: isoDay(from), to: isoDay(to) }
 }
 
 function isoDay(value: Date): string {
@@ -378,62 +447,72 @@ export async function getBikeWeek(
 ): Promise<BikeWeekPayload | null> {
   if (!isPerfecoConfigured(env)) return null
   const now = options.now ?? new Date()
+  const window = currentWeekWindow(now)
   const cachedRow = await first<{ detail: string; synced_at: string }>(
     env.DB.prepare(`SELECT detail, synced_at FROM bi_bikes_snapshot WHERE store_id = ? AND business_date = 'week'`).bind(options.storeId)
   )
-  if (cachedRow && now.getTime() - Date.parse(cachedRow.synced_at) < WEEK_SNAPSHOT_MAX_AGE_MS) {
-    try {
-      const parsed = JSON.parse(cachedRow.detail) as BikeWeekPayload
-      if (parsed && Array.isArray(parsed.rows)) return parsed
-    } catch { /* 缓存损坏 → 重拉 */ }
+  if (cachedRow) {
+    const age = now.getTime() - Date.parse(cachedRow.synced_at)
+    if (age >= 0 && age < WEEK_SNAPSHOT_MAX_AGE_MS) {
+      try {
+        const parsed = JSON.parse(cachedRow.detail) as BikeWeekPayload
+        // 跨周边界：缓存窗口不是本周 → 作废（周一早晨天然触发重拉）。
+        if (parsed && parsed.from === window.from && Array.isArray(parsed.rows)) return parsed
+      } catch { /* 缓存损坏 → 重拉 */ }
+    }
   }
-  const { from, to } = weekRange(now)
-  const prev = weekRange(new Date(now.getTime() - 7 * 86400 * 1000))
-  const prevFrom = prev.from
-  const prevTo = prev.to
   const getJwt = lazyLoginJwt(env)
   const jwt = await getJwt()
-  const [currentEntries, prevEntries] = await Promise.all([
-    fetchPerfecoEntries(env, { from, to, aggLevel: 'MODELS', stores: [options.storeCode], families: BIKE_FAMILY_IDS.map(String) }, jwt),
-    fetchPerfecoEntries(env, { from: prevFrom, to: prevTo, aggLevel: 'MODELS', stores: [options.storeCode], families: BIKE_FAMILY_IDS.map(String) }, jwt)
-  ])
-  const models = [...new Set([...currentEntries, ...prevEntries].map((entry) => String(entry.id ?? '')).filter((id) => /^\d{4,10}$/u.test(id)))]
+  const entries = await fetchPerfecoEntries(env, {
+    from: window.from,
+    to: window.to,
+    aggLevel: 'MODELS',
+    stores: [options.storeCode],
+    families: BIKE_FAMILY_IDS.map(String)
+  }, jwt)
+  const models = [...new Set(entries.map((entry) => String(entry.id ?? '')).filter((id) => /^\d{4,10}$/u.test(id)))]
   const modelInfo = await resolveModelInfo(env, models, getJwt)
-  const currentMap = new Map<string, { qty: number; to: number }>()
-  for (const entry of currentEntries) {
-    const qty = channelsSum(entry.quantity as Record<string, unknown>, true)
-    if (qty <= 0) continue
-    currentMap.set(String(entry.id), { qty, to: channelsSum(entry.turnover as Record<string, unknown>, false) })
-  }
-  const prevMap = new Map<string, { qty: number; to: number }>()
-  for (const entry of prevEntries) {
-    const qty = channelsSum(entry.quantity as Record<string, unknown>, true)
-    if (qty <= 0) continue
-    prevMap.set(String(entry.id), { qty, to: channelsSum(entry.turnover as Record<string, unknown>, false) })
-  }
-  const totalTo = [...currentMap.values()].reduce((sum, row) => sum + row.to, 0)
-  const rows: BikeWeekPayload['rows'] = []
-  for (const [code, current] of currentMap) {
+
+  const rows: BikeWeekRow[] = []
+  const totals = { all: { qty: 0, to: 0 }, online: { qty: 0, to: 0 }, offline: { qty: 0, to: 0 } }
+  for (const entry of entries) {
+    const code = String(entry.id ?? '')
+    if (!/^\d{4,10}$/u.test(code)) continue
+    const qtySplit = channelSplit(entry.quantity as Record<string, unknown>, true)
+    const toSplit = channelSplit(entry.turnover as Record<string, unknown>, false)
+    if (qtySplit.online + qtySplit.offline <= 0) continue
     const info = modelInfo.get(code)
-    if (!info || !info.isBike || info.isBuyback) continue // 新车榜：二手车不进榜
-    const prev = prevMap.get(code)
-    rows.push({
+    if (!info || !info.isBike) continue // families 服务端已过滤，此处双保险
+    const row: BikeWeekRow = {
       code,
       label: info.label,
-      qty: current.qty,
-      to: Math.round(current.to * 100) / 100,
-      share: totalTo > 0 ? Math.round((current.to / totalTo) * 1000) / 10 : 0,
-      wow: prev && prev.qty > 0 ? Math.round(((current.qty - prev.qty) / prev.qty) * 1000) / 10 : null,
-      buyback: false
-    })
+      qty: qtySplit.online + qtySplit.offline,
+      to: Math.round((toSplit.online + toSplit.offline) * 100) / 100,
+      buyback: info.isBuyback,
+      onlineQty: qtySplit.online,
+      onlineTo: toSplit.online,
+      offlineQty: qtySplit.offline,
+      offlineTo: toSplit.offline
+    }
+    rows.push(row)
+    totals.all.qty += row.qty
+    totals.all.to = Math.round((totals.all.to + row.to) * 100) / 100
+    totals.online.qty += row.onlineQty
+    totals.online.to = Math.round((totals.online.to + row.onlineTo) * 100) / 100
+    totals.offline.qty += row.offlineQty
+    totals.offline.to = Math.round((totals.offline.to + row.offlineTo) * 100) / 100
   }
   rows.sort((a, b) => b.to - a.to)
   const payload: BikeWeekPayload = {
     available: true,
-    from,
-    to,
-    rows: rows.slice(0, 20),
-    total: { qty: rows.reduce((sum, row) => sum + row.qty, 0), to: Math.round(totalTo * 100) / 100 },
+    source: 'CIS perfeco',
+    weekNumber: window.weekNumber,
+    weekLabel: window.weekLabel,
+    from: window.from,
+    to: window.to,
+    toComplete: window.toComplete,
+    rows: rows.slice(0, 30),
+    totals,
     syncedAt: now.toISOString()
   }
   await env.DB.prepare(`
@@ -443,5 +522,119 @@ export async function getBikeWeek(
       detail = excluded.detail,
       synced_at = excluded.synced_at
   `).bind(options.storeId, JSON.stringify(payload), now.toISOString()).run()
+  return payload
+}
+
+// ── 门店周 TO + DIS（BI × CIS 对比卡的 CIS 侧）──
+// TO = perfeco STORES 聚合（全店口径、非整车）；DIS = consolidated_spd 折扣减让流水
+// （POST agg_levels/STORES + stores 过滤，spd_amount 为负值，取绝对值展示）。
+// SPD 与 perfeco 同一 CubeInStore JWT 受众、不同 x-api-key（BI_SPD_API_KEY），
+// 未配置 SPD key 时 dis 为 null（前端只对比 TO，不装死）。
+async function fetchSpdStoreTotal(
+  env: WorkerEnv,
+  storeCode: string,
+  from: string,
+  to: string,
+  jwt: string
+): Promise<{ amount: number; taxExcluded: number; quantity: number } | null> {
+  const config = loadConfig(env).MASTERDATA
+  if (!config.spdApiKey) return null
+  const url = `${config.baseUrl}/consolidated_spd/api/v1/spds/from/${from}/to/${to}/agg_levels/STORES`
+  let payload: unknown = null
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${jwt}`,
+        'x-api-key': config.spdApiKey,
+        'target-country': 'CN',
+        accept: 'application/json',
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({ stores: [storeCode], epvTypes: [], epvSubTypes: [], departments: [], models: [] })
+    })
+    if (!response.ok) throw new PerfecoUpstreamError(`SPD_HTTP_${response.status}`, response.status, response.status >= 500)
+    const text = await response.text()
+    // 与 perfeco 同款容错：周期内无折扣记录时上游返回空 body。
+    payload = text.trim() ? JSON.parse(text) : null
+  } catch (error) {
+    if (error instanceof PerfecoUpstreamError) throw error
+    throw new PerfecoUpstreamError('SPD_NETWORK', 502, true)
+  }
+  if (payload === null) return { amount: 0, taxExcluded: 0, quantity: 0 }
+  const dateList = (payload as { date_list?: Array<{ currency_list?: Array<{ currency?: unknown; agg_level_list?: Array<{ id?: unknown; spd_amount?: unknown; spd_amount_tax_excluded?: unknown; spd_quantity?: unknown }> }> }> })?.date_list
+  for (const day of dateList ?? []) {
+    for (const currency of day.currency_list ?? []) {
+      if (currency.currency !== 'CNY') continue
+      for (const agg of currency.agg_level_list ?? []) {
+        if (String(agg.id ?? '') !== storeCode) continue
+        const amount = typeof agg.spd_amount === 'number' ? Math.abs(agg.spd_amount) : 0
+        const taxExcluded = typeof agg.spd_amount_tax_excluded === 'number' ? Math.abs(agg.spd_amount_tax_excluded) : 0
+        const quantity = typeof agg.spd_quantity === 'number' ? Math.round(agg.spd_quantity) : 0
+        return { amount: Math.round(amount * 100) / 100, taxExcluded: Math.round(taxExcluded * 100) / 100, quantity }
+      }
+    }
+  }
+  return { amount: 0, taxExcluded: 0, quantity: 0 }
+}
+
+export async function getStoreWeek(
+  env: WorkerEnv,
+  options: { storeId: string; storeCode: string; from: string; to: string; now?: Date }
+): Promise<StoreWeekPayload | null> {
+  if (!isPerfecoConfigured(env)) return null
+  const now = options.now ?? new Date()
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(options.from) || !/^\d{4}-\d{2}-\d{2}$/u.test(options.to)) {
+    throw new PerfecoUpstreamError('STORE_WEEK_BAD_WINDOW', 400, false)
+  }
+  if (Date.parse(options.to) - Date.parse(options.from) > 31 * 86400 * 1000) {
+    throw new PerfecoUpstreamError('STORE_WEEK_WINDOW_TOO_LONG', 400, false)
+  }
+  const cacheKey = `store:${options.from}:${options.to}`
+  const cachedRow = await first<{ detail: string; synced_at: string }>(
+    env.DB.prepare(`SELECT detail, synced_at FROM bi_bikes_snapshot WHERE store_id = ? AND business_date = ?`).bind(options.storeId, cacheKey)
+  )
+  if (cachedRow) {
+    const age = now.getTime() - Date.parse(cachedRow.synced_at)
+    if (age >= 0 && age < WEEK_SNAPSHOT_MAX_AGE_MS) {
+      try {
+        const parsed = JSON.parse(cachedRow.detail) as StoreWeekPayload
+        if (parsed && typeof parsed.turnover === 'object') return parsed
+      } catch { /* 缓存损坏 → 重拉 */ }
+    }
+  }
+  const getJwt = lazyLoginJwt(env)
+  const jwt = await getJwt()
+  const entries = await fetchPerfecoEntries(env, {
+    from: options.from,
+    to: options.to,
+    aggLevel: 'STORES',
+    stores: [options.storeCode]
+  }, jwt)
+  const entry = entries.find((item) => String(item.id ?? '') === options.storeCode) ?? entries[0]
+  const toSplit = channelSplit(entry?.turnover as Record<string, unknown> | undefined, false)
+  const qtySplit = channelSplit(entry?.quantity as Record<string, unknown> | undefined, true)
+  const dis = await fetchSpdStoreTotal(env, options.storeCode, options.from, options.to, jwt)
+  const payload: StoreWeekPayload = {
+    available: true,
+    source: 'CIS perfeco + SPD',
+    from: options.from,
+    to: options.to,
+    turnover: {
+      total: Math.round((toSplit.online + toSplit.offline) * 100) / 100,
+      online: toSplit.online,
+      offline: toSplit.offline,
+      quantity: qtySplit.online + qtySplit.offline
+    },
+    dis,
+    syncedAt: now.toISOString()
+  }
+  await env.DB.prepare(`
+    INSERT INTO bi_bikes_snapshot (store_id, business_date, new_bikes, used_bikes, new_bikes_to, used_bikes_to, detail, synced_at)
+    VALUES (?, ?, 0, 0, 0, 0, ?, ?)
+    ON CONFLICT(store_id, business_date) DO UPDATE SET
+      detail = excluded.detail,
+      synced_at = excluded.synced_at
+  `).bind(options.storeId, cacheKey, JSON.stringify(payload), now.toISOString()).run()
   return payload
 }

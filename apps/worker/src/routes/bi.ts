@@ -6,7 +6,7 @@ import { requireJsonBody } from '../lib/json.js'
 import { latestSyncedAt, listBiSkuNames, syncBiSkuNames } from '../services/bi-sku-sync.js'
 import { MasterDataUpstreamError } from '../lib/masterdata-login.js'
 import { businessDateFor } from '../services/business.js'
-import { PerfecoUpstreamError, getBikeWeek, isPerfecoConfigured, readBikeDay, resolveArticleVehicleInfo, resolveModelVehicleInfo, syncBikeDay } from '../services/bi-bikes.js'
+import { PerfecoUpstreamError, currentWeekWindow, getBikeWeek, getStoreWeek, isPerfecoConfigured, readBikeDay, resolveArticleVehicleInfo, resolveModelVehicleInfo, syncBikeDay } from '../services/bi-bikes.js'
 import { ApiProblem } from '../services/problems.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
@@ -58,7 +58,36 @@ export function biRoutes() {
     }
   })
 
-  // 周整车榜（BI 车型榜换源，本周 vs 上周环比）。
+  // 门店周 TO + DIS（CIS 侧：perfeco STORES + consolidated_spd）。
+  // 前端传 BI 快照周 from/to 做 BI × CIS 同期对比；缺省用当前 Sun→Sat 周。
+  app.get('/api/v1/bi/store/week', ...read, async (c) => {
+    if (!isPerfecoConfigured(c.env)) return c.json({ available: false })
+    const context = c.get('auth')!
+    const from = c.req.query('from')
+    const to = c.req.query('to')
+    const window = /^\d{4}-\d{2}-\d{2}$/u.test(from ?? '') && /^\d{4}-\d{2}-\d{2}$/u.test(to ?? '')
+      ? { from: from!, to: to! }
+      : currentWeekWindow(new Date())
+    try {
+      const payload = await getStoreWeek(c.env, {
+        storeId: context.storeId,
+        storeCode: context.storeCode,
+        from: window.from,
+        to: window.to
+      })
+      return c.json(payload ?? { available: false })
+    } catch (error) {
+      if (error instanceof PerfecoUpstreamError && error.status === 400) {
+        throw new ApiProblem(400, error.code, '查询周期参数无效。')
+      }
+      if (error instanceof PerfecoUpstreamError) {
+        throw new ApiProblem(503, error.code, '门店周数据同步暂时不可用，请稍后重试。')
+      }
+      throw error
+    }
+  })
+
+  // 周整车榜（CIS perfeco 当前 Sun→Sat 周，全渠道/线上/线下三分）。
   app.get('/api/v1/bi/bikes/week', ...read, async (c) => {
     if (!isPerfecoConfigured(c.env)) return c.json({ available: false })
     const context = c.get('auth')!

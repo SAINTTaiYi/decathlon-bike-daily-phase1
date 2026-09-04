@@ -46,10 +46,9 @@ test('车型榜过滤诚实：纯车品，非车编码零残留', async () => {
 
 test('全渠道车型：M218 按 Sports Sales 过滤，合计为全聚合口径', async () => {
   const { BI_SNAPSHOT } = await import('../apps/web/src/data/biSnapshot.js')
-  const charts = await read('apps/web/src/components/overview/BiInsightCharts.jsx')
   const { allChannel } = BI_SNAPSHOT.models
   assert.equal(allChannel.rows.length, 17, '快照保留有销量的 17 行（零额行剔除）')
-  assert.match(await read('apps/web/src/components/overview/BiInsightCharts.jsx'), /allChannel\.rows\.slice\(0, 10\)/u, '上屏必须截前 10')
+  const charts = await read('apps/web/src/components/overview/BiInsightCharts.jsx')
   assert.equal(allChannel.total.qty, 107, '合计=21 个车型全聚合（每渠道前 5 口径）')
   assert.equal(allChannel.total.to, 89258.42)
   const sorted = [...allChannel.rows].sort((a, b) => b.qty - a.qty)
@@ -63,8 +62,12 @@ test('全渠道车型：M218 按 Sports Sales 过滤，合计为全聚合口径'
   const rc = allChannel.rows.find(r => r.code === '9010483')
   assert.equal(rc.qty, 12)
   assert.match(rc.channels, /Tmall 7/u)
-  assert.match(charts, /key: 'allChannel', label: '全渠道车型'/u)
-  assert.match(charts, /ALL CHANNEL TOP SALES · BI M218/u)
+  // 2026-09-04 第二轮：tab = 全渠道/线上/线下（CIS perfeco 渠道桶），M218 快照仅作回退。
+  assert.match(charts, /key: 'all', label: '全渠道'/u)
+  assert.match(charts, /key: 'online', label: '线上'/u)
+  assert.match(charts, /key: 'offline', label: '线下'/u)
+  assert.match(charts, /CIS PERFECO 整车周实销/u)
+  assert.match(charts, /BI M218 SNAPSHOT FALLBACK/u, 'CIS 不可用必须显式回退标注')
 })
 
 test('评价 360 哑铃：三实体定案值与明细不可用披露', async () => {

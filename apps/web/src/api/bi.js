@@ -7,3 +7,6 @@ export const getBikeDay = (signal) => api('/api/v1/bi/bikes/day', { signal })
 export const getBikeWeek = (signal) => api('/api/v1/bi/bikes/week', { signal })
 export const getBiVehicles = (articles, signal) => api(`/api/v1/bi/vehicles?articles=${encodeURIComponent(articles.join(','))}`, { signal })
 export const getBiVehicleModels = (codes, signal) => api(`/api/v1/bi/vehicle-models?codes=${encodeURIComponent(codes.join(','))}`, { signal })
+
+// 门店周 TO + DIS（CIS 侧，BI × CIS 对比卡用）。from/to = BI 快照周。
+export const getBiStoreWeek = (from, to, signal) => api(`/api/v1/bi/store/week?from=${from}&to=${to}`, { signal })

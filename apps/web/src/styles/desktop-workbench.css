@@ -413,6 +413,21 @@
   .ops-bi-model-row > .rank { color: #8f8e88; font-family: var(--ops-display); font-size: 10px; font-weight: 650; letter-spacing: .04em; }
   .ops-bi-model-row > .name { color: #1c1c1a; font-size: 12px; font-weight: 620; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ops-bi-model-row > .name .code { color: #b0afa9; font-family: var(--ops-display); font-size: 9px; font-weight: 550; letter-spacing: .05em; margin-left: 6px; }
+  /* 2026-09-04 第二轮：销售榜 全渠道/线上/线下 + BI×CIS 双源对比卡。 */
+  .ops-bi-model-used { display: inline-block; margin-left: 5px; padding: 1px 5px 2px; border-radius: 999px; background: rgb(28 28 26 / .08); color: #55554f; font-family: var(--ops-display); font-size: 8px; font-weight: 700; letter-spacing: .06em; vertical-align: 1px; }
+  .ops-bi-model-empty { color: #8f8e88; font-size: 11px; font-weight: 600; padding: 10px 0; }
+  .ops-bi-compare-card { grid-column: span 2; }
+  .ops-bi-compare-table { display: grid; gap: 2px; margin-top: 10px; align-content: start; }
+  .ops-bi-compare-head, .ops-bi-compare-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr); gap: 10px; align-items: baseline; }
+  .ops-bi-compare-head { color: #8f8e88; font-family: var(--ops-display); font-size: 9px; font-weight: 700; letter-spacing: .1em; padding-bottom: 4px; border-bottom: 1px solid #deddd6; }
+  .ops-bi-compare-row { padding: 8px 0 0; }
+  .ops-bi-compare-label { color: #55554f; font-size: 12px; font-weight: 650; }
+  .ops-bi-compare-bi, .ops-bi-compare-cis { display: grid; gap: 1px; }
+  .ops-bi-compare-bi b, .ops-bi-compare-cis b { color: #1c1c1a; font-family: var(--ops-display); font-size: 19px; font-weight: 800; line-height: 1; letter-spacing: -.01em; }
+  .ops-bi-compare-bi small, .ops-bi-compare-cis small { color: #8f8e88; font-family: var(--ops-display); font-size: 9px; font-weight: 600; letter-spacing: .06em; }
+  .ops-bi-compare-cis[data-cis-state='unavailable'] em { color: #8f8e88; font-style: normal; font-size: 11px; font-weight: 600; }
+  .ops-bi-compare-cis small[data-compare-delta='down'] { color: #55554f; }
+  .ops-bi-compare-note { margin: 10px 0 0; color: #8f8e88; font-size: 9px; font-weight: 550; line-height: 1.5; letter-spacing: .02em; }
   .ops-bi-model-row > .val { display: grid; justify-items: end; row-gap: 1px; }
   .ops-bi-model-row > .val b { color: #1c1c1a; font-family: var(--ops-display); font-size: 11px; font-weight: 680; line-height: 1; white-space: nowrap; }
   .ops-bi-model-row > .val small { color: #8f8e88; font-family: var(--ops-display); font-size: 8.5px; font-weight: 600; letter-spacing: .03em; white-space: nowrap; }

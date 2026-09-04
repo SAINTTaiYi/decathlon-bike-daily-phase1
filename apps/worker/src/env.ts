@@ -47,6 +47,7 @@ export interface WorkerEnv {
   BI_MASTERDATA_LOGIN_USERNAME_ENC?: string
   BI_MASTERDATA_LOGIN_PASSWORD_ENC?: string
   BI_PERFECO_API_KEY?: string
+  BI_SPD_API_KEY?: string
   D1_METRICS_TOKEN?: string
 }
 
@@ -105,6 +106,7 @@ export type MasterDataConfig = {
   loginUsernameEnc?: string
   loginPasswordEnc?: string
   perfecoApiKey?: string
+  spdApiKey?: string
   authorizeUrl: string
   tokenUrl: string
   redirectUri: string
@@ -125,6 +127,7 @@ function loadMasterDataConfig(env: WorkerEnv): MasterDataConfig {
     loginUsernameEnc: env.BI_MASTERDATA_LOGIN_USERNAME_ENC,
     loginPasswordEnc: env.BI_MASTERDATA_LOGIN_PASSWORD_ENC,
     perfecoApiKey: env.BI_PERFECO_API_KEY,
+    spdApiKey: env.BI_SPD_API_KEY,
     authorizeUrl: 'https://idpdecathlon.oxylane.com/as/authorization.oauth2',
     tokenUrl: 'https://idpdecathlon.oxylane.com/as/token.oauth2',
     redirectUri: 'com.decathlon.authentication://com.oxylane.android.cubeinstore',

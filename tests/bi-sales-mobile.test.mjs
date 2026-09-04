@@ -25,16 +25,18 @@ test('销售场景换血：BI 双端挂载，闭店入口保留，总览恢复�
 test('移动端 BI 独立实现：组件与 CSS 齐全', async () => {
   const mobile = await read('apps/web/src/components/overview/BiSalesMobile.jsx')
   const css = await read('apps/web/src/styles/mobile-bi.css')
-  for (const name of ['BimStat', 'BimDis', 'BimGauge', 'BimRepair', 'BimRanking', 'BimReview']) {
+  // 2026-09-04 第二轮：BimStat/BimDis 替换为 BI×CIS 对比卡 BimCompare。
+  for (const name of ['BimCompare', 'BimGauge', 'BimRepair', 'BimRanking', 'BimReview']) {
     assert.match(mobile, new RegExp(`function ${name}`), `缺少移动卡 ${name}`)
   }
   assert.match(mobile, /ops-bim-panel/u)
-  for (const cls of ['ops-bim-card', 'ops-bim-main', 'ops-bim-extra', 'ops-bim-tabs', 'ops-bim-pill', 'ops-bim-tab', 'ops-bim-rows', 'ops-bim-row', 'ops-bim-bar', 'ops-bim-note', 'ops-bim-chart']) {
+  for (const cls of ['ops-bim-card', 'ops-bim-compare-table', 'ops-bim-compare-row', 'ops-bim-tabs', 'ops-bim-pill', 'ops-bim-tab', 'ops-bim-rows', 'ops-bim-row', 'ops-bim-bar', 'ops-bim-note', 'ops-bim-chart']) {
     assert.match(css, new RegExp(`\\.${cls}[\\s>{]`, 'u'), `移动样式缺失 .${cls}`)
   }
   assert.match(css, /\.ops-bim-row\s*\{[^}]*minmax\(0,\s*1fr\)/u)
   assert.match(css, /\.ops-bim-bar\s*>\s*i\s*\{[^}]*transform-origin:\s*left/u)
   assert.ok(!/@keyframes|animation:|transition:/u.test(css), 'mobile-bi.css 禁止 CSS 动画')
+  assert.ok(!/\.ops-bim-main|\.ops-bim-extra|\.ops-bim-stat/u.test(css), '已删卡的死样式必须清干净')
   assert.match(mobile, /gsap\.to\(pill/u, '分段滑块走 GSAP')
 })
 

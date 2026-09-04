@@ -12,7 +12,8 @@ test('BI 面板组件齐全，且只挂载进销售数据场景', async () => {
     read('apps/web/src/scenes/SalesScene.jsx'),
     read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'),
   ])
-  for (const name of ['BiStatCard', 'BiDisField', 'BiOnlineGauge', 'BiRepairTrend', 'BiRepairStat', 'BiReviewCard', 'BiModelRanking', 'BiInsightPanel']) {
+  // 2026-09-04 第二轮：原 G18/L14 单源卡（BiStatCard/BiDisField）替换为 BI×CIS 双源对比卡。
+  for (const name of ['BiSourceCompare', 'BiOnlineGauge', 'BiRepairTrend', 'BiRepairStat', 'BiReviewCard', 'BiModelRanking', 'BiInsightPanel']) {
     assert.match(charts, new RegExp(`export function ${name}`), `缺少组件 ${name}`)
   }
   // 销售场景挂 BI（桌面面板），并保留闭店填写入口
