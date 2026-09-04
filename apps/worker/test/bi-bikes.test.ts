@@ -83,12 +83,14 @@ function mockFetch(handlers: { perfeco?: () => unknown; articleinfo?: () => unkn
 const STORE = { storeId: 'store-1', storeCode: '1299' }
 const NOW = new Date('2026-09-04T03:00:00.000Z')
 
-test('BIKE_FAMILY_IDS：12 个整车 fam 含 BUYBACK 34906，不含配件 fam', () => {
-  assert.equal(BIKE_FAMILY_IDS.length, 12)
+test('BIKE_FAMILY_IDS：11 个整车 fam 含 BUYBACK 34906，不含配件/滑板车族', () => {
+  assert.equal(BIKE_FAMILY_IDS.length, 11)
   assert.ok(BIKE_FAMILY_IDS.includes(34906))
   for (const accessory of [4159, 5294, 5572, 5190, 69, 886, 1117, 11630, 10339, 34875]) {
     assert.ok(!BIKE_FAMILY_IDS.includes(accessory), `fam ${accessory} 不应是整车`)
   }
+  // 2026-09-04 事故：10338 是滑板车族（OXELO MOVE 900/GT 100/GLOBBER），不是 BMX
+  assert.ok(!BIKE_FAMILY_IDS.includes(10338), 'fam 10338 是滑板车族，必须排除')
 })
 
 test('isPerfecoConfigured：缺 perfeco key 时 false', async () => {
@@ -365,6 +367,27 @@ test('resolveModelVehicleInfo：已分类 model → 零上游调用（不登录 
     assert.equal(info.get('8640568')?.isBike, false)
     assert.equal(calls.length, 0)
   } finally { globalThis.fetch = original }
+})
+
+test('GLOBBER/OXELO 品牌硬排除：滑板车即使落入白名单 fam 也不得算整车（2026-09-04 事故回归）', async () => {
+  const env = await makeEnv()
+  // 事故复刻：GLOBBER ELITE GLOW 的 model 在 bi_sku_names 中 family_id=10338、
+  // 旧缓存 is_bike=1（10338 移除前写入）。修正后 isBike 按 family+label 现算：
+  // 10338 不在白名单 → 非整车；即使未来某 GLOBBER 被归入真自行车族，label 品牌词也拦下。
+  const stamp = new Date().toISOString()
+  await env.DB.prepare(`INSERT INTO bi_sku_names (code, label, universe_id, family_id, is_bike, is_buyback, synced_at) VALUES (?, ?, 2, 10338, 1, 0, ?)`)
+    .bind('9000448', 'GLOBBER ELITE GLOW LIGHTS-DARK MINT', stamp).run()
+  await env.DB.prepare(`INSERT INTO bi_sku_names (code, label, universe_id, family_id, is_bike, is_buyback, synced_at) VALUES (?, ?, 2, 11038, 1, 0, ?)`)
+    .bind('8480274', 'TUC 100 ELOPS LF CN BLACK', stamp).run()
+  await env.DB.prepare(`INSERT INTO bi_sku_names (code, label, universe_id, family_id, is_bike, is_buyback, synced_at) VALUES (?, ?, 2, 5033, 1, 0, ?)`)
+    .bind('8618643', '20" MOVE 100 CN', stamp).run()
+  const mocked = mockFetch({}) // 零上游：全部走缓存现算
+  try {
+    const info = await resolveModelVehicleInfo(env, ['9000448', '8480274', '8618643'])
+    assert.equal(info.get('9000448')?.isBike, false, 'GLOBBER 滑板车不得算整车')
+    assert.equal(info.get('8480274')?.isBike, true, 'TUC 城市车仍为整车')
+    assert.equal(info.get('8618643')?.isBike, true, 'MOVE 100 童车仍为整车（品牌排除不得误伤 MOVE 车系）')
+  } finally { mocked.restore() }
 })
 
 test('syncBikeDay：上游空 body（当日数据未入库）= 0 台而非 503', async () => {

@@ -17,13 +17,17 @@ export const BIKE_FAMILY_IDS: readonly number[] = [
   5039, // EXPL 山地
   5045, // BIKE 500/900/100 童车
   10218, // TRIBAN 公路
-  10338, // GT / MOVE 900（BMX/城市）
   11036, // TILT / F120 折叠
   11038, // TUC 城市车
   34290, // ST RR / MTB EXPL
   35132, // RC 公路
   34906 // BUYBACK 二手车
 ]
+// 滑板车/轮滑第三方品牌词硬排除（2026-09-04 事故：GLOBBER ELITE GLOW 落在 10338
+// 被误判为整车——10338 实为滑板车族已从白名单移除；此处为防御层，防未来某滑板车
+// model 被 masterdata 归入真实自行车族时再次混入。OXELO=迪卡侬轮滑/滑板/滑板车线，
+// 该品牌词不会出现在 B'TWIN 自行车 label 上）。
+const SCOOTER_BRAND_RE = /GLOBBER|OXELO/u
 const BUYBACK_FAMILY_ID = 34906
 
 export const BI_BIKES_TZ = 'Asia/Shanghai'
@@ -282,18 +286,21 @@ async function resolveModelInfo(env: WorkerEnv, modelCodes: readonly string[], g
   // 缓存命中判据 = family_id 非空（已分类）。迁移 0023 给旧行加的 is_bike 默认 0
   // 并不代表「已分类为非整车」——BI_SEED_CODES 等登录同步写入的旧行必须重新过
   // families 白名单，否则整车会被默认值永久误判（真实事故：20" EXPL 120 被剔除）。
-  const cached = await all<{ code: string; label: string; family_id: number | null; is_bike: number; is_buyback: number }>(
-    env.DB.prepare(`SELECT code, label, family_id, is_bike, is_buyback FROM bi_sku_names WHERE code IN (${unique.map(() => '?').join(',')}) AND family_id IS NOT NULL`).bind(...unique)
+  // 2026-09-04 事故修正：isBike/isBuyback 不信任落库列，按 family_id + label 现算——
+  // 白名单演进（如移除滑板车族 10338）即时生效，无需刷库。
+  const cached = await all<{ code: string; label: string; family_id: number | null; is_buyback: number }>(
+    env.DB.prepare(`SELECT code, label, family_id, is_buyback FROM bi_sku_names WHERE code IN (${unique.map(() => '?').join(',')}) AND family_id IS NOT NULL`).bind(...unique)
   )
   const known = new Set<string>()
   for (const row of cached) {
     known.add(row.code)
+    const bike = BIKE_FAMILY_IDS.includes(row.family_id ?? -1) && !SCOOTER_BRAND_RE.test(row.label)
     out.set(row.code, {
       modelCode: row.code,
       label: row.label,
       familyId: row.family_id,
-      isBike: row.is_bike === 1,
-      isBuyback: row.is_buyback === 1
+      isBike: bike,
+      isBuyback: row.family_id === BUYBACK_FAMILY_ID || /BUYBACK|二手/u.test(row.label.toUpperCase())
     })
   }
   const missing = unique.filter((code) => !known.has(code) && /^\d{4,10}$/u.test(code))
@@ -325,7 +332,7 @@ async function resolveModelInfo(env: WorkerEnv, modelCodes: readonly string[], g
       const universe = typeof tree.universe_id === 'number' ? tree.universe_id : null
       const family = typeof tree.family_id === 'number' ? tree.family_id : null
       const buyback = family === BUYBACK_FAMILY_ID || /BUYBACK|二手/u.test(label.toUpperCase())
-      const bike = BIKE_FAMILY_IDS.includes(family ?? -1)
+      const bike = BIKE_FAMILY_IDS.includes(family ?? -1) && !SCOOTER_BRAND_RE.test(label)
       out.set(code, { modelCode: code, label, familyId: family, isBike: bike, isBuyback: buyback })
       upserts.push({ code, label, universe, family, bike: bike ? 1 : 0, buyback: buyback ? 1 : 0 })
     }
