@@ -15,6 +15,7 @@ export default function KpiDialog({ open, onClose, values, savedAt, onSave, onCl
   const [confirmClear, setConfirmClear] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [autoFilled, setAutoFilled] = useState(false)
+  const [filledNote, setFilledNote] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -22,22 +23,31 @@ export default function KpiDialog({ open, onClose, values, savedAt, onSave, onCl
       setError('')
       setConfirmClear(false)
       setAutoFilled(false)
+      setFilledNote(false)
     }
   }, [open, values])
 
-  // perfeco 当日实销同步到位后：未保存过的空字段自动填入新车/二手车台数。
-  // 已有值（当天保存过/手改过）绝不覆盖，只显示参考值。
+  // perfeco 当日实销同步到位后自动填入新车/二手车台数（2026-09-04 事故修复）。
+  // 事故根因：未保存当天的表单初始值是 emptyKpi 的数字 0（不是 ''/null），
+  // 旧条件「字段为空才填」对 0 永不命中 → 自动填入从未生效，字段一直显示 0。
+  // 修正语义：
+  //  · 当天尚未保存（savedAt 为空）→ 字段仍处占位 0 态时自动填入实销；
+  //  · 当天已保存过（服务端快照权威）→ 绝不自动覆盖，提供「填入实销」按钮手动同步；
+  //  · 用户已输入非占位值（如手填 3）→ 同样不覆盖。
   useEffect(() => {
     if (!open || !bikeDay || bikeDay.status !== 'ok' || autoFilled) return
     if (bikeDay.newBikes === null || bikeDay.usedBikes === null) return
     setAutoFilled(true)
-    setDraft((current) => {
-      const next = { ...current }
-      if (next.salesVehicles === '' || next.salesVehicles == null) next.salesVehicles = String(bikeDay.newBikes)
-      if (next.usedSold === '' || next.usedSold == null) next.usedSold = String(bikeDay.usedBikes)
-      return next
-    })
-  }, [open, bikeDay, autoFilled])
+    const placeholder = (value) => value === '' || value == null || value === 0 || value === '0'
+    if (!savedAt && (placeholder(draft.salesVehicles) || placeholder(draft.usedSold))) {
+      setDraft((current) => ({
+        ...current,
+        salesVehicles: placeholder(current.salesVehicles) ? String(bikeDay.newBikes) : current.salesVehicles,
+        usedSold: placeholder(current.usedSold) ? String(bikeDay.usedBikes) : current.usedSold
+      }))
+      setFilledNote(true)
+    }
+  }, [open, bikeDay, autoFilled, savedAt, draft.salesVehicles, draft.usedSold])
 
   const fillFromBikeDay = () => {
     if (!bikeDay || bikeDay.status !== 'ok') return
@@ -87,8 +97,8 @@ export default function KpiDialog({ open, onClose, values, savedAt, onSave, onCl
               : bikeDay.status === 'error' ? '自行车实销同步暂不可用，可手动填写'
               : bikeDay.status === 'ok' ? `今日实销（perfeco）：新车 ${bikeDay.newBikes ?? 0} 台 · 二手 ${bikeDay.usedBikes ?? 0} 台`
               : '自行车实销同步暂不可用'}
-            {bikeDay.status === 'ok' && autoFilled ? <span className="bike-sync-note">（已自动填入）</span> : null}
-            {bikeDay.status === 'ok' && !autoFilled ? <button type="button" className="text-action" onClick={fillFromBikeDay}>填入实销</button> : null}
+            {bikeDay.status === 'ok' && filledNote ? <span className="bike-sync-note">（已自动填入）</span> : null}
+            {bikeDay.status === 'ok' && !filledNote ? <button type="button" className="text-action" onClick={fillFromBikeDay}>填入实销</button> : null}
           </p>
         ) : null}
         <label className="field-row">

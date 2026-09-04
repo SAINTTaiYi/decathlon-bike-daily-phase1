@@ -20,22 +20,29 @@ test('API 层：perfeco 四端点 + 门店周对比端点封装齐全', async ()
   assert.match(api, /\/api\/v1\/bi\/store\/week\?from=/u)
 })
 
-test('KpiDialog：点击填写数据自动同步新车/二手并填入空字段', async () => {
+test('KpiDialog：自动填入新车/二手——占位 0 语义（2026-09-04 事故回归）', async () => {
   const dialog = await read('components/dialogs/KpiDialog.jsx')
-  // 接收 bikeDay 同步状态
+  // 接收 bikeDay 同步状态与 savedAt（当天是否已保存）
   assert.match(dialog, /bikeDay \}/u)
-  // 未保存过的空字段自动填入（salesVehicles=新车、usedSold=二手分开）
-  assert.match(dialog, /next\.salesVehicles === ''/u)
-  assert.match(dialog, /next\.usedSold === ''/u)
+  assert.match(dialog, /savedAt, onSave/u)
+  // 事故根因回归：emptyKpi 的数字 0 必须算占位态（旧代码只认 ''/null，对 0 永不填入）
+  const placeholder = dialog.match(/const placeholder = \(value\) => ([^\n]+)/u)
+  assert.ok(placeholder, 'placeholder 判定函数必须存在')
+  assert.match(placeholder[1], /=== 0/u, '占位判定必须覆盖数字 0')
+  assert.match(placeholder[1], /'0'/u, '占位判定必须覆盖字符串 0')
+  assert.match(placeholder[1], /== null/u)
+  // 未保存（!savedAt）才自动填入；已保存绝不自动覆盖（服务端快照权威）
+  assert.match(dialog, /if \(!savedAt && \(placeholder\(draft\.salesVehicles\) \|\| placeholder\(draft\.usedSold\)\)\)/u)
+  // salesVehicles=新车、usedSold=二手分开填入
   assert.match(dialog, /String\(bikeDay\.newBikes\)/u)
   assert.match(dialog, /String\(bikeDay\.usedBikes\)/u)
+  // 「（已自动填入）」只在真正发生填入时显示（filledNote），已保存日显示「填入实销」按钮
+  assert.match(dialog, /filledNote \? <span className="bike-sync-note">（已自动填入）/u)
+  assert.match(dialog, /!filledNote \? <button type="button" className="text-action" onClick=\{fillFromBikeDay\}>填入实销/u)
   // 同步状态行存在（syncing/error/ok 三态）
   assert.match(dialog, /data-bike-sync=\{bikeDay\.status\}/u)
   assert.match(dialog, /正在同步今日自行车实销/u)
-  // 手动填入入口
   assert.match(dialog, /fillFromBikeDay/u)
-  // 已保存过（savedAt 存在）不自动覆盖的守卫：自动填入只在空值时生效
-  assert.match(dialog, /next\.salesVehicles == null/u)
 })
 
 test('KpiDialog 同步提示行样式落地（CSS 不缺类）', async () => {
