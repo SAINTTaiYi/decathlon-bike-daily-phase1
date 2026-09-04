@@ -17,8 +17,9 @@ export const BI_SNAPSHOT = {
   economic: {
     caliber: 'store',
     // BI × CIS 对比用：BI 快照固定周（M216 W35 实证 = 08-23→08-29），CIS 按同期查询。
-    from: '2026-08-23',
-    to: '2026-08-29',
+    // 命名用 weekFrom/weekTo：economic.to 是 TO 数值（427916），日期字段绝不与它撞名。
+    weekFrom: '2026-08-23',
+    weekTo: '2026-08-29',
     weekLabel: 'W35',
     to: 427916,
     toYoy: -0.1044,

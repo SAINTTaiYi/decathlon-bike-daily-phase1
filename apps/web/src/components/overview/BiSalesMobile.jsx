@@ -79,7 +79,7 @@ function BimCompare({ snapshot }) {
   return (
     <section ref={ref} className="ops-bim-card ops-bim-compare" data-replay={replay} onClick={replayChart} aria-label="门店 TO 与 DIS 的 BI 与 CIS 双源对比">
       <h3>门店 TO / DIS：BI × CIS 对比</h3>
-      <div className="ops-bim-sub">{`${eco.weekLabel} · ${eco.from.slice(5)} → ${eco.to.slice(5)} · BI 快照周 · CIS 同期`}</div>
+      <div className="ops-bim-sub">{`${eco.weekLabel} · ${eco.weekFrom.slice(5)} → ${eco.weekTo.slice(5)} · BI 快照周 · CIS 同期`}</div>
       <div className="ops-bim-compare-table" role="table" aria-label="双源数值对比">
         <div className="ops-bim-compare-head" role="row"><span>指标</span><span>BI</span><span>CIS</span></div>
         {rows.map((row) => {

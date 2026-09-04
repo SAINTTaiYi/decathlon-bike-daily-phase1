@@ -169,8 +169,8 @@ test('BI×CIS 对比卡：双端组件 + CIS 侧 hook + 周期标注', async () 
   assert.match(desktop, /eco\.weekLabel/u)
   assert.match(desktop, /BI 快照固定周 · CIS 按同期查询/u)
   // CIS 侧查询窗口 = BI 快照周
-  assert.match(hook, /BI_SNAPSHOT\.economic\.from/u)
-  assert.match(hook, /BI_SNAPSHOT\.economic\.to/u)
+  assert.match(hook, /BI_SNAPSHOT\.economic\.weekFrom/u)
+  assert.match(hook, /BI_SNAPSHOT\.economic\.weekTo/u)
   // 口径披露：两源 DIS 定义不同
   assert.match(desktop, /BI DIS = M216 全渠道减让；CIS DIS = SPD 折扣减让流水合计/u)
   // CSS 落地（桌面 + 移动独立）
@@ -196,5 +196,23 @@ test('Worker 路由：store/week 端点 + week 端点保持读权限', async () 
   assert.match(routes, /getStoreWeek/u)
   assert.match(routes, /currentWeekWindow/u)
   assert.match(routes, /门店周数据同步暂时不可用/u)
+})
+
+test('economic 周期字段不与 TO 数值撞名（白屏事故回归）', async () => {
+  const { BI_SNAPSHOT } = await import('../apps/web/src/data/biSnapshot.js')
+  // 事故：eco.to.slice(5) 在 to=427916（数字）上崩——economic.to 必须保持数值语义。
+  assert.equal(typeof BI_SNAPSHOT.economic.to, 'number')
+  assert.equal(BI_SNAPSHOT.economic.to, 427916)
+  assert.match(BI_SNAPSHOT.economic.weekFrom, /\d{4}-\d{2}-\d{2}/u)
+  assert.match(BI_SNAPSHOT.economic.weekTo, /\d{4}-\d{2}-\d{2}/u)
+  const desktop = await read('components/overview/BiInsightCharts.jsx')
+  const mobile = await read('components/overview/BiSalesMobile.jsx')
+  // 组件里绝不允许再对 eco.from / eco.to 做字符串操作
+  assert.doesNotMatch(desktop, /eco\.from\b/u)
+  assert.doesNotMatch(desktop, /eco\.to\./u)
+  assert.doesNotMatch(mobile, /eco\.from\b/u)
+  assert.doesNotMatch(mobile, /eco\.to\./u)
+  assert.match(desktop, /eco\.weekFrom/u)
+  assert.match(mobile, /eco\.weekTo/u)
 })
 

@@ -12,7 +12,7 @@ export default function useBiStoreCompare() {
   useEffect(() => {
     if (sessionCache) return undefined
     let cancelled = false
-    getBiStoreWeek(BI_SNAPSHOT.economic.from, BI_SNAPSHOT.economic.to)
+    getBiStoreWeek(BI_SNAPSHOT.economic.weekFrom, BI_SNAPSHOT.economic.weekTo)
       .then((payload) => {
         if (payload && payload.available === true) {
           sessionCache = payload

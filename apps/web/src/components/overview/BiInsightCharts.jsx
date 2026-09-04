@@ -94,7 +94,7 @@ export function BiSourceCompare({ snapshot }) {
   return (
     <section ref={ref} className="ops-lieflat-card ops-bi-card ops-bi-compare-card" data-replay={replay} onClick={replayChart} aria-label="门店 TO 与 DIS 的 BI 与 CIS 双源对比">
       <h3>门店 TO / DIS：BI × CIS 双源对比</h3>
-      <div className="ops-lieflat-sub"><span>{`${eco.weekLabel} · ${eco.from} → ${eco.to.slice(5)} · BI 快照固定周 · CIS 按同期查询`}</span></div>
+      <div className="ops-lieflat-sub"><span>{`${eco.weekLabel} · ${eco.weekFrom} → ${eco.weekTo.slice(5)} · BI 快照固定周 · CIS 按同期查询`}</span></div>
       <div className="ops-bi-compare-table" role="table" aria-label="双源数值对比表">
         <div className="ops-bi-compare-head" role="row">
           <span>指标</span><span>BI · M216 快照</span><span>CIS · perfeco + SPD</span>
