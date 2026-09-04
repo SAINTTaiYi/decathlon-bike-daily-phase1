@@ -216,3 +216,27 @@ test('economic 周期字段不与 TO 数值撞名（白屏事故回归）', asyn
   assert.match(mobile, /eco\.weekTo/u)
 })
 
+test('BI×CIS 双源对比快照锚点（2026-09-04 preview 实测）', async () => {
+  const { BI_SNAPSHOT } = await import('../apps/web/src/data/biSnapshot.js')
+  // BI 侧：M216 W35 快照（08-23→08-29）。
+  assert.equal(BI_SNAPSHOT.economic.weekFrom, '2026-08-23')
+  assert.equal(BI_SNAPSHOT.economic.weekTo, '2026-08-29')
+  assert.equal(BI_SNAPSHOT.economic.weekLabel, 'W35')
+  // CIS 同期实测（08-23→08-29 perfeco STORES + SPD）：TO 425,134.86（与 BI 差 -0.6%），
+  // 双源一致性锚点；DIS 27,948.38（SPD 折扣流水口径 ≠ M216 全渠道减让 118,623，
+  // 差异属口径不同，卡片必须披露而非抹平）。
+  const hook = await read('hooks/useBiStoreCompare.js')
+  assert.match(hook, /getBiStoreWeek\(BI_SNAPSHOT\.economic\.weekFrom, BI_SNAPSHOT\.economic\.weekTo\)/u)
+})
+
+test('周榜周期标注：W 编号 + Sun→Sat 窗口 + 未完结披露', async () => {
+  const worker = await readFile(new URL('../apps/worker/src/services/bi-bikes.ts', import.meta.url), 'utf8')
+  assert.match(worker, /Sun→Sat/u)
+  assert.match(worker, /W 编号取周六所在 ISO 周/u)
+  assert.match(worker, /toComplete/u)
+  assert.match(worker, /parsed\.from === window\.from/u)
+  // 未完结披露渲染在 hook 的 weekRange 拼接（冒烟实测显示「（至今日）」）
+  const hook = await read('hooks/useBiBikesWeek.js')
+  assert.match(hook, /（至今日）/u)
+})
+
