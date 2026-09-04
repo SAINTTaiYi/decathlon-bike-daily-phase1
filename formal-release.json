@@ -1,51 +1,24 @@
 {
   "kind": "formal-production-release",
-  "version": "6.6.0",
+  "version": "6.6.1",
   "previewRange": {
-    "fromExclusive": "0070a620583a2cd500c41471f6789e34bf17ecda",
-    "toInclusive": "a1c3daae78941e4f0f2c0ef1c9f14e0cef889274",
+    "fromExclusive": "e39c55ee9e1aba5dc55998ddf14abf4022ab5a85",
+    "toInclusive": "4549183a6e57f600720247f1812cbcb8d64277f7",
     "commits": [
       {
-        "sha": "a41afaf68a7ed1d8a90f71ecaee16f998314f101",
-        "subject": "feat(bi): perfeco 整车换源 + 闭店 KPI 自动同步 + Shiphub 日报渠道标识"
-      },
-      {
-        "sha": "2687cb5b08530fd876b838fc6771706d8362c365",
-        "subject": "fix(bi): perfeco 当日空 body 容错——营业前无数据返回 0 台而非 503"
-      },
-      {
-        "sha": "ba6ad42654d80d1839e3f66cdf76e56b530d3dfb",
-        "subject": "fix(bi): 分类缓存命中判据收紧为 family_id 非空，旧行默认值不再误判整车"
-      },
-      {
-        "sha": "99c95097c09d749b779e9b0e6a3365f2bca91324",
-        "subject": "perf(bi): 新增 BI 端点读行/登录预算收敛——缓存全覆盖零上游调用"
-      },
-      {
-        "sha": "acec7dfb8079e55b004ca1592ff51b6580a7c132",
-        "subject": "feat(bi): 销售榜换全渠道/线上/线下 + 数据源与 W 周期标注 + 门店 TO/DIS BI×CIS 双源对比"
-      },
-      {
-        "sha": "7014544a3aa8e5e0d4caa547d48cf16142a7f7f1",
-        "subject": "fix(bi): economic 周期字段撞名导致加载即白屏——改用 weekFrom/weekTo"
-      },
-      {
-        "sha": "a1c3daae78941e4f0f2c0ef1c9f14e0cef889274",
-        "subject": "test(bi): 双源对比与周期标注锚点（preview 实测值锁进回归）"
+        "sha": "4549183a6e57f600720247f1812cbcb8d64277f7",
+        "subject": "fix(kpi): 未保存日的占位 0 让自动填入从未生效——占位判定与保存态守卫重写"
       }
     ]
   },
   "announcement": {
-    "title": "perfeco 整车换源：闭店 KPI 自动同步与 BI×CIS 双源对比",
-    "summary": "闭店弹窗自动同步当日新车/二手车实销；销售榜按全渠道/线上/线下展示 perfeco 整车周实销（含 W 周期与数据源标注）；Shiphub 日报改用官方车型名并剔除非整车，标识与手动自提同构（渠道名+在途）；新增门店 TO/DIS 的 BI 与 CIS 双源周对比。",
+    "title": "修复闭店 KPI 自动填入未生效",
+    "summary": "修复未保存日占位 0 导致当日新车/二手车实销从未自动填入弹窗字段的问题；已保存日不自动覆盖并提供「填入实销」按钮。",
     "changes": [
-      "闭店「填写数据」自动同步当日新车/二手车台数（perfeco 实销），未保存字段自动填入",
-      "销售榜换源 CIS perfeco：全渠道/线上/线下三视图，数据源与 W 周期显式标注",
-      "整车口径：families 白名单服务端过滤，轮滑鞋/头盔/手套等配件不再混入车型榜",
-      "Shiphub 日报：标题显示官方车型名而非颜色尺码；非整车整条剔除；右侧标识改为渠道名（在途加后缀）；JDDJ/Meituan 翻译补齐",
-      "门店 TO/DIS 新增 BI×CIS 双源周对比卡（口径差异如实披露）",
-      "BI 接口读行与登录预算收敛：D1 全点查、惰性 IdP 登录、多级缓存"
+      "修复：闭店「填写数据」弹窗的当日实销自动填入在数字 0 占位态下从未生效——现在未保存日打开弹窗即自动填入新车/二手车实销数",
+      "已保存过的当天绝不自动覆盖（服务端快照权威），提供「填入实销」按钮手动同步",
+      "「已自动填入」提示只在真正发生填入时显示，不再误标"
     ]
   },
-  "preparedAt": "2026-09-04T13:12:10.570Z"
+  "preparedAt": "2026-09-04T14:17:20.367Z"
 }
