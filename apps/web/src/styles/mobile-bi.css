@@ -5,12 +5,6 @@
 .ops-bim-sub { margin-top: 3px; color: #8f8e88; font-family: var(--ops-display); font-size: 9px; font-weight: 600; letter-spacing: .06em; }
 .ops-bim-chart { display: block; width: 100%; margin-top: 6px; }
 .ops-bim-src { margin-top: 6px; color: #b0afa9; font-family: var(--ops-display); font-size: 8px; font-weight: 600; letter-spacing: .12em; }
-.ops-bim-main { display: flex; align-items: baseline; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
-.ops-bim-main > b { color: #1c1c1a; font-family: var(--ops-display); font-size: 30px; font-weight: 800; line-height: 1; letter-spacing: -.02em; }
-.ops-bim-main > span { padding: 2px 8px 3px; border-radius: 999px; background: rgb(28 28 26 / .07); color: #55554f; font-family: var(--ops-display); font-size: 10px; font-weight: 650; }
-.ops-bim-extra { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
-.ops-bim-extra small { display: block; color: #8f8e88; font-family: var(--ops-display); font-size: 8px; font-weight: 600; letter-spacing: .1em; }
-.ops-bim-extra b { margin-top: 2px; color: #1c1c1a; font-family: var(--ops-display); font-size: 14px; font-weight: 800; }
 .ops-bim-tabs { position: relative; display: inline-flex; gap: 2px; margin-top: 8px; padding: 3px; border-radius: 999px; background: rgb(28 28 26 / .05); }
 .ops-bim-pill { position: absolute; top: 3px; left: 0; height: calc(100% - 6px); width: 32px; border-radius: 999px; background: var(--ops-yellow); }
 .ops-bim-tab { position: relative; z-index: 1; border: 0; background: transparent; padding: 4px 10px; border-radius: 999px; color: #55554f; font-family: var(--ops-display); font-size: 10px; font-weight: 650; letter-spacing: .04em; cursor: pointer; }
@@ -19,6 +13,17 @@
 .ops-bim-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; column-gap: 6px; align-items: baseline; }
 .ops-bim-row > .rank { color: #8f8e88; font-family: var(--ops-display); font-size: 9px; font-weight: 650; }
 .ops-bim-row > .name { color: #1c1c1a; font-size: 11px; font-weight: 620; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 2026-09-04 第二轮：全渠道/线上/线下 tab + BI×CIS 对比卡（移动端独立实现）。 */
+.ops-bim-used { display: inline-block; margin-left: 4px; padding: 1px 4px 2px; border-radius: 999px; background: rgb(28 28 26 / .08); color: #55554f; font-family: var(--ops-display); font-size: 8px; font-weight: 700; letter-spacing: .05em; vertical-align: 1px; }
+.ops-bim-compare-table { display: grid; gap: 2px; margin-top: 8px; }
+.ops-bim-compare-head, .ops-bim-compare-row { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1fr) minmax(0, 1.1fr); gap: 8px; align-items: baseline; }
+.ops-bim-compare-head { color: #8f8e88; font-family: var(--ops-display); font-size: 8px; font-weight: 700; letter-spacing: .1em; padding-bottom: 3px; border-bottom: 1px solid #deddd6; }
+.ops-bim-compare-row { padding: 6px 0 0; }
+.ops-bim-compare-row > .label { color: #55554f; font-size: 11px; font-weight: 650; }
+.ops-bim-compare-row > .bi b, .ops-bim-compare-row > .cis b { color: #1c1c1a; font-family: var(--ops-display); font-size: 15px; font-weight: 800; line-height: 1; }
+.ops-bim-compare-row > .bi, .ops-bim-compare-row > .cis { display: grid; gap: 1px; }
+.ops-bim-compare-row > .cis[data-cis-state='unavailable'] em { color: #8f8e88; font-style: normal; font-size: 10px; font-weight: 600; }
+.ops-bim-compare-row small { color: #8f8e88; font-family: var(--ops-display); font-size: 8px; font-weight: 600; }
 .ops-bim-row > .name .code { color: #b0afa9; font-family: var(--ops-display); font-size: 8px; margin-left: 5px; }
 .ops-bim-row > .val { display: grid; justify-items: end; row-gap: 1px; }
 .ops-bim-row > .val b { color: #1c1c1a; font-family: var(--ops-display); font-size: 10px; font-weight: 680; white-space: nowrap; }

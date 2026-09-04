@@ -202,7 +202,11 @@ const CATEGORY_SOURCE_LABEL: Record<ShipHubCategory, string> = {
 const CHANNEL_LABELS: Record<string, string> = {
   cube: '小程序',
   jd: '京东',
-  tmall: '天猫'
+  tmall: '天猫',
+  jddj: '京东到家',
+  meituan: '美团',
+  douyin: '抖音',
+  pdd: '拼多多'
 }
 
 function channelLabel(platform: string): string | null {

@@ -9,19 +9,44 @@ const fields = [
   ['usedReceived', '收二手车', '台']
 ]
 
-export default function KpiDialog({ open, onClose, values, savedAt, onSave, onClear, onNotify }) {
+export default function KpiDialog({ open, onClose, values, savedAt, onSave, onClear, onNotify, bikeDay }) {
   const [draft, setDraft] = useState(values)
   const [error, setError] = useState('')
   const [confirmClear, setConfirmClear] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [autoFilled, setAutoFilled] = useState(false)
 
   useEffect(() => {
     if (open) {
       setDraft(values)
       setError('')
       setConfirmClear(false)
+      setAutoFilled(false)
     }
   }, [open, values])
+
+  // perfeco 当日实销同步到位后：未保存过的空字段自动填入新车/二手车台数。
+  // 已有值（当天保存过/手改过）绝不覆盖，只显示参考值。
+  useEffect(() => {
+    if (!open || !bikeDay || bikeDay.status !== 'ok' || autoFilled) return
+    if (bikeDay.newBikes === null || bikeDay.usedBikes === null) return
+    setAutoFilled(true)
+    setDraft((current) => {
+      const next = { ...current }
+      if (next.salesVehicles === '' || next.salesVehicles == null) next.salesVehicles = String(bikeDay.newBikes)
+      if (next.usedSold === '' || next.usedSold == null) next.usedSold = String(bikeDay.usedBikes)
+      return next
+    })
+  }, [open, bikeDay, autoFilled])
+
+  const fillFromBikeDay = () => {
+    if (!bikeDay || bikeDay.status !== 'ok') return
+    setDraft((current) => ({
+      ...current,
+      salesVehicles: String(bikeDay.newBikes ?? 0),
+      usedSold: String(bikeDay.usedBikes ?? 0)
+    }))
+  }
 
   const submit = async (event) => {
     event.preventDefault()
@@ -56,6 +81,16 @@ export default function KpiDialog({ open, onClose, values, savedAt, onSave, onCl
             </label>
           ))}
         </div>
+        {bikeDay && bikeDay.status !== 'unavailable' ? (
+          <p className="form-meta bike-day-sync" data-bike-sync={bikeDay.status}>
+            {bikeDay.status === 'syncing' ? '正在同步今日自行车实销…'
+              : bikeDay.status === 'error' ? '自行车实销同步暂不可用，可手动填写'
+              : bikeDay.status === 'ok' ? `今日实销（perfeco）：新车 ${bikeDay.newBikes ?? 0} 台 · 二手 ${bikeDay.usedBikes ?? 0} 台`
+              : '自行车实销同步暂不可用'}
+            {bikeDay.status === 'ok' && autoFilled ? <span className="bike-sync-note">（已自动填入）</span> : null}
+            {bikeDay.status === 'ok' && !autoFilled ? <button type="button" className="text-action" onClick={fillFromBikeDay}>填入实销</button> : null}
+          </p>
+        ) : null}
         <label className="field-row">
           <span>安全检查型号或单号</span>
           <input value={draft.safetyModel || ''} onChange={(event) => setDraft((current) => ({ ...current, safetyModel: event.target.value }))} maxLength="40" placeholder="有开单时填写，可用逗号分隔多条" />

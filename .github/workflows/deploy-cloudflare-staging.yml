@@ -182,17 +182,21 @@ jobs:
           BI_MASTERDATA_LOGIN_KEY: ${{ secrets.BI_MASTERDATA_LOGIN_KEY }}
           BI_MASTERDATA_LOGIN_USERNAME_ENC: ${{ secrets.BI_MASTERDATA_LOGIN_USERNAME_ENC }}
           BI_MASTERDATA_LOGIN_PASSWORD_ENC: ${{ secrets.BI_MASTERDATA_LOGIN_PASSWORD_ENC }}
+          BI_PERFECO_API_KEY: ${{ secrets.BI_PERFECO_API_KEY }}
+          BI_SPD_API_KEY: ${{ secrets.BI_SPD_API_KEY }}
         run: |
           set -euo pipefail
           # 六个凭据齐全才注入：BI SKU 同步缺任一凭据会整体优雅跳过（MASTERDATA_NOT_CONFIGURED），
           # 不配置时也绝不拖垮 Staging 部署。
-          if [ -n "$BI_MASTERDATA_CLIENT_ID" ] && [ -n "$BI_MASTERDATA_CLIENT_SECRET" ] && [ -n "$BI_MASTERDATA_API_KEY" ] && [ -n "$BI_MASTERDATA_LOGIN_KEY" ] && [ -n "$BI_MASTERDATA_LOGIN_USERNAME_ENC" ] && [ -n "$BI_MASTERDATA_LOGIN_PASSWORD_ENC" ]; then
+          if [ -n "$BI_MASTERDATA_CLIENT_ID" ] && [ -n "$BI_MASTERDATA_CLIENT_SECRET" ] && [ -n "$BI_MASTERDATA_API_KEY" ] && [ -n "$BI_MASTERDATA_LOGIN_KEY" ] && [ -n "$BI_MASTERDATA_LOGIN_USERNAME_ENC" ] && [ -n "$BI_MASTERDATA_LOGIN_PASSWORD_ENC" ] && [ -n "$BI_PERFECO_API_KEY" ] && [ -n "$BI_SPD_API_KEY" ]; then
             printf '%s' "$BI_MASTERDATA_CLIENT_ID" | wrangler secret put BI_MASTERDATA_CLIENT_ID --config wrangler.deploy.jsonc
             printf '%s' "$BI_MASTERDATA_CLIENT_SECRET" | wrangler secret put BI_MASTERDATA_CLIENT_SECRET --config wrangler.deploy.jsonc
             printf '%s' "$BI_MASTERDATA_API_KEY" | wrangler secret put BI_MASTERDATA_API_KEY --config wrangler.deploy.jsonc
             printf '%s' "$BI_MASTERDATA_LOGIN_KEY" | wrangler secret put BI_MASTERDATA_LOGIN_KEY --config wrangler.deploy.jsonc
             printf '%s' "$BI_MASTERDATA_LOGIN_USERNAME_ENC" | wrangler secret put BI_MASTERDATA_LOGIN_USERNAME_ENC --config wrangler.deploy.jsonc
             printf '%s' "$BI_MASTERDATA_LOGIN_PASSWORD_ENC" | wrangler secret put BI_MASTERDATA_LOGIN_PASSWORD_ENC --config wrangler.deploy.jsonc
+            printf '%s' "$BI_PERFECO_API_KEY" | wrangler secret put BI_PERFECO_API_KEY --config wrangler.deploy.jsonc
+            printf '%s' "$BI_SPD_API_KEY" | wrangler secret put BI_SPD_API_KEY --config wrangler.deploy.jsonc
           else
             echo "BI masterdata secrets not fully configured; skipping injection (SKU name sync stays gracefully disabled)."
           fi

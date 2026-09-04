@@ -2,7 +2,9 @@
 // 图型血缘与桌面端一致（lieflat G18/L14/F11/F3/F5/F12），几何按移动竖屏重排。
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
-import { BI_SNAPSHOT, BI_DIS_DOTS } from '../../data/biSnapshot.js'
+import { BI_SNAPSHOT } from '../../data/biSnapshot.js'
+import useBiBikesWeek from '../../hooks/useBiBikesWeek.js'
+import useBiStoreCompare from '../../hooks/useBiStoreCompare.js'
 import { ALLCHANNEL_NAMES } from '../../data/biSkuNames.js'
 import useBiSkuNames from '../../hooks/useBiSkuNames.js'
 
@@ -58,84 +60,49 @@ function useBiMotion(ref, revealed, replay, reduced, build) {
   }, [revealed, replay, reduced, build])
 }
 
-/* ── G18 · 门店 TO（全店口径标注）──────────────────────────── */
-function BimStat({ snapshot }) {
-  const { economic, storeSummary } = snapshot
+/* ── 双源对比 · 门店 TO / DIS：BI × CIS 周期对比（2026-09-04，替换原 G18/L14 单源卡）── */
+function BimCompare({ snapshot }) {
+  const storeWeek = useBiStoreCompare()
+  const eco = snapshot.economic
   const { ref, revealed, replay, replayChart } = useBiReveal()
   const reduced = usePrefersReducedMotion()
+  const cisTo = typeof storeWeek?.turnover?.total === 'number' ? storeWeek.turnover.total : null
+  const cisDis = storeWeek?.dis && typeof storeWeek.dis.amount === 'number' ? storeWeek.dis.amount : null
+  const rows = [
+    { key: 'to', label: '门店 TO', bi: eco.to, cis: cisTo },
+    { key: 'dis', label: 'DIS 销售', bi: eco.dis.total, cis: cisDis }
+  ]
   const build = useMemo(() => (timeline, node) => {
-    node.querySelectorAll('[data-bim-counter]').forEach((element, index) => {
-      const target = Number(element.dataset.bimCounter)
-      const state = { value: 0 }
-      timeline.to(state, { value: target, duration: 1.0, ease: 'expo.out', onUpdate: () => { element.textContent = money(state.value) } }, index * 0.12)
-    })
-    const chip = node.querySelector('[data-bim-yoy]')
-    if (chip) timeline.from(chip, { opacity: 0, y: 6, duration: 0.5, ease: 'power3.out' }, 0.5)
+    timeline.from(node.querySelectorAll('.ops-bim-compare-row'), { opacity: 0, y: 8, duration: 0.45, ease: 'power3.out', stagger: 0.1 }, 0.1)
   }, [])
   useBiMotion(ref, revealed, replay, reduced, build)
-  const yoyPercent = Math.abs(economic.toYoy * 100).toFixed(1)
   return (
-    <section ref={ref} className="ops-bim-card ops-bim-stat" data-replay={replay} onClick={replayChart} aria-label={`门店 TO ${money(economic.to)}，同比 ${economic.toYoy >= 0 ? '增长' : '下降'} ${yoyPercent}%`}>
-      <h3>门店 TO 同比回落 {yoyPercent}%（全店口径）</h3>
-      <div className="ops-bim-sub">BI M216 · 本周期营业额 · ⚠ 全店口径：BI 经济表暂未开放自行车维度</div>
-      <div className="ops-bim-main"><b data-bim-counter={economic.to}>{money(economic.to)}</b><span data-bim-yoy="">{economic.toYoy < 0 ? '▾' : '▴'} {yoyPercent}%</span></div>
-      <div className="ops-bim-extra">
-        <div><small>MONTHLY</small><b data-bim-counter={economic.monthlyTo}>{money(economic.monthlyTo)}</b></div>
-        <div><small>WEEKLY</small><b data-bim-counter={storeSummary.weeklyTo}>{money(storeSummary.weeklyTo)}</b></div>
-        <div><small>ONLINE</small><b>{`${(storeSummary.onlineShare * 100).toFixed(1)}%`}</b></div>
+    <section ref={ref} className="ops-bim-card ops-bim-compare" data-replay={replay} onClick={replayChart} aria-label="门店 TO 与 DIS 的 BI 与 CIS 双源对比">
+      <h3>门店 TO / DIS：BI × CIS 对比</h3>
+      <div className="ops-bim-sub">{`${eco.weekLabel} · ${eco.weekFrom.slice(5)} → ${eco.weekTo.slice(5)} · BI 快照周 · CIS 同期`}</div>
+      <div className="ops-bim-compare-table" role="table" aria-label="双源数值对比">
+        <div className="ops-bim-compare-head" role="row"><span>指标</span><span>BI</span><span>CIS</span></div>
+        {rows.map((row) => {
+          const diff = row.cis !== null && row.bi ? row.cis - row.bi : null
+          const pct = diff !== null && row.bi ? (diff / row.bi) * 100 : null
+          return (
+            <div className="ops-bim-compare-row" role="row" key={row.key}>
+              <span className="label">{row.label}</span>
+              <span className="bi"><b>{money(row.bi)}</b></span>
+              <span className="cis" data-cis-state={row.cis === null ? 'unavailable' : 'ok'}>
+                {row.cis === null ? <em>CIS 暂不可用</em> : (
+                  <>
+                    <b>{money(row.cis)}</b>
+                    {diff !== null ? <small>{`${diff >= 0 ? '+' : ''}${pct.toFixed(1)}%`}</small> : null}
+                  </>
+                )}
+              </span>
+            </div>
+          )
+        })}
       </div>
-      <div className="ops-bim-src">DRAW-IN COUNTER · BI M216 · STORE 1299</div>
-    </section>
-  )
-}
-
-/* ── L14 · DIS 构成（1 点 = 1 个百分点）────────────────────── */
-const DIS_SEGMENTS = [
-  { key: 'omni', name: 'OMNI', fill: MONO.ink, cx: 110, cy: 60, phase: 0 },
-  { key: 'offline', name: 'OFFLINE', fill: MONO.muted, cx: 290, cy: 60, phase: 55 }
-]
-function BimDis({ snapshot }) {
-  const { ref, revealed, replay, replayChart } = useBiReveal()
-  const reduced = usePrefersReducedMotion()
-  const dots = useMemo(() => DIS_SEGMENTS.map((segment, segmentIndex) => {
-    const count = BI_DIS_DOTS[segment.key]
-    let edge = 0
-    const points = Array.from({ length: count }, (_, k) => {
-      const angle = k * 137.508 + segment.phase
-      const radius = 3 + Math.sqrt(k) * 3.6 + rnd(k + 1, segmentIndex + 2) * 2
-      edge = Math.max(edge, radius)
-      const [x, y] = pol(segment.cx, segment.cy, radius, angle)
-      return { x, y, r: 1.2 + rnd(k + 2, segmentIndex + 3) * 1.2, spoke: k % 5 === 0, cx: segment.cx, cy: segment.cy }
-    })
-    return { segment, points, edge }
-  }), [])
-  const build = useMemo(() => (timeline, node) => {
-    timeline.from(node.querySelectorAll('[data-bim-dot]'), { scale: 0, duration: 0.4, ease: 'back.out(1.6)', stagger: 0.008 }, 0.1)
-    timeline.from(node.querySelectorAll('[data-bim-label]'), { opacity: 0, duration: 0.5, ease: 'power2.out', stagger: 0.12 }, 0.6)
-  }, [])
-  useBiMotion(ref, revealed, replay, reduced, build)
-  const { dis } = snapshot.economic
-  return (
-    <section ref={ref} className="ops-bim-card" data-replay={replay}>
-      <h3>DIS 销售：全渠道与线下几乎对半（全店口径）</h3>
-      <div className="ops-bim-sub">1 点 = DIS 的 1 个百分点 · 全渠道 {money(dis.omni)} · 线下 {money(dis.offline)}</div>
-      <svg className="ops-bim-chart" viewBox="0 0 400 150" role="img" aria-label={`DIS 构成：全渠道 ${BI_DIS_DOTS.omni} 点，线下 ${BI_DIS_DOTS.offline} 点`} onClick={replayChart}>
-        <line x1={DIS_SEGMENTS[0].cx} y1={DIS_SEGMENTS[0].cy} x2={DIS_SEGMENTS[1].cx} y2={DIS_SEGMENTS[1].cy} stroke={MONO.grid} strokeWidth="0.7" strokeDasharray="2 5" />
-        {dots.map(({ segment, points, edge }) => (
-          <g key={segment.key}>
-            {points.map((point, index) => (
-              <g key={index}>
-                {point.spoke ? <line x1={point.cx} y1={point.cy} x2={point.x} y2={point.y} stroke={MONO.hairline} strokeWidth="0.6" /> : null}
-                <circle data-bim-dot="" cx={point.x} cy={point.y} r={point.r} fill={segment.fill} opacity="0.92" />
-              </g>
-            ))}
-            <circle cx={segment.cx} cy={segment.cy} r="2.2" fill={MONO.ink} />
-            <text data-bim-label="" x={segment.cx} y={segment.cy + edge + 13} fontSize="8" fontWeight="800" fill={MONO.ink} textAnchor="middle" letterSpacing=".1em">{`${segment.name} · ${BI_DIS_DOTS[segment.key]}`}</text>
-          </g>
-        ))}
-        <text data-bim-label="" x="200" y="142" fontSize="7" fontWeight="600" fill={MONO.faint} textAnchor="middle" letterSpacing=".12em">ONE DOT = 1% OF DIS · M216</text>
-      </svg>
-      <div className="ops-bim-src">HUNDRED FIELD · BI M216 · STORE 1299</div>
+      <p className="ops-bim-note">BI DIS=M216 全渠道减让 · CIS DIS=SPD 折扣流水合计 · 口径不同数值差异属正常</p>
+      <div className="ops-bim-src">SOURCE COMPARE · BI M216 × CIS PERFECO+SPD</div>
     </section>
   )
 }
@@ -219,14 +186,21 @@ function BimRepair({ snapshot }) {
 }
 
 /* ── F5 · 车型销售榜（TOP/FLOP/全渠道）─────────────────────── */
+// 2026-09-04 第二轮：全渠道 / 线上 / 线下（CIS perfeco 渠道桶，与桌面端同口径）。
 const MODEL_TABS = [
-  { key: 'top', label: 'TOP 热销' },
-  { key: 'flop', label: 'FLOP 下滑' },
-  { key: 'allChannel', label: '全渠道' }
+  { key: 'all', label: '全渠道' },
+  { key: 'online', label: '线上' },
+  { key: 'offline', label: '线下' }
 ]
+const TAB_SCOPE = {
+  all: { qty: 'qty', to: 'to', total: 'all' },
+  online: { qty: 'onlineQty', to: 'onlineTo', total: 'online' },
+  offline: { qty: 'offlineQty', to: 'offlineTo', total: 'offline' }
+}
 function BimRanking({ snapshot }) {
-  const { models } = snapshot
-  const [tab, setTab] = useState('top')
+  const bikeWeek = useBiBikesWeek()
+  const models = bikeWeek.models
+  const [tab, setTab] = useState('all')
   const skuNames = useBiSkuNames()
   const { ref, revealed, replay } = useBiReveal()
   const reduced = usePrefersReducedMotion()
@@ -262,13 +236,22 @@ function BimRanking({ snapshot }) {
     return () => { timeline.kill() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, reduced, revealed, replay])
-  const rows = tab === 'allChannel' ? models.allChannel.rows.slice(0, 8) : models[tab].slice(0, 8)
-  const metric = (row) => tab === 'top' ? row.share : tab === 'allChannel' ? row.qty : Math.abs(row.wow ?? row.yoy ?? 0)
+  const isFallback = models.source !== 'CIS'
+  const scope = TAB_SCOPE[tab]
+  const rows = isFallback && tab !== 'all'
+    ? []
+    : models.rows
+      .map((row) => ({ row, qty: row[scope.qty] ?? 0, to: row[scope.to] ?? 0 }))
+      .filter((item) => item.qty > 0)
+      .sort((a, b) => b.to - a.to)
+      .slice(0, 8)
+  const scopeTotal = models.totals?.[scope.total] ?? null
+  const metric = (item) => item.to
   const maxMetric = Math.max(...rows.map(metric), 0.001)
   return (
-    <section ref={ref} className="ops-bim-card ops-bim-ranking" aria-label="自行车+工作室 商品销售榜">
-      <h3>销售榜已按 自行车+工作室 源端过滤</h3>
-      <div className="ops-bim-sub">{`BI M332/M218 · 周 ${models.week}`}</div>
+    <section ref={ref} className="ops-bim-card ops-bim-ranking" aria-label="整车销售榜，全渠道线上线下">
+      <h3>销售榜：全渠道 / 线上 / 线下</h3>
+      <div className="ops-bim-sub">{`数据源 ${models.source === 'CIS' ? 'CIS（perfeco）' : 'BI（回退）'} · ${models.weekLabel} · ${models.weekRange}`}</div>
       <div className="ops-bim-tabs" role="tablist" ref={trackRef}>
         <i className="ops-bim-pill" ref={pillRef} aria-hidden="true" />
         {MODEL_TABS.map((entry) => (
@@ -276,19 +259,26 @@ function BimRanking({ snapshot }) {
         ))}
       </div>
       <ol className="ops-bim-rows">
-        {rows.map((row) => (
+        {rows.length === 0 && isFallback && tab !== 'all' ? (
+          <li className="ops-bim-row" data-bim-empty=""><span className="name">CIS 不可用，BI 快照无渠道拆分</span></li>
+        ) : rows.map(({ row, qty, to }, index) => (
           <li key={`${tab}-${row.code}`} className="ops-bim-row">
-            <span className="rank">{String(row.rank).padStart(2, '0')}</span>
-            <span className="name">{(tab === 'allChannel' && (ALLCHANNEL_NAMES[row.code] || skuNames[row.code])) || row.model}<span className="code">{row.code}</span></span>
-            <span className="val">
-              {tab === 'allChannel' ? <><b>{`${row.qty} 台`}</b><small>{yuan(row.to)}</small></> : <><b>{yuan(row.to)}</b><small>{`${row.qty} 台 · ${tab === 'top' ? `${row.share.toFixed(0)}%` : modelDelta(row)}`}</small></>}
+            <span className="rank">{String(index + 1).padStart(2, '0')}</span>
+            <span className="name">
+              {row.label || ALLCHANNEL_NAMES[row.code] || skuNames[row.code] || row.model || row.code}
+              <span className="code">{row.code}</span>
+              {row.buyback ? <em className="ops-bim-used">二手</em> : null}
             </span>
-            <i className="ops-bim-bar"><i style={{ width: `${Math.max((metric(row) / maxMetric) * 100, 3)}%` }} /></i>
+            <span className="val">
+              <b>{`${qty} 台`}</b>
+              <small>{yuan(to)}</small>
+            </span>
+            <i className="ops-bim-bar"><i style={{ width: `${Math.max((metric({ row, qty, to }) / maxMetric) * 100, 3)}%` }} /></i>
           </li>
         ))}
       </ol>
-      {tab === 'allChannel' ? <p className="ops-bim-note">{`合计 ${models.allChannel.total.qty} 台 · ${yuan(models.allChannel.total.to)} · 每渠道仅前 5`}</p> : null}
-      <div className="ops-bim-src">MODEL RANKING · BI M332/M218 · STORE 1299</div>
+      <p className="ops-bim-note">{rows.length === 0 && isFallback && tab !== 'all' ? 'CIS 不可用 · 回退 BI 快照仅全渠道口径' : `${tab === 'online' ? '线上' : tab === 'offline' ? '线下' : '全渠道'}合计 ${scopeTotal ? `${scopeTotal.qty} 台 · ${yuan(scopeTotal.to)}` : '—'} · ${models.basis}`}</p>
+      <div className="ops-bim-src">{models.source === 'CIS' ? 'MODEL RANKING · CIS PERFECO 整车周实销 · STORE 1299' : 'MODEL RANKING · BI M218 FALLBACK · STORE 1299'}</div>
     </section>
   )
 }
@@ -339,8 +329,7 @@ function BimReview({ snapshot }) {
 export default function BiSalesMobile({ snapshot = BI_SNAPSHOT }) {
   return (
     <div className="ops-bim-panel" aria-label="BI 销售数据（移动端）">
-      <BimStat snapshot={snapshot} />
-      <BimDis snapshot={snapshot} />
+      <BimCompare snapshot={snapshot} />
       <BimGauge snapshot={snapshot} />
       <BimRepair snapshot={snapshot} />
       <BimRanking snapshot={snapshot} />

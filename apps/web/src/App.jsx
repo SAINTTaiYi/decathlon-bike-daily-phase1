@@ -9,12 +9,14 @@ import PaletteLab from './components/PaletteLab.jsx'
 import PromptLab from './components/PromptLab.jsx'
 import { APP_VERSION } from './data/releaseNotes.js'
 import { buildClosingReportModel, exportClosingReportImage } from './utils/closingReportImage.js'
+import { getBiVehicles } from './api/bi.js'
 import ActionDock from './components/lookbook/ActionDock.jsx'
 import WorkshopShellHeader from './components/workshop/WorkshopShellHeader.jsx'
 import WorkshopOverviewPage from './components/overview/WorkshopOverviewPage.jsx'
 import AttachmentDialog from './components/dialogs/AttachmentDialog.jsx'
 import ClosingCheckPage from './pages/ClosingCheckPage.jsx'
 import KpiDialog from './components/dialogs/KpiDialog.jsx'
+import useBikeDaySync from './hooks/useBikeDaySync.js'
 import LocalMigrationDialog, { hasLocalV5Data } from './components/dialogs/LocalMigrationDialog.jsx'
 import LogDialog from './components/dialogs/LogDialog.jsx'
 import PermanentHistoryDialog from './components/dialogs/PermanentHistoryDialog.jsx'
@@ -101,6 +103,8 @@ export default function App() {
   const [permanentHistoryOpen, setPermanentHistoryOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [kpiOpen, setKpiOpen] = useState(false)
+  // 点击「填写数据」时自动同步当日新车/二手车实销（perfeco）：未保存过则自动填入。
+  const bikeDay = useBikeDaySync(kpiOpen)
   const [migrationOpen, setMigrationOpen] = useState(false)
   const [governanceOpen, setGovernanceOpen] = useState(false)
   const [shiphubSettingsOpen, setShiphubSettingsOpen] = useState(false)
@@ -396,6 +400,17 @@ export default function App() {
         }))
         shiphubOrders = lists.flatMap((orders, index) => orders.map((order) => ({ category: categories[index], order })))
       }
+      // 2026-09-04：Shiphub 车辆按 article sku 反查 perfeco 整车分类——
+      // 日报只保留整车（轮滑鞋/头盔等剔除），标题显示官方车型名而非上游颜色/尺码。
+      // 反查失败降级旧行为（不过滤、显示 vehicleInfo），绝不阻塞导出。
+      let shiphubVehicleLookup = null
+      const vehicleSkus = [...new Set(shiphubOrders.flatMap(({ order }) => (order.items ?? []).map((item) => String(item?.sku ?? '')).filter((sku) => /^\d{4,10}$/u.test(sku))))].slice(0, 60)
+      if (vehicleSkus.length) {
+        try {
+          const payload = await getBiVehicles(vehicleSkus)
+          if (payload && payload.available === true) shiphubVehicleLookup = payload.vehicles ?? null
+        } catch { /* 分类接口失败 → 降级旧行为 */ }
+      }
       const model = buildClosingReportModel({
         businessDate: snapshot.businessDate ?? workflow.dateKey,
         storeName: currentStore?.storeName || '门店',
@@ -403,6 +418,7 @@ export default function App() {
         kpi: { ...(snapshot.kpi ?? workflow.kpi) },
         records: (snapshot.records ?? workflow.records).map((record) => ({ ...record })),
         shiphubOrders,
+        shiphubVehicleLookup,
         closedAt,
         appVersion: APP_VERSION
       })
@@ -762,7 +778,7 @@ export default function App() {
           return result
         }} />
         {confirmOpen ? <ClosingCheckPage onClose={() => setConfirmOpen(false)} onConfirm={confirmClose} events={workflow.events} records={workflow.records} dateKey={workflow.dateKey} kpi={workflow.kpi} /> : null}
-        <KpiDialog open={kpiOpen} onClose={() => setKpiOpen(false)} values={workflow.kpi} savedAt={workflow.kpiSavedAt} onSave={workflow.saveKpi} onClear={workflow.clearKpi} onNotify={setToast} />
+        <KpiDialog open={kpiOpen} onClose={() => setKpiOpen(false)} values={workflow.kpi} savedAt={workflow.kpiSavedAt} onSave={workflow.saveKpi} onClear={workflow.clearKpi} onNotify={setToast} bikeDay={bikeDay} />
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
         <HandoverTodoDialog open={handoverTodoOpen} items={(workflow.assignedToMe || []).map((item) => ({ ...item, sceneLabel: sceneById(item.scene)?.cn || item.scene }))} onJump={(item) => { setHandoverTodoOpen(false); navigateToScene(item.scene) }} onClose={() => { setHandoverTodoOpen(false); window.localStorage.setItem(`handover-todo-dismissed-${workflow.dateKey}`, '1') }} />
         {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={visibleScene} onJump={jumpFromOverview} closedAt={workflow.closedAt} desktopLayout={desktopLayout} /></div> : null}
