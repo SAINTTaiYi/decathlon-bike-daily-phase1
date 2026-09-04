@@ -40,8 +40,9 @@ test('reference geometry remains mobile-first and explicitly adds a separate phy
 })
 
 test('reference hierarchy uses real identity, binary closing status and stable metric sizing', async () => {
-  const [overview, css, header] = await Promise.all([read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'), read('apps/web/src/styles/mobile-overview.css'), read('apps/web/src/components/workshop/WorkshopShellHeader.jsx')])
-  assert.match(header, /workshop-global-header/u)
+  const [overview, css, header, mobileHeader] = await Promise.all([read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'), read('apps/web/src/styles/mobile-overview.css'), read('apps/web/src/components/workshop/WorkshopShellHeader.jsx'), read('apps/web/src/components/workshop/WorkshopGlobalHeaderMobile.jsx')])
+  assert.match(header, /WorkshopGlobalHeaderMobile/u)
+  assert.match(mobileHeader, /workshop-global-header-mobile/u)
   assert.match(header, /workshop-module-header/u)
   assert.match(overview, /今日闭店进度/u)
   assert.match(overview, /销售数据是唯一闭店要求/u)
@@ -183,4 +184,25 @@ test('frosted navigation is tinted warm so it carries the ambient yellow instead
   // backdrop, with a mask so the edge ramps out instead of hard-clipping.
   assert.match(css, /backdrop-filter:\s*blur\(30px\) saturate\(180%\)/u)
   assert.match(css, /-webkit-mask-image:\s*linear-gradient/u)
+})
+
+test('mobile removes the legacy closing footer and moves the live login name into the header', async () => {
+  const [app, header, mobileHeader, desktopHeader, indexCss, mobileHeaderCss, desktopCss] = await Promise.all([
+    read('apps/web/src/App.jsx'),
+    read('apps/web/src/components/workshop/WorkshopShellHeader.jsx'),
+    read('apps/web/src/components/workshop/WorkshopGlobalHeaderMobile.jsx'),
+    read('apps/web/src/components/workshop/WorkshopGlobalHeaderDesktop.jsx'),
+    read('apps/web/src/styles/index.css'),
+    read('apps/web/src/styles/mobile-shell-header.css'),
+    read('apps/web/src/styles/desktop-workbench.css'),
+  ])
+  assert.doesNotMatch(app, /closing-footer|footer-identity|footer-utility-actions|LAST SYNC · 最后同步/u)
+  assert.match(header, /mobileLayout[\s\S]*WorkshopGlobalHeaderMobile[\s\S]*WorkshopGlobalHeaderDesktop/u)
+  assert.match(mobileHeader, /className="workshop-mobile-user"/u)
+  assert.match(mobileHeader, /userName \|\| '—'/u)
+  assert.doesNotMatch(desktopHeader, /workshop-mobile-user/u)
+  assert.match(indexCss, /@import '\.\/mobile-shell-header\.css';[\s\S]*@import '\.\/desktop-workbench\.css';/u)
+  assert.match(mobileHeaderCss, /grid-template-columns: 44px minmax\(0,1fr\) minmax\(56px,auto\) 44px/u)
+  assert.match(mobileHeaderCss, /\.workshop-mobile-user \{[\s\S]*display: block;/u)
+  assert.doesNotMatch(desktopCss, /workshop-mobile-user/u)
 })

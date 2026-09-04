@@ -71,12 +71,14 @@ test('后台 CSS 只有一组响应式/动效/forced-colors 门禁且补齐 44px
   assert.match(cssSource, /admin-directory-actions button,[\s\S]*min-height: 44px/u)
 })
 
-const [appSource, overviewSource, formatSource, menuSource, headerSource, indexCss, componentsCss, directoryMigration] = await Promise.all([
+const [appSource, overviewSource, formatSource, menuSource, headerSource, mobileHeaderSource, desktopHeaderSource, indexCss, componentsCss, directoryMigration] = await Promise.all([
   read('../apps/web/src/App.jsx'),
   read('../apps/web/src/components/admin/AdminOverviewSection.jsx'),
   read('../apps/web/src/components/admin/admin-format.js'),
   read('../apps/web/src/components/dialogs/MenuDialog.jsx'),
   read('../apps/web/src/components/workshop/WorkshopShellHeader.jsx'),
+  read('../apps/web/src/components/workshop/WorkshopGlobalHeaderMobile.jsx'),
+  read('../apps/web/src/components/workshop/WorkshopGlobalHeaderDesktop.jsx'),
   read('../apps/web/src/styles/index.css'),
   read('../apps/web/src/styles/components.css'),
   read('../migrations/d1/0010_admin_console_query_indexes.sql')
@@ -101,7 +103,8 @@ test('菜单只对平台管理员显示平台管理后台入口，并显示待�
 
 test('门店工作台头部为平台管理员显示待审批角标并轮询轻量计数', () => {
   assert.match(headerSource, /pendingBadge = 0/u)
-  assert.match(headerSource, /workshop-pending-badge/u)
+  assert.match(mobileHeaderSource, /workshop-pending-badge/u)
+  assert.match(desktopHeaderSource, /workshop-pending-badge/u)
   assert.match(appSource, /getAdminPendingCount\(\)/u)
   assert.match(appSource, /setInterval\(\(\) => void poll\(\), 60000\)/u)
   assert.match(appSource, /pendingBadge=\{adminPending\}/u)

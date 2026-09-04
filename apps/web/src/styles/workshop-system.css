@@ -153,13 +153,9 @@ button:disabled { opacity: .48; }
 }
 .workshop-global-header {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 44px;
   align-items: center;
   min-height: var(--ops-global-header-height);
-  padding-inline: 8px;
 }
-.workshop-header-desktop-tools { display: none; }
-.workshop-header-mobile-log { display: grid; }
 .workshop-header-action {
   position: relative;
   display: grid;
@@ -179,12 +175,10 @@ button:disabled { opacity: .48; }
   background: var(--ops-yellow);
   box-shadow: 0 0 8px var(--ops-yellow-glow);
 }
-.workshop-header-brand,
-.workshop-header-context { min-width: 0; }
+.workshop-header-brand { min-width: 0; }
 .workshop-header-brand { display: grid; align-content: center; }
 .workshop-header-brand > span,
 .workshop-header-brand > small,
-.workshop-header-context :is(time, span),
 .workshop-module-header > span,
 .workshop-module-header > small {
   font-family: var(--ops-display);
@@ -203,7 +197,6 @@ button:disabled { opacity: .48; }
   white-space: nowrap;
 }
 .workshop-header-brand > small { color: var(--ops-text-muted); }
-.workshop-header-context { display: none; }
 .workshop-module-header {
   display: grid;
   grid-template-columns: 22px auto minmax(0, 1fr) auto;
@@ -752,22 +745,8 @@ button:disabled { opacity: .48; }
 .workspace-launch-overlay::before { display: none; }
 .workspace-launch-overlay button { border: 0; border-radius: var(--ops-radius); background: var(--ops-yellow); color: var(--ops-black); }
 
-.workshop-footer {
-  display: grid;
-  gap: 8px;
-  margin-top: 24px;
-  padding: 14px 0 0;
-  border: 0;
-  color: var(--ops-text-muted);
-  font-size: 12px;
-}
-.footer-identity { min-height: 48px; border: 0 !important; border-radius: var(--ops-radius); background: var(--ops-black); color: var(--ops-text-inverse); }
-.footer-utility-actions { gap: 7px; }
-.footer-utility-actions button { min-height: 44px; border: 1px solid var(--ops-black) !important; border-radius: var(--ops-radius); background: var(--ops-card); }
-
 @media (max-width: 374px) {
   :root { --ops-global-header-height: 60px; --ops-module-header-height: 44px; --ops-header-height: 104px; --ops-dock-height: 66px; }
-  .workshop-global-header { grid-template-columns: 42px minmax(0,1fr) 42px; padding-inline: 3px; }
   .workshop-header-brand > span { display: none; }
   .workshop-header-brand > strong { font-size: 18px; }
   .workshop-module-header { grid-template-columns: auto minmax(0,1fr) auto; padding-inline: 8px; }
@@ -780,9 +759,6 @@ button:disabled { opacity: .48; }
 @media (min-width: 600px) {
   .boot-title-word { font-size: 80px; }
   :root { --ops-global-header-height: 68px; --ops-module-header-height: 50px; --ops-header-height: 118px; }
-  .workshop-global-header { grid-template-columns: 44px minmax(150px,.8fr) minmax(150px,1fr) 44px; padding-inline: 14px; }
-  .workshop-header-context { display: grid; justify-items: end; gap: 2px; }
-  .workshop-header-context strong { max-width: 180px; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
   .workshop-shell { padding: calc(var(--ops-header-height) + 18px) 22px var(--dock-space); }
   .module-flow-chapter { padding: 44px; }
   .module-flow-chapter-copy strong { font-size: 76px; }
@@ -801,10 +777,6 @@ button:disabled { opacity: .48; }
   .data-dialog .dialog-header h2 { font-size: 40px; }
   .initial-setup-panel { padding: 24px; }
   .initial-setup-panel header h1 { font-size: 52px; }
-  .workshop-footer { grid-template-columns: minmax(0,1fr) auto; align-items: center; }
-  .workshop-footer .footer-identity { grid-column: 1 / -1; }
-  .workshop-footer .primary-action { grid-column: 2; grid-row: 2 / 4; min-width: 180px; }
-  .footer-utility-actions { grid-column: 1 / -1; grid-template-columns: repeat(3,minmax(0,1fr)); }
 }
 
 @media (min-width: 840px) {
@@ -829,7 +801,6 @@ button:disabled { opacity: .48; }
 @media (hover: hover) and (pointer: fine) {
   .workshop-header-action:hover,
   .icon-button:hover,
-  .footer-utility-actions button:hover,
   .secondary-action:hover { background: var(--ops-yellow-wash) !important; color: var(--ops-black) !important; }
   .primary-action:hover,
   .ledger-add:hover,

@@ -12,7 +12,9 @@ test('所有登录用户都可请求闭店，但重新打开仍由经理或管�
   ])
   assert.doesNotMatch(app, /canManageClosing/u)
   assert.match(app, /const canReopenClosing = role === 'manager' \|\| role === 'admin'/u)
-  assert.match(app, /onClick=\{requestClose\} disabled=\{writeLocked\}/u)
+  // Closing is still available from the in-card action; the legacy footer was removed.
+  assert.match(app, /onCompleteClosing=\{requestClose\}/u)
+  assert.doesNotMatch(app, /closing-footer|footer-identity|footer-utility-actions/u)
   assert.match(closing, /app\.post\('\/api\/v1\/daily-closing\/current\/close', \.\.\.write, async/u)
   assert.match(closing, /current\/reopen', \.\.\.write, auth\.requireRole\('manager', 'admin'\)/u)
 })

@@ -516,10 +516,6 @@ button:not(:disabled) { transition-duration: 150ms; }
 .look-dock small { display: none; }
 .dock-status { font-size: .6rem; }
 
-.closing-footer { margin-top: 0; padding: 1.25rem 0 1.4rem; }
-.footer-identity { min-height: 42px; }
-.footer-utility-actions button { font-size: .72rem; }
-
 
 .initial-setup-panel { width: min(100%, 42rem); padding: clamp(1rem, 3vw, 1.5rem); }
 .initial-setup-panel header h1 { font-size: clamp(1.9rem, 7vw, 3rem); }

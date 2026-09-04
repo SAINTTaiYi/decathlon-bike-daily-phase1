@@ -1,0 +1,35 @@
+.workshop-global-header-mobile {
+  grid-template-columns: 44px minmax(0,1fr) minmax(56px,auto) 44px;
+  padding-inline: 8px;
+}
+
+.workshop-mobile-user {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  padding-inline: 4px;
+  color: var(--ops-text);
+  font-family: var(--ops-display);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: .02em;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 374px) {
+  .workshop-global-header-mobile {
+    grid-template-columns: 42px minmax(0,1fr) minmax(44px,auto) 42px;
+    padding-inline: 3px;
+  }
+  .workshop-mobile-user { padding-inline: 2px; font-size: 12px; }
+}
+
+@media (min-width: 600px) and (max-width: 767px) {
+  .workshop-global-header-mobile {
+    grid-template-columns: 44px minmax(0,1fr) minmax(90px,auto) 44px;
+    padding-inline: 14px;
+  }
+}
