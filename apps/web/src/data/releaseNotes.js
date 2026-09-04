@@ -1,13 +1,14 @@
-export const APP_VERSION = "6.6.2"
+export const APP_VERSION = "6.6.3"
 
 export const currentRelease = {
   version: APP_VERSION,
-  date: "2026.09.04",
-  title: "修复 GLOBBER 滑板车混入整车计数",
-  summary: "family 10338 实为滑板车族（OXELO MOVE 900/GT 100/GLOBBER），已从整车白名单移除；整车判定改为按 family 现算，新增滑板车品牌硬排除。闭店 KPI 与销售榜不再把滑板车计为新车。",
+  date: "2026.09.05",
+  title: "移动端页头显示登录用户名，移除旧版底部条",
+  summary: "移动端删除总览底部的旧版闭店条（门店身份、最后同步、日报菜单/当日日志/永久历史按钮），登录用户名移至页头通知铃左侧显示；全局页头拆分为移动/桌面两套独立组件与样式，旧 footer 样式全部清除。",
   changes: [
-    "修复：GLOBBER/OXELO 滑板车不再混入闭店 KPI 新车计数与整车销售榜（family 10338 从白名单移除）",
-    "整车判定改为按 family+label 现算，白名单演进即时生效，无需刷库",
-    "滑板车品牌（GLOBBER/OXELO）硬排除防御层"
+    "新增：移动端页头显示当前登录用户名（通知铃左侧，动态取登录态）",
+    "删除：移动端总览底部旧版闭店条——门店/角色身份条、最后同步时间、完成闭店按钮、日报菜单/当日日志/永久历史",
+    "重构：全局页头按运行时拆分为移动/桌面两套独立组件与样式（WorkshopGlobalHeaderMobile/Desktop + mobile-shell-header.css），桌面端不变",
+    "清理：六处样式文件中的旧 footer 声明全部删除；新增 footer 零残留与双端隔离回归测试"
   ]
 }
