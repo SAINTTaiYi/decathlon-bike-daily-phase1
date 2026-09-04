@@ -344,12 +344,6 @@
     top: 0;
   }
 
-  /* 全局 footer（Preview Store/LAST SYNC/填写销售数据/日报菜单等）只在总览与销售模块显示，
-     其他模块底部不再出现（双栅与 dock 避让不受影响） */
-  .workshop-runtime[data-mobile-scene] .workshop-footer { display: none; }
-  .workshop-runtime[data-mobile-scene='pulse'] .workshop-footer,
-  .workshop-runtime[data-mobile-scene='sales'] .workshop-footer { display: block; }
-
   /* 工具区暴力无框化：pickup-ledger.css 中 .pickup-queue-controls :is(...) 规则会以同特异性后加载覆盖常规无框规则，
      也避免模块行白底卡片产生的「框」感 */
   .workshop-runtime[data-mobile-scene] .workshop-module-header {

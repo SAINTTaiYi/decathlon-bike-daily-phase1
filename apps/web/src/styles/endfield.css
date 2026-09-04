@@ -526,11 +526,6 @@ button, input, select, textarea { border-radius: 0; }
 .look-dock button span { font-size: .58rem; }
 .dock-status { padding-inline: .45rem; color: var(--ink); font-size: .62rem; }
 .dock-status[data-closed='true'] { color: var(--success); }
-.closing-footer { gap: .65rem; margin-top: var(--section-air); padding: 1.25rem 0 calc(1.4rem + var(--dock-space)); border-top: 3px solid var(--ink); }
-.footer-identity { min-height: 50px; border: 1px solid var(--ink); border-top: 5px solid var(--accent); background: var(--ink); }
-.footer-utility-actions { gap: .5rem; }
-.footer-utility-actions button { min-height: 46px; border-color: var(--ink); background: var(--surface-raised); font-size: .72rem; }
-
 .hydration-state, .fatal-state { background: var(--paper); }
 .hydration-state::before, .fatal-state::before { content: ''; justify-self: center; width: 3.5rem; height: .35rem; background: var(--accent); }
 .hydration-state strong, .fatal-state strong { font-size: clamp(2rem, 9vw, 4rem); }
@@ -551,7 +546,7 @@ button, input, select, textarea { border-radius: 0; }
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .active-user-strip button:hover, .secondary-action:hover, .footer-utility-actions button:hover, .ledger-history:hover { background: var(--ink); color: var(--accent); }
+  .active-user-strip button:hover, .secondary-action:hover, .ledger-history:hover { background: var(--ink); color: var(--accent); }
   .primary-action:hover, .ledger-add:hover, .record-actions .record-primary-action:hover { background: var(--accent-strong) !important; color: var(--ink) !important; }
   .text-action:hover { background: var(--accent-wash); }
   .record-actions button:not(:disabled):hover { border-color: var(--ink) !important; background: var(--ink) !important; color: var(--accent) !important; }
@@ -591,10 +586,6 @@ button, input, select, textarea { border-radius: 0; }
   .kpi-sheet { margin-top: 0; }
   .kpi-primary { min-height: 26rem; }
   .handover-index { margin-top: 1.25rem; }
-  .closing-footer { grid-template-columns: 1fr auto; align-items: end; }
-  .closing-footer .footer-identity { grid-column: 1 / -1; }
-  .closing-footer .primary-action { grid-column: 2; grid-row: 2 / span 2; min-width: 12rem; }
-  .footer-utility-actions { grid-column: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 374px) {

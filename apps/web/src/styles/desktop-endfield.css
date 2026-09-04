@@ -23,8 +23,7 @@
   .workspace-pointer-plane > [data-workspace-layer='navigation'],
   .workspace-pointer-plane > .active-user-strip,
   .workspace-pointer-plane > .offline-banner,
-  .workspace-pointer-plane > .look-section,
-  .workspace-pointer-plane > .closing-footer {
+  .workspace-pointer-plane > .look-section {
     grid-column: 1 / -1;
   }
 
@@ -239,17 +238,6 @@
   .look-dock button { min-height: 3.75rem; grid-template-columns: auto 1fr; gap: .45rem; padding-inline: .65rem; }
   .look-dock button span { font-size: .67rem; }
   .dock-status { min-width: 4.5rem; text-align: center; }
-
-  .closing-footer {
-    grid-template-columns: minmax(0, 1fr) auto;
-    column-gap: 2rem;
-    margin-top: var(--section-air);
-    padding-bottom: calc(1.5rem + var(--dock-space));
-  }
-
-  .footer-identity { min-height: 3.9rem; padding-inline: 1rem; }
-  .footer-utility-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .closing-footer .primary-action { min-width: 13rem; min-height: 5.2rem; }
 
   .boot-login { right: clamp(2rem, 7vw, 10rem); bottom: clamp(2rem, 6vh, 5rem); width: min(28rem, calc(100% - 4rem)); padding: 1.5rem; }
   .boot-login-heading > strong { font-size: 2.25rem; }

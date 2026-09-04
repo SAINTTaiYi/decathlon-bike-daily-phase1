@@ -713,7 +713,6 @@ export default function App() {
         <div data-workspace-layer="navigation" data-workspace-priority="true">
           <WorkshopShellHeader
             activeScene={visibleScene}
-            dateKey={workflow.dateKey}
             storeName={currentStore?.storeName}
             roleLabel={roleLabels[role]}
             userName={currentUser}
@@ -752,13 +751,6 @@ export default function App() {
             {desktopLayout ? <WorkshopModuleSection sceneId="resale"><ResaleScene {...recordProps('resale')} /></WorkshopModuleSection> : null}
             <WorkshopModuleSection sceneId="sales"><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></WorkshopModuleSection>
           </div>
-          <footer className="closing-footer workshop-footer">
-            <div className="footer-identity"><span>{currentStore?.storeName || 'ACTIVE USER'} · {roleLabels[role]}</span><strong>{currentUser}</strong></div>
-            <span>LAST SYNC · 最后同步</span>
-            <strong>{workflow.lastSyncedAt ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(workflow.lastSyncedAt)) : '尚未同步'}</strong>
-            <button type="button" className="primary-action" onClick={requestClose} disabled={writeLocked}>{workflow.closedAt ? '今日已闭店' : workflow.kpiReady ? '完成闭店' : '填写销售数据'}</button>
-            <div className="footer-utility-actions" aria-label="日报辅助操作"><button type="button" onClick={() => setMenuOpen(true)}>日报菜单</button><button type="button" onClick={() => setLogOpen(true)}>当日日志</button><button type="button" onClick={() => setPermanentHistoryOpen(true)}>永久历史</button></div>
-          </footer>
         </main>
         <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} onChangePassword={() => setPasswordChangeOpen(true)} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} canShipHub={Boolean(shiphub.summary?.enabled && (role === 'manager' || role === 'admin'))} onShipHubSettings={() => setShiphubSettingsOpen(true)} canAdmin={auth.user?.isPlatformAdmin} onAdmin={() => { setMenuOpen(false); window.location.hash = '#admin' }} adminPending={adminPending} />
         <PasswordChangeDialog open={passwordChangeOpen} userName={currentUser} onClose={() => setPasswordChangeOpen(false)} onChangePassword={auth.changePassword} onComplete={completePasswordChange} />

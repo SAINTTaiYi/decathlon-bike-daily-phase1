@@ -27,7 +27,7 @@
     box-shadow: none;
   }
   .workshop-shell-header { width: 1536px; height: 156px; margin: 0; }
-  .workshop-global-header {
+  .workshop-global-header-desktop {
     grid-template-columns: 84px 230px minmax(0, 1fr);
     min-height: 90px;
     padding: 0;
@@ -39,9 +39,7 @@
   .workshop-header-brand > strong { font-size: 29px; line-height: .88; }
   .workshop-header-brand > small { margin-top: 2px; font-size: 12px; }
   .workshop-header-desktop-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-right: 30px; }
-  .workshop-header-mobile-log { display: none; }
   .workshop-header-menu > svg { width: 28px; height: 28px; }
-  .workshop-header-context { display: none !important; }
   .workshop-user-context {
     display: grid;
     grid-template-columns: 42px minmax(0, 1fr) 18px;
@@ -87,8 +85,6 @@
   .workshop-shell[data-desktop-scene='repair'] .workshop-module-panel[data-scene-id='repair'],
   .workshop-shell[data-desktop-scene='resale'] .workshop-module-panel[data-scene-id='resale'],
   .workshop-shell[data-desktop-scene='sales'] .workshop-module-panel[data-scene-id='sales'] { display: block !important; }
-  .workshop-footer { display: none; }
-
   /* Reference left rail: six destinations plus release card. */
   .look-dock {
     left: 20px !important;
