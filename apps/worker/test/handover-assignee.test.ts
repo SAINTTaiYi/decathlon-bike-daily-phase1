@@ -82,8 +82,8 @@ async function seedIdentity(db: TestD1Database): Promise<void> {
   for (const [id, key, name] of [[ACTOR_ID, 'handover-assignee-actor', '交接指派测试甲'], [ASSIGNEE_ID, 'handover-assignee-target', '交接指派测试乙']] as const) {
     db.sqlite.prepare(`
       INSERT INTO users (id, username_key, display_name, email_key, password_hash, status, must_change_password, failed_login_count, is_platform_admin, created_at, updated_at)
-      VALUES (?, ?, ?, NULL, 'unused', 'active', 0, 0, 0, ?, ?)
-    `).run(id, key, name, STAMP, STAMP)
+      VALUES (?, ?, ?, ?, 'unused', 'active', 0, 0, 0, ?, ?)
+    `).run(id, key, name, `${key}@example.decathlon.com`, STAMP, STAMP)
     db.sqlite.prepare(`
       INSERT INTO store_members (id, store_id, user_id, role, status, effective_from, created_at)
       VALUES (?, ?, ?, 'operator', 'active', ?, ?)

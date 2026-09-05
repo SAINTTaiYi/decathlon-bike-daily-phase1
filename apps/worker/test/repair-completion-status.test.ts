@@ -84,7 +84,7 @@ async function seedIdentity(db: TestD1Database): Promise<void> {
     INSERT INTO users (
       id, username_key, display_name, email_key, password_hash, status,
       must_change_password, failed_login_count, is_platform_admin, created_at, updated_at
-    ) VALUES (?, 'repair-status-user', '维修状态测试', NULL, 'unused', 'active', 0, 0, 0, ?, ?)
+    ) VALUES (?, 'repair-status-user', '维修状态测试', 'seed@example.decathlon.com', 'unused', 'active', 0, 0, 0, ?, ?)
   `).run(USER_ID, STAMP, STAMP)
   db.sqlite.prepare(`
     INSERT INTO store_members (id, store_id, user_id, role, status, effective_from, created_at)

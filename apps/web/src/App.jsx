@@ -3,6 +3,7 @@ import BootLoader from './components/BootLoader.jsx'
 import InitialSetup from './components/InitialSetup.jsx'
 import PlatformAdminSetup from './components/PlatformAdminSetup.jsx'
 import PasswordChangeGate from './components/PasswordChangeGate.jsx'
+import EmailBindingGate from './components/EmailBindingGate.jsx'
 import PasswordChangeDialog from './components/dialogs/PasswordChangeDialog.jsx'
 import StatusToast from './components/StatusToast.jsx'
 import PaletteLab from './components/PaletteLab.jsx'
@@ -94,9 +95,11 @@ export default function App() {
   const authenticated = auth.status === 'authenticated'
   const introDone = authenticated && (auth.source === 'restore' || auth.source === 'registration' || loginAnimationDone)
   const mustChangePassword = Boolean(auth.user?.mustChangePassword)
-  const deferUpdatePrompt = auth.source === 'login' && !mustChangePassword && !workspaceAssemblyDone
-  const workflow = useRemoteClosingWorkflow(authenticated && !mustChangePassword)
-  const shiphub = useShipHub(authenticated && !mustChangePassword)
+  const emailBindingRequired = Boolean(auth.user?.emailBindingRequired)
+  const introLocked = mustChangePassword || emailBindingRequired
+  const deferUpdatePrompt = auth.source === 'login' && !introLocked && !workspaceAssemblyDone
+  const workflow = useRemoteClosingWorkflow(authenticated && !introLocked)
+  const shiphub = useShipHub(authenticated && !introLocked)
   const [menuOpen, setMenuOpen] = useState(false)
   const [passwordChangeOpen, setPasswordChangeOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
@@ -632,6 +635,17 @@ export default function App() {
 
   if (auth.status === 'restoring') {
     return <><main className="hydration-state" role="status" aria-live="polite"><strong>VERIFYING SESSION</strong><span>正在验证数据库账号…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
+  }
+
+  if (authenticated && emailBindingRequired && introDone) {
+    return <><EmailBindingGate userName={currentUser} onVerify={auth.bindEmail} onLogout={auth.logout} onComplete={() => setToast('邮箱绑定完成，业务工作台已解锁。')} /><ReportImageDialog
+        open={Boolean(reportImage?.objectUrl)}
+        onClose={closeReportImage}
+        imageUrl={reportImage?.objectUrl || ''}
+        filename={reportImage?.filename || ''}
+        onDownload={redownloadReportImage}
+      />
+      <UpdateRefreshDialog /><StatusToast notice={toast} /></>
   }
 
   if (authenticated && mustChangePassword && introDone) {

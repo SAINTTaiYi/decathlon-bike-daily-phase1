@@ -59,7 +59,7 @@ async function seedUser(db: TestD1Database): Promise<void> {
     INSERT INTO users (
       id, username_key, display_name, email_key, password_hash, status, must_change_password,
       failed_login_count, locked_until, is_platform_admin, created_at, updated_at
-    ) VALUES (?, ?, ?, NULL, ?, 'active', 0, 0, NULL, 0, ?, ?)
+    ) VALUES (?, ?, ?, 'seed@example.decathlon.com', ?, 'active', 0, 0, NULL, 0, ?, ?)
   `).run(USER_ID, USERNAME, '改密测试用户', passwordHash, STAMP, STAMP)
   db.sqlite.prepare(`
     INSERT INTO store_members (id, store_id, user_id, role, status, effective_from, created_at)

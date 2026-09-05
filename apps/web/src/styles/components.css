@@ -340,6 +340,11 @@
 .initial-setup-panel header span { font-family: var(--font-mono); font-size: .68rem; font-weight: 800; }
 .initial-setup-panel header h1 { font-family: var(--font-display); font-size: clamp(2rem, 9vw, 3.5rem); line-height: .88; letter-spacing: -.035em; }
 .initial-setup-panel header p, .initial-setup-panel > small { color: var(--muted); font-size: .78rem; line-height: 1.5; }
+
+/* 邮箱绑定门卡：验证码发送行与状态提示 */
+.binding-otp-row { display: grid; gap: .45rem; justify-items: start; }
+.binding-otp-row .secondary-action { min-height: 40px; padding: .55rem .9rem; }
+.binding-notice { color: var(--muted); font-size: .78rem; line-height: 1.5; }
 .initial-setup-grid { display: grid; grid-template-columns: .72fr 1.28fr; gap: .8rem; }
 @media (max-width: 420px) { .initial-setup-grid { grid-template-columns: 1fr; } }
 

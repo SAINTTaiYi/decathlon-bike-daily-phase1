@@ -11,6 +11,21 @@ type Vars = {
   auth: AuthContext | null
 }
 
+// 强制邮箱绑定的显式豁免名单：平台管理员与运维保留账号。
+// 平台管理员走 is_platform_admin 豁免；'admin' 是门店运维账号，
+// 两者都不参与存量账号的邮箱绑定引导。
+export const EMAIL_BINDING_EXEMPT_USERNAMES = ['admin'] as const
+
+export function isEmailBindingExempt(user: { isPlatformAdmin?: boolean | null; usernameKey?: string | null }): boolean {
+  if (user.isPlatformAdmin) return true
+  return Boolean(user.usernameKey) && (EMAIL_BINDING_EXEMPT_USERNAMES as readonly string[]).includes(String(user.usernameKey).toLowerCase())
+}
+
+export function isEmailBindingRequired(auth: { emailBound?: boolean; emailBindingExempt?: boolean } | null | undefined): boolean {
+  if (!auth) return false
+  return auth.emailBound === false && auth.emailBindingExempt !== true
+}
+
 export function createAuthMiddleware(): {
   loadSession: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }>
   requirePasswordChanged: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }>
@@ -27,6 +42,7 @@ export function createAuthMiddleware(): {
     const selectedStore = c.req.header('x-store-id') ?? null
     const row = await first(c.env.DB.prepare(`
       SELECT s.token_hash, s.csrf_hash, u.id AS user_id, u.display_name, u.must_change_password, u.is_platform_admin,
+             u.email_key, u.username_key,
              st.id AS store_id, st.code AS store_code, st.name AS store_name, st.timezone AS store_timezone, sm.role
       FROM auth_sessions s
       JOIN users u ON u.id = s.user_id AND u.status = 'active'
@@ -51,6 +67,11 @@ export function createAuthMiddleware(): {
       storeTimezone: mapped.storeTimezone ?? mapped.timezone,
       role: mapped.role,
       isPlatformAdmin: mapped.isPlatformAdmin === 1 || mapped.isPlatformAdmin === true,
+      emailBound: Boolean(mapped.emailKey),
+      emailBindingExempt: isEmailBindingExempt({
+        isPlatformAdmin: mapped.isPlatformAdmin === 1 || mapped.isPlatformAdmin === true,
+        usernameKey: mapped.usernameKey
+      }),
       sessionTokenHash: mapped.tokenHash,
       csrfHash: mapped.csrfHash
     } satisfies AuthContext)
@@ -66,6 +87,9 @@ export function createAuthMiddleware(): {
     const auth = c.get('auth')
     if (!auth) throw new ApiProblem(401, 'UNAUTHENTICATED', '请重新登录。')
     if (auth.mustChangePassword) throw new ApiProblem(428, 'PASSWORD_CHANGE_REQUIRED', '首次登录必须先修改临时密码。')
+    if (isEmailBindingRequired(auth)) {
+      throw new ApiProblem(428, 'EMAIL_BINDING_REQUIRED', '首次进入前必须绑定公司邮箱并重设密码。')
+    }
     return next()
   }
 
