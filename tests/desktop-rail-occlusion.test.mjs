@@ -5,9 +5,11 @@ import { readFile } from 'node:fs/promises'
 const read = (name) => readFile(new URL(`../apps/web/src/styles/${name}`, import.meta.url), 'utf8')
 
 const NAV_LAYER_HEIGHT = 156
+const GLOBAL_HEADER_HEIGHT = 90
 
-test('desktop left rail clears the fixed navigation layer', async () => {
+test('desktop rail sits in the freed left column and clears the global header', async () => {
   const css = await read('desktop-workbench.css')
+  const base = await read('workshop-system.css')
 
   const shellHeader = css.match(/\.workshop-shell-header \{[^}]*height:\s*(\d+)px/u)
   assert.ok(shellHeader, '.workshop-shell-header must declare an explicit desktop height')
@@ -15,10 +17,23 @@ test('desktop left rail clears the fixed navigation layer', async () => {
 
   const railTop = css.match(/\.look-dock \{[\s\S]*?top:\s*(\d+)px !important;/u)
   assert.ok(railTop, '.look-dock must pin an explicit desktop top')
+  const top = Number(railTop[1])
   assert.ok(
-    Number(railTop[1]) >= NAV_LAYER_HEIGHT,
-    `rail top ${railTop[1]}px sits inside the ${NAV_LAYER_HEIGHT}px navigation layer (z-index 80) and would hide the first destination`,
+    top >= GLOBAL_HEADER_HEIGHT,
+    `rail top ${top}px would slide under the ${GLOBAL_HEADER_HEIGHT}px global header`,
   )
+
+  if (top < NAV_LAYER_HEIGHT) {
+    // The rail now occupies the 90-156 band: it must stack above the fixed
+    // navigation layer (z-index 80), otherwise the frosted backdrop veils
+    // the first destination (the old "overview disappeared" bug).
+    const dockZ = base.match(/\.look-dock \{[^}]*z-index:\s*(\d+) !important;/u)
+    assert.ok(dockZ, 'base .look-dock must declare an explicit z-index')
+    assert.ok(
+      Number(dockZ[1]) > 80,
+      `dock z-index ${dockZ[1]} loses to the navigation layer (80); a rail above ${GLOBAL_HEADER_HEIGHT}px would be veiled`,
+    )
+  }
 
   const dividerTop = css.match(/\.look-dock::after \{[^}]*top:\s*(\d+)px/u)
   assert.ok(dividerTop, '.look-dock::after must pin an explicit top')
@@ -26,6 +41,35 @@ test('desktop left rail clears the fixed navigation layer', async () => {
     Number(dividerTop[1]) >= NAV_LAYER_HEIGHT,
     'rail divider must not run through the navigation layer',
   )
+})
+
+test('mobile dock ul baselines cannot leak into the desktop rail', async () => {
+  // 移动 dock 的 ul 基线（repeat(5) / height:58px / overflow:visible !important）
+  // 一旦无作用域地命中桌面，会把桌面 rail 的 ul 压成 58px、打死 short-viewport
+  // 的 overflow-y:auto 兜底，六个按钮从 ul 里漏出去垫在公告卡下面。
+  for (const file of ['workshop-system.css', 'mobile-overview.css']) {
+    // 先剥注释：选择器捕获窗口不能把注释里的文字当成选择器的一部分，
+    // 否则「选择器必须含 data-mobile-scene」会被注释文本骗过。
+    const text = (await read(file)).replace(/\/\*[\s\S]*?\*\//gu, '')
+    const rules = [...text.matchAll(/(?:^|[{}])\s*([^{}]*\.look-dock ul[^{}]*)\{([^}]*)\}/gu)]
+    for (const [, selector, body] of rules) {
+      const leaks = /overflow:\s*visible !important|height:\s*58px/u.test(body)
+      if (leaks) {
+        assert.ok(
+          selector.includes('data-mobile-scene'),
+          `${file}: unscoped .look-dock ul leaks mobile baselines into desktop: ${selector.trim()}`,
+        )
+      }
+    }
+  }
+})
+
+test('desktop short-viewport scroll fallback stays live', async () => {
+  const css = await read('desktop-workbench.css')
+  const rule = css.match(/\[data-short-viewport='true'\] \.dock-scroll-region > ul \{[^}]*\}/u)
+  assert.ok(rule, 'short-viewport ul rule must exist')
+  assert.match(rule[0], /overflow-y:\s*auto/u)
+  assert.match(rule[0], /min-height:\s*0/u)
 })
 
 test('no default-theme layer refills the rail active state with a solid fill', async () => {

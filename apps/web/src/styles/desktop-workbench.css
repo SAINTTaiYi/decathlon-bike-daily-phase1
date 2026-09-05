@@ -88,11 +88,15 @@
   /* Reference left rail: six destinations plus release card. */
   .look-dock {
     left: 20px !important;
-    /* The fixed navigation layer (z-index 80) is .workshop-shell-header, 156px
-     * tall on desktop (90px global header + 66px module header). The rail sits
-     * at z-index 2, so any top < 156px is hidden behind its frosted backdrop --
-     * that is what made the first destination look like it had vanished. */
-    top: 168px !important;
+    /* The rail starts right below the 90px global header, not below the whole
+     * 156px navigation layer: the module header band begins at x=262px, so the
+     * left column between 90px and 156px is empty header wash. The base rule
+     * in workshop-system.css already stacks the dock at z-index 90 !important
+     * (above the layer's 80), so the first destination reads on top of the
+     * frosted band instead of hiding behind it -- the old top:112 "overview
+     * disappeared" bug predated that z-index. The rail's 238px right edge
+     * never reaches the module band, so nothing collides. */
+    top: 100px !important;
     bottom: auto !important;
     width: 218px !important;
     min-height: 0;

@@ -10,7 +10,9 @@ const css = await readFile(new URL('../apps/web/src/styles/desktop-workbench.css
 test('desktop navigation uses the full reference labels while mobile keeps existing dock labels', () => {
   for (const label of ['待取车辆', '其它交接', '维修交接', '二手台账', '销售数据']) assert.ok(dock.includes(label))
   assert.ok(dock.includes('desktopLayout ? desktopLabels[id] : dock'))
-  assert.match(css, /top: 168px !important/u)
+  // 2026-09-05 rail 上移：顶边从 168（整个导航层之下）改为 100（全局页头之下、
+  // 模块条左侧空出的栏内），配合基线 z-index 90 压在磨砂层之上。
+  assert.match(css, /top: 100px !important/u)
   assert.match(css, /top: 764px;\n    left: 18px;/u)
 })
 
