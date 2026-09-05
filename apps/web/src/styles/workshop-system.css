@@ -262,7 +262,12 @@ button:disabled { opacity: .48; }
   transform: translateX(-50%) !important;
 }
 .look-dock::before { display: none !important; }
-.look-dock ul {
+/* 移动端 dock 的 ul 基线。必须锁在 data-mobile-scene 内：这几条
+   （repeat(5) / overflow:visible !important）一旦泄漏到桌面，会把桌面
+   rail 的 ul 压成移动高度并强制溢出可见——桌面六个按钮会从 ul 里
+   「漏」出去，short-viewport 的滚动兜底（overflow-y:auto）被
+   !important 打死，公告卡正好盖在漏出的第六个按钮上。 */
+.workshop-runtime[data-mobile-scene] .look-dock ul {
   position: relative;
   z-index: 1;
   display: grid !important;

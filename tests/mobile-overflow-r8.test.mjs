@@ -39,5 +39,5 @@ test('desktop shell and scoped right-region transition remain frozen', () => {
   // 2026-08-28 黄色 wipe 已移除，模块转场改为退场 + zoom-in 入场
   assert.ok(!desktopCss.includes('.desktop-scene-transition-viewport'))
   assert.ok(!desktopCss.includes('.desktop-scene-transition-wipe'))
-  assert.match(desktopCss, /\.look-dock \{[\s\S]*?left: 20px !important;[\s\S]*?top: 168px !important;/u)
+  assert.match(desktopCss, /\.look-dock \{[\s\S]*?left: 20px !important;[\s\S]*?top: 100px !important;/u)
 })
