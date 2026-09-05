@@ -52,6 +52,29 @@ test('错误验证码走条件原子增量，第五次失败作废挑战并显�
   assert.match(routeSource, /if \(!challenge\) \{[\s\S]{0,200}OTP_INVALID_OR_EXPIRED/u)
 })
 
+test('跨挑战滚动预算：换新验证码不得重置总猜测上限（渗透复测 2026-09-05）', () => {
+  // 单挑战 5 次锁定可被"重新申请新验证码"整体重置，按账号的滚动窗口预算才是总闸。
+  assert.match(routeSource, /MAX_VERIFY_FAILURES_PER_HOUR = 10/u)
+  assert.match(routeSource, /MAX_VERIFY_FAILURES_PER_DAY = 15/u)
+  // 发码与验证两侧都必须有按账号的预算查询
+  const gates = [...routeSource.matchAll(/COALESCE\(SUM\(CASE WHEN created_at > \? THEN attempts ELSE 0 END\), 0\) AS failures_hour/gu)]
+  assert.equal(gates.length, 2, '发码与验证两侧都必须有预算闸门')
+  const [mintGate, verifyGate] = gates.map((g) => g.index ?? 0)
+  // 发码侧：预算耗尽时不得再铸造新挑战（闸门必须在 INSERT 之前），响应保持同形
+  const mintInsert = routeSource.indexOf('INSERT INTO password_reset_challenges')
+  assert.ok(mintGate < mintInsert, '发码侧预算闸门必须在铸造新挑战之前')
+  const mintGateBlock = routeSource.slice(mintGate, mintGate + 900)
+  assert.match(mintGateBlock, />= MAX_VERIFY_FAILURES_PER_HOUR[\s\S]{0,300}return c\.json\(resetOtpResponse\(syntheticChallengeId\)\)/u)
+  assert.match(mintGateBlock, /MAX_VERIFY_FAILURES_PER_DAY/u, '小时与日预算必须同时判定')
+  // 验证侧：闸门必须在验证码比对之前执行，否则等于没设
+  const otpCompare = routeSource.indexOf('safeEqualHex(expected, challenge.otp_hash)')
+  assert.ok(verifyGate < otpCompare, '验证侧预算闸门必须在比对之前')
+  const verifyGateBlock = routeSource.slice(verifyGate, verifyGate + 900)
+  assert.match(verifyGateBlock, />= MAX_VERIFY_FAILURES_PER_HOUR[\s\S]{0,400}throw new ApiProblem\(429, 'OTP_LOCKED'/u)
+  // 预算必须按账号维度统计（user_id 维度聚合），而不是只看单个挑战
+  assert.match(routeSource, /FROM password_reset_challenges\s+WHERE user_id = \? AND created_at > \?/u)
+})
+
 test('验证码比对使用恒定时间比较', () => {
   assert.match(routeSource, /const expected = await keyedHash\(`\$\{challenge\.id\}:\$\{input\.otp\}`, config\.REGISTRATION_SECRET\)/u)
   assert.match(routeSource, /if \(!safeEqualHex\(expected, challenge\.otp_hash\)\)/u)

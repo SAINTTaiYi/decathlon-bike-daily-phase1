@@ -26,18 +26,15 @@ function mapMemberships(rows: MembershipRow[]) {
   }))
 }
 
-// The platform admin is deliberately exempt from account lockout: locking it would let anyone
-// deny service to the only account that can administer the platform with five wrong passwords.
-// That exemption previously left it as the one account open to unlimited online brute force,
-// because failed_login_count was incremented and then never consumed by anything.
-//
-// Exponential backoff closes that gap without reintroducing the lockout DoS: the account always
-// stays reachable, but each successive failure costs the attacker more wall-clock time. Delay is
-// applied to the failure response only, so a legitimate admin typing the right password is never
-// slowed down.
+// 账号硬锁定已整体废除（渗透复测 2026-09-05）：只要知道用户名，任何人都能用
+// 五次错误密码把员工反复锁在门外——锁定本身成了可武器化的拒绝服务。原先仅
+// 平台管理员享有的豁免现在覆盖全部账号。防在线爆破由四层叠加承担：密码 ≥10
+// 位 + PBKDF2(100k)+pepper、CF 边缘限速、下方指数退避（封顶 8s，仅作用于失败
+// 响应，正确密码永不被延迟）、失败阈值审计告警。攻击者最多让自己每次失败多
+// 等几秒，再也无法让账号不可达。
 // Valid-format PBKDF2 hash used to equalize login latency: when the username
-// does not exist (or is temporarily locked), we still run one PBKDF2 round so
-// response timing does not reveal account existence.
+// does not exist, we still run one PBKDF2 round so response timing does not
+// reveal account existence.
 const DUMMY_PASSWORD_HASH = 'pbkdf2$sha256$100000$AAECAwQFBgcICQoLDA0ODw$0000000000000000000000000000000000000000000000000000000000000000'
 
 export const LOGIN_BACKOFF_THRESHOLD = 5
@@ -83,32 +80,28 @@ export function authRoutes() {
     const config = c.get('config')
     const input = loginSchema.parse(await c.req.json())
     const genericFailure = { error: 'INVALID_CREDENTIALS', message: '用户名或密码不正确。' }
-    const user = await first<{ id: string; display_name: string; password_hash: string; must_change_password: number; failed_login_count: number; locked_until: string | null; is_platform_admin: number }>(c.env.DB.prepare(`
-      SELECT id, display_name, password_hash, must_change_password, failed_login_count, locked_until, is_platform_admin
+    const user = await first<{ id: string; display_name: string; password_hash: string; must_change_password: number; failed_login_count: number; is_platform_admin: number }>(c.env.DB.prepare(`
+      SELECT id, display_name, password_hash, must_change_password, failed_login_count, is_platform_admin
       FROM users WHERE username_key = ? AND status = 'active' LIMIT 1
     `).bind(usernameKey(input.username)))
-    const accountLockActive = user?.is_platform_admin !== 1 && Boolean(user?.locked_until && Date.parse(user.locked_until) > Date.now())
-    if (!user || accountLockActive) {
+    if (!user) {
       // Timing equalization: perform one dummy PBKDF2 before responding so the
-      // not-found / locked path costs roughly the same as a wrong password.
+      // not-found path costs roughly the same as a wrong password.
       await verifyPassword(DUMMY_PASSWORD_HASH, input.password, config.PASSWORD_PEPPER)
       return c.json(genericFailure, 401)
     }
     if (!(await verifyPassword(user.password_hash, input.password, config.PASSWORD_PEPPER))) {
       const stamp = nowIso()
-      const lockUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString()
       const nextFailedCount = user.failed_login_count + 1
+      // 锁定已废除（见文件头注释）：失败计数只喂给退避与审计告警；
+      // 顺手清掉历史遗留的锁定时间戳，防止旧值复活语义。
       await c.env.DB.prepare(`
         UPDATE users
         SET failed_login_count = failed_login_count + 1,
-            locked_until = CASE
-              WHEN is_platform_admin = 1 THEN NULL
-              WHEN failed_login_count + 1 >= 5 THEN ?
-              ELSE locked_until
-            END,
+            locked_until = NULL,
             updated_at = ?
         WHERE id = ?
-      `).bind(lockUntil, stamp, user.id).run()
+      `).bind(stamp, user.id).run()
 
       // Sustained failures must be visible after the fact, not only felt as latency.
       if (shouldAlertOnFailedLogin(nextFailedCount)) {
