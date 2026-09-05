@@ -40,6 +40,16 @@
   .workshop-header-brand > small { margin-top: 2px; font-size: 12px; }
   .workshop-header-desktop-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-right: 30px; }
   .workshop-header-menu > svg { width: 28px; height: 28px; }
+  /* 导航层的盒子即使绘制被 mask 裁掉，hit-test 仍覆盖整条 156px：
+     上移后的 rail 第一个按钮会被壳层吞掉点击。事件只在两条真实页头
+     带内接收，左栏 90-156 放行给 rail。 */
+  .workshop-runtime > [data-workspace-layer='navigation'],
+  .workshop-shell-header { pointer-events: none; }
+  .workshop-global-header-desktop,
+  .workshop-module-header { pointer-events: auto; }
+  /* borderless 的 !important 焦点环已排除页头图标；这里再摘掉剩余的全局
+     焦点环（base/workshop-system 的 :focus-visible），移动端页头保留黄环。 */
+  .workshop-global-header-desktop button:focus-visible { outline: none; }
   .workshop-user-context {
     display: grid;
     grid-template-columns: 42px minmax(0, 1fr) 18px;

@@ -232,3 +232,40 @@ test('dock indicator paint reads brand tokens without fallbacks', async () => {
     '黑色外发光属于旧实心形态，已随黑底一起移除',
   )
 })
+
+test('header frosted paint is masked out of the rail column', async () => {
+  // rail 在内容层(z1)里，永远叠不过导航层(z80)；页头磨砂一旦铺满 156px，
+  // 上移后的第一个导航项必然被背板盖住。填充+模糊必须搬到 ::before 并
+  // 用 mask 裁成页头真实占位（90px 全宽 + 90-156 的 x>=262 区域）。
+  const css = (await read('frosted.css')).replace(/\/\*[\s\S]*?\*\//gu, '')
+  const layer = css.match(/\[data-workspace-layer='navigation'\] \{[^}]*background: none !important;[^}]*backdrop-filter: none;[^}]*\}/u)
+  assert.ok(layer, 'desktop navigation layer must hand fill+blur to a masked ::before')
+  const blocks = css.match(/\[data-workspace-layer='navigation'\]::before \{[^}]*\}/gu) ?? []
+  const masked = blocks.find((block) => {
+    const flat = block.replace(/\s+/gu, ' ')
+    // 前导空格区分标准属性与 -webkit- 前缀，否则子串检查会被前缀行骗过
+    return flat.includes(' mask-size: 100% 90px, calc(100% - 262px) 66px')
+      && flat.includes('-webkit-mask-size: 100% 90px, calc(100% - 262px) 66px')
+      && flat.includes('backdrop-filter: blur(28px) saturate(180%)')
+  })
+  assert.ok(masked, 'header ::before must mask its paint to the header footprint (90px band + module band from x=262)')
+})
+
+test('header icon buttons are excluded from the rebuilt focus ring', async () => {
+  // 菜单按钮的「白框」= borderless.css 重建的无障碍焦点环（!important）。
+  // 用户 2026-09-05 要求去掉；排除写在环规则自身的选择器上，不写覆盖规则。
+  const css = (await read('borderless.css')).replace(/\/\*[\s\S]*?\*\//gu, '')
+  assert.match(
+    css,
+    /\[role='option'\]\):focus-visible:not\(\.workshop-header-action\) \{/u,
+    'borderless focus ring must exclude .workshop-header-action',
+  )
+})
+
+test('navigation layer hit-testing stays out of the rail column', async () => {
+  // mask 只裁绘制不裁 hit-test：导航层盒子仍会吞掉 rail 首按钮的点击。
+  const css = (await read('desktop-workbench.css')).replace(/\/\*[\s\S]*?\*\//gu, '')
+  assert.match(css, /\[data-workspace-layer='navigation'\],\s*\.workshop-shell-header \{ pointer-events: none; \}/u)
+  assert.match(css, /\.workshop-global-header-desktop,\s*\.workshop-module-header \{ pointer-events: auto; \}/u)
+  assert.match(css, /\.workshop-global-header-desktop button:focus-visible \{ outline: none; \}/u)
+})
