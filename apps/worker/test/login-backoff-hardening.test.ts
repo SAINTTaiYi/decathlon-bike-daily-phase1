@@ -31,13 +31,21 @@ test('失败告警在跨过阈值时触发一次，随后每十次一条', () =>
   assert.equal(shouldAlertOnFailedLogin(26), false)
 })
 
-test('平台管理员仍然豁免锁定，退避不得退化为拒绝服务', async () => {
+test('任何账号都不再被硬锁：锁定语句必须已从登录路径删除（渗透复测 2026-09-05）', async () => {
   const source = await readFile(new URL('../src/routes/auth.ts', import.meta.url), 'utf8')
+  const loginBlock = source.slice(source.indexOf("app.post('/api/v1/auth/login'"), source.indexOf("app.get('/api/v1/auth/me'"))
 
-  // Locking the platform admin would let anyone deny service to the only account that can
-  // administer the platform. The exemption must survive this hardening.
-  assert.match(source, /WHEN is_platform_admin = 1 THEN NULL/u, '平台管理员必须继续豁免锁定')
-  assert.match(source, /user\?\.is_platform_admin !== 1 && Boolean\(user\?\.locked_until/u, '平台管理员不得因锁定被拒绝登录')
+  // 账号硬锁可被任何知道用户名的人武器化：五次错误密码就能反复把员工锁在门外。
+  // 锁定写入、锁定拒绝分支、平台管理员豁免 CASE 都必须消失。
+  assert.doesNotMatch(loginBlock, /locked_until = CASE/u, '失败路径不得再写锁定 CASE')
+  assert.doesNotMatch(loginBlock, /WHEN failed_login_count \+ 1 >= 5/u, '旧的五次锁定阈值必须删除')
+  assert.doesNotMatch(loginBlock, /accountLockActive/u, '不得存在按锁定拒绝登录的分支')
+  assert.doesNotMatch(loginBlock, /is_platform_admin = 1 THEN NULL/u, '管理员豁免 CASE 已无存在必要')
+  assert.doesNotMatch(loginBlock, /locked_until, is_platform_admin/u, '登录查询不得再取锁定字段')
+  // 失败计数保持原子增量：退避与审计告警的输入
+  assert.match(loginBlock, /failed_login_count = failed_login_count \+ 1/u, '失败计数仍保持原子增量')
+  // 历史遗留的锁定时间戳必须被清掉，防止旧值复活语义
+  assert.match(loginBlock, /failed_login_count = failed_login_count \+ 1,\s+locked_until = NULL/u, '失败路径应顺手清空历史锁定时间戳')
 })
 
 test('退避只作用于失败路径，且不引入用户名枚举侧信道', async () => {
@@ -51,9 +59,9 @@ test('退避只作用于失败路径，且不引入用户名枚举侧信道', as
   const successIndex = loginBlock.indexOf('setSessionCookie')
   assert.ok(delayIndex < successIndex, '退避必须位于成功签发会话之前的失败分支中')
 
-  // Unknown user and locked account must still answer the same generic failure. A dummy PBKDF2
+  // Unknown user must still answer the same generic failure. A dummy PBKDF2
   // equalizes latency so the backoff cannot be used to distinguish account existence.
-  assert.match(loginBlock, /if \(!user \|\| accountLockActive\) \{[\s\S]*?await verifyPassword\(DUMMY_PASSWORD_HASH, input\.password, config\.PASSWORD_PEPPER\)[\s\S]*?return c\.json\(genericFailure, 401\)/u)
+  assert.match(loginBlock, /if \(!user\) \{[\s\S]*?await verifyPassword\(DUMMY_PASSWORD_HASH, input\.password, config\.PASSWORD_PEPPER\)[\s\S]*?return c\.json\(genericFailure, 401\)/u)
 
   // Alert bookkeeping must never turn a failed login into a 500.
   assert.match(loginBlock, /try \{ await alert\.statement\.run\(\) \} catch \{/u, '告警写入失败不得影响登录响应')

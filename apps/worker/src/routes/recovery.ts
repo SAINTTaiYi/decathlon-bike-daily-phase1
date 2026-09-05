@@ -21,6 +21,12 @@ const HOUR_MS = 60 * 60 * 1000
 const MAX_RESEND_PER_EMAIL = 5
 const MAX_PER_CLIENT_HOUR = 12
 const MAX_ATTEMPTS = 5
+const DAY_MS = 24 * HOUR_MS
+// 跨挑战预算（渗透复测 2026-09-05）：单挑战 5 次锁定只约束一个 challengeId，
+// 重新申请新验证码即可拿到 attempts=0 的新计数。按账号的滚动窗口预算才是总闸：
+// 每小时 ≤10 次、每天 ≤15 次错误验证码，预算耗尽期间发码侧也不再铸造新挑战。
+const MAX_VERIFY_FAILURES_PER_HOUR = 10
+const MAX_VERIFY_FAILURES_PER_DAY = 15
 
 type ResetChallengeRow = {
   id: string
@@ -101,6 +107,20 @@ export function recoveryRoutes() {
       return c.json(resetOtpResponse(syntheticChallengeId))
     }
 
+    // 跨挑战预算 · 发码侧闸门：预算耗尽期间不再铸造新挑战（也不发新邮件），
+    // 否则攻击者每换一次验证码就白拿 5 次新猜测。
+    const verifyBudget = await first<{ failures_hour: number; failures_day: number }>(c.env.DB.prepare(`
+      SELECT
+        COALESCE(SUM(CASE WHEN created_at > ? THEN attempts ELSE 0 END), 0) AS failures_hour,
+        COALESCE(SUM(attempts), 0) AS failures_day
+      FROM password_reset_challenges
+      WHERE user_id = ? AND created_at > ?
+    `).bind(new Date(now - HOUR_MS).toISOString(), user.id, new Date(now - DAY_MS).toISOString()))
+    if ((verifyBudget?.failures_hour ?? 0) >= MAX_VERIFY_FAILURES_PER_HOUR || (verifyBudget?.failures_day ?? 0) >= MAX_VERIFY_FAILURES_PER_DAY) {
+      await delay(300 + Math.floor(Math.random() * 400))
+      return c.json(resetOtpResponse(syntheticChallengeId))
+    }
+
     const recentByEmail = await first<{ id: string; created_at: string; resend_count: number }>(c.env.DB.prepare(`
       SELECT id, created_at, resend_count FROM password_reset_challenges
       WHERE email_key = ? AND created_at > ?
@@ -157,6 +177,19 @@ export function recoveryRoutes() {
       }
       throw new ApiProblem(400, 'OTP_INVALID_OR_EXPIRED', '验证码无效或已过期，请重新获取。')
     }
+    // 跨挑战预算 · 验证侧闸门：必须在比对之前执行，否则等于没设。
+    // 发码侧闸门拦截新挑战铸造，这里对既有挑战兜底（防御纵深）。
+    const verifyBudget = await first<{ failures_hour: number; failures_day: number }>(c.env.DB.prepare(`
+      SELECT
+        COALESCE(SUM(CASE WHEN created_at > ? THEN attempts ELSE 0 END), 0) AS failures_hour,
+        COALESCE(SUM(attempts), 0) AS failures_day
+      FROM password_reset_challenges
+      WHERE user_id = ? AND created_at > ?
+    `).bind(new Date(Date.now() - HOUR_MS).toISOString(), challenge.user_id, new Date(Date.now() - DAY_MS).toISOString()))
+    if ((verifyBudget?.failures_hour ?? 0) >= MAX_VERIFY_FAILURES_PER_HOUR || (verifyBudget?.failures_day ?? 0) >= MAX_VERIFY_FAILURES_PER_DAY) {
+      throw new ApiProblem(429, 'OTP_LOCKED', '验证码错误次数过多，请稍后再试或联系门店管理员重置密码。')
+    }
+
     const expected = await keyedHash(`${challenge.id}:${input.otp}`, config.REGISTRATION_SECRET)
     if (!safeEqualHex(expected, challenge.otp_hash)) {
       const stamp = nowIso()
