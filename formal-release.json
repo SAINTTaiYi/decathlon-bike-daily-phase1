@@ -1,29 +1,28 @@
 {
   "kind": "formal-production-release",
-  "version": "6.6.3",
+  "version": "6.6.4",
   "previewRange": {
-    "fromExclusive": "fb31778b35e15331439c9103e1732f5ae33c9156",
-    "toInclusive": "88d7c3747d5a6264c2a168861a4d0a06d30225c3",
+    "fromExclusive": "d45667ae6b573aaeac315d2b60606766899c654f",
+    "toInclusive": "37c85db05d0cd9cb93c80ba9099675ee6eb79860",
     "commits": [
       {
-        "sha": "01c45ec441ac10702e37d95dcee3ed93702f005a",
-        "subject": "chore(release): stamp V6.6.2 build metadata"
+        "sha": "68cc19a839b11562c011c6469b94a9f35b691023",
+        "subject": "chore(release): stamp V6.6.3 build metadata"
       },
       {
-        "sha": "88d7c3747d5a6264c2a168861a4d0a06d30225c3",
-        "subject": "feat(web): simplify mobile chrome and show signed-in user"
+        "sha": "37c85db05d0cd9cb93c80ba9099675ee6eb79860",
+        "subject": "fix(desktop-rail): scope mobile dock ul baselines, raise rail to 100px"
       }
     ]
   },
   "announcement": {
-    "title": "移动端页头显示登录用户名，移除旧版底部条",
-    "summary": "移动端删除总览底部的旧版闭店条（门店身份、最后同步、日报菜单/当日日志/永久历史按钮），登录用户名移至页头通知铃左侧显示；全局页头拆分为移动/桌面两套独立组件与样式，旧 footer 样式全部清除。",
+    "title": "桌面导航栏上移与公告卡遮挡修复",
+    "summary": "修复移动端 dock 样式泄漏桌面导致的更新公告卡遮挡「销售数据」导航按钮；桌面左侧导航上移至全局页头之下，缩短空档。",
     "changes": [
-      "新增：移动端页头显示当前登录用户名（通知铃左侧，动态取登录态）",
-      "删除：移动端总览底部旧版闭店条——门店/角色身份条、最后同步时间、完成闭店按钮、日报菜单/当日日志/永久历史",
-      "重构：全局页头按运行时拆分为移动/桌面两套独立组件与样式（WorkshopGlobalHeaderMobile/Desktop + mobile-shell-header.css），桌面端不变",
-      "清理：六处样式文件中的旧 footer 声明全部删除；新增 footer 零残留与双端隔离回归测试"
+      "修复：更新公告卡不再遮挡「销售数据」按钮（根因：移动端 ul 基线样式未锁作用域泄漏桌面，rail ul 被压至 58px、短视口滚动兜底失效）",
+      "桌面左侧导航顶边 168→100px，占用全局页头下方左侧空栏，基线 z-index 90 压在磨砂导航层之上",
+      "新增回归断言：移动样式不得泄漏桌面、短视口滚动兜底必须存活，注入事故写法实测变红"
     ]
   },
-  "preparedAt": "2026-09-04T16:26:20.701Z"
+  "preparedAt": "2026-09-05T07:17:13.695Z"
 }
