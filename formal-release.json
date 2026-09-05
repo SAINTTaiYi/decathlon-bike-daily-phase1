@@ -1,27 +1,27 @@
 {
   "kind": "formal-production-release",
-  "version": "6.6.6",
+  "version": "6.6.7",
   "previewRange": {
-    "fromExclusive": "622a3652be5d0b450dd532d0e3f65bced4da041c",
-    "toInclusive": "b18c61f189c1555ab6f2053195c6f18d599e25bf",
+    "fromExclusive": "1c39686098fafee291c80704d8978286862f6075",
+    "toInclusive": "7e71031b0ac7fe890ed4984f14bd7cff5c88f2fc",
     "commits": [
       {
-        "sha": "501b9e23fcd3c3b750b130d6c098d77ab58ec137",
-        "subject": "chore(release): stamp V6.6.5 build metadata"
+        "sha": "5bcea5ed54ad63a86429fbd2207e6c84d6469e0a",
+        "subject": "chore(release): stamp V6.6.6 build metadata"
       },
       {
-        "sha": "b18c61f189c1555ab6f2053195c6f18d599e25bf",
-        "subject": "fix(desktop-header): 页头 ::before 压到 z-index -1，找回被糊住的页头文字"
+        "sha": "7e71031b0ac7fe890ed4984f14bd7cff5c88f2fc",
+        "subject": "fix(security): OTP per-account rolling budget + remove weaponizable login lockout"
       }
     ]
   },
   "announcement": {
-    "title": "页头文字恢复（磨砂 ::before 层级修复）",
-    "summary": "修复 V6.6.5 页头磨砂 ::before（z-auto 绝对定位）盖住流内文字，品牌字/版本号/模块页头标题/右上用户信息被 backdrop-filter 糊成 smear；压到 z-index -1 后只模糊层背后页面内容。",
+    "title": "安全加固：验证码预算与登录防锁定",
+    "summary": "渗透复测两项修复：自助改密 OTP 新增按账号滚动预算防在线爆破；废除可被武器化的登录硬锁定，全员改为指数退避加审计告警。",
     "changes": [
-      "修复：桌面页头品牌字、版本号、模块页头标题、右上用户信息不再被磨砂背板糊住（::before 压到 z-index -1）",
-      "回归断言：页头 ::before 必须含 z-index: -1，注入 z-index:0 实测变红"
+      "自助改密 OTP 新增按账号滚动预算：每小时不超过 10 次、每天不超过 15 次错误验证码，重新申请验证码不再重置计数，预算耗尽期间不再发新码",
+      "废除登录账号硬锁定（知道用户名即可反复锁死员工的拒绝服务漏洞），全员改为指数退避封顶 8 秒加失败阈值审计告警，正确密码登录零延迟"
     ]
   },
-  "preparedAt": "2026-09-05T10:18:52.305Z"
+  "preparedAt": "2026-09-05T12:29:23.767Z"
 }

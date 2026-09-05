@@ -1,12 +1,12 @@
-export const APP_VERSION = "6.6.6"
+export const APP_VERSION = "6.6.7"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.09.05",
-  title: "页头文字恢复（磨砂 ::before 层级修复）",
-  summary: "修复 V6.6.5 页头磨砂 ::before（z-auto 绝对定位）盖住流内文字，品牌字/版本号/模块页头标题/右上用户信息被 backdrop-filter 糊成 smear；压到 z-index -1 后只模糊层背后页面内容。",
+  title: "安全加固：验证码预算与登录防锁定",
+  summary: "渗透复测两项修复：自助改密 OTP 新增按账号滚动预算防在线爆破；废除可被武器化的登录硬锁定，全员改为指数退避加审计告警。",
   changes: [
-    "修复：桌面页头品牌字、版本号、模块页头标题、右上用户信息不再被磨砂背板糊住（::before 压到 z-index -1）",
-    "回归断言：页头 ::before 必须含 z-index: -1，注入 z-index:0 实测变红"
+    "自助改密 OTP 新增按账号滚动预算：每小时不超过 10 次、每天不超过 15 次错误验证码，重新申请验证码不再重置计数，预算耗尽期间不再发新码",
+    "废除登录账号硬锁定（知道用户名即可反复锁死员工的拒绝服务漏洞），全员改为指数退避封顶 8 秒加失败阈值审计告警，正确密码登录零延迟"
   ]
 }
