@@ -47,6 +47,9 @@
   .workshop-shell-header { pointer-events: none; }
   .workshop-global-header-desktop,
   .workshop-module-header { pointer-events: auto; }
+  /* borderless 的 !important 焦点环已排除页头图标；这里再摘掉剩余的全局
+     焦点环（base/workshop-system 的 :focus-visible），移动端页头保留黄环。 */
+  .workshop-global-header-desktop button:focus-visible { outline: none; }
   .workshop-user-context {
     display: grid;
     grid-template-columns: 42px minmax(0, 1fr) 18px;

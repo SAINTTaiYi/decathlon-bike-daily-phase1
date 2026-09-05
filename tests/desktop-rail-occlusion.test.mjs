@@ -267,4 +267,5 @@ test('navigation layer hit-testing stays out of the rail column', async () => {
   const css = (await read('desktop-workbench.css')).replace(/\/\*[\s\S]*?\*\//gu, '')
   assert.match(css, /\[data-workspace-layer='navigation'\],\s*\.workshop-shell-header \{ pointer-events: none; \}/u)
   assert.match(css, /\.workshop-global-header-desktop,\s*\.workshop-module-header \{ pointer-events: auto; \}/u)
+  assert.match(css, /\.workshop-global-header-desktop button:focus-visible \{ outline: none; \}/u)
 })
