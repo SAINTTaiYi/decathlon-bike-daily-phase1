@@ -257,7 +257,9 @@
  * This is the one intentional exception to "no lines": invisible at rest,
  * required for operability.
  * ------------------------------------------------------------------ */
-:where(a, button, input, select, textarea, summary, [tabindex], [role='button'], [role='tab'], [role='option']):focus-visible {
+/* 页头图标按钮（菜单/搜索/铃铛）除外：用户 2026-09-05 明确要求去掉菜单
+   按钮的焦点框；磨砂页头上这圈环读作杂色白框。其余焦点环保持不动。 */
+:where(a, button, input, select, textarea, summary, [tabindex], [role='button'], [role='tab'], [role='option']):focus-visible:not(.workshop-header-action) {
   outline: 2px solid var(--ops-black, #14161a) !important;
   outline-offset: 2px !important;
   border-radius: var(--ops-radius-sm, 12px);

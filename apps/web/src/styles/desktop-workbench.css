@@ -40,9 +40,13 @@
   .workshop-header-brand > small { margin-top: 2px; font-size: 12px; }
   .workshop-header-desktop-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-right: 30px; }
   .workshop-header-menu > svg { width: 28px; height: 28px; }
-  /* 页头图标按钮是鼠标优先入口；键盘焦点环叠在磨砂页头上读作一圈杂色框
-     （用户 2026-09-05 要求移除）。移动端页头保留焦点环。 */
-  .workshop-global-header-desktop button:focus-visible { outline: none; }
+  /* 导航层的盒子即使绘制被 mask 裁掉，hit-test 仍覆盖整条 156px：
+     上移后的 rail 第一个按钮会被壳层吞掉点击。事件只在两条真实页头
+     带内接收，左栏 90-156 放行给 rail。 */
+  .workshop-runtime > [data-workspace-layer='navigation'],
+  .workshop-shell-header { pointer-events: none; }
+  .workshop-global-header-desktop,
+  .workshop-module-header { pointer-events: auto; }
   .workshop-user-context {
     display: grid;
     grid-template-columns: 42px minmax(0, 1fr) 18px;

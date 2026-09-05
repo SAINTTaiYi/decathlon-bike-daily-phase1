@@ -251,7 +251,20 @@ test('header frosted paint is masked out of the rail column', async () => {
   assert.ok(masked, 'header ::before must mask its paint to the header footprint (90px band + module band from x=262)')
 })
 
-test('desktop header icon buttons carry no focus ring', async () => {
-  const css = await read('desktop-workbench.css')
-  assert.match(css, /\.workshop-global-header-desktop button:focus-visible \{ outline: none; \}/u)
+test('header icon buttons are excluded from the rebuilt focus ring', async () => {
+  // 菜单按钮的「白框」= borderless.css 重建的无障碍焦点环（!important）。
+  // 用户 2026-09-05 要求去掉；排除写在环规则自身的选择器上，不写覆盖规则。
+  const css = (await read('borderless.css')).replace(/\/\*[\s\S]*?\*\//gu, '')
+  assert.match(
+    css,
+    /\[role='option'\]\):focus-visible:not\(\.workshop-header-action\) \{/u,
+    'borderless focus ring must exclude .workshop-header-action',
+  )
+})
+
+test('navigation layer hit-testing stays out of the rail column', async () => {
+  // mask 只裁绘制不裁 hit-test：导航层盒子仍会吞掉 rail 首按钮的点击。
+  const css = (await read('desktop-workbench.css')).replace(/\/\*[\s\S]*?\*\//gu, '')
+  assert.match(css, /\[data-workspace-layer='navigation'\],\s*\.workshop-shell-header \{ pointer-events: none; \}/u)
+  assert.match(css, /\.workshop-global-header-desktop,\s*\.workshop-module-header \{ pointer-events: auto; \}/u)
 })
