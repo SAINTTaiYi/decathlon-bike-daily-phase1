@@ -247,6 +247,7 @@ test('header frosted paint is masked out of the rail column', async () => {
     return flat.includes(' mask-size: 100% 90px, calc(100% - 262px) 66px')
       && flat.includes('-webkit-mask-size: 100% 90px, calc(100% - 262px) 66px')
       && flat.includes('backdrop-filter: blur(28px) saturate(180%)')
+      && flat.includes('z-index: -1')
   })
   assert.ok(masked, 'header ::before must mask its paint to the header footprint (90px band + module band from x=262)')
 })
