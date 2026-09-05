@@ -1,6 +1,6 @@
 {
   "name": "decathlon-bike-daily-phase1",
-  "version": "6.6.7",
+  "version": "6.6.8",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.15.9",

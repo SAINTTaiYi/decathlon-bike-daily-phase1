@@ -1,27 +1,31 @@
 {
   "kind": "formal-production-release",
-  "version": "6.6.7",
+  "version": "6.6.8",
   "previewRange": {
-    "fromExclusive": "1c39686098fafee291c80704d8978286862f6075",
-    "toInclusive": "7e71031b0ac7fe890ed4984f14bd7cff5c88f2fc",
+    "fromExclusive": "8254605126b664de7b102ff14bd200a862309caf",
+    "toInclusive": "68c2315412c552428eac21c6a26268213177fee1",
     "commits": [
       {
-        "sha": "5bcea5ed54ad63a86429fbd2207e6c84d6469e0a",
-        "subject": "chore(release): stamp V6.6.6 build metadata"
+        "sha": "b02121ac550cd8e9cab9e49a766deb2468827aa3",
+        "subject": "chore(release): stamp V6.6.7 build metadata"
       },
       {
-        "sha": "7e71031b0ac7fe890ed4984f14bd7cff5c88f2fc",
-        "subject": "fix(security): OTP per-account rolling budget + remove weaponizable login lockout"
+        "sha": "0b54b75e7ad2aa61393fe3bbb03a0c9b243b9913",
+        "subject": "feat(account): force email binding + password reset for legacy no-email accounts"
+      },
+      {
+        "sha": "68c2315412c552428eac21c6a26268213177fee1",
+        "subject": "fix(account): binding resend cooldown must never return an expired challengeId"
       }
     ]
   },
   "announcement": {
-    "title": "安全加固：验证码预算与登录防锁定",
-    "summary": "渗透复测两项修复：自助改密 OTP 新增按账号滚动预算防在线爆破；废除可被武器化的登录硬锁定，全员改为指数退避加审计告警。",
+    "title": "账号安全：存量账号强制绑定邮箱",
+    "summary": "除 admin 与平台管理员外，早期创建的未绑定邮箱账号下次登录将强制绑定公司邮箱并重设密码（可与旧密码一致），绑定后支持邮箱自助找回密码。",
     "changes": [
-      "自助改密 OTP 新增按账号滚动预算：每小时不超过 10 次、每天不超过 15 次错误验证码，重新申请验证码不再重置计数，预算耗尽期间不再发新码",
-      "废除登录账号硬锁定（知道用户名即可反复锁死员工的拒绝服务漏洞），全员改为指数退避封顶 8 秒加失败阈值审计告警，正确密码登录零延迟"
+      "存量无邮箱账号登录后强制绑定公司邮箱并重设密码（允许与旧密码一致），完成后可用邮箱自助找回密码；admin 与平台管理员豁免",
+      "绑定验证码含单挑战 5 次锁定与每小时错误次数上限，重发冷却不再返回已作废的验证码"
     ]
   },
-  "preparedAt": "2026-09-05T12:29:23.767Z"
+  "preparedAt": "2026-09-05T13:25:12.082Z"
 }
