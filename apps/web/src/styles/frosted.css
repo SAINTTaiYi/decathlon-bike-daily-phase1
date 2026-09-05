@@ -474,3 +474,48 @@
   }
 }
 
+
+/* ==================================================================
+ * 9. Desktop header paint stays out of the rail column (2026-09-05)
+ *
+ * The rail lives inside the content layer (z-index 1), so it can never
+ * stack above this navigation layer (z-index 80) -- raising the dock's
+ * z-index changes nothing. When the rail moved up to top:100px its first
+ * destination slid under the layer's frosted backdrop and got veiled
+ * ("the header overflows into the nav"). The header's real footprint is
+ * the 90px global band plus the module band starting at x=262px; below
+ * 90px the left column belongs to the rail. Move fill+blur to a
+ * ::before and mask it to that footprint so the layer paints nothing
+ * over the rail column. Legacy browsers without backdrop-filter/mask
+ * keep the old full-width band via the section 1 fallbacks.
+ * ================================================================== */
+@media (min-width: 768px) {
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) and ((mask-image: linear-gradient(#000, transparent)) or (-webkit-mask-image: linear-gradient(#000, transparent))) {
+    .workshop-runtime > [data-workspace-layer='navigation'] {
+      background: none !important;
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+    .workshop-runtime > [data-workspace-layer='navigation']::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        to bottom,
+        rgb(var(--glass-tint) / .72) 0%,
+        rgb(var(--glass-tint) / .56) 55%,
+        rgb(var(--glass-tint) / .34) 100%
+      );
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+      -webkit-mask-position: 0 0, 262px 90px;
+      -webkit-mask-size: 100% 90px, calc(100% - 262px) 66px;
+      -webkit-mask-repeat: no-repeat, no-repeat;
+      mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+      mask-position: 0 0, 262px 90px;
+      mask-size: 100% 90px, calc(100% - 262px) 66px;
+      mask-repeat: no-repeat, no-repeat;
+    }
+  }
+}
