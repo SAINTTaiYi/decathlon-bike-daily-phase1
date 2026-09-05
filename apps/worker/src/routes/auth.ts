@@ -3,7 +3,7 @@ import { loginSchema, passwordChangeSchema } from '@bike-ops/contracts'
 import { localBusinessDate, usernameKey } from '@bike-ops/domain'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
-import { createAuthMiddleware } from '../auth/middleware.js'
+import { createAuthMiddleware, isEmailBindingExempt, isEmailBindingRequired } from '../auth/middleware.js'
 import { clearSessionCookie, createSessionSecrets, csrfTokenHash, setSessionCookie, SESSION_COOKIE } from '../auth/session.js'
 import { all, first, nowIso } from '../db.js'
 import { hashPassword, keyedHash, randomToken, verifyPassword } from '../lib/crypto.js'
@@ -80,8 +80,8 @@ export function authRoutes() {
     const config = c.get('config')
     const input = loginSchema.parse(await c.req.json())
     const genericFailure = { error: 'INVALID_CREDENTIALS', message: '用户名或密码不正确。' }
-    const user = await first<{ id: string; display_name: string; password_hash: string; must_change_password: number; failed_login_count: number; is_platform_admin: number }>(c.env.DB.prepare(`
-      SELECT id, display_name, password_hash, must_change_password, failed_login_count, is_platform_admin
+    const user = await first<{ id: string; display_name: string; password_hash: string; must_change_password: number; failed_login_count: number; is_platform_admin: number; email_key: string | null; username_key: string }>(c.env.DB.prepare(`
+      SELECT id, display_name, password_hash, must_change_password, failed_login_count, is_platform_admin, email_key, username_key
       FROM users WHERE username_key = ? AND status = 'active' LIMIT 1
     `).bind(usernameKey(input.username)))
     if (!user) {
@@ -178,7 +178,19 @@ export function authRoutes() {
     const waitUntil = c.executionCtx?.waitUntil?.bind(c.executionCtx)
     if (waitUntil) waitUntil(runLoginBiSkuSync(c.env))
     else void runLoginBiSkuSync(c.env)
-    return c.json({ user: { id: user.id, displayName: user.display_name, mustChangePassword: user.must_change_password === 1, isPlatformAdmin: user.is_platform_admin === 1 }, stores: mapMemberships(memberships), currentStoreId: primaryStore.store_id, csrfToken: secrets.csrfToken })
+    return c.json({
+      user: {
+        id: user.id,
+        displayName: user.display_name,
+        mustChangePassword: user.must_change_password === 1,
+        isPlatformAdmin: user.is_platform_admin === 1,
+        // 存量无邮箱账号引导：前端据此展示绑定门卡；豁免账号恒为 false。
+        emailBindingRequired: !user.email_key && !isEmailBindingExempt({ isPlatformAdmin: user.is_platform_admin === 1, usernameKey: user.username_key })
+      },
+      stores: mapMemberships(memberships),
+      currentStoreId: primaryStore.store_id,
+      csrfToken: secrets.csrfToken
+    })
   })
 
   app.get('/api/v1/auth/me', auth.loadSession, async (c) => {
@@ -193,7 +205,7 @@ export function authRoutes() {
       WHERE sm.user_id = ? AND sm.status = 'active' AND st.status = 'active'
       ORDER BY sm.effective_from ASC, sm.created_at ASC
     `).bind(context.userId))
-    return c.json({ user: { id: context.userId, displayName: context.displayName, mustChangePassword: context.mustChangePassword, isPlatformAdmin: context.isPlatformAdmin }, stores: mapMemberships(stores), currentStoreId: context.storeId, csrfToken })
+    return c.json({ user: { id: context.userId, displayName: context.displayName, mustChangePassword: context.mustChangePassword, isPlatformAdmin: context.isPlatformAdmin, emailBindingRequired: isEmailBindingRequired(context) }, stores: mapMemberships(stores), currentStoreId: context.storeId, csrfToken })
   })
 
   app.post('/api/v1/auth/logout', auth.loadSession, auth.requireCsrf, async (c) => {

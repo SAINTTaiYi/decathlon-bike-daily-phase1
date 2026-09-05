@@ -113,6 +113,17 @@ export const passwordResetCompleteSchema = z.object({
   password: passwordSchema
 }).strict()
 
+// 登录态强制邮箱绑定（存量无邮箱账号引导）：OTP 验证 + 绑定 + 重设密码一步完成。
+// 密码允许与旧密码一致（validatePasswordChangeForm 的 temporary 语义），仅要求满足现行强度。
+export const emailBindingOtpSchema = z.object({
+  email: corporateEmailSchema
+}).strict()
+export const emailBindingVerifySchema = z.object({
+  challengeId: uuidSchema,
+  otp: otpCodeSchema,
+  password: passwordSchema
+}).strict()
+
 export const platformAdminSetupSchema = z.object({
   token: z.string().min(32).max(512),
   password: passwordSchema,
@@ -235,6 +246,8 @@ export type CreateUserInput = z.infer<typeof createUserSchema>
 export type RegistrationOtpInput = z.infer<typeof registrationOtpSchema>
 export type RegistrationCompleteInput = z.infer<typeof registrationCompleteSchema>
 export type PasswordResetOtpInput = z.infer<typeof passwordResetOtpSchema>
+export type EmailBindingOtpInput = z.infer<typeof emailBindingOtpSchema>
+export type EmailBindingVerifyInput = z.infer<typeof emailBindingVerifySchema>
 export type PasswordResetCompleteInput = z.infer<typeof passwordResetCompleteSchema>
 
 export const adminStoreMemberUpdateSchema = z.object({ displayName: z.string().trim().min(1).max(24).optional(), role: z.enum(['operator', 'manager', 'admin']).optional(), expectedUpdatedAt: z.string().min(1).max(80) }).strict().refine((value) => Boolean(value.displayName || value.role), { message: '至少提供一个成员字段。' })

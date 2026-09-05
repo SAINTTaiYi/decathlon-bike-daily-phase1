@@ -18,6 +18,10 @@ export const requestPasswordRecoveryOtp = (body) => api('/api/v1/recovery/otp', 
 export const verifyPasswordRecoveryOtp = (body) => api('/api/v1/recovery/verify-otp', { method: 'POST', body })
 export const completePasswordRecovery = (body) => api('/api/v1/recovery/complete', { method: 'POST', body })
 
+// 存量无邮箱账号的强制绑定引导：登录态 + CSRF，OTP 验证通过即绑定邮箱并重设密码。
+export const requestEmailBindingOtp = (body) => api('/api/v1/account/binding/otp', { method: 'POST', body })
+export const verifyEmailBinding = (body) => api('/api/v1/account/binding/verify', { method: 'POST', body })
+
 export const getGovernanceOverview = () => api('/api/v1/governance/overview')
 export const createRoleChangeRequest = (body) => api('/api/v1/governance/role-requests', { method: 'POST', body })
 export const decideRoleChangeRequest = (id, body) => api(`/api/v1/governance/role-requests/${id}/decision`, { method: 'POST', body })

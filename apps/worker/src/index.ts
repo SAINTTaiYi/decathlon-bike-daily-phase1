@@ -14,6 +14,7 @@ import { releaseRoutes } from './routes/release.js'
 import { workItemRoutes } from './routes/work-items.js'
 import { registrationRoutes } from './routes/registration.js'
 import { recoveryRoutes } from './routes/recovery.js'
+import { accountRoutes } from './routes/account.js'
 import { governanceRoutes } from './routes/governance.js'
 import { adminRoutes } from './routes/admin.js'
 import { shipHubRoutes } from './routes/shiphub.js'
@@ -101,6 +102,7 @@ app.route('/', releaseRoutes())
 app.route('/', authRoutes())
 app.route('/', registrationRoutes())
 app.route('/', recoveryRoutes())
+app.route('/', accountRoutes())
 app.route('/', governanceRoutes())
 app.route('/', adminRoutes())
 app.route('/', closingRoutes())
