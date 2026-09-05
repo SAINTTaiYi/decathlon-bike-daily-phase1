@@ -499,6 +499,10 @@
     .workshop-runtime > [data-workspace-layer='navigation']::before {
       content: '';
       position: absolute;
+      /* z-auto 的绝对定位伪元素会画在流内 static 内容（品牌字、模块页头字）
+         上面，backdrop-filter 把它们糊成 smear。-1 让它回到层内最底：
+         只模糊层背后的页面内容，不碰页头自己的文字。 */
+      z-index: -1;
       inset: 0;
       background: linear-gradient(
         to bottom,
