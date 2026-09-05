@@ -1,28 +1,37 @@
 {
   "kind": "formal-production-release",
-  "version": "6.6.4",
+  "version": "6.6.5",
   "previewRange": {
-    "fromExclusive": "d45667ae6b573aaeac315d2b60606766899c654f",
-    "toInclusive": "37c85db05d0cd9cb93c80ba9099675ee6eb79860",
+    "fromExclusive": "f79fb99cd914c736ee360e9e836d1f515ca1f9e6",
+    "toInclusive": "73e9f5fc5a2e4cacbb2d246267e07ccc9535e0d2",
     "commits": [
       {
-        "sha": "68cc19a839b11562c011c6469b94a9f35b691023",
-        "subject": "chore(release): stamp V6.6.3 build metadata"
+        "sha": "82738f32b5c2463b0ecb51da30b3ca12aaf0226e",
+        "subject": "chore(release): stamp V6.6.4 build metadata"
       },
       {
-        "sha": "37c85db05d0cd9cb93c80ba9099675ee6eb79860",
-        "subject": "fix(desktop-rail): scope mobile dock ul baselines, raise rail to 100px"
+        "sha": "2f50816cdfb0093ec1c642969a6d568ab8216a9d",
+        "subject": "fix(desktop-header): 页头磨砂裁出 rail 列 + 移除页头图标焦点环"
+      },
+      {
+        "sha": "11572716a6cbae80f7b7a2bd4de57f4378e0e2b3",
+        "subject": "fix(desktop-header): 导航层 hit-test 放行 rail 列 + 页头图标移出焦点环"
+      },
+      {
+        "sha": "73e9f5fc5a2e4cacbb2d246267e07ccc9535e0d2",
+        "subject": "fix(desktop-header): 摘掉页头图标剩余全局焦点环"
       }
     ]
   },
   "announcement": {
-    "title": "桌面导航栏上移与公告卡遮挡修复",
-    "summary": "修复移动端 dock 样式泄漏桌面导致的更新公告卡遮挡「销售数据」导航按钮；桌面左侧导航上移至全局页头之下，缩短空档。",
+    "title": "页头磨砂裁剪与页头焦点环移除",
+    "summary": "修复桌面导航首项被页头磨砂背板遮挡且点击被吞；页头填充+模糊改为 mask 裁到真实占位，左栏事件放行 rail；移除页头图标按钮焦点环。",
     "changes": [
-      "修复：更新公告卡不再遮挡「销售数据」按钮（根因：移动端 ul 基线样式未锁作用域泄漏桌面，rail ul 被压至 58px、短视口滚动兜底失效）",
-      "桌面左侧导航顶边 168→100px，占用全局页头下方左侧空栏，基线 z-index 90 压在磨砂导航层之上",
-      "新增回归断言：移动样式不得泄漏桌面、短视口滚动兜底必须存活，注入事故写法实测变红"
+      "修复：桌面导航「总览」不再被页头磨砂背板遮挡（根因：rail 在内容层堆叠上下文内叠不过导航层；填充+模糊搬进 ::before 并 mask 裁到页头真实占位）",
+      "修复：导航层 hit-test 不再吞掉 rail 首按钮点击（pointer-events 分层放行）",
+      "移除页头图标按钮（菜单/搜索/铃铛）的焦点环白框；移动端页头保留黄环",
+      "新增回归断言：mask 占位、hit-test 放行、焦点环排除，注入事故写法实测变红"
     ]
   },
-  "preparedAt": "2026-09-05T07:17:13.695Z"
+  "preparedAt": "2026-09-05T09:16:00.790Z"
 }
