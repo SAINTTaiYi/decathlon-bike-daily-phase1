@@ -73,20 +73,23 @@ export function accountRoutes() {
       throw new ApiProblem(409, 'EMAIL_ALREADY_BOUND', '该邮箱已绑定其它账号，请确认邮箱地址后重试。')
     }
 
-    const recent = await first<{ id: string; created_at: string; resend_count: number }>(c.env.DB.prepare(`
-      SELECT id, created_at, resend_count FROM email_binding_challenges
+    const recent = await first<{ id: string; created_at: string; resend_count: number; status: string }>(c.env.DB.prepare(`
+      SELECT id, created_at, resend_count, status FROM email_binding_challenges
       WHERE user_id = ? AND created_at > ?
       ORDER BY created_at DESC LIMIT 1
     `).bind(context.userId, windowStart))
     if ((recent?.resend_count ?? 0) >= MAX_RESEND_PER_HOUR) {
       throw new ApiProblem(429, 'BINDING_RATE_LIMITED', '验证码发送过于频繁，请一小时后再试。')
     }
-    if (recent && now - Date.parse(recent.created_at) < RESEND_COOLDOWN_MS) {
+    // 冷却响应只允许引用仍处于 pending 的挑战：已被 5 次错误尝试或 TTL
+    // 作废的挑战绝不能再回传给前端，否则客户端拿着死 challengeId，输入
+    // 任何验证码都会得到"无效或已过期"（验收现场踩过）。
+    if (recent && recent.status === 'pending' && now - Date.parse(recent.created_at) < RESEND_COOLDOWN_MS) {
       return c.json({
         ok: true as const,
         challengeId: recent.id,
         retryAfterSeconds: Math.ceil((RESEND_COOLDOWN_MS - (now - Date.parse(recent.created_at))) / 1000),
-        message: '验证码发送冷却中，请稍候再试。'
+        message: '验证码刚发送过，请查收公司邮箱；若未收到，请稍候再重新发送。'
       })
     }
     // 跨挑战预算：错误验证码达到上限后不再发新码，爆破面收敛。

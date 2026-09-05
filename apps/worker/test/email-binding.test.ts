@@ -24,6 +24,8 @@ test('发码侧：邮箱占用必须排除本人后拒绝，旧挑战作废，�
   assert.match(routeSource, /EMAIL_ALREADY_BOUND/u)
   assert.match(routeSource, /UPDATE email_binding_challenges SET status = 'expired', updated_at = \? WHERE user_id = \? AND status = 'pending'/u)
   assert.match(routeSource, /INSERT INTO email_binding_challenges \(id, user_id, email_key, otp_hash, client_hash, status, attempts, resend_count, expires_at, created_at, updated_at\)/u)
+  // 冷却响应只允许引用 pending 挑战，不得回传已作废的 challengeId。
+  assert.match(routeSource, /recent\.status === 'pending' && now - Date\.parse\(recent\.created_at\) < RESEND_COOLDOWN_MS/u, '冷却响应必须限定 pending 挑战')
 })
 
 test('发码侧：跨挑战预算闸门必须在铸造新挑战之前，换码不得重置总猜测上限', () => {
