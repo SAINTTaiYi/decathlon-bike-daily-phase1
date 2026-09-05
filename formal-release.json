@@ -1,37 +1,27 @@
 {
   "kind": "formal-production-release",
-  "version": "6.6.5",
+  "version": "6.6.6",
   "previewRange": {
-    "fromExclusive": "f79fb99cd914c736ee360e9e836d1f515ca1f9e6",
-    "toInclusive": "73e9f5fc5a2e4cacbb2d246267e07ccc9535e0d2",
+    "fromExclusive": "622a3652be5d0b450dd532d0e3f65bced4da041c",
+    "toInclusive": "b18c61f189c1555ab6f2053195c6f18d599e25bf",
     "commits": [
       {
-        "sha": "82738f32b5c2463b0ecb51da30b3ca12aaf0226e",
-        "subject": "chore(release): stamp V6.6.4 build metadata"
+        "sha": "501b9e23fcd3c3b750b130d6c098d77ab58ec137",
+        "subject": "chore(release): stamp V6.6.5 build metadata"
       },
       {
-        "sha": "2f50816cdfb0093ec1c642969a6d568ab8216a9d",
-        "subject": "fix(desktop-header): 页头磨砂裁出 rail 列 + 移除页头图标焦点环"
-      },
-      {
-        "sha": "11572716a6cbae80f7b7a2bd4de57f4378e0e2b3",
-        "subject": "fix(desktop-header): 导航层 hit-test 放行 rail 列 + 页头图标移出焦点环"
-      },
-      {
-        "sha": "73e9f5fc5a2e4cacbb2d246267e07ccc9535e0d2",
-        "subject": "fix(desktop-header): 摘掉页头图标剩余全局焦点环"
+        "sha": "b18c61f189c1555ab6f2053195c6f18d599e25bf",
+        "subject": "fix(desktop-header): 页头 ::before 压到 z-index -1，找回被糊住的页头文字"
       }
     ]
   },
   "announcement": {
-    "title": "页头磨砂裁剪与页头焦点环移除",
-    "summary": "修复桌面导航首项被页头磨砂背板遮挡且点击被吞；页头填充+模糊改为 mask 裁到真实占位，左栏事件放行 rail；移除页头图标按钮焦点环。",
+    "title": "页头文字恢复（磨砂 ::before 层级修复）",
+    "summary": "修复 V6.6.5 页头磨砂 ::before（z-auto 绝对定位）盖住流内文字，品牌字/版本号/模块页头标题/右上用户信息被 backdrop-filter 糊成 smear；压到 z-index -1 后只模糊层背后页面内容。",
     "changes": [
-      "修复：桌面导航「总览」不再被页头磨砂背板遮挡（根因：rail 在内容层堆叠上下文内叠不过导航层；填充+模糊搬进 ::before 并 mask 裁到页头真实占位）",
-      "修复：导航层 hit-test 不再吞掉 rail 首按钮点击（pointer-events 分层放行）",
-      "移除页头图标按钮（菜单/搜索/铃铛）的焦点环白框；移动端页头保留黄环",
-      "新增回归断言：mask 占位、hit-test 放行、焦点环排除，注入事故写法实测变红"
+      "修复：桌面页头品牌字、版本号、模块页头标题、右上用户信息不再被磨砂背板糊住（::before 压到 z-index -1）",
+      "回归断言：页头 ::before 必须含 z-index: -1，注入 z-index:0 实测变红"
     ]
   },
-  "preparedAt": "2026-09-05T09:16:00.790Z"
+  "preparedAt": "2026-09-05T10:18:52.305Z"
 }
