@@ -23,3 +23,10 @@ test('公共 meta/version 端点不对外暴露 gitSha 与 schemaVersion', async
   assert.match(source, /\/health\/live/u)
   assert.match(source, /gitSha: config\.GIT_SHA/u)
 })
+
+test('0025 为 recovery/registration 各加一条 pending 邮箱唯一索引', async () => {
+  const sql = await readFile(new URL('../../../migrations/d1/0025_pending_otp_unique.sql', import.meta.url), 'utf8')
+  assert.match(sql, /CREATE UNIQUE INDEX password_reset_one_pending_email_idx/u)
+  assert.match(sql, /CREATE UNIQUE INDEX registration_one_pending_email_idx/u)
+  assert.match(sql, /WHERE status = 'pending'/u)
+})

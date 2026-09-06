@@ -56,7 +56,7 @@ test('门店注册已切换为平面门店编码，首位注册人管理员规�
 test('重复门店编号在 OTP 请求阶段返回 409 STORE_ALREADY_EXISTS', async () => {
   const source = await (await import('node:fs/promises')).readFile(new URL('../src/routes/registration.ts', import.meta.url), 'utf8')
   assert.match(source, /STORE_ALREADY_EXISTS/u)
-  assert.match(source, /input.storeCode.toLocaleUpperCase\('en-US'\)/u)
+  assert.match(source, /canonicalizeStoreCode\(input.storeCode\)/u)
 })
 
 test('完成注册事务先激活门店再创建 admin 成员关系', async () => {
@@ -65,4 +65,20 @@ test('完成注册事务先激活门店再创建 admin 成员关系', async () =
   assert.match(source, /UPDATE stores[\s\S]{0,200}WHERE id = \? AND status = 'disabled' AND self_registration_pending = 1[\s\S]{0,100}NOT EXISTS \(SELECT 1 FROM store_members WHERE store_id = stores\.id AND status = 'active'\)/u)
   // 成员关系固定为 admin，且必须条件化：门店已激活且仍无成员
   assert.match(source, /INSERT INTO store_members[\s\S]{0,200}'admin'[\s\S]{0,200}WHERE EXISTS \(SELECT 1 FROM users WHERE id = \?\)[\s\S]{0,100}AND EXISTS \(SELECT 1 FROM stores WHERE id = \? AND status = 'active' AND self_registration_pending = 0\)[\s\S]{0,100}AND NOT EXISTS \(SELECT 1 FROM store_members WHERE store_id = \? AND status = 'active'\)/u)
+})
+
+test('数字门店号去掉前导零，避免 99888 与 0099888 并发生成两个门店', async () => {
+  const { canonicalizeStoreCode } = await import('../src/routes/registration.js')
+  assert.equal(canonicalizeStoreCode('0099888'), '99888')
+  assert.equal(canonicalizeStoreCode('99888'), '99888')
+  assert.equal(canonicalizeStoreCode('00994'), '994')
+  assert.equal(canonicalizeStoreCode('1299'), '1299')
+  assert.equal(canonicalizeStoreCode('  abc-01 '), 'ABC-01')
+  assert.equal(canonicalizeStoreCode('0000'), '0')
+})
+
+test('注册发码对 pending 邮箱唯一冲突回落到已有挑战，不重发邮件', async () => {
+  const source = await (await import('node:fs/promises')).readFile(new URL('../src/routes/registration.ts', import.meta.url), 'utf8')
+  assert.match(source, /isUniqueConstraintError\(error\)/u)
+  assert.match(source, /SELECT id FROM registration_challenges WHERE email_key = \? AND status = 'pending'/u)
 })

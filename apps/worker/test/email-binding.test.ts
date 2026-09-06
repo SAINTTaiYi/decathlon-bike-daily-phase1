@@ -91,7 +91,7 @@ test('迁移 0024 纯新增，schema 版本与测试适配器同步', async () =
   // 非破坏性：不得触碰既有表。
   assert.doesNotMatch(migration, /ALTER TABLE|DROP TABLE|DROP INDEX/u)
   const schemaVersion = await readFile(new URL('../src/schema-version.ts', import.meta.url), 'utf8')
-  assert.match(schemaVersion, /'0024_email_binding_challenges'/u)
+  assert.match(schemaVersion, /'0025_pending_otp_unique'/u)
   const adapter = await readFile(new URL('../security/d1-test-adapter.ts', import.meta.url), 'utf8')
   assert.match(adapter, /'0024_email_binding_challenges\.sql'/u)
 })

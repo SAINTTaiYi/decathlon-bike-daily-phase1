@@ -148,3 +148,10 @@ test('改密邮件模板对用户可控字段做 HTML 转义，且不回显验�
   assert.match(serviceSource, /escapeHtml\(input\.displayName\)/u)
   assert.match(serviceSource, /subject: 'Workshop Bike Ops 改密验证码'/u)
 })
+
+test('发码冷却只回传 pending 挑战，作废挑战不得把死 challengeId 交给客户端', () => {
+  assert.match(routeSource, /SELECT id, created_at, resend_count, status FROM password_reset_challenges/u)
+  assert.match(routeSource, /recentByEmail\?\.status === 'pending' && now - Date\.parse\(recentByEmail\.created_at\) < RESEND_COOLDOWN_MS/u)
+  assert.match(routeSource, /isUniqueConstraintError\(error\)/u)
+  assert.match(routeSource, /SELECT id FROM password_reset_challenges WHERE email_key = \? AND status = 'pending'/u)
+})

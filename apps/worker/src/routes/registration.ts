@@ -16,6 +16,7 @@ import { prepareAudit, prepareConditionalAudit } from '../services/business.js'
 import { normalizeCorporateEmail, randomOtp, requestClientHash, sendRegistrationOtp } from '../services/registration.js'
 import { ApiProblem } from '../services/problems.js'
 import { requireJsonBody } from '../lib/json.js'
+import { isUniqueConstraintError } from '../lib/d1-errors.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
 type StoreRow = { id: string; code: string; name: string; timezone: string; status: 'active' | 'disabled'; self_registration_pending: number }
@@ -40,6 +41,15 @@ const HOUR_MS = 60 * 60 * 1000
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+export function canonicalizeStoreCode(raw: string): string {
+  const upper = raw.trim().toLocaleUpperCase('en-US')
+  if (/^[0-9]+$/u.test(upper)) {
+    const stripped = upper.replace(/^0+/u, '')
+    return stripped.length > 0 ? stripped : '0'
+  }
+  return upper
 }
 
 function genericRegistrationMessage() {
@@ -124,7 +134,7 @@ export function registrationRoutes() {
     const emailKey = normalizeCorporateEmail(input.email)
     const userKey = usernameKey(input.username)
     const displayName = input.displayName ?? input.username
-    const storeCode = input.storeCode.toLocaleUpperCase('en-US')
+    const storeCode = canonicalizeStoreCode(input.storeCode)
     const clientHash = await requestClientHash(c.req.raw, config.REGISTRATION_SECRET)
     const now = Date.now()
     const stamp = nowIso()
@@ -196,13 +206,22 @@ export function registrationRoutes() {
     const id = uuid()
     const expiresAt = new Date(now + CHALLENGE_TTL_MS).toISOString()
     const otpHash = await keyedHash(`${id}:${otp}`, config.REGISTRATION_SECRET)
-    await c.env.DB.batch([
-      c.env.DB.prepare(`UPDATE registration_challenges SET status = 'expired', updated_at = ? WHERE email_key = ? AND status = 'pending'`).bind(stamp, emailKey),
-      c.env.DB.prepare(`
-        INSERT INTO registration_challenges (id, email_key, username_key, display_name, store_id, otp_hash, client_hash, status, attempts, resend_count, expires_at, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?, ?, ?)
-      `).bind(id, emailKey, userKey, displayName, store.id, otpHash, clientHash, (recentByEmail?.resend_count ?? 0) + 1, expiresAt, stamp, stamp)
-    ])
+    try {
+      await c.env.DB.batch([
+        c.env.DB.prepare(`UPDATE registration_challenges SET status = 'expired', updated_at = ? WHERE email_key = ? AND status = 'pending'`).bind(stamp, emailKey),
+        c.env.DB.prepare(`
+          INSERT INTO registration_challenges (id, email_key, username_key, display_name, store_id, otp_hash, client_hash, status, attempts, resend_count, expires_at, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?, ?, ?)
+        `).bind(id, emailKey, userKey, displayName, store.id, otpHash, clientHash, (recentByEmail?.resend_count ?? 0) + 1, expiresAt, stamp, stamp)
+      ])
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error
+      const existing = await first<{ id: string }>(c.env.DB.prepare(`
+        SELECT id FROM registration_challenges WHERE email_key = ? AND status = 'pending' ORDER BY created_at DESC LIMIT 1
+      `).bind(emailKey))
+      if (!existing) throw error
+      return c.json(registrationOtpResponse(existing.id))
+    }
     try {
       await sendRegistrationOtp(config, { email: emailKey, displayName, otp, expiresAt })
     } catch (error) {

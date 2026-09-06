@@ -13,6 +13,7 @@ import { prepareAudit } from '../services/business.js'
 import { normalizeCorporateEmail, randomOtp, requestClientHash, sendPasswordResetOtp, registrationReady } from '../services/registration.js'
 import { ApiProblem } from '../services/problems.js'
 import { requireJsonBody } from '../lib/json.js'
+import { isUniqueConstraintError } from '../lib/d1-errors.js'
 
 const CHALLENGE_TTL_MS = 10 * 60 * 1000
 const COMPLETION_TTL_MS = 10 * 60 * 1000
@@ -121,15 +122,16 @@ export function recoveryRoutes() {
       return c.json(resetOtpResponse(syntheticChallengeId))
     }
 
-    const recentByEmail = await first<{ id: string; created_at: string; resend_count: number }>(c.env.DB.prepare(`
-      SELECT id, created_at, resend_count FROM password_reset_challenges
+    const recentByEmail = await first<{ id: string; created_at: string; resend_count: number; status: string }>(c.env.DB.prepare(`
+      SELECT id, created_at, resend_count, status FROM password_reset_challenges
       WHERE email_key = ? AND created_at > ?
       ORDER BY created_at DESC LIMIT 1
     `).bind(emailKey, windowStart))
     if ((recentByEmail?.resend_count ?? 0) >= MAX_RESEND_PER_EMAIL) {
-      return c.json(resetOtpResponse(recentByEmail?.id ?? syntheticChallengeId))
+      return c.json(resetOtpResponse(recentByEmail?.status === 'pending' ? recentByEmail.id : syntheticChallengeId))
     }
-    if (recentByEmail && now - Date.parse(recentByEmail.created_at) < RESEND_COOLDOWN_MS) {
+    // 冷却只引用仍 pending 的挑战：作废后 60s 内不得把死 challengeId 回传给客户端。
+    if (recentByEmail?.status === 'pending' && now - Date.parse(recentByEmail.created_at) < RESEND_COOLDOWN_MS) {
       return c.json(resetOtpResponse(recentByEmail.id, Math.ceil((RESEND_COOLDOWN_MS - (now - Date.parse(recentByEmail.created_at))) / 1000)))
     }
 
@@ -137,14 +139,23 @@ export function recoveryRoutes() {
     const id = uuid()
     const expiresAt = new Date(now + CHALLENGE_TTL_MS).toISOString()
     const otpHash = await keyedHash(`${id}:${otp}`, config.REGISTRATION_SECRET)
-    await c.env.DB.batch([
-      // 同一邮箱旧挑战立即作废：任一时刻至多一个可用验证码。
-      c.env.DB.prepare(`UPDATE password_reset_challenges SET status = 'expired', updated_at = ? WHERE email_key = ? AND status IN ('pending', 'verified')`).bind(stamp, emailKey),
-      c.env.DB.prepare(`
-        INSERT INTO password_reset_challenges (id, user_id, email_key, otp_hash, client_hash, status, attempts, resend_count, expires_at, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'pending', 0, ?, ?, ?, ?)
-      `).bind(id, user.id, emailKey, otpHash, clientHash, (recentByEmail?.resend_count ?? 0) + 1, expiresAt, stamp, stamp)
-    ])
+    try {
+      await c.env.DB.batch([
+        // 同一邮箱旧挑战立即作废：任一时刻至多一个可用验证码。
+        c.env.DB.prepare(`UPDATE password_reset_challenges SET status = 'expired', updated_at = ? WHERE email_key = ? AND status IN ('pending', 'verified')`).bind(stamp, emailKey),
+        c.env.DB.prepare(`
+          INSERT INTO password_reset_challenges (id, user_id, email_key, otp_hash, client_hash, status, attempts, resend_count, expires_at, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, 'pending', 0, ?, ?, ?, ?)
+        `).bind(id, user.id, emailKey, otpHash, clientHash, (recentByEmail?.resend_count ?? 0) + 1, expiresAt, stamp, stamp)
+      ])
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error
+      const existing = await first<{ id: string }>(c.env.DB.prepare(`
+        SELECT id FROM password_reset_challenges WHERE email_key = ? AND status = 'pending' ORDER BY created_at DESC LIMIT 1
+      `).bind(emailKey))
+      if (!existing) throw error
+      return c.json(resetOtpResponse(existing.id))
+    }
     try {
       await sendPasswordResetOtp(config, { email: emailKey, displayName: user.display_name, otp, expiresAt })
     } catch (error) {
