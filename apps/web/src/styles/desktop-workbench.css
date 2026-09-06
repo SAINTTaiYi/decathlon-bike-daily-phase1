@@ -410,6 +410,7 @@
   .ops-bi-chart [data-bi-dot], .ops-bi-chart [data-bi-core], .ops-bi-chart [data-bi-bead], .ops-bi-chart [data-bi-marker] { transform-box: fill-box; transform-origin: center; }
   .ops-bi-mid-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; align-items: start; }
   .ops-bi-bottom-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; align-items: start; }
+.ops-bi-weeks-empty { margin: 24px 0 8px; font-size: 12px; color: rgb(12 14 12 / .55); }
   .closing-look .ops-bi-chart { height: 168px; }
   /* 第三行：商品销售榜（宽）+ 顾客评价 360 分（窄）。列数固定不随宽度降列。 */
   .ops-bi-models-card { padding-bottom: 16px; }

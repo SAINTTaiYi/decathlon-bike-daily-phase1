@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { BI_SNAPSHOT } from '../../data/biSnapshot.js'
+import useBiStoreWeeks from '../../hooks/useBiStoreWeeks.js'
 import { ALLCHANNEL_NAMES } from '../../data/biSkuNames.js'
 import useBiBikesWeek from '../../hooks/useBiBikesWeek.js'
 import useBiStoreCompare from '../../hooks/useBiStoreCompare.js'
@@ -448,6 +449,65 @@ export function BiReviewCard({ snapshot }) {
   )
 }
 
+/* ── B2 Hairline · CIS 已完结周门店 TO（周结定时拉取，周报出当天自动补齐）── */
+export function BiStoreWeekTrend() {
+  const weeks = useBiStoreWeeks()
+  const { ref, revealed, replay, replayChart } = useBiReveal()
+  const reduced = usePrefersReducedMotion()
+  const ready = Array.isArray(weeks) && weeks.length >= 2
+  const geom = useMemo(() => {
+    if (!ready) return null
+    const points = weeks.map((week, index) => ({
+      label: week.weekLabel || week.from.slice(5),
+      value: week.turnover.total,
+      x: 24 + index * (832 / Math.max(weeks.length - 1, 1))
+    }))
+    const max = Math.max(...points.map((p) => p.value))
+    const y = (value) => 122 - (value / max) * 102
+    for (const p of points) p.y = y(p.value)
+    const latest = points[points.length - 1]
+    const prev = points[points.length - 2]
+    const wow = prev.value ? ((latest.value - prev.value) / prev.value) * 100 : 0
+    return { points, latest, wow }
+  }, [weeks, ready])
+  const build = useMemo(() => (timeline, node) => {
+    timeline.from(node.querySelectorAll('[data-biw-hair]'), { opacity: 0, duration: 0.4, stagger: 0.03, ease: 'power2.out' }, 0)
+    const contour = node.querySelector('[data-biw-contour]')
+    if (contour) timeline.from(contour, { strokeDashoffset: 1, duration: 1.1, ease: 'expo.inOut' }, 0.3)
+    timeline.from(node.querySelectorAll('[data-biw-latest]'), { opacity: 0, y: 6, duration: 0.5, ease: 'power3.out' }, 1.0)
+  }, [])
+  useBiMotion(ref, revealed, replay, reduced, build)
+  const sub = ready
+    ? `${geom.latest.label} 门店 TO ¥${Math.round(geom.latest.value).toLocaleString('en-US')} · 环比 ${geom.wow >= 0 ? '+' : ''}${geom.wow.toFixed(1)}% · 周报出当天自动拉取`
+    : '周结同步中或暂无已完结周 · 每个周日自动补齐最新周'
+  return (
+    <section ref={ref} className="ops-lieflat-card ops-bi-card" data-replay={replay} data-bi-weeks-state={ready ? 'ok' : 'pending'} onClick={replayChart}>
+      <h3>CIS 门店 TO · 已完结周</h3>
+      <div className="ops-lieflat-sub"><span>{sub}</span></div>
+      {ready ? (
+        <ChartSvg label={`CIS 已完结周门店 TO 趋势：最新 ${geom.latest.label} ¥${Math.round(geom.latest.value).toLocaleString('en-US')}，环比 ${geom.wow.toFixed(1)}%`} replayChart={replayChart} viewBox="0 0 880 158" preserveAspectRatio="none">
+          <line data-biw-hair="" x1="20" y1="122" x2="860" y2="122" stroke={MONO.grid} strokeWidth="0.8" />
+          {geom.points.map((p, index) => (
+            <line key={`${p.label}-${index}`} data-biw-hair="" x1={p.x} y1="122" x2={p.x} y2={p.y} stroke={index === geom.points.length - 1 ? MONO.ink : MONO.muted} strokeWidth={index === geom.points.length - 1 ? 1.2 : 0.55} opacity={index === geom.points.length - 1 ? 1 : 0.55} />
+          ))}
+          <path data-biw-contour="" d={`M ${geom.points.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' L ')}`} fill="none" stroke={MONO.ink} strokeWidth="1.1" pathLength="1" strokeDasharray="1" />
+          <g data-biw-latest="">
+            <circle cx={geom.latest.x} cy={geom.latest.y} r="3.2" fill={MONO.ink}><title>{`${geom.latest.label} · ¥${Math.round(geom.latest.value).toLocaleString('en-US')}`}</title></circle>
+            <text x={geom.latest.x} y={geom.latest.y - 8} fontSize="8.5" fontWeight="800" fill={MONO.ink} textAnchor="middle" style={{ paintOrder: 'stroke', stroke: '#F6F4EE', strokeWidth: 3 }}>{`¥${Math.round(geom.latest.value).toLocaleString('en-US')}`}</text>
+          </g>
+          {geom.points.filter((_, index) => index % Math.ceil(geom.points.length / 6) === 0 || index === geom.points.length - 1).map((p, index) => (
+            <text key={`ax-${index}`} data-biw-hair="" x={p.x} y="140" fontSize="7" fontWeight="600" fill={MONO.faint} textAnchor="middle" letterSpacing=".08em">{p.label}</text>
+          ))}
+          <text data-biw-hair="" x="440" y="152" fontSize="7" fontWeight="600" fill={MONO.faint} textAnchor="middle" letterSpacing=".12em">ONE HAIRLINE = ONE COMPLETED WEEK · CIS PERFECO · STORE 1299</text>
+        </ChartSvg>
+      ) : (
+        <p className="ops-bi-weeks-empty" data-bi-weeks-empty="">周结序列拉取中…（cron 每个 5 分钟补齐，完成后自动展示）</p>
+      )}
+      <div className="ops-lieflat-src">HAIRLINE AREA · CIS PERFECO WEEKLY · STORE 1299</div>
+    </section>
+  )
+}
+
 /* ── 面板：挂载进 OverviewAnalytics（桌面总览）──────────────── */
 export function BiInsightPanel({ snapshot = BI_SNAPSHOT }) {
   return (
@@ -462,8 +522,11 @@ export function BiInsightPanel({ snapshot = BI_SNAPSHOT }) {
         <BiReviewCard snapshot={snapshot} />
       </div>
       <div className="ops-bi-bottom-grid">
-        <BiModelRanking snapshot={snapshot} />
+        <BiStoreWeekTrend />
         <BiRepairStat snapshot={snapshot} />
+      </div>
+      <div className="ops-bi-bottom-grid">
+        <BiModelRanking snapshot={snapshot} />
       </div>
     </article>
   )

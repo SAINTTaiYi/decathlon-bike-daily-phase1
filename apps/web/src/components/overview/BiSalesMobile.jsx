@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { BI_SNAPSHOT } from '../../data/biSnapshot.js'
+import useBiStoreWeeks from '../../hooks/useBiStoreWeeks.js'
 import useBiBikesWeek from '../../hooks/useBiBikesWeek.js'
 import useBiStoreCompare from '../../hooks/useBiStoreCompare.js'
 import { ALLCHANNEL_NAMES } from '../../data/biSkuNames.js'
@@ -326,10 +327,42 @@ function BimReview({ snapshot }) {
   )
 }
 
+/* ── CIS 已完结周门店 TO（周结定时拉取）── */
+function BimStoreWeekTrend() {
+  const weeks = useBiStoreWeeks()
+  const { ref, revealed, replay, replayChart } = useBiReveal()
+  const reduced = usePrefersReducedMotion()
+  const ready = Array.isArray(weeks) && weeks.length >= 1
+  const latest = ready ? weeks[weeks.length - 1] : null
+  const build = useMemo(() => (timeline, node) => {
+    timeline.from(node.querySelectorAll('[data-biw-row]'), { opacity: 0, y: 8, duration: 0.45, ease: 'power3.out', stagger: 0.08 }, 0.1)
+  }, [])
+  useBiMotion(ref, revealed, replay, reduced, build)
+  if (!ready) return null
+  const rows = weeks.slice(-4)
+  return (
+    <section ref={ref} className="ops-bim-card ops-bim-weeks" data-replay={replay} data-bi-weeks-state="ok" onClick={replayChart} aria-label="CIS 已完结周门店 TO">
+      <h3>CIS 门店 TO · 已完结周</h3>
+      <div className="ops-bim-sub">周报出当天自动拉取 · 最新 {latest.weekLabel || latest.from.slice(5)}</div>
+      <div className="ops-bim-weeks-rows" role="table" aria-label="已完结周门店 TO 列表">
+        {rows.map((week, index) => (
+          <div className="ops-bim-weeks-row" data-biw-row="" role="row" key={`${week.from}-${index}`}>
+            <span className="label">{week.weekLabel || week.from.slice(5)}</span>
+            <span className="range">{`${week.from.slice(5)} → ${week.to.slice(5)}`}</span>
+            <span className="value"><b>{`¥${Math.round(week.turnover.total).toLocaleString('en-US')}`}</b></span>
+          </div>
+        ))}
+      </div>
+      <div className="ops-bim-src">WEEKLY LEDGER · CIS PERFECO · STORE 1299</div>
+    </section>
+  )
+}
+
 export default function BiSalesMobile({ snapshot = BI_SNAPSHOT }) {
   return (
     <div className="ops-bim-panel" aria-label="BI 销售数据（移动端）">
       <BimCompare snapshot={snapshot} />
+      <BimStoreWeekTrend />
       <BimGauge snapshot={snapshot} />
       <BimRepair snapshot={snapshot} />
       <BimRanking snapshot={snapshot} />

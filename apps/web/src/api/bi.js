@@ -10,3 +10,4 @@ export const getBiVehicleModels = (codes, signal) => api(`/api/v1/bi/vehicle-mod
 
 // 门店周 TO + DIS（CIS 侧，BI × CIS 对比卡用）。from/to = BI 快照周。
 export const getBiStoreWeek = (from, to, signal) => api(`/api/v1/bi/store/week?from=${from}&to=${to}`, { signal })
+export const getBiStoreWeeks = (signal) => api('/api/v1/bi/store/weeks', { signal })

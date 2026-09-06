@@ -21,6 +21,7 @@ import { shipHubRoutes } from './routes/shiphub.js'
 import { biRoutes } from './routes/bi.js'
 import { d1MetricsRoutes } from './routes/d1-metrics.js'
 import { runScheduledShipHubSync } from './services/shiphub-sync.js'
+import { runScheduledBiSync } from './services/bi-weekly.js'
 import { ApiProblem } from './services/problems.js'
 import { routeIncomingRequest } from './request-routing.js'
 
@@ -141,7 +142,9 @@ export async function handleRequest(request: Request, env: WorkerEnv, executionC
 
 export default {
   fetch: handleRequest,
-  scheduled(_controller: ScheduledController, env: WorkerEnv, executionCtx: ExecutionContext): void {
-    executionCtx.waitUntil(runScheduledShipHubSync(env))
+  scheduled(controller: ScheduledController, env: WorkerEnv, executionCtx: ExecutionContext): void {
+    // Shiphub 同步 + BI 周结定时拉取并行；两者都绝不抛错（内部全量兜底）。
+    const fireTime = new Date(controller.scheduledTime)
+    executionCtx.waitUntil(Promise.allSettled([runScheduledShipHubSync(env), runScheduledBiSync(env, fireTime)]))
   }
 }
