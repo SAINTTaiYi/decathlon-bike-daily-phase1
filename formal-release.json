@@ -1,41 +1,29 @@
 {
   "kind": "formal-production-release",
-  "version": "6.6.9",
+  "version": "6.6.10",
   "previewRange": {
-    "fromExclusive": "384cb2d3ff23fd057740bf6b22c9bc302f7ef0f7",
-    "toInclusive": "2c8dad004782b67bfee30916406844d1436db9f9",
+    "fromExclusive": "3e63be01287d9b5d10dc55e38d0ff2a80230b48e",
+    "toInclusive": "e9402695129ecd06a37bdec2ceb3dcf464dbf590",
     "commits": [
       {
-        "sha": "0aac786972cb9d1551dde442d7d1d1918646f047",
-        "subject": "chore(release): stamp V6.6.8 build metadata"
+        "sha": "b8ad17a697eb2241187a2d572abc7669b92fe032",
+        "subject": "chore(release): stamp V6.6.9 build metadata"
       },
       {
-        "sha": "ed2d0abfdfe53fd442a77feb7188d25af9cd93cf",
-        "subject": "feat(bi): 周结定时拉取 + KPI 安全检查自动填写"
-      },
-      {
-        "sha": "33a049bb4eefa48484eb64b0115d9d25028710eb",
-        "subject": "test(schema): 0025 断言跟随迁移升级（email-binding 结构断言）"
-      },
-      {
-        "sha": "7c3e2d1f2f9b10e0afcc48537fdc8c6704fb447f",
-        "subject": "fix(bi): bikes/day 三段链路共享一次 IdP 登录 + 周结卡单周渲染"
-      },
-      {
-        "sha": "2c8dad004782b67bfee30916406844d1436db9f9",
-        "subject": "feat(bi): 周结端点透出 capturedAt + 双端卡片展示拉取时间"
+        "sha": "e9402695129ecd06a37bdec2ceb3dcf464dbf590",
+        "subject": "fix(bi): 门店数据白名单——凭据属于谁就只拉谁（越权拉取修复）"
       }
     ]
   },
   "announcement": {
-    "title": "BI 周结定时拉取与 KPI 自动填写",
-    "summary": "周报出的当天自动拉取已完结周数据；安全检查 8538631 当日开单自动填入闭店 KPI",
+    "title": "BI 门店数据白名单（越权拉取修复）",
+    "summary": "BI 同步仅允许凭据所属门店（1299），其他门店不再被拉取；已清理越权数据",
     "changes": [
-      "cron 每 5 分钟定时拉取（北京时间 09-23 窗口），周报出当天自动补齐最新完结周",
-      "新增 CIS 门店 TO 已完结周趋势卡（桌面趋势图/移动周台账），带拉取时间标注",
-      "安全检查 8538631 当日开单量接入闭店 KPI 自动填写（含型号单号）",
-      "当日销售概况（TO/件数/单数）随 KPI 弹窗同步展示"
+      "新增 BI_SYNC_STORE_CODES 门店白名单：凭据属于谁就只拉谁的门店经营数据",
+      "五个 BI 门店数据端点增加门店门禁，白名单外门店优雅返回不可用",
+      "定时拉取 fail-closed：未配置白名单时整体禁用",
+      "清理已越权拉取的其他门店数据"
     ]
   },
-  "preparedAt": "2026-09-06T13:37:01.538Z"
+  "preparedAt": "2026-09-06T14:13:19.595Z"
 }
