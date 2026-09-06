@@ -1,31 +1,41 @@
 {
   "kind": "formal-production-release",
-  "version": "6.6.8",
+  "version": "6.6.9",
   "previewRange": {
-    "fromExclusive": "8254605126b664de7b102ff14bd200a862309caf",
-    "toInclusive": "68c2315412c552428eac21c6a26268213177fee1",
+    "fromExclusive": "384cb2d3ff23fd057740bf6b22c9bc302f7ef0f7",
+    "toInclusive": "2c8dad004782b67bfee30916406844d1436db9f9",
     "commits": [
       {
-        "sha": "b02121ac550cd8e9cab9e49a766deb2468827aa3",
-        "subject": "chore(release): stamp V6.6.7 build metadata"
+        "sha": "0aac786972cb9d1551dde442d7d1d1918646f047",
+        "subject": "chore(release): stamp V6.6.8 build metadata"
       },
       {
-        "sha": "0b54b75e7ad2aa61393fe3bbb03a0c9b243b9913",
-        "subject": "feat(account): force email binding + password reset for legacy no-email accounts"
+        "sha": "ed2d0abfdfe53fd442a77feb7188d25af9cd93cf",
+        "subject": "feat(bi): 周结定时拉取 + KPI 安全检查自动填写"
       },
       {
-        "sha": "68c2315412c552428eac21c6a26268213177fee1",
-        "subject": "fix(account): binding resend cooldown must never return an expired challengeId"
+        "sha": "33a049bb4eefa48484eb64b0115d9d25028710eb",
+        "subject": "test(schema): 0025 断言跟随迁移升级（email-binding 结构断言）"
+      },
+      {
+        "sha": "7c3e2d1f2f9b10e0afcc48537fdc8c6704fb447f",
+        "subject": "fix(bi): bikes/day 三段链路共享一次 IdP 登录 + 周结卡单周渲染"
+      },
+      {
+        "sha": "2c8dad004782b67bfee30916406844d1436db9f9",
+        "subject": "feat(bi): 周结端点透出 capturedAt + 双端卡片展示拉取时间"
       }
     ]
   },
   "announcement": {
-    "title": "账号安全：存量账号强制绑定邮箱",
-    "summary": "除 admin 与平台管理员外，早期创建的未绑定邮箱账号下次登录将强制绑定公司邮箱并重设密码（可与旧密码一致），绑定后支持邮箱自助找回密码。",
+    "title": "BI 周结定时拉取与 KPI 自动填写",
+    "summary": "周报出的当天自动拉取已完结周数据；安全检查 8538631 当日开单自动填入闭店 KPI",
     "changes": [
-      "存量无邮箱账号登录后强制绑定公司邮箱并重设密码（允许与旧密码一致），完成后可用邮箱自助找回密码；admin 与平台管理员豁免",
-      "绑定验证码含单挑战 5 次锁定与每小时错误次数上限，重发冷却不再返回已作废的验证码"
+      "cron 每 5 分钟定时拉取（北京时间 09-23 窗口），周报出当天自动补齐最新完结周",
+      "新增 CIS 门店 TO 已完结周趋势卡（桌面趋势图/移动周台账），带拉取时间标注",
+      "安全检查 8538631 当日开单量接入闭店 KPI 自动填写（含型号单号）",
+      "当日销售概况（TO/件数/单数）随 KPI 弹窗同步展示"
     ]
   },
-  "preparedAt": "2026-09-05T13:25:12.082Z"
+  "preparedAt": "2026-09-06T13:37:01.538Z"
 }
