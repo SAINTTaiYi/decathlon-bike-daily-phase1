@@ -6,7 +6,7 @@ import { requireJsonBody } from '../lib/json.js'
 import { latestSyncedAt, listBiSkuNames, syncBiSkuNames } from '../services/bi-sku-sync.js'
 import { MasterDataUpstreamError } from '../lib/masterdata-login.js'
 import { businessDateFor } from '../services/business.js'
-import { PerfecoUpstreamError, currentWeekWindow, getBikeWeek, getServicesDay, getStoreDay, getStoreWeek, isPerfecoConfigured, resolveArticleVehicleInfo, resolveModelVehicleInfo, syncBikeDay } from '../services/bi-bikes.js'
+import { PerfecoUpstreamError, currentWeekWindow, getBikeWeek, getServicesDay, getStoreDay, getStoreWeek, isPerfecoConfigured, lazyLoginJwt, resolveArticleVehicleInfo, resolveModelVehicleInfo, syncBikeDay } from '../services/bi-bikes.js'
 import { listBiStoreWeeks } from '../services/bi-weekly.js'
 import { ApiProblem } from '../services/problems.js'
 
@@ -45,17 +45,20 @@ export function biRoutes() {
     try {
       const requested = c.req.query('date')
       const businessDate = /^\d{4}-\d{2}-\d{2}$/u.test(requested ?? '') ? requested! : await businessDateFor(context)
+      // 共享 JWT provider：整车 + 门店日 + 安全检查三段链路一次 IdP 登录。
+      const jwtProvider = lazyLoginJwt(c.env)
       const snapshot = await syncBikeDay(c.env, {
         storeId: context.storeId,
         storeCode: context.storeCode,
-        businessDate
+        businessDate,
+        jwtProvider
       })
       if (!snapshot) return c.json({ available: false })
       // 当日门店销售概况 + 安全检查开单（8538631）与整车实销一并返回；
       // 任一附加源失败都只降级为 null，绝不拖垮整车实销主链路。
       const [storeDay, safety] = await Promise.all([
-        getStoreDay(c.env, { storeId: context.storeId, storeCode: context.storeCode, businessDate }).catch(() => null),
-        getServicesDay(c.env, { storeId: context.storeId, storeCode: context.storeCode, businessDate }).catch(() => null)
+        getStoreDay(c.env, { storeId: context.storeId, storeCode: context.storeCode, businessDate, jwtProvider }).catch(() => null),
+        getServicesDay(c.env, { storeId: context.storeId, storeCode: context.storeCode, businessDate, jwtProvider }).catch(() => null)
       ])
       return c.json({ ...snapshot, storeDay: storeDay ?? null, safety: safety ?? null })
     } catch (error) {

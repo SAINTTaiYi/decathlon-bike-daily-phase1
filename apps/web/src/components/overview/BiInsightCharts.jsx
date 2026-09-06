@@ -454,7 +454,7 @@ export function BiStoreWeekTrend() {
   const weeks = useBiStoreWeeks()
   const { ref, revealed, replay, replayChart } = useBiReveal()
   const reduced = usePrefersReducedMotion()
-  const ready = Array.isArray(weeks) && weeks.length >= 2
+  const ready = Array.isArray(weeks) && weeks.length >= 1
   const geom = useMemo(() => {
     if (!ready) return null
     const points = weeks.map((week, index) => ({
@@ -478,7 +478,7 @@ export function BiStoreWeekTrend() {
   }, [])
   useBiMotion(ref, revealed, replay, reduced, build)
   const sub = ready
-    ? `${geom.latest.label} 门店 TO ¥${Math.round(geom.latest.value).toLocaleString('en-US')} · 环比 ${geom.wow >= 0 ? '+' : ''}${geom.wow.toFixed(1)}% · 周报出当天自动拉取`
+    ? `${geom.latest.label} 门店 TO ¥${Math.round(geom.latest.value).toLocaleString('en-US')}${geom.points.length >= 2 ? ` · 环比 ${geom.wow >= 0 ? '+' : ''}${geom.wow.toFixed(1)}%` : ' · 首周（次周起展示环比）'} · 周报出当天自动拉取`
     : '周结同步中或暂无已完结周 · 每个周日自动补齐最新周'
   return (
     <section ref={ref} className="ops-lieflat-card ops-bi-card" data-replay={replay} data-bi-weeks-state={ready ? 'ok' : 'pending'} onClick={replayChart}>
@@ -490,7 +490,7 @@ export function BiStoreWeekTrend() {
           {geom.points.map((p, index) => (
             <line key={`${p.label}-${index}`} data-biw-hair="" x1={p.x} y1="122" x2={p.x} y2={p.y} stroke={index === geom.points.length - 1 ? MONO.ink : MONO.muted} strokeWidth={index === geom.points.length - 1 ? 1.2 : 0.55} opacity={index === geom.points.length - 1 ? 1 : 0.55} />
           ))}
-          <path data-biw-contour="" d={`M ${geom.points.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' L ')}`} fill="none" stroke={MONO.ink} strokeWidth="1.1" pathLength="1" strokeDasharray="1" />
+          {geom.points.length >= 2 ? <path data-biw-contour="" d={`M ${geom.points.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' L ')}`} fill="none" stroke={MONO.ink} strokeWidth="1.1" pathLength="1" strokeDasharray="1" /> : null}
           <g data-biw-latest="">
             <circle cx={geom.latest.x} cy={geom.latest.y} r="3.2" fill={MONO.ink}><title>{`${geom.latest.label} · ¥${Math.round(geom.latest.value).toLocaleString('en-US')}`}</title></circle>
             <text x={geom.latest.x} y={geom.latest.y - 8} fontSize="8.5" fontWeight="800" fill={MONO.ink} textAnchor="middle" style={{ paintOrder: 'stroke', stroke: '#F6F4EE', strokeWidth: 3 }}>{`¥${Math.round(geom.latest.value).toLocaleString('en-US')}`}</text>

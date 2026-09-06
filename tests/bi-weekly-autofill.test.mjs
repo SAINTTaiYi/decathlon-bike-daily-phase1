@@ -87,6 +87,18 @@ test('useBiStoreWeeks：会话缓存 + weeks 数组守卫', async () => {
   assert.match(hook, /let sessionCache = null/u)
 })
 
+test('桌面 BiStoreWeekTrend：单周也渲染（首周出值，次周起环比），JWT 共享一次登录', async () => {
+  const charts = await read('components/overview/BiInsightCharts.jsx')
+  assert.match(charts, /weeks\.length >= 1/u, '单周必须出图（只有 W36 一行时不得永远 pending）')
+  assert.match(charts, /首周（次周起展示环比）/u)
+  assert.match(charts, /geom\.points\.length >= 2 \? <path data-biw-contour/u, '单点不得画折线')
+  const route = await readWorker('routes/bi.ts')
+  assert.match(route, /const jwtProvider = lazyLoginJwt\(c\.env\)/u, 'bikes/day 必须共享 JWT provider')
+  assert.match(route, /businessDate, jwtProvider \}\)/u, '附加链路必须接收共享 provider')
+  const svc = await readWorker('services/bi-bikes.ts')
+  assert.match(svc, /options\.jwtProvider \?\? lazyLoginJwt\(env\)/u)
+})
+
 test('桌面 BiStoreWeekTrend：类名 JSX 与 CSS 双落地', async () => {
   const charts = await read('components/overview/BiInsightCharts.jsx')
   for (const cls of ['BiStoreWeekTrend', 'ops-bi-weeks-empty', 'data-biw-hair', 'data-biw-contour', 'data-biw-latest']) {

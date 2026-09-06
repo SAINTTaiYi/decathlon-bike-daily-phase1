@@ -217,8 +217,8 @@ async function loginJwt(env: WorkerEnv): Promise<string> {
 // 只有确有未解析码需要 masterdata 补齐时才打 IdP。promise 级 memoize 天然防
 // 并发双登录；失败自动清空，下一次调用重试。perfeco 查询每次都要即时 token
 // （上游 2h 过期且不缓存），provider 复用同一 token 避免同请求内重复登录。
-type JwtProvider = () => Promise<string>
-function lazyLoginJwt(env: WorkerEnv): JwtProvider {
+export type JwtProvider = () => Promise<string>
+export function lazyLoginJwt(env: WorkerEnv): JwtProvider {
   let inflight: Promise<string> | null = null
   return () => {
     if (!inflight) {
@@ -379,7 +379,7 @@ export async function resolveModelVehicleInfo(env: WorkerEnv, modelCodes: readon
 // ── 当日 KPI 快照（闭店弹窗「填写数据」自动同步新车/二手车台数）──
 export async function syncBikeDay(
   env: WorkerEnv,
-  options: { storeId: string; storeCode: string; businessDate: string; force?: boolean; now?: Date }
+  options: { storeId: string; storeCode: string; businessDate: string; force?: boolean; now?: Date; jwtProvider?: JwtProvider }
 ): Promise<BikeDaySnapshot | null> {
   if (!isPerfecoConfigured(env)) return null
   const now = options.now ?? new Date()
@@ -387,7 +387,9 @@ export async function syncBikeDay(
     const cached = await readBikeDay(env, options.storeId, options.businessDate)
     if (cached && now.getTime() - Date.parse(cached.syncedAt) < DAY_SNAPSHOT_MAX_AGE_MS) return cached
   }
-  const getJwt = lazyLoginJwt(env)
+  // 路由层组合调用（bikes/day = 整车 + 门店日 + 安全检查）共享同一 JWT provider：
+  // 一次 IdP 登录喂三段链路，省 2 次登录（2026-09-06 冒烟实测冷链 3 登录触发上游节流）。
+  const getJwt = options.jwtProvider ?? lazyLoginJwt(env)
   const entries = await fetchPerfecoEntries(env, {
     from: options.businessDate,
     to: options.businessDate,
@@ -450,7 +452,7 @@ export type StoreDayPayload = {
 
 export async function getStoreDay(
   env: WorkerEnv,
-  options: { storeId: string; storeCode: string; businessDate: string; force?: boolean; now?: Date }
+  options: { storeId: string; storeCode: string; businessDate: string; force?: boolean; now?: Date; jwtProvider?: JwtProvider }
 ): Promise<StoreDayPayload | null> {
   if (!isPerfecoConfigured(env)) return null
   const now = options.now ?? new Date()
@@ -469,7 +471,7 @@ export async function getStoreDay(
       }
     }
   }
-  const jwt = await lazyLoginJwt(env)()
+  const jwt = await (options.jwtProvider ?? lazyLoginJwt(env))()
   const entries = await fetchPerfecoEntries(env, {
     from: options.businessDate,
     to: options.businessDate,
@@ -516,7 +518,7 @@ export type ServicesDayPayload = {
 
 export async function getServicesDay(
   env: WorkerEnv,
-  options: { storeId: string; storeCode: string; businessDate: string; force?: boolean; now?: Date }
+  options: { storeId: string; storeCode: string; businessDate: string; force?: boolean; now?: Date; jwtProvider?: JwtProvider }
 ): Promise<ServicesDayPayload | null> {
   if (!isPerfecoConfigured(env)) return null
   const now = options.now ?? new Date()
@@ -534,7 +536,7 @@ export async function getServicesDay(
       }
     }
   }
-  const jwt = await lazyLoginJwt(env)()
+  const jwt = await (options.jwtProvider ?? lazyLoginJwt(env))()
   const entries = await fetchPerfecoEntries(env, {
     from: options.businessDate,
     to: options.businessDate,
