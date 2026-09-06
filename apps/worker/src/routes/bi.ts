@@ -6,7 +6,8 @@ import { requireJsonBody } from '../lib/json.js'
 import { latestSyncedAt, listBiSkuNames, syncBiSkuNames } from '../services/bi-sku-sync.js'
 import { MasterDataUpstreamError } from '../lib/masterdata-login.js'
 import { businessDateFor } from '../services/business.js'
-import { PerfecoUpstreamError, currentWeekWindow, getBikeWeek, getStoreWeek, isPerfecoConfigured, readBikeDay, resolveArticleVehicleInfo, resolveModelVehicleInfo, syncBikeDay } from '../services/bi-bikes.js'
+import { PerfecoUpstreamError, currentWeekWindow, getBikeWeek, getServicesDay, getStoreDay, getStoreWeek, isPerfecoConfigured, lazyLoginJwt, resolveArticleVehicleInfo, resolveModelVehicleInfo, syncBikeDay } from '../services/bi-bikes.js'
+import { listBiStoreWeeks } from '../services/bi-weekly.js'
 import { ApiProblem } from '../services/problems.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
@@ -44,18 +45,52 @@ export function biRoutes() {
     try {
       const requested = c.req.query('date')
       const businessDate = /^\d{4}-\d{2}-\d{2}$/u.test(requested ?? '') ? requested! : await businessDateFor(context)
+      // 共享 JWT provider：整车 + 门店日 + 安全检查三段链路一次 IdP 登录。
+      const jwtProvider = lazyLoginJwt(c.env)
       const snapshot = await syncBikeDay(c.env, {
         storeId: context.storeId,
         storeCode: context.storeCode,
-        businessDate
+        businessDate,
+        jwtProvider
       })
-      return c.json(snapshot ?? { available: false })
+      if (!snapshot) return c.json({ available: false })
+      // 当日门店销售概况 + 安全检查开单（8538631）与整车实销一并返回；
+      // 任一附加源失败都只降级为 null，绝不拖垮整车实销主链路。
+      const [storeDay, safety] = await Promise.all([
+        getStoreDay(c.env, { storeId: context.storeId, storeCode: context.storeCode, businessDate, jwtProvider }).catch(() => null),
+        getServicesDay(c.env, { storeId: context.storeId, storeCode: context.storeCode, businessDate, jwtProvider }).catch(() => null)
+      ])
+      return c.json({ ...snapshot, storeDay: storeDay ?? null, safety: safety ?? null })
     } catch (error) {
       if (error instanceof PerfecoUpstreamError) {
         throw new ApiProblem(503, error.code, '自行车销量同步暂时不可用，请稍后重试。')
       }
       throw error
     }
+  })
+
+  // 服务 SKU 当日开单（安全检查 8538631）：KPI「安全检查开单」自动填写数据源。
+  app.get('/api/v1/bi/services/day', ...read, async (c) => {
+    if (!isPerfecoConfigured(c.env)) return c.json({ available: false })
+    const context = c.get('auth')!
+    try {
+      const requested = c.req.query('date')
+      const businessDate = /^\d{4}-\d{2}-\d{2}$/u.test(requested ?? '') ? requested! : await businessDateFor(context)
+      const payload = await getServicesDay(c.env, { storeId: context.storeId, storeCode: context.storeCode, businessDate })
+      return c.json(payload ?? { available: false })
+    } catch (error) {
+      if (error instanceof PerfecoUpstreamError) {
+        throw new ApiProblem(503, error.code, '服务开单同步暂时不可用，请稍后重试。')
+      }
+      throw error
+    }
+  })
+
+  // 已完结周序列（cron 定时拉取落库）：周报出的当天自动补齐最新完结周。
+  app.get('/api/v1/bi/store/weeks', ...read, async (c) => {
+    const context = c.get('auth')!
+    const weeks = await listBiStoreWeeks(c.env.DB, context.storeId)
+    return c.json({ available: true, weeks })
   })
 
   // 门店周 TO + DIS（CIS 侧：perfeco STORES + consolidated_spd）。

@@ -40,22 +40,39 @@ export default function KpiDialog({ open, onClose, values, savedAt, onSave, onCl
     setAutoFilled(true)
     const placeholder = (value) => value === '' || value == null || value === 0 || value === '0'
     if (!savedAt && (placeholder(draft.salesVehicles) || placeholder(draft.usedSold))) {
-      setDraft((current) => ({
-        ...current,
-        salesVehicles: placeholder(current.salesVehicles) ? String(bikeDay.newBikes) : current.salesVehicles,
-        usedSold: placeholder(current.usedSold) ? String(bikeDay.usedBikes) : current.usedSold
-      }))
+      setDraft((current) => {
+        const next = {
+          ...current,
+          salesVehicles: placeholder(current.salesVehicles) ? String(bikeDay.newBikes) : current.salesVehicles,
+          usedSold: placeholder(current.usedSold) ? String(bikeDay.usedBikes) : current.usedSold
+        }
+        // 安全检查开单（8538631）：CIS 实单 > 0 且字段仍占位 → 自动填入并补型号单号
+        // （服务端校验 safetyChecks > 0 必须带 safetyModel，缺一即 400）。
+        if (bikeDay.safety && bikeDay.safety.checks > 0 && placeholder(next.safetyChecks)) {
+          next.safetyChecks = String(bikeDay.safety.checks)
+          if (placeholder(next.safetyModel)) next.safetyModel = bikeDay.safety.model || '8538631'
+        }
+        return next
+      })
       setFilledNote(true)
     }
   }, [open, bikeDay, autoFilled, savedAt, draft.salesVehicles, draft.usedSold])
 
+  const placeholder2 = (value) => value === '' || value == null || value === '0'
   const fillFromBikeDay = () => {
     if (!bikeDay || bikeDay.status !== 'ok') return
-    setDraft((current) => ({
-      ...current,
-      salesVehicles: String(bikeDay.newBikes ?? 0),
-      usedSold: String(bikeDay.usedBikes ?? 0)
-    }))
+    setDraft((current) => {
+      const next = {
+        ...current,
+        salesVehicles: String(bikeDay.newBikes ?? 0),
+        usedSold: String(bikeDay.usedBikes ?? 0)
+      }
+      if (bikeDay.safety && bikeDay.safety.checks > 0) {
+        next.safetyChecks = String(bikeDay.safety.checks)
+        if (placeholder2(current.safetyModel)) next.safetyModel = bikeDay.safety.model || '8538631'
+      }
+      return next
+    })
   }
 
   const submit = async (event) => {
@@ -95,7 +112,7 @@ export default function KpiDialog({ open, onClose, values, savedAt, onSave, onCl
           <p className="form-meta bike-day-sync" data-bike-sync={bikeDay.status}>
             {bikeDay.status === 'syncing' ? '正在同步今日自行车实销…'
               : bikeDay.status === 'error' ? '自行车实销同步暂不可用，可手动填写'
-              : bikeDay.status === 'ok' ? `今日实销（perfeco）：新车 ${bikeDay.newBikes ?? 0} 台 · 二手 ${bikeDay.usedBikes ?? 0} 台`
+              : bikeDay.status === 'ok' ? `今日实销（perfeco）：新车 ${bikeDay.newBikes ?? 0} 台 · 二手 ${bikeDay.usedBikes ?? 0} 台${bikeDay.safety ? ` · 安全检查 ${bikeDay.safety.checks} 单` : ''}${bikeDay.storeDay ? ` · 门店 ¥${Math.round(bikeDay.storeDay.turnover).toLocaleString('en-US')}/${bikeDay.storeDay.tickets} 单` : ''}`
               : '自行车实销同步暂不可用'}
             {bikeDay.status === 'ok' && filledNote ? <span className="bike-sync-note">（已自动填入）</span> : null}
             {bikeDay.status === 'ok' && !filledNote ? <button type="button" className="text-action" onClick={fillFromBikeDay}>填入实销</button> : null}

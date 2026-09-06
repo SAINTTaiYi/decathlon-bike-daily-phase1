@@ -65,7 +65,7 @@ function parseDay(day: string): Date {
 function fmtDay(date: Date): string {
   return date.toISOString().slice(0, 10)
 }
-function isoWeekOf(day: string): { week: number; label: string } {
+export function isoWeekOf(day: string): { week: number; label: string } {
   const date = parseDay(day)
   const dayNum = date.getUTCDay() || 7
   date.setUTCDate(date.getUTCDate() + 4 - dayNum)
@@ -150,7 +150,7 @@ function isoDay(value: Date): string {
 }
 
 // 渠道分桶（physical/cc/loyalty/digital…）求和：qty 取整、金额保留两位。
-function channelsSum(record: Record<string, unknown> | null | undefined, round: boolean): number {
+export function channelsSum(record: Record<string, unknown> | null | undefined, round: boolean): number {
   if (!record || typeof record !== 'object') return 0
   let total = 0
   for (const value of Object.values(record)) {
@@ -159,7 +159,7 @@ function channelsSum(record: Record<string, unknown> | null | undefined, round: 
   return round ? Math.round(total) : Math.round(total * 100) / 100
 }
 
-type PerfecoEntry = { id?: unknown; turnover?: Record<string, unknown>; quantity?: Record<string, unknown> }
+type PerfecoEntry = { id?: unknown; turnover?: Record<string, unknown>; quantity?: Record<string, unknown>; ticket?: Record<string, unknown> }
 
 async function fetchPerfecoEntries(env: WorkerEnv, params: Record<string, string | Array<string>>, jwt: string): Promise<PerfecoEntry[]> {
   const config = loadConfig(env).MASTERDATA
@@ -217,8 +217,8 @@ async function loginJwt(env: WorkerEnv): Promise<string> {
 // 只有确有未解析码需要 masterdata 补齐时才打 IdP。promise 级 memoize 天然防
 // 并发双登录；失败自动清空，下一次调用重试。perfeco 查询每次都要即时 token
 // （上游 2h 过期且不缓存），provider 复用同一 token 避免同请求内重复登录。
-type JwtProvider = () => Promise<string>
-function lazyLoginJwt(env: WorkerEnv): JwtProvider {
+export type JwtProvider = () => Promise<string>
+export function lazyLoginJwt(env: WorkerEnv): JwtProvider {
   let inflight: Promise<string> | null = null
   return () => {
     if (!inflight) {
@@ -379,7 +379,7 @@ export async function resolveModelVehicleInfo(env: WorkerEnv, modelCodes: readon
 // ── 当日 KPI 快照（闭店弹窗「填写数据」自动同步新车/二手车台数）──
 export async function syncBikeDay(
   env: WorkerEnv,
-  options: { storeId: string; storeCode: string; businessDate: string; force?: boolean; now?: Date }
+  options: { storeId: string; storeCode: string; businessDate: string; force?: boolean; now?: Date; jwtProvider?: JwtProvider }
 ): Promise<BikeDaySnapshot | null> {
   if (!isPerfecoConfigured(env)) return null
   const now = options.now ?? new Date()
@@ -387,7 +387,9 @@ export async function syncBikeDay(
     const cached = await readBikeDay(env, options.storeId, options.businessDate)
     if (cached && now.getTime() - Date.parse(cached.syncedAt) < DAY_SNAPSHOT_MAX_AGE_MS) return cached
   }
-  const getJwt = lazyLoginJwt(env)
+  // 路由层组合调用（bikes/day = 整车 + 门店日 + 安全检查）共享同一 JWT provider：
+  // 一次 IdP 登录喂三段链路，省 2 次登录（2026-09-06 冒烟实测冷链 3 登录触发上游节流）。
+  const getJwt = options.jwtProvider ?? lazyLoginJwt(env)
   const entries = await fetchPerfecoEntries(env, {
     from: options.businessDate,
     to: options.businessDate,
@@ -435,6 +437,136 @@ export async function syncBikeDay(
       synced_at = excluded.synced_at
   `).bind(options.storeId, options.businessDate, newBikes, usedBikes, newTo, usedTo, JSON.stringify(items), syncedAt).run()
   return { available: true, businessDate: options.businessDate, newBikes, usedBikes, newTo, usedTo, detail: items, syncedAt }
+}
+
+// ── 门店当日销售概况（perfeco STORES 当日聚合；KPI 弹窗同步行展示）──
+// 缓存行 business_date = `storeday:<date>`（10 分钟 TTL，与日快照同族）。
+export type StoreDayPayload = {
+  available: true
+  businessDate: string
+  turnover: number
+  quantity: number
+  tickets: number
+  syncedAt: string
+}
+
+export async function getStoreDay(
+  env: WorkerEnv,
+  options: { storeId: string; storeCode: string; businessDate: string; force?: boolean; now?: Date; jwtProvider?: JwtProvider }
+): Promise<StoreDayPayload | null> {
+  if (!isPerfecoConfigured(env)) return null
+  const now = options.now ?? new Date()
+  const cacheKey = `storeday:${options.businessDate}`
+  if (!options.force) {
+    const cachedRow = await first<{ detail: string; synced_at: string }>(
+      env.DB.prepare(`SELECT detail, synced_at FROM bi_bikes_snapshot WHERE store_id = ? AND business_date = ?`).bind(options.storeId, cacheKey)
+    )
+    if (cachedRow) {
+      const age = now.getTime() - Date.parse(cachedRow.synced_at)
+      if (age >= 0 && age < DAY_SNAPSHOT_MAX_AGE_MS) {
+        try {
+          const parsed = JSON.parse(cachedRow.detail) as StoreDayPayload
+          if (parsed && parsed.available) return parsed
+        } catch { /* 缓存损坏 → 重拉 */ }
+      }
+    }
+  }
+  const jwt = await (options.jwtProvider ?? lazyLoginJwt(env))()
+  const entries = await fetchPerfecoEntries(env, {
+    from: options.businessDate,
+    to: options.businessDate,
+    aggLevel: 'STORES',
+    stores: [options.storeCode]
+  }, jwt)
+  const entry = entries.find((item) => String(item.id ?? '') === options.storeCode) ?? entries[0]
+  const toSplit = channelSplit(entry?.turnover as Record<string, unknown> | undefined, false)
+  const qtySplit = channelSplit(entry?.quantity as Record<string, unknown> | undefined, true)
+  const ticketSplit = channelSplit(entry?.ticket as Record<string, unknown> | undefined, true)
+  const payload: StoreDayPayload = {
+    available: true,
+    businessDate: options.businessDate,
+    turnover: toSplit.online + toSplit.offline,
+    quantity: qtySplit.online + qtySplit.offline,
+    tickets: ticketSplit.online + ticketSplit.offline,
+    syncedAt: now.toISOString()
+  }
+  await env.DB.prepare(`
+    INSERT INTO bi_bikes_snapshot (store_id, business_date, new_bikes, used_bikes, new_bikes_to, used_bikes_to, detail, synced_at)
+    VALUES (?, ?, 0, 0, 0, 0, ?, ?)
+    ON CONFLICT(store_id, business_date) DO UPDATE SET
+      detail = excluded.detail,
+      synced_at = excluded.synced_at
+  `).bind(options.storeId, cacheKey, JSON.stringify(payload), now.toISOString()).run()
+  return payload
+}
+
+// ── 服务 SKU 当日开单（安全检查 8538631 = DEPOSIT CHECK）──
+// icare 服务目录「安全检查 / D乐卡安全检查」= 8538631，masterdata 实证：
+// label DEPOSIT CHECK，family 1733 / universe 90，service 型 Z004。
+// perfeco models 过滤 + ARTICLES 聚合直接给出当日开单量（08-31 实测 5 单、09-05 实测 1 单，
+// 单价 ¥69.9，ticket 数与 qty 一一对应）。闭店 KPI「安全检查开单」自动填写数据源。
+export const SAFETY_CHECK_MODEL = '8538631'
+
+export type ServicesDayPayload = {
+  available: true
+  businessDate: string
+  model: string
+  checks: number
+  to: number
+  syncedAt: string
+}
+
+export async function getServicesDay(
+  env: WorkerEnv,
+  options: { storeId: string; storeCode: string; businessDate: string; force?: boolean; now?: Date; jwtProvider?: JwtProvider }
+): Promise<ServicesDayPayload | null> {
+  if (!isPerfecoConfigured(env)) return null
+  const now = options.now ?? new Date()
+  if (!options.force) {
+    const cachedRow = await first<{ payload: string; synced_at: string }>(
+      env.DB.prepare(`SELECT payload, synced_at FROM bi_service_day WHERE store_id = ? AND business_date = ?`).bind(options.storeId, options.businessDate)
+    )
+    if (cachedRow) {
+      const age = now.getTime() - Date.parse(cachedRow.synced_at)
+      if (age >= 0 && age < DAY_SNAPSHOT_MAX_AGE_MS) {
+        try {
+          const parsed = JSON.parse(cachedRow.payload) as ServicesDayPayload
+          if (parsed && parsed.available) return parsed
+        } catch { /* 缓存损坏 → 重拉 */ }
+      }
+    }
+  }
+  const jwt = await (options.jwtProvider ?? lazyLoginJwt(env))()
+  const entries = await fetchPerfecoEntries(env, {
+    from: options.businessDate,
+    to: options.businessDate,
+    aggLevel: 'ARTICLES',
+    stores: [options.storeCode],
+    models: [SAFETY_CHECK_MODEL]
+  }, jwt)
+  let checks = 0
+  let to = 0
+  for (const entry of entries) {
+    checks += channelsSum(entry.quantity as Record<string, unknown>, true)
+    to += channelsSum(entry.turnover as Record<string, unknown>, false)
+  }
+  to = Math.round(to * 100) / 100
+  const payload: ServicesDayPayload = {
+    available: true,
+    businessDate: options.businessDate,
+    model: SAFETY_CHECK_MODEL,
+    checks,
+    to,
+    syncedAt: now.toISOString()
+  }
+  await env.DB.prepare(`
+    INSERT INTO bi_service_day (store_id, business_date, payload, synced_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(store_id, business_date) DO UPDATE SET
+      payload = excluded.payload,
+      synced_at = excluded.synced_at
+  `).bind(options.storeId, options.businessDate, JSON.stringify(payload), now.toISOString()).run()
+  return payload
 }
 
 export async function readBikeDay(env: WorkerEnv, storeId: string, businessDate: string): Promise<BikeDaySnapshot | null> {

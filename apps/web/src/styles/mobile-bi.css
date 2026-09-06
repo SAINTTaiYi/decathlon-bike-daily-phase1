@@ -31,3 +31,11 @@
 .ops-bim-bar { grid-column: 2 / 3; display: block; height: 2px; margin: 2px 0; border-radius: 1px; background: rgb(28 28 26 / .08); overflow: hidden; }
 .ops-bim-bar > i { display: block; height: 100%; border-radius: 1px; background: #1c1c1a; transform-origin: left center; }
 .ops-bim-note { margin: 6px 0 0; color: #8f8e88; font-family: var(--ops-display); font-size: 8.5px; font-weight: 600; letter-spacing: .04em; }
+
+/* ── CIS 已完结周门店 TO（周结定时拉取，2026-09-06）── */
+.ops-bim-weeks-rows { display: grid; gap: 0; margin-top: 8px; }
+.ops-bim-weeks-row { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid rgb(12 14 12 / .07); }
+.ops-bim-weeks-row:last-child { border-bottom: 0; }
+.ops-bim-weeks-row .label { font-size: 11px; font-weight: 800; color: rgb(12 14 12 / .82); }
+.ops-bim-weeks-row .range { font-size: 10px; color: rgb(12 14 12 / .5); }
+.ops-bim-weeks-row .value { font-size: 13px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
