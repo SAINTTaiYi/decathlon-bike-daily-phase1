@@ -30,7 +30,8 @@ async function makeEnv(): Promise<WorkerEnv> {
     BI_MASTERDATA_LOGIN_USERNAME_ENC: await blob('CHU13'),
     BI_MASTERDATA_LOGIN_PASSWORD_ENC: await blob('Pass/123'),
     BI_PERFECO_API_KEY: 'api-key-perfeco',
-    BI_SPD_API_KEY: 'api-key-spd'
+    BI_SPD_API_KEY: 'api-key-spd',
+    BI_SYNC_STORE_CODES: '1299'
   } as unknown as WorkerEnv
 }
 
@@ -74,6 +75,9 @@ function mockFetch(perfeco: (url: string) => unknown, spd: () => unknown = () =>
       const body = perfeco(u)
       const text = typeof body === 'string' ? body : JSON.stringify(body)
       return { url: u, ok: true, status: 200, text: async () => text, json: async () => JSON.parse(text), headers: new Headers() } as unknown as Response
+    }
+    if (u.includes('/modelslist/')) {
+      return { url: u, ok: true, status: 200, text: async () => '', json: async () => [{ r3code: '1299', label: '20\" MOVE 100 CN', store_treeview: { universe_id: 2, family_id: 5033 } }], headers: new Headers() } as unknown as Response
     }
     throw new Error(`unexpected fetch: ${u}`)
   }) as typeof fetch
@@ -177,6 +181,27 @@ test('runScheduledBiSync：窗口外零上游；窗口内补齐周结并预热�
     assert.equal(weeks.length, 1)
     assert.equal(weeks[0].weekLabel, 'W36')
   } finally { mocked.restore() }
+})
+
+// ── 门店白名单（2026-09-06 用户定案：凭据=1299 CHU13，绝不越权拉其他门店）──
+test('runScheduledBiSync：白名单未配置=全禁（fail-closed）；白名单外门店零上游', async () => {
+  const perfecoPayload = { date_list: [{ agg_level_list: [perfecoEntry('1299', 912, 70106.62)] }] }
+  // 白名单未配置：窗口内也必须零上游调用
+  const envNone = await makeEnv()
+  ;(envNone as Record<string, unknown>).BI_SYNC_STORE_CODES = undefined
+  const mockedNone = mockFetch(() => perfecoPayload)
+  try {
+    await runScheduledBiSync(envNone, new Date('2026-09-06T04:05:00Z'))
+    assert.equal(mockedNone.calls.length, 0, '未配置白名单时 cron 必须整体禁用')
+  } finally { mockedNone.restore() }
+  // 白名单只含 1299：1299 拉取、TEST-99 跳过；把 1299 换成别店码 → 1299 也必须跳过
+  const envOnly = await makeEnv()
+  ;(envOnly as Record<string, unknown>).BI_SYNC_STORE_CODES = '9999'
+  const mockedSkip = mockFetch(() => perfecoPayload)
+  try {
+    await runScheduledBiSync(envOnly, new Date('2026-09-06T04:05:00Z'))
+    assert.equal(mockedSkip.calls.length, 0, '白名单不含 1299 时不得拉取 1299')
+  } finally { mockedSkip.restore() }
 })
 
 // ── cron 窗口常量 ──

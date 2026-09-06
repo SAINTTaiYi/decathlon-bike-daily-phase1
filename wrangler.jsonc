@@ -34,6 +34,7 @@
     "SESSION_TTL_HOURS": "12",
     "CORS_ALLOWED_ORIGINS": "https://bike-ops-staging.geeklightonefish.workers.dev",
     "SHIPHUB_ENABLED": "false",
+    "BI_SYNC_STORE_CODES": "1299",
     "SHIPHUB_MODE": "fixture"
   }
 }

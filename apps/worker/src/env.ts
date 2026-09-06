@@ -47,6 +47,8 @@ export interface WorkerEnv {
   BI_MASTERDATA_LOGIN_USERNAME_ENC?: string
   BI_MASTERDATA_LOGIN_PASSWORD_ENC?: string
   BI_PERFECO_API_KEY?: string
+  /** BI 同步门店白名单（逗号分隔门店码，空=禁用定时拉取与门店数据端点） */
+  BI_SYNC_STORE_CODES?: string
   BI_SPD_API_KEY?: string
   D1_METRICS_TOKEN?: string
 }
@@ -98,7 +100,11 @@ export interface AppConfig {
 
 // BI 车型名 masterdata 同步配置：CubeInStore 联邦 OAuth（全球 IdP，PKCE）+
 // masterdata 网关 key。凭据/密钥为 secret，URL 为固定事实不保密。
+// BI 同步门店白名单（2026-09-06 定案）：凭据属于 CHU13 = 五象店 1299，
+// 只允许拉取白名单内的门店经营数据——绝不越权采集其他门店（哪怕技术可达）。
+// 空/未配置 = 禁用全部定时拉取（fail-closed）；逗号分隔支持多店。
 export type MasterDataConfig = {
+  syncStoreCodes: string[]
   clientId?: string
   clientSecret?: string
   apiKey?: string
@@ -127,6 +133,7 @@ function loadMasterDataConfig(env: WorkerEnv): MasterDataConfig {
     loginUsernameEnc: env.BI_MASTERDATA_LOGIN_USERNAME_ENC,
     loginPasswordEnc: env.BI_MASTERDATA_LOGIN_PASSWORD_ENC,
     perfecoApiKey: env.BI_PERFECO_API_KEY,
+    syncStoreCodes: (env.BI_SYNC_STORE_CODES ?? '').split(',').map((code) => code.trim()).filter((code) => /^\d{3,8}$/u.test(code)),
     spdApiKey: env.BI_SPD_API_KEY,
     authorizeUrl: 'https://idpdecathlon.oxylane.com/as/authorization.oauth2',
     tokenUrl: 'https://idpdecathlon.oxylane.com/as/token.oauth2',
