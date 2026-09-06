@@ -1,7 +1,7 @@
 import { all } from '../db.js'
 import { currentWeekWindow, getBikeWeek, getStoreWeek, isoWeekOf, isPerfecoConfigured, type StoreWeekPayload } from './bi-bikes.js'
 import { activeInStoreTimezone } from './shiphub-sync.js'
-import type { WorkerEnv } from '../env.js'
+import { loadConfig, type WorkerEnv } from '../env.js'
 
 // ── BI 周结定时拉取（2026-09-06）────────────────────────────────────────
 // BI 门户（TableauRest）VizQL 链路 2026-09-01 协议变更后无法从 Worker 稳定拉取，
@@ -89,12 +89,17 @@ export async function ensureStoreWeeks(
 export async function runScheduledBiSync(env: WorkerEnv, now = new Date()): Promise<void> {
   if (!isPerfecoConfigured(env)) return
   if (!activeInStoreTimezone(BI_SYNC_TIMEZONE, now, BI_SYNC_START_HOUR, BI_SYNC_END_HOUR)) return
+  // 门店白名单硬门禁（2026-09-06 用户定案）：凭据 = 1299 的 CHU13 账号，
+  // 只拉白名单内门店；未配置 = 一律不拉（fail-closed），绝不遍历全部门店。
+  const whitelist = new Set(loadConfig(env).MASTERDATA.syncStoreCodes)
+  if (!whitelist.size) return
   const stores = await all<{ id: string; code: string }>(
     env.DB.prepare(`SELECT id, code FROM stores WHERE status = 'active'`)
   )
   for (const store of stores) {
     // perfeco 门店码为纯数字（如 1299）；测试/非迪卡侬编码门店跳过，绝不空转上游。
     if (!/^\d{3,8}$/u.test(store.code)) continue
+    if (!whitelist.has(store.code)) continue
     try {
       await ensureStoreWeeks(env, { storeId: store.id, storeCode: store.code, now })
       const window = currentWeekWindow(now)

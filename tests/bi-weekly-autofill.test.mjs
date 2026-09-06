@@ -26,6 +26,37 @@ test('bi-weekly：窗口 09–23 北京时间、完结周口径、基线 W36、�
   assert.match(svc, /7 \* 86400_000/u)
 })
 
+test('门店白名单：cron fail-closed + 五个门店数据端点门禁（凭据=1299）', async () => {
+  const svc = await readWorker('services/bi-weekly.ts')
+  const env = await readWorker('env.ts')
+  assert.match(svc, /syncStoreCodes/u, 'cron 必须读白名单')
+  assert.match(env, /BI_SYNC_STORE_CODES/u, '环境变量必须声明白名单')
+  assert.match(svc, /if \(!whitelist\.size\) return/u, '未配置白名单必须整体禁用（fail-closed）')
+  assert.match(svc, /whitelist\.has\(store\.code\)/u, '白名单外门店必须跳过')
+  assert.match(env, /syncStoreCodes: string\[\]/u)
+  const route = await readWorker('routes/bi.ts')
+  let gates = 0
+  for (const ep of ['bikes/day', 'services/day', 'store/weeks', 'store/week', 'bikes/week']) {
+    const idx = route.indexOf(`/api/v1/bi/${ep}`)
+    assert.ok(idx > 0, `${ep} 路由存在`)
+    const chunk = route.slice(idx, idx + 600)
+    assert.match(chunk, /storeAllowed\(loadConfig\(c\.env\), context\.storeCode\)/u, `${ep} 必须有门店门禁`)
+    gates += 1
+  }
+  assert.equal(gates, 5)
+  // 全局商品分类端点不受门店门禁（vehicles/vehicle-models 是品名数据非门店经营数据）
+  for (const ep of ['vehicles', 'vehicle-models']) {
+    const idx = route.indexOf(`/api/v1/bi/${ep}`)
+    const chunk = route.slice(idx, idx + 600)
+    assert.doesNotMatch(chunk, /storeAllowed/u, `${ep} 不得误加门店门禁`)
+  }
+  // 部署模板必须注入白名单（staging/preview 都是 1299）
+  const wfStaging = await readFile(new URL('../.github/workflows/deploy-cloudflare-staging.yml', import.meta.url), 'utf8')
+  const wfPreview = await readFile(new URL('../.github/workflows/deploy-cloudflare-preview.yml', import.meta.url), 'utf8')
+  assert.match(wfStaging, /"BI_SYNC_STORE_CODES": "1299"/u)
+  assert.match(wfPreview, /"BI_SYNC_STORE_CODES": "1299"/u)
+})
+
 test('getStoreWeeks 路由 + schema 0025 落地', async () => {
   const route = await readWorker('routes/bi.ts')
   assert.match(route, /app\.get\('\/api\/v1\/bi\/store\/weeks'/u)

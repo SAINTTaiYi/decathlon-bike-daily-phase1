@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import type { AppConfig, WorkerEnv } from '../env.js'
+import { loadConfig, type AppConfig, type WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
 import { createAuthMiddleware } from '../auth/middleware.js'
 import { requireJsonBody } from '../lib/json.js'
@@ -14,6 +14,13 @@ type Vars = { config: AppConfig; auth: AuthContext | null }
 
 // BI 车型名（masterdata 官方同步）：只读查询 + 管理员手动触发同步。
 // 命名数据非门店敏感数据，读端点仅需登录会话；手动同步需 manager/admin + CSRF。
+// 门店数据门禁（2026-09-06 用户定案）：BI/perfeco 凭据属于特定门店（CHU13 = 1299），
+// 白名单外门店的登录用户不得借本部署的凭据查询其门店经营数据（fail-closed）。
+// 品名分类端点（vehicles/vehicle-models/sku-names）是全局商品数据，不受此限。
+function storeAllowed(config: AppConfig, storeCode: string): boolean {
+  return config.MASTERDATA.syncStoreCodes.includes(storeCode)
+}
+
 export function biRoutes() {
   const app = new Hono<{ Bindings: WorkerEnv; Variables: Vars }>()
   const auth = createAuthMiddleware()
@@ -42,6 +49,7 @@ export function biRoutes() {
   app.get('/api/v1/bi/bikes/day', ...read, async (c) => {
     if (!isPerfecoConfigured(c.env)) return c.json({ available: false })
     const context = c.get('auth')!
+    if (!storeAllowed(loadConfig(c.env), context.storeCode)) return c.json({ available: false })
     try {
       const requested = c.req.query('date')
       const businessDate = /^\d{4}-\d{2}-\d{2}$/u.test(requested ?? '') ? requested! : await businessDateFor(context)
@@ -73,6 +81,7 @@ export function biRoutes() {
   app.get('/api/v1/bi/services/day', ...read, async (c) => {
     if (!isPerfecoConfigured(c.env)) return c.json({ available: false })
     const context = c.get('auth')!
+    if (!storeAllowed(loadConfig(c.env), context.storeCode)) return c.json({ available: false })
     try {
       const requested = c.req.query('date')
       const businessDate = /^\d{4}-\d{2}-\d{2}$/u.test(requested ?? '') ? requested! : await businessDateFor(context)
@@ -89,6 +98,7 @@ export function biRoutes() {
   // 已完结周序列（cron 定时拉取落库）：周报出的当天自动补齐最新完结周。
   app.get('/api/v1/bi/store/weeks', ...read, async (c) => {
     const context = c.get('auth')!
+    if (!storeAllowed(loadConfig(c.env), context.storeCode)) return c.json({ available: false })
     const weeks = await listBiStoreWeeks(c.env.DB, context.storeId)
     return c.json({ available: true, weeks })
   })
@@ -98,6 +108,7 @@ export function biRoutes() {
   app.get('/api/v1/bi/store/week', ...read, async (c) => {
     if (!isPerfecoConfigured(c.env)) return c.json({ available: false })
     const context = c.get('auth')!
+    if (!storeAllowed(loadConfig(c.env), context.storeCode)) return c.json({ available: false })
     const from = c.req.query('from')
     const to = c.req.query('to')
     const window = /^\d{4}-\d{2}-\d{2}$/u.test(from ?? '') && /^\d{4}-\d{2}-\d{2}$/u.test(to ?? '')
@@ -126,6 +137,7 @@ export function biRoutes() {
   app.get('/api/v1/bi/bikes/week', ...read, async (c) => {
     if (!isPerfecoConfigured(c.env)) return c.json({ available: false })
     const context = c.get('auth')!
+    if (!storeAllowed(loadConfig(c.env), context.storeCode)) return c.json({ available: false })
     try {
       const payload = await getBikeWeek(c.env, { storeId: context.storeId, storeCode: context.storeCode })
       return c.json(payload ?? { available: false })
