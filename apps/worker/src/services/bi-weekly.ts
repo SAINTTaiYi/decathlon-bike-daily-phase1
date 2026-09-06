@@ -27,15 +27,17 @@ export function lastCompletedWeek(now: Date): { from: string; to: string } {
   return { from: new Date(fromMs).toISOString().slice(0, 10), to: new Date(toMs).toISOString().slice(0, 10) }
 }
 
-export async function listBiStoreWeeks(db: D1Database, storeId: string): Promise<BiStoreWeekRecord[]> {
-  const rows = await all<{ payload: string }>(
-    db.prepare(`SELECT payload FROM bi_store_week WHERE store_id = ? AND status = 'ok' ORDER BY week_from ASC`).bind(storeId)
+export async function listBiStoreWeeks(db: D1Database, storeId: string): Promise<Array<BiStoreWeekRecord & { capturedAt: string }>> {
+  const rows = await all<{ payload: string; captured_at: string }>(
+    db.prepare(`SELECT payload, captured_at FROM bi_store_week WHERE store_id = ? AND status = 'ok' ORDER BY week_from ASC`).bind(storeId)
   )
-  const out: BiStoreWeekRecord[] = []
+  const out: Array<BiStoreWeekRecord & { capturedAt: string }> = []
   for (const row of rows) {
     try {
       const parsed = JSON.parse(row.payload) as BiStoreWeekRecord | null
-      if (parsed && typeof parsed.from === 'string' && typeof parsed.turnover === 'object') out.push(parsed)
+      if (parsed && typeof parsed.from === 'string' && typeof parsed.turnover === 'object') {
+        out.push({ ...parsed, capturedAt: row.captured_at })
+      }
     } catch { /* 单行损坏跳过，不拖垮整列 */ }
   }
   return out

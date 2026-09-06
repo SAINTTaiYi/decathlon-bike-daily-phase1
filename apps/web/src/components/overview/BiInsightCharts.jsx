@@ -460,6 +460,7 @@ export function BiStoreWeekTrend() {
     const points = weeks.map((week, index) => ({
       label: week.weekLabel || week.from.slice(5),
       value: week.turnover.total,
+      capturedAt: week.capturedAt,
       x: 24 + index * (832 / Math.max(weeks.length - 1, 1))
     }))
     const max = Math.max(...points.map((p) => p.value))
@@ -477,8 +478,9 @@ export function BiStoreWeekTrend() {
     timeline.from(node.querySelectorAll('[data-biw-latest]'), { opacity: 0, y: 6, duration: 0.5, ease: 'power3.out' }, 1.0)
   }, [])
   useBiMotion(ref, revealed, replay, reduced, build)
+  const captured = ready && geom.latest.capturedAt ? ` · 拉取于 ${new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(geom.latest.capturedAt))}` : ''
   const sub = ready
-    ? `${geom.latest.label} 门店 TO ¥${Math.round(geom.latest.value).toLocaleString('en-US')}${geom.points.length >= 2 ? ` · 环比 ${geom.wow >= 0 ? '+' : ''}${geom.wow.toFixed(1)}%` : ' · 首周（次周起展示环比）'} · 周报出当天自动拉取`
+    ? `${geom.latest.label} 门店 TO ¥${Math.round(geom.latest.value).toLocaleString('en-US')}${geom.points.length >= 2 ? ` · 环比 ${geom.wow >= 0 ? '+' : ''}${geom.wow.toFixed(1)}%` : ' · 首周（次周起展示环比）'} · 周报出当天自动拉取${captured}`
     : '周结同步中或暂无已完结周 · 每个周日自动补齐最新周'
   return (
     <section ref={ref} className="ops-lieflat-card ops-bi-card" data-replay={replay} data-bi-weeks-state={ready ? 'ok' : 'pending'} onClick={replayChart}>

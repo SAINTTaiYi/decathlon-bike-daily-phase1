@@ -343,7 +343,7 @@ function BimStoreWeekTrend() {
   return (
     <section ref={ref} className="ops-bim-card ops-bim-weeks" data-replay={replay} data-bi-weeks-state="ok" onClick={replayChart} aria-label="CIS 已完结周门店 TO">
       <h3>CIS 门店 TO · 已完结周</h3>
-      <div className="ops-bim-sub">周报出当天自动拉取 · 最新 {latest.weekLabel || latest.from.slice(5)}</div>
+      <div className="ops-bim-sub">周报出当天自动拉取 · 最新 {latest.weekLabel || latest.from.slice(5)}{latest.capturedAt ? ` · 拉取于 ${new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(latest.capturedAt))}` : ''}</div>
       <div className="ops-bim-weeks-rows" role="table" aria-label="已完结周门店 TO 列表">
         {rows.map((week, index) => (
           <div className="ops-bim-weeks-row" data-biw-row="" role="row" key={`${week.from}-${index}`}>
