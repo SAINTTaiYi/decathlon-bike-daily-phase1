@@ -317,7 +317,7 @@ export function governanceRoutes() {
     const context = requireContext(c)
     const id = String(c.req.param('id') ?? '')
     const input = decisionSchema.parse(await c.req.json())
-    const request = await first<{ id: string; user_id: string; store_id: string; status: string; revision: number; store_code: string; store_name: string; store_timezone: string }>(c.env.DB.prepare(`
+    const request = await first<{ id: string; user_id: string; store_id: string; status: string; revision: number; expires_at: string; store_code: string; store_name: string; store_timezone: string }>(c.env.DB.prepare(`
       SELECT jr.*, st.code AS store_code, st.name AS store_name, st.timezone AS store_timezone
       FROM store_join_requests jr JOIN stores st ON st.id = jr.store_id AND st.status = 'active'
       WHERE jr.id = ?
