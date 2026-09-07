@@ -15,8 +15,9 @@ const joinStart = registrationSource.indexOf('if (joinIntent) {')
 const joinEnd = registrationSource.indexOf('      }, 201)', joinStart)
 const joinBlock = joinStart > -1 && joinEnd > joinStart ? registrationSource.slice(joinStart, joinEnd) : ''
 
-test('注册 OTP：命中已生效门店转入加入分支，不再 409', () => {
-  assert.match(registrationSource, /const joinTarget = existingStore && existingStore\.status === 'active' && existingStore\.self_registration_pending === 0/u)
+test('注册 OTP：join intent 命中已生效门店转入加入分支，不再 409', () => {
+  assert.match(registrationSource, /const intent = input\.intent \?\? 'create'/u)
+  assert.match(registrationSource, /if \(intent === 'join'\) \{[\s\S]{0,220}joinTarget = existingStore/u)
   // 409 只在"既不是占位店预约、也不是可加入门店"时抛出
   assert.match(registrationSource, /if \(existingStore && !ownsReservation && !joinTarget\) \{\s*\n\s*throw new ApiProblem\(409, 'STORE_ALREADY_EXISTS'/u)
   // 加入分支在 OTP 阶段不创建新店（joinTarget 非空时跳过占位店 INSERT）
@@ -101,7 +102,11 @@ test('迁移 0026 纯新增，schema 版本与测试适配器同步', () => {
   assert.match(adapter, /'0026_store_join_requests\.sql'/u)
 })
 
-test('契约：注册 schema 不引入显式加入开关（服务端按门店状态自动分流）', () => {
-  // joinExisting 标志已被否决：命中 active 门店即加入，避免前端/后端状态分叉。
-  assert.doesNotMatch(registrationSource, /joinExisting/u)
+test('契约：intent 显式分流（join=下拉加入 / create=新店注册）', () => {
+  // 2026-09-07 用户定案：注册页提供门店下拉选择（默认），下方提供"没有你的门店？"
+  // 切换到新店注册（平台管理员审核）。
+  assert.match(registrationSource, /const intent = input\.intent \?\? 'create'/u)
+  assert.match(registrationSource, /if \(intent === 'join'\) \{[\s\S]{0,300}STORE_NOT_JOINABLE/u)
+  // join 分支与 create 分支并存，均以 joinIntent/joinTarget 判定
+  assert.match(registrationSource, /joinTarget = existingStore/u)
 })

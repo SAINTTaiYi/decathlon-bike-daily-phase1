@@ -88,15 +88,15 @@ export function BootLoaderDesktop({ form, panel, rootRef, cardRef }) {
                 </button>
               </div>
             </form>
-          ) : panel.joinPending ? (
+          ) : panel.pendingApproval ? (
             <div className="bootd-form" role="status">
               <div className="bootd-panel-head bootd-item">
-                <h2 className="bootd-panel-title">等待门店审批</h2>
-                <p className="bootd-panel-hint">加入「{panel.joinPending.storeName}」的申请已提交</p>
+                <h2 className="bootd-panel-title">{panel.pendingApproval.kind === 'join' ? '等待门店审批' : '等待平台审核'}</h2>
+                <p className="bootd-panel-hint">{panel.pendingApproval.kind === 'join' ? `加入「${panel.pendingApproval.storeName}」的申请已提交` : `门店「${panel.pendingApproval.storeName}」的注册已提交`}</p>
               </div>
-              <p className="bootd-notice bootd-item">{panel.joinPending.message}</p>
+              <p className="bootd-notice bootd-item">{panel.pendingApproval.message}</p>
               <div className="bootd-actions bootd-item">
-                <button type="button" className="bootd-btn-primary" onClick={() => { panel.clearJoinPending(); panel.backToLogin() }}>
+                <button type="button" className="bootd-btn-primary" onClick={() => { panel.clearPendingApproval(); panel.backToLogin() }}>
                   返回登录
                 </button>
               </div>

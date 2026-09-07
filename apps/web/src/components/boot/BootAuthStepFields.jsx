@@ -8,6 +8,8 @@ import { USERNAME_MAX_LENGTH } from '../../data/userSession.js'
  * 两套样式互不覆盖。
  */
 
+import ProjectSelect from '../ProjectSelect.jsx'
+
 function Field({ prefix, itemClassName, label, hint, children }) {
   return (
     <label className={`${prefix}-field-wrap ${itemClassName}`.trim()}>
@@ -20,6 +22,7 @@ function Field({ prefix, itemClassName, label, hint, children }) {
 
 export function BootAuthStepFields({ prefix, panel, itemClassName = '' }) {
   const { mode, step, form, error, setField } = panel
+  const { registerPath, storeOptions, storeOptionsLoading } = panel
   const invalid = Boolean(error)
 
   const otpField = (
@@ -81,12 +84,34 @@ export function BootAuthStepFields({ prefix, panel, itemClassName = '' }) {
 
   if (mode === 'register') {
     if (step === 0) {
-      return (
-        <div className={`${prefix}-fields-group`}>
+      const joinMode = registerPath === 'join'
+      const storeSection = joinMode ? (
+        <>
+          <Field
+            prefix={prefix}
+            itemClassName={itemClassName}
+            label="选择门店"
+            hint="加入申请将由该门店管理员审批，平台管理员兜底。"
+          >
+            <ProjectSelect
+              value={form.storeCode}
+              options={storeOptions.map((store) => ({ value: store.code, label: `${store.code} ${store.name}` }))}
+              onChange={(value) => setField('storeCode', value)}
+              placeholder={storeOptionsLoading ? '门店加载中…' : '请选择你的门店'}
+              ariaLabel="选择要加入的门店"
+            />
+          </Field>
+          <p className={`${prefix}-path-switch ${itemClassName}`.trim()}>
+            <span>没有你的门店？</span>
+            <button type="button" onClick={() => panel.setRegisterPath('create')}>点击此处进行门店注册</button>
+          </p>
+          <p className={`${prefix}-path-note ${itemClassName}`.trim()}>门店注册需要经过平台管理员审核。</p>
+        </>
+      ) : (
+        <>
           <div className={`${prefix}-field-pair`}>
-            <Field prefix={prefix} itemClassName={itemClassName} label="门店编号">
+            <Field prefix={prefix} itemClassName={itemClassName} label="门店编号" hint="门店编号需为公司内部唯一编号。">
               <input
-                autoFocus
                 type="text"
                 name="storeCode"
                 maxLength={32}
@@ -109,11 +134,20 @@ export function BootAuthStepFields({ prefix, panel, itemClassName = '' }) {
               />
             </Field>
           </div>
+          <p className={`${prefix}-path-switch ${itemClassName}`.trim()}>
+            <span>已有你的门店？</span>
+            <button type="button" onClick={() => panel.setRegisterPath('join')}>返回选择门店</button>
+          </p>
+        </>
+      )
+      return (
+        <div className={`${prefix}-fields-group`}>
+          {storeSection}
           <Field
             prefix={prefix}
             itemClassName={itemClassName}
             label="Profile"
-            hint="填写已有门店编号将转为「申请加入」该门店（等待店长审批）；新编号则注册创建新门店，首位注册人成为店长。"
+            hint="请填写公司真实 Profile。"
           >
             <input
               type="text"

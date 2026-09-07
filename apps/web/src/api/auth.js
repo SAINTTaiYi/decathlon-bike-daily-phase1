@@ -8,6 +8,7 @@ export const setupAdminAccount = (body) => api('/api/v1/auth/setup', { method: '
 export const createUserAccount = (body) => api('/api/v1/users', { method: 'POST', body })
 
 export const requestRegistrationOtp = (body) => api('/api/v1/registration/otp', { method: 'POST', body })
+export const getRegistrationStores = (signal) => api('/api/v1/registration/stores', { signal })
 export const verifyRegistrationOtp = (body) => api('/api/v1/registration/verify-otp', { method: 'POST', body })
 export const completeRegistration = (body) => api('/api/v1/registration/complete', { method: 'POST', body })
 export const setupPlatformAdmin = (body) => api('/api/v1/auth/setup', { method: 'POST', body })

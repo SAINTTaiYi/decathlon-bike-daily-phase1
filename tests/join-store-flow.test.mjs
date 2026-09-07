@@ -16,23 +16,38 @@ const mobileStyle = await readStyle('boot-mobile.css')
 const desktopStyle = await readStyle('boot-desktop.css')
 
 // ── 注册 hook：加入完成态 ──
-test('注册完成返回 joinPending 时，不进入工作台、不触发 onRegistered', () => {
-  assert.match(hookSource, /const \[joinPending, setJoinPending\] = useState\(null\)/u)
-  assert.match(hookSource, /if \(result\.data\?\.joinPending\) \{\s*\n\s*setJoinPending\(\{ storeName: result\.data\.storeName \|\| '', storeCode: result\.data\.storeCode \|\| '', message: result\.data\.message \|\| '' \}\)\s*\n\s*return undefined\s*\n\s*\}\s*\n\s*onRegistered\?\.\(result\.data\)/u)
+test('注册完成返回等待态（join / review）时，不进入工作台、不触发 onRegistered', () => {
+  assert.match(hookSource, /const \[pendingApproval, setPendingApproval\] = useState\(null\)/u)
+  assert.match(hookSource, /if \(result\.data\?\.joinPending\) \{\s*\n\s*setPendingApproval\(\{ kind: 'join',/u)
+  assert.match(hookSource, /if \(result\.data\?\.storeReviewPending\) \{\s*\n\s*setPendingApproval\(\{ kind: 'review',/u)
   // 切换模式与返回登录都要清理等待态
-  assert.match(hookSource, /const clearJoinPending = useCallback\(\(\) => setJoinPending\(null\), \[\]\)/u)
+  assert.match(hookSource, /const clearPendingApproval = useCallback\(\(\) => setPendingApproval\(null\), \[\]\)/u)
   const switchIdx = hookSource.indexOf('const switchMode = useCallback')
-  const modeIdx = hookSource.indexOf('setJoinPending(null)', switchIdx)
-  assert.ok(modeIdx > switchIdx, 'switchMode 必须重置 joinPending')
-  assert.match(hookSource, /joinPending,\s*\n\s*clearJoinPending,/u)
+  const modeIdx = hookSource.indexOf('setPendingApproval(null)', switchIdx)
+  assert.ok(modeIdx > switchIdx, 'switchMode 必须重置 pendingApproval')
+  assert.match(hookSource, /pendingApproval,\s*\n\s*clearPendingApproval,/u)
 })
 
-test('双端注册卡：等待审批态复用既有样式类，提供返回登录出口', () => {
+test('注册双路径：默认门店下拉（join），可切换新店注册（create），下拉数据来自公开目录', () => {
+  assert.match(hookSource, /const \[registerPath, setRegisterPathState\] = useState\('join'\)/u)
+  assert.match(hookSource, /getRegistrationStores\(\)\.then/u)
+  // join 提交必须带 intent；create 同理
+  assert.match(hookSource, /intent: registerPath/u)
+  assert.match(fieldsSource, /const joinMode = registerPath === 'join'/u)
+  assert.match(fieldsSource, /<ProjectSelect/u)
+  assert.match(fieldsSource, /请选择你的门店/u)
+  // 用户定案文案：没有你的门店？点击此处进行门店注册 / 平台管理员审核
+  assert.ok(fieldsSource.includes('没有你的门店？'), '必须有「没有你的门店？」提示')
+  assert.match(fieldsSource, /点击此处进行门店注册/u)
+  assert.match(fieldsSource, /门店注册需要经过平台管理员审核。/u)
+  assert.match(fieldsSource, /返回选择门店/u)
+})
+
+test('双端注册卡：等待审批态分 kind（join=店长 / review=平台），提供返回登录出口', () => {
   for (const source of [mobileSource, desktopSource]) {
-    assert.ok(source.includes('panel.joinPending ? ('), '必须有 joinPending 分支')
-    assert.ok(source.includes('加入「{panel.joinPending.storeName}」的申请已提交'), '必须有申请门店回显')
-    assert.ok(source.includes('panel.clearJoinPending(); panel.backToLogin()'), '必须有返回登录出口')
-    assert.ok(source.includes('等待门店审批'), '必须有等待审批标题')
+    assert.ok(source.includes('panel.pendingApproval ? ('), '必须有 pendingApproval 分支')
+    assert.ok(source.includes("panel.pendingApproval.kind === 'join' ? '等待门店审批' : '等待平台审核'"), '标题必须分 kind')
+    assert.ok(source.includes('panel.clearPendingApproval(); panel.backToLogin()'), '必须有返回登录出口')
     assert.ok(source.includes('role="status"'), '等待态必须是状态提示而非错误')
   }
   // CSS 落地：等待态复用的每个类名都必须在对应样式表里有声明（memory 26/27 教训）
@@ -42,10 +57,14 @@ test('双端注册卡：等待审批态复用既有样式类，提供返回登�
   const desktopClasses = ['bootd-panel-head', 'bootd-panel-title', 'bootd-panel-hint', 'bootd-notice', 'bootd-actions', 'bootd-btn-primary']
   for (const cls of mobileClasses) assert.ok(mobileStyle.includes('.' + cls), `${cls} 缺少样式`)
   for (const cls of desktopClasses) assert.ok(desktopStyle.includes('.' + cls), `${cls} 缺少样式`)
+  // 路径切换与平台审核提示的新样式必须双端落地（memory 23：新元素要有真实样式）
+  assert.ok(mobileStyle.includes('.bootm-path-switch') && mobileStyle.includes('.bootm-path-note'), 'bootm-path-* 缺少样式')
+  assert.ok(desktopStyle.includes('.bootd-path-switch') && desktopStyle.includes('.bootd-path-note'), 'bootd-path-* 缺少样式')
 })
 
-test('注册提示：说明已有门店会转为加入申请', () => {
-  assert.match(fieldsSource, /填写已有门店编号将转为「申请加入」该门店（等待店长审批）；新编号则注册创建新门店/u)
+test('注册提示：店长审批与平台审核规则对用户明示', () => {
+  assert.match(fieldsSource, /加入申请将由该门店管理员审批，平台管理员兜底。/u)
+  assert.match(fieldsSource, /门店编号需为公司内部唯一编号。/u)
 })
 
 // ── 治理弹窗：审批面 ──
@@ -62,6 +81,7 @@ test('治理弹窗：待审批加入区 + 审批动作接线', () => {
 
 test('API 客户端与徽章接线', () => {
   assert.match(apiSource, /export const decideJoinRequest = \(id, body\) => api\(`\/api\/v1\/governance\/join-requests\/\$\{id\}\/decision`, \{ method: 'POST', body \}\)/u)
+  assert.match(apiSource, /export const getRegistrationStores = \(signal\) => api\('\/api\/v1\/registration\/stores', \{ signal \}\)/u)
   assert.match(appSource, /setAdminPending\(result\.roleRequests \+ result\.transferRequests \+ result\.storesPending \+ \(result\.joinRequests \?\? 0\)\)/u)
 })
 
