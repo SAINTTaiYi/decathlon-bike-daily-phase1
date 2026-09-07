@@ -114,8 +114,16 @@ export function shipHubRoutes() {
     // 本店凭据必须用 loginKey 加密（同步/自愈/Cube 身份派生均以 loginKey 解密；
     // tokenEncryptionKey 只管 refresh token，两把密钥职责绝不混用）。
     if (perStoreLogin && !config.SHIPHUB.loginKey) throw new ApiProblem(503, 'LOGIN_KEY_NOT_CONFIGURED', '服务端尚未配置凭据加密密钥，无法保存本店账号。')
-    const [loginUsernameEnc, loginPasswordEnc] = perStoreLogin && storeUsername && storePassword && config.SHIPHUB.loginKey
-      ? await Promise.all([encryptShipHubSecret(storeUsername, config.SHIPHUB.loginKey), encryptShipHubSecret(storePassword, config.SHIPHUB.loginKey)])
+    // 凭据落库格式 = "ciphertext.nonce"（读取侧 splitEncryptedBlob 按此拆分）。
+    // 历史事故（2026-09-08 定案）：encryptShipHubSecret 返回 {ciphertext,nonce}
+    // 对象被直接 bind 进 D1 → D1_TYPE_ERROR → 通用 503，per-store connect 从未
+    // 成功过且被掩盖一整轮排障。必须拼成 blob 字符串再入库。
+    const encryptBlob = async (value: string): Promise<string> => {
+      const { ciphertext, nonce } = await encryptShipHubSecret(value, config.SHIPHUB.loginKey!)
+      return `${ciphertext}.${nonce}`
+    }
+    const [loginUsernameEnc, loginPasswordEnc]: Array<string | null> = perStoreLogin && storeUsername && storePassword && config.SHIPHUB.loginKey
+      ? await Promise.all([encryptBlob(storeUsername), encryptBlob(storePassword)])
       : [null, null]
     // 重连（无新提交）优先复用本店已存凭据；部署级共享凭据仅当本店无凭据时兜底
     // （凭据属于谁就只拉谁，绝不让他店悄悄用共享凭据顶替本店身份）。
