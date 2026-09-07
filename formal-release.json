@@ -1,29 +1,30 @@
 {
   "kind": "formal-production-release",
-  "version": "6.7.2",
+  "version": "6.7.3",
   "previewRange": {
-    "fromExclusive": "b2e49bc5b8b705fdb9c3c3e1313ab42e0a8f57bf",
-    "toInclusive": "b9d7e7262299ac668050df15d0419164cf2c07c4",
+    "fromExclusive": "382f9ec9a772721d0dbae9047892664255c72def",
+    "toInclusive": "36642d4ee569dde80ccc518c0f5ce0c1824cec9e",
     "commits": [
       {
-        "sha": "cb3b4f02ded86c806c4541527bc42d9c7799f1db",
-        "subject": "chore(release): stamp V6.7.1 build metadata"
+        "sha": "fbc9001b500d8e941947e8798927080c8ffa2922",
+        "subject": "chore(release): stamp V6.7.2 build metadata"
       },
       {
-        "sha": "b9d7e7262299ac668050df15d0419164cf2c07c4",
-        "subject": "feat(cube): per-store Cube identity derived from Shiphub credentials"
+        "sha": "71e45caa4b5e2bf742f5c05ae1adef4b9060a40f",
+        "subject": "diag(shiphub): surface non-upstream connect errors (name/message/cause) (#254)"
+      },
+      {
+        "sha": "36642d4ee569dde80ccc518c0f5ce0c1824cec9e",
+        "subject": "chore(release): stamp V6.7.3 build metadata"
       }
     ]
   },
   "announcement": {
-    "title": "门店数据身份自助接入",
-    "summary": "门店提交本店 ShipHub 账密后自动派生三链路身份：Shiphub 同步、Cube BI 销量与周报、KPI 自动填写，凭据属于谁就只拉谁",
+    "title": "connect 诊断透出",
+    "summary": "Shiphub connect 非上游错误带出错误名+消息+cause 并写 Workers Logs，修复通用 503 掩盖根因",
     "changes": [
-      "门店提交本店 ShipHub 账密后，同一凭据自动登录 BI 系统完成销量/周报/安全检查数据接入",
-      "连接卡新增数据身份状态（可用/探测中/未开通），未开通不影响 Shiphub 使用",
-      "重连优先复用本店已存凭据；换账号自动作废旧数据身份",
-      "修复本店凭据加密密钥与自愈解密密钥不一致的隐患"
+      "mapUpstreamError 兜底分支透出非上游错误详情（fetch/D1/crypto），console.error 可查"
     ]
   },
-  "preparedAt": "2026-09-07T18:49:33.131Z"
+  "preparedAt": "2026-09-07T19:17:53.278Z"
 }
