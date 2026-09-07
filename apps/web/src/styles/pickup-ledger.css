@@ -573,7 +573,7 @@
 @media (max-width: 640px) { .shiphub-connection-notice { align-items: stretch; } .shiphub-connection-notice .shiphub-connection-open { justify-content: center; } }
 /* 同步中：按钮禁用反馈（旋转动效由 GSAP 驱动，此处仅做可用态） */
 .shiphub-order-board-meta .shiphub-sync-button:disabled { opacity: .55; cursor: default; }
-.shiphub-locator-guide { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 10px 0 2px; padding: 12px; border: 1px solid #ffd591; border-radius: 12px; background: #fff8e1; color: #5d4037; font-size: 12px; }
+.shiphub-locator-guide { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 10px 0 2px; padding: 12px 38px 12px 12px; border: 1px solid #ffd591; border-radius: 12px; background: #fff8e1; color: #5d4037; font-size: 12px; position: relative; }
 .shiphub-locator-guide strong { font-size: 13px; }
 .shiphub-locator-guide a { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; background: var(--ops-text); color: #fff; text-decoration: none; white-space: nowrap; }
 .shiphub-locator-guide small { color: #a56500; }
@@ -583,6 +583,11 @@
 .shiphub-locator-guide .shiphub-locator-install:hover { background: #3a3a3a; }
 .shiphub-locator-guide .shiphub-locator-recheck { padding: 5px 12px; border-radius: 999px; border: 1px solid #d9a441; background: transparent; color: #8a5a00; cursor: pointer; font-size: 12px; }
 .shiphub-locator-guide .shiphub-locator-recheck:hover { background: #ffe9b8; }
+.shiphub-locator-guide .shiphub-locator-close { position: absolute; top: 7px; right: 7px; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 999px; background: transparent; color: #8a5a00; cursor: pointer; font-size: 13px; line-height: 1; }
+.shiphub-locator-guide .shiphub-locator-close:hover { background: #ffe9b8; }
+.shiphub-locator-mini { display: flex; margin: 10px 0 2px; }
+.shiphub-locator-mini .shiphub-locator-mini-expand { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 999px; border: 1px solid #ffd591; background: #fff8e1; color: #8a5a00; cursor: pointer; font-size: 12px; line-height: 1.4; text-align: left; }
+.shiphub-locator-mini .shiphub-locator-mini-expand:hover { background: #ffe9b8; }
 @media (max-width: 640px) { .shiphub-locator-guide { align-items: stretch; } }
 
 /* Amicro 风格桌面悬停反馈：仅阴影变化，不碰 transform（与按压反馈/展开动画/左滑删除解耦） */

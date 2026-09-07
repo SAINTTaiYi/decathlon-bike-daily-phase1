@@ -67,3 +67,29 @@ test('locator userscript v0.4.0 ships mobile + multi-page + update-check adaptat
   assert.match(script, /Validate 拣货完成/u)
   assert.match(script, /完成收货确认/u)
 })
+
+test('guide card can be collapsed into a one-line hint (close button + sessionStorage)', async () => {
+  const css = await read('apps/web/src/styles/pickup-ledger.css')
+  // 右上 ✕ 收起按钮：未安装/待更新两种卡片都有
+  assert.match(board, /shiphub-locator-close/u)
+  assert.match(board, /aria-label="收起定位脚本提示"/u)
+  assert.match(board, /onClick=\{collapseGuide\}/u)
+  // 收起后缩成单行提示条，点「展开」恢复
+  assert.match(board, /shiphub-locator-mini/u)
+  assert.match(board, /shiphub-locator-mini-expand/u)
+  assert.match(board, /onClick=\{expandGuide\}/u)
+  // 收起状态记 sessionStorage（按卡片种类分键，切分类/刷新不回弹，新开会话恢复）
+  assert.match(board, /COLLAPSE_KEY_PREFIX = 'shiphubLocatorGuideCollapsed:'/u)
+  assert.match(board, /readCollapsedFlag\(guideKind\)/u)
+  assert.match(board, /sessionStorage\.setItem\(COLLAPSE_KEY_PREFIX/u)
+  // 收起/展开动效走 GSAP 进退场（禁止直开直关），reduced-motion 直切
+  assert.match(board, /gsap\.to\(card/u)
+  assert.match(board, /gsap\.fromTo\(bar/u)
+  assert.match(board, /gsap\.fromTo\(card/u)
+  assert.match(board, /prefers-reduced-motion: reduce/u)
+  // CSS 落地：卡片为 ✕ 预留右上空间；✕ 与单行条均有真实选择器（防「测试绿但样式缺失」）
+  assert.match(css, /\.shiphub-locator-guide \{[^}]*position: relative/u)
+  assert.match(css, /\.shiphub-locator-guide \{[^}]*padding: 12px 38px 12px 12px/u)
+  assert.match(css, /\.shiphub-locator-guide \.shiphub-locator-close \{/u)
+  assert.match(css, /\.shiphub-locator-mini \.shiphub-locator-mini-expand \{/u)
+})
