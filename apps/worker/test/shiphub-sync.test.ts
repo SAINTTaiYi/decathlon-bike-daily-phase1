@@ -349,7 +349,12 @@ test('ShipHub connect 权限拆分：重连任意门店角色，添加账号仅 
   assert.match(source, /if \(config\.SHIPHUB\.loginKey && \(config\.SHIPHUB\.loginUsernameEnc && config\.SHIPHUB\.loginPasswordEnc \|\| perStoreLogin \|\| storedCredentials\)\)/u)
   assert.match(source, /const resolvedCredentials = perStoreLogin && storeUsername && storePassword\n      \? \{ username: storeUsername, password: storePassword \}\n      : storedCredentials/u)
   // 本店凭据必须用 loginKey 加密（同步/自愈/Cube 派生均以 loginKey 解密）
-  assert.match(source, /encryptShipHubSecret\(storeUsername, config\.SHIPHUB\.loginKey\)/u)
+  assert.match(source, /encryptShipHubSecret\(value, config\.SHIPHUB\.loginKey!\)/u)
+  // 凭据必须以 "ciphertext.nonce" blob 字符串入库——encryptShipHubSecret 的对象
+  // 返回值直接 bind 会 D1_TYPE_ERROR（2026-09-08 线上事故：per-store connect
+  // 从未成功过，被通用 503 掩盖）。读取侧 splitEncryptedBlob 按此格式拆分。
+  assert.match(source, /return `\$\{ciphertext\}\.\$\{nonce\}`/u, '凭据必须拼成 ciphertext.nonce blob 字符串入库')
+  assert.match(source, /const \[loginUsernameEnc, loginPasswordEnc\]: Array<string \| null>/u, 'bind 值类型必须显式为 string|null，防对象再混进来')
   // 换账号必须作废旧 Cube token（身份变了旧 token 绝不能留）
   assert.match(source, /cube_token_ciphertext = CASE WHEN excluded\.login_username_enc IS NOT NULL THEN NULL/u)
 })
