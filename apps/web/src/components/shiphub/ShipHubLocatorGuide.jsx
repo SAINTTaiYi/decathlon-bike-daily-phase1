@@ -110,7 +110,7 @@ export default function ShipHubLocatorGuide({ visible = true }) {
       { autoAlpha: 1, y: 0, duration: .26, ease: 'expo.out', clearProps: 'transform,opacity,visibility' },
     )
     return () => tween.kill()
-  }, [phase, collapsed])
+  }, [phase, collapsed, visible])
 
   // 展开：切回完整卡并 GSAP 进场
   useEffect(() => {
@@ -123,7 +123,7 @@ export default function ShipHubLocatorGuide({ visible = true }) {
       { autoAlpha: 1, y: 0, duration: .3, ease: 'expo.out', clearProps: 'transform,opacity,visibility' },
     )
     return () => tween.kill()
-  }, [phase, collapsed])
+  }, [phase, collapsed, visible])
 
   const collapseGuide = () => {
     writeCollapsedFlag(guideKind, true)
@@ -151,7 +151,7 @@ export default function ShipHubLocatorGuide({ visible = true }) {
 
   if (phase === 'bar') {
     return (
-      <div className="shiphub-locator-mini" data-kind={guideKind}>
+      <div key="bar" ref={barRef} className="shiphub-locator-mini" data-kind={guideKind}>
         <button type="button" className="shiphub-locator-mini-expand" onClick={expandGuide}>
           {guideKind === 'outdated' ? <>定位脚本有新版本 v{locatorOutdated} · 点击展开</> : <>定位脚本未安装 · 点击展开</>}
         </button>
@@ -162,7 +162,7 @@ export default function ShipHubLocatorGuide({ visible = true }) {
   return (
     <>
     {locatorInstalled && locatorOutdated ? (
-      <div ref={cardRef} className="shiphub-locator-guide" role="status" data-outdated="true">
+      <div key="guide-outdated" ref={cardRef} className="shiphub-locator-guide" role="status" data-outdated="true">
         <button type="button" className="shiphub-locator-close" aria-label="收起定位脚本提示" onClick={collapseGuide}>✕</button>
         <strong>Shiphub 定位脚本有新版本 v{locatorOutdated}</strong>
         <span>当前安装 v{locatorVersion || '?'}。更新后定位支持待拣货/待收货页面，旧版本跳转拣货或收货不会自动定位。</span>
@@ -172,7 +172,7 @@ export default function ShipHubLocatorGuide({ visible = true }) {
       </div>
     ) : null}
     {!locatorInstalled ? (
-      <div ref={cardRef} className="shiphub-locator-guide" role="status" data-platform={isMobileUA ? 'mobile' : 'desktop'}>
+      <div key="guide-install" ref={cardRef} className="shiphub-locator-guide" role="status" data-platform={isMobileUA ? 'mobile' : 'desktop'}>
         <button type="button" className="shiphub-locator-close" aria-label="收起定位脚本提示" onClick={collapseGuide}>✕</button>
         {isMobileUA ? (
           <>
