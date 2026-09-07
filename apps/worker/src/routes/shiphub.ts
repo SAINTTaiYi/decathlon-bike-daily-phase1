@@ -112,7 +112,7 @@ export function shipHubRoutes() {
           AND c.authorization_status IN ('connected', 'reauth_required')
         LIMIT 1
       `).bind(fingerprint, context.storeId))
-      if (conflicting) throw new ApiProblem(409, 'SHIPHUB_IDENTITY_IN_USE', `该 ShipHub 账号已被门店 ${conflicting.store_code} 使用，一个上游账号只能连接一个门店。`)
+      if (conflicting) throw new ApiProblem(409, 'SHIPHUB_IDENTITY_IN_USE', `该 ShipHub 账号已被门店 ${conflicting.store_code} 使用，一个上游账号只能连接一个门店。请在上方填写你门店自己的 ShipHub 账号后重试。`)
     }
     // 程序化登录（推荐）：优先本店独立账号；未提供时用部署级共享凭据（CF secret），
     // 服务端自动完成 PingFederate 登录与 OAuth code 交换，无需浏览器跳转。
