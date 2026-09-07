@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { gsap } from 'gsap'
 
 /* Shiphub 定位脚本引导（安装 / 更新提示）。
  *
@@ -10,6 +11,8 @@ import { useState } from 'react'
  *   或 <html data-shiphub-locator>（脚本 v0.2.1 起双标记）。
  * - 桌面走油猴官方一键安装中间页（Chrome 138+ 不再对 .user.js 直链弹安装框）；
  *   手机直开 .user.js（Edge 安卓上中间页不弹框，Tampermonkey issue #2805）。
+ * - 卡片可收起为单行提示条：收起状态记 sessionStorage（切分类/刷新不回弹，
+ *   新开会话重新出现），「未安装」与「待更新」两种卡片分开记忆。
  */
 
 const readLocatorInstalled = () => typeof window !== 'undefined' && (
@@ -46,11 +49,92 @@ const FIREFOX_ADDONS_TM_URL = 'https://addons.mozilla.org/android/addon/tampermo
 const CHROME_STORE_TM_URL = 'https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo'
 const locatorScriptUrl = ((typeof window !== 'undefined' && window.location.origin) || 'https://workshop.skin') + '/shiphub-pickup-locator.user.js'
 
+const COLLAPSE_KEY_PREFIX = 'shiphubLocatorGuideCollapsed:'
+const readCollapsedFlag = (kind) => {
+  if (typeof window === 'undefined') return false
+  try { return window.sessionStorage.getItem(COLLAPSE_KEY_PREFIX + kind) === '1' } catch { return false }
+}
+const writeCollapsedFlag = (kind, collapsed) => {
+  if (typeof window === 'undefined') return
+  try { window.sessionStorage.setItem(COLLAPSE_KEY_PREFIX + kind, collapsed ? '1' : '0') } catch { /* 隐私模式等场景写入失败可忽略 */ }
+}
+const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false
+
 export default function ShipHubLocatorGuide({ visible = true }) {
   const [locatorInstalled, setLocatorInstalled] = useState(readLocatorInstalled)
   const [managerHint, setManagerHint] = useState(readManagerHint)
   const [locatorVersion, setLocatorVersion] = useState(readLocatorVersion)
   const [locatorOutdated, setLocatorOutdated] = useState(readLocatorOutdated)
+
+  // 当前卡片种类：待更新优先于未安装；两种卡片分别记忆收起状态
+  const guideKind = locatorOutdated ? 'outdated' : 'install'
+  const [collapsed, setCollapsed] = useState(() => readCollapsedFlag(guideKind))
+  // phase：DOM 里当前是完整卡（card）还是单行条（bar）。收起先播退场再换 DOM。
+  const [phase, setPhase] = useState(() => (collapsed ? 'bar' : 'card'))
+  const cardRef = useRef(null)
+  const barRef = useRef(null)
+  const enterBarRef = useRef(false)
+  const expandFromBarRef = useRef(false)
+
+  // 重新检测可能让卡片在「未安装 / 待更新」间切换，按新种类重读收起状态
+  useEffect(() => {
+    const next = readCollapsedFlag(guideKind)
+    setCollapsed(next)
+    setPhase(next ? 'bar' : 'card')
+  }, [guideKind])
+
+  // 收起：卡片 GSAP 退场（淡出+轻上移）后换成单行条
+  useEffect(() => {
+    if (!visible || !collapsed || phase !== 'card') return undefined
+    const card = cardRef.current
+    if (!card || reducedMotion()) {
+      enterBarRef.current = true
+      setPhase('bar')
+      return undefined
+    }
+    const tween = gsap.to(card, {
+      autoAlpha: 0, y: -6, duration: .2, ease: 'power2.in',
+      onComplete: () => { enterBarRef.current = true; setPhase('bar') },
+    })
+    return () => tween.kill()
+  }, [collapsed, phase, visible])
+
+  // 提示条进场（仅由卡片收起而来时播放；页面加载直出不动画）
+  useEffect(() => {
+    if (phase !== 'bar' || !collapsed || !enterBarRef.current) return undefined
+    enterBarRef.current = false
+    const bar = barRef.current
+    if (!bar || reducedMotion()) return undefined
+    const tween = gsap.fromTo(bar,
+      { autoAlpha: 0, y: 6 },
+      { autoAlpha: 1, y: 0, duration: .26, ease: 'expo.out', clearProps: 'transform,opacity,visibility' },
+    )
+    return () => tween.kill()
+  }, [phase, collapsed, visible])
+
+  // 展开：切回完整卡并 GSAP 进场
+  useEffect(() => {
+    if (phase !== 'card' || collapsed || !expandFromBarRef.current) return undefined
+    expandFromBarRef.current = false
+    const card = cardRef.current
+    if (!card || reducedMotion()) return undefined
+    const tween = gsap.fromTo(card,
+      { autoAlpha: 0, y: 8 },
+      { autoAlpha: 1, y: 0, duration: .3, ease: 'expo.out', clearProps: 'transform,opacity,visibility' },
+    )
+    return () => tween.kill()
+  }, [phase, collapsed, visible])
+
+  const collapseGuide = () => {
+    writeCollapsedFlag(guideKind, true)
+    setCollapsed(true)
+  }
+  const expandGuide = () => {
+    writeCollapsedFlag(guideKind, false)
+    expandFromBarRef.current = true
+    setCollapsed(false)
+    setPhase('card')
+  }
 
   const openLocatorInstall = () => {
     if (isMobileUA) { window.open(locatorScriptUrl, '_blank', 'noopener'); return }
@@ -65,10 +149,21 @@ export default function ShipHubLocatorGuide({ visible = true }) {
 
   if (!visible) return null
 
+  if (phase === 'bar') {
+    return (
+      <div key="bar" ref={barRef} className="shiphub-locator-mini" data-kind={guideKind}>
+        <button type="button" className="shiphub-locator-mini-expand" onClick={expandGuide}>
+          {guideKind === 'outdated' ? <>定位脚本有新版本 v{locatorOutdated} · 点击展开</> : <>定位脚本未安装 · 点击展开</>}
+        </button>
+      </div>
+    )
+  }
+
   return (
     <>
     {locatorInstalled && locatorOutdated ? (
-      <div className="shiphub-locator-guide" role="status" data-outdated="true">
+      <div key="guide-outdated" ref={cardRef} className="shiphub-locator-guide" role="status" data-outdated="true">
+        <button type="button" className="shiphub-locator-close" aria-label="收起定位脚本提示" onClick={collapseGuide}>✕</button>
         <strong>Shiphub 定位脚本有新版本 v{locatorOutdated}</strong>
         <span>当前安装 v{locatorVersion || '?'}。更新后定位支持待拣货/待收货页面，旧版本跳转拣货或收货不会自动定位。</span>
         <button type="button" className="shiphub-locator-install" onClick={openLocatorInstall}>去更新脚本</button>
@@ -77,7 +172,8 @@ export default function ShipHubLocatorGuide({ visible = true }) {
       </div>
     ) : null}
     {!locatorInstalled ? (
-      <div className="shiphub-locator-guide" role="status" data-platform={isMobileUA ? 'mobile' : 'desktop'}>
+      <div key="guide-install" ref={cardRef} className="shiphub-locator-guide" role="status" data-platform={isMobileUA ? 'mobile' : 'desktop'}>
+        <button type="button" className="shiphub-locator-close" aria-label="收起定位脚本提示" onClick={collapseGuide}>✕</button>
         {isMobileUA ? (
           <>
             <strong>安装 Shiphub 定位脚本（手机）</strong>
