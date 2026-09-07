@@ -153,3 +153,16 @@ test('移动 BimStoreWeekTrend：类名 JSX 与 CSS 双落地（memory 23 双端
   assert.match(css, /\.ops-bim-weeks-rows \{/u)
   assert.match(css, /\.ops-bim-weeks-row \{/u)
 })
+
+// ── Web：BiStoreWeekTrend 单周不崩（2026-09-07 线上事故回归）──
+// 事故：首个已完结周落库后（仅 W36 一条），桌面端 BiStoreWeekTrend 的 useMemo 里
+// points[points.length - 2] 取到 undefined，prev.value 抛 TypeError，
+// 整个总览崩进 AppErrorBoundary（"日报界面暂时无法显示"）。
+test('BiStoreWeekTrend：单周数据 prev 必须为 null，禁止无守卫的 points[-2] 访问', async () => {
+  const src = await read('components/overview/BiInsightCharts.jsx')
+  assert.match(src, /const prev = points\.length >= 2 \? points\[points\.length - 2\] : null/u,
+    '单周时 points[points.length-2] 是 undefined，无守卫访问会崩进 AppErrorBoundary')
+  assert.doesNotMatch(src, /const prev = points\[points\.length - 2\]\r?\n/u, '不允许回退到无守卫写法')
+  assert.match(src, /const wow = prev && prev\.value \? /u, 'wow 计算必须同时守卫 prev 存在')
+  assert.match(src, /geom\.points\.length >= 2 \? `，环比/u, '无障碍 label 单周不得无条件读 wow')
+})
