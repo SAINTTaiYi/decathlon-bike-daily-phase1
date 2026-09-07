@@ -206,7 +206,10 @@ test('复用既有 Shiphub 设置弹窗，不新增第二套 UI', async () => {
 // ── 2026-09-07：新门店凭据提交流程（用户报告：连接菜单找不到账号密码入口）──
 test('Shiphub 对话框：未连接时本店账号表单默认展开，新店管理员第一眼可见', async () => {
   const dialog = await readFile(new URL('../apps/web/src/components/dialogs/ShipHubSettingsDialog.jsx', import.meta.url), 'utf8')
-  assert.match(dialog, /const effectiveShowStoreLogin = showStoreLogin \|\| \(!fixture && status !== 'connected' && canManage\)/u)
+  assert.match(dialog, /const effectiveShowStoreLogin = showStoreLogin \|\| \(status !== 'connected' && canManage\)/u)
+  // fixture（Preview）也渲染表单供界面预览，连接按钮禁用
+  assert.match(dialog, /Preview 使用仓库内人工构造的 fixture：表单仅供界面预览/u)
+  assert.match(dialog, /disabled=\{busy \|\| fixture\}/u, 'fixture 下连接按钮必须禁用')
   assert.doesNotMatch(dialog, /高级：设置本店/u, '不得再把凭据表单折叠进"高级"')
   assert.match(dialog, /门店账号用户名/u)
   assert.match(dialog, /门店账号密码/u)
