@@ -5,8 +5,9 @@ import { BI_SNAPSHOT } from '../data/biSnapshot.js'
 // BI 车型榜数据源（2026-09-04 第二轮：CIS perfeco 当前 Sun→Sat 周）。
 // 销售榜三个 tab：全渠道 / 线上 / 线下（渠道拆分在 worker 端按 perfeco 渠道桶完成，
 // 线上=电商发货+自提，线下=实体店+会员卡+其他）。周口径对齐 BI（W 编号 = 周六 ISO 周）。
-// CIS 不可用 → 回退 BI 快照 M218 allChannel（仅全渠道 tab 有数据，线上/线下标注不可用），
-// 面板永远有数据，且回退态显式标注数据源是 BI。
+// 门店边界铁律（2026-09-08）：BI 快照 M218 回退只允许数据归属门店自己
+// （allowSnapshotFallback，由面板按 storeCode === snapshot.store.code 判定）；
+// 其它门店 CIS 不可用时显示未开通状态，绝不能看到 1299 的快照数据。
 const SESSION_TTL_MS = 30 * 60 * 1000
 let sessionCache = null // { at, week }
 
@@ -40,7 +41,21 @@ function freshCache() {
   return sessionCache && Date.now() - sessionCache.at < SESSION_TTL_MS ? sessionCache : null
 }
 
-export default function useBiBikesWeek() {
+// 非归属门店的「未开通」态：不回退任何快照数据。
+function unavailableModels() {
+  return {
+    source: 'NONE',
+    report: 'CIS 实销（未开通）',
+    weekLabel: '—',
+    weekRange: '—',
+    toComplete: true,
+    rows: [],
+    totals: null,
+    basis: 'BI 数据按门店隔离：在菜单 → Shiphub 连接 提交本店账号后自动开通'
+  }
+}
+
+export default function useBiBikesWeek({ allowSnapshotFallback = false } = {}) {
   const [data, setData] = useState(() => freshCache())
   useEffect(() => {
     if (freshCache()) return undefined
@@ -61,7 +76,7 @@ export default function useBiBikesWeek() {
   }, [])
   return useMemo(() => {
     const week = data?.week ?? null
-    if (!week) return { models: fallbackModels(), ready: false }
+    if (!week) return { models: allowSnapshotFallback ? fallbackModels() : unavailableModels(), ready: false }
     return {
       models: {
         source: 'CIS',

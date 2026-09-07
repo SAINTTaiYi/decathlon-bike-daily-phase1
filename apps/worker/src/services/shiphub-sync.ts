@@ -514,18 +514,15 @@ async function healShipHubConnections(env: WorkerEnv, config: AppConfig, now: Da
       AND (updated_at IS NULL OR updated_at <= ?)
   `).bind(cutoff))
   for (const candidate of candidates) {
-    const perStore = Boolean(candidate.login_username_enc && candidate.login_password_enc)
-    // 无本店凭据时只能靠部署级共享凭据；两者都没就无法自愈。
-    if (!perStore && !(config.SHIPHUB.loginUsernameEnc && config.SHIPHUB.loginPasswordEnc)) continue
+    // 门店边界铁律（2026-09-08）：自愈只用本店凭据；无本店凭据的连接
+    // 保持 reauth_required 等门店手动重连，绝不借用部署级共享账密。
+    if (!candidate.login_username_enc || !candidate.login_password_enc) continue
     try {
-      let credentials: { username: string; password: string } | undefined
-      if (perStore) {
-        const usernameBlob = splitEncryptedBlob(candidate.login_username_enc!)
-        const passwordBlob = splitEncryptedBlob(candidate.login_password_enc!)
-        credentials = {
-          username: await decryptShipHubSecret(usernameBlob.ciphertext, usernameBlob.nonce, loginKey),
-          password: await decryptShipHubSecret(passwordBlob.ciphertext, passwordBlob.nonce, loginKey)
-        }
+      const usernameBlob = splitEncryptedBlob(candidate.login_username_enc)
+      const passwordBlob = splitEncryptedBlob(candidate.login_password_enc)
+      const credentials = {
+        username: await decryptShipHubSecret(usernameBlob.ciphertext, usernameBlob.nonce, loginKey),
+        password: await decryptShipHubSecret(passwordBlob.ciphertext, passwordBlob.nonce, loginKey)
       }
       const token = await performShipHubProgrammaticLogin(config.SHIPHUB, credentials)
       if (!token.refreshToken) throw new ShipHubUpstreamError('OAUTH_REFRESH_TOKEN_MISSING')

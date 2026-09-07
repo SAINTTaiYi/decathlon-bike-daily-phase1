@@ -17,7 +17,7 @@ test('BI 面板组件齐全，且只挂载进销售数据场景', async () => {
     assert.match(charts, new RegExp(`export function ${name}`), `缺少组件 ${name}`)
   }
   // 销售场景挂 BI（桌面面板），并保留闭店填写入口
-  assert.match(scene, /<BiInsightPanel \/>/u)
+  assert.match(scene, /<BiInsightPanel storeCode=\{storeCode\} \/>/u)
   assert.match(scene, /sales-bi-slot/u)
   assert.match(scene, /onEditKpi/u, '闭店填写入口必须保留')
   // 总览页不再塞 BI，恢复原销售卡 + 索引 + 分析区

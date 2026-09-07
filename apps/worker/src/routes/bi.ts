@@ -6,7 +6,7 @@ import { requireJsonBody } from '../lib/json.js'
 import { latestSyncedAt, listBiSkuNames, syncBiSkuNames } from '../services/bi-sku-sync.js'
 import { MasterDataUpstreamError } from '../lib/masterdata-login.js'
 import { businessDateFor } from '../services/business.js'
-import { PerfecoUpstreamError, currentWeekWindow, getBikeWeek, getServicesDay, getStoreDay, getStoreWeek, isPerfecoConfigured, lazyLoginJwt, resolveArticleVehicleInfo, resolveModelVehicleInfo, syncBikeDay, type JwtProvider } from '../services/bi-bikes.js'
+import { PerfecoUpstreamError, currentWeekWindow, getBikeWeek, getServicesDay, getStoreDay, getStoreWeek, isPerfecoConfigured, resolveArticleVehicleInfo, resolveModelVehicleInfo, syncBikeDay, type JwtProvider } from '../services/bi-bikes.js'
 import { getCubeIdentityInfo, lazyStoreCubeJwt } from '../services/cube-identity.js'
 import { listBiStoreWeeks } from '../services/bi-weekly.js'
 import { ApiProblem } from '../services/problems.js'
@@ -15,24 +15,14 @@ type Vars = { config: AppConfig; auth: AuthContext | null }
 
 // BI 车型名（masterdata 官方同步）：只读查询 + 管理员手动触发同步。
 // 命名数据非门店敏感数据，读端点仅需登录会话；手动同步需 manager/admin + CSRF。
-// 门店数据门禁（2026-09-06 用户定案）：BI/perfeco 凭据属于特定门店（CHU13 = 1299），
-// 白名单外门店的登录用户不得借本部署的凭据查询其门店经营数据（fail-closed）。
-// 品名分类端点（vehicles/vehicle-models/sku-names）是全局商品数据，不受此限。
-function storeAllowed(config: AppConfig, storeCode: string): boolean {
-  return config.MASTERDATA.syncStoreCodes.includes(storeCode)
-}
-
-// 门店数据身份解析（2026-09-08 per-store 派生）：白名单店走部署级共享凭据
-// （既有行为零回归）；其它店必须持有本店 Shiphub 账密（Cube 身份派生，
-// 凭据属于谁就只拉谁）才放行。两者都不满足 → null = fail-closed
-// （端点返回 available:false，绝不借用他店凭据）。
+// 门店数据边界铁律（2026-09-08 用户定案）：门店经营数据只能用该店自己在菜单里
+// 提交的账号拉取；未提交账号的门店 fail-closed（available:false），绝不能借用
+// 其它已配置门店的账号或部署级共享凭据。品名分类端点
+// （vehicles/vehicle-models/sku-names）是全局商品数据，不受此限。
 async function resolveStoreJwtProvider(
   env: WorkerEnv,
-  config: AppConfig,
-  storeId: string,
-  storeCode: string
+  storeId: string
 ): Promise<JwtProvider | null> {
-  if (storeAllowed(config, storeCode)) return lazyLoginJwt(env)
   const info = await getCubeIdentityInfo(env.DB, storeId)
   if (!info.hasCredentials) return null
   return lazyStoreCubeJwt(env, storeId)
@@ -66,7 +56,7 @@ export function biRoutes() {
   app.get('/api/v1/bi/bikes/day', ...read, async (c) => {
     if (!isPerfecoConfigured(c.env)) return c.json({ available: false })
     const context = c.get('auth')!
-    const jwtProvider = await resolveStoreJwtProvider(c.env, loadConfig(c.env), context.storeId, context.storeCode)
+    const jwtProvider = await resolveStoreJwtProvider(c.env, context.storeId)
     if (!jwtProvider) return c.json({ available: false })
     try {
       const requested = c.req.query('date')
@@ -97,7 +87,7 @@ export function biRoutes() {
   app.get('/api/v1/bi/services/day', ...read, async (c) => {
     if (!isPerfecoConfigured(c.env)) return c.json({ available: false })
     const context = c.get('auth')!
-    const jwtProvider = await resolveStoreJwtProvider(c.env, loadConfig(c.env), context.storeId, context.storeCode)
+    const jwtProvider = await resolveStoreJwtProvider(c.env, context.storeId)
     if (!jwtProvider) return c.json({ available: false })
     try {
       const requested = c.req.query('date')
@@ -115,7 +105,7 @@ export function biRoutes() {
   // 已完结周序列（cron 定时拉取落库）：周报出的当天自动补齐最新完结周。
   app.get('/api/v1/bi/store/weeks', ...read, async (c) => {
     const context = c.get('auth')!
-    const gate = await resolveStoreJwtProvider(c.env, loadConfig(c.env), context.storeId, context.storeCode)
+    const gate = await resolveStoreJwtProvider(c.env, context.storeId)
     if (!gate) return c.json({ available: false })
     const weeks = await listBiStoreWeeks(c.env.DB, context.storeId)
     return c.json({ available: true, weeks })
@@ -126,7 +116,7 @@ export function biRoutes() {
   app.get('/api/v1/bi/store/week', ...read, async (c) => {
     if (!isPerfecoConfigured(c.env)) return c.json({ available: false })
     const context = c.get('auth')!
-    const jwtProvider = await resolveStoreJwtProvider(c.env, loadConfig(c.env), context.storeId, context.storeCode)
+    const jwtProvider = await resolveStoreJwtProvider(c.env, context.storeId)
     if (!jwtProvider) return c.json({ available: false })
     const from = c.req.query('from')
     const to = c.req.query('to')
@@ -157,7 +147,7 @@ export function biRoutes() {
   app.get('/api/v1/bi/bikes/week', ...read, async (c) => {
     if (!isPerfecoConfigured(c.env)) return c.json({ available: false })
     const context = c.get('auth')!
-    const jwtProvider = await resolveStoreJwtProvider(c.env, loadConfig(c.env), context.storeId, context.storeCode)
+    const jwtProvider = await resolveStoreJwtProvider(c.env, context.storeId)
     if (!jwtProvider) return c.json({ available: false })
     try {
       const payload = await getBikeWeek(c.env, { storeId: context.storeId, storeCode: context.storeCode, jwtProvider })

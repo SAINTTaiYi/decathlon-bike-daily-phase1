@@ -34,17 +34,6 @@ export function extractCodeFromUrl(url: string, state: string): string {
   return code
 }
 
-async function readLoginCredentials(config: ShipHubConfig): Promise<{ username: string; password: string }> {
-  if (!config.loginKey || !config.loginUsernameEnc || !config.loginPasswordEnc) {
-    throw new ShipHubUpstreamError('LOGIN_CREDENTIALS_NOT_CONFIGURED')
-  }
-  const usernameBlob = splitEncryptedBlob(config.loginUsernameEnc)
-  const passwordBlob = splitEncryptedBlob(config.loginPasswordEnc)
-  const username = await decryptShipHubSecret(usernameBlob.ciphertext, usernameBlob.nonce, config.loginKey)
-  const password = await decryptShipHubSecret(passwordBlob.ciphertext, passwordBlob.nonce, config.loginKey)
-  return { username, password }
-}
-
 function base64Url(bytes: Uint8Array): string {
   let binary = ''
   for (const value of bytes) binary += String.fromCharCode(value)
@@ -53,12 +42,16 @@ function base64Url(bytes: Uint8Array): string {
 
 // 完整程序化登录：授权请求 → 提交 PingFederate 表单 → 捕获 code → PKCE 换 token。
 // 依赖 Workers fetch 自动跟随重定向后 response.url 携带 ?code= 的行为（已实测）。
-// credentials 为「本店独立账号」时优先使用（每店独立身份）；缺省回退到部署级共享凭据。
-export async function performShipHubProgrammaticLogin(config: ShipHubConfig, credentials?: { username: string; password: string }): Promise<ShipHubToken> {
+// credentials 必传且只允许本店凭据（门店边界铁律 2026-09-08）：部署级共享账密
+// 读取已废除——调用方（connect/自愈）从 shiphub_connections 本店行解密传入。
+export async function performShipHubProgrammaticLogin(config: ShipHubConfig, credentials: { username: string; password: string }): Promise<ShipHubToken> {
   if (!config.oauthAuthorizeUrl || !config.oauthClientId || !config.oauthRedirectUri) {
     throw new ShipHubUpstreamError('OAUTH_CONFIG_INCOMPLETE')
   }
-  const resolved = credentials ?? await readLoginCredentials(config)
+  if (!credentials || !credentials.username || !credentials.password) {
+    throw new ShipHubUpstreamError('LOGIN_CREDENTIALS_REQUIRED')
+  }
+  const resolved = credentials
   const verifier = base64Url(crypto.getRandomValues(new Uint8Array(48)))
   const challenge = base64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))))
   const state = base64Url(crypto.getRandomValues(new Uint8Array(24)))

@@ -345,8 +345,10 @@ test('ShipHub connect 权限拆分：重连任意门店角色，添加账号仅 
   // 携带 login 凭据（添加/更换账号）时必须为门店管理员
   assert.match(source, /const perStoreLogin = Boolean\(login && \(login\.username \|\| login\.password \|\| login\.locationNum\)\)\n    \/\/ 添加\/更换本店账号仅限门店管理员；操作员只用已存凭据重连\n    if \(perStoreLogin\) requireManager\(context\)/u)
   // 未携带凭据（纯重连）不触发管理员门槛；重连优先复用本店已存凭据
-  // （storedCredentials），部署级共享凭据仅当本店无凭据时兜底。
-  assert.match(source, /if \(config\.SHIPHUB\.loginKey && \(config\.SHIPHUB\.loginUsernameEnc && config\.SHIPHUB\.loginPasswordEnc \|\| perStoreLogin \|\| storedCredentials\)\)/u)
+  // （storedCredentials）。门店边界铁律（2026-09-08）：部署级共享账密兜底已
+  // 废除——无本店凭据走浏览器 SSO，绝不借用其它门店账号。
+  assert.match(source, /if \(config\.SHIPHUB\.loginKey && resolvedCredentials\)/u, '程序化登录只认本店凭据')
+  assert.doesNotMatch(source, /config\.SHIPHUB\.loginUsernameEnc/u, 'connect 不得再读部署级共享账密')
   assert.match(source, /const resolvedCredentials = perStoreLogin && storeUsername && storePassword\n      \? \{ username: storeUsername, password: storePassword \}\n      : storedCredentials/u)
   // 本店凭据必须用 loginKey 加密（同步/自愈/Cube 派生均以 loginKey 解密）
   assert.match(source, /encryptShipHubSecret\(value, config\.SHIPHUB\.loginKey!\)/u)

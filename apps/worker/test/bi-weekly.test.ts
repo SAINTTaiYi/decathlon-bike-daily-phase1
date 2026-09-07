@@ -23,6 +23,8 @@ async function makeEnv(): Promise<WorkerEnv> {
     SESSION_SECRET: 'x'.repeat(32),
     CSRF_SECRET: 'y'.repeat(32),
     PASSWORD_PEPPER: 'z'.repeat(32),
+    SHIPHUB_LOGIN_KEY: LOGIN_KEY,
+    SHIPHUB_TOKEN_ENCRYPTION_KEY: Buffer.from('t'.repeat(32)).toString('base64'),
     BI_MASTERDATA_CLIENT_ID: 'cid',
     BI_MASTERDATA_CLIENT_SECRET: 'sec',
     BI_MASTERDATA_API_KEY: 'api-key-md',
@@ -30,14 +32,23 @@ async function makeEnv(): Promise<WorkerEnv> {
     BI_MASTERDATA_LOGIN_USERNAME_ENC: await blob('CHU13'),
     BI_MASTERDATA_LOGIN_PASSWORD_ENC: await blob('Pass/123'),
     BI_PERFECO_API_KEY: 'api-key-perfeco',
-    BI_SPD_API_KEY: 'api-key-spd',
-    BI_SYNC_STORE_CODES: '1299'
+    BI_SPD_API_KEY: 'api-key-spd'
   } as unknown as WorkerEnv
 }
 
 // 1299 由迁移 0006 预置（id 30000000-0000-4000-8000-000000001299），直接引用；
 // 额外门店用不撞 UNIQUE 约束的独立 code 插入。
 const STORE_1299 = '30000000-0000-4000-8000-000000001299'
+// 门店边界（2026-09-08）：cron 只同步持有本店凭据的门店——seed 一条带账密的连接行。
+async function seedConnection(db: D1Database, storeId: string): Promise<void> {
+  const [userEnc, passEnc] = await Promise.all([blob('STORE-LOGIN'), blob('Secret/9')])
+  await db.prepare(`
+    INSERT INTO shiphub_connections (store_id, enabled, mode, authorization_status, login_username_enc, login_password_enc, login_key_version, created_at, updated_at)
+    VALUES (?, 1, 'live', 'connected', ?, ?, 'v1', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+  `).bind(storeId, userEnc, passEnc).run()
+}
+const storeJwt = async () => 'jwt-store'
+
 async function seedStore(db: D1Database, id: string, code: string): Promise<void> {
   await db.prepare(`INSERT INTO stores (id, code, name, timezone, status, created_at, updated_at) VALUES (?, ?, ?, 'Asia/Shanghai', 'active', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`).bind(id, code, `门店 ${code}`).run()
 }
@@ -104,7 +115,7 @@ test('ensureStoreWeeks：缺失完结周自动拉取落库，已存在则零上�
   const mocked = mockFetch(() => perfecoPayload, () => spdPayload)
   try {
     // 2026-09-06 周日：完结周 W36（08-30→09-05）缺失 → 拉取落库
-    const result = await ensureStoreWeeks(env, { storeId: STORE_1299, storeCode: '1299', now: new Date('2026-09-06T02:00:00Z') })
+    const result = await ensureStoreWeeks(env, { jwtProvider: storeJwt, storeId: STORE_1299, storeCode: '1299', now: new Date('2026-09-06T02:00:00Z') })
     assert.equal(result.pulled, 1)
     const weeks = await listBiStoreWeeks(env.DB, STORE_1299)
     assert.equal(weeks.length, 1)
@@ -115,7 +126,7 @@ test('ensureStoreWeeks：缺失完结周自动拉取落库，已存在则零上�
     assert.equal(weeks[0].dis.amount, 3210.5)
     // 再跑一次：零新拉取（幂等守卫）
     const callsBefore = PERFECO_CALLS(mocked.calls).length
-    const again = await ensureStoreWeeks(env, { storeId: STORE_1299, storeCode: '1299', now: new Date('2026-09-06T02:30:00Z') })
+    const again = await ensureStoreWeeks(env, { jwtProvider: storeJwt, storeId: STORE_1299, storeCode: '1299', now: new Date('2026-09-06T02:30:00Z') })
     assert.equal(again.pulled, 0)
     assert.equal(PERFECO_CALLS(mocked.calls).length, callsBefore)
   } finally { mocked.restore() }
@@ -130,17 +141,17 @@ test('getServicesDay：models 过滤安全检查 SKU，当日开单量聚合，1
     return { date_list: [{ agg_level_list: [perfecoEntry('2852698', 1, 69.9)] }] }
   })
   try {
-    const payload = await getServicesDay(env, { storeId: 'store-1', storeCode: '1299', businessDate: '2026-09-05', now: new Date('2026-09-06T02:00:00Z') })
+    const payload = await getServicesDay(env, { jwtProvider: storeJwt, storeId: 'store-1', storeCode: '1299', businessDate: '2026-09-05', now: new Date('2026-09-06T02:00:00Z') })
     assert.ok(payload)
     assert.equal(payload!.model, '8538631')
     assert.equal(payload!.checks, 1)
     assert.equal(payload!.to, 69.9)
     const callsBefore = PERFECO_CALLS(mocked.calls).length
-    const cached = await getServicesDay(env, { storeId: 'store-1', storeCode: '1299', businessDate: '2026-09-05', now: new Date('2026-09-06T02:05:00Z') })
+    const cached = await getServicesDay(env, { jwtProvider: storeJwt, storeId: 'store-1', storeCode: '1299', businessDate: '2026-09-05', now: new Date('2026-09-06T02:05:00Z') })
     assert.equal(cached!.checks, 1)
     assert.equal(PERFECO_CALLS(mocked.calls).length, callsBefore, '10 分钟内命中缓存零上游')
     // 超过 TTL → 重新拉取
-    await getServicesDay(env, { storeId: 'store-1', storeCode: '1299', businessDate: '2026-09-05', now: new Date('2026-09-06T02:30:00Z') })
+    await getServicesDay(env, { jwtProvider: storeJwt, storeId: 'store-1', storeCode: '1299', businessDate: '2026-09-05', now: new Date('2026-09-06T02:30:00Z') })
     assert.ok(PERFECO_CALLS(mocked.calls).length > callsBefore)
   } finally { mocked.restore() }
 })
@@ -150,7 +161,7 @@ test('getStoreDay：当日 STORES 聚合返回 TO/件数/单数，缓存行 stor
   const env = await makeEnv()
   const mocked = mockFetch(() => ({ date_list: [{ agg_level_list: [{ ...perfecoEntry('1299', 912, 70106.62), ticket: { amount_physical_store: 440 } }] }] }))
   try {
-    const payload = await getStoreDay(env, { storeId: 'store-1', storeCode: '1299', businessDate: '2026-09-06', now: new Date('2026-09-06T08:00:00Z') })
+    const payload = await getStoreDay(env, { jwtProvider: storeJwt, storeId: 'store-1', storeCode: '1299', businessDate: '2026-09-06', now: new Date('2026-09-06T08:00:00Z') })
     assert.ok(payload)
     assert.equal(payload!.turnover, 70106.62)
     assert.equal(payload!.quantity, 912)
@@ -164,6 +175,7 @@ test('getStoreDay：当日 STORES 聚合返回 TO/件数/单数，缓存行 stor
 test('runScheduledBiSync：窗口外零上游；窗口内补齐周结并预热当前周；非数字门店码跳过', async () => {
   const env = await makeEnv()
   await seedStore(env.DB, 'store-x-1', 'TEST-99') // 非数字码：必须跳过
+  await seedConnection(env.DB, STORE_1299) // 本店凭据：cron 纳入的唯一条件
   const perfecoPayload = { date_list: [{ agg_level_list: [perfecoEntry('1299', 912, 70106.62)] }] }
   const mocked = mockFetch(() => perfecoPayload)
   try {
@@ -184,24 +196,25 @@ test('runScheduledBiSync：窗口外零上游；窗口内补齐周结并预热�
 })
 
 // ── 门店白名单（2026-09-06 用户定案：凭据=1299 CHU13，绝不越权拉其他门店）──
-test('runScheduledBiSync：白名单未配置=全禁（fail-closed）；白名单外门店零上游', async () => {
+test('runScheduledBiSync：无本店凭据的门店零上游（门店边界铁律 fail-closed）', async () => {
   const perfecoPayload = { date_list: [{ agg_level_list: [perfecoEntry('1299', 912, 70106.62)] }] }
-  // 白名单未配置：窗口内也必须零上游调用
+  // 白名单机制已废除（2026-09-08）：即使部署级 BI 凭据配置齐全
+  // （makeEnv 注入 BI_MASTERDATA_LOGIN_*），无本店凭据的门店也绝不拉取。
   const envNone = await makeEnv()
-  ;(envNone as Record<string, unknown>).BI_SYNC_STORE_CODES = undefined
   const mockedNone = mockFetch(() => perfecoPayload)
   try {
     await runScheduledBiSync(envNone, new Date('2026-09-06T04:05:00Z'))
-    assert.equal(mockedNone.calls.length, 0, '未配置白名单时 cron 必须整体禁用')
+    assert.equal(mockedNone.calls.length, 0, '无本店凭据连接行时 cron 必须零上游（含 1299）')
   } finally { mockedNone.restore() }
-  // 白名单只含 1299：1299 拉取、TEST-99 跳过；把 1299 换成别店码 → 1299 也必须跳过
-  const envOnly = await makeEnv()
-  ;(envOnly as Record<string, unknown>).BI_SYNC_STORE_CODES = '9999'
-  const mockedSkip = mockFetch(() => perfecoPayload)
+  // 断开（enabled=0）或只有无凭据连接的门店同样不拉
+  const envDisabled = await makeEnv()
+  await seedConnection(envDisabled.DB, STORE_1299)
+  await envDisabled.DB.prepare('UPDATE shiphub_connections SET enabled = 0 WHERE store_id = ?').bind(STORE_1299).run()
+  const mockedDisabled = mockFetch(() => perfecoPayload)
   try {
-    await runScheduledBiSync(envOnly, new Date('2026-09-06T04:05:00Z'))
-    assert.equal(mockedSkip.calls.length, 0, '白名单不含 1299 时不得拉取 1299')
-  } finally { mockedSkip.restore() }
+    await runScheduledBiSync(envDisabled, new Date('2026-09-06T04:05:00Z'))
+    assert.equal(mockedDisabled.calls.length, 0, 'enabled=0 的连接不得参与同步')
+  } finally { mockedDisabled.restore() }
 })
 
 // ── cron 窗口常量 ──

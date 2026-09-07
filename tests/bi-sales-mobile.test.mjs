@@ -12,7 +12,7 @@ test('销售场景换血：BI 双端挂载，闭店入口保留，总览恢复�
     read('apps/web/src/components/overview/WorkshopOverviewPage.jsx'),
   ])
   assert.match(scene, /useViewportKind/u, '运行时视口择一挂载')
-  assert.match(scene, /viewport === 'desktop' \? <BiInsightPanel \/> : <BiSalesMobile \/>/u)
+  assert.match(scene, /viewport === 'desktop' \? <BiInsightPanel storeCode=\{storeCode\} \/> : <BiSalesMobile storeCode=\{storeCode\} \/>/u)
   assert.match(scene, /operationSummary|onEditKpi|kpiReady/u, '闭店流程字段保留')
   // 总览页恢复：有销售卡、有索引、无 BI、无左栏包装
   assert.match(overview, /function SalesVehiclesPanel/u)

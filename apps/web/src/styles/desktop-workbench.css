@@ -400,6 +400,8 @@
   .ops-bi-panel { grid-column: 1 / -1; }
   .ops-bi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 10px; }
   .ops-bi-card { position: relative; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; min-width: 0; padding: 14px 24px 10px; }
+  /* 门店边界提示（2026-09-08）：非快照归属门店的 BI 面板说明行 */
+  .ops-bi-scope-note { margin: 0; padding: 10px 24px 0; color: #8f8e88; font-family: var(--ops-display); font-size: 10px; font-weight: 600; letter-spacing: .04em; line-height: 1.6; }
   .ops-bi-stat-card { grid-template-rows: auto auto auto minmax(0, 1fr) auto; cursor: pointer; }
   .ops-bi-stat-main { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
   .ops-bi-stat-main > b { color: #1c1c1a; font-family: var(--ops-display); font-size: 37px; font-weight: 800; line-height: 1; letter-spacing: -.02em; }

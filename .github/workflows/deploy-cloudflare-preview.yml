@@ -145,7 +145,6 @@ jobs:
               "SHIPHUB_MODE": "fixture",
               "SHIPHUB_ACTIVE_START_HOUR": "10",
               "SHIPHUB_ACTIVE_END_HOUR": "22",
-              "BI_SYNC_STORE_CODES": "1299"
             }
           }
           JSON

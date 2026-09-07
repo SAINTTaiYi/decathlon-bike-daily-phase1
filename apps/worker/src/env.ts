@@ -37,8 +37,6 @@ export interface WorkerEnv {
   SHIPHUB_OAUTH_BASIC_TOKEN?: string
   SHIPHUB_BOOTSTRAP_REFRESH_TOKEN?: string
   SHIPHUB_LOGIN_KEY?: string
-  SHIPHUB_LOGIN_USERNAME_ENC?: string
-  SHIPHUB_LOGIN_PASSWORD_ENC?: string
   SHIPHUB_ALERT_EMAIL?: string
   BI_MASTERDATA_CLIENT_ID?: string
   BI_MASTERDATA_CLIENT_SECRET?: string
@@ -48,7 +46,6 @@ export interface WorkerEnv {
   BI_MASTERDATA_LOGIN_PASSWORD_ENC?: string
   BI_PERFECO_API_KEY?: string
   /** BI 同步门店白名单（逗号分隔门店码，空=禁用定时拉取与门店数据端点） */
-  BI_SYNC_STORE_CODES?: string
   BI_SPD_API_KEY?: string
   D1_METRICS_TOKEN?: string
 }
@@ -70,8 +67,6 @@ export interface ShipHubConfig {
   oauthBasicToken?: string
   bootstrapRefreshToken?: string
   loginKey?: string
-  loginUsernameEnc?: string
-  loginPasswordEnc?: string
   alertEmail?: string
   requestTimeoutMs: number
   activeStartHour: number
@@ -100,11 +95,10 @@ export interface AppConfig {
 
 // BI 车型名 masterdata 同步配置：CubeInStore 联邦 OAuth（全球 IdP，PKCE）+
 // masterdata 网关 key。凭据/密钥为 secret，URL 为固定事实不保密。
-// BI 同步门店白名单（2026-09-06 定案）：凭据属于 CHU13 = 五象店 1299，
-// 只允许拉取白名单内的门店经营数据——绝不越权采集其他门店（哪怕技术可达）。
-// 空/未配置 = 禁用全部定时拉取（fail-closed）；逗号分隔支持多店。
+// 门店数据边界铁律（2026-09-08 用户定案）：本配置的部署级凭据只服务全局
+// 商品字典（SKU 名同步）等非门店数据；一切门店经营数据必须用门店自己在
+// 菜单里提交的账号（shiphub_connections 本店行），无账号 = 不拉不显。
 export type MasterDataConfig = {
-  syncStoreCodes: string[]
   clientId?: string
   clientSecret?: string
   apiKey?: string
@@ -133,7 +127,6 @@ function loadMasterDataConfig(env: WorkerEnv): MasterDataConfig {
     loginUsernameEnc: env.BI_MASTERDATA_LOGIN_USERNAME_ENC,
     loginPasswordEnc: env.BI_MASTERDATA_LOGIN_PASSWORD_ENC,
     perfecoApiKey: env.BI_PERFECO_API_KEY,
-    syncStoreCodes: (env.BI_SYNC_STORE_CODES ?? '').split(',').map((code) => code.trim()).filter((code) => /^\d{3,8}$/u.test(code)),
     spdApiKey: env.BI_SPD_API_KEY,
     authorizeUrl: 'https://idpdecathlon.oxylane.com/as/authorization.oauth2',
     tokenUrl: 'https://idpdecathlon.oxylane.com/as/token.oauth2',
@@ -171,8 +164,6 @@ function loadShipHubConfig(env: WorkerEnv): ShipHubConfig {
     oauthBasicToken: env.SHIPHUB_OAUTH_BASIC_TOKEN,
     bootstrapRefreshToken: env.SHIPHUB_BOOTSTRAP_REFRESH_TOKEN,
     loginKey: env.SHIPHUB_LOGIN_KEY,
-    loginUsernameEnc: env.SHIPHUB_LOGIN_USERNAME_ENC,
-    loginPasswordEnc: env.SHIPHUB_LOGIN_PASSWORD_ENC,
     alertEmail: env.SHIPHUB_ALERT_EMAIL,
     requestTimeoutMs: (() => { const value = Number(env.SHIPHUB_REQUEST_TIMEOUT_MS ?? 8000); return Number.isFinite(value) ? Math.min(Math.max(value, 1000), 30000) : 8000 })(),
     activeStartHour: parseHour(env.SHIPHUB_ACTIVE_START_HOUR, 10),
