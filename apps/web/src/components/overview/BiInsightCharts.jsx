@@ -295,8 +295,10 @@ const deltaText = (value, label) => value === null || value === undefined ? null
 const modelDelta = (row) => deltaText(row.wow, '环比') ?? deltaText(row.yoy, '同比') ?? '—'
 const yuan = (value) => `¥${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-export function BiModelRanking({ snapshot }) {
-  const bikeWeek = useBiBikesWeek()
+export function BiModelRanking({ snapshot, storeCode = '' }) {
+  // 门店边界铁律（2026-09-08）：BI 快照回退只允许数据归属门店自己。
+  const own = storeCode === snapshot.store.code
+  const bikeWeek = useBiBikesWeek({ allowSnapshotFallback: own })
   const models = bikeWeek.models
   const [tab, setTab] = useState('all')
   const skuNames = useBiSkuNames()
@@ -367,8 +369,8 @@ export function BiModelRanking({ snapshot }) {
         ))}
       </div>
       <ol className="ops-bi-model-rows" data-bi-tab={tab}>
-        {rows.length === 0 && isFallback && tab !== 'all' ? (
-          <li className="ops-bi-model-empty" data-bi-empty="">CIS 不可用，BI 快照无渠道拆分</li>
+        {rows.length === 0 ? (
+          <li className="ops-bi-model-empty" data-bi-empty="">{models.source === 'NONE' ? 'BI 数据未开通：菜单 → Shiphub 连接 提交本店账号后自动开通' : 'CIS 不可用，BI 快照无渠道拆分'}</li>
         ) : rows.map(({ row, qty, to }, index) => (
           <li key={`${tab}-${row.code}`} className="ops-bi-model-row">
             <span className="rank">{String(index + 1).padStart(2, '0')}</span>
@@ -386,11 +388,13 @@ export function BiModelRanking({ snapshot }) {
         ))}
       </ol>
       <p className="ops-bi-model-basis" data-bi-basis="">
-        {rows.length === 0 && isFallback && tab !== 'all'
-          ? 'CIS perfeco 不可用 · 回退 BI 快照仅全渠道口径'
-          : `${tab === 'online' ? '线上' : tab === 'offline' ? '线下' : '全渠道'}合计 ${scopeTotal ? `${scopeTotal.qty} 台 · ${yuan(scopeTotal.to)}` : '—'}${models.source === 'CIS' ? ` · 数据源 CIS（perfeco）· ${models.weekLabel} · ${models.weekRange}` : ''}`}
+        {models.source === 'NONE'
+          ? '本店未接入 CIS 实销 · 提交本店账号后自动开通（全渠道/线上/线下按本店实销拆分）'
+          : rows.length === 0 && isFallback && tab !== 'all'
+            ? 'CIS perfeco 不可用 · 回退 BI 快照仅全渠道口径'
+            : `${tab === 'online' ? '线上' : tab === 'offline' ? '线下' : '全渠道'}合计 ${scopeTotal ? `${scopeTotal.qty} 台 · ${yuan(scopeTotal.to)}` : '—'}${models.source === 'CIS' ? ` · 数据源 CIS（perfeco）· ${models.weekLabel} · ${models.weekRange}` : ''}`}
       </p>
-      <div className="ops-lieflat-src">{models.source === 'CIS' ? 'MODEL RANKING · CIS PERFECO 整车周实销 · STORE 1299' : 'MODEL RANKING · BI M218 SNAPSHOT FALLBACK · STORE 1299'}</div>
+      <div className="ops-lieflat-src">{models.source === 'CIS' ? `MODEL RANKING · CIS PERFECO 整车周实销 · STORE ${storeCode || snapshot.store.code}` : `MODEL RANKING · BI M218 SNAPSHOT FALLBACK · STORE ${storeCode || snapshot.store.code}`}</div>
     </section>
   )
 }
@@ -450,7 +454,7 @@ export function BiReviewCard({ snapshot }) {
 }
 
 /* ── B2 Hairline · CIS 已完结周门店 TO（周结定时拉取，周报出当天自动补齐）── */
-export function BiStoreWeekTrend() {
+export function BiStoreWeekTrend({ storeCode = '' }) {
   const weeks = useBiStoreWeeks()
   const { ref, revealed, replay, replayChart } = useBiReveal()
   const reduced = usePrefersReducedMotion()
@@ -501,18 +505,35 @@ export function BiStoreWeekTrend() {
           {geom.points.filter((_, index) => index % Math.ceil(geom.points.length / 6) === 0 || index === geom.points.length - 1).map((p, index) => (
             <text key={`ax-${index}`} data-biw-hair="" x={p.x} y="140" fontSize="7" fontWeight="600" fill={MONO.faint} textAnchor="middle" letterSpacing=".08em">{p.label}</text>
           ))}
-          <text data-biw-hair="" x="440" y="152" fontSize="7" fontWeight="600" fill={MONO.faint} textAnchor="middle" letterSpacing=".12em">ONE HAIRLINE = ONE COMPLETED WEEK · CIS PERFECO · STORE 1299</text>
+          <text data-biw-hair="" x="440" y="152" fontSize="7" fontWeight="600" fill={MONO.faint} textAnchor="middle" letterSpacing=".12em">{`ONE HAIRLINE = ONE COMPLETED WEEK · CIS PERFECO · STORE ${storeCode || '1299'}`}</text>
         </ChartSvg>
       ) : (
         <p className="ops-bi-weeks-empty" data-bi-weeks-empty="">周结序列拉取中…（cron 每个 5 分钟补齐，完成后自动展示）</p>
       )}
-      <div className="ops-lieflat-src">HAIRLINE AREA · CIS PERFECO WEEKLY · STORE 1299</div>
+      <div className="ops-lieflat-src">{`HAIRLINE AREA · CIS PERFECO WEEKLY · STORE ${storeCode || '1299'}`}</div>
     </section>
   )
 }
 
 /* ── 面板：挂载进 OverviewAnalytics（桌面总览）──────────────── */
-export function BiInsightPanel({ snapshot = BI_SNAPSHOT }) {
+export function BiInsightPanel({ snapshot = BI_SNAPSHOT, storeCode = '' }) {
+  // 门店边界铁律（2026-09-08 用户定案）：静态快照（1299 数据）只在其归属门店渲染；
+  // 其它门店只看本店动态 CIS 数据（周台账 + 车型榜），绝不能看到别家快照。
+  const own = Boolean(storeCode) && storeCode === snapshot.store.code
+  if (!own) {
+    return (
+      <article className="ops-analytics-panel ops-bi-panel" data-bi-scope="store" aria-label="BI 门店经营数据（本店）">
+        <header><strong>BI 门店经营</strong><span>{`CIS 实时 · 本店 ${storeCode}`}</span></header>
+        <p className="ops-bi-scope-note" data-bi-scope-note="">BI 数据按门店严格隔离：本页面全部数据用本店自己提交的账号拉取；快照报表仅对数据归属门店展示。</p>
+        <div className="ops-bi-bottom-grid">
+          <BiStoreWeekTrend storeCode={storeCode} />
+        </div>
+        <div className="ops-bi-bottom-grid">
+          <BiModelRanking snapshot={snapshot} storeCode={storeCode} />
+        </div>
+      </article>
+    )
+  }
   return (
     <article className="ops-analytics-panel ops-bi-panel" aria-label="BI 门店经营数据">
       <header><strong>BI 门店经营</strong><span>{`SNAPSHOT · ${snapshot.capturedAt} · ${snapshot.store.name} ${snapshot.store.code}`}</span></header>
@@ -525,11 +546,11 @@ export function BiInsightPanel({ snapshot = BI_SNAPSHOT }) {
         <BiReviewCard snapshot={snapshot} />
       </div>
       <div className="ops-bi-bottom-grid">
-        <BiStoreWeekTrend />
+        <BiStoreWeekTrend storeCode={storeCode} />
         <BiRepairStat snapshot={snapshot} />
       </div>
       <div className="ops-bi-bottom-grid">
-        <BiModelRanking snapshot={snapshot} />
+        <BiModelRanking snapshot={snapshot} storeCode={storeCode} />
       </div>
     </article>
   )

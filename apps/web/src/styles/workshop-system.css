@@ -544,7 +544,10 @@ button:disabled { opacity: .48; }
 .history-filters :is(input,select):focus,
 .metric-input input:focus { border-color: var(--ops-black) !important; box-shadow: 0 0 0 3px var(--ops-yellow-glow); }
 .field-group { padding: 12px; border: 0 !important; border-radius: var(--ops-radius); background: var(--ops-page); }
-.project-select-trigger {
+/* boot（登录/注册）输入盒内的 trigger 不适用运营时边框体系——
+   !important 曾把半透明 ops-card 底+边线强刷进注册页（2026-09-08
+   用户报障「选择框透明穿模」的根因之一），:not() 精确排除。 */
+.project-select-trigger:not(.bootm-input-box .project-select-trigger):not(.bootd-input-box .project-select-trigger) {
   min-height: 48px;
   padding: 10px 12px;
   border: 1px solid var(--ops-line-strong) !important;

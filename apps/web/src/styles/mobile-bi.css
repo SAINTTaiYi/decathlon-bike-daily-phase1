@@ -1,5 +1,7 @@
 /* 移动端 BI 销售数据模块 —— 独立 CSS（memory 23①）。纸灰卡 + MONO 灰阶，动效全 GSAP。 */
 .ops-bim-panel { display: grid; gap: 10px; }
+/* 门店边界提示（2026-09-08）：非快照归属门店的 BI 面板说明行 */
+.ops-bim-scope-note { margin: 0; color: #8f8e88; font-family: var(--ops-display); font-size: 9px; font-weight: 600; letter-spacing: .04em; line-height: 1.6; }
 .ops-bim-card { background: #f0efeb; border-radius: 18px; padding: 12px 14px 10px; }
 .ops-bim-card h3 { color: #1c1c1a; font-family: var(--ops-body); font-size: 13px; font-weight: 700; line-height: 17px; letter-spacing: -.01em; }
 .ops-bim-sub { margin-top: 3px; color: #8f8e88; font-family: var(--ops-display); font-size: 9px; font-weight: 600; letter-spacing: .06em; }

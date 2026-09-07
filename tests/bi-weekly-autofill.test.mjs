@@ -26,42 +26,47 @@ test('bi-weekly：窗口 09–23 北京时间、完结周口径、基线 W36、�
   assert.match(svc, /7 \* 86400_000/u)
 })
 
-test('门店门禁：白名单 ∪ 本店 Cube 凭据（per-store 派生，2026-09-08）', async () => {
+test('门店边界：仅本店凭据（白名单机制废除，2026-09-08 铁律）', async () => {
   const svc = await readWorker('services/bi-weekly.ts')
   const env = await readWorker('env.ts')
-  assert.match(svc, /syncStoreCodes/u, 'cron 必须读白名单')
-  assert.match(env, /BI_SYNC_STORE_CODES/u, '环境变量必须声明白名单')
-  // fail-closed：白名单外且无本店凭据的门店必须跳过（whitelisted && has_login 双条件）
-  assert.match(svc, /if \(!whitelisted && !store\.has_login\) continue/u, '白名单外且无本店凭据的门店必须跳过')
-  assert.match(svc, /login_username_enc IS NOT NULL AND c\.login_password_enc IS NOT NULL/u, 'cron 必须按本店凭据列判断')
-  assert.match(svc, /lazyStoreCubeJwt\(env, store\.id\)/u, 'per-store 店必须用本店 Cube 身份')
-  assert.match(env, /syncStoreCodes: string\[\]/u)
   const route = await readWorker('routes/bi.ts')
+  // cron 只认本店凭据连接行：fail-closed，部署级共享凭据绝不再用
+  assert.match(svc, /JOIN shiphub_connections c ON c\.store_id = s\.id/u, 'cron 必须内连接凭据行')
+  assert.match(svc, /c\.enabled = 1 AND c\.login_username_enc IS NOT NULL AND c\.login_password_enc IS NOT NULL/u, 'cron 只同步持有本店凭据的门店')
+  assert.match(svc, /lazyStoreCubeJwt\(env, store\.id\)/u, 'cron 必须用本店 Cube 身份')
+  assert.doesNotMatch(svc, /syncStoreCodes|whitelist/u, 'cron 不得读白名单（部署级共享凭据语义已废除）')
+  // 白名单机制全链移除：env / 路由
+  assert.doesNotMatch(env, /BI_SYNC_STORE_CODES|syncStoreCodes/u, '白名单 env 必须移除')
+  assert.doesNotMatch(route, /syncStoreCodes|storeAllowed/u, '路由不得有白名单门禁')
+  assert.doesNotMatch(route, /lazyLoginJwt/u, '门店数据端点不得使用部署级共享凭据 provider')
   let gates = 0
   for (const ep of ['bikes/day', 'services/day', 'store/weeks', 'store/week', 'bikes/week']) {
     const idx = route.indexOf(`/api/v1/bi/${ep}`)
     assert.ok(idx > 0, `${ep} 路由存在`)
     const chunk = route.slice(idx, idx + 600)
-    assert.match(chunk, /resolveStoreJwtProvider\(c\.env, loadConfig\(c\.env\), context\.storeId, context\.storeCode\)/u, `${ep} 必须走门店身份解析门禁`)
+    assert.match(chunk, /resolveStoreJwtProvider\(c\.env, context\.storeId\)/u, `${ep} 必须走门店身份解析门禁`)
     assert.match(chunk, /if \(!(jwtProvider|gate)\) return c\.json\(\{ available: false \}\)/u, `${ep} 身份缺失必须 available:false`)
     gates += 1
   }
   assert.equal(gates, 5)
-  // 身份解析语义：白名单 → 部署级共享凭据；其它店 → 本店 Cube 身份（fail-closed）
-  assert.match(route, /if \(storeAllowed\(config, storeCode\)\) return lazyLoginJwt\(env\)/u, '白名单店走部署级共享凭据')
+  // 身份解析语义：只有本店 Cube 身份一条路（fail-closed）
   assert.match(route, /if \(!info\.hasCredentials\) return null/u, '无本店凭据必须 fail-closed')
   assert.match(route, /return lazyStoreCubeJwt\(env, storeId\)/u, '有本店凭据走 per-store 派生')
-  // 全局商品分类端点不受门店门禁（vehicles/vehicle-models 是品名数据非门店经营数据）
+  // 门店数据函数凭据必传（结构性边界，杜绝静默回退共享凭据）
+  const bikes = await readWorker('services/bi-bikes.ts')
+  assert.doesNotMatch(bikes, /options\.jwtProvider \?\? lazyLoginJwt\(env\)/u, '门店数据函数不得回退部署级共享凭据')
+  assert.match(bikes, /jwtProvider: JwtProvider \}/u, '门店数据函数 jwtProvider 必传')
+  // 部署模板不得再注入白名单
+  for (const wf of ['../.github/workflows/deploy-cloudflare-staging.yml', '../.github/workflows/deploy-cloudflare-preview.yml']) {
+    const tpl = await readFile(new URL(wf, import.meta.url), 'utf8')
+    assert.doesNotMatch(tpl, /BI_SYNC_STORE_CODES/u, `${wf} 不得注入白名单`)
+  }
+  // 全局商品分类端点不受门店门禁（品名数据非门店经营数据）
   for (const ep of ['vehicles', 'vehicle-models']) {
     const idx = route.indexOf(`/api/v1/bi/${ep}`)
     const chunk = route.slice(idx, idx + 600)
-    assert.doesNotMatch(chunk, /storeAllowed/u, `${ep} 不得误加门店门禁`)
+    assert.doesNotMatch(chunk, /resolveStoreJwtProvider/u, `${ep} 不得误加门店门禁`)
   }
-  // 部署模板必须注入白名单（staging/preview 都是 1299）
-  const wfStaging = await readFile(new URL('../.github/workflows/deploy-cloudflare-staging.yml', import.meta.url), 'utf8')
-  const wfPreview = await readFile(new URL('../.github/workflows/deploy-cloudflare-preview.yml', import.meta.url), 'utf8')
-  assert.match(wfStaging, /"BI_SYNC_STORE_CODES": "1299"/u)
-  assert.match(wfPreview, /"BI_SYNC_STORE_CODES": "1299"/u)
 })
 
 test('getStoreWeeks 路由 + schema 0025 落地', async () => {
@@ -134,10 +139,12 @@ test('桌面 BiStoreWeekTrend：单周也渲染（首周出值，次周起环比
   const mobile = await read('components/overview/BiSalesMobile.jsx')
   assert.match(mobile, /拉取于 \$\{new Intl\.DateTimeFormat/u, '移动卡必须展示拉取时间')
   const route = await readWorker('routes/bi.ts')
-  assert.match(route, /const jwtProvider = await resolveStoreJwtProvider\(c\.env, loadConfig\(c\.env\), context\.storeId, context\.storeCode\)/u, 'bikes/day 必须解析门店身份 provider')
+  assert.match(route, /const jwtProvider = await resolveStoreJwtProvider\(c\.env, context\.storeId\)/u, 'bikes/day 必须解析门店身份 provider')
   assert.match(route, /businessDate, jwtProvider \}\)/u, '附加链路必须接收共享 provider')
   const svc = await readWorker('services/bi-bikes.ts')
-  assert.match(svc, /options\.jwtProvider \?\? lazyLoginJwt\(env\)/u)
+  // jwtProvider 已改为必传（门店边界铁律）：门店数据函数不得回退部署级共享凭据
+  assert.doesNotMatch(svc, /options\.jwtProvider \?\? lazyLoginJwt\(env\)/u, '不得回退部署级共享凭据')
+  assert.match(svc, /jwtProvider: JwtProvider \}/u, 'jwtProvider 必传')
 })
 
 test('桌面 BiStoreWeekTrend：类名 JSX 与 CSS 双落地', async () => {
@@ -145,7 +152,7 @@ test('桌面 BiStoreWeekTrend：类名 JSX 与 CSS 双落地', async () => {
   for (const cls of ['BiStoreWeekTrend', 'ops-bi-weeks-empty', 'data-biw-hair', 'data-biw-contour', 'data-biw-latest']) {
     assert.match(charts, new RegExp(cls.replaceAll('-', '\\-')), `${cls} 必须存在于桌面 BI 组件`)
   }
-  assert.match(charts, /<BiStoreWeekTrend \/>/u)
+  assert.match(charts, /<BiStoreWeekTrend storeCode=\{storeCode\} \/>/u)
   const css = await read('styles/desktop-workbench.css')
   assert.match(css, /\.ops-bi-weeks-empty \{/u)
 })
@@ -155,7 +162,7 @@ test('移动 BimStoreWeekTrend：类名 JSX 与 CSS 双落地（memory 23 双端
   for (const cls of ['BimStoreWeekTrend', 'ops-bim-weeks-rows', 'ops-bim-weeks-row', 'data-biw-row']) {
     assert.match(mobile, new RegExp(cls.replaceAll('-', '\\-')), `${cls} 必须存在于移动 BI 组件`)
   }
-  assert.match(mobile, /<BimStoreWeekTrend \/>/u)
+  assert.match(mobile, /<BimStoreWeekTrend storeCode=\{storeCode\} \/>/u)
   const css = await read('styles/mobile-bi.css')
   assert.match(css, /\.ops-bim-weeks-rows \{/u)
   assert.match(css, /\.ops-bim-weeks-row \{/u)

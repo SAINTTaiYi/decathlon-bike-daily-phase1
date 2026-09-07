@@ -177,7 +177,7 @@
 .field-row textarea,
 .history-filters input,
 .history-filters select,
-.project-select-trigger,
+.project-select-trigger:not(.bootm-input-box .project-select-trigger):not(.bootd-input-box .project-select-trigger),
 .role-option,
 .metric-input input {
   background: var(--ops-card-sunken) !important;

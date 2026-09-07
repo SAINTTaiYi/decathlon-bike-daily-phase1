@@ -68,7 +68,7 @@ app.use('*', async (c, next) => {
         CSRF_SECRET: 'public-route-placeholder-not-used',
         PASSWORD_PEPPER: 'public-route-placeholder-not-used',
         SHIPHUB: { enabled: false, mode: 'fixture', liveConfirmed: false, oauthScope: 'read', requestTimeoutMs: 8000, activeStartHour: 10, activeEndHour: 22 },
-        MASTERDATA: { authorizeUrl: 'https://idpdecathlon.oxylane.com/as/authorization.oauth2', tokenUrl: 'https://idpdecathlon.oxylane.com/as/token.oauth2', redirectUri: 'com.decathlon.authentication://com.oxylane.android.cubeinstore', scope: 'openid profile', baseUrl: 'https://api-cn.decathlon.com.cn', syncStoreCodes: [] }
+        MASTERDATA: { authorizeUrl: 'https://idpdecathlon.oxylane.com/as/authorization.oauth2', tokenUrl: 'https://idpdecathlon.oxylane.com/as/token.oauth2', redirectUri: 'com.decathlon.authentication://com.oxylane.android.cubeinstore', scope: 'openid profile', baseUrl: 'https://api-cn.decathlon.com.cn' }
       })
     }
     const origin = c.req.header('origin')

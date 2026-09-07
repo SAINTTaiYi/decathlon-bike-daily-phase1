@@ -2,7 +2,7 @@ import { all } from '../db.js'
 import { currentWeekWindow, getBikeWeek, getStoreWeek, isoWeekOf, isPerfecoConfigured, type JwtProvider, type StoreWeekPayload } from './bi-bikes.js'
 import { lazyStoreCubeJwt } from './cube-identity.js'
 import { activeInStoreTimezone } from './shiphub-sync.js'
-import { loadConfig, type WorkerEnv } from '../env.js'
+import type { WorkerEnv } from '../env.js'
 
 // ── BI 周结定时拉取（2026-09-06）────────────────────────────────────────
 // BI 门户（TableauRest）VizQL 链路 2026-09-01 协议变更后无法从 Worker 稳定拉取，
@@ -49,7 +49,7 @@ export async function listBiStoreWeeks(db: D1Database, storeId: string): Promise
 // 30 分钟 TTL 只影响重复拉取频率，不影响正确性。
 export async function ensureStoreWeeks(
   env: WorkerEnv,
-  options: { storeId: string; storeCode: string; now?: Date; jwtProvider?: JwtProvider }
+  options: { storeId: string; storeCode: string; now?: Date; jwtProvider: JwtProvider }
 ): Promise<{ pulled: number }> {
   if (!isPerfecoConfigured(env)) return { pulled: 0 }
   const now = options.now ?? new Date()
@@ -90,30 +90,24 @@ export async function ensureStoreWeeks(
 export async function runScheduledBiSync(env: WorkerEnv, now = new Date()): Promise<void> {
   if (!isPerfecoConfigured(env)) return
   if (!activeInStoreTimezone(BI_SYNC_TIMEZONE, now, BI_SYNC_START_HOUR, BI_SYNC_END_HOUR)) return
-  // 门店门禁（2026-09-06 定案 + 2026-09-08 per-store 扩展）：
-  // ①白名单店 = 部署级共享凭据（CHU13 = 1299，既有行为零回归）；
-  // ②其它店 = 持有本店 Shiphub 账密的连接行（Cube 身份派生——凭据属于谁
-  //   就只拉谁，绝不借用他店凭据）；两者都不满足一律不拉（fail-closed），
-  //   绝不遍历全部门店空转上游。
-  const whitelist = new Set(loadConfig(env).MASTERDATA.syncStoreCodes)
-  const stores = await all<{ id: string; code: string; has_login: number }>(
+  // 门店边界铁律（2026-09-08 用户定案）：只同步持有本店 Shiphub 账密的门店
+  // （Cube 身份派生——凭据属于谁就只拉谁）；无本店凭据一律不拉（fail-closed），
+  // 绝不借用部署级共享凭据或其它门店的账号，也绝不遍历全部门店空转上游。
+  const stores = await all<{ id: string; code: string }>(
     env.DB.prepare(`
-      SELECT s.id, s.code,
-             CASE WHEN c.enabled = 1 AND c.login_username_enc IS NOT NULL AND c.login_password_enc IS NOT NULL THEN 1 ELSE 0 END AS has_login
+      SELECT s.id, s.code
       FROM stores s
-      LEFT JOIN shiphub_connections c ON c.store_id = s.id
+      JOIN shiphub_connections c ON c.store_id = s.id
       WHERE s.status = 'active'
+        AND c.enabled = 1 AND c.login_username_enc IS NOT NULL AND c.login_password_enc IS NOT NULL
     `)
   )
   for (const store of stores) {
     // perfeco 门店码为纯数字（如 1299）；测试/非迪卡侬编码门店跳过，绝不空转上游。
     if (!/^\d{3,8}$/u.test(store.code)) continue
-    const whitelisted = whitelist.has(store.code)
-    if (!whitelisted && !store.has_login) continue
     try {
-      // 白名单店走部署级共享凭据（缺省回退 lazyLoginJwt）；per-store 店
-      // 用本店 Cube 身份派生 JWT（失败冷却 10 分钟，IdP 友好）。
-      const jwtProvider = whitelisted ? undefined : lazyStoreCubeJwt(env, store.id)
+      // 本店 Cube 身份派生 JWT（失败冷却 10 分钟，IdP 友好）。
+      const jwtProvider = lazyStoreCubeJwt(env, store.id)
       await ensureStoreWeeks(env, { storeId: store.id, storeCode: store.code, now, jwtProvider })
       const window = currentWeekWindow(now)
       await getBikeWeek(env, { storeId: store.id, storeCode: store.code, now, jwtProvider })

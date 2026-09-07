@@ -159,11 +159,12 @@ export function shipHubRoutes() {
       `).bind(fingerprint, context.storeId))
       if (conflicting) throw new ApiProblem(409, 'SHIPHUB_IDENTITY_IN_USE', `该 ShipHub 账号已被门店 ${conflicting.store_code} 使用，一个上游账号只能连接一个门店。请在上方填写你门店自己的 ShipHub 账号后重试。`)
     }
-    // 程序化登录（推荐）：优先本店独立账号；未提供时用部署级共享凭据（CF secret），
-    // 服务端自动完成 PingFederate 登录与 OAuth code 交换，无需浏览器跳转。
-    if (config.SHIPHUB.loginKey && (config.SHIPHUB.loginUsernameEnc && config.SHIPHUB.loginPasswordEnc || perStoreLogin || storedCredentials)) {
+    // 程序化登录（推荐）：仅用本店凭据（新提交或已存）——门店边界铁律
+    // （2026-09-08）：部署级共享账密已废除，无本店凭据的门店走下方浏览器 SSO，
+    // 绝不借用其它门店账号。服务端自动完成 PingFederate 登录与 OAuth code 交换。
+    if (config.SHIPHUB.loginKey && resolvedCredentials) {
       try {
-        const token = await performShipHubProgrammaticLogin(config.SHIPHUB, resolvedCredentials ?? undefined)
+        const token = await performShipHubProgrammaticLogin(config.SHIPHUB, resolvedCredentials)
         if (!token.refreshToken) throw new ShipHubUpstreamError('OAUTH_REFRESH_TOKEN_MISSING')
         const encrypted = await encryptShipHubSecret(token.refreshToken, key)
         const stamp = nowIso()

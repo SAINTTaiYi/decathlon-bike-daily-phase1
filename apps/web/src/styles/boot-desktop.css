@@ -471,3 +471,53 @@
   line-height: 1.5;
   color: var(--ops-text-muted, #6b7280);
 }
+
+/* ---------- 注册门店下拉（ProjectSelect 在 bootd 输入盒内的适配） ----------
+   2026-09-08 同移动端修复（memory 23 双端拆分）：trigger 融入灰底无边线视觉；
+   菜单绝对定位 + 限高滚动 + 实底白卡，避免在 .bootd-card（overflow:hidden）
+   文档流内展开被裁剪。 */
+.bootd-input-box .project-select { width: 100%; }
+
+.bootd-input-box .project-select-trigger {
+  min-height: 2.875rem;
+  padding: 0;
+  border-bottom: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #14161a;
+}
+
+.bootd-input-box .project-select-trigger span[data-placeholder='true'] {
+  color: #a8aeb9;
+  font-weight: 500;
+}
+
+.bootd-input-box .project-select-menu {
+  position: absolute;
+  top: calc(100% + 0.375rem);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  max-height: 13.5rem;
+  overflow-y: auto;
+  margin: 0;
+  border: 0;
+  border-radius: 0.875rem;
+  background: #fff;
+  box-shadow: 0 18px 48px rgb(18 20 28 / 0.16);
+  overscroll-behavior: contain;
+}
+
+.bootd-input-box .project-select-option {
+  border-bottom: 0;
+  border-radius: 0.625rem;
+}
+
+.bootd-input-box .project-select-option[data-selected='true'] {
+  background: #f3f4f8;
+  color: #14161a;
+}
+
+.bootd-input-box .project-select-option[data-selected='true'] strong {
+  color: #14161a;
+}

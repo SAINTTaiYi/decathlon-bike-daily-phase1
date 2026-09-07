@@ -52,10 +52,9 @@ test('performShipHubProgrammaticLogin 全流程：表单提交、code 捕获、P
     oauthClientId: 'test-client',
     oauthRedirectUri: 'https://shiphub-asia-cn.decathlon.com.cn',
     oauthBasicToken: 'tb1',
-    loginKey: LOGIN_KEY,
-    loginUsernameEnc: await blob('testuser'),
-    loginPasswordEnc: await blob('TestPass@1234')
+    loginKey: LOGIN_KEY
   }
+  const credentials = { username: 'testuser', password: 'TestPass@1234' }
 
   const calls: Array<{ url: string; init?: RequestInit }> = []
   let submittedBody = ''
@@ -84,7 +83,7 @@ test('performShipHubProgrammaticLogin 全流程：表单提交、code 捕获、P
   }) as typeof fetch
 
   try {
-    const token = await performShipHubProgrammaticLogin(config)
+    const token = await performShipHubProgrammaticLogin(config, credentials)
     assert.equal(token.accessToken, 'at-123')
     assert.equal(token.refreshToken, 'rt-456')
     const params = new URLSearchParams(submittedBody)
@@ -160,7 +159,7 @@ test('performShipHubProgrammaticLogin 支持显式本店凭据（无需部署级
   }
 })
 
-test('显式凭据为空时回退到部署级共享 secret（缺配置则抛 LOGIN_CREDENTIALS_NOT_CONFIGURED）', async () => {
+test('凭据必传：无部署级回退（门店边界铁律 2026-09-08）', async () => {
   const config: ShipHubConfig = {
     enabled: true,
     mode: 'live',
@@ -178,7 +177,7 @@ test('显式凭据为空时回退到部署级共享 secret（缺配置则抛 LOG
   const originalFetch = globalThis.fetch
   globalThis.fetch = (async () => { throw new Error('不应发起任何请求') }) as typeof fetch
   try {
-    await assert.rejects(() => performShipHubProgrammaticLogin(config), /LOGIN_CREDENTIALS_NOT_CONFIGURED/)
+    await assert.rejects(() => performShipHubProgrammaticLogin(config, undefined as unknown as { username: string; password: string }), /LOGIN_CREDENTIALS_REQUIRED/)
   } finally {
     globalThis.fetch = originalFetch
   }

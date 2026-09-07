@@ -198,8 +198,10 @@ const TAB_SCOPE = {
   online: { qty: 'onlineQty', to: 'onlineTo', total: 'online' },
   offline: { qty: 'offlineQty', to: 'offlineTo', total: 'offline' }
 }
-function BimRanking({ snapshot }) {
-  const bikeWeek = useBiBikesWeek()
+function BimRanking({ snapshot, storeCode = '' }) {
+  // 门店边界铁律（2026-09-08）：BI 快照回退只允许数据归属门店自己。
+  const own = storeCode === snapshot.store.code
+  const bikeWeek = useBiBikesWeek({ allowSnapshotFallback: own })
   const models = bikeWeek.models
   const [tab, setTab] = useState('all')
   const skuNames = useBiSkuNames()
@@ -260,8 +262,8 @@ function BimRanking({ snapshot }) {
         ))}
       </div>
       <ol className="ops-bim-rows">
-        {rows.length === 0 && isFallback && tab !== 'all' ? (
-          <li className="ops-bim-row" data-bim-empty=""><span className="name">CIS 不可用，BI 快照无渠道拆分</span></li>
+        {rows.length === 0 ? (
+          <li className="ops-bim-row" data-bim-empty=""><span className="name">{models.source === 'NONE' ? 'BI 数据未开通：菜单 → Shiphub 连接 提交本店账号后自动开通' : 'CIS 不可用，BI 快照无渠道拆分'}</span></li>
         ) : rows.map(({ row, qty, to }, index) => (
           <li key={`${tab}-${row.code}`} className="ops-bim-row">
             <span className="rank">{String(index + 1).padStart(2, '0')}</span>
@@ -278,8 +280,8 @@ function BimRanking({ snapshot }) {
           </li>
         ))}
       </ol>
-      <p className="ops-bim-note">{rows.length === 0 && isFallback && tab !== 'all' ? 'CIS 不可用 · 回退 BI 快照仅全渠道口径' : `${tab === 'online' ? '线上' : tab === 'offline' ? '线下' : '全渠道'}合计 ${scopeTotal ? `${scopeTotal.qty} 台 · ${yuan(scopeTotal.to)}` : '—'} · ${models.basis}`}</p>
-      <div className="ops-bim-src">{models.source === 'CIS' ? 'MODEL RANKING · CIS PERFECO 整车周实销 · STORE 1299' : 'MODEL RANKING · BI M218 FALLBACK · STORE 1299'}</div>
+      <p className="ops-bim-note">{models.source === 'NONE' ? '本店未接入 CIS 实销 · 提交本店账号后自动开通' : rows.length === 0 && isFallback && tab !== 'all' ? 'CIS 不可用 · 回退 BI 快照仅全渠道口径' : `${tab === 'online' ? '线上' : tab === 'offline' ? '线下' : '全渠道'}合计 ${scopeTotal ? `${scopeTotal.qty} 台 · ${yuan(scopeTotal.to)}` : '—'} · ${models.basis}`}</p>
+      <div className="ops-bim-src">{models.source === 'CIS' ? `MODEL RANKING · CIS PERFECO 整车周实销 · STORE ${storeCode || snapshot.store.code}` : `MODEL RANKING · BI M218 FALLBACK · STORE ${storeCode || snapshot.store.code}`}</div>
     </section>
   )
 }
@@ -328,7 +330,7 @@ function BimReview({ snapshot }) {
 }
 
 /* ── CIS 已完结周门店 TO（周结定时拉取）── */
-function BimStoreWeekTrend() {
+function BimStoreWeekTrend({ storeCode = '' }) {
   const weeks = useBiStoreWeeks()
   const { ref, revealed, replay, replayChart } = useBiReveal()
   const reduced = usePrefersReducedMotion()
@@ -353,19 +355,31 @@ function BimStoreWeekTrend() {
           </div>
         ))}
       </div>
-      <div className="ops-bim-src">WEEKLY LEDGER · CIS PERFECO · STORE 1299</div>
+      <div className="ops-bim-src">{`WEEKLY LEDGER · CIS PERFECO · STORE ${storeCode || '1299'}`}</div>
     </section>
   )
 }
 
-export default function BiSalesMobile({ snapshot = BI_SNAPSHOT }) {
+export default function BiSalesMobile({ snapshot = BI_SNAPSHOT, storeCode = '' }) {
+  // 门店边界铁律（2026-09-08 用户定案）：静态快照（1299 数据）只在其归属门店渲染；
+  // 其它门店只看本店动态 CIS 数据，绝不能看到别家快照。
+  const own = Boolean(storeCode) && storeCode === snapshot.store.code
+  if (!own) {
+    return (
+      <div className="ops-bim-panel" data-bi-scope="store" aria-label="BI 销售数据（本店）">
+        <p className="ops-bim-scope-note" data-bi-scope-note="">BI 数据按门店严格隔离：本页面用本店自己提交的账号拉取；未开通时在菜单 → Shiphub 连接 提交本店账号。</p>
+        <BimStoreWeekTrend storeCode={storeCode} />
+        <BimRanking snapshot={snapshot} storeCode={storeCode} />
+      </div>
+    )
+  }
   return (
     <div className="ops-bim-panel" aria-label="BI 销售数据（移动端）">
       <BimCompare snapshot={snapshot} />
-      <BimStoreWeekTrend />
+      <BimStoreWeekTrend storeCode={storeCode} />
       <BimGauge snapshot={snapshot} />
       <BimRepair snapshot={snapshot} />
-      <BimRanking snapshot={snapshot} />
+      <BimRanking snapshot={snapshot} storeCode={storeCode} />
       <BimReview snapshot={snapshot} />
     </div>
   )

@@ -83,6 +83,9 @@ function mockFetch(handlers: { perfeco?: () => unknown; articleinfo?: () => unkn
 const STORE = { storeId: 'store-1', storeCode: '1299' }
 const NOW = new Date('2026-09-04T03:00:00.000Z')
 
+// 门店边界（2026-09-08）：门店数据函数 jwtProvider 必传——测试里用固定本店 token。
+const storeJwt = async () => 'jwt-store'
+
 test('BIKE_FAMILY_IDS：11 个整车 fam 含 BUYBACK 34906，不含配件/滑板车族', () => {
   assert.equal(BIKE_FAMILY_IDS.length, 11)
   assert.ok(BIKE_FAMILY_IDS.includes(34906))
@@ -115,7 +118,7 @@ test('syncBikeDay：新车/二手分离、article→model 缓存、快照落库'
     ]
   })
   try {
-    const snapshot = await syncBikeDay(env, { ...STORE, businessDate: '2026-09-03', now: NOW })
+    const snapshot = await syncBikeDay(env, { ...STORE, jwtProvider: storeJwt, businessDate: '2026-09-03', now: NOW })
     assert.equal(snapshot?.newBikes, 1)
     assert.equal(snapshot?.usedBikes, 3)
     assert.equal(snapshot?.newTo, 649.3)
@@ -148,7 +151,7 @@ test('syncBikeDay：非整车（families 白名单外）不计入快照', async 
     ]
   })
   try {
-    const snapshot = await syncBikeDay(env, { ...STORE, businessDate: '2026-09-03', now: NOW })
+    const snapshot = await syncBikeDay(env, { ...STORE, jwtProvider: storeJwt, businessDate: '2026-09-03', now: NOW })
     assert.equal(snapshot?.newBikes, 1) // 只有城市车
     assert.equal(snapshot?.detail.length, 1)
     assert.equal(snapshot?.detail[0]?.label, 'TUC 100 ELOPS LF CN BLACK')
@@ -163,13 +166,13 @@ test('syncBikeDay：10 分钟快照缓存内零上游调用', async () => {
     modelslist: () => [{ r3code: '8898957', label: 'CN BUYBACK KIDS BIKE', store_treeview: { universe_id: 2, family_id: 34906 } }]
   })
   try {
-    await syncBikeDay(env, { ...STORE, businessDate: '2026-09-03', now: NOW })
+    await syncBikeDay(env, { ...STORE, jwtProvider: storeJwt, businessDate: '2026-09-03', now: NOW })
     const callsAfterFirst = mocked.calls.length
-    const again = await syncBikeDay(env, { ...STORE, businessDate: '2026-09-03', now: new Date(NOW.getTime() + 5 * 60 * 1000) })
+    const again = await syncBikeDay(env, { ...STORE, jwtProvider: storeJwt, businessDate: '2026-09-03', now: new Date(NOW.getTime() + 5 * 60 * 1000) })
     assert.equal(mocked.calls.length, callsAfterFirst) // 缓存命中，没有新请求
     assert.equal(again?.usedBikes, 3)
     // 超过 10 分钟 → 重新同步
-    await syncBikeDay(env, { ...STORE, businessDate: '2026-09-03', now: new Date(NOW.getTime() + 11 * 60 * 1000) })
+    await syncBikeDay(env, { ...STORE, jwtProvider: storeJwt, businessDate: '2026-09-03', now: new Date(NOW.getTime() + 11 * 60 * 1000) })
     assert.ok(mocked.calls.length > callsAfterFirst)
   } finally { mocked.restore() }
 })
@@ -208,7 +211,7 @@ test('getBikeWeek：当前周窗口 + 渠道拆分（线上/线下）+ buyback �
     ]
   })
   try {
-    const payload = await getBikeWeek(env, { ...STORE, now: NOW })
+    const payload = await getBikeWeek(env, { ...STORE, jwtProvider: storeJwt, now: NOW })
     assert.equal(payload?.from, '2026-08-30')
     assert.equal(payload?.to, '2026-09-04')
     assert.equal(payload?.weekLabel, 'W36')
@@ -242,7 +245,7 @@ test('getStoreWeek：perfeco STORES TO + SPD DIS + 30 分钟缓存', async () =>
     spd: () => ({ date_list: [{ time_value: '2026', currency_list: [{ currency: 'CNY', agg_level_list: [{ id: '1299', spd_amount: -24581.71, spd_amount_tax_excluded: -21754.85, spd_quantity: 1315 }] }] }] })
   })
   try {
-    const payload = await getStoreWeek(env, { ...STORE, from: '2026-08-23', to: '2026-08-29', now: NOW })
+    const payload = await getStoreWeek(env, { ...STORE, jwtProvider: storeJwt, from: '2026-08-23', to: '2026-08-29', now: NOW })
     assert.equal(payload?.turnover.total, 43150.82)
     assert.equal(payload?.turnover.online, 1735.98)
     assert.equal(payload?.turnover.offline, 41414.84)
@@ -251,7 +254,7 @@ test('getStoreWeek：perfeco STORES TO + SPD DIS + 30 分钟缓存', async () =>
     assert.equal(payload?.dis?.quantity, 1315)
     // 缓存命中：二次调用零上游
     const calls = mocked.calls.length
-    const again = await getStoreWeek(env, { ...STORE, from: '2026-08-23', to: '2026-08-29', now: new Date(NOW.getTime() + 5 * 60000) })
+    const again = await getStoreWeek(env, { ...STORE, jwtProvider: storeJwt, from: '2026-08-23', to: '2026-08-29', now: new Date(NOW.getTime() + 5 * 60000) })
     assert.equal(mocked.calls.length, calls)
     assert.equal(again?.turnover.total, 43150.82)
   } finally { mocked.restore() }
@@ -264,7 +267,7 @@ test('getStoreWeek：SPD 空 body（周期无折扣）= DIS 0 而非故障', asy
     spd: () => ''
   })
   try {
-    const payload = await getStoreWeek(env, { ...STORE, from: '2026-08-23', to: '2026-08-29', now: NOW })
+    const payload = await getStoreWeek(env, { ...STORE, jwtProvider: storeJwt, from: '2026-08-23', to: '2026-08-29', now: NOW })
     assert.equal(payload?.turnover.total, 0)
     assert.deepEqual(payload?.dis, { amount: 0, taxExcluded: 0, quantity: 0 })
   } finally { mocked.restore() }
@@ -277,7 +280,7 @@ test('getStoreWeek：缺 SPD key → dis null（TO 照常）', async () => {
     perfeco: () => ({ date_list: [{ agg_level_list: [{ id: '1299', currency: 'CNY', quantity: { amount_physical_store: 10 }, turnover: { amount_physical_store: 1000 } }] }] })
   })
   try {
-    const payload = await getStoreWeek(unconfigured, { ...STORE, from: '2026-08-23', to: '2026-08-29', now: NOW })
+    const payload = await getStoreWeek(unconfigured, { ...STORE, jwtProvider: storeJwt, from: '2026-08-23', to: '2026-08-29', now: NOW })
     assert.equal(payload?.turnover.total, 1000)
     assert.equal(payload?.dis, null)
   } finally { mocked.restore() }
@@ -397,7 +400,7 @@ test('syncBikeDay：上游空 body（当日数据未入库）= 0 台而非 503',
     perfeco: () => ''
   })
   try {
-    const snapshot = await syncBikeDay(env, { ...STORE, businessDate: '2026-09-04', now: NOW })
+    const snapshot = await syncBikeDay(env, { ...STORE, jwtProvider: storeJwt, businessDate: '2026-09-04', now: NOW })
     assert.equal(snapshot?.newBikes, 0)
     assert.equal(snapshot?.usedBikes, 0)
     assert.deepEqual(snapshot?.detail, [])

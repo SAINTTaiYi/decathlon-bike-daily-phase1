@@ -68,7 +68,7 @@ test('销售榜双端：全渠道/线上/线下 tab + 数据源与周期标注',
   const desktop = await read('components/overview/BiInsightCharts.jsx')
   const mobile = await read('components/overview/BiSalesMobile.jsx')
   for (const src of [desktop, mobile]) {
-    assert.match(src, /useBiBikesWeek\(\)/u)
+    assert.match(src, /useBiBikesWeek\(\{ allowSnapshotFallback: own \}\)/u)
     assert.match(src, /const models = bikeWeek\.models/u)
     // 三个 tab（CIS perfeco 渠道桶）
     assert.match(src, /key: 'all', label: '全渠道'/u)

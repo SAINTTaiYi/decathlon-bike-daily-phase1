@@ -423,3 +423,56 @@
   line-height: 1.5;
   color: var(--ops-text-muted, #6b7280);
 }
+
+/* ---------- 注册门店下拉（ProjectSelect 在 bootm 输入盒内的适配） ----------
+   2026-09-08 修复用户报障「选择框会透明，门店选项会穿模」：
+   ProjectSelect 的通用样式（components.css）面向管理台——trigger 无背景且带
+   深色下划线（在灰底 bootm-input-box 里读作透明框+异样线）；菜单文档流内
+   relative 展开，在 .bootm-card（overflow:hidden 裁角色插画）里被裁剪穿模。
+   移动端独立规则：trigger 融入 input-box 无边线视觉；菜单绝对定位 + 限高
+   滚动 + 实底白卡投影（绝不依赖 var(--surface-raised)，boot 语境无此 token）。 */
+.bootm-input-box .project-select { width: 100%; }
+
+.bootm-input-box .project-select-trigger {
+  min-height: 3.25rem;
+  padding: 0;
+  border-bottom: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #14161a;
+}
+
+.bootm-input-box .project-select-trigger span[data-placeholder='true'] {
+  color: #a8aeb9;
+  font-weight: 500;
+}
+
+.bootm-input-box .project-select-menu {
+  position: absolute;
+  top: calc(100% + 0.375rem);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  max-height: 11.5rem;
+  overflow-y: auto;
+  margin: 0;
+  border: 0;
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 18px 48px rgb(18 20 28 / 0.16);
+  overscroll-behavior: contain;
+}
+
+.bootm-input-box .project-select-option {
+  border-bottom: 0;
+  border-radius: 0.75rem;
+}
+
+.bootm-input-box .project-select-option[data-selected='true'] {
+  background: #f3f4f8;
+  color: #14161a;
+}
+
+.bootm-input-box .project-select-option[data-selected='true'] strong {
+  color: #14161a;
+}
