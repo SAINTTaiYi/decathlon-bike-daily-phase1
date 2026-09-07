@@ -336,7 +336,7 @@ export function registrationRoutes() {
         `).bind(userId, challenge.username_key, challenge.display_name, challenge.email_key, passwordHash, stamp, stamp, challenge.id, consumptionMarker, stamp),
         c.env.DB.prepare(`
           INSERT INTO store_join_requests (id, user_id, store_id, status, revision, expires_at, created_at, updated_at)
-          SELECT ?, ?, ?, 'pending', 0, ?, ?, ?
+          SELECT ?, ?, ?, 'pending', 1, ?, ?, ?
           WHERE EXISTS (SELECT 1 FROM users WHERE id = ?)
             AND NOT EXISTS (SELECT 1 FROM store_members WHERE user_id = ? AND status = 'active')
             AND NOT EXISTS (SELECT 1 FROM store_join_requests WHERE user_id = ? AND status = 'pending')

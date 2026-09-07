@@ -92,7 +92,7 @@ test('pending-count：加入申请计入审批角标', () => {
 test('迁移 0026 纯新增，schema 版本与测试适配器同步', () => {
   assert.match(migration, /CREATE TABLE store_join_requests/u)
   assert.match(migration, /status TEXT NOT NULL CHECK \(status IN \('pending', 'approved', 'rejected', 'cancelled'\)\)/u)
-  assert.match(migration, /revision INTEGER NOT NULL DEFAULT 0 CHECK \(revision >= 0\)/u)
+  assert.match(migration, /revision INTEGER NOT NULL DEFAULT 1 CHECK \(revision > 0\)/u, 'revision 从 1 起，与 revisionSchema(positive) 对齐')
   assert.match(migration, /CREATE INDEX store_join_requests_store_status_idx ON store_join_requests\(store_id, status, created_at ASC\)/u)
   assert.match(migration, /CREATE INDEX store_join_requests_user_idx ON store_join_requests\(user_id, status\)/u)
   // 非破坏性：不得触碰既有表。

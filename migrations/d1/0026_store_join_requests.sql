@@ -16,7 +16,7 @@ CREATE TABLE store_join_requests (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   store_id TEXT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')),
-  revision INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
+  revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
   decided_by TEXT,
   decision_reason TEXT,
   decided_at TEXT,
