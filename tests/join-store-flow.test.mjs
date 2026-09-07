@@ -122,5 +122,10 @@ test('注册门店下拉：boot 语境 trigger 无边线灰底融合 + 菜单绝
     need(menuBlock, 'background: #fff', `${cssFile} 菜单实底`)
     assert.ok(!menuBlock.includes('var(--surface-raised)'), `${cssFile} 菜单不得依赖 boot 语境缺失的 token`)
   }
+  // 泄漏源收窄：全局主题的 !important 边框/底色不得再命中 boot 输入盒内的 trigger
+  const ws = await read('styles/workshop-system.css')
+  assert.ok(ws.includes('.project-select-trigger:not(.bootm-input-box .project-select-trigger)'), 'workshop-system 全局边框规则必须 :not() 排除 boot 输入盒')
+  const bl = await read('styles/borderless.css')
+  assert.ok(bl.includes('.project-select-trigger:not(.bootm-input-box .project-select-trigger)'), 'borderless 兜底填充规则必须 :not() 排除 boot 输入盒')
 })
 
