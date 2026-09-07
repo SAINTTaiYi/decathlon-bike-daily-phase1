@@ -1,11 +1,11 @@
-export const APP_VERSION = "6.7.3"
+export const APP_VERSION = "6.7.4"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.09.08",
-  title: "connect 诊断透出",
-  summary: "Shiphub connect 非上游错误带出错误名+消息+cause 并写 Workers Logs，修复通用 503 掩盖根因",
+  title: "per-store 凭据入库修复",
+  summary: "修复本店凭据对象直 bind 导致的 D1_TYPE_ERROR，per-store connect 首次真正可用",
   changes: [
-    "mapUpstreamError 兜底分支透出非上游错误详情（fetch/D1/crypto），console.error 可查"
+    "本店凭据以 ciphertext.nonce blob 字符串入库，修复 connect 持续 503"
   ]
 }

@@ -1,30 +1,26 @@
 {
   "kind": "formal-production-release",
-  "version": "6.7.3",
+  "version": "6.7.4",
   "previewRange": {
-    "fromExclusive": "382f9ec9a772721d0dbae9047892664255c72def",
-    "toInclusive": "36642d4ee569dde80ccc518c0f5ce0c1824cec9e",
+    "fromExclusive": "1a51025a865a536f8e0f397be439016d6114f54b",
+    "toInclusive": "74408f2e8b2cd7fa96dc99bfd002e7a8399d3c5c",
     "commits": [
       {
-        "sha": "fbc9001b500d8e941947e8798927080c8ffa2922",
-        "subject": "chore(release): stamp V6.7.2 build metadata"
-      },
-      {
-        "sha": "71e45caa4b5e2bf742f5c05ae1adef4b9060a40f",
-        "subject": "diag(shiphub): surface non-upstream connect errors (name/message/cause) (#254)"
-      },
-      {
-        "sha": "36642d4ee569dde80ccc518c0f5ce0c1824cec9e",
+        "sha": "9faf9ee7b0d558e06eef41f2b05e7da6e23db9c5",
         "subject": "chore(release): stamp V6.7.3 build metadata"
+      },
+      {
+        "sha": "74408f2e8b2cd7fa96dc99bfd002e7a8399d3c5c",
+        "subject": "fix(shiphub): per-store 凭据以 ciphertext.nonce blob 入库 (#255)"
       }
     ]
   },
   "announcement": {
-    "title": "connect 诊断透出",
-    "summary": "Shiphub connect 非上游错误带出错误名+消息+cause 并写 Workers Logs，修复通用 503 掩盖根因",
+    "title": "per-store 凭据入库修复",
+    "summary": "修复本店凭据对象直 bind 导致的 D1_TYPE_ERROR，per-store connect 首次真正可用",
     "changes": [
-      "mapUpstreamError 兜底分支透出非上游错误详情（fetch/D1/crypto），console.error 可查"
+      "本店凭据以 ciphertext.nonce blob 字符串入库，修复 connect 持续 503"
     ]
   },
-  "preparedAt": "2026-09-07T19:17:53.278Z"
+  "preparedAt": "2026-09-07T19:32:14.404Z"
 }
