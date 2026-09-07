@@ -6,7 +6,8 @@ import { requireJsonBody } from '../lib/json.js'
 import { latestSyncedAt, listBiSkuNames, syncBiSkuNames } from '../services/bi-sku-sync.js'
 import { MasterDataUpstreamError } from '../lib/masterdata-login.js'
 import { businessDateFor } from '../services/business.js'
-import { PerfecoUpstreamError, currentWeekWindow, getBikeWeek, getServicesDay, getStoreDay, getStoreWeek, isPerfecoConfigured, lazyLoginJwt, resolveArticleVehicleInfo, resolveModelVehicleInfo, syncBikeDay } from '../services/bi-bikes.js'
+import { PerfecoUpstreamError, currentWeekWindow, getBikeWeek, getServicesDay, getStoreDay, getStoreWeek, isPerfecoConfigured, lazyLoginJwt, resolveArticleVehicleInfo, resolveModelVehicleInfo, syncBikeDay, type JwtProvider } from '../services/bi-bikes.js'
+import { getCubeIdentityInfo, lazyStoreCubeJwt } from '../services/cube-identity.js'
 import { listBiStoreWeeks } from '../services/bi-weekly.js'
 import { ApiProblem } from '../services/problems.js'
 
@@ -19,6 +20,22 @@ type Vars = { config: AppConfig; auth: AuthContext | null }
 // 品名分类端点（vehicles/vehicle-models/sku-names）是全局商品数据，不受此限。
 function storeAllowed(config: AppConfig, storeCode: string): boolean {
   return config.MASTERDATA.syncStoreCodes.includes(storeCode)
+}
+
+// 门店数据身份解析（2026-09-08 per-store 派生）：白名单店走部署级共享凭据
+// （既有行为零回归）；其它店必须持有本店 Shiphub 账密（Cube 身份派生，
+// 凭据属于谁就只拉谁）才放行。两者都不满足 → null = fail-closed
+// （端点返回 available:false，绝不借用他店凭据）。
+async function resolveStoreJwtProvider(
+  env: WorkerEnv,
+  config: AppConfig,
+  storeId: string,
+  storeCode: string
+): Promise<JwtProvider | null> {
+  if (storeAllowed(config, storeCode)) return lazyLoginJwt(env)
+  const info = await getCubeIdentityInfo(env.DB, storeId)
+  if (!info.hasCredentials) return null
+  return lazyStoreCubeJwt(env, storeId)
 }
 
 export function biRoutes() {
@@ -49,12 +66,11 @@ export function biRoutes() {
   app.get('/api/v1/bi/bikes/day', ...read, async (c) => {
     if (!isPerfecoConfigured(c.env)) return c.json({ available: false })
     const context = c.get('auth')!
-    if (!storeAllowed(loadConfig(c.env), context.storeCode)) return c.json({ available: false })
+    const jwtProvider = await resolveStoreJwtProvider(c.env, loadConfig(c.env), context.storeId, context.storeCode)
+    if (!jwtProvider) return c.json({ available: false })
     try {
       const requested = c.req.query('date')
       const businessDate = /^\d{4}-\d{2}-\d{2}$/u.test(requested ?? '') ? requested! : await businessDateFor(context)
-      // 共享 JWT provider：整车 + 门店日 + 安全检查三段链路一次 IdP 登录。
-      const jwtProvider = lazyLoginJwt(c.env)
       const snapshot = await syncBikeDay(c.env, {
         storeId: context.storeId,
         storeCode: context.storeCode,
@@ -81,11 +97,12 @@ export function biRoutes() {
   app.get('/api/v1/bi/services/day', ...read, async (c) => {
     if (!isPerfecoConfigured(c.env)) return c.json({ available: false })
     const context = c.get('auth')!
-    if (!storeAllowed(loadConfig(c.env), context.storeCode)) return c.json({ available: false })
+    const jwtProvider = await resolveStoreJwtProvider(c.env, loadConfig(c.env), context.storeId, context.storeCode)
+    if (!jwtProvider) return c.json({ available: false })
     try {
       const requested = c.req.query('date')
       const businessDate = /^\d{4}-\d{2}-\d{2}$/u.test(requested ?? '') ? requested! : await businessDateFor(context)
-      const payload = await getServicesDay(c.env, { storeId: context.storeId, storeCode: context.storeCode, businessDate })
+      const payload = await getServicesDay(c.env, { storeId: context.storeId, storeCode: context.storeCode, businessDate, jwtProvider })
       return c.json(payload ?? { available: false })
     } catch (error) {
       if (error instanceof PerfecoUpstreamError) {
@@ -98,7 +115,8 @@ export function biRoutes() {
   // 已完结周序列（cron 定时拉取落库）：周报出的当天自动补齐最新完结周。
   app.get('/api/v1/bi/store/weeks', ...read, async (c) => {
     const context = c.get('auth')!
-    if (!storeAllowed(loadConfig(c.env), context.storeCode)) return c.json({ available: false })
+    const gate = await resolveStoreJwtProvider(c.env, loadConfig(c.env), context.storeId, context.storeCode)
+    if (!gate) return c.json({ available: false })
     const weeks = await listBiStoreWeeks(c.env.DB, context.storeId)
     return c.json({ available: true, weeks })
   })
@@ -108,7 +126,8 @@ export function biRoutes() {
   app.get('/api/v1/bi/store/week', ...read, async (c) => {
     if (!isPerfecoConfigured(c.env)) return c.json({ available: false })
     const context = c.get('auth')!
-    if (!storeAllowed(loadConfig(c.env), context.storeCode)) return c.json({ available: false })
+    const jwtProvider = await resolveStoreJwtProvider(c.env, loadConfig(c.env), context.storeId, context.storeCode)
+    if (!jwtProvider) return c.json({ available: false })
     const from = c.req.query('from')
     const to = c.req.query('to')
     const window = /^\d{4}-\d{2}-\d{2}$/u.test(from ?? '') && /^\d{4}-\d{2}-\d{2}$/u.test(to ?? '')
@@ -119,7 +138,8 @@ export function biRoutes() {
         storeId: context.storeId,
         storeCode: context.storeCode,
         from: window.from,
-        to: window.to
+        to: window.to,
+        jwtProvider
       })
       return c.json(payload ?? { available: false })
     } catch (error) {
@@ -137,9 +157,10 @@ export function biRoutes() {
   app.get('/api/v1/bi/bikes/week', ...read, async (c) => {
     if (!isPerfecoConfigured(c.env)) return c.json({ available: false })
     const context = c.get('auth')!
-    if (!storeAllowed(loadConfig(c.env), context.storeCode)) return c.json({ available: false })
+    const jwtProvider = await resolveStoreJwtProvider(c.env, loadConfig(c.env), context.storeId, context.storeCode)
+    if (!jwtProvider) return c.json({ available: false })
     try {
-      const payload = await getBikeWeek(c.env, { storeId: context.storeId, storeCode: context.storeCode })
+      const payload = await getBikeWeek(c.env, { storeId: context.storeId, storeCode: context.storeCode, jwtProvider })
       return c.json(payload ?? { available: false })
     } catch (error) {
       if (error instanceof PerfecoUpstreamError) {

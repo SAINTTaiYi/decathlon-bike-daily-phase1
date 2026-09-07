@@ -4,6 +4,7 @@ import { ShipHubUpstreamError, createShipHubClient, type ShipHubCategory, type S
 import { readRefreshToken, rotateRefreshToken, shipHubIdentityFingerprint } from '../lib/shiphub-oauth.js'
 import { performShipHubProgrammaticLogin, splitEncryptedBlob } from '../lib/shiphub-login.js'
 import { decryptShipHubSecret, encryptShipHubSecret } from '../lib/shiphub-crypto.js'
+import { getCubeIdentityInfo } from './cube-identity.js'
 import { refreshShipHubAccessToken } from '../lib/shiphub-token.js'
 import { ApiProblem } from './problems.js'
 import { sendShipHubFailureAlert, shouldAlertOnShipHubFailure } from './shiphub-alert.js'
@@ -152,6 +153,8 @@ export async function getShipHubSummary(db: D1Database, config: AppConfig, store
       authorizationStatus: connection.authorizationStatus,
       lastAuthErrorCode: connection.lastAuthErrorCode
     } : null,
+    // cubeAuth：本店账密派生的 Cube 身份（BI/perfeco 链路）公开状态。
+    cubeAuth: await getCubeIdentityInfo(db, storeId),
     categories: CATEGORIES.map((category) => {
       const state = stateMap.get(category)
       const count = countMap.get(category) ?? 0

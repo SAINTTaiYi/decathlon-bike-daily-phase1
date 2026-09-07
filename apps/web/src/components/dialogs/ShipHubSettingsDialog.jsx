@@ -57,6 +57,15 @@ export default function ShipHubSettingsDialog({ open, onClose, shiphub, onNotify
           <p className="dialog-copy">同一账号不能同时连接两家门店；操作员无需填写，可直接重新连接。</p>
         </form>
       ) : <p className="dialog-copy">本店 ShipHub 账号由门店管理员设置；操作员可直接重新连接。</p>}
+      {shiphub?.summary?.cubeAuth?.hasCredentials ? (
+        <p className="dialog-copy" data-cube-auth={shiphub.summary.cubeAuth.status}>
+          {shiphub.summary.cubeAuth.status === 'available'
+            ? '数据身份可用：本店账号已接入 BI 销量与周报自动同步。'
+            : shiphub.summary.cubeAuth.status === 'pending'
+              ? '数据身份探测中：正在验证本店账号能否访问 BI 系统。'
+              : 'BI 数据身份未开通：本店账号暂无法登录 BI 系统（不影响 Shiphub 使用）。'}
+        </p>
+      ) : null}
       {status === 'reauth_required' ? <p className="dialog-error" role="alert">上次同步需要重新授权；点击下方连接即可自动恢复。</p> : null}
       {status === 'degraded' ? <p className="dialog-error" role="alert">连接状态正常但上一轮同步失败，可能是授权凭据已失效，请重新连接。</p> : null}
       <button type="button" className="shiphub-connect-btn" onClick={connect} disabled={busy || fixture}>

@@ -217,7 +217,9 @@ async function loginJwt(env: WorkerEnv): Promise<string> {
 // 只有确有未解析码需要 masterdata 补齐时才打 IdP。promise 级 memoize 天然防
 // 并发双登录；失败自动清空，下一次调用重试。perfeco 查询每次都要即时 token
 // （上游 2h 过期且不缓存），provider 复用同一 token 避免同请求内重复登录。
-export type JwtProvider = () => Promise<string>
+// per-store 派生身份的 provider 可能返回 null（凭据缺失/上游拒绝/冷却中），
+// 上层拿 null 按可降级处理，绝不把 null token 打给上游。
+export type JwtProvider = () => Promise<string | null>
 export function lazyLoginJwt(env: WorkerEnv): JwtProvider {
   let inflight: Promise<string> | null = null
   return () => {
@@ -390,13 +392,15 @@ export async function syncBikeDay(
   // 路由层组合调用（bikes/day = 整车 + 门店日 + 安全检查）共享同一 JWT provider：
   // 一次 IdP 登录喂三段链路，省 2 次登录（2026-09-06 冒烟实测冷链 3 登录触发上游节流）。
   const getJwt = options.jwtProvider ?? lazyLoginJwt(env)
+  const jwt = await getJwt()
+  if (jwt === null) return null
   const entries = await fetchPerfecoEntries(env, {
     from: options.businessDate,
     to: options.businessDate,
     aggLevel: 'ARTICLES',
     stores: [options.storeCode],
     families: BIKE_FAMILY_IDS.map(String)
-  }, await getJwt())
+  }, jwt)
   const rows = entries.map((entry) => {
     const id = typeof entry.id === 'string' ? entry.id : String(entry.id ?? '')
     return { article: id, qty: channelsSum(entry.quantity as Record<string, unknown>, true), to: channelsSum(entry.turnover as Record<string, unknown>, false) }
@@ -472,6 +476,7 @@ export async function getStoreDay(
     }
   }
   const jwt = await (options.jwtProvider ?? lazyLoginJwt(env))()
+  if (jwt === null) return null
   const entries = await fetchPerfecoEntries(env, {
     from: options.businessDate,
     to: options.businessDate,
@@ -537,6 +542,7 @@ export async function getServicesDay(
     }
   }
   const jwt = await (options.jwtProvider ?? lazyLoginJwt(env))()
+  if (jwt === null) return null
   const entries = await fetchPerfecoEntries(env, {
     from: options.businessDate,
     to: options.businessDate,
@@ -582,7 +588,7 @@ export async function readBikeDay(env: WorkerEnv, storeId: string, businessDate:
 // ── 周榜（BI 车型榜换源：本周 vs 上周 perfeco MODELS，含 wow 环比）──
 export async function getBikeWeek(
   env: WorkerEnv,
-  options: { storeId: string; storeCode: string; now?: Date }
+  options: { storeId: string; storeCode: string; now?: Date; jwtProvider?: JwtProvider }
 ): Promise<BikeWeekPayload | null> {
   if (!isPerfecoConfigured(env)) return null
   const now = options.now ?? new Date()
@@ -600,8 +606,9 @@ export async function getBikeWeek(
       } catch { /* 缓存损坏 → 重拉 */ }
     }
   }
-  const getJwt = lazyLoginJwt(env)
+  const getJwt = options.jwtProvider ?? lazyLoginJwt(env)
   const jwt = await getJwt()
+  if (jwt === null) return null
   const entries = await fetchPerfecoEntries(env, {
     from: window.from,
     to: window.to,
@@ -719,7 +726,7 @@ async function fetchSpdStoreTotal(
 
 export async function getStoreWeek(
   env: WorkerEnv,
-  options: { storeId: string; storeCode: string; from: string; to: string; now?: Date }
+  options: { storeId: string; storeCode: string; from: string; to: string; now?: Date; jwtProvider?: JwtProvider }
 ): Promise<StoreWeekPayload | null> {
   if (!isPerfecoConfigured(env)) return null
   const now = options.now ?? new Date()
@@ -742,8 +749,9 @@ export async function getStoreWeek(
       } catch { /* 缓存损坏 → 重拉 */ }
     }
   }
-  const getJwt = lazyLoginJwt(env)
+  const getJwt = options.jwtProvider ?? lazyLoginJwt(env)
   const jwt = await getJwt()
+  if (jwt === null) return null
   const entries = await fetchPerfecoEntries(env, {
     from: options.from,
     to: options.to,

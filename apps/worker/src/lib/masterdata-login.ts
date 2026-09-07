@@ -66,8 +66,35 @@ export function extractCodeFromCustomSchemeLocation(location: string, expectedSt
   return code
 }
 
-export async function performMasterDataLogin(config: MasterDataLoginConfig): Promise<{ accessToken: string }> {
+// CubeInStore 客户端配置（appId/secret 为应用级常量，非门店敏感）。
+export type MasterDataClientConfig = {
+  authorizeUrl: string
+  tokenUrl: string
+  clientId: string
+  clientSecret: string
+  redirectUri: string
+  scope: string
+}
+
+export async function performMasterDataLogin(config: MasterDataLoginConfig): Promise<{ accessToken: string; expiresIn: number }> {
   const { username, password } = await readLoginCredentials(config)
+  return masterDataLoginFlow(config, username, password)
+}
+
+// 本店凭据直传（Cube 身份派生，2026-09-08）：调用方自 D1 连接行解密本店账密后
+// 登录 oxylane IdP——凭据属于谁就只拉谁，绝不跨店复用。
+export async function performMasterDataLoginWithCredentials(
+  client: MasterDataClientConfig,
+  credentials: { username: string; password: string }
+): Promise<{ accessToken: string; expiresIn: number }> {
+  return masterDataLoginFlow(client, credentials.username, credentials.password)
+}
+
+async function masterDataLoginFlow(
+  config: MasterDataClientConfig,
+  username: string,
+  password: string
+): Promise<{ accessToken: string; expiresIn: number }> {
   const verifier = base64Url(crypto.getRandomValues(new Uint8Array(48)))
   const challenge = base64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))))
   const state = base64Url(crypto.getRandomValues(new Uint8Array(24)))
@@ -135,5 +162,7 @@ export async function performMasterDataLogin(config: MasterDataLoginConfig): Pro
     ? (payload as Record<string, string>).access_token
     : ''
   if (!accessToken) throw new MasterDataUpstreamError('OAUTH_ACCESS_TOKEN_MISSING')
-  return { accessToken }
+  const rawExpires = payload && typeof payload === 'object' ? (payload as Record<string, unknown>).expires_in : undefined
+  const expiresIn = typeof rawExpires === 'number' && Number.isFinite(rawExpires) && rawExpires > 0 ? rawExpires : 7200
+  return { accessToken, expiresIn }
 }
