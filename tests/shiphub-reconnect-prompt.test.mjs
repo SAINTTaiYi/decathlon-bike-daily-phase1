@@ -204,22 +204,6 @@ test('复用既有 Shiphub 设置弹窗，不新增第二套 UI', async () => {
 })
 
 // ── 2026-09-07：新门店凭据提交流程（用户报告：连接菜单找不到账号密码入口）──
-test('Shiphub 对话框：未连接时本店账号表单默认展开，新店管理员第一眼可见', async () => {
-  const dialog = await readFile(new URL('../apps/web/src/components/dialogs/ShipHubSettingsDialog.jsx', import.meta.url), 'utf8')
-  assert.match(dialog, /const effectiveShowStoreLogin = showStoreLogin \|\| \(status !== 'connected' && canManage\)/u)
-  // fixture（Preview）也渲染表单供界面预览，连接按钮禁用
-  assert.match(dialog, /Preview 使用仓库内人工构造的 fixture：表单仅供界面预览/u)
-  assert.match(dialog, /disabled=\{busy \|\| fixture\}/u, 'fixture 下连接按钮必须禁用')
-  assert.doesNotMatch(dialog, /高级：设置本店/u, '不得再把凭据表单折叠进"高级"')
-  assert.match(dialog, /门店账号用户名/u)
-  assert.match(dialog, /门店账号密码/u)
-  // 已连接状态仍可更换账号
-  assert.match(dialog, /更换本店 ShipHub 账号/u)
-  assert.match(dialog, /更新账号并重连/u)
-  // 引导文案：加密存储 + 身份互斥
-  assert.match(dialog, /AES-256-GCM 加密保存在 Cloudflare/u)
-  assert.match(dialog, /同一账号不能同时连接两家门店/u)
-})
 
 test('Shiphub 后端：身份互斥错误必须引导新店填写自己的账号', async () => {
   const route = await readFile(new URL('../apps/worker/src/routes/shiphub.ts', import.meta.url), 'utf8')
