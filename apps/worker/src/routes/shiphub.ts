@@ -56,7 +56,14 @@ function mapUpstreamError(error: unknown): ApiProblem {
     const status = error.code === 'OAUTH_STATE_INVALID' || error.code === 'INVALID_OAUTH_CALLBACK' ? 400 : 503
     return new ApiProblem(status, error.code, 'Shiphub 暂时不可用，请稍后重试。')
   }
-  return new ApiProblem(503, 'SHIPHUB_UNAVAILABLE', 'Shiphub 暂时不可用，请稍后重试。')
+  // 诊断透出（2026-09-08 排障定案）：非上游错误（fetch TypeError / D1 / crypto）绝不
+  // 再被通用 503 吞掉——带出错误名+消息+cause 并写 console（Workers Logs 可查）。
+  // 历史教训：per-store 连接在 Worker 侧持续 503，通用文案让根因排查多花一整轮。
+  const name = error instanceof Error ? error.name : typeof error
+  const message = error instanceof Error ? String(error.message).slice(0, 160) : String(error).slice(0, 160)
+  const cause = error instanceof Error && error.cause instanceof Error ? ` | cause: ${String(error.cause.message).slice(0, 160)}` : ''
+  console.error(`[shiphub] non-upstream error: ${name}: ${message}${cause}`)
+  return new ApiProblem(503, 'SHIPHUB_UNAVAILABLE', `Shiphub 暂时不可用，请稍后重试。[${name}: ${message}${cause}]`)
 }
 
 function requireManager(context: AuthContext): void {
