@@ -34,6 +34,8 @@ type ChallengeRow = {
 }
 
 const CHALLENGE_TTL_MS = 10 * 60 * 1000
+// 加入申请的审批窗口：与 governance REQUEST_TTL_MS 同口径（7 天）。
+const JOIN_REQUEST_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const COMPLETION_TTL_MS = 10 * 60 * 1000
 const RESEND_COOLDOWN_MS = 60 * 1000
 const HOUR_MS = 60 * 60 * 1000
@@ -133,6 +135,13 @@ export function registrationRoutes() {
     let existingStore = await findStoreByCode(c.env.DB, storeCode)
     if (existingStore && await releaseAbandonedRegistrationStore(c.env.DB, existingStore, stamp)) existingStore = null
 
+    // 加入已有门店：命中已生效门店（active 且非自注册占位）时不再 409，
+    // 而是走「验证邮箱 → 创建无门店账号 + 待审批加入申请」路径。
+    // storeName 对加入分支无意义（真实店名以库内为准），complete 时回显。
+    const joinTarget = existingStore && existingStore.status === 'active' && existingStore.self_registration_pending === 0
+      ? existingStore
+      : null
+
     const recentByEmail = await first<{ id: string; created_at: string; resend_count: number; status: string; expires_at: string; store_id: string; username_key: string }>(c.env.DB.prepare(`
       SELECT id, created_at, resend_count, status, expires_at, store_id, username_key
       FROM registration_challenges
@@ -152,7 +161,7 @@ export function registrationRoutes() {
       && recentByEmail.status === 'pending'
       && Date.parse(recentByEmail.expires_at) > now
     )
-    if (existingStore && !ownsReservation) {
+    if (existingStore && !ownsReservation && !joinTarget) {
       throw new ApiProblem(409, 'STORE_ALREADY_EXISTS', '门店编号已存在，无法创建门店。')
     }
 
@@ -207,7 +216,9 @@ export function registrationRoutes() {
       await sendRegistrationOtp(config, { email: emailKey, displayName, otp, expiresAt })
     } catch (error) {
       await c.env.DB.batch([
-        c.env.DB.prepare(`DELETE FROM registration_challenges WHERE store_id = ? AND status <> 'completed'`).bind(store.id),
+        joinTarget
+          ? c.env.DB.prepare(`DELETE FROM registration_challenges WHERE id = ? AND status <> 'completed'`).bind(id)
+          : c.env.DB.prepare(`DELETE FROM registration_challenges WHERE store_id = ? AND status <> 'completed'`).bind(store.id),
         c.env.DB.prepare(`
           DELETE FROM stores
           WHERE id = ? AND status = 'disabled' AND self_registration_pending = 1
@@ -281,13 +292,17 @@ export function registrationRoutes() {
       throw new ApiProblem(400, 'REGISTRATION_GRANT_INVALID', '注册验证已失效，请重新获取验证码。')
     }
     const store = await registrationStore(c.env.DB, challenge.store_id)
-    if (!store || store.status !== 'disabled' || store.self_registration_pending !== 1 || await hasActiveMembership(c.env.DB, store.id)) throw new ApiProblem(409, 'STORE_NOT_AVAILABLE', '门店已不可注册，请重新开始。')
+    if (!store) throw new ApiProblem(409, 'STORE_NOT_AVAILABLE', '门店已不可注册，请重新开始。')
+    // 加入分支：challenge 指向的是已生效门店（真实门店）；创建分支指向自注册占位店。
+    const joinIntent = store.status === 'active' && store.self_registration_pending === 0
+    if (!joinIntent && (store.status !== 'disabled' || store.self_registration_pending !== 1 || await hasActiveMembership(c.env.DB, store.id))) throw new ApiProblem(409, 'STORE_NOT_AVAILABLE', '门店已不可注册，请重新开始。')
     const [existingEmail, existingUsername] = await Promise.all([
       first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE email_key = ? LIMIT 1').bind(challenge.email_key)),
       first<{ id: string }>(c.env.DB.prepare('SELECT id FROM users WHERE username_key = ? LIMIT 1').bind(challenge.username_key))
     ])
     if (existingEmail || existingUsername) throw new ApiProblem(409, 'REGISTRATION_NOT_AVAILABLE', '当前信息无法完成注册，请登录或联系平台管理员。')
     const passwordHash = await hashPassword(input.password, config.PASSWORD_PEPPER)
+
     // A unique, server-derived 64-hex marker lets every following statement prove it
     // belongs to this exact successful consumption, even under concurrent completion.
     const consumptionMarker = await keyedHash(`${challenge.id}:${randomToken()}`, config.REGISTRATION_SECRET)
@@ -296,6 +311,49 @@ export function registrationRoutes() {
     const secrets = await createSessionSecrets(config)
     const stamp = nowIso()
     const context = registrationAuditContext(userId, challenge.display_name, store)
+    if (joinIntent) {
+      // 加入已有门店：账号正常创建（邮箱已验证、密码已设置），但不下发
+      // 成员关系、不创建会话——登录链路只认 active membership，所以在
+      // 审批通过前该账号天然无法登录（无需额外封禁状态）。
+      const requestId = uuid()
+      const joinExpiresAt = new Date(Date.now() + JOIN_REQUEST_TTL_MS).toISOString()
+      const joinAudit = prepareConditionalAudit(c.env.DB, {
+        context: { ...context, role: 'operator', sessionTokenHash: '', csrfHash: '' },
+        action: 'request-store-join', entityType: 'store-join-request', entityId: requestId,
+        businessDate: localBusinessDate(store.timezone), summary: `申请加入门店：${challenge.display_name} → ${store.name}`,
+        after: { username: challenge.username_key, storeId: store.id, storeCode: store.code }, reversible: false
+      }, `EXISTS (SELECT 1 FROM store_join_requests WHERE id = ? AND status = 'pending') AND EXISTS (SELECT 1 FROM users WHERE id = ?)`, [requestId, userId])
+      const joinResult = await c.env.DB.batch([
+        c.env.DB.prepare(`
+          UPDATE registration_challenges
+          SET status = 'completed', completed_at = ?, completion_token_hash = ?, updated_at = ?
+          WHERE id = ? AND status = 'verified' AND completion_token_hash = ? AND expires_at > ?
+        `).bind(stamp, consumptionMarker, stamp, challenge.id, providedHash, stamp),
+        c.env.DB.prepare(`
+          INSERT INTO users (id, username_key, display_name, email_key, password_hash, status, must_change_password, failed_login_count, created_at, updated_at)
+          SELECT ?, ?, ?, ?, ?, 'active', 0, 0, ?, ?
+          WHERE EXISTS (SELECT 1 FROM registration_challenges WHERE id = ? AND status = 'completed' AND completion_token_hash = ? AND completed_at = ?)
+        `).bind(userId, challenge.username_key, challenge.display_name, challenge.email_key, passwordHash, stamp, stamp, challenge.id, consumptionMarker, stamp),
+        c.env.DB.prepare(`
+          INSERT INTO store_join_requests (id, user_id, store_id, status, revision, expires_at, created_at, updated_at)
+          SELECT ?, ?, ?, 'pending', 0, ?, ?, ?
+          WHERE EXISTS (SELECT 1 FROM users WHERE id = ?)
+            AND NOT EXISTS (SELECT 1 FROM store_members WHERE user_id = ? AND status = 'active')
+            AND NOT EXISTS (SELECT 1 FROM store_join_requests WHERE user_id = ? AND status = 'pending')
+        `).bind(requestId, userId, store.id, joinExpiresAt, stamp, stamp, userId, userId, userId),
+        joinAudit.statement
+      ])
+      if (joinResult[0]?.meta?.changes !== 1 || joinResult[1]?.meta?.changes !== 1 || joinResult[2]?.meta?.changes !== 1 || joinResult[3]?.meta?.changes !== 1) {
+        throw new ApiProblem(409, 'REGISTRATION_GRANT_INVALID', '注册验证已失效，请重新获取验证码。')
+      }
+      return c.json({
+        ok: true,
+        joinPending: true,
+        storeCode: store.code,
+        storeName: store.name,
+        message: `加入「${store.name}」的申请已提交，正在等待门店管理员审批。审批通过前无法登录。`
+      }, 201)
+    }
     const audit = prepareConditionalAudit(c.env.DB, {
       context: { ...context, sessionTokenHash: secrets.tokenHash, csrfHash: secrets.csrfHash }, action: 'self-register', entityType: 'account', entityId: userId,
       businessDate: localBusinessDate(store.timezone), summary: `自助注册账号：${challenge.display_name}`,

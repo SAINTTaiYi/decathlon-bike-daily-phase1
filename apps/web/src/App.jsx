@@ -164,7 +164,7 @@ export default function App() {
     const poll = async () => {
       try {
         const result = await getAdminPendingCount()
-        if (alive) setAdminPending(result.roleRequests + result.transferRequests + result.storesPending)
+        if (alive) setAdminPending(result.roleRequests + result.transferRequests + result.storesPending + (result.joinRequests ?? 0))
       } catch { /* 轮询失败静默，下次重试 */ }
     }
     void poll()

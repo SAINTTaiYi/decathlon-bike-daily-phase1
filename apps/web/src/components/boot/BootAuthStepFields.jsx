@@ -113,7 +113,7 @@ export function BootAuthStepFields({ prefix, panel, itemClassName = '' }) {
             prefix={prefix}
             itemClassName={itemClassName}
             label="Profile"
-            hint="门店编号需为公司内部唯一编号，重复时注册会被拒绝。"
+            hint="填写已有门店编号将转为「申请加入」该门店（等待店长审批）；新编号则注册创建新门店，首位注册人成为店长。"
           >
             <input
               type="text"

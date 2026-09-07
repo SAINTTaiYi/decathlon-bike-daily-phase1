@@ -92,6 +92,19 @@ export function BootLoaderMobile({ form, panel, rootRef, cardRef }) {
                 </button>
               </div>
             </form>
+          ) : panel.joinPending ? (
+            <div className="bootm-form" role="status">
+              <div className="bootm-panel-head bootm-item">
+                <h2 className="bootm-panel-title">等待门店审批</h2>
+                <p className="bootm-panel-hint">加入「{panel.joinPending.storeName}」的申请已提交</p>
+              </div>
+              <p className="bootm-notice bootm-item">{panel.joinPending.message}</p>
+              <div className="bootm-actions bootm-item">
+                <button type="button" className="bootm-btn-primary" onClick={() => { panel.clearJoinPending(); panel.backToLogin() }}>
+                  返回登录
+                </button>
+              </div>
+            </div>
           ) : (
             <form className="bootm-form" onSubmit={submitCurrent} noValidate>
               <div className="bootm-panel-head bootm-item">

@@ -54,11 +54,15 @@ export function useBootAuthPanel({ onRegistered, onRecovered } = {}) {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
+  // 加入已有门店：注册完成后不进入工作台，提示等待门店管理员审批。
+  const [joinPending, setJoinPending] = useState(null)
 
   const clearFeedback = useCallback(() => {
     setError('')
     setNotice('')
   }, [])
+
+  const clearJoinPending = useCallback(() => setJoinPending(null), [])
 
   const setField = useCallback((key, value) => {
     setForm((current) => ({ ...current, [key]: value }))
@@ -71,6 +75,7 @@ export function useBootAuthPanel({ onRegistered, onRecovered } = {}) {
     setMode(nextMode)
     setStep(0)
     setChallenge(null)
+    setJoinPending(null)
     setError('')
     setNotice('')
     setForm((current) => ({
@@ -155,6 +160,10 @@ export function useBootAuthPanel({ onRegistered, onRecovered } = {}) {
     }), '注册未完成，请重新开始。')
     if (!result.ok) return undefined
 
+    if (result.data?.joinPending) {
+      setJoinPending({ storeName: result.data.storeName || '', storeCode: result.data.storeCode || '', message: result.data.message || '' })
+      return undefined
+    }
     onRegistered?.(result.data)
     return undefined
   }, [challenge, form.password, form.confirmPassword, run, onRegistered])
@@ -249,6 +258,8 @@ export function useBootAuthPanel({ onRegistered, onRecovered } = {}) {
     error,
     notice,
     busy,
+    joinPending,
+    clearJoinPending,
     title,
     hint,
     primaryLabel,

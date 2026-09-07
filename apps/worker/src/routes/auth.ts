@@ -140,7 +140,17 @@ export function authRoutes() {
       WHERE sm.user_id = ? AND sm.status = 'active' AND st.status = 'active'
       ORDER BY sm.effective_from ASC, sm.created_at ASC
     `).bind(user.id))
-    if (!memberships.length) throw new ApiProblem(403, 'NO_STORE_ACCESS', '账号尚未分配可访问门店。')
+    if (!memberships.length) {
+      // 加入已有门店的待审批账号：给出明确的等待态提示，而不是笼统的"未分配门店"。
+      const pendingJoin = await first<{ store_name: string; store_code: string }>(c.env.DB.prepare(`
+        SELECT st.name AS store_name, st.code AS store_code
+        FROM store_join_requests jr JOIN stores st ON st.id = jr.store_id
+        WHERE jr.user_id = ? AND jr.status = 'pending' AND jr.expires_at > ?
+        ORDER BY jr.created_at DESC LIMIT 1
+      `).bind(user.id, nowIso()))
+      if (pendingJoin) throw new ApiProblem(403, 'JOIN_PENDING', `你的加入申请正在等待「${pendingJoin.store_name}」管理员审批，批准后即可登录。`)
+      throw new ApiProblem(403, 'NO_STORE_ACCESS', '账号尚未分配可访问门店。')
+    }
     const secrets = await createSessionSecrets(config)
     const expiresAt = new Date(Date.now() + config.SESSION_TTL_HOURS * 60 * 60 * 1000).toISOString()
     const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || ''

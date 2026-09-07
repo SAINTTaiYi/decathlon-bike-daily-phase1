@@ -27,5 +27,6 @@ export const createRoleChangeRequest = (body) => api('/api/v1/governance/role-re
 export const decideRoleChangeRequest = (id, body) => api(`/api/v1/governance/role-requests/${id}/decision`, { method: 'POST', body })
 export const createTransferRequest = (body) => api('/api/v1/governance/transfer-requests', { method: 'POST', body })
 export const decideTransferRequest = (id, body) => api(`/api/v1/governance/transfer-requests/${id}/decision`, { method: 'POST', body })
+export const decideJoinRequest = (id, body) => api(`/api/v1/governance/join-requests/${id}/decision`, { method: 'POST', body })
 export const createDirectoryEntry = (kind, body) => api(`/api/v1/governance/directory/${kind}`, { method: 'POST', body })
 export const updateDirectoryEntry = (kind, id, body) => api(`/api/v1/governance/directory/${kind}/${id}`, { method: 'PATCH', body })

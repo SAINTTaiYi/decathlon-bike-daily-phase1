@@ -255,12 +255,13 @@ export function adminRoutes() {
   // ---- 轻量待审批计数（供门店工作台角标轮询）----
   app.get('/api/v1/admin/pending-count', ...platformRead, async (c) => {
     const currentTime = nowIso()
-    const [roleRequests, transferRequests, storesPending] = await Promise.all([
+    const [roleRequests, transferRequests, storesPending, joinRequests] = await Promise.all([
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM role_change_requests WHERE status = 'pending' AND expires_at > ?").bind(currentTime)),
       first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM store_transfer_requests WHERE status = 'pending' AND expires_at > ?").bind(currentTime)),
-      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE pending_review = 1"))
+      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM stores WHERE pending_review = 1")),
+      first<{ n: number }>(c.env.DB.prepare("SELECT COUNT(*) AS n FROM store_join_requests WHERE status = 'pending' AND expires_at > ?").bind(currentTime))
     ])
-    return c.json({ roleRequests: roleRequests?.n ?? 0, transferRequests: transferRequests?.n ?? 0, storesPending: storesPending?.n ?? 0 })
+    return c.json({ roleRequests: roleRequests?.n ?? 0, transferRequests: transferRequests?.n ?? 0, storesPending: storesPending?.n ?? 0, joinRequests: joinRequests?.n ?? 0 })
   })
 
   // ---- 用户列表（稳定用户级游标分页，避免成员 JOIN 截断）----
