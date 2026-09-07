@@ -467,8 +467,9 @@ export function BiStoreWeekTrend() {
     const y = (value) => 122 - (value / max) * 102
     for (const p of points) p.y = y(p.value)
     const latest = points[points.length - 1]
-    const prev = points[points.length - 2]
-    const wow = prev.value ? ((latest.value - prev.value) / prev.value) * 100 : 0
+    // 单周（首个已完结周）没有上一周可比：prev 必须为 null，否则 points[-2] 是 undefined 直接崩进 ErrorBoundary
+    const prev = points.length >= 2 ? points[points.length - 2] : null
+    const wow = prev && prev.value ? ((latest.value - prev.value) / prev.value) * 100 : 0
     return { points, latest, wow }
   }, [weeks, ready])
   const build = useMemo(() => (timeline, node) => {
@@ -487,7 +488,7 @@ export function BiStoreWeekTrend() {
       <h3>CIS 门店 TO · 已完结周</h3>
       <div className="ops-lieflat-sub"><span>{sub}</span></div>
       {ready ? (
-        <ChartSvg label={`CIS 已完结周门店 TO 趋势：最新 ${geom.latest.label} ¥${Math.round(geom.latest.value).toLocaleString('en-US')}，环比 ${geom.wow.toFixed(1)}%`} replayChart={replayChart} viewBox="0 0 880 158" preserveAspectRatio="none">
+        <ChartSvg label={`CIS 已完结周门店 TO 趋势：最新 ${geom.latest.label} ¥${Math.round(geom.latest.value).toLocaleString('en-US')}${geom.points.length >= 2 ? `，环比 ${geom.wow >= 0 ? '+' : ''}${geom.wow.toFixed(1)}%` : '，首周（次周起展示环比）'}`} replayChart={replayChart} viewBox="0 0 880 158" preserveAspectRatio="none">
           <line data-biw-hair="" x1="20" y1="122" x2="860" y2="122" stroke={MONO.grid} strokeWidth="0.8" />
           {geom.points.map((p, index) => (
             <line key={`${p.label}-${index}`} data-biw-hair="" x1={p.x} y1="122" x2={p.x} y2={p.y} stroke={index === geom.points.length - 1 ? MONO.ink : MONO.muted} strokeWidth={index === geom.points.length - 1 ? 1.2 : 0.55} opacity={index === geom.points.length - 1 ? 1 : 0.55} />
