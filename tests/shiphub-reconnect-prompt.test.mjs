@@ -202,3 +202,10 @@ test('复用既有 Shiphub 设置弹窗，不新增第二套 UI', async () => {
     '关闭时必须同时清掉提示态，否则无法手动关闭'
   )
 })
+
+// ── 2026-09-07：新门店凭据提交流程（用户报告：连接菜单找不到账号密码入口）──
+
+test('Shiphub 后端：身份互斥错误必须引导新店填写自己的账号', async () => {
+  const route = await readFile(new URL('../apps/worker/src/routes/shiphub.ts', import.meta.url), 'utf8')
+  assert.match(route, /SHIPHUB_IDENTITY_IN_USE.*?请在上方填写你门店自己的 ShipHub 账号后重试/u)
+})

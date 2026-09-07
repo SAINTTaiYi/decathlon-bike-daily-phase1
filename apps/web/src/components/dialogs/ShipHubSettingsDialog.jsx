@@ -9,6 +9,9 @@ export default function ShipHubSettingsDialog({ open, onClose, shiphub, onNotify
   const connection = shiphub?.summary?.connection
   const fixture = shiphub?.summary?.mode === 'fixture'
   const status = fixture ? 'fixture' : connection?.authorizationStatus || 'disconnected'
+  // 未连接时本店账号表单默认展开：新门店接入的唯一路径就是填本店账号。
+  // 不能折叠进"高级"——新店管理员找不到入口会误用部署级共享凭据（被身份互斥拒绝）。
+  const effectiveShowStoreLogin = showStoreLogin || (status !== 'connected' && canManage)
   const set = (field) => (event) => setStoreLogin((current) => ({ ...current, [field]: event.target.value }))
   const connect = async () => {
     setBusy(true)
@@ -42,21 +45,24 @@ export default function ShipHubSettingsDialog({ open, onClose, shiphub, onNotify
     }
   }
   return (
-    <AppDialog open={open} onClose={() => { if (!busy) onClose() }} title="Shiphub 连接" eyebrow="SINGLE-STORE SSO" description="只连接当前账号主动授权的门店。凭据以 AES-256-GCM 加密存储，仅用于向 Decathlon IdP 完成登录，绝不落日志或业务库。">
+    <AppDialog open={open} onClose={() => { if (!busy) onClose() }} title="Shiphub 连接" eyebrow="SINGLE-STORE SSO" description="填写本店 Shiphub 门店账号，凭据加密保存在 Cloudflare 本店专属行，自动重连与同步只使用本店身份。">
       <div className="signed-in-user"><span>当前状态 · {fixture ? 'Preview fixture' : status === 'connected' ? '已连接' : status === 'degraded' ? '同步异常' : status === 'reauth_required' ? '需要重新授权' : '未连接'}</span><strong>{fixture ? 'Synthetic data only' : 'Shiphub read-only'}</strong></div>
       <p className="dialog-copy">页面打开、切换模块和普通刷新只读取 Workshop D1 缓存，不直接访问 Shiphub。手工确认也只写入本地操作覆盖层。</p>
-      {fixture ? <p className="dialog-copy">Preview 只使用仓库内人工构造的 fixture，不启用 SSO，也不会访问真实 Shiphub。</p> : status === 'connected' ? <button type="button" className="dialog-action" onClick={disconnect} disabled={busy}><span><strong>{busy ? '正在断开…' : '断开 Shiphub'}</strong><small>删除当前门店的本地 refresh token，不影响手工台账。</small></span></button> : <>
-        <button type="button" className="dialog-action" onClick={connect} disabled={busy}><span><strong>{busy ? '正在自动授权…' : '连接 Shiphub'}</strong><small>{showStoreLogin ? '使用下方本店账号完成 IdP 登录与授权（OAuth2 authorization code + PKCE）。' : '使用门店账号自动完成 IdP 登录与授权（OAuth2 authorization code + PKCE）。'}</small></span></button>
-        {canManage ? <button type="button" className="dialog-toggle" onClick={() => setShowStoreLogin((current) => !current)} aria-expanded={showStoreLogin}><span>{showStoreLogin ? '收起本店独立账号' : '高级：设置本店 ShipHub 账号（推荐）'}</span></button> : <p className="dialog-copy">本店 ShipHub 账号由门店管理员设置；操作员可直接重新连接。</p>}
-        {canManage && showStoreLogin ? <form className="data-form" data-motion="summary" onSubmit={(event) => { event.preventDefault(); void connect() }}>
+      {fixture ? <p className="dialog-error" role="note">Preview 使用仓库内人工构造的 fixture：按钮停用，不会访问真实 Shiphub。</p> : null}
+      {canManage ? (
+        <form className="data-form" data-motion="summary" onSubmit={(event) => { event.preventDefault(); void connect() }}>
           <label className="field-row"><span>门店账号用户名</span><input autoComplete="off" maxLength="128" value={storeLogin.username} onChange={set('username')} placeholder="本店的 ShipHub 门店账号" /></label>
           <label className="field-row"><span>门店账号密码</span><input type="password" autoComplete="new-password" maxLength="128" value={storeLogin.password} onChange={set('password')} placeholder="对应账号密码" /></label>
-          <label className="field-row"><span>location_num（可选）</span><input autoComplete="off" maxLength="32" value={storeLogin.locationNum} onChange={set('locationNum')} placeholder="留空则使用部署默认值" /></label>
-          <p className="dialog-copy">填写后凭据加密保存在本店连接上，后续自动重连与同步都使用本店独立身份；留空则使用部署级共享凭据（仅兼容存量连接，同一账号不可连接多家门店）。</p>
-        </form> : null}
-      </>}
-      {status === 'reauth_required' ? <p className="dialog-error" role="alert">上次同步需要重新授权；点击「连接 Shiphub」即可自动恢复。</p> : null}
-      {status === 'degraded' ? <p className="dialog-error" role="alert">连接状态正常但上一轮同步失败，可能是授权凭据已失效。请点击「连接 Shiphub」重新授权。</p> : null}
+          <label className="field-row"><span>门店编号 location_num（可选）</span><input autoComplete="off" maxLength="32" value={storeLogin.locationNum} onChange={set('locationNum')} placeholder="留空则使用部署默认值" /></label>
+          <p className="dialog-copy">同一账号不能同时连接两家门店；操作员无需填写，可直接重新连接。</p>
+        </form>
+      ) : <p className="dialog-copy">本店 ShipHub 账号由门店管理员设置；操作员可直接重新连接。</p>}
+      {status === 'reauth_required' ? <p className="dialog-error" role="alert">上次同步需要重新授权；点击下方连接即可自动恢复。</p> : null}
+      {status === 'degraded' ? <p className="dialog-error" role="alert">连接状态正常但上一轮同步失败，可能是授权凭据已失效，请重新连接。</p> : null}
+      <button type="button" className="shiphub-connect-btn" onClick={connect} disabled={busy || fixture}>
+        {fixture ? 'Preview 下不可用' : busy ? '正在验证并连接…' : status === 'connected' ? '更新账号并重连' : '连接 Shiphub'}
+      </button>
+      {!fixture && status === 'connected' ? <button type="button" className="shiphub-connect-btn shiphub-connect-btn--ghost" onClick={disconnect} disabled={busy}>断开 Shiphub</button> : null}
     </AppDialog>
-  )
+    )
 }

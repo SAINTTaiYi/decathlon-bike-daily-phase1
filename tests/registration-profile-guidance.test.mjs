@@ -14,10 +14,11 @@ test('注册 Profile 字段明确要求填写真实公司 Profile', () => {
   assert.doesNotMatch(stepFields, /例如：小王/u)
 })
 
-test('门店编号唯一性的后果对用户明示', () => {
-  assert.match(stepFields, /门店编号需为公司内部唯一编号，重复时注册会被拒绝。/u)
-  // 辅助说明须挂在 Field 的 hint 通道上，保证与输入框有可读的视觉从属关系
-  assert.match(stepFields, /hint="门店编号需为公司内部唯一编号[^"]*"/u)
+test('门店编号的后果对用户明示（唯一性 + 平台审核）', () => {
+  assert.match(stepFields, /门店编号需为公司内部唯一编号。/u)
+  // 新店注册必须提示平台管理员审核（create 模式 storeCode 字段 hint）
+  assert.match(stepFields, /hint="门店编号需为公司内部唯一编号。"/u)
+  assert.match(stepFields, /门店注册需要经过平台管理员审核。/u)
 })
 
 test('辅助说明在两端各自的样式表里都有可读的弱化文本样式', () => {

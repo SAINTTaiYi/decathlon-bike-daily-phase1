@@ -89,7 +89,7 @@ export function governanceRoutes() {
 
   app.get('/api/v1/governance/overview', ...protectedRead, async (c) => {
     const context = requireContext(c)
-    const [roleRequests, transferRequests, directory] = await Promise.all([
+    const [roleRequests, transferRequests, joinRequests, directory] = await Promise.all([
       context.isPlatformAdmin
         ? all(c.env.DB.prepare(`
           SELECT rr.id, rr.user_id, u.display_name AS user_name, rr.store_id, st.code AS store_code, st.name AS store_name,
@@ -117,13 +117,33 @@ export function governanceRoutes() {
           SELECT id, user_id, source_store_id, target_store_id, reason, status, revision, expires_at, created_at
           FROM store_transfer_requests WHERE user_id = ? ORDER BY created_at DESC
         `).bind(context.userId)),
+      // 加入申请：平台管理员看全部，目标门店管理员看本店，普通成员看自己
+      context.isPlatformAdmin || context.role === 'admin'
+        ? all(c.env.DB.prepare(`
+          SELECT jr.id, jr.user_id, u.display_name AS user_name, u.username_key,
+                 jr.store_id, st.code AS store_code, st.name AS store_name,
+                 jr.status, jr.revision, jr.expires_at, jr.created_at
+          FROM store_join_requests jr
+          JOIN users u ON u.id = jr.user_id
+          JOIN stores st ON st.id = jr.store_id
+          WHERE jr.status = 'pending' AND jr.expires_at > ? AND (${context.isPlatformAdmin ? '1 = 1' : 'jr.store_id = ?'})
+          ORDER BY jr.created_at ASC
+        `).bind(...(context.isPlatformAdmin ? [nowIso()] : [nowIso(), context.storeId])))
+        : all(c.env.DB.prepare(`
+          SELECT jr.id, jr.user_id, jr.store_id, st.code AS store_code, st.name AS store_name,
+                 jr.status, jr.revision, jr.expires_at, jr.created_at
+          FROM store_join_requests jr JOIN stores st ON st.id = jr.store_id
+          WHERE jr.user_id = ?
+          ORDER BY jr.created_at DESC
+        `).bind(context.userId)),
       context.isPlatformAdmin ? directoryPayload(c.env.DB, true) : directoryPayload(c.env.DB, false)
     ])
     return c.json({
       actor: { isPlatformAdmin: context.isPlatformAdmin, role: context.role, storeId: context.storeId },
       directory,
       roleRequests: camelRows(roleRequests),
-      transferRequests: camelRows(transferRequests)
+      transferRequests: camelRows(transferRequests),
+      joinRequests: camelRows(joinRequests)
     })
   })
 
@@ -290,6 +310,63 @@ export function governanceRoutes() {
     const result = await c.env.DB.batch(statements)
     if (result[0]?.meta?.changes !== 1) throw new ApiProblem(409, 'TRANSFER_NOT_ACTIONABLE', '该调店申请刚刚被其他操作处理。')
     return c.json({ ok: true, message: input.approve ? '调店已批准，申请人已转为目标门店操作员并需要重新登录。' : '调店申请已拒绝。' })
+  })
+
+  // ---- 加入申请审批：目标门店有效管理员；目标店暂无管理员时平台管理员兜底 ----
+  app.post('/api/v1/governance/join-requests/:id/decision', ...protectedWrite, async (c) => {
+    const context = requireContext(c)
+    const id = String(c.req.param('id') ?? '')
+    const input = decisionSchema.parse(await c.req.json())
+    const request = await first<{ id: string; user_id: string; store_id: string; status: string; revision: number; expires_at: string; store_code: string; store_name: string; store_timezone: string }>(c.env.DB.prepare(`
+      SELECT jr.*, st.code AS store_code, st.name AS store_name, st.timezone AS store_timezone
+      FROM store_join_requests jr JOIN stores st ON st.id = jr.store_id AND st.status = 'active'
+      WHERE jr.id = ?
+    `).bind(id))
+    if (!request || request.status !== 'pending' || request.revision !== input.expectedRevision || Date.parse(request.expires_at) <= Date.now()) {
+      throw new ApiProblem(409, 'JOIN_REQUEST_NOT_ACTIONABLE', '该加入申请已处理、已过期或已更新。')
+    }
+    const approver = await first<{ id: string }>(c.env.DB.prepare(`
+      SELECT id FROM store_members WHERE user_id = ? AND store_id = ? AND role = 'admin' AND status = 'active' LIMIT 1
+    `).bind(context.userId, request.store_id))
+    if (!approver && !context.isPlatformAdmin) throw new ApiProblem(403, 'JOIN_APPROVER_REQUIRED', '只有目标门店管理员或平台管理员可以审批加入申请。')
+    const applicant = await first<{ id: string; display_name: string; status: string }>(c.env.DB.prepare('SELECT id, display_name, status FROM users WHERE id = ?').bind(request.user_id))
+    if (!applicant || applicant.status !== 'active') throw new ApiProblem(409, 'JOIN_APPLICANT_INACTIVE', '申请人账号已不可用，无法审批。')
+
+    const stamp = nowIso()
+    const nextStatus = input.approve ? 'approved' : 'rejected'
+    const target = { id: request.store_id, code: request.store_code, name: request.store_name, timezone: request.store_timezone }
+    // 成员关系先行插入（守卫挂在"申请仍为 pending"上），申请状态更新随后跟进：
+    // 任一守卫失配则两条都不落库，不会出现"申请已批准但没有成员关系"的中间态。
+    const membershipId = uuid()
+    const membershipInsert = c.env.DB.prepare(`
+      INSERT INTO store_members (id, store_id, user_id, role, status, effective_from, created_at)
+      SELECT ?, ?, ?, 'operator', 'active', ?, ?
+      WHERE EXISTS (SELECT 1 FROM store_join_requests WHERE id = ? AND status = 'pending' AND revision = ? AND expires_at > ?)
+        AND EXISTS (SELECT 1 FROM users WHERE id = ? AND status = 'active')
+        AND NOT EXISTS (SELECT 1 FROM store_members WHERE user_id = ? AND status = 'active')
+    `).bind(membershipId, request.store_id, request.user_id, stamp, stamp, request.id, input.expectedRevision, stamp, request.user_id, request.user_id)
+    const requestUpdate = c.env.DB.prepare(`
+      UPDATE store_join_requests
+      SET status = ?, decided_by = ?, decided_at = ?, decision_reason = ?, revision = revision + 1, updated_at = ?
+      WHERE id = ? AND status = 'pending' AND revision = ? AND expires_at > ?
+        AND (? = 'rejected' OR EXISTS (SELECT 1 FROM store_members WHERE id = ? AND user_id = ? AND status = 'active'))
+    `).bind(nextStatus, context.userId, stamp, input.reason, stamp, request.id, input.expectedRevision, stamp, nextStatus, membershipId, request.user_id)
+    const decisionPredicate = `EXISTS (SELECT 1 FROM store_join_requests WHERE id = ? AND status = ? AND revision = ? AND decided_by = ?)`
+    const decisionValues: Array<string | number> = [request.id, nextStatus, input.expectedRevision + 1, context.userId]
+    const audit = prepareConditionalAudit(c.env.DB, {
+      context: auditContext(context, target),
+      action: input.approve ? 'approve-store-join' : 'reject-store-join', entityType: 'store-join-request', entityId: request.id,
+      businessDate: localBusinessDate(target.timezone), summary: `${input.approve ? '批准' : '拒绝'}加入申请：${applicant.display_name} → ${target.name}`,
+      after: { approved: input.approve, reason: input.reason, targetRole: input.approve ? 'operator' : undefined }, reversible: false
+    }, input.approve
+      ? `${decisionPredicate} AND EXISTS (SELECT 1 FROM store_members WHERE id = ? AND user_id = ? AND store_id = ? AND role = 'operator' AND status = 'active')`
+      : decisionPredicate,
+    input.approve ? [...decisionValues, membershipId, request.user_id, request.store_id] : decisionValues)
+    const statements = input.approve ? [membershipInsert, requestUpdate, audit.statement] : [requestUpdate, audit.statement]
+    const result = await c.env.DB.batch(statements)
+    if (result[0]?.meta?.changes !== 1) throw new ApiProblem(409, 'JOIN_REQUEST_CONFLICT', '该加入申请刚刚被其他操作处理。')
+    if (input.approve && result[1]?.meta?.changes !== 1) throw new ApiProblem(409, 'JOIN_REQUEST_CONFLICT', '该加入申请刚刚被其他操作处理。')
+    return c.json({ ok: true, message: input.approve ? `已批准：${applicant.display_name} 现在可以登录 ${target.name}。` : '已拒绝该加入申请。' })
   })
 
   app.post('/api/v1/governance/directory/:kind', ...protectedWrite, auth.requirePlatformAdmin, async (c) => {

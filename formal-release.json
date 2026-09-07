@@ -1,28 +1,55 @@
 {
   "kind": "formal-production-release",
-  "version": "6.6.11",
+  "version": "6.7.0",
   "previewRange": {
-    "fromExclusive": "84d9ca8fd376789da8c1e1761646b4343bef562f",
-    "toInclusive": "015edfe6cb0301385f69b809c9a4af3d86fe58f0",
+    "fromExclusive": "029d963241330903dc5cbcbcbfaf3a32b41c6c0a",
+    "toInclusive": "c75df673a8fcb73463802ece97f6be91f12a7732",
     "commits": [
       {
-        "sha": "079d23222a89ebddf9eaa1f711447f86b98bd8cc",
-        "subject": "chore(release): stamp V6.6.10 build metadata"
+        "sha": "f1e7e80b124cc6837cf6c78db0ff47cda08a21f6",
+        "subject": "chore(release): stamp V6.6.11 build metadata"
       },
       {
-        "sha": "015edfe6cb0301385f69b809c9a4af3d86fe58f0",
-        "subject": "fix(web): BiStoreWeekTrend 单周数据不再崩溃总览"
+        "sha": "c5c40264b0c3c7f2ade0b7636c80cfcbf5387b10",
+        "subject": "feat(store): 注册可申请加入已有门店（目标店管理员审批）"
+      },
+      {
+        "sha": "2a968b8f8158ee2d5e99df1022fc09166d07dd0b",
+        "subject": "fix(worker): join 审批查询类型补 expires_at"
+      },
+      {
+        "sha": "d467e0724e35f2e5e6df7ddf757c571ab38b720d",
+        "subject": "fix(store): join 申请 revision 从 1 起，对齐 revisionSchema(positive)"
+      },
+      {
+        "sha": "77815c2e56af9847b57f391c4332ad1224381c6a",
+        "subject": "feat(store): 注册双路径——门店下拉加入 + 新店注册平台审核"
+      },
+      {
+        "sha": "c0f5be2632fb397f1a15a1468189ca7b95e6a111",
+        "subject": "fix(shiphub): 连接菜单直接提供本店账号密码提交（不再折叠进\"高级\"）"
+      },
+      {
+        "sha": "bf06569c37835aeb7bcd68e2e30263ead4d2c0a6",
+        "subject": "fix(shiphub): Preview fixture 对话框也渲染本店账号表单（连接禁用）供视觉验收"
+      },
+      {
+        "sha": "c75df673a8fcb73463802ece97f6be91f12a7732",
+        "subject": "style(shiphub): 连接对话框改为登录卡式简洁布局"
       }
     ]
   },
   "announcement": {
-    "title": "修复桌面端总览崩溃",
-    "summary": "BI 周结趋势卡单周数据守卫",
+    "title": "注册双路径与 Shiphub 自助接入",
+    "summary": "门店下拉加入 + 新店平台审核 + Shiphub 本店账号提交",
     "changes": [
-      "修复桌面端总览白屏：BI 周结趋势卡仅有单个已完结周（W36）时计算环比取不到上一周导致崩溃",
-      "单周时趋势卡显示首周文案（次周起展示环比），与副标题口径一致",
-      "新增回归测试，注入旧写法实测变红"
+      "注册页新增门店下拉选择：选择已有门店提交加入申请，由该门店管理员审批（平台管理员兜底）",
+      "新增「没有你的门店？点击此处进行门店注册」入口：新店注册需平台管理员审核，审核通过后开通，首位注册人成为店长",
+      "Shiphub 连接菜单支持直接填写本店账号密码（此前入口折叠在\"高级\"里，新门店无法自助接入）",
+      "Shiphub 凭据以 AES-256-GCM 加密保存到 Cloudflare 本店专属行，自动重连与定时同步只使用本店身份",
+      "Shiphub 连接对话框改为登录卡式简洁布局，已连接门店可随时更换账号并重连",
+      "加入/注册等待状态与登录提示：等待门店审批 / 等待平台审核；账号占用报错新增填写本店账号引导"
     ]
   },
-  "preparedAt": "2026-09-07T07:32:09.400Z"
+  "preparedAt": "2026-09-07T13:35:34.234Z"
 }

@@ -85,7 +85,10 @@ export const registrationOtpSchema = z.object({
   displayName: usernameSchema.optional(),
   email: corporateEmailSchema,
   storeCode: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/u),
-  storeName: z.string().trim().min(1).max(120)
+  storeName: z.string().trim().min(1).max(120),
+  // join = 从门店下拉选择已有门店（加入申请，店长审批）；create = 注册新门店
+  // （平台管理员审核）。缺省 create 以兼容未更新的前端。
+  intent: z.enum(['join', 'create']).optional()
 }).strict()
 export const registrationVerifyOtpSchema = z.object({
   challengeId: uuidSchema,

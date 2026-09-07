@@ -641,3 +641,25 @@ button, input, select, textarea { border-radius: 0; }
 
 /* endfield 主题有自己的环境渐变，不叠加 workshop 品牌黄光斑 */
 .app-runtime.endfield-runtime .env-blob { display: none; }
+
+/* Shiphub 连接对话框：登录卡同款全宽圆角主按钮（bootm-btn-primary 风格） */
+.shiphub-connect-btn {
+  width: 100%;
+  min-height: 3.25rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-size: .9375rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  cursor: pointer;
+  transition: transform 140ms ease, opacity 140ms ease;
+}
+.shiphub-connect-btn:active { transform: scale(.985); }
+.shiphub-connect-btn:disabled { opacity: .45; cursor: default; transform: none; }
+.shiphub-connect-btn--ghost {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+}

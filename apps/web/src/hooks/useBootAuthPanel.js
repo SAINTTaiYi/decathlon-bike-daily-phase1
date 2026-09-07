@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   completeRegistration,
+  getRegistrationStores,
   requestRegistrationOtp,
   verifyRegistrationOtp,
   requestPasswordRecoveryOtp,
@@ -54,11 +55,41 @@ export function useBootAuthPanel({ onRegistered, onRecovered } = {}) {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
+  // 注册双路径：join = 门店下拉选择已有门店（店长审批）；create = 注册新门店（平台管理员审核）。
+  const [registerPath, setRegisterPathState] = useState('join')
+  const [storeOptions, setStoreOptions] = useState([])
+  const [storeOptionsLoading, setStoreOptionsLoading] = useState(false)
+  // 注册完成后不进入工作台：加入等店长审批，新店等平台管理员审核。
+  const [pendingApproval, setPendingApproval] = useState(null)
 
   const clearFeedback = useCallback(() => {
     setError('')
     setNotice('')
   }, [])
+
+  const clearPendingApproval = useCallback(() => setPendingApproval(null), [])
+
+  const setRegisterPath = useCallback((next) => {
+    setRegisterPathState(next === 'create' ? 'create' : 'join')
+    setError('')
+    setNotice('')
+    setForm((current) => ({ ...current, storeCode: '', storeName: '' }))
+  }, [])
+
+  // 进入注册页即拉取门店下拉数据（公开目录，仅编号+名称）
+  useEffect(() => {
+    if (mode !== 'register') return undefined
+    let alive = true
+    setStoreOptionsLoading(true)
+    getRegistrationStores().then((data) => {
+      if (alive) setStoreOptions(Array.isArray(data?.stores) ? data.stores : [])
+    }).catch(() => {
+      if (alive) setStoreOptions([])
+    }).finally(() => {
+      if (alive) setStoreOptionsLoading(false)
+    })
+    return () => { alive = false }
+  }, [mode])
 
   const setField = useCallback((key, value) => {
     setForm((current) => ({ ...current, [key]: value }))
@@ -71,6 +102,7 @@ export function useBootAuthPanel({ onRegistered, onRecovered } = {}) {
     setMode(nextMode)
     setStep(0)
     setChallenge(null)
+    setPendingApproval(null)
     setError('')
     setNotice('')
     setForm((current) => ({
@@ -106,15 +138,21 @@ export function useBootAuthPanel({ onRegistered, onRecovered } = {}) {
 
   const submitRegisterStore = useCallback(async (event) => {
     event?.preventDefault?.()
-    if (!form.storeCode.trim() || !form.storeName.trim()) return setError('请填写门店编号和门店名称。')
+    if (registerPath === 'join') {
+      if (!form.storeCode.trim()) return setError('请选择你的门店。')
+    } else {
+      if (!form.storeCode.trim() || !form.storeName.trim()) return setError('请填写门店编号和门店名称。')
+    }
     if (!form.username.trim() || !form.email.trim()) return setError('请填写 Profile 和公司邮箱。')
 
+    const selected = storeOptions.find((store) => store.code === form.storeCode.trim())
     const result = await run(() => requestRegistrationOtp({
       storeCode: form.storeCode.trim(),
-      storeName: form.storeName.trim(),
+      storeName: registerPath === 'join' ? (selected?.name || form.storeCode.trim()) : form.storeName.trim(),
       username: form.username.trim(),
       displayName: form.displayName.trim() || form.username.trim(),
-      email: form.email.trim()
+      email: form.email.trim(),
+      intent: registerPath
     }), '验证码暂时无法发送。')
 
     if (!result.ok) return undefined
@@ -124,7 +162,7 @@ export function useBootAuthPanel({ onRegistered, onRecovered } = {}) {
     }
     setNotice(result.data?.message || '验证码已发送，请检查公司邮箱。')
     return undefined
-  }, [form, run])
+  }, [form, registerPath, storeOptions, run])
 
   const submitRegisterOtp = useCallback(async (event) => {
     event?.preventDefault?.()
@@ -155,6 +193,14 @@ export function useBootAuthPanel({ onRegistered, onRecovered } = {}) {
     }), '注册未完成，请重新开始。')
     if (!result.ok) return undefined
 
+    if (result.data?.joinPending) {
+      setPendingApproval({ kind: 'join', storeName: result.data.storeName || '', storeCode: result.data.storeCode || '', message: result.data.message || '' })
+      return undefined
+    }
+    if (result.data?.storeReviewPending) {
+      setPendingApproval({ kind: 'review', storeName: result.data.storeName || '', storeCode: result.data.storeCode || '', message: result.data.message || '' })
+      return undefined
+    }
     onRegistered?.(result.data)
     return undefined
   }, [challenge, form.password, form.confirmPassword, run, onRegistered])
@@ -234,9 +280,11 @@ export function useBootAuthPanel({ onRegistered, onRecovered } = {}) {
     return '登录并进入'
   }, [busy, mode, step])
 
-  const title = mode === 'register' ? '登记并开通门店' : mode === 'recover' ? '找回登录密码' : ''
+  const title = mode === 'register' ? '加入门店或注册新店' : mode === 'recover' ? '找回登录密码' : ''
   const hint = mode === 'register'
-    ? '门店无需预先建档。首位完成注册的人成为该门店管理员。'
+    ? (registerPath === 'join'
+      ? '选择你所在的门店，加入申请将由该门店管理员审批。'
+      : '新门店需要平台管理员审核后开通，首位注册人成为门店管理员。')
     : mode === 'recover'
       ? '验证码只发送到账号绑定的公司邮箱。'
       : ''
@@ -249,6 +297,12 @@ export function useBootAuthPanel({ onRegistered, onRecovered } = {}) {
     error,
     notice,
     busy,
+    registerPath,
+    setRegisterPath,
+    storeOptions,
+    storeOptionsLoading,
+    pendingApproval,
+    clearPendingApproval,
     title,
     hint,
     primaryLabel,
