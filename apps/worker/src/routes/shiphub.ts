@@ -6,8 +6,9 @@ import { businessDateFor, prepareAudit } from '../services/business.js'
 import { requireJsonBody } from '../lib/json.js'
 import { ShipHubUpstreamError, type ShipHubCategory } from '../lib/shiphub-client.js'
 import { completeShipHubAuthorization, createShipHubAuthorization, shipHubIdentityFingerprint } from '../lib/shiphub-oauth.js'
-import { encryptShipHubSecret } from '../lib/shiphub-crypto.js'
-import { performShipHubProgrammaticLogin } from '../lib/shiphub-login.js'
+import { decryptShipHubSecret, encryptShipHubSecret } from '../lib/shiphub-crypto.js'
+import { performShipHubProgrammaticLogin, splitEncryptedBlob } from '../lib/shiphub-login.js'
+import { getCubeIdentityInfo, isCubeIdentityConfigured, probeStoreCubeIdentity } from '../services/cube-identity.js'
 import { first, nowIso } from '../db.js'
 import { idempotent } from '../services/idempotency.js'
 import { ApiProblem } from '../services/problems.js'
@@ -72,7 +73,12 @@ export function shipHubRoutes() {
 
   app.get('/api/v1/settings/shiphub', ...managerRead, async (c) => {
     const context = c.get('auth')!
-    return c.json({ enabled: c.get('config').SHIPHUB.enabled, connection: await getShipHubConnection(c.env.DB, context.storeId) })
+    // cubeAuth：本店账密派生 Cube 身份（BI/perfeco 链路）的公开状态，供连接卡展示。
+    return c.json({
+      enabled: c.get('config').SHIPHUB.enabled,
+      connection: await getShipHubConnection(c.env.DB, context.storeId),
+      cubeAuth: await getCubeIdentityInfo(c.env.DB, context.storeId)
+    })
   })
 
   // 权限拆分：重连（复用已存本店凭据）允许门店任意角色（含操作员）；
@@ -98,11 +104,35 @@ export function shipHubRoutes() {
     }
     const key = config.SHIPHUB.tokenEncryptionKey
     if (!key) throw new ShipHubUpstreamError('TOKEN_ENCRYPTION_NOT_CONFIGURED')
-    const [loginUsernameEnc, loginPasswordEnc] = perStoreLogin && storeUsername && storePassword
-      ? await Promise.all([encryptShipHubSecret(storeUsername, key), encryptShipHubSecret(storePassword, key)])
+    // 本店凭据必须用 loginKey 加密（同步/自愈/Cube 身份派生均以 loginKey 解密；
+    // tokenEncryptionKey 只管 refresh token，两把密钥职责绝不混用）。
+    if (perStoreLogin && !config.SHIPHUB.loginKey) throw new ApiProblem(503, 'LOGIN_KEY_NOT_CONFIGURED', '服务端尚未配置凭据加密密钥，无法保存本店账号。')
+    const [loginUsernameEnc, loginPasswordEnc] = perStoreLogin && storeUsername && storePassword && config.SHIPHUB.loginKey
+      ? await Promise.all([encryptShipHubSecret(storeUsername, config.SHIPHUB.loginKey), encryptShipHubSecret(storePassword, config.SHIPHUB.loginKey)])
       : [null, null]
+    // 重连（无新提交）优先复用本店已存凭据；部署级共享凭据仅当本店无凭据时兜底
+    // （凭据属于谁就只拉谁，绝不让他店悄悄用共享凭据顶替本店身份）。
+    let storedCredentials: { username: string; password: string } | null = null
+    if (!perStoreLogin && config.SHIPHUB.loginKey) {
+      const stored = await first<{ login_username_enc: string | null; login_password_enc: string | null }>(
+        c.env.DB.prepare('SELECT login_username_enc, login_password_enc FROM shiphub_connections WHERE store_id = ?').bind(context.storeId)
+      )
+      if (stored?.login_username_enc && stored?.login_password_enc) {
+        try {
+          const userBlob = splitEncryptedBlob(stored.login_username_enc)
+          const passBlob = splitEncryptedBlob(stored.login_password_enc)
+          storedCredentials = {
+            username: await decryptShipHubSecret(userBlob.ciphertext, userBlob.nonce, config.SHIPHUB.loginKey),
+            password: await decryptShipHubSecret(passBlob.ciphertext, passBlob.nonce, config.SHIPHUB.loginKey)
+          }
+        } catch { /* 历史密文损坏 → 回退部署级共享凭据（下一轮连接会以新凭据覆盖） */ }
+      }
+    }
+    const resolvedCredentials = perStoreLogin && storeUsername && storePassword
+      ? { username: storeUsername, password: storePassword }
+      : storedCredentials
     const effectiveLocationNum = login?.locationNum?.trim() || config.SHIPHUB.locationNum?.trim() || null
-    const fingerprint = await shipHubIdentityFingerprint(effectiveLocationNum, perStoreLogin ? storeUsername : undefined)
+    const fingerprint = await shipHubIdentityFingerprint(effectiveLocationNum, resolvedCredentials?.username)
     // 同一上游身份只允许一个门店连接：拒绝把共享账号连接到第二家店（历史事故根因）
     if (fingerprint) {
       const conflicting = await first<{ store_code: string }>(c.env.DB.prepare(`
@@ -116,9 +146,9 @@ export function shipHubRoutes() {
     }
     // 程序化登录（推荐）：优先本店独立账号；未提供时用部署级共享凭据（CF secret），
     // 服务端自动完成 PingFederate 登录与 OAuth code 交换，无需浏览器跳转。
-    if (config.SHIPHUB.loginKey && (config.SHIPHUB.loginUsernameEnc && config.SHIPHUB.loginPasswordEnc || perStoreLogin)) {
+    if (config.SHIPHUB.loginKey && (config.SHIPHUB.loginUsernameEnc && config.SHIPHUB.loginPasswordEnc || perStoreLogin || storedCredentials)) {
       try {
-        const token = await performShipHubProgrammaticLogin(config.SHIPHUB, perStoreLogin && storeUsername && storePassword ? { username: storeUsername, password: storePassword } : undefined)
+        const token = await performShipHubProgrammaticLogin(config.SHIPHUB, resolvedCredentials ?? undefined)
         if (!token.refreshToken) throw new ShipHubUpstreamError('OAUTH_REFRESH_TOKEN_MISSING')
         const encrypted = await encryptShipHubSecret(token.refreshToken, key)
         const stamp = nowIso()
@@ -146,6 +176,12 @@ export function shipHubRoutes() {
               login_key_version = COALESCE(excluded.login_key_version, shiphub_connections.login_key_version),
               location_num = COALESCE(excluded.location_num, shiphub_connections.location_num),
               identity_fingerprint = COALESCE(excluded.identity_fingerprint, shiphub_connections.identity_fingerprint),
+              cube_token_ciphertext = CASE WHEN excluded.login_username_enc IS NOT NULL THEN NULL ELSE shiphub_connections.cube_token_ciphertext END,
+              cube_token_nonce = CASE WHEN excluded.login_username_enc IS NOT NULL THEN NULL ELSE shiphub_connections.cube_token_nonce END,
+              cube_token_key_version = CASE WHEN excluded.login_username_enc IS NOT NULL THEN NULL ELSE shiphub_connections.cube_token_key_version END,
+              cube_token_expires_at = CASE WHEN excluded.login_username_enc IS NOT NULL THEN NULL ELSE shiphub_connections.cube_token_expires_at END,
+              cube_auth_status = CASE WHEN excluded.login_username_enc IS NOT NULL THEN 'pending' ELSE shiphub_connections.cube_auth_status END,
+              cube_auth_error_code = CASE WHEN excluded.login_username_enc IS NOT NULL THEN NULL ELSE shiphub_connections.cube_auth_error_code END,
               token_expires_at = excluded.token_expires_at, token_updated_at = excluded.token_updated_at,
               authorization_status = 'connected', last_auth_error_code = NULL, updated_at = excluded.updated_at
           `).bind(context.storeId, encrypted.ciphertext, encrypted.nonce, loginUsernameEnc, loginPasswordEnc, loginUsernameEnc ? 'v1' : null, effectiveLocationNum, fingerprint, token.expiresAt, stamp, stamp, stamp),
@@ -155,6 +191,12 @@ export function shipHubRoutes() {
         if (waitUntil) {
           for (const selected of ['hand', 'pick', 'receive', 'ship'] as const) {
             waitUntil(syncStoreCategory(c.env.DB, config, context.storeId, selected, { trigger: 'authorization' }))
+          }
+          // Cube 身份探测（2026-09-08）：本店凭据就绪后异步试登 oxylane IdP，
+          // 结果（available/unavailable+错误码）写连接行——BI 面板据此展示
+          // 「数据身份可用/未开通」。失败静默降级，绝不拖垮 Shiphub 主链路。
+          if (resolvedCredentials && isCubeIdentityConfigured(config)) {
+            waitUntil(probeStoreCubeIdentity(c.env, context.storeId).catch(() => {}))
           }
         }
         return c.json({ connected: true, mode: 'live' })
@@ -208,6 +250,8 @@ export function shipHubRoutes() {
         db.prepare(`
           UPDATE shiphub_connections SET enabled = 0, refresh_token_ciphertext = NULL, refresh_token_nonce = NULL,
             refresh_token_key_version = NULL, token_expires_at = NULL, token_updated_at = NULL,
+            cube_token_ciphertext = NULL, cube_token_nonce = NULL, cube_token_key_version = NULL, cube_token_expires_at = NULL,
+            cube_auth_status = NULL, cube_auth_error_code = NULL, cube_auth_checked_at = NULL,
             authorization_status = 'disconnected', last_auth_error_code = NULL, updated_at = ?
           WHERE store_id = ?
         `).bind(stamp, context.storeId),

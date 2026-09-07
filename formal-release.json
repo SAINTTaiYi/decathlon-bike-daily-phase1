@@ -1,32 +1,29 @@
 {
   "kind": "formal-production-release",
-  "version": "6.7.1",
+  "version": "6.7.2",
   "previewRange": {
-    "fromExclusive": "b557fd051c180bce6f863dd3b1b3475e11eb28d2",
-    "toInclusive": "2f1635e4889613698fa7b8e7086f220883c00945",
+    "fromExclusive": "b2e49bc5b8b705fdb9c3c3e1313ab42e0a8f57bf",
+    "toInclusive": "b9d7e7262299ac668050df15d0419164cf2c07c4",
     "commits": [
       {
-        "sha": "f4a350e6b59e90cc4fcb604560e868d731c3c853",
-        "subject": "chore(release): stamp V6.7.0 build metadata"
+        "sha": "cb3b4f02ded86c806c4541527bc42d9c7799f1db",
+        "subject": "chore(release): stamp V6.7.1 build metadata"
       },
       {
-        "sha": "fba84c974ffede0ce46a84473f5b305ac60ba3d2",
-        "subject": "feat(shiphub): 定位脚本引导卡可收起为单行提示"
-      },
-      {
-        "sha": "2f1635e4889613698fa7b8e7086f220883c00945",
-        "subject": "fix(shiphub): 修复引导卡收起后单行条隐形"
+        "sha": "b9d7e7262299ac668050df15d0419164cf2c07c4",
+        "subject": "feat(cube): per-store Cube identity derived from Shiphub credentials"
       }
     ]
   },
   "announcement": {
-    "title": "Shiphub 定位脚本提示可收起",
-    "summary": "定位脚本检测卡片支持一键收起为单行提示，不再占用页面空间；收起状态在本次会话内保持。",
+    "title": "门店数据身份自助接入",
+    "summary": "门店提交本店 ShipHub 账密后自动派生三链路身份：Shiphub 同步、Cube BI 销量与周报、KPI 自动填写，凭据属于谁就只拉谁",
     "changes": [
-      "Shiphub 定位脚本提示卡右上新增关闭按钮，收起后缩成单行提示，点击可随时展开",
-      "收起状态本次会话内记住，切换分类或刷新页面不再重复弹出",
-      "修复收起后单行提示可能不显示的问题"
+      "门店提交本店 ShipHub 账密后，同一凭据自动登录 BI 系统完成销量/周报/安全检查数据接入",
+      "连接卡新增数据身份状态（可用/探测中/未开通），未开通不影响 Shiphub 使用",
+      "重连优先复用本店已存凭据；换账号自动作废旧数据身份",
+      "修复本店凭据加密密钥与自愈解密密钥不一致的隐患"
     ]
   },
-  "preparedAt": "2026-09-07T16:16:01.702Z"
+  "preparedAt": "2026-09-07T18:49:33.131Z"
 }

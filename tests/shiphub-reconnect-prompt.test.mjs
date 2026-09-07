@@ -209,3 +209,16 @@ test('Shiphub 后端：身份互斥错误必须引导新店填写自己的账号
   const route = await readFile(new URL('../apps/worker/src/routes/shiphub.ts', import.meta.url), 'utf8')
   assert.match(route, /SHIPHUB_IDENTITY_IN_USE.*?请在上方填写你门店自己的 ShipHub 账号后重试/u)
 })
+
+// ── Cube 身份派生（2026-09-08）：连接卡必须透出本店数据身份状态 ──
+test('ShipHubSettingsDialog：cubeAuth 状态行三态渲染（仅本店已提交凭据时显示）', async () => {
+  const src = await read('apps/web/src/components/dialogs/ShipHubSettingsDialog.jsx')
+  assert.match(src, /shiphub\?\.summary\?\.cubeAuth\?\.hasCredentials \?/u, '必须以 hasCredentials 为显示门控（1299 白名单零回归）')
+  assert.match(src, /data-cube-auth=\{shiphub\.summary\.cubeAuth\.status\}/u, '状态值必须挂 data-cube-auth 供测试/样式钩子')
+  assert.match(src, /数据身份可用/u)
+  assert.match(src, /数据身份探测中/u)
+  assert.match(src, /BI 数据身份未开通/u, '失败态必须明示不影响 Shiphub 使用')
+  // worker：summary 必须透出 cubeAuth
+  const sync = await readFile(new URL('../apps/worker/src/services/shiphub-sync.ts', import.meta.url), 'utf8')
+  assert.match(sync, /cubeAuth: await getCubeIdentityInfo\(db, storeId\)/u)
+})

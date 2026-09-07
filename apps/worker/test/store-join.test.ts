@@ -98,8 +98,8 @@ test('迁移 0026 纯新增，schema 版本与测试适配器同步', () => {
   assert.match(migration, /CREATE INDEX store_join_requests_user_idx ON store_join_requests\(user_id, status\)/u)
   // 非破坏性：不得触碰既有表。
   assert.doesNotMatch(migration, /ALTER TABLE|DROP TABLE|DROP INDEX/u)
-  assert.match(schemaVersion, /'0026_store_join_requests'/u)
-  assert.match(adapter, /'0026_store_join_requests\.sql'/u)
+  assert.match(schemaVersion, /'0027_shiphub_cube_identity'/u)
+  assert.match(adapter, /'0027_shiphub_cube_identity\.sql'/u)
 })
 
 test('契约：intent 显式分流（join=下拉加入 / create=新店注册）', () => {

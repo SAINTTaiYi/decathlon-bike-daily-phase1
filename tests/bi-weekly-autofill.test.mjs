@@ -26,13 +26,15 @@ test('bi-weekly：窗口 09–23 北京时间、完结周口径、基线 W36、�
   assert.match(svc, /7 \* 86400_000/u)
 })
 
-test('门店白名单：cron fail-closed + 五个门店数据端点门禁（凭据=1299）', async () => {
+test('门店门禁：白名单 ∪ 本店 Cube 凭据（per-store 派生，2026-09-08）', async () => {
   const svc = await readWorker('services/bi-weekly.ts')
   const env = await readWorker('env.ts')
   assert.match(svc, /syncStoreCodes/u, 'cron 必须读白名单')
   assert.match(env, /BI_SYNC_STORE_CODES/u, '环境变量必须声明白名单')
-  assert.match(svc, /if \(!whitelist\.size\) return/u, '未配置白名单必须整体禁用（fail-closed）')
-  assert.match(svc, /whitelist\.has\(store\.code\)/u, '白名单外门店必须跳过')
+  // fail-closed：白名单外且无本店凭据的门店必须跳过（whitelisted && has_login 双条件）
+  assert.match(svc, /if \(!whitelisted && !store\.has_login\) continue/u, '白名单外且无本店凭据的门店必须跳过')
+  assert.match(svc, /login_username_enc IS NOT NULL AND c\.login_password_enc IS NOT NULL/u, 'cron 必须按本店凭据列判断')
+  assert.match(svc, /lazyStoreCubeJwt\(env, store\.id\)/u, 'per-store 店必须用本店 Cube 身份')
   assert.match(env, /syncStoreCodes: string\[\]/u)
   const route = await readWorker('routes/bi.ts')
   let gates = 0
@@ -40,10 +42,15 @@ test('门店白名单：cron fail-closed + 五个门店数据端点门禁（凭�
     const idx = route.indexOf(`/api/v1/bi/${ep}`)
     assert.ok(idx > 0, `${ep} 路由存在`)
     const chunk = route.slice(idx, idx + 600)
-    assert.match(chunk, /storeAllowed\(loadConfig\(c\.env\), context\.storeCode\)/u, `${ep} 必须有门店门禁`)
+    assert.match(chunk, /resolveStoreJwtProvider\(c\.env, loadConfig\(c\.env\), context\.storeId, context\.storeCode\)/u, `${ep} 必须走门店身份解析门禁`)
+    assert.match(chunk, /if \(!(jwtProvider|gate)\) return c\.json\(\{ available: false \}\)/u, `${ep} 身份缺失必须 available:false`)
     gates += 1
   }
   assert.equal(gates, 5)
+  // 身份解析语义：白名单 → 部署级共享凭据；其它店 → 本店 Cube 身份（fail-closed）
+  assert.match(route, /if \(storeAllowed\(config, storeCode\)\) return lazyLoginJwt\(env\)/u, '白名单店走部署级共享凭据')
+  assert.match(route, /if \(!info\.hasCredentials\) return null/u, '无本店凭据必须 fail-closed')
+  assert.match(route, /return lazyStoreCubeJwt\(env, storeId\)/u, '有本店凭据走 per-store 派生')
   // 全局商品分类端点不受门店门禁（vehicles/vehicle-models 是品名数据非门店经营数据）
   for (const ep of ['vehicles', 'vehicle-models']) {
     const idx = route.indexOf(`/api/v1/bi/${ep}`)
@@ -62,7 +69,7 @@ test('getStoreWeeks 路由 + schema 0025 落地', async () => {
   assert.match(route, /app\.get\('\/api\/v1\/bi\/store\/weeks'/u)
   assert.match(route, /listBiStoreWeeks/u)
   const schema = await readWorker('schema-version.ts')
-  assert.match(schema, /'0026_store_join_requests'/u)
+  assert.match(schema, /'0027_shiphub_cube_identity'/u)
   const migration = await readFile(new URL('../migrations/d1/0025_bi_weekly_service_snapshots.sql', import.meta.url), 'utf8')
   assert.match(migration, /CREATE TABLE bi_store_week/u)
   assert.match(migration, /CREATE TABLE bi_service_day/u)
@@ -127,7 +134,7 @@ test('桌面 BiStoreWeekTrend：单周也渲染（首周出值，次周起环比
   const mobile = await read('components/overview/BiSalesMobile.jsx')
   assert.match(mobile, /拉取于 \$\{new Intl\.DateTimeFormat/u, '移动卡必须展示拉取时间')
   const route = await readWorker('routes/bi.ts')
-  assert.match(route, /const jwtProvider = lazyLoginJwt\(c\.env\)/u, 'bikes/day 必须共享 JWT provider')
+  assert.match(route, /const jwtProvider = await resolveStoreJwtProvider\(c\.env, loadConfig\(c\.env\), context\.storeId, context\.storeCode\)/u, 'bikes/day 必须解析门店身份 provider')
   assert.match(route, /businessDate, jwtProvider \}\)/u, '附加链路必须接收共享 provider')
   const svc = await readWorker('services/bi-bikes.ts')
   assert.match(svc, /options\.jwtProvider \?\? lazyLoginJwt\(env\)/u)
