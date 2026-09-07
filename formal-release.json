@@ -1,26 +1,39 @@
 {
   "kind": "formal-production-release",
-  "version": "6.7.4",
+  "version": "6.7.5",
   "previewRange": {
-    "fromExclusive": "1a51025a865a536f8e0f397be439016d6114f54b",
-    "toInclusive": "74408f2e8b2cd7fa96dc99bfd002e7a8399d3c5c",
+    "fromExclusive": "df404f826efeedd36b8c7c0a932f871f494e553a",
+    "toInclusive": "4cc63e8ccf277e1d173a3e8ea5e38b636fb8dd37",
     "commits": [
       {
-        "sha": "9faf9ee7b0d558e06eef41f2b05e7da6e23db9c5",
-        "subject": "chore(release): stamp V6.7.3 build metadata"
+        "sha": "ec99a38da1be88d6849a065cca44a63369142229",
+        "subject": "chore(release): stamp V6.7.4 build metadata"
       },
       {
-        "sha": "74408f2e8b2cd7fa96dc99bfd002e7a8399d3c5c",
-        "subject": "fix(shiphub): per-store 凭据以 ciphertext.nonce blob 入库 (#255)"
+        "sha": "bb216e92ca2be2fc63f756fb4ce6c892c5876ab4",
+        "subject": "feat(boundary): 门店数据边界铁律——白名单与部署级账密废除，快照按归属门控"
+      },
+      {
+        "sha": "63bb69dbd6d30ad3706a3c97d4c5587f4c30bdb9",
+        "subject": "fix(boot): 注册门店下拉在移动端透明穿模"
+      },
+      {
+        "sha": "4cc63e8ccf277e1d173a3e8ea5e38b636fb8dd37",
+        "subject": "fix(boot): 门店下拉穿模第二击——全局主题 !important 泄漏收窄"
       }
     ]
   },
   "announcement": {
-    "title": "per-store 凭据入库修复",
-    "summary": "修复本店凭据对象直 bind 导致的 D1_TYPE_ERROR，per-store connect 首次真正可用",
+    "title": "门店数据边界与自助接入",
+    "summary": "门店数据边界铁律落地：BI/Shiphub/Cube 全链只认本店提交的账号，白名单与部署级账密废除；快照按归属门店门控",
     "changes": [
-      "本店凭据以 ciphertext.nonce blob 字符串入库，修复 connect 持续 503"
+      "门店提交本店 ShipHub 账密后自动派生三链路身份（Shiphub 同步、BI 销量/周报、KPI 自动填写）",
+      "BI 快照卡只对数据归属门店渲染，其它门店只看本店动态数据（fail-closed）",
+      "BI 同步白名单机制废除：无本店凭据的门店绝不拉取（含部署凭据配置齐全时）",
+      "门店数据函数凭据必传（类型层面杜绝静默回退部署级共享凭据）",
+      "修复移动端注册门店下拉透明穿模（菜单绝对定位实底+全局主题泄漏收窄）",
+      "边界回归测试 6 例 + CI 自动化（新接入 API 三件套断言门槛）"
     ]
   },
-  "preparedAt": "2026-09-07T19:32:14.404Z"
+  "preparedAt": "2026-09-07T20:48:24.931Z"
 }
