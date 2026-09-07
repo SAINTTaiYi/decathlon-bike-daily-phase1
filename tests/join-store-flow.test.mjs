@@ -96,3 +96,31 @@ test('治理区新标记只复用既有样式类', async () => {
     assert.ok(css.includes('.' + cls), `${cls} 缺少样式`)
   }
 })
+
+// ── 门店下拉穿模修复（2026-09-08 用户报障：选择框透明、选项穿模）──
+test('注册门店下拉：boot 语境 trigger 无边线灰底融合 + 菜单绝对定位限高实底', async () => {
+  const fields = await read('components/boot/BootAuthStepFields.jsx')
+  assert.match(fields, /<ProjectSelect/u, '注册 join 路径必须使用 ProjectSelect')
+  const need = (css, frag, label) => assert.ok(css.includes(frag), `${label} 缺少：${frag}`)
+  for (const [cssFile, box] of [
+    ['styles/boot-mobile.css', 'bootm'],
+    ['styles/boot-desktop.css', 'bootd']
+  ]) {
+    const css = await read(cssFile)
+    const menuIdx = css.indexOf(`.${box}-input-box .project-select-menu {`)
+    assert.ok(menuIdx > 0, `${cssFile} 必须有 ${box} 下拉菜单适配块`)
+    const menuBlock = css.slice(menuIdx, css.indexOf('}', css.indexOf('overscroll-behavior', menuIdx)) + 1)
+    const trigIdx = css.indexOf(`.${box}-input-box .project-select-trigger {`)
+    assert.ok(trigIdx > 0, `${cssFile} 必须有 ${box} trigger 适配块`)
+    const trigBlock = css.slice(trigIdx, css.indexOf('}', trigIdx) + 1)
+    // trigger：清除通用样式的深色下划线（灰底输入盒里读作透明异样框）
+    need(trigBlock, 'border-bottom: 0', `${cssFile} trigger`)
+    // 菜单：绝对定位（不在文档流内被卡片 overflow:hidden 裁剪穿模）
+    need(menuBlock, 'position: absolute', `${cssFile} 菜单`)
+    need(menuBlock, 'max-height:', `${cssFile} 菜单限高`)
+    need(menuBlock, 'overflow-y: auto', `${cssFile} 菜单滚动`)
+    need(menuBlock, 'background: #fff', `${cssFile} 菜单实底`)
+    assert.ok(!menuBlock.includes('var(--surface-raised)'), `${cssFile} 菜单不得依赖 boot 语境缺失的 token`)
+  }
+})
+
