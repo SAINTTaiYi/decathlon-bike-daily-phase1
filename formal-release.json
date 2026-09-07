@@ -1,55 +1,32 @@
 {
   "kind": "formal-production-release",
-  "version": "6.7.0",
+  "version": "6.7.1",
   "previewRange": {
-    "fromExclusive": "029d963241330903dc5cbcbcbfaf3a32b41c6c0a",
-    "toInclusive": "c75df673a8fcb73463802ece97f6be91f12a7732",
+    "fromExclusive": "b557fd051c180bce6f863dd3b1b3475e11eb28d2",
+    "toInclusive": "2f1635e4889613698fa7b8e7086f220883c00945",
     "commits": [
       {
-        "sha": "f1e7e80b124cc6837cf6c78db0ff47cda08a21f6",
-        "subject": "chore(release): stamp V6.6.11 build metadata"
+        "sha": "f4a350e6b59e90cc4fcb604560e868d731c3c853",
+        "subject": "chore(release): stamp V6.7.0 build metadata"
       },
       {
-        "sha": "c5c40264b0c3c7f2ade0b7636c80cfcbf5387b10",
-        "subject": "feat(store): 注册可申请加入已有门店（目标店管理员审批）"
+        "sha": "fba84c974ffede0ce46a84473f5b305ac60ba3d2",
+        "subject": "feat(shiphub): 定位脚本引导卡可收起为单行提示"
       },
       {
-        "sha": "2a968b8f8158ee2d5e99df1022fc09166d07dd0b",
-        "subject": "fix(worker): join 审批查询类型补 expires_at"
-      },
-      {
-        "sha": "d467e0724e35f2e5e6df7ddf757c571ab38b720d",
-        "subject": "fix(store): join 申请 revision 从 1 起，对齐 revisionSchema(positive)"
-      },
-      {
-        "sha": "77815c2e56af9847b57f391c4332ad1224381c6a",
-        "subject": "feat(store): 注册双路径——门店下拉加入 + 新店注册平台审核"
-      },
-      {
-        "sha": "c0f5be2632fb397f1a15a1468189ca7b95e6a111",
-        "subject": "fix(shiphub): 连接菜单直接提供本店账号密码提交（不再折叠进\"高级\"）"
-      },
-      {
-        "sha": "bf06569c37835aeb7bcd68e2e30263ead4d2c0a6",
-        "subject": "fix(shiphub): Preview fixture 对话框也渲染本店账号表单（连接禁用）供视觉验收"
-      },
-      {
-        "sha": "c75df673a8fcb73463802ece97f6be91f12a7732",
-        "subject": "style(shiphub): 连接对话框改为登录卡式简洁布局"
+        "sha": "2f1635e4889613698fa7b8e7086f220883c00945",
+        "subject": "fix(shiphub): 修复引导卡收起后单行条隐形"
       }
     ]
   },
   "announcement": {
-    "title": "注册双路径与 Shiphub 自助接入",
-    "summary": "门店下拉加入 + 新店平台审核 + Shiphub 本店账号提交",
+    "title": "Shiphub 定位脚本提示可收起",
+    "summary": "定位脚本检测卡片支持一键收起为单行提示，不再占用页面空间；收起状态在本次会话内保持。",
     "changes": [
-      "注册页新增门店下拉选择：选择已有门店提交加入申请，由该门店管理员审批（平台管理员兜底）",
-      "新增「没有你的门店？点击此处进行门店注册」入口：新店注册需平台管理员审核，审核通过后开通，首位注册人成为店长",
-      "Shiphub 连接菜单支持直接填写本店账号密码（此前入口折叠在\"高级\"里，新门店无法自助接入）",
-      "Shiphub 凭据以 AES-256-GCM 加密保存到 Cloudflare 本店专属行，自动重连与定时同步只使用本店身份",
-      "Shiphub 连接对话框改为登录卡式简洁布局，已连接门店可随时更换账号并重连",
-      "加入/注册等待状态与登录提示：等待门店审批 / 等待平台审核；账号占用报错新增填写本店账号引导"
+      "Shiphub 定位脚本提示卡右上新增关闭按钮，收起后缩成单行提示，点击可随时展开",
+      "收起状态本次会话内记住，切换分类或刷新页面不再重复弹出",
+      "修复收起后单行提示可能不显示的问题"
     ]
   },
-  "preparedAt": "2026-09-07T13:35:34.234Z"
+  "preparedAt": "2026-09-07T16:16:01.702Z"
 }
