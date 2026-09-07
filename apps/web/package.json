@@ -1,6 +1,6 @@
 {
   "name": "@bike-ops/web",
-  "version": "6.6.10",
+  "version": "6.6.11",
   "private": true,
   "type": "module",
   "scripts": {
