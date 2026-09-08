@@ -502,7 +502,8 @@ export async function syncStoreCategory(
         return syncStoreCategory(db, config, storeId, category, {
           ...options,
           batchId: options.batchId ?? uuid(),
-          now: new Date(),
+          // 沿用调用方注入的时间基准（测试/回放可确定）；未注入才取真实时钟。
+          now: options.now ?? new Date(),
           retriedAfterRelogin: true
         })
       }
