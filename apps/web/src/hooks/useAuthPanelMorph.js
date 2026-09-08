@@ -62,6 +62,13 @@ export function useAuthPanelMorph({ transitionKey, cardRef, bodyRef, itemSelecto
       onComplete: () => {
         // 清掉内联高度，交还给正常文档流；否则后续内容变化会被锁死
         gsap.set(card, { clearProps: 'height,overflow' })
+        // GSAP 的 y / autoAlpha 补间会在元素上残留内联 transform
+        // （哪怕收尾值是恒等 translate(0,0)）。CSS 里 transform 恒等值
+        // 也会创建层叠上下文：body 与每个字段 item 各自成层，卡内浮层
+        // （注册门店下拉菜单 z:40）被困在自己字段的上下文里，被 DOM
+        // 顺序更靠后的字段（Profile / 显示名 / 邮箱）盖住。
+        // 收尾把内联样式统一交还，避免泄漏；打断的旧时间线被 kill
+        // 不会走到这里，新时间线的 onComplete 会兜底清干净。
       }
     })
     tlRef.current = tl
@@ -75,13 +82,19 @@ export function useAuthPanelMorph({ transitionKey, cardRef, bodyRef, itemSelecto
       )
     }
 
-    tl.fromTo(body, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.42 }, 0.04)
+    /* GSAP 的 y / autoAlpha 补间收尾后会在元素上残留内联 transform
+       （恒等 translate(0,0) 也是 transform）。CSS 规范里 transform 恒等值
+       依旧创建层叠上下文：body 与每个字段 item 各自成层，卡内浮层
+       （注册「选择门店」下拉菜单 z:40）被困在自己字段的上下文里，被 DOM
+       顺序更靠后的字段（Profile / 显示名 / 邮箱）盖住——门店选项因此
+       「错乱」。clearProps 在每个元素补间完成时交还样式，动画期间不受影响。 */
+    tl.fromTo(body, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.42, clearProps: 'transform,opacity,visibility' }, 0.04)
 
     if (items.length) {
       tl.fromTo(
         items,
         { autoAlpha: 0, y: 12 },
-        { autoAlpha: 1, y: 0, duration: 0.4, stagger: 0.05 },
+        { autoAlpha: 1, y: 0, duration: 0.4, stagger: 0.05, clearProps: 'transform,opacity,visibility' },
         0.12
       )
     }
