@@ -104,7 +104,7 @@ test('useShipHub 支持 pick 分类并在同步后刷新全部四类', () => {
   assert.match(hook, /const EMPTY = \{ hand: \[\], pick: \[\], receive: \[\], ship: \[\] \}/u)
   assert.match(hook, /const CATEGORIES = \['hand', 'pick', 'receive', 'ship'\]/u)
   assert.match(hook, /if \(!enabled \|\| !CATEGORIES\.includes\(category\)\) return \[\]/u)
-  // \u540c\u6b65\u540e\u7b49\u56db\u7c7b\u771f\u6b63\u56de\u635e\u5b8c\u624d\u89e3\u9664\u6309\u94ae\u7981\u7528\uff08\u4e0d\u80fd fire-and-forget\uff0c\u5426\u5219\u65cb\u8f6c\u52a8\u6548\u63d0\u524d\u7ed3\u675f\uff09
+  // 同步后等四类真正回执完才解除按钮禁用（不能 fire-and-forget，否则旋转动效提前结束）
   assert.match(hook, /await Promise\.all\(CATEGORIES\.map\(\(category\) => loadOrders\(category\)\)\)/u)
 })
 
@@ -155,13 +155,19 @@ test('待取车看板展示连接状态，未连接时提示手动重连', () =>
   assert.match(ledger, /onOpenConnection=\{onOpenShipHubSettings\}/u)
 })
 
-test('cron 同步前自愈 reauth_required 连接，并按门店节流', () => {
-  assert.match(sync, /const SELF_HEAL_COOLDOWN_MS = 30 \* 60_000/u)
+test('cron 同步前自愈 reauth_required 连接，冷却用专用列（2026-09-08 事故）', () => {
+  // 事故：冷却复用 updated_at，cube token 每小时刷新/手动同步失败都写那列，
+  // 30 分钟冷却被推成 40-45 分钟，token 死亡期间看板整段停摆。
+  assert.doesNotMatch(sync, /SELF_HEAL_COOLDOWN_MS/u, '旧常量必须删除（复用 updated_at 的事故写法）')
+  assert.match(sync, /const HEAL_RETRY_MS = 5 \* 60_000/u)
+  assert.match(sync, /const SELF_HEAL_BACKOFF_MS = 30 \* 60_000/u)
   assert.match(sync, /async function healShipHubConnections/u)
   // 只挑 reauth_required 且启用的连接
   assert.match(sync, /authorization_status = 'reauth_required'/u)
-  // 节流依据 updated_at，避免每轮 cron 重打上游登录
-  assert.match(sync, /updated_at IS NULL OR updated_at <= \?/u)
+  // 节流依据专用列 heal_last_attempted_at：SELF_HEAL_FAILED 退避 30 分钟，常规 5 分钟
+  assert.match(sync, /heal_last_attempted_at IS NULL/u)
+  assert.match(sync, /last_auth_error_code = 'SELF_HEAL_FAILED' AND heal_last_attempted_at <= \?/u)
+  assert.doesNotMatch(sync, /updated_at IS NULL OR updated_at <= \?/u, '冷却不得再依赖 updated_at')
   // 成功后回写 connected 并清空错误码
   assert.match(sync, /authorization_status = 'connected',\s*\n\s*last_auth_error_code = NULL/u)
   // 失败只记错误码，绝不落凭据内容

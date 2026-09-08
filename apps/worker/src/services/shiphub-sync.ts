@@ -19,9 +19,14 @@ const CATEGORIES: readonly ShipHubCategory[] = ['hand', 'pick', 'receive', 'ship
 const COUNT_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 5 * 60_000, pick: 5 * 60_000, receive: 10 * 60_000, ship: 10 * 60_000 }
 const FULL_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 15 * 60_000, pick: 15 * 60_000, receive: 30 * 60_000, ship: 30 * 60_000 }
 const MANUAL_FRESH_MS = 2 * 60_000
-// 自愈重试节流：同一门店 reauth_required 后至多每 30 分钟试一次程序化重登。
-// 上游登录有风控，不能每 5 分钟 cron 都打。
-const SELF_HEAL_COOLDOWN_MS = 30 * 60_000
+// 自愈重试节流（2026-09-08 事故重设计）：冷却改用专用列 heal_last_attempted_at，
+// 不再复用 updated_at——cube token 每小时刷新、手动同步失败、token 轮换都写那列，
+// 曾把 30 分钟冷却实际推成 40-45 分钟（token 死亡期间看板整段停摆）。
+// 常规（未经历自愈失败）下一 tick 即重试（5 分钟）：上游 token 轮换竞态是 400 主因，
+// 一次程序化重登通常即恢复；自愈失败（SELF_HEAL_FAILED）后退避 30 分钟——
+// 上游登录有风控，坏凭据不能每 5 分钟打一次。
+const HEAL_RETRY_MS = 5 * 60_000
+const SELF_HEAL_BACKOFF_MS = 30 * 60_000
 const LEASE_MS = 90_000
 
 export type ShipHubConnection = {
@@ -341,7 +346,7 @@ export async function syncStoreCategory(
   config: AppConfig,
   storeId: string,
   category: ShipHubCategory,
-  options: { trigger?: 'scheduled' | 'manual' | 'authorization'; batchId?: string; client?: ShipHubClient; now?: Date } = {}
+  options: { trigger?: 'scheduled' | 'manual' | 'authorization'; batchId?: string; client?: ShipHubClient; now?: Date; retriedAfterRelogin?: boolean } = {}
 ): Promise<{ status: 'succeeded' | 'skipped' | 'failed'; reason?: string; runId?: string }> {
   requireEnabled(config)
   const trigger = options.trigger ?? 'scheduled'
@@ -487,9 +492,70 @@ export async function syncStoreCategory(
         }
       }
     }
+    // 手动同步遇 token 4xx：内联一次性程序化重登后重试本轮（2026-09-08 报障——
+    // 用户在场点同步却 4 连 OAUTH_TOKEN_HTTP_400，只能干等自愈冷却；用户主动操作
+    // 应当立即恢复）。只重试一次；重登失败维持 failed。scheduled 路径不走这里
+    // （由 heal 冷却控频，避免每 5 分钟 cron 重打上游登录）。
+    if (trigger === 'manual' && /^OAUTH_TOKEN_HTTP_4/u.test(code) && !options.retriedAfterRelogin && config.SHIPHUB.mode !== 'fixture') {
+      const relogged = await reloginWithStoredCredentials(db, config, storeId)
+      if (relogged) {
+        return syncStoreCategory(db, config, storeId, category, {
+          ...options,
+          batchId: options.batchId ?? uuid(),
+          // 沿用调用方注入的时间基准（测试/回放可确定）；未注入才取真实时钟。
+          now: options.now ?? new Date(),
+          retriedAfterRelogin: true
+        })
+      }
+    }
     return { status: 'failed', reason: code, runId }
   } finally {
     await releaseLease(db, storeId, owner)
+  }
+}
+
+// 程序化重登并落库（自愈与手动同步内联重试共用）：只用本店凭据（门店边界铁律
+// 2026-09-08），成功回 true；任何失败回 false 不抛错，由调用方决定退避策略。
+// 两把密钥职责不同，绝不可混用：
+//   loginKey            解密门店登录凭据（用户名/密码）
+//   tokenEncryptionKey  加解密 refresh token（授权回调与轮换均用它）
+// 2026-08-30 事故根因：自愈曾用 loginKey 加密 refresh token 写库，
+// 同步侧 readRefreshToken 用 tokenEncryptionKey 解密 -> AES-GCM 抛错，
+// 连接却已被置为 connected，148 次同步静默失败且无法自我恢复。
+async function reloginWithStoredCredentials(db: D1Database, config: AppConfig, storeId: string): Promise<boolean> {
+  const loginKey = config.SHIPHUB.loginKey
+  const tokenKey = config.SHIPHUB.tokenEncryptionKey
+  if (!loginKey || !tokenKey) return false
+  const row = await first<{ login_username_enc: string | null; login_password_enc: string | null }>(db.prepare(`
+    SELECT login_username_enc, login_password_enc FROM shiphub_connections WHERE store_id = ?
+  `).bind(storeId))
+  if (!row?.login_username_enc || !row?.login_password_enc) return false
+  try {
+    const usernameBlob = splitEncryptedBlob(row.login_username_enc)
+    const passwordBlob = splitEncryptedBlob(row.login_password_enc)
+    const credentials = {
+      username: await decryptShipHubSecret(usernameBlob.ciphertext, usernameBlob.nonce, loginKey),
+      password: await decryptShipHubSecret(passwordBlob.ciphertext, passwordBlob.nonce, loginKey)
+    }
+    const token = await performShipHubProgrammaticLogin(config.SHIPHUB, credentials)
+    if (!token.refreshToken) return false
+    const encrypted = await encryptShipHubSecret(token.refreshToken, tokenKey)
+    // 写库前先按同步侧的读取路径回验一次：确认密文能用 tokenEncryptionKey 解出原值。
+    // 只有「同步真能用这份 token」才允许把状态置为 connected，
+    // 否则宁可留在 reauth_required 让门店手动重连，也不制造假 connected。
+    const verified = await decryptShipHubSecret(encrypted.ciphertext, encrypted.nonce, tokenKey)
+    if (verified !== token.refreshToken) return false
+    const stamp = nowIso()
+    await run(db.prepare(`
+      UPDATE shiphub_connections
+      SET refresh_token_ciphertext = ?, refresh_token_nonce = ?, refresh_token_key_version = 'v1',
+          token_expires_at = ?, token_updated_at = ?, authorization_status = 'connected',
+          last_auth_error_code = NULL, heal_last_attempted_at = ?, updated_at = ?
+      WHERE store_id = ?
+    `).bind(encrypted.ciphertext, encrypted.nonce, token.expiresAt, stamp, stamp, stamp, storeId))
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -497,53 +563,33 @@ export async function syncStoreCategory(
 // 只处理能静默恢复的情形；无凭据（仅浏览器 SSO 授权）的连接保持 reauth_required，
 // 由前端提示门店手动重连。失败不抛出，不能拖坠整轮 cron。
 async function healShipHubConnections(env: WorkerEnv, config: AppConfig, now: Date): Promise<void> {
-  // 两把密钥职责不同，绝不可混用：
-  //   loginKey            解密门店登录凭据（用户名/密码）
-  //   tokenEncryptionKey  加解密 refresh token（授权回调与轮换均用它）
-  // 2026-08-30 事故根因：自愈曾用 loginKey 加密 refresh token 写库，
-  // 同步侧 readRefreshToken 用 tokenEncryptionKey 解密 -> AES-GCM 抛错，
-  // 连接却已被置为 connected，148 次同步静默失败且无法自我恢复。
-  const loginKey = config.SHIPHUB.loginKey
-  const tokenKey = config.SHIPHUB.tokenEncryptionKey
-  if (!loginKey || !tokenKey) return
-  const cutoff = new Date(now.getTime() - SELF_HEAL_COOLDOWN_MS).toISOString()
-  const candidates = await all<{ store_id: string; login_username_enc: string | null; login_password_enc: string | null; location_num: string | null }>(env.DB.prepare(`
-    SELECT store_id, login_username_enc, login_password_enc, location_num
+  if (!config.SHIPHUB.loginKey || !config.SHIPHUB.tokenEncryptionKey) return
+  // 冷却判定只用专用列 heal_last_attempted_at（2026-09-08 事故根因：旧实现复用
+  // updated_at，而 cube token 每小时刷新、手动同步失败、token 轮换都写同一列，
+  // 把 30 分钟冷却实际推成 40-45 分钟，token 死亡期间看板整段停摆）。
+  const retryCutoff = new Date(now.getTime() - HEAL_RETRY_MS).toISOString()
+  const backoffCutoff = new Date(now.getTime() - SELF_HEAL_BACKOFF_MS).toISOString()
+  const candidates = await all<{ store_id: string; login_username_enc: string | null; login_password_enc: string | null }>(env.DB.prepare(`
+    SELECT store_id, login_username_enc, login_password_enc
     FROM shiphub_connections
     WHERE enabled = 1 AND authorization_status = 'reauth_required'
-      AND (updated_at IS NULL OR updated_at <= ?)
-  `).bind(cutoff))
+      AND (
+        heal_last_attempted_at IS NULL
+        OR (last_auth_error_code = 'SELF_HEAL_FAILED' AND heal_last_attempted_at <= ?)
+        OR (last_auth_error_code IS NOT 'SELF_HEAL_FAILED' AND heal_last_attempted_at <= ?)
+      )
+  `).bind(backoffCutoff, retryCutoff))
   for (const candidate of candidates) {
     // 门店边界铁律（2026-09-08）：自愈只用本店凭据；无本店凭据的连接
     // 保持 reauth_required 等门店手动重连，绝不借用部署级共享账密。
     if (!candidate.login_username_enc || !candidate.login_password_enc) continue
-    try {
-      const usernameBlob = splitEncryptedBlob(candidate.login_username_enc)
-      const passwordBlob = splitEncryptedBlob(candidate.login_password_enc)
-      const credentials = {
-        username: await decryptShipHubSecret(usernameBlob.ciphertext, usernameBlob.nonce, loginKey),
-        password: await decryptShipHubSecret(passwordBlob.ciphertext, passwordBlob.nonce, loginKey)
-      }
-      const token = await performShipHubProgrammaticLogin(config.SHIPHUB, credentials)
-      if (!token.refreshToken) throw new ShipHubUpstreamError('OAUTH_REFRESH_TOKEN_MISSING')
-      const encrypted = await encryptShipHubSecret(token.refreshToken, tokenKey)
-      // 写库前先按同步侧的读取路径回验一次：确认密文能用 tokenEncryptionKey 解出原值。
-      // 自愈只有在「同步真能用这份 token」时才允许把状态置为 connected，
-      // 否则宁可留在 reauth_required 让门店手动重连，也不制造假 connected。
-      const verified = await decryptShipHubSecret(encrypted.ciphertext, encrypted.nonce, tokenKey)
-      if (verified !== token.refreshToken) throw new ShipHubUpstreamError('SELF_HEAL_TOKEN_VERIFY_FAILED')
-      const stamp = nowIso()
+    const healed = await reloginWithStoredCredentials(env.DB, config, candidate.store_id)
+    if (!healed) {
+      // 退避计时只写专用列与错误码，绝不碰 updated_at——冷却判定与业务时间戳
+      // 彻底解耦（不记录凭据内容）。
       await run(env.DB.prepare(`
-        UPDATE shiphub_connections
-        SET refresh_token_ciphertext = ?, refresh_token_nonce = ?, refresh_token_key_version = 'v1',
-            token_expires_at = ?, token_updated_at = ?, authorization_status = 'connected',
-            last_auth_error_code = NULL, updated_at = ?
-        WHERE store_id = ?
-      `).bind(encrypted.ciphertext, encrypted.nonce, token.expiresAt, stamp, stamp, candidate.store_id))
-    } catch {
-      // 刷新 updated_at 让节流窗口重新计时，避免每轮 cron 重试同一失败凭据。
-      // 不记录凭据内容，只标记错误码。
-      await run(env.DB.prepare(`UPDATE shiphub_connections SET last_auth_error_code = 'SELF_HEAL_FAILED', updated_at = ? WHERE store_id = ?`).bind(nowIso(), candidate.store_id))
+        UPDATE shiphub_connections SET last_auth_error_code = 'SELF_HEAL_FAILED', heal_last_attempted_at = ? WHERE store_id = ?
+      `).bind(nowIso(), candidate.store_id))
     }
   }
 }
