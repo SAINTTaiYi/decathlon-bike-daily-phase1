@@ -35,6 +35,7 @@
     "typecheck:worker": "pnpm --filter @bike-ops/worker typecheck",
     "test:worker": "pnpm --filter @bike-ops/worker test",
     "version:preview": "node scripts/preview-version.mjs",
+    "version:backend": "node scripts/backend-version.mjs",
     "version:release": "node scripts/bump-version.mjs",
     "version:release:stamp": "node scripts/stamp-version.mjs -- --formal-release true"
   },

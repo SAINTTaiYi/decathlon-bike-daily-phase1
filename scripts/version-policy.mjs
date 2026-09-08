@@ -1,5 +1,28 @@
 export const semverPattern = /^\d+\.\d+\.\d+$/u
 export const shaPattern = /^[0-9a-f]{40}$/u
+/**
+ * 后端构建版本：公开版本 + 连字符序号（6.7.6-1、6.7.6-2…）。
+ *
+ * 后端修复不改变界面，因此不递增公开版本、不触发前端「请刷新」公告；但每次部署
+ * 必须有可追溯的部署身份，所以 package.json 用后缀序号区分同一公开版本下的多次
+ * 后端发布。公开版本仍由 releaseNotes.js 的 APP_VERSION 单点持有。
+ */
+export const backendBuildVersionPattern = /^(\d+\.\d+\.\d+)-([1-9]\d*)$/u
+
+export function parseBackendBuildVersion(version) {
+  const match = backendBuildVersionPattern.exec(String(version))
+  if (!match) return null
+  return { publicVersion: match[1], sequence: Number(match[2]) }
+}
+
+/** 校验构建版本（package.json）与公开版本（releaseNotes.js APP_VERSION）的合法关系。 */
+export function assertBuildVersionMatchesPublic(publicVersion, buildVersion, label = 'package.json') {
+  if (buildVersion === publicVersion) return
+  const parsed = parseBackendBuildVersion(buildVersion)
+  if (!parsed || parsed.publicVersion !== publicVersion) {
+    throw new Error(`${label} ${buildVersion} 必须等于公开版本 ${publicVersion}，或写成后端后缀形式 ${publicVersion}-N（N 为不小于 1 的整数）`)
+  }
+}
 export const firstFormalPreviewBaselineSha = 'dabe0ed8d1ba662840460837c88bf288fb3ffaaa'
 
 export function parseNamedArgs(args) {
