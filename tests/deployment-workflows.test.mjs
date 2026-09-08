@@ -59,7 +59,7 @@ test('Production 验证线上 Staging 身份后才允许迁移和部署', async 
 
 test('发布顺序固定为全量验证、数据库迁移、Worker 部署、线上验收', async () => {
   const source = await workflow('deploy-production.yml')
-  const labels = ['Validate, test, and build before database mutation', 'Apply Production D1 migrations', 'Deploy the Production Worker with Static Assets and D1', 'Verify the deployed Production API, release identity, and Web shell']
+  const labels = ['Validate, test, typecheck, and build before database mutation', 'Apply Production D1 migrations', 'Deploy the Production Worker with Static Assets and D1', 'Verify the deployed Production API, release identity, and Web shell']
   let cursor = -1
   for (const label of labels) {
     const index = source.indexOf(label, cursor + 1)
