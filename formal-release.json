@@ -1,39 +1,28 @@
 {
   "kind": "formal-production-release",
-  "version": "6.7.5",
+  "version": "6.7.6",
   "previewRange": {
-    "fromExclusive": "df404f826efeedd36b8c7c0a932f871f494e553a",
-    "toInclusive": "4cc63e8ccf277e1d173a3e8ea5e38b636fb8dd37",
+    "fromExclusive": "e5f6bd3adb0aae8bad6db87a91a282bf7dcc8552",
+    "toInclusive": "833155f77e088d7342654c0a2cf7dc25efe4a65b",
     "commits": [
       {
-        "sha": "ec99a38da1be88d6849a065cca44a63369142229",
-        "subject": "chore(release): stamp V6.7.4 build metadata"
+        "sha": "0cb5256359347c726924463557199d329203de8d",
+        "subject": "chore(release): stamp V6.7.5 build metadata"
       },
       {
-        "sha": "bb216e92ca2be2fc63f756fb4ce6c892c5876ab4",
-        "subject": "feat(boundary): 门店数据边界铁律——白名单与部署级账密废除，快照按归属门控"
-      },
-      {
-        "sha": "63bb69dbd6d30ad3706a3c97d4c5587f4c30bdb9",
-        "subject": "fix(boot): 注册门店下拉在移动端透明穿模"
-      },
-      {
-        "sha": "4cc63e8ccf277e1d173a3e8ea5e38b636fb8dd37",
-        "subject": "fix(boot): 门店下拉穿模第二击——全局主题 !important 泄漏收窄"
+        "sha": "833155f77e088d7342654c0a2cf7dc25efe4a65b",
+        "subject": "fix(boot): 登录卡变形动效残留 transform 困住下拉菜单层叠"
       }
     ]
   },
   "announcement": {
-    "title": "门店数据边界与自助接入",
-    "summary": "门店数据边界铁律落地：BI/Shiphub/Cube 全链只认本店提交的账号，白名单与部署级账密废除；快照按归属门店门控",
+    "title": "登录卡变形动效残留 transform 困住下拉菜单层叠修复",
+    "summary": "修复注册页选择门店下拉被 Profile/显示名/邮箱等字段盖住（桌面+移动端同根因）：GSAP 变形补间收尾清理内联 transform，浮层层叠恢复正常",
     "changes": [
-      "门店提交本店 ShipHub 账密后自动派生三链路身份（Shiphub 同步、BI 销量/周报、KPI 自动填写）",
-      "BI 快照卡只对数据归属门店渲染，其它门店只看本店动态数据（fail-closed）",
-      "BI 同步白名单机制废除：无本店凭据的门店绝不拉取（含部署凭据配置齐全时）",
-      "门店数据函数凭据必传（类型层面杜绝静默回退部署级共享凭据）",
-      "修复移动端注册门店下拉透明穿模（菜单绝对定位实底+全局主题泄漏收窄）",
-      "边界回归测试 6 例 + CI 自动化（新接入 API 三件套断言门槛）"
+      "根因为 useAuthPanelMorph 的 y/autoAlpha 补间残留恒等内联 transform，创建层叠上下文把门店下拉菜单困在所属字段内",
+      "body 与字段 stagger 补间统一加 tween 级 clearProps 交还内联样式，动画期间不受影响",
+      "新增回归断言 tests/boot-panel-morph-cleanup.test.mjs 4 例（退回旧写法实测变红）；web 497 全绿"
     ]
   },
-  "preparedAt": "2026-09-07T20:48:24.931Z"
+  "preparedAt": "2026-09-08T05:53:48.150Z"
 }
