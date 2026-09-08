@@ -85,22 +85,25 @@ function tokenUsable(row: CubeConnectionRow, now: Date): boolean {
 async function storeCubeToken(db: D1Database, config: AppConfig, storeId: string, accessToken: string, expiresAt: string): Promise<void> {
   const encrypted = await encryptShipHubSecret(accessToken, config.SHIPHUB.tokenEncryptionKey!)
   const stamp = nowIso()
+  // 不写 updated_at（2026-09-08 事故）：该列曾被 Shiphub 自愈复用做冷却判定，
+  // cube token 每小时刷新会把自愈冷却一再推后。cube 状态自有 cube_auth_checked_at。
   await db.prepare(`
     UPDATE shiphub_connections
     SET cube_token_ciphertext = ?, cube_token_nonce = ?, cube_token_key_version = 'v1',
         cube_token_expires_at = ?, cube_auth_status = 'available',
-        cube_auth_error_code = NULL, cube_auth_checked_at = ?, updated_at = ?
+        cube_auth_error_code = NULL, cube_auth_checked_at = ?
     WHERE store_id = ?
-  `).bind(encrypted.ciphertext, encrypted.nonce, expiresAt, stamp, stamp, storeId).run()
+  `).bind(encrypted.ciphertext, encrypted.nonce, expiresAt, stamp, storeId).run()
 }
 
 async function storeCubeFailure(db: D1Database, storeId: string, errorCode: string): Promise<void> {
   const stamp = nowIso()
+  // 同上：不写 updated_at，冷却/业务时间戳解耦。
   await db.prepare(`
     UPDATE shiphub_connections
-    SET cube_auth_status = 'unavailable', cube_auth_error_code = ?, cube_auth_checked_at = ?, updated_at = ?
+    SET cube_auth_status = 'unavailable', cube_auth_error_code = ?, cube_auth_checked_at = ?
     WHERE store_id = ?
-  `).bind(errorCode, stamp, stamp, storeId).run()
+  `).bind(errorCode, stamp, storeId).run()
 }
 
 // 读取本店 Cube 身份的公开状态（供连接卡/BI 面板展示；不含任何密文）。
@@ -173,6 +176,10 @@ export async function ensureStoreCubeJwt(
     return accessToken
   } catch (error) {
     const code = error instanceof MasterDataUpstreamError ? error.code : 'CUBE_LOGIN_FAILED'
+    // 失败必须留痕（2026-09-08 事故：cube 登录失败静默返回 null，端点 available:false，
+    // 零日志零 DB 痕迹，「BI 同步暂不可用」排障无从下手）。Workers Logs 可查。
+    const detail = error instanceof Error ? String(error.message).slice(0, 160) : String(error).slice(0, 160)
+    console.error(`[cube] login failed store=${storeId} code=${code} err=${detail}`)
     await storeCubeFailure(env.DB, storeId, code)
     return null
   }
