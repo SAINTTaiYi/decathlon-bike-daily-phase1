@@ -82,7 +82,7 @@ pnpm build
 
 发布顺序固定为：源码身份校验、冻结依赖安装、测试/类型检查/构建、D1 迁移、Worker 与静态资源部署、线上版本/SHA/环境/readiness 验证。
 
-**发布版本规则**：每次向 workshop.skin / Production 推送更新前，必须递增公开版本号，并把本次 PR 的更新内容逐条写入更新公告（见 [AUTOMATED-DEPLOYMENT.md](./AUTOMATED-DEPLOYMENT.md) 的 Release versioning rule）。禁止未 bump 版本号直接推送。
+**发布版本规则**：每次向 workshop.skin / Production 推送更新前，必须递增公开版本号，并把本次 PR 的更新内容逐条写入更新公告（见 [AUTOMATED-DEPLOYMENT.md](./AUTOMATED-DEPLOYMENT.md) 的 Release versioning rule）。禁止未 bump 版本号直接推送。纯后端更新（不改前端、无需视觉验收）用 `pnpm version:backend` 递增「公开版本-序号」形式的后端版本号（如 `6.7.6-1`），公开版本号与更新公告保持不变。
 
 ### 安全边界
 
