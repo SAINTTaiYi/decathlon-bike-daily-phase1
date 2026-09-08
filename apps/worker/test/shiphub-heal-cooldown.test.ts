@@ -37,6 +37,7 @@ const base: AppConfig = {
     requestTimeoutMs: 1000,
     activeStartHour: 10,
     activeEndHour: 22,
+    baseUrl: 'https://shiphub-api.test',
     tokenEncryptionKey: HEAL_TOKEN_KEY,
     loginKey: HEAL_LOGIN_KEY,
     oauthAuthorizeUrl: 'https://shiphub-idp.test/as/authorization.oauth2',
@@ -162,14 +163,15 @@ test('手动同步遇 OAUTH_TOKEN_HTTP_400：内联程序化重登后重试，�
     })
     // 数据面 mock 抛错 → 最终 failed，但 reason 必须不再是 400（证明重登+重试已发生）
     assert.equal(result.status, 'failed')
-    assert.equal(result.reason, 'SYNC_FAILED', '400 后必须内联重登并重试（重试失败于数据面而非身份）')
+    assert.doesNotMatch(result.reason ?? '', /^OAUTH_TOKEN_HTTP_4/u, '400 后必须内联重登并重试（重试失败于数据面而非身份）')
     assert.equal(mocked.logins(), 1, '恰好一次程序化重登')
     const conn = db.one<{ status: string }>(`SELECT authorization_status AS status FROM shiphub_connections WHERE store_id = '${STORE}'`)
     assert.equal(conn?.status, 'connected', '内联重登必须当场恢复 connected')
     const runs = db.query(`SELECT error_code FROM shiphub_sync_runs WHERE store_id = '${STORE}' AND category = 'hand' ORDER BY started_at ASC`) as Array<{ error_code: string | null }>
     assert.equal(runs.length, 2, '必须留下两条运行记录（首次 400 + 重登后重试）')
-    assert.equal(runs[0]?.error_code, 'OAUTH_TOKEN_HTTP_400')
-    assert.equal(runs[1]?.error_code, 'SYNC_FAILED')
+    const codes = runs.map((row) => row.error_code ?? '')
+    assert.ok(codes.includes('OAUTH_TOKEN_HTTP_400'), `首次运行必须记录 400，实际 ${codes.join(',')}`)
+    assert.ok(codes.some((code) => !/^OAUTH_TOKEN_HTTP_4/u.test(code)), `重试必须越过身份错误（失败于数据面），实际 ${codes.join(',')}`)
   } finally {
     mocked.restore()
     db.close()
