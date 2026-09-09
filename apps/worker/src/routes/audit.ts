@@ -166,9 +166,20 @@ export async function listBootstrapAuditFeed(db: D1Database, storeId: string, bu
         LIMIT 500
       `).bind(storeId, businessDate))
   const ids = openRecordIds.slice(0, 200)
+  // INDEXED BY 是必须的（2026-09-09 D1 预算修复，实测 779 → 102 行）：
+  // 查询同时约束 store_id 与 entity_id，而 audit_events_entity_idx 不含 store_id，
+  // 优化器会改选 audit_events_store_created_idx (store_id=?)——先扫全店审计事件
+  // 再在内存里过滤 entity_id，读行数 = O(全店历史总量)，会随使用天数无限增长
+  // （779 行时已占单店日读 26%，涨到 5000 行即烧穿免费层 5M 限额）。
+  // ORDER BY created_at DESC 进一步强化了优化器对「有序索引」的偏好，
+  // 因此即使新建 (store_id, entity_type, entity_id, created_at) 复合索引也不会被自动选中，
+  // 必须显式指定。走 entity 索引后按 entity_id 点查，代价是排序需临时 B-tree，
+  // 但读行数从 O(全店) 降到 O(在册记录事件数)。
   const historyRows = ids.length ? await all(db.prepare(`
         SELECT ${feedColumns}, 0 AS has_later_event
-        ${fromJoins}
+        FROM audit_events e INDEXED BY audit_events_entity_idx
+        LEFT JOIN audit_events rev ON rev.reverted_event_id = e.id
+        LEFT JOIN work_items current_item ON current_item.id = e.entity_id AND current_item.store_id = e.store_id
         WHERE e.entity_type = 'work-item' AND e.entity_id IN (${ids.map(() => '?').join(',')})
           AND e.store_id = ? AND e.business_date != ?
         ORDER BY e.created_at DESC

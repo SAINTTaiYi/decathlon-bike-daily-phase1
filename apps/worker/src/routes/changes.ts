@@ -11,19 +11,25 @@ type Vars = { config: AppConfig; auth: AuthContext | null }
 //
 // 语义：
 //   本地版本号 < 服务端版本号 → 立即返回 { changed: true, version }
-//   相等 → 挂起等待，最多 HOLD_MS，期间每秒复查一次
+//   相等 → 挂起等待，最多 HOLD_MS，期间按 POLL_MS 复查
 //   超时 → 返回 { changed: false, version: since }（前端立即再发一轮）
 //
-// 为什么每秒复查而不是等通知：Workers 无跨请求内存广播（需要 Durable Object），
-// D1 没有 watch/notify。每秒一次 D1 点查（走主键）成本极低，且 setTimeout
-// 等待不计 CPU 时间，可安全挂起。
+// 为什么轮询复查而不是等通知：Workers 无跨请求内存广播（需要 Durable Object），
+// D1 没有 watch/notify。按 POLL_MS 做 D1 点查（走主键，1 行）成本极低，
+// 且 setTimeout 等待不计 CPU 时间，可安全挂起。
 //
-// 请求成本控制：
-//   有变更 → 立刻返回（一次点查）
-//   无变更 → 25 秒挂起 + 约 25 次点查，然后前端立刻重发
+// 请求成本控制（2026-09-09 D1 预算实测）：
+//   有变更 → 立刻返回（一次点查 = 1 行）
+//   无变更 → 25 秒挂起 + HOLD_MS/POLL_MS 次点查
 //   单店单页面 ≈ 每分钟 2.4 个请求，远低于免费层 10 万/日。
+//
+// POLL_MS 从 1000 调到 2500（2026-09-09 D1 预算修复）：
+//   挂起期间点查次数 25 → 10，单次请求读行数 -60%。
+//   10 个常开页面全天读行从 0.43M 降到 0.17M。
+//   代价：最坏推送延迟从 ≤1s 变为 ≤2.5s——对「几秒内看到新订单」的目标
+//   完全够用（上游本身是分钟级落地节奏）。
 const HOLD_MS = 25_000
-const POLL_MS = 1_000
+const POLL_MS = 2_500
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
