@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { APP_VERSION, currentRelease } from '../apps/web/src/data/releaseNotes.js'
 import { formalReleaseManifestPath, previewManifestPath, projectRoot, sourceFingerprint } from './version-files.mjs'
 import { assertFormalReleaseBaseline, assertGitAncestor, changedPathsSince, currentGitSha, resolvePreviewCommits } from './version-git.mjs'
-import { assertFormalReleaseManifest, assertFormalReleasePaths, assertPreviewManifest, assertResolvedPreviewCommitList, parseNamedArgs, semverPattern } from './version-policy.mjs'
+import { assertBuildVersionMatchesPublic, assertFormalReleaseManifest, assertFormalReleasePaths, assertPreviewManifest, assertResolvedPreviewCommitList, parseNamedArgs, semverPattern } from './version-policy.mjs'
 
 const values = parseNamedArgs(process.argv.slice(2))
 const mode = values.mode || 'standard'
@@ -35,8 +35,12 @@ try {
   // 生成文件缺失时由 prebuild 钩子重建，这里不视为版本错误。
 }
 if (!semverPattern.test(APP_VERSION)) errors.push(`APP_VERSION 必须是三段式版本号，当前为 ${APP_VERSION}`)
-if (packageJson.version !== APP_VERSION) errors.push(`package.json ${packageJson.version} 与 APP_VERSION ${APP_VERSION} 不一致`)
-if (webPackageJson.version !== APP_VERSION) errors.push(`apps/web/package.json ${webPackageJson.version} 与 APP_VERSION ${APP_VERSION} 不一致`)
+try {
+  assertBuildVersionMatchesPublic(APP_VERSION, packageJson.version, 'package.json')
+  assertBuildVersionMatchesPublic(APP_VERSION, webPackageJson.version, 'apps/web/package.json')
+} catch (error) {
+  errors.push(error.message)
+}
 if (currentRelease.version !== APP_VERSION) errors.push(`currentRelease.version ${currentRelease.version} 与 APP_VERSION ${APP_VERSION} 不一致`)
 if (!currentRelease.title || !currentRelease.summary || !currentRelease.date) errors.push('当前版本更新记录缺少标题、摘要或日期')
 if (!Array.isArray(currentRelease.changes) || currentRelease.changes.length === 0) errors.push('当前版本必须写明至少一项更新内容')
