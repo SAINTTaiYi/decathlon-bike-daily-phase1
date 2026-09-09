@@ -18,6 +18,21 @@ export const BI_SYNC_END_HOUR = 23
 // CIS 周序列起点：BI 快照最后一周（W35 = 08-23→08-29）之后的第一个完整周（W36）。
 const BI_WEEKLY_BASELINE_FROM = '2026-08-30'
 
+/**
+ * BI 快照写入水位（2026-09-09）。
+ *
+ * 用途：判断「本轮 BI 同步是否真的写了库」，从而只在有变化时 bump 门店版本号。
+ * 取 bi_bikes_snapshot 的 MAX(synced_at)：命中缓存时 getBikeWeek/getStoreWeek
+ * 不写库，该值不变；实际拉取会更新它。比逐个函数返回「是否命中缓存」侵入性低，
+ * 且天然覆盖未来新增的写入点（只要写的是同一张快照表）。
+ */
+async function biWriteStamp(env: WorkerEnv, storeId: string): Promise<string> {
+  const row = await all<{ stamp: string | null }>(
+    env.DB.prepare('SELECT MAX(synced_at) AS stamp FROM bi_bikes_snapshot WHERE store_id = ?').bind(storeId)
+  )
+  return String(row[0]?.stamp ?? '')
+}
+
 export type BiStoreWeekRecord = StoreWeekPayload & { weekLabel: string }
 
 // 最后一个已完结周：currentWeekWindow 给出本周（Sun 起），完结周 = 上一 Sun→Sat。
@@ -107,17 +122,21 @@ export async function runScheduledBiSync(env: WorkerEnv, now = new Date()): Prom
     // perfeco 门店码为纯数字（如 1299）；测试/非迪卡侬编码门店跳过，绝不空转上游。
     if (!/^\d{3,8}$/u.test(store.code)) continue
     try {
+      // BI 写入时间戳快照（2026-09-09）：cron 已提到每分钟一次，若无条件 bump，
+      // 会让所有在线页面的长轮询每分钟白醒一次（数据根本没变）。改为精确判定：
+      // 只有本轮确实写入了快照才 bump。getBikeWeek/getStoreWeek 命中 30 分钟缓存、
+      // ensureStoreWeeks 无缺失周时不写库，因此绝大多数 tick 不会打断前端。
+      const stampBefore = await biWriteStamp(env, store.id)
       // 本店 Cube 身份派生 JWT（失败冷却 10 分钟，IdP 友好）。
       const jwtProvider = lazyStoreCubeJwt(env, store.id)
       await ensureStoreWeeks(env, { storeId: store.id, storeCode: store.code, now, jwtProvider })
       const window = currentWeekWindow(now)
       await getBikeWeek(env, { storeId: store.id, storeCode: store.code, now, jwtProvider })
       await getStoreWeek(env, { storeId: store.id, storeCode: store.code, from: window.from, to: window.to, now, jwtProvider })
-      // BI 拉取成功 → 标记门店变更（2026-09-09 实时推送）：销售数据/车型榜在
-      // 页面自动刷新。getStoreWeek/getBikeWeek 内部命中缓存时不写库，故此处
-      // 按「本轮确实执行了拉取」bump——多 bump 一次只会让前端多拉一次，
-      // 无正确性风险（前端拉的是权威数据）。
-      await bumpStoreVersion(env.DB, store.id)
+      const stampAfter = await biWriteStamp(env, store.id)
+      // BI 拉取确实写库 → 标记门店变更（2026-09-09 实时推送）：销售数据/车型榜
+      // 在页面自动刷新，无需手动刷新。
+      if (stampAfter !== stampBefore) await bumpStoreVersion(env.DB, store.id)
     } catch { /* 下一 tick 重试；scheduled 层绝不抛错影响 Shiphub 同步 */ }
   }
 }

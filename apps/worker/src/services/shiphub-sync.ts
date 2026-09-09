@@ -17,9 +17,20 @@ export const SHIPHUB_BUSINESS_START_HOUR = 10
 export const SHIPHUB_BUSINESS_END_HOUR = 22
 
 const CATEGORIES: readonly ShipHubCategory[] = ['hand', 'pick', 'receive', 'ship']
-const COUNT_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 5 * 60_000, pick: 5 * 60_000, receive: 10 * 60_000, ship: 10 * 60_000 }
+// 计数轮询间隔（2026-09-09 实时化）：hand/pick 是「待取车」看板的核心分类，
+// 从 5 分钟压到 55 秒——count 端点只返回一个整数，是最便宜的上游调用；
+// 只有计数变化时才会拉列表（见 syncStoreCategory 的 countChanged → shouldList），
+// 因此把间隔压到分钟级不会带来成比例的负载增长。
+// receive/ship 保持 10 分钟：不是实时看板的核心，且调用成本不必要。
+// cron 为每分钟一次（见 wrangler.jsonc triggers.crons），55 秒保证每个 tick 都能命中。
+const COUNT_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 55_000, pick: 55_000, receive: 10 * 60_000, ship: 10 * 60_000 }
 const FULL_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 15 * 60_000, pick: 15 * 60_000, receive: 30 * 60_000, ship: 30 * 60_000 }
 const MANUAL_FRESH_MS = 2 * 60_000
+// 页面打开时的「确保新鲜」门禁（2026-09-09）：前端在挂载/回到前台时调用
+// POST /api/v1/shiphub/ensure-fresh，服务端只在数据确实过期时才打上游。
+// 60 秒是「用户感知实时」与「上游调用量」的平衡点：有人在看页面时，
+// 数据最多滞后 60 秒 + 一次同步耗时（通常 1-3 秒）。
+export const ENSURE_FRESH_MS = 60_000
 // 自愈重试节流（2026-09-08 事故重设计）：冷却改用专用列 heal_last_attempted_at，
 // 不再复用 updated_at——cube token 每小时刷新、手动同步失败、token 轮换都写那列，
 // 曾把 30 分钟冷却实际推成 40-45 分钟（token 死亡期间看板整段停摆）。
@@ -597,6 +608,63 @@ async function healShipHubConnections(env: WorkerEnv, config: AppConfig, now: Da
       `).bind(nowIso(), candidate.store_id))
     }
   }
+}
+
+/**
+ * 页面打开时的「确保新鲜」（2026-09-09 实时化第二批）。
+ *
+ * 语义：有人在看页面 → 数据不该是几分钟前的。前端在挂载与回到前台时调用，
+ * 服务端按分类检查 last_success_at，只在**确实过期**时才打上游。
+ *
+ * 与手动同步（POST /shiphub/sync）的区别：
+ *   手动同步 = 用户显式点按钮，四个分类全量 + 强制 reconcile，受 2 分钟冷却；
+ *   ensure-fresh = 隐式后台行为，只碰指定的实时分类，受 60 秒门禁，
+ *                  且多标签页/多设备并发时由 syncStoreCategory 内部的
+ *                  lease 与 COUNT_INTERVAL_MS 去重，不会重复打上游。
+ *
+ * 为什么阻塞等结果：前端需要「打开就能看到最新」的语义。单个分类同步
+ * 通常 1-3 秒（一次 count + 必要时一次 list），可接受；失败不抛错，
+ * 前端继续用已有数据渲染，绝不因为同步失败而白屏。
+ */
+export async function ensureFreshStoreCategories(
+  env: WorkerEnv,
+  storeId: string,
+  categories: readonly ShipHubCategory[] = ['hand', 'pick'],
+  now = new Date()
+): Promise<{ synced: ShipHubCategory[]; skipped: ShipHubCategory[]; stale: boolean }> {
+  const config = loadConfig(env)
+  if (!config.SHIPHUB.enabled) return { synced: [], skipped: [...categories], stale: false }
+  // 营业时间硬规则同样适用：窗口外不碰上游（前端调用会拿到 stale:false 直接放行）。
+  if (config.SHIPHUB.mode === 'live'
+    && !activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) {
+    return { synced: [], skipped: [...categories], stale: false }
+  }
+  const states = await all<CategoryState>(
+    env.DB.prepare('SELECT * FROM shiphub_category_state WHERE store_id = ?').bind(storeId)
+  )
+  const stateMap = new Map(states.map((row) => [row.category, row]))
+  const synced: ShipHubCategory[] = []
+  const skipped: ShipHubCategory[] = []
+  let stale = false
+  for (const category of categories) {
+    const state = stateMap.get(category)
+    const lastSuccess = state?.last_success_at ? Date.parse(state.last_success_at) : 0
+    const age = lastSuccess ? now.getTime() - lastSuccess : Number.POSITIVE_INFINITY
+    if (age < ENSURE_FRESH_MS) { skipped.push(category); continue }
+    stale = true
+    try {
+      // trigger 'scheduled'：ensure-fresh 是后台行为，不该占用 manual 冷却、
+      // 也不该在审计里伪装成用户手动操作；它走与 cron 相同的节流与 lease。
+      const outcome = await syncStoreCategory(env.DB, config, storeId, category, { trigger: 'scheduled', now })
+      if (outcome.status === 'succeeded') synced.push(category)
+      else skipped.push(category)
+    } catch (error) {
+      // 上游故障绝不冒泡成 5xx：页面照常渲染已有数据，下一次长轮询/挂载再试。
+      console.error(`[shiphub] ensure-fresh failed store=${storeId} category=${category} err=${error instanceof Error ? error.message : String(error)}`)
+      skipped.push(category)
+    }
+  }
+  return { synced, skipped, stale }
 }
 
 export async function runScheduledShipHubSync(env: WorkerEnv, now = new Date()): Promise<void> {
