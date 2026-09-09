@@ -1,7 +1,7 @@
 import { loadConfig, type AppConfig, type WorkerEnv } from '../env.js'
 import { all, first, nowIso, run, uuid } from '../db.js'
 import { ShipHubUpstreamError, createShipHubClient, type ShipHubCategory, type ShipHubClient, type ShipHubOrder } from '../lib/shiphub-client.js'
-import { readRefreshToken, rotateRefreshToken, shipHubIdentityFingerprint } from '../lib/shiphub-oauth.js'
+import { readCachedAccessToken, readRefreshToken, rotateRefreshToken, shipHubIdentityFingerprint } from '../lib/shiphub-oauth.js'
 import { performShipHubProgrammaticLogin, splitEncryptedBlob } from '../lib/shiphub-login.js'
 import { decryptShipHubSecret, encryptShipHubSecret } from '../lib/shiphub-crypto.js'
 import { getCubeIdentityInfo } from './cube-identity.js'
@@ -39,6 +39,10 @@ export const ENSURE_FRESH_MS = 60_000
 // 上游登录有风控，坏凭据不能每 5 分钟打一次。
 const HEAL_RETRY_MS = 5 * 60_000
 const SELF_HEAL_BACKOFF_MS = 30 * 60_000
+// 连续多少次 token 4xx 才把连接升级为 reauth_required（2026-09-09 修复 · 第 3 项）。
+// 单次 4xx 多为「BI/Cube 重登作废 RT 族」的瞬时撞车，内联重登即可恢复；
+// 只有反复失败（自愈也没救回来）才说明凭据真失效，需要门店人工重连。
+const TOKEN_REAUTH_THRESHOLD = 3
 const LEASE_MS = 90_000
 
 export type ShipHubConnection = {
@@ -273,6 +277,7 @@ async function connectionForSync(db: D1Database, config: AppConfig, storeId: str
   // 连接必须由门店显式发起并记录自己的上游身份。
   const row = await first<any>(db.prepare(`
     SELECT c.enabled, c.mode, c.refresh_token_ciphertext, c.refresh_token_nonce,
+           c.access_token_ciphertext, c.access_token_nonce, c.token_expires_at,
            c.location_num, c.identity_fingerprint,
            st.code AS store_code, st.name AS store_name
     FROM shiphub_connections c JOIN stores st ON st.id = c.store_id
@@ -280,8 +285,16 @@ async function connectionForSync(db: D1Database, config: AppConfig, storeId: str
   `).bind(storeId))
   if (!row || !(row.enabled === 1 || row.enabled === true)) throw new ShipHubUpstreamError('CONNECTION_DISABLED')
   if (row.mode === 'fixture') return { client: createShipHubClient({ ...config.SHIPHUB, mode: 'fixture' }) }
-  if (!row.refresh_token_ciphertext || !row.refresh_token_nonce) throw new ShipHubUpstreamError('REFRESH_TOKEN_MISSING')
   const locationNum = row.location_num?.trim() || config.SHIPHUB.locationNum?.trim()
+  // ── access token 复用优先（2026-09-09 OAUTH_TOKEN_HTTP_400 修复）─────────
+  // 剩余寿命充足时直接用缓存 token，完全不碰 refresh token 族。
+  // 这是修复的核心：上游 RT 是族级的，重新登录（BI/Cube 链路）会作废它，
+  // 所以「少刷新」直接等于「少撞车」。缓存不依赖 refresh token 是否存在，
+  // 因此这里刻意放在 refresh_token 检查之前——即便 RT 暂时缺失，
+  // 只要 access token 还有效，本轮同步照常进行。
+  const cached = await readCachedAccessToken(config, row)
+  if (cached) return { client: createShipHubClient(config.SHIPHUB, cached.accessToken, locationNum) }
+  if (!row.refresh_token_ciphertext || !row.refresh_token_nonce) throw new ShipHubUpstreamError('REFRESH_TOKEN_MISSING')
   const fingerprint = row.identity_fingerprint ?? await shipHubIdentityFingerprint(locationNum)
   // 同一上游身份全局互斥：轮换前必须拿到 fingerprint 租约，防止共享身份的多店并发
   // 刷新触发上游轮换竞态（2026-08-19 事故机制）。拿不到租约 = 其他门店正在用同一身份，
@@ -291,10 +304,18 @@ async function connectionForSync(db: D1Database, config: AppConfig, storeId: str
     throw new ShipHubUpstreamError('IDENTITY_LEASE_BUSY')
   }
   try {
-    const refreshToken = await readRefreshToken(config, row)
+    // 拿到租约后二次检查缓存：并发请求可能在等租约期间刚刷新过，
+    // 直接复用可避免「拿到租约又刷新一次」的浪费。
+    const fresh = await first<any>(db.prepare(`
+      SELECT access_token_ciphertext, access_token_nonce, token_expires_at FROM shiphub_connections WHERE store_id = ?
+    `).bind(storeId))
+    const afterLease = await readCachedAccessToken(config, fresh ?? row)
+    if (afterLease) return { client: createShipHubClient(config.SHIPHUB, afterLease.accessToken, locationNum) }
+    const latest = fresh ?? row
+    const refreshToken = await readRefreshToken(config, { refresh_token_ciphertext: latest.refresh_token_ciphertext ?? row.refresh_token_ciphertext, refresh_token_nonce: latest.refresh_token_nonce ?? row.refresh_token_nonce })
     const token = await refreshShipHubAccessToken(config.SHIPHUB, refreshToken)
-    await rotateRefreshToken(db, config, storeId, row.refresh_token_ciphertext, row.refresh_token_nonce, token)
-    return { client: createShipHubClient(config.SHIPHUB, token.accessToken, locationNum), refresh: { ciphertext: row.refresh_token_ciphertext, nonce: row.refresh_token_nonce } }
+    await rotateRefreshToken(db, config, storeId, latest.refresh_token_ciphertext ?? row.refresh_token_ciphertext, latest.refresh_token_nonce ?? row.refresh_token_nonce, token)
+    return { client: createShipHubClient(config.SHIPHUB, token.accessToken, locationNum), refresh: { ciphertext: latest.refresh_token_ciphertext ?? row.refresh_token_ciphertext, nonce: latest.refresh_token_nonce ?? row.refresh_token_nonce } }
   } finally {
     await releaseIdentityLease(db, fingerprint, owner)
   }
@@ -492,36 +513,59 @@ export async function syncStoreCategory(
   } catch (error) {
     const code = errorCode(error)
     const failedAt = stamp
+    // ── 失败分类（2026-09-09 OAUTH_TOKEN_HTTP_400 修复 · 第 3 项）───────────
+    // 旧实现：任何 OAUTH_TOKEN_HTTP_4xx 都把连接标成 reauth_required（要门店
+    // 手动重连）。但实测这类失败绝大多数是「BI/Cube 链路重新登录作废了 RT 族」
+    // 造成的瞬时撞车——下一轮自愈就能恢复（实测 11:36:52 自愈成功）。把它标成
+    // 需人工介入，会让门店看到不必要的告警。
+    //
+    // 新规则：token 4xx 先**不**标 reauth_required，交给下一轮的失败计数与自愈
+    // 判定；只有真正的凭据失效（REFRESH_TOKEN_MISSING / UNDECRYPTABLE）立即标记。
+    // 连续失败达到阈值（TOKEN_REAUTH_THRESHOLD）时才升级为 reauth_required——
+    // 那时说明自愈也没救回来，确实需要人工。
+    const isToken4xx = /^OAUTH_TOKEN_HTTP_4/u.test(code)
+    const isCredentialGone = code === 'REFRESH_TOKEN_MISSING' || code === 'REFRESH_TOKEN_UNDECRYPTABLE'
+    await db.prepare(`
+      UPDATE shiphub_category_state SET last_attempt_at = ?, last_error_code = ?, consecutive_failures = consecutive_failures + 1, updated_at = ?
+      WHERE store_id = ? AND category = ?
+    `).bind(stamp, code, failedAt, storeId, category).run()
+    const stateAfter = await first<{ consecutive_failures: number }>(db.prepare(`
+      SELECT consecutive_failures FROM shiphub_category_state WHERE store_id = ? AND category = ?
+    `).bind(storeId, category))
+    const failures = Number(stateAfter?.consecutive_failures ?? 1)
+    const shouldMarkReauth = isCredentialGone || (isToken4xx && failures >= TOKEN_REAUTH_THRESHOLD)
     await db.batch([
-      db.prepare(`UPDATE shiphub_category_state SET last_attempt_at = ?, last_error_code = ?, consecutive_failures = consecutive_failures + 1, updated_at = ? WHERE store_id = ? AND category = ?`).bind(stamp, code, failedAt, storeId, category),
       db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'failed', error_code = ? WHERE id = ?`).bind(failedAt, code, runId),
-      db.prepare(`UPDATE shiphub_connections SET authorization_status = CASE WHEN ? IN ('REFRESH_TOKEN_MISSING', 'REFRESH_TOKEN_UNDECRYPTABLE') OR ? LIKE 'OAUTH_TOKEN_HTTP_4%' THEN 'reauth_required' ELSE authorization_status END, last_auth_error_code = ?, updated_at = ? WHERE store_id = ?`).bind(code, code, code, failedAt, storeId)
+      db.prepare(`UPDATE shiphub_connections SET authorization_status = CASE WHEN ? = 1 THEN 'reauth_required' ELSE authorization_status END, last_auth_error_code = ?, updated_at = ? WHERE store_id = ?`).bind(shouldMarkReauth ? 1 : 0, code, failedAt, storeId)
     ])
     // 连续失败告警：连接级错误（token/授权）在三类分类上同步出现，只在 hand 类触发避免三连发；
     // 首次跨过 3 次 + 每再失败 10 次各补一封（邮件可选，未配置时仅状态可见）。
     if (category === 'hand') {
-      const fresh = await first<{ consecutive_failures: number }>(db.prepare(`SELECT consecutive_failures FROM shiphub_category_state WHERE store_id = ? AND category = ?`).bind(storeId, category))
-      if (fresh && shouldAlertOnShipHubFailure(Number(fresh.consecutive_failures))) {
+      if (shouldAlertOnShipHubFailure(failures)) {
         const storeRow = await first<{ code: string; name: string }>(db.prepare(`SELECT code, name FROM stores WHERE id = ?`).bind(storeId))
         if (storeRow) {
-          await sendShipHubFailureAlert(config, { storeCode: storeRow.code, storeName: storeRow.name, errorCode: code, consecutiveFailures: Number(fresh.consecutive_failures) })
+          await sendShipHubFailureAlert(config, { storeCode: storeRow.code, storeName: storeRow.name, errorCode: code, consecutiveFailures: failures })
         }
       }
     }
-    // 手动同步遇 token 4xx：内联一次性程序化重登后重试本轮（2026-09-08 报障——
-    // 用户在场点同步却 4 连 OAUTH_TOKEN_HTTP_400，只能干等自愈冷却；用户主动操作
-    // 应当立即恢复）。只重试一次；重登失败维持 failed。scheduled 路径不走这里
-    // （由 heal 冷却控频，避免每 5 分钟 cron 重打上游登录）。
-    if (trigger === 'manual' && /^OAUTH_TOKEN_HTTP_4/u.test(code) && !options.retriedAfterRelogin && config.SHIPHUB.mode !== 'fixture') {
-      const relogged = await reloginWithStoredCredentials(db, config, storeId)
-      if (relogged) {
-        return syncStoreCategory(db, config, storeId, category, {
-          ...options,
-          batchId: options.batchId ?? uuid(),
-          // 沿用调用方注入的时间基准（测试/回放可确定）；未注入才取真实时钟。
-          now: options.now ?? new Date(),
-          retriedAfterRelogin: true
-        })
+    // ── 失败后内联重登 + 重试（2026-09-09 修复 · 第 2 项）────────────────────
+    // 旧实现只对 manual 触发内联重登，scheduled 要干等下一 tick（最长 60 秒）
+    // 或自愈冷却（最长 5 分钟）。实测撞车是瞬时的，重登一次即可恢复，因此
+    // scheduled 也走这条路径——但用 heal_last_attempted_at 控频（上游登录有
+    // 风控，不能让每分钟的 cron 反复打登录）。
+    if (/^OAUTH_TOKEN_HTTP_4/u.test(code) && !options.retriedAfterRelogin && config.SHIPHUB.mode !== 'fixture') {
+      const canRelogin = trigger === 'manual' || await claimHealAttempt(db, storeId, HEAL_RETRY_MS)
+      if (canRelogin) {
+        const relogged = await reloginWithStoredCredentials(db, config, storeId)
+        if (relogged) {
+          return syncStoreCategory(db, config, storeId, category, {
+            ...options,
+            batchId: options.batchId ?? uuid(),
+            // 沿用调用方注入的时间基准（测试/回放可确定）；未注入才取真实时钟。
+            now: options.now ?? new Date(),
+            retriedAfterRelogin: true
+          })
+        }
       }
     }
     return { status: 'failed', reason: code, runId }
@@ -561,18 +605,42 @@ async function reloginWithStoredCredentials(db: D1Database, config: AppConfig, s
     // 否则宁可留在 reauth_required 让门店手动重连，也不制造假 connected。
     const verified = await decryptShipHubSecret(encrypted.ciphertext, encrypted.nonce, tokenKey)
     if (verified !== token.refreshToken) return false
+    // 同时缓存 access token（2026-09-09）：重登后若不写缓存，下一轮又会为了
+    // 取 token 而刷新 RT，白费一次轮换并重新暴露在撞车窗口里。
+    const access = await encryptShipHubSecret(token.accessToken, tokenKey)
     const stamp = nowIso()
     await run(db.prepare(`
       UPDATE shiphub_connections
       SET refresh_token_ciphertext = ?, refresh_token_nonce = ?, refresh_token_key_version = 'v1',
+          access_token_ciphertext = ?, access_token_nonce = ?, access_token_key_version = 'v1',
           token_expires_at = ?, token_updated_at = ?, authorization_status = 'connected',
           last_auth_error_code = NULL, heal_last_attempted_at = ?, updated_at = ?
       WHERE store_id = ?
-    `).bind(encrypted.ciphertext, encrypted.nonce, token.expiresAt, stamp, stamp, stamp, storeId))
+    `).bind(encrypted.ciphertext, encrypted.nonce, access.ciphertext, access.nonce, token.expiresAt, stamp, stamp, stamp, storeId))
     return true
   } catch {
     return false
   }
+}
+
+/**
+ * 申请一次自愈重登名额（2026-09-09 修复 · 第 2 项）。
+ *
+ * scheduled 路径失败后也要内联重登，但上游登录有风控，不能让每分钟的 cron
+ * 反复打登录接口。用 heal_last_attempted_at 做原子抢占：只有距离上次尝试
+ * 超过 minIntervalMs 才允许本次重登。
+ *
+ * 原子性：条件 UPDATE 的 changes 计数即「是否抢到」，避免读-判断-写竞态
+ * （多分类并发失败时只有一个能拿到名额，其余等下一轮）。
+ */
+async function claimHealAttempt(db: D1Database, storeId: string, minIntervalMs: number, now = new Date()): Promise<boolean> {
+  const stamp = now.toISOString()
+  const cutoff = new Date(now.getTime() - minIntervalMs).toISOString()
+  const result = await run(db.prepare(`
+    UPDATE shiphub_connections SET heal_last_attempted_at = ?
+    WHERE store_id = ? AND (heal_last_attempted_at IS NULL OR heal_last_attempted_at <= ?)
+  `).bind(stamp, storeId, cutoff))
+  return Number(result.meta.changes) > 0
 }
 
 // 自愈：对 reauth_required 且持有可用登录凭据的连接，尝试程序化重登恢复。
