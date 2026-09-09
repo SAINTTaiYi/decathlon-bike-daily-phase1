@@ -53,11 +53,46 @@ test('feed 两条查询分别命中 0022 门店业务日索引与 entity 索引'
     WHERE e.store_id = ? AND e.business_date = ?
     ORDER BY e.created_at DESC LIMIT 500`).all(STORE, TODAY)
   assert.match(JSON.stringify(todayPlan), /audit_events_store_date_created_idx/u, '当天查询必须走门店+业务日索引')
-  const historyPlan = db.sqlite.prepare(`EXPLAIN QUERY PLAN
+
+  // 在册记录事件史（historyRows）的索引选择（2026-09-09 D1 预算修复）。
+  //
+  // 这条断言此前是假绿的：它只测「单个 ? 占位符」的简化 SQL，而真实查询是
+  // 「多值 IN (?,?,...) + 两个 LEFT JOIN + ORDER BY created_at DESC」。
+  // 多值 IN 让优化器改选 audit_events_store_created_idx (store_id=?)，
+  // 先扫全店审计事件再在内存里过滤 entity_id —— 读行数 = O(全店历史)，
+  // staging 实测 779 行/次（占单店日读 26%），且随天数无限增长，
+  // 审计表涨到 5000 行即烧穿免费层 5M/日。
+  //
+  // 教训：断言必须覆盖与生产一致的完整形态。这里做两件事：
+  //   ① 用真实形态（多值 IN + JOIN + ORDER BY）复现优化器的错误选择（回归对照）
+  //   ② 断言生产源码显式 INDEXED BY（唯一可靠的修法——新建复合索引也不行，
+  //      因为 ORDER BY created_at DESC 会让优化器仍偏好有序的 store 索引）
+  const multiIds = ['R1', 'R2', 'R3']
+  const placeholders = multiIds.map(() => '?').join(',')
+  const naivePlan = db.sqlite.prepare(`EXPLAIN QUERY PLAN
     SELECT e.id FROM audit_events e
-    WHERE e.entity_type = 'work-item' AND e.entity_id IN (?)
-      AND e.store_id = ? AND e.business_date != ?`).all('R1', STORE, TODAY)
-  assert.match(JSON.stringify(historyPlan), /audit_events_entity_idx/u, '在册记录事件史必须走 entity 索引')
+    LEFT JOIN audit_events rev ON rev.reverted_event_id = e.id
+    LEFT JOIN work_items current_item ON current_item.id = e.entity_id AND current_item.store_id = e.store_id
+    WHERE e.entity_type = 'work-item' AND e.entity_id IN (${placeholders})
+      AND e.store_id = ? AND e.business_date != ?
+    ORDER BY e.created_at DESC LIMIT 500`).all(...multiIds, STORE, TODAY)
+  assert.match(JSON.stringify(naivePlan), /audit_events_store_created_idx/u,
+    '不加 INDEXED BY 时优化器确实误选 store 索引（本断言证明修复是必要的，不是多此一举）')
+
+  const forcedPlan = db.sqlite.prepare(`EXPLAIN QUERY PLAN
+    SELECT e.id FROM audit_events e INDEXED BY audit_events_entity_idx
+    LEFT JOIN audit_events rev ON rev.reverted_event_id = e.id
+    LEFT JOIN work_items current_item ON current_item.id = e.entity_id AND current_item.store_id = e.store_id
+    WHERE e.entity_type = 'work-item' AND e.entity_id IN (${placeholders})
+      AND e.store_id = ? AND e.business_date != ?
+    ORDER BY e.created_at DESC LIMIT 500`).all(...multiIds, STORE, TODAY)
+  assert.match(JSON.stringify(forcedPlan), /audit_events_entity_idx/u, '加 INDEXED BY 后必须走 entity 索引')
+  assert.doesNotMatch(JSON.stringify(forcedPlan), /audit_events_store_created_idx/u)
+
+  // 生产源码必须显式 INDEXED BY —— 只靠优化器自己选是不可靠的。
+  const source = await readFile(new URL('../src/routes/audit.ts', import.meta.url), 'utf8')
+  assert.match(source, /FROM audit_events e INDEXED BY audit_events_entity_idx/u,
+    'historyRows 必须显式 INDEXED BY audit_events_entity_idx（2026-09-09 修复）')
 })
 
 test('getOrCreateDay 返回创建标志，bootstrap 只在当日首次访问时执行清理扫描', async () => {

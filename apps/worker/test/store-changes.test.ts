@@ -82,6 +82,11 @@ test('长轮询端点：挂起参数与鉴权齐全', async () => {
   assert.match(src, /auth\.requirePasswordChanged/u)
   assert.match(src, /since/u, '必须接受 since 参数')
   assert.match(src, /HOLD_MS/u, '必须有挂起时长上限')
+  // 挂起期间的点查间隔（2026-09-09 D1 预算修复）：1000 → 2500。
+  // 单次请求读行数 = HOLD_MS / POLL_MS，从 25 降到 10（-60%）。
+  // 这条断言防止有人「为了更实时」把它调回每秒——那会让 D1 读行量翻 2.5 倍。
+  assert.match(src, /const POLL_MS = 2_500/u, 'POLL_MS 必须保持 2500（D1 预算；调小会线性放大读行量）')
+  assert.match(src, /const HOLD_MS = 25_000/u, 'HOLD_MS 必须保持 25 秒')
   // 挂起等待不得用忙等（CPU 时间在免费层只有 10ms）
   assert.match(src, /setTimeout/u, '必须用 setTimeout 等待而非忙等')
   assert.doesNotMatch(src, /while \(true\)/u, '禁止无限循环')
