@@ -1,28 +1,58 @@
 {
   "kind": "formal-production-release",
-  "version": "6.7.6",
+  "version": "6.7.7",
   "previewRange": {
-    "fromExclusive": "e5f6bd3adb0aae8bad6db87a91a282bf7dcc8552",
-    "toInclusive": "833155f77e088d7342654c0a2cf7dc25efe4a65b",
+    "fromExclusive": "a78458f545abdd7a9b4be034d55e37ecceda0151",
+    "toInclusive": "8dc7edb9b5ab26e857cc9c0a47405699cb43ef6c",
     "commits": [
       {
-        "sha": "0cb5256359347c726924463557199d329203de8d",
-        "subject": "chore(release): stamp V6.7.5 build metadata"
+        "sha": "738d51dc8d6803e0d1dc51b7f901e8f47cae47e2",
+        "subject": "chore(release): stamp V6.7.6 build metadata"
       },
       {
-        "sha": "833155f77e088d7342654c0a2cf7dc25efe4a65b",
-        "subject": "fix(boot): 登录卡变形动效残留 transform 困住下拉菜单层叠"
+        "sha": "5b9d7d90a03a4cfbd5c35816a0b6ea7a60b40152",
+        "subject": "fix(shiphub): 自愈冷却专用列 + 手动同步内联重登 + cube 写库解耦（三功能失效修复）(#258)"
+      },
+      {
+        "sha": "b2d25989ef44be632baebecc44704179dc98f602",
+        "subject": "feat(release): 后端发布版本后缀规则（6.7.6-1，公开版本与刷新公告不变）(#259)"
+      },
+      {
+        "sha": "fd14c54cc06a7f456c4a518907079cdcddafeaef",
+        "subject": "fix(bi): 适配 CubeInStore 26.09.01.01 契约变更（perfeco 日期 yyyyMMdd + API key 轮换）(#260)"
+      },
+      {
+        "sha": "155d17f0ca3647725e7fd66419162b8b7c894ac7",
+        "subject": "chore(release): 后端构建版本 6.7.6-2（perfeco 契约适配）(#261)"
+      },
+      {
+        "sha": "5276a5146ef7a5ff229738f2891ca217b0633fa0",
+        "subject": "feat(realtime): 实时数据流（长轮询 + Shiphub 同步实时化）(#262)"
+      },
+      {
+        "sha": "7ccb556385893dfbd12e1890c1f66e20f3562966",
+        "subject": "fix(audit): bootstrap 审计历史查询走 entity 索引 + 长轮询降频（D1 预算修复）(#263)"
+      },
+      {
+        "sha": "8dc7edb9b5ab26e857cc9c0a47405699cb43ef6c",
+        "subject": "chore(release): 版本基线回归公开版本 6.7.6（后端后缀周期结束，转入前端正式发布）"
       }
     ]
   },
   "announcement": {
-    "title": "登录卡变形动效残留 transform 困住下拉菜单层叠修复",
-    "summary": "修复注册页选择门店下拉被 Profile/显示名/邮箱等字段盖住（桌面+移动端同根因）：GSAP 变形补间收尾清理内联 transform，浮层层叠恢复正常",
+    "title": "Shiphub 实时数据流 + D1 行读预算修复",
+    "summary": "打开 ops 后无需任何操作，新自提订单自动出现（cron 每分钟 + 页面打开即确保新鲜 + 长轮询推送）；同时修复一条会随审计历史无限增长、在 2-3 周内烧穿 D1 免费层的查询",
     "changes": [
-      "根因为 useAuthPanelMorph 的 y/autoAlpha 补间残留恒等内联 transform，创建层叠上下文把门店下拉菜单困在所属字段内",
-      "body 与字段 stagger 补间统一加 tween 级 clearProps 交还内联样式，动画期间不受影响",
-      "新增回归断言 tests/boot-panel-morph-cleanup.test.mjs 4 例（退回旧写法实测变红）；web 497 全绿"
+      "Shiphub 同步实时化：cron 从每 5 分钟改为每分钟，hand/pick 计数轮询从 5 分钟压到 55 秒（count 端点只回一个整数，只有计数变化才拉列表）",
+      "新增页面打开即同步：挂载/回到前台/长轮询唤醒时调用 ensure-fresh，服务端按 60 秒门禁决定是否拉上游，保证有人看页面时数据最多滞后 60 秒",
+      "修复长轮询唤醒只刷新计数不刷新列表的割裂（会出现「看板显示 3 单、列表还是 2 单」），改为按计数变化挑选分类重拉订单",
+      "长轮询 + 版本号实时推送：任何写操作与后台同步都会立即唤醒在线页面，不再需要手动刷新浏览器",
+      "D1 预算修复（实测 779 行 → 102 行/次）：bootstrap 的审计历史查询改为显式走 entity 索引。原查询同时约束门店与记录 id 却误选门店索引，读行数等于全店审计总量，会随使用天数无限增长（涨到 5000 行即超免费层限额）",
+      "长轮询点查间隔 1 秒 → 2.5 秒：单次请求读行 25 → 10（-60%），推送延迟仍 ≤2.5 秒",
+      "BI 定时同步的版本号标记改为「确实写入才标记」，避免每分钟无意义地唤醒所有在线页面",
+      "新增回归防线：bootstrap 索引断言覆盖真实查询形态（多值 IN + JOIN + ORDER BY，原断言只测单个占位符所以一直是假绿），注入旧写法实测变红；长轮询间隔取值锁死",
+      "全套 780 例零失败（web 510 / worker 222 / api 21 / database 20 / domain 7）"
     ]
   },
-  "preparedAt": "2026-09-08T05:53:48.150Z"
+  "preparedAt": "2026-09-09T11:26:06.658Z"
 }

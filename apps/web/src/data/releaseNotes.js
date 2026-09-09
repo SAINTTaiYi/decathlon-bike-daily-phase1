@@ -1,15 +1,19 @@
-export const APP_VERSION = "6.7.6"
+export const APP_VERSION = "6.7.7"
 
 export const currentRelease = {
   version: APP_VERSION,
   date: "2026.09.09",
-  title: "CubeInStore 26.09.01.01 接口契约适配",
-  summary: "适配迪卡侬 CubeInStore 26.09.01.01 新版本的后端契约变更：perfeco 日期参数改为紧凑格式并轮换 API 凭据，恢复销售数据自动同步",
+  title: "Shiphub 实时数据流 + D1 行读预算修复",
+  summary: "打开 ops 后无需任何操作，新自提订单自动出现（cron 每分钟 + 页面打开即确保新鲜 + 长轮询推送）；同时修复一条会随审计历史无限增长、在 2-3 周内烧穿 D1 免费层的查询",
   changes: [
-    "perfeco 日期参数契约变更：上游从 yyyy-MM-dd 改为 yyyyMMdd（LocalDateTime 解析），旧格式返回 400，内部缓存键与业务日期仍保持 ISO 不变",
-    "perfeco 与 SPD 的 API 凭据轮换，两个 key 独立配置、互不混用",
-    "SPD 日期格式经核实未变（仍为 yyyy-MM-dd），仅 perfeco 变更，避免两者一起改导致折扣数据静默归零",
-    "新增 apps/worker/test/perfeco-contract.test.ts 6 例契约回归（日期转换、请求 URL 格式、SPD 不受影响、缓存键不变）",
-    "全套 759 例零失败（web 504 / worker 207 / api 21 / database 20 / domain 7）"
+    "Shiphub 同步实时化：cron 从每 5 分钟改为每分钟，hand/pick 计数轮询从 5 分钟压到 55 秒（count 端点只回一个整数，只有计数变化才拉列表）",
+    "新增页面打开即同步：挂载/回到前台/长轮询唤醒时调用 ensure-fresh，服务端按 60 秒门禁决定是否拉上游，保证有人看页面时数据最多滞后 60 秒",
+    "修复长轮询唤醒只刷新计数不刷新列表的割裂（会出现「看板显示 3 单、列表还是 2 单」），改为按计数变化挑选分类重拉订单",
+    "长轮询 + 版本号实时推送：任何写操作与后台同步都会立即唤醒在线页面，不再需要手动刷新浏览器",
+    "D1 预算修复（实测 779 行 → 102 行/次）：bootstrap 的审计历史查询改为显式走 entity 索引。原查询同时约束门店与记录 id 却误选门店索引，读行数等于全店审计总量，会随使用天数无限增长（涨到 5000 行即超免费层限额）",
+    "长轮询点查间隔 1 秒 → 2.5 秒：单次请求读行 25 → 10（-60%），推送延迟仍 ≤2.5 秒",
+    "BI 定时同步的版本号标记改为「确实写入才标记」，避免每分钟无意义地唤醒所有在线页面",
+    "新增回归防线：bootstrap 索引断言覆盖真实查询形态（多值 IN + JOIN + ORDER BY，原断言只测单个占位符所以一直是假绿），注入旧写法实测变红；长轮询间隔取值锁死",
+    "全套 780 例零失败（web 510 / worker 222 / api 21 / database 20 / domain 7）"
   ]
 }
