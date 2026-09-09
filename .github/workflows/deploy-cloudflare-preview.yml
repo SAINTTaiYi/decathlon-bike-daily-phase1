@@ -132,7 +132,7 @@ jobs:
               }
             ],
             "triggers": {
-              "crons": ["*/5 * * * *"]
+              "crons": ["* * * * *"]
             },
             "vars": {
               "APP_ENV": "preview",

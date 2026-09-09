@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { disconnectShipHub, getShipHubOrders, getShipHubSummary, requestShipHubSync, setShipHubOrderAction, startShipHubConnection } from '../api/shiphub.js'
+import { disconnectShipHub, ensureShipHubFresh, getShipHubOrders, getShipHubSummary, requestShipHubSync, setShipHubOrderAction, startShipHubConnection } from '../api/shiphub.js'
 import { isPreviewHost } from '../utils/previewGate.js'
 
 const EMPTY = { hand: [], pick: [], receive: [], ship: [] }
@@ -60,6 +60,11 @@ export default function useShipHub(enabled) {
   const [simulatedStatus, setSimulatedStatus] = useState(() => readSimulatedStatus())
   const requestRef = useRef(null)
   const syncingRef = useRef(false)
+  // 上一次 summary 的镜像，用于判断哪些分类的计数真的变了（只在变化时重拉列表）。
+  // 必须在 refreshSummary 之前声明：后者会写它（见下方），提前定义避免 TDZ。
+  // 只在 setSummary 的同一步手动更新——effect 同步有一帧延迟，长轮询高频唤醒
+  // 时那一帧会读到旧值，导致重复重拉或漏拉。
+  const summaryRef = useRef(null)
 
   const refreshSummary = useCallback(async (signal) => {
     if (!enabled) {
@@ -70,6 +75,7 @@ export default function useShipHub(enabled) {
     setLoading(true)
     try {
       const next = await getShipHubSummary(signal)
+      summaryRef.current = next
       setSummary(next)
       setError('')
       return next
@@ -131,6 +137,53 @@ export default function useShipHub(enabled) {
       setReconnecting(false)
     }
   }, [refreshSummary])
+
+  // 页面打开/回到前台时的「确保新鲜」（2026-09-09 实时化第二批）。
+  // 服务端只在数据过期（>60 秒）时才打上游，因此多标签页/频繁切前台不会放大调用量。
+  // 拿到结果后：synced 非空说明确实拉到新数据 → 刷新 summary 与订单。
+  // 失败静默吞掉：页面照常渲染已有数据，长轮询会继续兜底。
+  // 用 ref 保存上一次 summary，用于判断哪些分类的计数真的变了。
+  // 只在变化的分类上重拉订单列表，避免每次长轮询唤醒都打 4 个列表请求。
+  const ensureFresh = useCallback(async () => {
+    if (!enabled) return null
+    try {
+      const result = await ensureShipHubFresh()
+      // 本函数有两个调用场景，都必须以服务端为准重读：
+      //   ① 挂载/回前台：服务端可能刚同步完（synced 非空），也可能本就新鲜；
+      //   ② 长轮询唤醒：后台 cron 已 bump 版本号，数据已新鲜（synced 为空），
+      //      但**订单列表必须重拉**，否则出现「计数 3 单、列表 2 单」的割裂。
+      const next = await getShipHubSummary()
+      const prev = summaryRef.current
+      summaryRef.current = next
+      setSummary(next)
+      setError('')
+      const countOf = (payload, category) =>
+        payload?.categories?.find((entry) => entry.category === category)?.count
+      // 首次加载（无 prev）→ 全部拉；之后只拉计数变化的分类 + 服务端刚同步的分类。
+      const synced = Array.isArray(result?.synced) ? result.synced : []
+      const targets = prev
+        ? CATEGORIES.filter((category) => synced.includes(category) || countOf(prev, category) !== countOf(next, category))
+        : CATEGORIES
+      if (targets.length > 0) await Promise.all(targets.map((category) => loadOrders(category)))
+      return result
+    } catch {
+      return null
+    }
+  }, [enabled, loadOrders])
+
+  // 挂载即「确保新鲜」+ 回到前台再检查一次（2026-09-09 实时化第二批）。
+  // 依赖里不放 ensureFresh：它随 loadOrders/refreshSummary 重建引用，
+  // 直接依赖会导致每次订单加载都重跑一遍同步检查。用 ref 持有最新实现，
+  // 只按 enabled 挂一次监听。
+  const ensureFreshRef = useRef(ensureFresh)
+  useEffect(() => { ensureFreshRef.current = ensureFresh }, [ensureFresh])
+  useEffect(() => {
+    if (!enabled) return undefined
+    void ensureFreshRef.current()
+    const onVisible = () => { if (!document.hidden) void ensureFreshRef.current() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [enabled])
 
   const sync = useCallback(async () => {
     // 立即上锁：按钮点下即禁用，消除 202 往返期间的重复点击窗口
@@ -201,6 +254,7 @@ export default function useShipHub(enabled) {
     reconnect,
     disconnect,
     sync,
+    ensureFresh,
     refresh: refreshSummary
   }
 }

@@ -44,6 +44,7 @@ import useEnvironmentMotion from './hooks/useEnvironmentMotion.js'
 import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
 import useShipHub from './hooks/useShipHub.js'
 import useShipHubReconnectPrompt from './hooks/useShipHubReconnectPrompt.js'
+import useStoreRealtime from './hooks/useStoreRealtime.js'
 import OpeningScene from './scenes/OpeningScene.jsx'
 import PickupScene from './scenes/PickupScene.jsx'
 import RepairScene from './scenes/RepairScene.jsx'
@@ -100,6 +101,21 @@ export default function App() {
   const deferUpdatePrompt = auth.source === 'login' && !introLocked && !workspaceAssemblyDone
   const workflow = useRemoteClosingWorkflow(authenticated && !introLocked)
   const shiphub = useShipHub(authenticated && !introLocked)
+  // 门店数据实时推送（2026-09-09）：服务端版本号一变就重新拉取，页面无需手动刷新。
+  // 覆盖：工作单/台账、闭店状态、Shiphub 订单（含后台 cron 同步）、BI 销售数据。
+  //
+  // Shiphub 侧必须走 ensureFresh 而不是只 refresh summary：后台 cron 同步只会
+  // bump 版本号，summary 里的 counts 变了但卡片列表还是旧的——只刷 summary 会
+  // 出现「看板显示有 3 单、下面列表还是 2 单」的割裂（2026-09-09 实测发现）。
+  // ensureFresh 顺带做一次新鲜度检查，正好把「有新订单但 cron 还没轮到」的
+  // 窗口也补上。
+  useStoreRealtime(
+    useCallback(() => {
+      void workflow.refresh()
+      void shiphub.ensureFresh()
+    }, [workflow.refresh, shiphub.ensureFresh]),
+    { enabled: authenticated && !introLocked }
+  )
   const [menuOpen, setMenuOpen] = useState(false)
   const [passwordChangeOpen, setPasswordChangeOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(false)

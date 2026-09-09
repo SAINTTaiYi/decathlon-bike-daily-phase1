@@ -24,8 +24,9 @@ test('上游新增 pick 分类：计数路径、来源标签与同步节奏', ()
   assert.match(client, /pick: 'to_pick_count'/u)
   assert.match(client, /pick: 'Shiphub 待拣货'/u)
   assert.match(sync, /const CATEGORIES: readonly ShipHubCategory\[\] = \['hand', 'pick', 'receive', 'ship'\]/u)
-  // 待拣货对齐待取节奏（计数 5 分钟 / 全量 15 分钟），顾客取车链路保持高频新鲜
-  assert.match(sync, /pick: 5 \* 60_000/u)
+  // 待拣货对齐待取节奏（2026-09-09 实时化：计数 55 秒 / 全量 15 分钟），
+  // 顾客取车链路保持高频新鲜
+  assert.match(sync, /pick: 55_000/u)
   assert.match(sync, /pick: 15 \* 60_000/u)
   // 手动同步与授权后同步都覆盖 pick
   assert.equal(routes.split("for (const selected of ['hand', 'pick', 'receive', 'ship'] as const) {").length - 1, 2)

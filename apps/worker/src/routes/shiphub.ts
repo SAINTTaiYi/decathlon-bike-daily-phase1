@@ -12,8 +12,10 @@ import { getCubeIdentityInfo, isCubeIdentityConfigured, probeStoreCubeIdentity }
 import { first, nowIso } from '../db.js'
 import { idempotent } from '../services/idempotency.js'
 import { ApiProblem } from '../services/problems.js'
+import { bumpStoreVersion } from '../services/store-changes.js'
 import {
   activeInStoreTimezone,
+  ensureFreshStoreCategories,
   getShipHubConnection,
   getShipHubOrder,
   getShipHubSummary,
@@ -275,6 +277,7 @@ export function shipHubRoutes() {
       ])
       return { status: 200, body: { disconnected: true } }
     })
+    await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
     return c.json(result.body, result.status as any)
   })
 
@@ -329,6 +332,7 @@ export function shipHubRoutes() {
       ])
       return { status: 200, body: { state: body.state, waitingForUpstream: body.state === 'completed' } }
     })
+    await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
     return c.json(result.body, result.status as any)
   })
 
@@ -369,7 +373,28 @@ export function shipHubRoutes() {
         }
       }
     })
+    await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
     return c.json(result.body, result.status as any)
+  })
+
+  // ── 页面打开时的「确保新鲜」（2026-09-09 实时化第二批）─────────────────
+  // 前端在挂载与回到前台时调用；服务端只在数据过期（> ENSURE_FRESH_MS）时才打上游。
+  // 权限用 write（任意已登录门店成员）：这是「打开页面」的隐式行为，不是管理动作，
+  // 操作员也必须能享受实时数据。滥用由 60 秒门禁 + 分类级 COUNT_INTERVAL_MS +
+  // 同步 lease 三层去重，不会因多标签页/多设备放大上游调用量。
+  // 上游故障绝不冒泡成 5xx：页面照常渲染已有数据（前端另有长轮询兜底）。
+  app.post('/api/v1/shiphub/ensure-fresh', requireJsonBody, ...write, async (c) => {
+    const context = c.get('auth')!
+    const result = await ensureFreshStoreCategories(c.env, context.storeId, ['hand', 'pick'])
+    // 确实同步到了新数据才 bump 版本号：否则每次打开页面都会无意义地
+    // 打断所有在线页面的长轮询（数据没变，前端白拉一轮）。
+    if (result.synced.length > 0) await bumpStoreVersion(c.env.DB, context.storeId)
+    return c.json({
+      stale: result.stale,
+      synced: result.synced,
+      skipped: result.skipped,
+      summary: await getShipHubSummary(c.env.DB, c.get('config'), context.storeId)
+    })
   })
 
   return app
