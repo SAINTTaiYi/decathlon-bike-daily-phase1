@@ -92,18 +92,24 @@ export async function completeShipHubAuthorization(
   const token = await exchangeAuthorizationCode(config, code, codeVerifier)
   if (!token.refreshToken) throw new ShipHubUpstreamError('OAUTH_REFRESH_TOKEN_MISSING')
   const encrypted = await encryptShipHubSecret(token.refreshToken, key)
+  // 同时缓存 access token（2026-09-09 OAUTH_TOKEN_HTTP_400 修复）：授权完成后
+  // 立即写入，让首次同步就能复用，不必再消耗一次 refresh token 轮换。
+  const access = await encryptShipHubSecret(token.accessToken, key)
   const stamp = nowIso()
   await db.prepare(`
     INSERT INTO shiphub_connections (
       store_id, enabled, mode, refresh_token_ciphertext, refresh_token_nonce, refresh_token_key_version,
+      access_token_ciphertext, access_token_nonce, access_token_key_version,
       token_expires_at, token_updated_at, authorization_status, last_auth_error_code, created_at, updated_at
-    ) VALUES (?, 1, 'live', ?, ?, 'v1', ?, ?, 'connected', NULL, ?, ?)
+    ) VALUES (?, 1, 'live', ?, ?, 'v1', ?, ?, 'v1', ?, ?, 'connected', NULL, ?, ?)
     ON CONFLICT(store_id) DO UPDATE SET
       enabled = 1, mode = 'live', refresh_token_ciphertext = excluded.refresh_token_ciphertext,
       refresh_token_nonce = excluded.refresh_token_nonce, refresh_token_key_version = excluded.refresh_token_key_version,
+      access_token_ciphertext = excluded.access_token_ciphertext, access_token_nonce = excluded.access_token_nonce,
+      access_token_key_version = excluded.access_token_key_version,
       token_expires_at = excluded.token_expires_at, token_updated_at = excluded.token_updated_at,
       authorization_status = 'connected', last_auth_error_code = NULL, updated_at = excluded.updated_at
-  `).bind(context.storeId, encrypted.ciphertext, encrypted.nonce, token.expiresAt, stamp, stamp, stamp).run()
+  `).bind(context.storeId, encrypted.ciphertext, encrypted.nonce, access.ciphertext, access.nonce, token.expiresAt, stamp, stamp, stamp).run()
   return { returnTo: row.return_to, token }
 }
 
@@ -132,13 +138,69 @@ export async function rotateRefreshToken(
   token: ShipHubToken
 ): Promise<void> {
   if (!token.refreshToken || !config.SHIPHUB.tokenEncryptionKey) return
-  const encrypted = await encryptShipHubSecret(token.refreshToken, config.SHIPHUB.tokenEncryptionKey)
+  const key = config.SHIPHUB.tokenEncryptionKey
+  const encrypted = await encryptShipHubSecret(token.refreshToken, key)
+  // 同时缓存 access token（2026-09-09 OAUTH_TOKEN_HTTP_400 修复）：下次同步在
+  // token 剩余寿命充足时直接复用，不再消耗 refresh token 族。
+  const access = await encryptShipHubSecret(token.accessToken, key)
   await db.prepare(`
     UPDATE shiphub_connections
     SET refresh_token_ciphertext = ?, refresh_token_nonce = ?, refresh_token_key_version = 'v1',
+        access_token_ciphertext = ?, access_token_nonce = ?, access_token_key_version = 'v1',
         token_expires_at = ?, token_updated_at = ?, updated_at = ?
     WHERE store_id = ? AND refresh_token_ciphertext = ? AND refresh_token_nonce = ?
-  `).bind(encrypted.ciphertext, encrypted.nonce, token.expiresAt, nowIso(), nowIso(), storeId, previousCiphertext, previousNonce).run()
+  `).bind(
+    encrypted.ciphertext, encrypted.nonce,
+    access.ciphertext, access.nonce,
+    token.expiresAt, nowIso(), nowIso(),
+    storeId, previousCiphertext, previousNonce
+  ).run()
+}
+
+// ── access token 复用（2026-09-09 OAUTH_TOKEN_HTTP_400 根因修复）─────────
+//
+// 为什么必须复用：同一员工账号有两条独立登录链路（Shiphub 同步与 BI/Cube 身份），
+// 而上游的 refresh token 是**族级**的——重新登录会作废该账号所有旧 RT。
+// 旧实现每个分类都刷新一次 RT（4 次/分钟），把与 BI 重登撞车的窗口放大 4 倍，
+// 撞上就 400 invalid_grant（实测 136 次，最早 2026-08-19）。
+//
+// 复用后 RT 刷新频率降到约 1 次/2 小时（access token 有效期），撞车概率 -480×。
+
+// 剩余寿命低于此值才刷新。取 10 分钟：一次同步最长约 1 分钟，留足安全余量，
+// 同时避免「刚刷新就过期」的边界抖动。
+const ACCESS_TOKEN_REFRESH_MARGIN_MS = 10 * 60_000
+
+export type CachedAccessToken = { accessToken: string; expiresAt: string }
+
+/**
+ * 读取仍可复用的 access token；不可复用（不存在/将过期/解密失败）时返回 null。
+ *
+ * 解密失败返回 null 而不是抛错：调用方会退回到正常的刷新路径，由那条路径
+ * 决定是否标记 reauth_required——这里不该替它做判断。
+ */
+export async function readCachedAccessToken(
+  config: AppConfig,
+  row: {
+    access_token_ciphertext: string | null
+    access_token_nonce: string | null
+    token_expires_at: string | null
+  },
+  now = new Date()
+): Promise<CachedAccessToken | null> {
+  const key = config.SHIPHUB.tokenEncryptionKey
+  if (!key) return null
+  if (!row.access_token_ciphertext || !row.access_token_nonce) return null
+  if (!row.token_expires_at) return null
+  const expires = Date.parse(row.token_expires_at)
+  if (!Number.isFinite(expires)) return null
+  if (expires - now.getTime() <= ACCESS_TOKEN_REFRESH_MARGIN_MS) return null
+  try {
+    const accessToken = await decryptShipHubSecret(row.access_token_ciphertext, row.access_token_nonce, key)
+    return accessToken ? { accessToken, expiresAt: row.token_expires_at } : null
+  } catch {
+    // 密钥轮换或密文损坏：当作没有缓存，走刷新路径（那里有专门的错误码与自愈）。
+    return null
+  }
 }
 
 // 同一上游身份 = location_num + 登录账号。返回 sha256 hex；无 location 时无法判定身份。

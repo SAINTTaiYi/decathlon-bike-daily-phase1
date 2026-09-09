@@ -169,6 +169,9 @@ export function shipHubRoutes() {
         const token = await performShipHubProgrammaticLogin(config.SHIPHUB, resolvedCredentials)
         if (!token.refreshToken) throw new ShipHubUpstreamError('OAUTH_REFRESH_TOKEN_MISSING')
         const encrypted = await encryptShipHubSecret(token.refreshToken, key)
+        // 同时缓存 access token（2026-09-09 OAUTH_TOKEN_HTTP_400 修复）：连接成功后
+        // 下面 waitUntil 触发的首次同步可直接复用，省掉一次 RT 轮换。
+        const access = await encryptShipHubSecret(token.accessToken, key)
         const stamp = nowIso()
         const audit = prepareAudit(c.env.DB, {
           context,
@@ -183,12 +186,15 @@ export function shipHubRoutes() {
           c.env.DB.prepare(`
             INSERT INTO shiphub_connections (
               store_id, enabled, mode, refresh_token_ciphertext, refresh_token_nonce, refresh_token_key_version,
+              access_token_ciphertext, access_token_nonce, access_token_key_version,
               login_username_enc, login_password_enc, login_key_version, location_num, identity_fingerprint,
               token_expires_at, token_updated_at, authorization_status, last_auth_error_code, created_at, updated_at
-            ) VALUES (?, 1, 'live', ?, ?, 'v1', ?, ?, ?, ?, ?, ?, ?, 'connected', NULL, ?, ?)
+            ) VALUES (?, 1, 'live', ?, ?, 'v1', ?, ?, 'v1', ?, ?, ?, ?, ?, ?, ?, 'connected', NULL, ?, ?)
             ON CONFLICT(store_id) DO UPDATE SET
               enabled = 1, mode = 'live', refresh_token_ciphertext = excluded.refresh_token_ciphertext,
               refresh_token_nonce = excluded.refresh_token_nonce, refresh_token_key_version = excluded.refresh_token_key_version,
+              access_token_ciphertext = excluded.access_token_ciphertext, access_token_nonce = excluded.access_token_nonce,
+              access_token_key_version = excluded.access_token_key_version,
               login_username_enc = COALESCE(excluded.login_username_enc, shiphub_connections.login_username_enc),
               login_password_enc = COALESCE(excluded.login_password_enc, shiphub_connections.login_password_enc),
               login_key_version = COALESCE(excluded.login_key_version, shiphub_connections.login_key_version),
@@ -202,7 +208,7 @@ export function shipHubRoutes() {
               cube_auth_error_code = CASE WHEN excluded.login_username_enc IS NOT NULL THEN NULL ELSE shiphub_connections.cube_auth_error_code END,
               token_expires_at = excluded.token_expires_at, token_updated_at = excluded.token_updated_at,
               authorization_status = 'connected', last_auth_error_code = NULL, updated_at = excluded.updated_at
-          `).bind(context.storeId, encrypted.ciphertext, encrypted.nonce, loginUsernameEnc, loginPasswordEnc, loginUsernameEnc ? 'v1' : null, effectiveLocationNum, fingerprint, token.expiresAt, stamp, stamp, stamp),
+          `).bind(context.storeId, encrypted.ciphertext, encrypted.nonce, access.ciphertext, access.nonce, loginUsernameEnc, loginPasswordEnc, loginUsernameEnc ? 'v1' : null, effectiveLocationNum, fingerprint, token.expiresAt, stamp, stamp, stamp),
           audit.statement
         ])
         const waitUntil = c.executionCtx?.waitUntil?.bind(c.executionCtx)

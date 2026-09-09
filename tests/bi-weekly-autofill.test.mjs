@@ -74,7 +74,7 @@ test('getStoreWeeks 路由 + schema 0025 落地', async () => {
   assert.match(route, /app\.get\('\/api\/v1\/bi\/store\/weeks'/u)
   assert.match(route, /listBiStoreWeeks/u)
   const schema = await readWorker('schema-version.ts')
-  assert.match(schema, /'0029_store_change_log'/u)
+  assert.match(schema, /'0030_shiphub_access_token_cache'/u)
   const migration = await readFile(new URL('../migrations/d1/0025_bi_weekly_service_snapshots.sql', import.meta.url), 'utf8')
   assert.match(migration, /CREATE TABLE bi_store_week/u)
   assert.match(migration, /CREATE TABLE bi_service_day/u)
