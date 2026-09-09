@@ -268,6 +268,27 @@ test('连续失败达阈值（3 次）才升级为 reauth_required', async () =>
   }
 })
 
+test('同步成功后清除 reauth_required 与错误码（否则降级状态会永久挂着）', async () => {
+  const db = await database()
+  await startDataServer()
+  try {
+    // 预置可用缓存 token + 已被标为 reauth_required 的连接
+    const future = new Date(Date.now() + 90 * 60_000).toISOString()
+    await seedConnection(db, { accessToken: 'cached-access-token', accessExpiresAt: future })
+    db.exec(`UPDATE shiphub_connections SET authorization_status = 'reauth_required', last_auth_error_code = 'OAUTH_TOKEN_HTTP_400' WHERE store_id = '${STORE}'`)
+    const result = await syncStoreCategory(db as unknown as D1Database, configWithDataServer(), STORE, 'hand', {
+      now: new Date('2026-09-09T04:00:00.000Z')
+    })
+    assert.equal(result.status, 'succeeded')
+    const row = db.one<{ authorization_status: string; last_auth_error_code: string | null }>('SELECT authorization_status, last_auth_error_code FROM shiphub_connections WHERE store_id = ?', STORE)
+    assert.equal(row?.authorization_status, 'connected', '同步成功即证明凭据可用，必须把降级状态清回 connected')
+    assert.equal(row?.last_auth_error_code, null, '错误码必须清除，否则前端一直显示降级提示')
+  } finally {
+    db.close()
+    await stopDataServer()
+  }
+})
+
 // ── 源码约束 ───────────────────────────────────────────────────────────
 
 test('源码必须优先复用缓存，且迁移包含 access token 三列', async () => {

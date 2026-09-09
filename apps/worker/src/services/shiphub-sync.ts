@@ -510,6 +510,16 @@ export async function syncStoreCategory(
       WHERE store_id = ? AND category = ?
     `).bind(count, stamp, successAt, fullReconcile ? 1 : 0, successAt, nextAt(now, fullReconcile ? FULL_INTERVAL_MS[category] : COUNT_INTERVAL_MS[category]), successAt, storeId, category))
     statements.push(db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'succeeded', pages = ?, orders = ?, detail_count = ? WHERE id = ?`).bind(successAt, pages, orders.length, detailCount, runId))
+    // 同步成功即证明凭据可用 → 清除连接级的 reauth_required 与错误码
+    // （2026-09-09 修复 · 第 3 项配套）：否则连续失败 3 次标上的降级状态会一直
+    // 挂着，即便内联重登已经救回来，前端仍显示「需重新连接」。
+    statements.push(db.prepare(`
+      UPDATE shiphub_connections SET authorization_status = 'connected', last_auth_error_code = NULL, updated_at = ?
+      WHERE store_id = ? AND (authorization_status = 'reauth_required' OR last_auth_error_code IS NOT NULL)
+    `).bind(successAt, storeId))
+    // 同步成功即证明凭据可用 → 清除连接级的 reauth_required 与错误码
+    // （2026-09-09 修复 · 第 3 项配套）：否则连续失败 3 次标上的降级状态会一直
+    // 挂着，即便内联重登已经救回来，前端仍显示「需重新连接」。
     await db.batch(statements)
     // 后台同步成功 → 标记门店变更（2026-09-09 实时推送）：前端长轮询据此
     // 自动重新拉取，页面无需手动刷新。仅在本轮确实写入了订单数据时 bump，
