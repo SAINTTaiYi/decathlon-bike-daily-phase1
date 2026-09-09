@@ -306,16 +306,22 @@ async function connectionForSync(db: D1Database, config: AppConfig, storeId: str
   try {
     // 拿到租约后二次检查缓存：并发请求可能在等租约期间刚刷新过，
     // 直接复用可避免「拿到租约又刷新一次」的浪费。
+    // 必须连 refresh_token 列一起取——CAS 的 WHERE 条件依赖它，只取 access token
+    // 会让 latest.refresh_token_* 为 undefined 而回落到陈旧值，导致轮换结果静默丢失。
     const fresh = await first<any>(db.prepare(`
-      SELECT access_token_ciphertext, access_token_nonce, token_expires_at FROM shiphub_connections WHERE store_id = ?
+      SELECT access_token_ciphertext, access_token_nonce, token_expires_at,
+             refresh_token_ciphertext, refresh_token_nonce
+      FROM shiphub_connections WHERE store_id = ?
     `).bind(storeId))
     const afterLease = await readCachedAccessToken(config, fresh ?? row)
     if (afterLease) return { client: createShipHubClient(config.SHIPHUB, afterLease.accessToken, locationNum) }
     const latest = fresh ?? row
-    const refreshToken = await readRefreshToken(config, { refresh_token_ciphertext: latest.refresh_token_ciphertext ?? row.refresh_token_ciphertext, refresh_token_nonce: latest.refresh_token_nonce ?? row.refresh_token_nonce })
+    const latestCiphertext = latest.refresh_token_ciphertext ?? row.refresh_token_ciphertext
+    const latestNonce = latest.refresh_token_nonce ?? row.refresh_token_nonce
+    const refreshToken = await readRefreshToken(config, { refresh_token_ciphertext: latestCiphertext, refresh_token_nonce: latestNonce })
     const token = await refreshShipHubAccessToken(config.SHIPHUB, refreshToken)
-    await rotateRefreshToken(db, config, storeId, latest.refresh_token_ciphertext ?? row.refresh_token_ciphertext, latest.refresh_token_nonce ?? row.refresh_token_nonce, token)
-    return { client: createShipHubClient(config.SHIPHUB, token.accessToken, locationNum), refresh: { ciphertext: latest.refresh_token_ciphertext ?? row.refresh_token_ciphertext, nonce: latest.refresh_token_nonce ?? row.refresh_token_nonce } }
+    await rotateRefreshToken(db, config, storeId, latestCiphertext, latestNonce, token)
+    return { client: createShipHubClient(config.SHIPHUB, token.accessToken, locationNum), refresh: { ciphertext: latestCiphertext, nonce: latestNonce } }
   } finally {
     await releaseIdentityLease(db, fingerprint, owner)
   }

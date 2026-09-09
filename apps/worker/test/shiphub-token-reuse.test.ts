@@ -280,6 +280,13 @@ test('源码必须优先复用缓存，且迁移包含 access token 三列', asy
   assert.ok(cacheIdx > 0 && refreshIdx > 0 && cacheIdx < refreshIdx, '缓存复用必须排在 refresh_token 校验之前')
   assert.match(sync, /const TOKEN_REAUTH_THRESHOLD = 3/u, 'reauth 升级阈值必须显式为 3')
   assert.match(sync, /async function claimHealAttempt/u, '必须有原子抢占式冷却（多分类并发失败时只允许一次重登）')
+  // 租约后的二次 SELECT 必须带上 refresh_token 列：CAS 的 WHERE 依赖它，
+  // 只取 access token 会让轮换结果静默丢失（并发轮换场景下的隐蔽 bug）。
+  const secondSelect = sync.slice(sync.indexOf('拿到租约后二次检查缓存'))
+  const selectEnd = secondSelect.indexOf('`).bind(storeId))')
+  const selectSql = secondSelect.slice(0, selectEnd)
+  assert.match(selectSql, /refresh_token_ciphertext/u, '二次检查必须取 refresh_token_ciphertext（否则 CAS 用陈旧值，轮换静默丢失）')
+  assert.match(selectSql, /refresh_token_nonce/u, '二次检查必须取 refresh_token_nonce')
   const migration = await read('../../../migrations/d1/0030_shiphub_access_token_cache.sql')
   for (const col of ['access_token_ciphertext', 'access_token_nonce', 'access_token_key_version']) {
     assert.match(migration, new RegExp(`ADD COLUMN ${col}`, 'u'), `迁移必须包含 ${col}`)
