@@ -2,6 +2,7 @@ import { all } from '../db.js'
 import { currentWeekWindow, getBikeWeek, getStoreWeek, isoWeekOf, isPerfecoConfigured, type JwtProvider, type StoreWeekPayload } from './bi-bikes.js'
 import { lazyStoreCubeJwt } from './cube-identity.js'
 import { activeInStoreTimezone } from './shiphub-sync.js'
+import { bumpStoreVersion } from './store-changes.js'
 import type { WorkerEnv } from '../env.js'
 
 // ── BI 周结定时拉取（2026-09-06）────────────────────────────────────────
@@ -112,6 +113,11 @@ export async function runScheduledBiSync(env: WorkerEnv, now = new Date()): Prom
       const window = currentWeekWindow(now)
       await getBikeWeek(env, { storeId: store.id, storeCode: store.code, now, jwtProvider })
       await getStoreWeek(env, { storeId: store.id, storeCode: store.code, from: window.from, to: window.to, now, jwtProvider })
+      // BI 拉取成功 → 标记门店变更（2026-09-09 实时推送）：销售数据/车型榜在
+      // 页面自动刷新。getStoreWeek/getBikeWeek 内部命中缓存时不写库，故此处
+      // 按「本轮确实执行了拉取」bump——多 bump 一次只会让前端多拉一次，
+      // 无正确性风险（前端拉的是权威数据）。
+      await bumpStoreVersion(env.DB, store.id)
     } catch { /* 下一 tick 重试；scheduled 层绝不抛错影响 Shiphub 同步 */ }
   }
 }

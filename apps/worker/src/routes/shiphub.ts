@@ -12,6 +12,7 @@ import { getCubeIdentityInfo, isCubeIdentityConfigured, probeStoreCubeIdentity }
 import { first, nowIso } from '../db.js'
 import { idempotent } from '../services/idempotency.js'
 import { ApiProblem } from '../services/problems.js'
+import { bumpStoreVersion } from '../services/store-changes.js'
 import {
   activeInStoreTimezone,
   getShipHubConnection,
@@ -275,6 +276,7 @@ export function shipHubRoutes() {
       ])
       return { status: 200, body: { disconnected: true } }
     })
+    await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
     return c.json(result.body, result.status as any)
   })
 
@@ -329,6 +331,7 @@ export function shipHubRoutes() {
       ])
       return { status: 200, body: { state: body.state, waitingForUpstream: body.state === 'completed' } }
     })
+    await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
     return c.json(result.body, result.status as any)
   })
 
@@ -369,6 +372,7 @@ export function shipHubRoutes() {
         }
       }
     })
+    await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
     return c.json(result.body, result.status as any)
   })
 

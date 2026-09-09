@@ -23,6 +23,7 @@ import { getWorkItem, internalSnapshot, listStoreMembers, listWorkItems } from '
 import { buildRestoreSnapshotStatements } from '../services/restore.js'
 import { batchWhileDayOpen, businessDateFor, ensureDayOpen, runWhileDayOpen, writeAudit } from '../services/business.js'
 import { idempotent } from '../services/idempotency.js'
+import { bumpStoreVersion } from '../services/store-changes.js'
 import { ApiProblem } from '../services/problems.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
@@ -176,6 +177,7 @@ export function workItemRoutes() {
       ])
       return { status: 201, body: { ok: true, record, eventId } }
     })
+    await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
     return c.json(result.body, result.status as any)
   })
 
@@ -294,6 +296,7 @@ export function workItemRoutes() {
       ])
       return { status: 200, body: { ok: true, record, eventId } }
     })
+    await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
     return c.json(result.body, result.status as any)
   })
 
@@ -337,7 +340,8 @@ export function workItemRoutes() {
         const record = await getWorkItem(db, context.storeId, id, businessDate, config)
         return { status: 200, body: { ok: true, record, eventId, ...(outcome.extra ?? {}) } }
       })
-      return c.json(result.body, result.status as any)
+      await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
+    return c.json(result.body, result.status as any)
     })
   }
 
@@ -524,6 +528,7 @@ export function workItemRoutes() {
       ])
       return { status: 200, body: { ok: true, record, eventId } }
     })
+    await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
     return c.json(result.body, result.status as any)
   })
 
@@ -571,6 +576,7 @@ export function workItemRoutes() {
       ])
       return { status: 200, body: { ok: true, record, eventId } }
     })
+    await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
     return c.json(result.body, result.status as any)
   })
 
@@ -603,6 +609,7 @@ export function workItemRoutes() {
       })
       return { status: 200, body: { ok: true, id, eventId } }
     })
+    await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
     return c.json(result.body, result.status as any)
   })
 

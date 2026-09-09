@@ -8,6 +8,7 @@ import { getCubeIdentityInfo } from './cube-identity.js'
 import { refreshShipHubAccessToken } from '../lib/shiphub-token.js'
 import { ApiProblem } from './problems.js'
 import { sendShipHubFailureAlert, shouldAlertOnShipHubFailure } from './shiphub-alert.js'
+import { bumpStoreVersion } from './store-changes.js'
 
 // 硬规则：门店营业时间（北京时间 10:00–22:00）内才允许调用 Shiphub 上游获取自提数据。
 // 固定使用 Asia/Shanghai，不随门店 timezone 字段或部署环境变化。
@@ -472,6 +473,10 @@ export async function syncStoreCategory(
     `).bind(count, stamp, successAt, fullReconcile ? 1 : 0, successAt, nextAt(now, fullReconcile ? FULL_INTERVAL_MS[category] : COUNT_INTERVAL_MS[category]), successAt, storeId, category))
     statements.push(db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'succeeded', pages = ?, orders = ?, detail_count = ? WHERE id = ?`).bind(successAt, pages, orders.length, detailCount, runId))
     await db.batch(statements)
+    // 后台同步成功 → 标记门店变更（2026-09-09 实时推送）：前端长轮询据此
+    // 自动重新拉取，页面无需手动刷新。仅在本轮确实写入了订单数据时 bump，
+    // 避免空轮次（上游无变化）无意义地打断前端挂起。
+    if (orders.length > 0) await bumpStoreVersion(db, storeId)
     return { status: 'succeeded', runId }
   } catch (error) {
     const code = errorCode(error)

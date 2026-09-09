@@ -44,6 +44,7 @@ import useEnvironmentMotion from './hooks/useEnvironmentMotion.js'
 import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
 import useShipHub from './hooks/useShipHub.js'
 import useShipHubReconnectPrompt from './hooks/useShipHubReconnectPrompt.js'
+import useStoreRealtime from './hooks/useStoreRealtime.js'
 import OpeningScene from './scenes/OpeningScene.jsx'
 import PickupScene from './scenes/PickupScene.jsx'
 import RepairScene from './scenes/RepairScene.jsx'
@@ -100,6 +101,15 @@ export default function App() {
   const deferUpdatePrompt = auth.source === 'login' && !introLocked && !workspaceAssemblyDone
   const workflow = useRemoteClosingWorkflow(authenticated && !introLocked)
   const shiphub = useShipHub(authenticated && !introLocked)
+  // 门店数据实时推送（2026-09-09）：服务端版本号一变就重新拉取，页面无需手动刷新。
+  // 覆盖：工作单/台账、闭店状态、Shiphub 订单（含后台 cron 同步）、BI 销售数据。
+  useStoreRealtime(
+    useCallback(() => {
+      void workflow.refresh()
+      void shiphub.refresh()
+    }, [workflow.refresh, shiphub.refresh]),
+    { enabled: authenticated && !introLocked }
+  )
   const [menuOpen, setMenuOpen] = useState(false)
   const [passwordChangeOpen, setPasswordChangeOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(false)

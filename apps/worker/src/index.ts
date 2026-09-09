@@ -8,6 +8,7 @@ import type { AuthContext } from './auth/types.js'
 import { authRoutes } from './routes/auth.js'
 import { auditRoutes } from './routes/audit.js'
 import { bootstrapRoutes } from './routes/bootstrap.js'
+import { changesRoutes } from './routes/changes.js'
 import { closingRoutes } from './routes/closing.js'
 import { healthRoutes } from './routes/health.js'
 import { releaseRoutes } from './routes/release.js'
@@ -110,6 +111,7 @@ app.route('/', closingRoutes())
 app.route('/', workItemRoutes())
 app.route('/', auditRoutes())
 app.route('/', bootstrapRoutes())
+app.route('/', changesRoutes())
 app.route('/', shipHubRoutes())
 app.route('/', biRoutes())
 app.route('/', d1MetricsRoutes())

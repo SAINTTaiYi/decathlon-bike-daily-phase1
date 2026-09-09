@@ -8,6 +8,7 @@ import { businessDateFor, writeAudit } from '../services/business.js'
 import { getOrCreateDay, mapDay, type DayRow } from '../services/closing.js'
 import { idempotent } from '../services/idempotency.js'
 import { ApiProblem } from '../services/problems.js'
+import { bumpStoreVersion } from '../services/store-changes.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
 
@@ -67,6 +68,7 @@ export function closingRoutes() {
       })
       return { status: 200, body: { ok: true, day: after, eventId } }
     })
+    await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
     return c.json(result.body, result.status as any)
   })
 
@@ -99,6 +101,7 @@ export function closingRoutes() {
       })
       return { status: 200, body: { ok: true, day: after, eventId } }
     })
+    await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
     return c.json(result.body, result.status as any)
   })
 
@@ -126,6 +129,7 @@ export function closingRoutes() {
       })
       return { status: 200, body: { ok: true, day: after } }
     })
+    await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
     return c.json(result.body, result.status as any)
   })
 
@@ -152,6 +156,7 @@ export function closingRoutes() {
       })
       return { status: 200, body: { ok: true, day: after } }
     })
+    await bumpStoreVersion(c.env.DB, c.get('auth')!.storeId)
     return c.json(result.body, result.status as any)
   })
 
