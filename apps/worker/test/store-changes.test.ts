@@ -101,6 +101,9 @@ test('App 接线：工作流与 Shiphub 都接入实时刷新', async () => {
   assert.match(src, /import useStoreRealtime/u)
   assert.match(src, /useStoreRealtime\(/u)
   assert.match(src, /void workflow\.refresh\(\)/u, '实时变更必须刷新工作流')
-  assert.match(src, /void shiphub\.refresh\(\)/u, '实时变更必须刷新 Shiphub')
+  // Shiphub 走 ensureFresh 而不是 refresh：refresh 只拉 summary，会让
+  // 「计数已变、订单列表还是旧的」（2026-09-09 实测）。ensureFresh 内部
+  // 按计数变化重拉订单列表，并顺带做一次新鲜度检查。
+  assert.match(src, /void shiphub\.ensureFresh\(\)/u, '实时变更必须刷新 Shiphub（含订单列表）')
   assert.match(src, /enabled: authenticated && !introLocked/u, '未登录/锁定态不轮询')
 })
