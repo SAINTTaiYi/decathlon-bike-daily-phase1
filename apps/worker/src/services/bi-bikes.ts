@@ -161,12 +161,23 @@ export function channelsSum(record: Record<string, unknown> | null | undefined, 
 
 type PerfecoEntry = { id?: unknown; turnover?: Record<string, unknown>; quantity?: Record<string, unknown>; ticket?: Record<string, unknown> }
 
+// perfeco v2 日期格式（2026-09-09 CubeInStore 26.09.01.01 契约变更）：
+// 上游从 yyyy-MM-dd 改为 yyyyMMdd（LocalDateTime 解析），传旧格式返回 400
+// 「Invalid date value ... Expected yyyyMMdd or yyyyMMddHHmmss」。
+// 内部一律保持 ISO（yyyy-MM-dd）做缓存键与业务日期，仅在发请求时转换。
+export function perfecoDate(isoDay: string): string {
+  return isoDay.replaceAll('-', '')
+}
+
 async function fetchPerfecoEntries(env: WorkerEnv, params: Record<string, string | Array<string>>, jwt: string): Promise<PerfecoEntry[]> {
   const config = loadConfig(env).MASTERDATA
   const search = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
-    if (Array.isArray(value)) for (const item of value) search.append(key, String(item))
-    else search.append(key, String(value))
+    const normalized = key === 'from' || key === 'to'
+      ? (typeof value === 'string' ? perfecoDate(value) : value)
+      : value
+    if (Array.isArray(normalized)) for (const item of normalized) search.append(key, String(item))
+    else search.append(key, String(normalized))
   }
   const url = `${config.baseUrl}/perfeco/v2/period/economic_performances?${search.toString()}`
   let payload: unknown = null
@@ -679,6 +690,8 @@ export async function getBikeWeek(
 // （POST agg_levels/STORES + stores 过滤，spd_amount 为负值，取绝对值展示）。
 // SPD 与 perfeco 同一 CubeInStore JWT 受众、不同 x-api-key（BI_SPD_API_KEY），
 // 未配置 SPD key 时 dis 为 null（前端只对比 TO，不装死）。
+// 日期格式（2026-09-09 核实）：SPD 路径参数仍是 yyyy-MM-dd（LocalDate），
+// 与 perfeco 的 yyyyMMdd 变更不同——两者独立，切勿一起改。
 async function fetchSpdStoreTotal(
   env: WorkerEnv,
   storeCode: string,
