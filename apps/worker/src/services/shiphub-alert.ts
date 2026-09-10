@@ -1,4 +1,5 @@
 import type { AppConfig } from '../env.js'
+import { UPSTREAM_TIMEOUT_MS } from '../lib/fetch-timeout.js'
 
 // ShipHub 同步连续失败告警：首次跨过阈值（3 次）发一封邮件，之后每再失败 10 次补一封，
 // 避免刷屏；未配置 SHIPHUB_ALERT_EMAIL 时静默降级（不发送、不抛错）。
@@ -24,9 +25,10 @@ export async function sendShipHubFailureAlert(
         to: [to],
         subject: `[Workshop] ShipHub 同步连续失败告警（${input.storeCode}）`,
         text: `门店 ${input.storeCode} ${input.storeName} 的 ShipHub 同步已连续失败 ${input.consecutiveFailures} 次，最近错误：${input.errorCode}。\n请检查该门店的 ShipHub 授权状态，必要时在控制台重新连接。`
-      })
+      }),
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
     })
   } catch {
-    // 告警邮件失败不影响同步流程本身
+    // 告警邮件失败（含超时中止）不影响同步流程本身
   }
 }

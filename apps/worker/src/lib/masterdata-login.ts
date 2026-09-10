@@ -1,5 +1,6 @@
 import { parseLoginForm } from './shiphub-login.js'
 import { decryptShipHubSecret } from './shiphub-crypto.js'
+import { isTimeoutError, UPSTREAM_TIMEOUT_MS } from './fetch-timeout.js'
 
 // CubeInStore 原生受众 JWT 程序化登录（2026-09-02 逆向定案流程的 Worker 移植）：
 // 全球 IdP PKCE 授权 → PingFederate 表单提交 → 302 Location 为
@@ -74,6 +75,8 @@ export type MasterDataClientConfig = {
   clientSecret: string
   redirectUri: string
   scope: string
+  /** 单次上游调用超时；未提供时用 UPSTREAM_TIMEOUT_MS（测试可注入小值）。 */
+  timeoutMs?: number
 }
 
 export async function performMasterDataLogin(config: MasterDataLoginConfig): Promise<{ accessToken: string; expiresIn: number }> {
@@ -108,9 +111,18 @@ async function masterDataLoginFlow(
   authorizeUrl.searchParams.set('code_challenge', challenge)
   authorizeUrl.searchParams.set('code_challenge_method', 'S256')
 
-  const page = await fetch(authorizeUrl.toString(), {
-    headers: { 'user-agent': LOGIN_USER_AGENT, accept: LOGIN_HTML_ACCEPT, 'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8' }
-  })
+  // 超时护栏（2026-09-10）：登录链路此前没有超时，IdP 静默不响应会把整个 tick 挂死
+  // （与 Shiphub 同步同款事故，见 lib/fetch-timeout.ts 顶部说明）。
+  let page: Response
+  try {
+    page = await fetch(authorizeUrl.toString(), {
+      headers: { 'user-agent': LOGIN_USER_AGENT, accept: LOGIN_HTML_ACCEPT, 'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8' },
+      signal: AbortSignal.timeout(config.timeoutMs ?? UPSTREAM_TIMEOUT_MS)
+    })
+  } catch (error) {
+    if (isTimeoutError(error)) throw new MasterDataUpstreamError('LOGIN_PAGE_TIMEOUT', 504, true)
+    throw error
+  }
   if (!page.ok) throw new MasterDataUpstreamError(`LOGIN_PAGE_HTTP_${page.status}`, page.status, page.status >= 500)
   const { action, fields } = parseLoginForm(await page.text(), page.url)
   // 必须带会话 cookie 提交表单，否则 Page Expired（同 Shiphub 登录实测结论）。
@@ -120,18 +132,25 @@ async function masterDataLoginFlow(
   body.set('pf.username', username)
   body.set('pf.pass', password)
   // 登录表单提交后 IdP 直接 302 到自定义 scheme redirect（fetch 跟不了，手工截获）。
-  const submit = await fetch(action, {
-    method: 'POST',
-    redirect: 'manual',
-    headers: {
-      'user-agent': LOGIN_USER_AGENT,
-      accept: 'text/html,*/*',
-      'accept-language': 'zh-CN,zh;q=0.9',
-      'content-type': 'application/x-www-form-urlencoded',
-      ...(cookies ? { cookie: cookies } : {})
-    },
-    body: body.toString()
-  })
+  let submit: Response
+  try {
+    submit = await fetch(action, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        'user-agent': LOGIN_USER_AGENT,
+        accept: 'text/html,*/*',
+        'accept-language': 'zh-CN,zh;q=0.9',
+        'content-type': 'application/x-www-form-urlencoded',
+        ...(cookies ? { cookie: cookies } : {})
+      },
+      body: body.toString(),
+      signal: AbortSignal.timeout(config.timeoutMs ?? UPSTREAM_TIMEOUT_MS)
+    })
+  } catch (error) {
+    if (isTimeoutError(error)) throw new MasterDataUpstreamError('LOGIN_SUBMIT_TIMEOUT', 504, true)
+    throw error
+  }
   const location = submit.headers.get('location') ?? ''
   if (submit.status < 200 || submit.status >= 400 || !location) {
     throw new MasterDataUpstreamError(`LOGIN_CODE_MISSING`, submit.status, false)
@@ -139,21 +158,28 @@ async function masterDataLoginFlow(
   const code = extractCodeFromCustomSchemeLocation(location, state)
 
   const basic = btoa(`${config.clientId}:${config.clientSecret}`)
-  const tokenResponse = await fetch(config.tokenUrl, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/x-www-form-urlencoded',
-      accept: 'application/json',
-      authorization: `Basic ${basic}`
-    },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: config.redirectUri,
-      client_id: config.clientId,
-      code_verifier: verifier
-    }).toString()
-  })
+  let tokenResponse: Response
+  try {
+    tokenResponse = await fetch(config.tokenUrl, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        accept: 'application/json',
+        authorization: `Basic ${basic}`
+      },
+      signal: AbortSignal.timeout(config.timeoutMs ?? UPSTREAM_TIMEOUT_MS),
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: config.redirectUri,
+        client_id: config.clientId,
+        code_verifier: verifier
+      }).toString()
+    })
+  } catch (error) {
+    if (isTimeoutError(error)) throw new MasterDataUpstreamError('OAUTH_TOKEN_TIMEOUT', 504, true)
+    throw error
+  }
   if (!tokenResponse.ok) {
     throw new MasterDataUpstreamError(`OAUTH_TOKEN_HTTP_${tokenResponse.status}`, tokenResponse.status, tokenResponse.status >= 500)
   }

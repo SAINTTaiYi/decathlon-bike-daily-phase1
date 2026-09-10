@@ -1,4 +1,5 @@
 import type { AppConfig } from '../env.js'
+import { UPSTREAM_TIMEOUT_MS } from '../lib/fetch-timeout.js'
 
 const encoder = new TextEncoder()
 
@@ -40,7 +41,8 @@ export async function sendRegistrationOtp(config: AppConfig, input: { email: str
       subject: 'Workshop Bike Ops 注册验证码',
       text: `${input.displayName}，你的 Workshop Bike Ops 注册验证码是：${input.otp}。验证码将在 ${expiry} 过期。若不是你本人操作，请忽略此邮件。`,
       html: `<p>${escapeHtml(input.displayName)}，你的 Workshop Bike Ops 注册验证码是：</p><p style="font-size:24px;font-weight:700;letter-spacing:0.12em">${input.otp}</p><p>验证码将在 ${escapeHtml(expiry)} 过期。若不是你本人操作，请忽略此邮件。</p>`
-    })
+    }),
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
   })
   if (!response.ok) throw new Error(`RESEND_DELIVERY_FAILED_${response.status}`)
 }
@@ -62,7 +64,8 @@ export async function sendPasswordResetOtp(config: AppConfig, input: { email: st
       subject: 'Workshop Bike Ops 改密验证码',
       text: `${input.displayName}，你的 Workshop Bike Ops 改密验证码是：${input.otp}。验证码将在 ${expiry} 过期。若不是你本人操作，请忽略此邮件并尽快联系门店管理员。`,
       html: `<p>${escapeHtml(input.displayName)}，你的 Workshop Bike Ops 改密验证码是：</p><p style="font-size:24px;font-weight:700;letter-spacing:0.12em">${input.otp}</p><p>验证码将在 ${escapeHtml(expiry)} 过期。若不是你本人操作，请忽略此邮件并尽快联系门店管理员。</p>`
-    })
+    }),
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
   })
   if (!response.ok) throw new Error(`RESEND_DELIVERY_FAILED_${response.status}`)
 }
@@ -84,7 +87,8 @@ export async function sendEmailBindingOtp(config: AppConfig, input: { email: str
       subject: 'Workshop Bike Ops 邮箱绑定验证码',
       text: `${input.displayName}，你正在为 Workshop Bike Ops 账号绑定公司邮箱，验证码是：${input.otp}。验证码将在 ${expiry} 过期。若不是你本人操作，请立即退出登录并联系门店管理员。`,
       html: `<p>${escapeHtml(input.displayName)}，你正在为 Workshop Bike Ops 账号绑定公司邮箱，验证码是：</p><p style="font-size:24px;font-weight:700;letter-spacing:0.12em">${input.otp}</p><p>验证码将在 ${escapeHtml(expiry)} 过期。若不是你本人操作，请立即退出登录并联系门店管理员。</p>`
-    })
+    }),
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
   })
   if (!response.ok) throw new Error(`RESEND_DELIVERY_FAILED_${response.status}`)
 }

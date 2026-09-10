@@ -1,5 +1,6 @@
 import type { ShipHubConfig } from '../env.js'
 import { ShipHubUpstreamError } from './shiphub-client.js'
+import { isTimeoutError } from './fetch-timeout.js'
 
 export type ShipHubToken = {
   accessToken: string
@@ -26,9 +27,14 @@ async function exchange(config: ShipHubConfig, params: Record<string, string>): 
     response = await fetch(tokenUrl, {
       method: 'POST',
       headers: { accept: 'application/json', authorization: basicHeader(config), 'content-type': 'application/x-www-form-urlencoded' },
-      body
+      body,
+      // 超时护栏（2026-09-10）：token 刷新此前没有超时，上游静默不响应会让整个同步 tick
+      // 无限期挂起（平台回收后只留悬挂 running 记录，无失败、无告警）。超时转明确错误码，
+      // 交回既有的失败计数 / 下轮重试 / 自愈逻辑。
+      signal: AbortSignal.timeout(config.requestTimeoutMs)
     })
-  } catch {
+  } catch (error) {
+    if (isTimeoutError(error)) throw new ShipHubUpstreamError('OAUTH_TOKEN_TIMEOUT', undefined, true)
     throw new ShipHubUpstreamError('OAUTH_TOKEN_NETWORK_ERROR', undefined, true)
   }
   if (!response.ok) throw new ShipHubUpstreamError(`OAUTH_TOKEN_HTTP_${response.status}`, response.status, response.status >= 500)

@@ -2,6 +2,7 @@ import type { ShipHubConfig } from '../env.js'
 import { decryptShipHubSecret } from './shiphub-crypto.js'
 import { ShipHubUpstreamError } from './shiphub-client.js'
 import { exchangeShipHubAuthorizationCode, type ShipHubToken } from './shiphub-token.js'
+import { isTimeoutError } from './fetch-timeout.js'
 
 // 门店账号程序化登录：凭据以 AES-256-GCM 加密（密文+nonce）存于 CF secret，
 // 仅在本模块解密并用于提交 PingFederate 登录表单；绝不进入日志、审计或响应。
@@ -64,9 +65,18 @@ export async function performShipHubProgrammaticLogin(config: ShipHubConfig, cre
   authorizeUrl.searchParams.set('code_challenge', challenge)
   authorizeUrl.searchParams.set('code_challenge_method', 'S256')
 
-  const page = await fetch(authorizeUrl.toString(), {
-    headers: { 'user-agent': LOGIN_USER_AGENT, accept: LOGIN_HTML_ACCEPT, 'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8' }
-  })
+  // 超时护栏（2026-09-10）：登录链路此前没有超时，IdP 静默不响应会把整个同步 tick
+  // 无限期挂起。超时映射为明确错误码，交给重试 / 自愈接管。
+  let page: Response
+  try {
+    page = await fetch(authorizeUrl.toString(), {
+      headers: { 'user-agent': LOGIN_USER_AGENT, accept: LOGIN_HTML_ACCEPT, 'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8' },
+      signal: AbortSignal.timeout(config.requestTimeoutMs)
+    })
+  } catch (error) {
+    if (isTimeoutError(error)) throw new ShipHubUpstreamError('LOGIN_PAGE_TIMEOUT')
+    throw error
+  }
   if (!page.ok) throw new ShipHubUpstreamError(`LOGIN_PAGE_HTTP_${page.status}`)
   const { action, fields } = parseLoginForm(await page.text(), page.url)
   const cookies = (page.headers.getSetCookie?.() ?? []).map((value) => value.split(';')[0]).join('; ')
@@ -74,17 +84,24 @@ export async function performShipHubProgrammaticLogin(config: ShipHubConfig, cre
   const body = new URLSearchParams(fields)
   body.set('pf.username', resolved.username)
   body.set('pf.pass', resolved.password)
-  const submit = await fetch(action, {
-    method: 'POST',
-    headers: {
-      'user-agent': LOGIN_USER_AGENT,
-      accept: 'text/html,*/*',
-      'accept-language': 'zh-CN,zh;q=0.9',
-      'content-type': 'application/x-www-form-urlencoded',
-      ...(cookies ? { cookie: cookies } : {})
-    },
-    body: body.toString()
-  })
+  let submit: Response
+  try {
+    submit = await fetch(action, {
+      method: 'POST',
+      headers: {
+        'user-agent': LOGIN_USER_AGENT,
+        accept: 'text/html,*/*',
+        'accept-language': 'zh-CN,zh;q=0.9',
+        'content-type': 'application/x-www-form-urlencoded',
+        ...(cookies ? { cookie: cookies } : {})
+      },
+      body: body.toString(),
+      signal: AbortSignal.timeout(config.requestTimeoutMs)
+    })
+  } catch (error) {
+    if (isTimeoutError(error)) throw new ShipHubUpstreamError('LOGIN_SUBMIT_TIMEOUT')
+    throw error
+  }
   const code = extractCodeFromUrl(submit.url, state)
   const token = await exchangeShipHubAuthorizationCode(config, code, verifier)
   if (!token.refreshToken) throw new ShipHubUpstreamError('OAUTH_REFRESH_TOKEN_MISSING')
