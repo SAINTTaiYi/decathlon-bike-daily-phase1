@@ -1,6 +1,7 @@
 import { loadConfig, isMasterDataConfigured, type WorkerEnv } from '../env.js'
 import { all, first } from '../db.js'
 import { performMasterDataLogin, MasterDataUpstreamError } from '../lib/masterdata-login.js'
+import { isTimeoutError, UPSTREAM_TIMEOUT_MS } from '../lib/fetch-timeout.js'
 
 // BI 整车销量（perfeco API，2026-09-04 接入）：
 // GET {baseUrl}/perfeco/v2/period/economic_performances?from&to&aggLevel&stores&families
@@ -188,7 +189,8 @@ async function fetchPerfecoEntries(env: WorkerEnv, params: Record<string, string
         'x-api-key': config.perfecoApiKey!,
         'target-country': 'CN',
         accept: 'application/json'
-      }
+      },
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
     })
     if (!response.ok) throw new PerfecoUpstreamError(`PERFECO_HTTP_${response.status}`, response.status, response.status >= 500)
     const text = await response.text()
@@ -198,6 +200,7 @@ async function fetchPerfecoEntries(env: WorkerEnv, params: Record<string, string
     payload = text.trim() ? JSON.parse(text) : null
   } catch (error) {
     if (error instanceof PerfecoUpstreamError) throw error
+    if (isTimeoutError(error)) throw new PerfecoUpstreamError('PERFECO_TIMEOUT', 504, true)
     throw new PerfecoUpstreamError('PERFECO_NETWORK', 502, true)
   }
   if (payload === null) return []
@@ -267,11 +270,13 @@ async function resolveArticleModels(env: WorkerEnv, articleCodes: readonly strin
     let payload: unknown = null
     try {
       const response = await fetch(url, {
-        headers: { authorization: `Bearer ${jwt}`, 'x-api-key': config.apiKey!, 'target-country': 'CN', accept: 'application/json' }
+        headers: { authorization: `Bearer ${jwt}`, 'x-api-key': config.apiKey!, 'target-country': 'CN', accept: 'application/json' },
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
       })
       if (!response.ok) throw new PerfecoUpstreamError(`ARTICLEINFO_HTTP_${response.status}`, response.status, response.status >= 500)
       payload = await response.json().catch(() => null)
     } catch (error) {
+      if (isTimeoutError(error)) throw new PerfecoUpstreamError('ARTICLEINFO_TIMEOUT', 504, true)
       if (error instanceof PerfecoUpstreamError && !error.retryable) continue
       throw error
     }
@@ -331,11 +336,13 @@ async function resolveModelInfo(env: WorkerEnv, modelCodes: readonly string[], g
     let payload: unknown = null
     try {
       const response = await fetch(url, {
-        headers: { authorization: `Bearer ${jwt}`, 'x-api-key': config.apiKey!, 'target-country': 'CN', accept: 'application/json' }
+        headers: { authorization: `Bearer ${jwt}`, 'x-api-key': config.apiKey!, 'target-country': 'CN', accept: 'application/json' },
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
       })
       if (!response.ok) throw new PerfecoUpstreamError(`MODELINFO_HTTP_${response.status}`, response.status, response.status >= 500)
       payload = await response.json().catch(() => null)
     } catch (error) {
+      if (isTimeoutError(error)) throw new PerfecoUpstreamError('MODELINFO_TIMEOUT', 504, true)
       if (error instanceof PerfecoUpstreamError && !error.retryable) continue
       throw error
     }
@@ -713,7 +720,8 @@ async function fetchSpdStoreTotal(
         accept: 'application/json',
         'content-type': 'application/json'
       },
-      body: JSON.stringify({ stores: [storeCode], epvTypes: [], epvSubTypes: [], departments: [], models: [] })
+      body: JSON.stringify({ stores: [storeCode], epvTypes: [], epvSubTypes: [], departments: [], models: [] }),
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
     })
     if (!response.ok) throw new PerfecoUpstreamError(`SPD_HTTP_${response.status}`, response.status, response.status >= 500)
     const text = await response.text()
@@ -721,6 +729,7 @@ async function fetchSpdStoreTotal(
     payload = text.trim() ? JSON.parse(text) : null
   } catch (error) {
     if (error instanceof PerfecoUpstreamError) throw error
+    if (isTimeoutError(error)) throw new PerfecoUpstreamError('SPD_TIMEOUT', 504, true)
     throw new PerfecoUpstreamError('SPD_NETWORK', 502, true)
   }
   if (payload === null) return { amount: 0, taxExcluded: 0, quantity: 0 }

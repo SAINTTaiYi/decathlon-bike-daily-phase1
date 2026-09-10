@@ -2,6 +2,7 @@ import { loadConfig, type WorkerEnv } from '../env.js'
 import { isMasterDataConfigured } from '../env.js'
 import { all } from '../db.js'
 import { performMasterDataLogin, MasterDataUpstreamError } from '../lib/masterdata-login.js'
+import { isTimeoutError, UPSTREAM_TIMEOUT_MS } from '../lib/fetch-timeout.js'
 
 // BI 车型码 → 官方品名同步（CubeInStore masterdata）。
 // 数据源：GET {baseUrl}/masterdata/v2/modelslist/{codes}/infos（逗号批量，实测可用），
@@ -133,11 +134,13 @@ export async function syncBiSkuNames(
           'x-api-key': config.apiKey!,
           'target-country': 'CN',
           accept: 'application/json'
-        }
+        },
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
       })
       if (!response.ok) throw new MasterDataUpstreamError(`MASTERDATA_HTTP_${response.status}`, response.status, response.status >= 500)
       payload = await response.json().catch(() => null)
     } catch (error) {
+      if (isTimeoutError(error)) throw new MasterDataUpstreamError('MASTERDATA_TIMEOUT', 504, true)
       // 单块失败不拖垮整轮：其余块照常落库，失败块下轮定时自然重试。
       if (error instanceof MasterDataUpstreamError && !error.retryable) {
         failures.push(error.code)
