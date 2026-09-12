@@ -7,6 +7,8 @@ import {
 } from '../api/workflow.js'
 import { buildPickupNotificationUpdate } from '../data/pickupRecord.js'
 import { buildRepairCompletion, normalizeRepairRecord } from '../data/repairRecord.js'
+import { getApiSessionStoreId } from '../api/client.js'
+import { loadWorkflowSnapshot, saveWorkflowSnapshot } from '../utils/workflowSnapshot.js'
 
 const emptyState = { businessDate: '', day: { kpi: emptyKpi, kpiSavedAt: null, closedAt: null, revision: 0 }, records: [], events: [], trends: null, store: null, members: [], assignedToMe: [] }
 
@@ -16,6 +18,8 @@ export default function useRemoteClosingWorkflow(enabled) {
   const [syncing, setSyncing] = useState(false)
   const [storageError, setError] = useState('')
   const [lastSyncedAt, setLastSyncedAt] = useState('')
+  // 本机快照时间（2026-09-13）：读额度被限 / 断网且无内存数据时，退回最近一次成功加载的数据。
+  const [offlineSnapshotAt, setOfflineSnapshotAt] = useState('')
   const hasSnapshotRef = useRef(false)
   const inFlightRef = useRef(null)
   const lastSyncRef = useRef(0)
@@ -39,9 +43,24 @@ export default function useRemoteClosingWorkflow(enabled) {
         lastSyncRef.current = Date.now()
         setError('')
         setHydrated(true)
+        setOfflineSnapshotAt('')
+        // 成功加载即写本机快照（应急方案 C：读被限时退回它，而不是只剩错误页）
+        saveWorkflowSnapshot(payload?.store?.id || getApiSessionStoreId(), normalizedPayload)
         return normalizedPayload
       } catch (error) {
         if (error.name !== 'AbortError') {
+          if (!hasSnapshotRef.current) {
+            // 首次加载就失败：尝试本机快照（读额度被限 / 断网场景）
+            const snapshot = loadWorkflowSnapshot(getApiSessionStoreId())
+            if (snapshot) {
+              setState({ ...emptyState, ...snapshot.payload, records: (snapshot.payload.records || []).map(normalizeRepairRecord) })
+              hasSnapshotRef.current = true
+              setOfflineSnapshotAt(snapshot.savedAt)
+              setError(`数据库暂时不可读，当前显示本机快照（${snapshot.savedAt || '时间未知'}）：${error.message}`)
+              setHydrated(true)
+              return null
+            }
+          }
           setError(hasSnapshotRef.current
             ? `同步失败，当前仅显示最近成功加载的数据：${error.message}`
             : `无法读取门店数据库：${error.message}`)
@@ -213,6 +232,7 @@ export default function useRemoteClosingWorkflow(enabled) {
     syncing,
     storageError,
     lastSyncedAt,
+    offlineSnapshotAt,
     records: state.records,
     recordsByScene,
     members: state.members || [],

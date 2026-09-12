@@ -51,6 +51,9 @@ import RepairScene from './scenes/RepairScene.jsx'
 import ResaleScene from './scenes/ResaleScene.jsx'
 import SalesScene from './scenes/SalesScene.jsx'
 import { getAdminPendingCount } from './api/admin.js'
+import { onD1Emergency } from './api/client.js'
+import EmergencyStatusBanner from './components/emergency/EmergencyStatusBanner.jsx'
+import EmergencyHandoverDialog from './components/emergency/EmergencyHandoverDialog.jsx'
 
 // 闭店自动同步 Shiphub 的等待上限：sync() 内部含 202 回捞等待，
 // 超过这个时间就先出图（用已有数据），不让闭店卡在网络上。
@@ -127,6 +130,10 @@ export default function App() {
   const [migrationOpen, setMigrationOpen] = useState(false)
   const [governanceOpen, setGovernanceOpen] = useState(false)
   const [shiphubSettingsOpen, setShiphubSettingsOpen] = useState(false)
+  // 应急交接（2026-09-13）：D1 额度用尽时亮横幅 + 可生成/导入应急交接单。
+  const [emergencyOpen, setEmergencyOpen] = useState(false)
+  const [d1Emergency, setD1Emergency] = useState(null)
+  const [emergencyDismissed, setEmergencyDismissed] = useState(false)
   const [adminMode, setAdminMode] = useState(() => /^#admin(?:[/=]|$)/u.test(window.location.hash))
   const [adminPending, setAdminPending] = useState(0)
   const [reportImage, setReportImage] = useState(null)
@@ -154,6 +161,17 @@ export default function App() {
     const onHashChange = () => setAdminMode(/^#admin(?:[/=]|$)/u.test(window.location.hash))
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  // D1 应急模式：后端额度用尽会返回 D1_WRITE_LIMIT / D1_READ_LIMIT（结构化 503），
+  // 收到即亮顶部横幅（含恢复时点）并提供「应急交接」入口；新一轮事件会重新展开横幅。
+  useEffect(() => {
+    onD1Emergency((info) => {
+      if (!info) return
+      setD1Emergency(info)
+      setEmergencyDismissed(false)
+    })
+    return () => onD1Emergency(null)
   }, [])
 
   // Handover todo: after a fresh login, surface active items that colleagues @-assigned to the current user.
@@ -637,7 +655,9 @@ export default function App() {
         setToast({ message: result.error, tone: 'error' })
       }
     },
-    onRemove: (record) => perform(() => workflow.removeRecord(record.id), `已删除：${record.title}`)
+    onRemove: (record) => perform(() => workflow.removeRecord(record.id), `已删除：${record.title}`),
+    // 应急交接入口（仅「其它交接」页渲染；额度受限时也能用）
+    onEmergencyHandover: () => setEmergencyOpen(true)
   })
 
   if (setupToken && !authenticated) {
@@ -721,6 +741,12 @@ export default function App() {
       ? sceneRecordConfig.repair
       : sceneRecordConfig[recordEditor.scene]
     : sceneRecordConfig.poster
+  // 应急横幅内容：优先 D1 额度事件；否则本机快照提示（读被限/断网时）。
+  const emergencyNotice = !emergencyDismissed
+    ? (d1Emergency
+      ? { kind: d1Emergency.kind, message: d1Emergency.message }
+      : (workflow.offlineSnapshotAt ? { kind: 'offline', snapshotAt: workflow.offlineSnapshotAt } : null))
+    : null
   const showBoot = !introDone
 
   return (
@@ -755,6 +781,7 @@ export default function App() {
           />
         </div>
         {!online ? <p className="workshop-global-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据；恢复网络后才能修改。</p> : null}
+        {introDone && emergencyNotice ? <EmergencyStatusBanner notice={emergencyNotice} onOpenEmergency={() => setEmergencyOpen(true)} onDismiss={() => setEmergencyDismissed(true)} /> : null}
         <main className="workshop-shell" data-desktop-scene={desktopScene} id="main-content" tabIndex="-1" data-workspace-layer="structure">
           <div className="workshop-module-stack" data-workspace-layer="focus">
             <WorkshopModuleSection sceneId="pulse" className="workshop-overview-panel">
@@ -786,6 +813,15 @@ export default function App() {
         <PasswordChangeDialog open={passwordChangeOpen} userName={currentUser} onClose={() => setPasswordChangeOpen(false)} onChangePassword={auth.changePassword} onComplete={completePasswordChange} />
         <GovernanceDialog open={governanceOpen} onClose={() => setGovernanceOpen(false)} currentStoreId={currentStore?.storeId || auth.currentStoreId} onNotify={setToast} />
         <ShipHubSettingsDialog open={shiphubSettingsOpen || shiphubReconnectPrompt.shouldOpen} onClose={() => { setShiphubSettingsOpen(false); shiphubReconnectPrompt.dismiss() }} shiphub={shiphub} onNotify={setToast} canManage={role === 'manager' || role === 'admin'} />
+        <EmergencyHandoverDialog
+          open={emergencyOpen}
+          onClose={() => setEmergencyOpen(false)}
+          storeId={currentStore?.storeId || ''}
+          storeName={currentStore?.storeName || '门店'}
+          groups={{ pickup: workflow.recordsByScene.pickup || [], repair: workflow.recordsByScene.repair || [], poster: workflow.recordsByScene.poster || [] }}
+          onImport={(record) => workflow.addRecord('poster', { ...record, meta: '应急补录', status: '继续跟进', contactValue: '' })}
+          onNotify={setToast}
+        />
         <LogDialog open={logOpen} onClose={() => setLogOpen(false)} events={workflow.events} />
         <PermanentHistoryDialog open={permanentHistoryOpen} onClose={() => setPermanentHistoryOpen(false)} onLoad={workflow.getPermanentHistory} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
         <OperationHistoryDialog open={Boolean(historyTarget)} onClose={() => setHistoryTarget(null)} title={historyTitle} events={historyEvents} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />

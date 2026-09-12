@@ -3,7 +3,7 @@
 const CACHE = 'bike-ops-__BUILD_SHA__-static'
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['/'])).then(() => self.skipWaiting()))
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['/', '/emergency.html'])).then(() => self.skipWaiting()))
 })
 
 self.addEventListener('activate', (event) => {

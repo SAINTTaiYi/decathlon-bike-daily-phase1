@@ -29,6 +29,28 @@ export function onServerVersion(listener) {
   serverVersionListener = listener
 }
 
+// D1 应急通道（2026-09-13）：额度用尽（写/读）时后端返回结构化 503
+// （D1_WRITE_LIMIT / D1_READ_LIMIT），这里广播给界面进入「应急模式」。
+let d1EmergencyListener = null
+
+export function onD1Emergency(listener) {
+  d1EmergencyListener = listener
+}
+
+function emitD1Emergency(info) {
+  if (typeof d1EmergencyListener !== 'function') return
+  try {
+    d1EmergencyListener(info)
+  } catch {
+    // 监听者异常绝不打折业务请求
+  }
+}
+
+/** 当前会话的门店 id（快照键按门店隔离用；未登录返回空串）。 */
+export function getApiSessionStoreId() {
+  return storeId
+}
+
 function emitServerVersion(version) {
   if (typeof serverVersionListener !== 'function') return
   if (typeof version !== 'string' || !version) return
@@ -85,6 +107,13 @@ export async function api(path, options = {}) {
   const payload = response.status === 204 ? null : await response.json().catch(() => null)
   if (!response.ok) {
     if (response.status === 401) window.dispatchEvent(new CustomEvent('bike-ops:session-expired'))
+    if (payload?.error === 'D1_WRITE_LIMIT' || payload?.error === 'D1_READ_LIMIT') {
+      emitD1Emergency({
+        kind: payload.error === 'D1_WRITE_LIMIT' ? 'write' : 'read',
+        message: payload?.message || '',
+        recoveryAt: payload?.recoveryAt || ''
+      })
+    }
     throw new ApiError(payload?.message || `请求失败（${response.status}）`, { status: response.status, code: payload?.error || 'REQUEST_FAILED', details: payload?.details })
   }
   return payload
