@@ -43,6 +43,8 @@ export async function all<T = Row>(stmt: D1PreparedStatement): Promise<T[]> {
 
 export async function run(stmt: D1PreparedStatement): Promise<D1Result> {
   const result = await stmt.run()
-  if (!result.success) throw new Error('D1_RUN_FAILED')
+  // 保留平台返回的原始错误文本（2026-09-13）：D1 免费层限额（daily row write/read
+  // limit）需要靠文本识别并转成结构化 503，此前统一抛 'D1_RUN_FAILED' 会丢掉它。
+  if (!result.success) throw new Error(result.error ? `D1_RUN_FAILED: ${result.error}` : 'D1_RUN_FAILED')
   return result
 }

@@ -23,6 +23,8 @@ import { biRoutes } from './routes/bi.js'
 import { d1MetricsRoutes } from './routes/d1-metrics.js'
 import { runScheduledShipHubSync } from './services/shiphub-sync.js'
 import { runScheduledBiSync } from './services/bi-weekly.js'
+import { runD1UsageAlert } from './services/d1-usage-alert.js'
+import { detectD1LimitError, d1LimitProblemBody, errorChainText } from './lib/d1-limits.js'
 import { ApiProblem } from './services/problems.js'
 import { routeIncomingRequest } from './request-routing.js'
 
@@ -134,6 +136,13 @@ app.onError((error, c) => {
   if (error instanceof HTTPException) {
     return error.getResponse()
   }
+  // D1 免费层限额（读/写额度用尽，平台错误 7500 一类）：转成结构化 503，
+  // 前端据此进入应急模式（可查看 + 应急交接），而不是笼统的「服务暂时不可用」。
+  const limitKind = detectD1LimitError(errorChainText(error))
+  if (limitKind) {
+    console.error(`D1_LIMIT · ${limitKind}`)
+    return c.json(d1LimitProblemBody(limitKind), 503)
+  }
   console.error(error)
   return c.json({ error: 'INTERNAL_ERROR', message: '服务暂时不可用，请稍后重试。' }, 500)
 })
@@ -145,8 +154,12 @@ export async function handleRequest(request: Request, env: WorkerEnv, executionC
 export default {
   fetch: handleRequest,
   scheduled(controller: ScheduledController, env: WorkerEnv, executionCtx: ExecutionContext): void {
-    // Shiphub 同步 + BI 周结定时拉取并行；两者都绝不抛错（内部全量兜底）。
+    // Shiphub 同步 + BI 周结定时拉取 + D1 用量预警并行；三者都绝不抛错（内部全量兜底）。
     const fireTime = new Date(controller.scheduledTime)
-    executionCtx.waitUntil(Promise.allSettled([runScheduledShipHubSync(env), runScheduledBiSync(env, fireTime)]))
+    executionCtx.waitUntil(Promise.allSettled([
+      runScheduledShipHubSync(env),
+      runScheduledBiSync(env, fireTime),
+      runD1UsageAlert(env, fireTime)
+    ]))
   }
 }
