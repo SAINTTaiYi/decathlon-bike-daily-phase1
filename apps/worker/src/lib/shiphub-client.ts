@@ -27,6 +27,12 @@ export type ShipHubOrder = {
   updatedAt?: string | null
   detailKey?: string | null
   channel?: string | null
+  /**
+   * 列表层字段指纹（2026-09-12 tick CPU 优化）：由 normalizeListOrder 依据
+   * list 可见字段算出，随订单写入 shiphub_orders.list_fingerprint。
+   * 对账时指纹不变且订单仍在上游 → 跳过 detail 重拉（详见 migration 0031）。
+   */
+  listFingerprint?: string | null
   items: ShipHubOrderItem[]
 }
 
@@ -215,6 +221,33 @@ function channelLabel(platform: string): string | null {
   return CHANNEL_LABELS[key] ?? platform.trim()
 }
 
+/**
+ * 列表层字段指纹（2026-09-12 tick CPU 优化）。
+ *
+ * 用途：完整对账时判断「已存在的订单是否需要重拉 detail」。list 接口不返回
+ * updatedAt（normalizeListOrder 恒置 null），旧判断
+ * `existing.upstream_updated_at !== order.updatedAt` 永远为真，导致每次对账
+ * 对全部订单重拉 detail——每单 2 个 HTTP（detail + receiver）+ JSON 解析 +
+ * 写库，是 cron tick CPU 峰值的主因（详见 migration 0031 注释）。
+ *
+ * 指纹覆盖 list 可见的全部语义字段，任一变化（状态流转/渠道/预约时间/单号/
+ * 加密标记/明细键）都会触发 detail 重拉；商品明细创建后不变，随状态变化刷新。
+ *
+ * 分隔符用 ASCII Unit Separator（\u001f）：字段值不会包含它，避免拼接歧义。
+ * 绝不能用 \u0000——SQLite 的 TEXT 会把 NUL 当作字符串终止、整串被截断成
+ * 第一个字段（2026-09-12 实测：指纹落库只剩 "pending"，跳过逻辑永不生效）。
+ */
+function listFingerprintOf(order: ShipHubOrder): string {
+  return [
+    order.status,
+    order.channel ?? '',
+    order.scheduledAt ?? '',
+    order.displayLabel,
+    order.isEncryptedOrder ? '1' : '0',
+    order.detailKey ?? ''
+  ].join('\u001f')
+}
+
 function normalizeListOrder(category: ShipHubCategory, input: unknown): ShipHubOrder {
   if (!input || typeof input !== 'object') throw new ShipHubUpstreamError('INVALID_ORDER')
   const row = input as Record<string, unknown>
@@ -227,7 +260,7 @@ function normalizeListOrder(category: ShipHubCategory, input: unknown): ShipHubO
   const statusCode = firstText(row.order_latest_status, row.orderLatestStatus)
   const isEncrypted = row.is_encrypted_order === true || String(row.is_encrypted_order ?? '') === '1'
   const scheduledAt = firstText(row.carrier_arrive_time, row.receive_time, row.expect_pick_time_start, row.expect_delivery_time_start) || null
-  return {
+  const order: ShipHubOrder = {
     id,
     detailKey,
     category,
@@ -241,6 +274,8 @@ function normalizeListOrder(category: ShipHubCategory, input: unknown): ShipHubO
     updatedAt: null,
     items: []
   }
+  order.listFingerprint = listFingerprintOf(order)
+  return order
 }
 
 function isBikeItem(input: unknown): boolean {

@@ -3,6 +3,7 @@ import { isMasterDataConfigured } from '../env.js'
 import { all } from '../db.js'
 import { performMasterDataLogin, MasterDataUpstreamError } from '../lib/masterdata-login.js'
 import { isTimeoutError, UPSTREAM_TIMEOUT_MS } from '../lib/fetch-timeout.js'
+import { isoDayFormatter } from '../lib/time-format.js'
 
 // BI 车型码 → 官方品名同步（CubeInStore masterdata）。
 // 数据源：GET {baseUrl}/masterdata/v2/modelslist/{codes}/infos（逗号批量，实测可用），
@@ -23,7 +24,8 @@ export const BI_SEED_CODES: readonly string[] = [
 export const BI_SYNC_TIMEZONE = 'Asia/Shanghai'
 
 function timezoneDateKey(timezone: string, value: Date): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(value)
+  // formatter 走模块级缓存（2026-09-12 CPU 优化）：见 lib/time-format.ts。
+  return isoDayFormatter(timezone).format(value)
 }
 
 function syncedThisDay(latest: string | null, now: Date): boolean {

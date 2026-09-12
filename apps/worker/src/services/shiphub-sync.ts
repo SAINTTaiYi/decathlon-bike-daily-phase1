@@ -9,6 +9,7 @@ import { refreshShipHubAccessToken } from '../lib/shiphub-token.js'
 import { ApiProblem } from './problems.js'
 import { sendShipHubFailureAlert, shouldAlertOnShipHubFailure } from './shiphub-alert.js'
 import { bumpStoreVersion } from './store-changes.js'
+import { hourFormatter } from '../lib/time-format.js'
 
 // 硬规则：门店营业时间（北京时间 10:00–22:00）内才允许调用 Shiphub 上游获取自提数据。
 // 固定使用 Asia/Shanghai，不随门店 timezone 字段或部署环境变化。
@@ -136,7 +137,9 @@ function ensureCategory(category: string): asserts category is ShipHubCategory {
 
 export function activeInStoreTimezone(timezone: string, now = new Date(), startHour = 6, endHour = 23): boolean {
   try {
-    const hourText = new Intl.DateTimeFormat('en-US', { timeZone: timezone, hour: '2-digit', hour12: false }).format(now)
+    // formatter 走模块级缓存（2026-09-12 CPU 优化）：tick 每分钟要判定多次，
+    // 每次 new Intl.DateTimeFormat 是毫秒级成本，是 tick CPU 的最大单项。
+    const hourText = hourFormatter(timezone).format(now)
     const hour = Number(hourText)
     if (!Number.isInteger(hour)) return false
     if (startHour === endHour) return true
@@ -364,6 +367,11 @@ async function releaseLease(db: D1Database, storeId: string, owner: string): Pro
 
 async function ensureState(db: D1Database, storeId: string, category: ShipHubCategory): Promise<CategoryState> {
   const stamp = nowIso()
+  // 2026-09-12 CPU/D1 预算优化：旧实现每 tick 无条件「INSERT OR IGNORE + SELECT」
+  // （每分类 2 次 D1），但行建立后 INSERT 永远是无用写。改为先读，缺行才建——
+  // 常态 1 次 D1，只有历史上第一次同步某个分类才走建行路径。
+  const existing = await first<CategoryState>(db.prepare('SELECT * FROM shiphub_category_state WHERE store_id = ? AND category = ?').bind(storeId, category))
+  if (existing) return existing
   await db.prepare(`INSERT OR IGNORE INTO shiphub_category_state (store_id, category, updated_at) VALUES (?, ?, ?)`).bind(storeId, category, stamp).run()
   const row = await first<CategoryState>(db.prepare('SELECT * FROM shiphub_category_state WHERE store_id = ? AND category = ?').bind(storeId, category))
   if (!row) throw new Error('SHIPHUB_CATEGORY_STATE_MISSING')
@@ -385,7 +393,20 @@ export async function syncStoreCategory(
   config: AppConfig,
   storeId: string,
   category: ShipHubCategory,
-  options: { trigger?: 'scheduled' | 'manual' | 'authorization'; batchId?: string; client?: ShipHubClient; now?: Date; retriedAfterRelogin?: boolean } = {}
+  options: {
+    trigger?: 'scheduled' | 'manual' | 'authorization'
+    batchId?: string
+    client?: ShipHubClient
+    now?: Date
+    retriedAfterRelogin?: boolean
+    /**
+     * tick 内连接解析缓存（2026-09-12 CPU 优化）：一次 cron tick 会对同一门店
+     * 连续同步多个分类，每个分类原本都要独立解析连接（每条链路含一次 AES-GCM
+     * 解密，约几百微秒）。同一 tick 内连接配置不会变化，解析结果可安全复用。
+     * 仅由 runScheduledShipHubSync 注入；其它调用方不传 = 行为不变。
+     */
+    connectionCache?: Map<string, ShipHubClient>
+  } = {}
 ): Promise<{ status: 'succeeded' | 'skipped' | 'failed'; reason?: string; runId?: string }> {
   requireEnabled(config)
   const trigger = options.trigger ?? 'scheduled'
@@ -420,14 +441,21 @@ export async function syncStoreCategory(
     if (options.client) {
       client = options.client
     } else {
-      try {
-        client = (await connectionForSync(db, config, storeId)).client
-      } catch (error) {
-        if (error instanceof ShipHubUpstreamError && error.code === 'IDENTITY_LEASE_BUSY') {
-          await db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'skipped', error_code = 'IDENTITY_LEASE_BUSY' WHERE id = ?`).bind(stamp, runId).run()
-          return { status: 'skipped', reason: 'IDENTITY_LEASE_BUSY', runId }
+      const cachedClient = options.connectionCache?.get(storeId)
+      if (cachedClient) {
+        // 同一 tick 内已解析过本店连接（含 access token 解密）：直接复用。
+        client = cachedClient
+      } else {
+        try {
+          client = (await connectionForSync(db, config, storeId)).client
+          options.connectionCache?.set(storeId, client)
+        } catch (error) {
+          if (error instanceof ShipHubUpstreamError && error.code === 'IDENTITY_LEASE_BUSY') {
+            await db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'skipped', error_code = 'IDENTITY_LEASE_BUSY' WHERE id = ?`).bind(stamp, runId).run()
+            return { status: 'skipped', reason: 'IDENTITY_LEASE_BUSY', runId }
+          }
+          throw error
         }
-        throw error
       }
     }
     const count = await client.count(category)
@@ -436,6 +464,9 @@ export async function syncStoreCategory(
     let pages = 0
     let detailCount = 0
     let orders: ShipHubOrder[] = []
+    // 无变化订单（2026-09-12，migration 0031）：list 层指纹与库中一致且订单仍活跃，
+    // 跳过 detail 重拉，只做轻量 last_seen 更新（详见下方循环内注释）。
+    let unchangedOrders: ShipHubOrder[] = []
     if (shouldList) {
       let cursor: string | null = null
       do {
@@ -447,15 +478,36 @@ export async function syncStoreCategory(
       } while (cursor)
       const detailed: ShipHubOrder[] = []
       for (const order of orders) {
-        const existing = await first<{ upstream_updated_at: string | null }>(db.prepare(`
-          SELECT upstream_updated_at FROM shiphub_orders WHERE store_id = ? AND category = ? AND upstream_order_id = ?
+        const existing = await first<{ upstream_updated_at: string | null; list_fingerprint: string | null; upstream_absent_at: string | null }>(db.prepare(`
+          SELECT upstream_updated_at, list_fingerprint, upstream_absent_at FROM shiphub_orders WHERE store_id = ? AND category = ? AND upstream_order_id = ?
         `).bind(storeId, category, order.id))
+        // 2026-09-12（migration 0031）：list 层指纹不变且订单仍在上游 → 数据无变化，
+        // 跳过 detail 重拉。旧实现的判断 `upstream_updated_at !== order.updatedAt`
+        // 因 list 不返回 updatedAt（恒为 null）而永远为真，每次完整对账对全部订单
+        // 重拉 detail（每单 detail + receiver 两个 HTTP + 解析 + 重写 items），
+        // 是 tick CPU 峰值与被平台 exceededCpu 终止的主因。
+        // 注意：新订单（existing 为空）、指纹变化、以及被标记 absent 后重新出现的
+        // 订单（upstream_absent_at 非空）都走完整路径。
+        if (
+          existing
+          && existing.upstream_absent_at === null
+          && existing.list_fingerprint
+          && order.listFingerprint
+          && existing.list_fingerprint === order.listFingerprint
+        ) {
+          unchangedOrders.push(order)
+          continue
+        }
         if (!existing || existing.upstream_updated_at !== order.updatedAt) {
           const detailOrder = await client.detail(category, order.id, order.detailKey)
           if (detailOrder) {
             detailOrder.scheduledAt = detailOrder.scheduledAt ?? order.scheduledAt
             detailOrder.channel = detailOrder.channel ?? order.channel
             detailOrder.isEncryptedOrder = detailOrder.isEncryptedOrder ?? order.isEncryptedOrder ?? null
+            // 列表指纹必须随详情订单一并写库（2026-09-12）：detail() 内部重建的
+            // 订单对象不含 list 层字段，若不在此附加，指纹列永远为 NULL、
+            // 「指纹不变跳过 detail」的优化永不生效（测试已锁定该行为）。
+            detailOrder.listFingerprint = order.listFingerprint ?? null
             detailed.push(detailOrder)
           }
           detailCount += 1
@@ -473,14 +525,14 @@ export async function syncStoreCategory(
         INSERT INTO shiphub_orders (
           store_id, category, upstream_order_id, display_label, source_label, order_status, order_number, customer_phone, is_encrypted_order, vehicle_info, channel,
           scheduled_at, upstream_updated_at, first_seen_at, last_seen_at, last_seen_run_id,
-          upstream_absent_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+          upstream_absent_at, created_at, updated_at, list_fingerprint
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
         ON CONFLICT(store_id, category, upstream_order_id) DO UPDATE SET
           display_label = excluded.display_label, source_label = excluded.source_label, order_status = excluded.order_status, order_number = excluded.order_number, customer_phone = excluded.customer_phone, is_encrypted_order = excluded.is_encrypted_order, vehicle_info = excluded.vehicle_info, channel = excluded.channel,
           scheduled_at = excluded.scheduled_at, upstream_updated_at = excluded.upstream_updated_at,
           last_seen_at = excluded.last_seen_at, last_seen_run_id = excluded.last_seen_run_id,
-          upstream_absent_at = NULL, updated_at = excluded.updated_at
-      `).bind(storeId, category, order.id, order.displayLabel, order.sourceLabel, order.status, order.orderNumber ?? null, order.customerPhone ?? null, order.isEncryptedOrder ? 1 : 0, order.vehicleInfo ?? null, order.channel ?? null, order.scheduledAt ?? null, order.updatedAt ?? null, writeStamp, writeStamp, runId, writeStamp, writeStamp))
+          upstream_absent_at = NULL, updated_at = excluded.updated_at, list_fingerprint = excluded.list_fingerprint
+      `).bind(storeId, category, order.id, order.displayLabel, order.sourceLabel, order.status, order.orderNumber ?? null, order.customerPhone ?? null, order.isEncryptedOrder ? 1 : 0, order.vehicleInfo ?? null, order.channel ?? null, order.scheduledAt ?? null, order.updatedAt ?? null, writeStamp, writeStamp, runId, writeStamp, writeStamp, order.listFingerprint ?? null))
       statements.push(db.prepare('DELETE FROM shiphub_order_items WHERE store_id = ? AND category = ? AND upstream_order_id = ?').bind(storeId, category, order.id))
       for (const item of order.items) {
         statements.push(db.prepare(`
@@ -491,13 +543,25 @@ export async function syncStoreCategory(
         `).bind(storeId, category, order.id, item.id, item.productLabel, item.sku, item.quantity, item.vehicleInfo ?? null, item.serialNumberMasked ?? null, item.imageUrl ?? null, writeStamp, writeStamp))
       }
     }
+    // 无变化订单的轻量更新（2026-09-12，migration 0031）：只刷新 last_seen 与活跃标记，
+    // 不重写 detail 字段与 items——数据本就与上游一致，重写是纯浪费（旧实现的
+    // 「每单全部重写」是 tick CPU 峰值主因）。指纹列保持原值（没变）。
+    for (const order of unchangedOrders) {
+      statements.push(db.prepare(`
+        UPDATE shiphub_orders SET last_seen_at = ?, last_seen_run_id = ?, upstream_absent_at = NULL, updated_at = ?
+        WHERE store_id = ? AND category = ? AND upstream_order_id = ?
+      `).bind(writeStamp, runId, writeStamp, storeId, category, order.id))
+    }
+    // 对账标记必须计入全部「本轮在上游看到的订单」——包含跳过节流详情的无变化订单，
+    // 否则它们会被错误标记为已不在上游（旧实现只有完整写入的订单参与标记）。
+    const allSeenIds = [...orders.map((order) => order.id), ...unchangedOrders.map((order) => order.id)]
     if (fullReconcile) {
-      if (orders.length) {
-        const placeholders = orders.map(() => '?').join(',')
+      if (allSeenIds.length) {
+        const placeholders = allSeenIds.map(() => '?').join(',')
         statements.push(db.prepare(`
           UPDATE shiphub_orders SET upstream_absent_at = ?, updated_at = ?
           WHERE store_id = ? AND category = ? AND upstream_order_id NOT IN (${placeholders}) AND upstream_absent_at IS NULL
-        `).bind(writeStamp, writeStamp, storeId, category, ...orders.map((order) => order.id)))
+        `).bind(writeStamp, writeStamp, storeId, category, ...allSeenIds))
       } else {
         statements.push(db.prepare(`UPDATE shiphub_orders SET upstream_absent_at = ?, updated_at = ? WHERE store_id = ? AND category = ? AND upstream_absent_at IS NULL`).bind(writeStamp, writeStamp, storeId, category))
       }
@@ -774,6 +838,9 @@ export async function runScheduledShipHubSync(env: WorkerEnv, now = new Date()):
       `))
   for (const store of stores) {
     if (!activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) continue
-    for (const category of CATEGORIES) await syncStoreCategory(env.DB, config, store.id, category, { trigger: 'scheduled', now })
+    // tick 级连接缓存（2026-09-12 CPU 优化）：本店 4 个分类共享一次连接解析
+    // （含 access token 解密）——原实现每分类独立解析，一分钟内重复 4 次解密。
+    const connectionCache = new Map<string, ShipHubClient>()
+    for (const category of CATEGORIES) await syncStoreCategory(env.DB, config, store.id, category, { trigger: 'scheduled', now, connectionCache })
   }
 }

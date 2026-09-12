@@ -152,8 +152,10 @@ export async function ensureStoreCubeJwt(
   const now = options.now ?? new Date()
   const row = await readCubeConnection(env.DB, storeId)
   if (!row) return null
-  const credentials = await readStoreCredentials(config, row)
-  if (!credentials) {
+  // 凭据列存在性检查（不解密）：列缺失 = 门店没配账密，登录/刷新都无从谈起。
+  // 2026-09-12 CPU 优化：旧实现无条件先解密 username+password（2 次 AES-GCM），
+  // 但 token 可用时那两份明文根本用不上——cron tick 每分钟白烧 ~0.5ms。
+  if (!row.login_username_enc || !row.login_password_enc) {
     await storeCubeFailure(env.DB, storeId, 'CUBE_CREDENTIALS_MISSING')
     return null
   }
@@ -163,6 +165,12 @@ export async function ensureStoreCubeJwt(
     } catch {
       // 缓存密文损坏 → 走现场重登
     }
+  }
+  // 走到这里才需要登录：此时才解密本店凭据。
+  const credentials = await readStoreCredentials(config, row)
+  if (!credentials) {
+    await storeCubeFailure(env.DB, storeId, 'CUBE_CREDENTIALS_MISSING')
+    return null
   }
   // 失败冷却：10 分钟内不重试同一错误凭据（防 IdP 压力）。
   if (!options.skipFailureCooldown && row.cube_auth_checked_at && row.cube_auth_status === 'unavailable') {

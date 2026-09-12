@@ -2,6 +2,7 @@ import { loadConfig, isMasterDataConfigured, type WorkerEnv } from '../env.js'
 import { all, first } from '../db.js'
 import { performMasterDataLogin, MasterDataUpstreamError } from '../lib/masterdata-login.js'
 import { isTimeoutError, UPSTREAM_TIMEOUT_MS } from '../lib/fetch-timeout.js'
+import { isoDayFormatter } from '../lib/time-format.js'
 
 // BI 整车销量（perfeco API，2026-09-04 接入）：
 // GET {baseUrl}/perfeco/v2/period/economic_performances?from&to&aggLevel&stores&families
@@ -147,7 +148,9 @@ export function isPerfecoConfigured(env: WorkerEnv): boolean {
 }
 
 function isoDay(value: Date): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: BI_BIKES_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(value)
+  // formatter 走模块级缓存（2026-09-12 CPU 优化）：BI tick 每次运行都要算周窗口，
+  // new Intl.DateTimeFormat 是毫秒级成本，复用后降到微秒级。
+  return isoDayFormatter(BI_BIKES_TZ).format(value)
 }
 
 // 渠道分桶（physical/cc/loyalty/digital…）求和：qty 取整、金额保留两位。

@@ -1,0 +1,18 @@
+-- 0031：订单列表指纹列（2026-09-12 tick CPU 优化）。
+--
+-- 背景：完整对账（fullReconcile，hand/pick 每 15 分钟、receive/ship 每 30 分钟一次）
+-- 会对 list 返回的**每一个**订单重拉 detail。原因：list 接口不返回 updatedAt
+-- （normalizeListOrder 恒置 null），而「是否需要重拉 detail」的判断是
+-- `existing.upstream_updated_at !== order.updatedAt`——字符串与 null 比较永远为真。
+-- 每次对账因此产生「订单数 × 2」个 HTTP 请求（每单 detail + receiver 各一次），
+-- 加上逐单 JSON 解析与写库，是 cron tick CPU 峰值的主要来源（实测 tick CPU
+-- 12–50ms，2026-09-10/11 多次被平台以 exceededCpu 终止，同步停摆）。
+--
+-- 修复：记录 list 层字段指纹，指纹不变且订单仍在上游（未标记 absent）时跳过
+-- detail 重拉，只做轻量 last_seen 更新。新订单与指纹变化的订单仍走完整路径。
+-- 指纹只取 list 可见字段（状态/渠道/预约时间/单号/加密标记/明细键）——订单
+-- 状态流转必然体现在其中；商品明细创建后不再变化，随状态变化一并刷新。
+--
+-- 只追加列，不回填不改写既有数据（旧行为 NULL → 首次对账仍走完整 detail 路径，
+-- 写入指纹后从下一次对账起生效）。
+ALTER TABLE shiphub_orders ADD COLUMN list_fingerprint TEXT;
