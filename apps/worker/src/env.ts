@@ -48,6 +48,8 @@ export interface WorkerEnv {
   /** BI 同步门店白名单（逗号分隔门店码，空=禁用定时拉取与门店数据端点） */
   BI_SPD_API_KEY?: string
   D1_METRICS_TOKEN?: string
+  /** D1 用量预警收件邮箱（达到免费额度 80% 时发信） */
+  D1_ALERT_EMAIL?: string
 }
 
 export interface ShipHubConfig {

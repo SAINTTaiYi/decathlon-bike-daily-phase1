@@ -91,7 +91,7 @@ test('迁移 0024 纯新增，schema 版本与测试适配器同步', async () =
   // 非破坏性：不得触碰既有表。
   assert.doesNotMatch(migration, /ALTER TABLE|DROP TABLE|DROP INDEX/u)
   const schemaVersion = await readFile(new URL('../src/schema-version.ts', import.meta.url), 'utf8')
-  assert.match(schemaVersion, /'0032_shiphub_order_detail_filtered'/u)
+  assert.match(schemaVersion, /'0033_d1_usage_alerts'/u)
   const adapter = await readFile(new URL('../security/d1-test-adapter.ts', import.meta.url), 'utf8')
   assert.match(adapter, /'0024_email_binding_challenges\.sql'/u)
   assert.match(adapter, /'0025_bi_weekly_service_snapshots\.sql'/u)
