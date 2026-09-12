@@ -11,6 +11,7 @@ Browser
 ```
 
 - Preview and Staging use separate Workers and D1 databases.
+- Preview registers no cron triggers and runs no automated D1 work (see Preview environment below).
 - `workshop.skin` currently serves `APP_ENV=staging`.
 - No Production Worker or Production D1 exists yet.
 - The old EdgeOne/Supabase deployment path is retired; its two workflows are inert audit markers.
@@ -48,6 +49,14 @@ Variables: CLOUDFLARE_ACCOUNT_ID, STAGING_BASE_URL
 ```
 
 The workflow validates, builds, applies D1 migrations, deploys the Worker and Static Assets, then verifies version, SHA, environment, readiness, and Web shell. Production preparation requires the exact current `main` SHA to be deployed and manually accepted on Staging.
+
+## Preview environment
+
+Preview exists for visual acceptance only. It must not run any automated background work:
+
+- `deploy-cloudflare-preview.yml` must not declare `triggers.crons` (CI asserts the absence in `scripts/ops/validate-workflows.mjs`); the Preview Worker registers no scheduled triggers.
+- The scheduled Shiphub sync only serves stores that hold their own connection row in `shiphub_connections`; a store without a configured account is never driven by cron. Fixture mode has no scheduled sync at all — demo data may be refreshed only through the per-store manual sync.
+- Root cause reference (2026-09-12): the fixture scheduled sync rewrote synthetic data for every `active` store once a minute (~90k rows/day across 12 placeholder stores created for store-creation tests). The D1 free-tier daily row-write limit is account-scoped (100k, shared with Staging); once exhausted, every Staging write was rejected (7500) from 17:49 Beijing until the midnight-UTC reset.
 
 ## Production bootstrap
 

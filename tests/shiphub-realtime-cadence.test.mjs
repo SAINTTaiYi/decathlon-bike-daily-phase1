@@ -12,16 +12,19 @@ import test from 'node:test'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('cron 每分钟触发一次（staging / preview / wrangler 三处一致）', async () => {
+test('cron 每分钟触发一次（staging / wrangler 两处一致；preview 不得注册 cron）', async () => {
   const [wrangler, staging, preview] = await Promise.all([
     read('../wrangler.jsonc'),
     read('../.github/workflows/deploy-cloudflare-staging.yml'),
     read('../.github/workflows/deploy-cloudflare-preview.yml')
   ])
-  for (const [label, source] of [['wrangler.jsonc', wrangler], ['staging workflow', staging], ['preview workflow', preview]]) {
+  for (const [label, source] of [['wrangler.jsonc', wrangler], ['staging workflow', staging]]) {
     assert.match(source, /"crons": \["\* \* \* \* \*"\]/u, `${label} 必须每分钟触发一次（实时化前提）`)
     assert.doesNotMatch(source, /"crons": \["\*\/5 \* \* \* \*"\]/u, `${label} 不得残留旧的 5 分钟频率`)
   }
+  // 2026-09-12（D1 写配额事故）：Preview 不得注册任何 cron——preview 环境不得有
+  // 任何自动化 D1 调用（定时同步只服务已配置本店账号的门店，preview 无此类门店）。
+  assert.doesNotMatch(preview, /"crons"/u, 'preview workflow 不得注册 cron（preview 无自动化同步）')
 })
 
 test('前端 API 暴露 ensure-fresh 端点', async () => {

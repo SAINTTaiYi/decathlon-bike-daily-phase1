@@ -853,24 +853,29 @@ export async function ensureFreshStoreCategories(
 export async function runScheduledShipHubSync(env: WorkerEnv, now = new Date()): Promise<void> {
   const config = loadConfig(env)
   if (!config.SHIPHUB.enabled) return
+  // ── 2026-09-12 修复（D1 写配额事故）：定时同步只服务「已配置本店 Shiphub 账号」的门店 ──
+  // 旧实现（2026-08-19 起）：fixture 模式遍历 stores 表，对全部 active 门店每分钟写入
+  // 合成数据。preview 上 12 家「门店创建测试」占位店从未配置任何账号，却被 cron 驱动，
+  // 单日烧掉 9 万+ D1 写入行，占满账号级每日写配额（100k，与 staging 共享），导致
+  // staging 真实门店同步自 2026-09-12 17:49（北京）起被平台拒绝（7500）而冻结。
+  // 现在 fixture 模式不再由 cron 驱动任何门店；演示数据如需刷新，走页面上的手动同步
+  // （per-store、用户显式触发）。cron 只做一件事：同步「已授权且持有有效 token 的连接」。
+  if (config.SHIPHUB.mode === 'fixture') return
   // live 模式只同步「已授权且持有有效 token 的连接」：不再对每个 active store 自动
   // bootstrap——多个门店共享同一 bootstrap refresh token 并发刷新会被上游轮换机制
   // 立即作废（OAUTH_TOKEN_HTTP_400，全部门店翻成 reauth_required）。
-  // reauth_required 连接也排除：避免对失效 token 每 5 分钟空转，待门店重新授权后恢复。
-  // fixture 模式无上游调用，仍覆盖全部 active store 写入合成数据。
+  // reauth_required 连接也排除：避免对失效 token 空转，待门店重新授权后恢复。
   // 先尝试自愈：恢复成功的连接本轮就能参与同步，无需等下一轮。
   // 同样受营业时间约束（不在窗口内不碰上游）。
-  if (config.SHIPHUB.mode !== 'fixture' && activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) {
+  if (activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) {
     await healShipHubConnections(env, config, now)
   }
-  const stores = config.SHIPHUB.mode === 'fixture'
-    ? await all<{ id: string }>(env.DB.prepare(`SELECT s.id FROM stores s WHERE s.status = 'active'`))
-    : await all<{ id: string }>(env.DB.prepare(`
-        SELECT c.store_id AS id
-        FROM shiphub_connections c
-        WHERE c.enabled = 1 AND c.refresh_token_ciphertext IS NOT NULL AND c.refresh_token_nonce IS NOT NULL
-          AND c.authorization_status != 'reauth_required'
-      `))
+  const stores = await all<{ id: string }>(env.DB.prepare(`
+    SELECT c.store_id AS id
+    FROM shiphub_connections c
+    WHERE c.enabled = 1 AND c.refresh_token_ciphertext IS NOT NULL AND c.refresh_token_nonce IS NOT NULL
+      AND c.authorization_status != 'reauth_required'
+  `))
   for (const store of stores) {
     if (!activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) continue
     // tick 级连接缓存（2026-09-12 CPU 优化）：本店 4 个分类共享一次连接解析

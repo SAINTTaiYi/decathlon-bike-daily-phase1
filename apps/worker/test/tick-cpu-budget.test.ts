@@ -144,12 +144,15 @@ function resetHits(): void {
 const T0 = new Date('2026-09-12T03:00:00.000Z')
 const T1 = new Date(T0.getTime() + 16 * 60_000)
 const T2 = new Date(T0.getTime() + 32 * 60_000)
+// token 有效期（makeEnv 的 expiresAt）必须相对「真实时钟」生成：readCachedAccessToken
+// 用真实 now 判定缓存可用性；写死 T0+2h 会在挂钟时间走过该时刻后误判过期，把测试变成
+// 时间炸弹（2026-09-12 修复：真实时间 > 05:00Z 后 main 上必红）。
 
 test('完整对账在列表指纹不变时跳过 detail 重拉，指纹变化/订单回归才重拉', async () => {
   await startServer()
   const db = await migratedTestDatabase()
   try {
-    const env = await makeEnv(db, 'A'.repeat(760), new Date(T0.getTime() + 2 * 3600_000).toISOString())
+    const env = await makeEnv(db, 'A'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
     const config = loadConfig(env)
     rows = [orderRow('order-1', 'pending'), orderRow('order-2', 'pending')]
 
@@ -200,7 +203,7 @@ test('明细被过滤的订单（无自行车）只检查一次，之后跳过 d
   await startServer()
   const db = await migratedTestDatabase()
   try {
-    const env = await makeEnv(db, 'D'.repeat(760), new Date(T0.getTime() + 2 * 3600_000).toISOString())
+    const env = await makeEnv(db, 'D'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
     const config = loadConfig(env)
     // 上游订单明细全是非自行车（memory 65 记录的真实现象：1299 hand 单有人字拖/袜子等）
     detailIsBike = false
@@ -257,7 +260,7 @@ test('scheduled tick 内同一门店的连接只解析一次（tick 级连接缓
   await startServer()
   const db = await migratedTestDatabase()
   try {
-    const env = await makeEnv(db, 'B'.repeat(760), new Date(T0.getTime() + 2 * 3600_000).toISOString())
+    const env = await makeEnv(db, 'B'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
     rows = [orderRow('order-cache', 'pending')]
 
     // 包装 DB：计数 connectionForSync 的连接查询（JOIN stores 的形态是它独有）

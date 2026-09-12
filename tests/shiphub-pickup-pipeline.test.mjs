@@ -173,8 +173,11 @@ test('cron 同步前自愈 reauth_required 连接，冷却用专用列（2026-09
   assert.match(sync, /authorization_status = 'connected',\s*\n\s*last_auth_error_code = NULL/u)
   // 失败只记错误码，绝不落凭据内容
   assert.match(sync, /last_auth_error_code = 'SELF_HEAL_FAILED'/u)
-  // fixture 模式不碰上游；自愈受营业时间窗口约束
-  assert.match(sync, /if \(config\.SHIPHUB\.mode !== 'fixture' && activeInStoreTimezone\(/u)
+  // fixture 模式不碰上游（2026-09-12 修复：定时同步对 fixture 提前返回——不再驱动任何门店；
+  // 旧实现遍历全部 active 门店每分钟写入，烧穿 D1 写配额）；自愈受营业时间窗口约束。
+  assert.match(sync, /if \(config\.SHIPHUB\.mode === 'fixture'\) return\n/u, 'fixture 定时同步必须提前返回（不驱动任何门店）')
+  assert.doesNotMatch(sync, /SELECT s\.id FROM stores s WHERE s\.status = 'active'/u, '不得再遍历全部 active 门店（2026-09-12 事故根因）')
+  assert.match(sync, /if \(activeInStoreTimezone\(SHIPHUB_SYNC_TIMEZONE, now, config\.SHIPHUB\.activeStartHour, config\.SHIPHUB\.activeEndHour\)\) \{\s*await healShipHubConnections\(env, config, now\)/u, '自愈必须仍受营业时间窗口约束')
 })
 
 test('整合看板的每个类名都有样式落地（防样式缺失回归）', () => {

@@ -174,10 +174,11 @@ test('营业时间硬规则：北京时间 10:00–22:00 内允许同步，其�
   assert.equal(at('2026-08-19T16:00:00.000Z'), false, '00:00 北京（午夜）→ 停止调用')
 })
 
-test('定时同步固定按北京时间判定，门店时区误配不影响硬规则', async () => {
+test('fixture 模式（Preview）的定时同步不再驱动任何门店：占位店也零写入', async () => {
   const db = await database()
-  // 把门店时区误配成 UTC：UTC 14:30 在 10–22 窗口内，但北京 22:30 已过营业时间
-  db.exec("UPDATE stores SET timezone = 'UTC' WHERE id = '" + STORE + "'")
+  // 门店创建功能测试遗留的占位店（active + 从未配置任何账号）：旧实现被 cron 每分钟写入。
+  db.exec(`INSERT INTO stores (id, code, name, timezone, status, created_at, updated_at)
+           VALUES ('zombie-placeholder-store', 'ZOMBIE-01', 'Placeholder Store', 'Asia/Shanghai', 'active', '2026-08-18T00:00:00.000Z', '2026-08-18T00:00:00.000Z')`)
   try {
     const env = {
       DB: db as unknown as D1Database,
@@ -187,15 +188,41 @@ test('定时同步固定按北京时间判定，门店时区误配不影响硬�
       CSRF_SECRET: 'y'.repeat(32),
       PASSWORD_PEPPER: 'z'.repeat(32)
     } as unknown as WorkerEnv
-    const inside = new Date('2026-08-19T13:59:00.000Z') // 北京 21:59 → 应同步
-    await runScheduledShipHubSync(env, inside)
-    const afterInside = db.one<{ id: string }>('SELECT upstream_order_id AS id FROM shiphub_orders WHERE store_id = ? LIMIT 1', STORE)
-    assert.ok(afterInside, '北京时间 21:59 应执行同步并写入数据')
+    // 北京时间 12:00（营业窗口内）：fixture 模式也必须完全不写（2026-09-12 D1 写配额事故修复）。
+    await runScheduledShipHubSync(env, new Date('2026-08-19T04:00:00.000Z'))
+    const runs = db.one<{ n: number }>('SELECT count(*) AS n FROM shiphub_sync_runs')
+    assert.equal(runs?.n, 0, 'fixture 模式不得产生任何同步运行（旧实现 12 店单日烧 9 万+ 行写入配额）')
+    const orders = db.one<{ n: number }>('SELECT count(*) AS n FROM shiphub_orders')
+    assert.equal(orders?.n, 0, 'fixture 模式不得写入任何合成订单')
+    const states = db.one<{ n: number }>('SELECT count(*) AS n FROM shiphub_category_state')
+    assert.equal(states?.n, 0, 'fixture 模式不得建立任何分类状态行')
+    const leases = db.one<{ n: number }>('SELECT count(*) AS n FROM shiphub_sync_leases')
+    assert.equal(leases?.n, 0, 'fixture 模式不得写入任何租约行')
+  } finally {
+    db.close()
+  }
+})
 
+test('live 定时同步固定按北京时间判定，门店时区误配不影响硬规则', async () => {
+  const db = await database()
+  // 把门店时区误配成 UTC：UTC 14:30 在 10–22 窗口内，但北京 22:30 已过营业时间
+  db.exec("UPDATE stores SET timezone = 'UTC' WHERE id = '" + STORE + "'")
+  // 已授权连接：live 定时同步只认连接（连接驱动），窗口外必须一个尝试都不发起。
+  db.exec(`INSERT INTO shiphub_connections (store_id, enabled, mode, refresh_token_ciphertext, refresh_token_nonce, refresh_token_key_version, authorization_status, created_at, updated_at)
+           VALUES ('${STORE}', 1, 'live', '${'A'.repeat(78)}', '${'B'.repeat(16)}', 'v1', 'connected', '2026-08-18T00:00:00.000Z', '2026-08-18T00:00:00.000Z')`)
+  try {
+    const env = await liveEnv(db)
     const outside = new Date('2026-08-19T14:30:00.000Z') // 北京 22:30 → 禁止同步
     await runScheduledShipHubSync(env, outside)
-    const attempt = db.one<{ last_attempt_at: string }>('SELECT last_attempt_at FROM shiphub_category_state WHERE store_id = ? AND category = ?', STORE, 'hand')
-    assert.equal(attempt?.last_attempt_at, '2026-08-19T13:59:00.000Z', '北京时间 22:30 不得发起新的同步尝试')
+    const outsideRuns = db.one<{ n: number }>('SELECT count(*) AS n FROM shiphub_sync_runs')
+    assert.equal(outsideRuns?.n, 0, '北京时间 22:30 不得发起任何同步尝试（时区误配不影响硬规则）')
+    const outsideStates = db.one<{ n: number }>('SELECT count(*) AS n FROM shiphub_category_state')
+    assert.equal(outsideStates?.n, 0, '窗口外不得建立分类状态行')
+
+    const inside = new Date('2026-08-19T13:59:00.000Z') // 北京 21:59 → 应发起同步
+    await runScheduledShipHubSync(env, inside)
+    const insideRuns = db.one<{ n: number }>('SELECT count(*) AS n FROM shiphub_sync_runs')
+    assert.ok((insideRuns?.n ?? 0) >= 1, '北京时间 21:59 在窗口内必须发起同步（时区误配不影响硬规则）')
   } finally {
     db.close()
   }
