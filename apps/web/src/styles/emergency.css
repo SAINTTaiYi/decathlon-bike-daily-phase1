@@ -1,0 +1,144 @@
+/* 应急交接（2026-09-13）。
+ *
+ * 场景：D1 每日额度被烧穿 / 数据库暂时不可写时，让门店仍能完成「最简单的交接」：
+ *   ① 顶部横幅说明情况（含恢复时点）并提供「生成应急交接」入口；
+ *   ② 应急交接单 = 图片 + 可编辑文字（本机保存；图片可下载 / 长按存相册）；
+ *   ③ 第二天额度恢复后，把（编辑过的）文字在系统内导入补录。
+ *
+ * 双端规则（项目铁律 memory 23/26）：桌面与移动是两套独立组件 + 两份独立样式，
+ * 这里分别用 .emergency-dialog-desktop / .emergency-dialog-mobile 容器限定作用域，
+ * 不用断点把一套 DOM 硬凑两端。
+ */
+
+/* ── 顶部横幅（固定在页头下方，与 .workshop-global-alert 同槽位语义）── */
+.emergency-banner {
+  position: fixed;
+  top: var(--ops-header-height, 60px);
+  left: 50%;
+  z-index: 74;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(calc(100% - 20px), 1160px);
+  margin: 0;
+  transform: translateX(-50%);
+  padding: 10px 12px;
+  border-radius: 0 0 var(--ops-radius, 14px) var(--ops-radius, 14px);
+  background: var(--ops-black, #14161a);
+  color: var(--ops-yellow, #ffde59);
+  box-shadow: 0 20px 44px rgb(10 12 10 / .28);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .01em;
+}
+.emergency-banner[data-kind='read'] { background: #2b1d12; color: #ffd9a0; }
+.emergency-banner[data-kind='offline'] { background: #1c2430; color: #bcd6ff; }
+.emergency-banner-spark {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 4px rgb(255 222 89 / .18);
+  animation: emergency-banner-pulse 1.8s ease-in-out infinite;
+}
+.emergency-banner[data-kind='read'] .emergency-banner-spark,
+.emergency-banner[data-kind='offline'] .emergency-banner-spark { box-shadow: 0 0 0 4px rgb(255 255 255 / .12); }
+@keyframes emergency-banner-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .emergency-banner-spark { animation: none; } }
+.emergency-banner-text { flex: 1 1 auto; min-width: 0; }
+.emergency-banner-text strong { display: block; font-size: 12px; }
+.emergency-banner-text small { display: block; margin-top: 2px; font-size: 11px; font-weight: 600; opacity: .78; }
+.emergency-banner-actions { flex: none; display: flex; align-items: center; gap: 8px; }
+.emergency-banner button {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.emergency-banner-open { background: var(--ops-yellow, #ffde59); color: #14161a; }
+.emergency-banner-close {
+  background: transparent;
+  color: inherit;
+  opacity: .72;
+  padding: 6px 8px;
+}
+.emergency-banner-close:hover { opacity: 1; }
+
+/* ── 应急交接对话框：共用件 ── */
+.emergency-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+.emergency-tab {
+  border: 1px solid rgb(12 14 12 / .16);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  padding: 7px 14px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.emergency-tab[data-active='true'] { background: var(--ops-yellow, #ffde59); border-color: var(--ops-yellow, #ffde59); color: #14161a; }
+.emergency-hint { margin: 0 0 10px; font-size: 12px; line-height: 1.6; color: var(--ops-text-muted, #6c6f76); }
+.emergency-editor {
+  width: 100%;
+  min-height: 240px;
+  border: 1px solid rgb(12 14 12 / .14);
+  border-radius: 12px;
+  background: #fffdf7;
+  color: #14161a;
+  font-family: "Noto Sans SC Variable", "Noto Sans SC", sans-serif;
+  font-size: 13px;
+  line-height: 1.75;
+  padding: 12px 14px;
+  resize: vertical;
+}
+.emergency-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.emergency-actions button {
+  border: 1px solid rgb(12 14 12 / .18);
+  border-radius: 999px;
+  background: #fff;
+  color: #14161a;
+  padding: 9px 16px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.emergency-actions button[data-primary='true'] { background: var(--ops-yellow, #ffde59); border-color: var(--ops-yellow, #ffde59); }
+.emergency-actions button:disabled { opacity: .5; cursor: default; }
+.emergency-preview {
+  display: block;
+  width: 100%;
+  max-height: 46vh;
+  object-fit: contain;
+  border: 1px solid rgb(12 14 12 / .12);
+  border-radius: 12px;
+  background: #fff;
+}
+.emergency-meta { margin: 8px 0 0; font-size: 11px; color: var(--ops-text-muted, #6c6f76); }
+.emergency-empty-preview {
+  display: grid;
+  place-items: center;
+  min-height: 140px;
+  border: 1px dashed rgb(12 14 12 / .2);
+  border-radius: 12px;
+  color: var(--ops-text-muted, #6c6f76);
+  font-size: 12px;
+}
+
+/* ── 桌面实现 ── */
+.emergency-dialog-desktop .emergency-body { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 16px; align-items: start; }
+.emergency-dialog-desktop .emergency-col { min-width: 0; }
+.emergency-dialog-desktop .emergency-editor { min-height: 300px; }
+.emergency-dialog-desktop .emergency-import-title { margin-top: 4px; }
+
+/* ── 移动实现 ── */
+.emergency-dialog-mobile .emergency-body { display: grid; gap: 12px; }
+.emergency-dialog-mobile .emergency-editor { min-height: 200px; font-size: 12.5px; }
+.emergency-dialog-mobile .emergency-actions { position: sticky; bottom: 0; padding-top: 8px; background: linear-gradient(180deg, rgb(255 255 255 / 0), var(--ops-card, #fffdf7) 34%); }
+.emergency-dialog-mobile .emergency-actions button { flex: 1 1 calc(50% - 4px); min-height: 44px; }
+.emergency-dialog-mobile .emergency-tabs { position: sticky; top: 0; z-index: 1; }
+
+/* ── 其它交接模块内的入口按钮 ── */
+.emergency-entry { display: inline-flex; align-items: center; gap: 6px; }
