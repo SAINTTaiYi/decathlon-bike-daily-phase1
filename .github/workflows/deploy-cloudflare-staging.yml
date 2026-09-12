@@ -133,6 +133,7 @@ jobs:
               "GIT_SHA": "__RELEASE_SHA__",
               "SHIPHUB_ENABLED": "true",
               "SHIPHUB_MODE": "live",
+              "D1_ALERT_EMAIL": "1710751219@qq.com",
               "SHIPHUB_BASE_URL": "__SHIPHUB_BASE_URL__",
               "SHIPHUB_OAUTH_TOKEN_URL": "__SHIPHUB_OAUTH_TOKEN_URL__",
               "SHIPHUB_ACTIVE_START_HOUR": "10",
