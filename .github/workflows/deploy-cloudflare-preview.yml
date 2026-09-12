@@ -110,6 +110,9 @@ jobs:
         run: node scripts/ops/network-guard.mjs npm/pnpm npm install --global wrangler@4.112.0
       - name: Prepare the Preview Worker, Static Assets, and D1 configuration
         run: |
+          # 2026-09-12：Preview 不得注册任何 cron（preview 环境不得有自动化 D1 调用；
+          # 定时同步只服务已配置本店账号的门店，preview 没有此类门店）。
+          # 事故参考：fixture 定时同步曾对 12 家占位店每分钟写入，单日烧穿 D1 写配额。
           cat > wrangler.preview.jsonc <<'JSON'
           {
             "name": "bike-ops-preview",
@@ -131,9 +134,6 @@ jobs:
                 "migrations_dir": "migrations/d1"
               }
             ],
-            "triggers": {
-              "crons": ["* * * * *"]
-            },
             "vars": {
               "APP_ENV": "preview",
               "APP_VERSION": "__APP_VERSION__",

@@ -89,6 +89,7 @@ assert(/database_id": "e40af8eb-6340-4b9e-8484-20247323fd84"/u.test(preview), 'c
 assert(/"name": "bike-ops-preview"/u.test(preview), 'cloudflare preview: Worker name must remain pinned')
 assert(/"SHIPHUB_ENABLED": "true"/u.test(preview), 'cloudflare preview: Shiphub must be enabled')
 assert(/"SHIPHUB_MODE": "(fixture|live)"/u.test(preview), 'cloudflare preview: Shiphub mode must be fixture or live (live requires authorized secrets)')
+assert(!/"crons":/u.test(preview), 'cloudflare preview: cron triggers are forbidden — no automated D1 calls on Preview (2026-09-12)')
 assert(/wrangler@4\.112\.0/u.test(preview), 'cloudflare preview: Wrangler version must be pinned')
 
 assert(/^\s+workflow_dispatch:/mu.test(production) && !/^\s+(?:push|pull_request):/mu.test(production), 'production: deployment must be manual')
