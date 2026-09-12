@@ -1,0 +1,21 @@
+-- 0032：订单「明细已检查、确认无自行车」标记（2026-09-12 tick CPU 优化续）。
+--
+-- 背景：hand / pick / receive 三个分类只保留明细中含自行车（骑行宇宙）的订单
+-- （normalizeDetailOrder 的 isBikeItem 过滤，产品意图：待取车只看自行车）。
+-- 明细里全是非自行车的订单 detail() 返回 null，于是**不写库**——连带
+-- migration 0031 的 list_fingerprint 也写不上。
+--
+-- 后果（2026-09-12 生产实测）：这类订单每次完整对账都被当作「新订单」重拉
+-- detail（每单 detail + receiver 两个 HTTP + 解析）。实测 1299 店上游 hand
+-- 列表 7 单全为非自行车，导致每 15 分钟一轮对账固定产生 7 次 detail 拉取，
+-- 0031 的指纹跳过优化对它们完全失效。
+--
+-- 修复：用本列记住「该订单的明细已检查过、结论是无自行车」。
+--   * detail 返回 null 时：写库一行（保留 list 层字段 + 指纹 + 本列=1），
+--     订单保持不可见（upstream_absent_at 非空，看板/计数查询天然过滤）。
+--   * 对账跳过条件：指纹不变且（订单活跃 或 本列=1）→ 跳过 detail 重拉。
+--   * detail 返回订单时：本列重置为 0（明细里有自行车，走正常可见路径）。
+--
+-- 只追加列，不回填不改写既有数据（旧行为 NULL → 首次对账仍重拉一次，
+-- 写入标记后从下一次对账起生效）。
+ALTER TABLE shiphub_orders ADD COLUMN detail_filtered INTEGER NOT NULL DEFAULT 0;

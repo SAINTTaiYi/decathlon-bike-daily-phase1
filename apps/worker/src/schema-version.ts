@@ -1,2 +1,2 @@
 // Keep the public schema identity tied to the latest committed D1 migration.
-export const SCHEMA_VERSION = '0031_shiphub_order_list_fingerprint'
+export const SCHEMA_VERSION = '0032_shiphub_order_detail_filtered'

@@ -4,7 +4,7 @@ import { createServer, type Server } from 'node:http'
 import type { AppConfig, WorkerEnv } from '../src/env.js'
 import { loadConfig } from '../src/env.js'
 import { encryptShipHubSecret } from '../src/lib/shiphub-crypto.js'
-import { syncStoreCategory, runScheduledShipHubSync } from '../src/services/shiphub-sync.js'
+import { syncStoreCategory, runScheduledShipHubSync, listShipHubOrders } from '../src/services/shiphub-sync.js'
 import { ensureStoreCubeJwt } from '../src/services/cube-identity.js'
 import { hourFormatter, isoDayFormatter, resetTimeFormatterCacheForTest } from '../src/lib/time-format.js'
 import { migratedTestDatabase, type TestD1Database } from '../security/d1-test-adapter.js'
@@ -13,14 +13,16 @@ import { migratedTestDatabase, type TestD1Database } from '../security/d1-test-a
 //
 // 背景：免费层 Workers 的 Cron CPU 上限是每次 10ms，而实测 tick CPU 常态
 // 12–50ms，2026-09-10/11 多次被平台以 exceededCpu 终止（同步停摆 1h45m）。
-// 优化四项（全部要有回归断言，防退回）：
+// 优化五项（全部要有回归断言，防退回）：
 //   ① Intl.DateTimeFormat 构造是 tick 最大单项（~235µs/次 × 每 tick ~10 次）
 //      → 模块级 formatter 缓存。
 //   ② 完整对账对全部订单重拉 detail（list 不返回 updatedAt，比较恒真）
-//      → 列表指纹：指纹不变且订单仍活跃时跳过 detail。
-//   ③ cube 身份检查在 token 可用时仍先解密本店账密（2 次 AES-GCM 白烧）
+//      → 列表指纹：指纹不变且订单状态已知时跳过 detail。
+//   ③ 明细无自行车的订单（detail 返回 null）每次对账都被重拉
+//      → 记录「已检查」结论（detail_filtered），保持不可见但不再重拉。
+//   ④ cube 身份检查在 token 可用时仍先解密本店账密（2 次 AES-GCM 白烧）
 //      → token 可用时不再解密凭据。
-//   ④ 同一 tick 内每个分类独立解析连接（重复 AES-GCM 解密 access token）
+//   ⑤ 同一 tick 内每个分类独立解析连接（重复 AES-GCM 解密 access token）
 //      → tick 级连接缓存。
 //
 // 测试用真实本地 HTTP 服务模拟 Shiphub 上游（非 mock 错误码），
@@ -34,17 +36,27 @@ let baseUrl = ''
 let rows: Array<Record<string, unknown>> = []
 const hits = { detail: 0, list: 0, receiver: 0, count: 0 }
 
-function orderRow(id: string, status: string): Record<string, unknown> {
+function orderRow(id: string, status: string, latestStatus = '1000'): Record<string, unknown> {
   return {
     b2c_order_id: id,
     ship_group_id: `group-${id}`,
     mail_no: `MAIL-${id}`,
     order_type: status,
     order_platform: 'mini_program',
-    order_latest_status: '1000',
+    order_latest_status: latestStatus,
     is_encrypted_order: '1',
     carrier_arrive_time: '2026-09-12T08:00:00.000Z'
   }
+}
+
+/** 明细里全是非自行车（universe_id 非 2）→ normalizeDetailOrder 返回 null。 */
+let detailIsBike = true
+
+function detailBody(id: string): string {
+  const item = detailIsBike
+    ? { item_id: 'A1', model_id: 'M1', universe_id: '2', sku_id: `SKU-${id}`, sku_name: '测试自行车', sku_color: '黑', sku_size: 'M' }
+    : { item_id: 'A2', model_id: 'M2', universe_id: '16', sku_label: '人字拖', sku_id: `SKU-${id}`, sku_name: '人字拖鞋', sku_color: '蓝', sku_size: '42' }
+  return JSON.stringify({ order_item_list: [item] })
 }
 
 async function startServer(): Promise<void> {
@@ -67,11 +79,7 @@ async function startServer(): Promise<void> {
     }
     if (path.includes('/detail')) {
       hits.detail += 1
-      send(JSON.stringify({
-        order_item_list: [
-          { item_id: 'A1', model_id: 'M1', universe_id: '2', sku_id: `SKU-${url.searchParams.get('b2c_order_id') ?? 'x'}`, sku_name: '测试自行车', sku_color: '黑', sku_size: 'M' }
-        ]
-      }))
+      send(detailBody(new URL(request.url ?? '/', 'http://127.0.0.1').searchParams.get('b2c_order_id') ?? 'x'))
       return
     }
     if (path.includes('/receiver')) {
@@ -188,6 +196,63 @@ test('完整对账在列表指纹不变时跳过 detail 重拉，指纹变化/�
   }
 })
 
+test('明细被过滤的订单（无自行车）只检查一次，之后跳过 detail 且始终保持不可见', async () => {
+  await startServer()
+  const db = await migratedTestDatabase()
+  try {
+    const env = await makeEnv(db, 'D'.repeat(760), new Date(T0.getTime() + 2 * 3600_000).toISOString())
+    const config = loadConfig(env)
+    // 上游订单明细全是非自行车（memory 65 记录的真实现象：1299 hand 单有人字拖/袜子等）
+    detailIsBike = false
+    rows = [orderRow('nonbike-1', 'pending'), orderRow('nonbike-2', 'pending')]
+
+    // ① 首次对账：两单都检查明细（detail 返回 null = 明细无自行车）
+    resetHits()
+    assert.equal((await syncStoreCategory(db as unknown as D1Database, config, STORE, 'hand', { trigger: 'scheduled', now: T0 })).status, 'succeeded')
+    assert.equal(hits.detail, 2, '首次必须检查明细')
+
+    // ② 检查结论必须落库：detail_filtered=1 + 指纹 + 不可见（absent）
+    const filtered = db.query<{ upstream_order_id: string; detail_filtered: number; list_fingerprint: string | null; absent: string | null }>(
+      `SELECT upstream_order_id, detail_filtered, list_fingerprint, upstream_absent_at AS absent FROM shiphub_orders
+       WHERE store_id = ? AND category = 'hand' ORDER BY upstream_order_id`, STORE)
+    assert.equal(filtered.length, 2, '被过滤的订单也要落库（否则每轮重拉）')
+    assert.ok(filtered.every((row) => row.detail_filtered === 1), 'detail_filtered 必须置 1')
+    assert.ok(filtered.every((row) => row.list_fingerprint), '指纹必须落库')
+    assert.ok(filtered.every((row) => row.absent !== null), '被过滤的订单必须保持不可见（absent）')
+
+    // ③ 不应出现在待取车看板查询里
+    const visible = await listShipHubOrders(db as unknown as D1Database, STORE, 'hand', null, 50)
+    assert.equal(visible.orders.length, 0, '明细无自行车的订单不得显示在待取车看板')
+
+    // ④ 16 分钟后对账（同数据）：指纹不变 → 跳过 detail（这是本轮修复的核心）
+    resetHits()
+    assert.equal((await syncStoreCategory(db as unknown as D1Database, config, STORE, 'hand', { trigger: 'scheduled', now: T1 })).status, 'succeeded')
+    assert.equal(hits.list, 1, '完整对账仍要拉列表')
+    assert.equal(hits.detail, 0, '已确认无自行车的订单不得重复检查（2026-09-12 修复：旧实现每轮重拉）')
+    const stillHidden = await listShipHubOrders(db as unknown as D1Database, STORE, 'hand', null, 50)
+    assert.equal(stillHidden.orders.length, 0, '跳过 detail 后仍必须不可见')
+
+    // ⑤ 上游状态码推进（order_latest_status 变化，order_type 不变）→ 指纹变化
+    //    → 必须重新检查明细（这正是 listStatusRaw 存在的原因：只看 status 字段
+    //    会因 order_type 非空而忽略状态码，导致状态推进不被检测）
+    detailIsBike = true
+    rows = [orderRow('nonbike-1', 'pending', '1040'), orderRow('nonbike-2', 'pending')]
+    resetHits()
+    assert.equal((await syncStoreCategory(db as unknown as D1Database, config, STORE, 'hand', { trigger: 'scheduled', now: T2 })).status, 'succeeded')
+    assert.equal(hits.detail, 1, '状态码推进的订单必须重新检查明细（其余跳过）')
+    const nowVisible = await listShipHubOrders(db as unknown as D1Database, STORE, 'hand', null, 50)
+    assert.equal(nowVisible.orders.length, 1, '明细含自行车后必须转为可见')
+    const row = db.one<{ detail_filtered: number; absent: string | null }>(
+      `SELECT detail_filtered, upstream_absent_at AS absent FROM shiphub_orders WHERE store_id = ? AND category = 'hand' AND upstream_order_id = 'nonbike-1'`, STORE)
+    assert.equal(row?.detail_filtered, 0, '转为可见后 detail_filtered 必须重置为 0')
+    assert.equal(row?.absent, null, '转为可见后必须清除 absent')
+  } finally {
+    detailIsBike = true
+    db.close()
+    await stopServer()
+  }
+})
+
 test('scheduled tick 内同一门店的连接只解析一次（tick 级连接缓存）', async () => {
   await startServer()
   const db = await migratedTestDatabase()
@@ -252,7 +317,7 @@ test('cube token 可用时不再解密本店凭据（且凭据密文损坏不阻
       BI_MASTERDATA_LOGIN_KEY: TOKEN_KEY,
       SHIPHUB_LOCATION_NUM: '1299'
     } as WorkerEnv
-    assert.equal(await ensureStoreCubeJwt(env, STORE), tokenPlain, 'token 可用时必须直接复用，不因凭据密文状态阻塞')
+    assert.equal(await ensureStoreCubeJwt(env, STORE, { now: new Date('2026-09-12T03:00:00.000Z') }), tokenPlain, 'token 可用时必须直接复用，不因凭据密文状态阻塞')
   } finally {
     db.close()
   }
