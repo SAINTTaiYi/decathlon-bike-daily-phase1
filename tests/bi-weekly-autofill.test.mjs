@@ -6,11 +6,13 @@ const read = (p) => readFile(new URL(`../apps/web/src/${p}`, import.meta.url), '
 const readWorker = (p) => readFile(new URL(`../apps/worker/src/${p}`, import.meta.url), 'utf8')
 
 // ── Worker：周结定时拉取 ──
-test('cron 挂载：BI 周结与 Shiphub 并行，scheduledTime 传递', async () => {
+test('cron 挂载：BI 周结 + Shiphub + D1 用量预警并行，scheduledTime 传递', async () => {
   const index = await readWorker('index.ts')
-  assert.match(index, /Promise\.allSettled\(\[runScheduledShipHubSync\(env\), runScheduledBiSync\(env, fireTime\)\]\)/u)
+  // 2026-09-13：D1 用量预警（80% 邮件）加入同一并行组；三者都绝不抛错。
+  assert.match(index, /Promise\.allSettled\(\[\s*runScheduledShipHubSync\(env\),\s*runScheduledBiSync\(env, fireTime\),\s*runD1UsageAlert\(env, fireTime\)\s*\]\)/u)
   assert.match(index, /new Date\(controller\.scheduledTime\)/u)
   assert.match(index, /import \{ runScheduledBiSync \} from '\.\/services\/bi-weekly\.js'/u)
+  assert.match(index, /import \{ runD1UsageAlert \} from '\.\/services\/d1-usage-alert\.js'/u)
 })
 
 test('bi-weekly：窗口 09–23 北京时间、完结周口径、基线 W36、非数字门店码跳过', async () => {
