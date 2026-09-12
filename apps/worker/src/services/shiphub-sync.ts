@@ -464,9 +464,12 @@ export async function syncStoreCategory(
     let pages = 0
     let detailCount = 0
     let orders: ShipHubOrder[] = []
-    // 无变化订单（2026-09-12，migration 0031）：list 层指纹与库中一致且订单仍活跃，
+    // 无变化订单（2026-09-12，migration 0031）：list 层指纹与库中一致且订单状态已知，
     // 跳过 detail 重拉，只做轻量 last_seen 更新（详见下方循环内注释）。
     let unchangedOrders: ShipHubOrder[] = []
+    // 明细被过滤的订单（migration 0032）：明细里全是非自行车 → detail() 返回
+    // null → 不显示，但必须把「已检查」结论落库，否则每轮对账都重拉。
+    let filteredOrders: ShipHubOrder[] = []
     if (shouldList) {
       let cursor: string | null = null
       do {
@@ -478,42 +481,52 @@ export async function syncStoreCategory(
       } while (cursor)
       const detailed: ShipHubOrder[] = []
       for (const order of orders) {
-        const existing = await first<{ upstream_updated_at: string | null; list_fingerprint: string | null; upstream_absent_at: string | null }>(db.prepare(`
-          SELECT upstream_updated_at, list_fingerprint, upstream_absent_at FROM shiphub_orders WHERE store_id = ? AND category = ? AND upstream_order_id = ?
+        const existing = await first<{ upstream_updated_at: string | null; list_fingerprint: string | null; upstream_absent_at: string | null; detail_filtered: number | null }>(db.prepare(`
+          SELECT upstream_updated_at, list_fingerprint, upstream_absent_at, detail_filtered FROM shiphub_orders WHERE store_id = ? AND category = ? AND upstream_order_id = ?
         `).bind(storeId, category, order.id))
-        // 2026-09-12（migration 0031）：list 层指纹不变且订单仍在上游 → 数据无变化，
-        // 跳过 detail 重拉。旧实现的判断 `upstream_updated_at !== order.updatedAt`
-        // 因 list 不返回 updatedAt（恒为 null）而永远为真，每次完整对账对全部订单
-        // 重拉 detail（每单 detail + receiver 两个 HTTP + 解析 + 重写 items），
-        // 是 tick CPU 峰值与被平台 exceededCpu 终止的主因。
-        // 注意：新订单（existing 为空）、指纹变化、以及被标记 absent 后重新出现的
-        // 订单（upstream_absent_at 非空）都走完整路径。
+        // 2026-09-12（migration 0031 + 0032）：list 层指纹不变、且订单处于已知状态
+        // （活跃，或已确认明细无自行车）→ 数据无变化，跳过 detail 重拉。
+        // 旧实现的判断 `upstream_updated_at !== order.updatedAt` 因 list 不返回
+        // updatedAt（恒为 null）而永远为真，每次完整对账对全部订单重拉 detail
+        // （每单 detail + receiver 两个 HTTP + 解析 + 重写 items），是 tick CPU
+        // 峰值与被平台 exceededCpu 终止的主因。
+        // 走完整路径的情形：新订单（existing 为空）、指纹变化、确无自行车的订单
+        // 被再次观察到（detail_filtered=1 但指纹变了）、以及从上游消失后回归
+        // （absent 且非 detail_filtered）。
         if (
           existing
-          && existing.upstream_absent_at === null
           && existing.list_fingerprint
           && order.listFingerprint
           && existing.list_fingerprint === order.listFingerprint
+          && (existing.upstream_absent_at === null || Boolean(existing.detail_filtered))
         ) {
           unchangedOrders.push(order)
           continue
         }
-        if (!existing || existing.upstream_updated_at !== order.updatedAt) {
-          const detailOrder = await client.detail(category, order.id, order.detailKey)
-          if (detailOrder) {
-            detailOrder.scheduledAt = detailOrder.scheduledAt ?? order.scheduledAt
-            detailOrder.channel = detailOrder.channel ?? order.channel
-            detailOrder.isEncryptedOrder = detailOrder.isEncryptedOrder ?? order.isEncryptedOrder ?? null
-            // 列表指纹必须随详情订单一并写库（2026-09-12）：detail() 内部重建的
-            // 订单对象不含 list 层字段，若不在此附加，指纹列永远为 NULL、
-            // 「指纹不变跳过 detail」的优化永不生效（测试已锁定该行为）。
-            detailOrder.listFingerprint = order.listFingerprint ?? null
-            detailed.push(detailOrder)
-          }
-          detailCount += 1
-        } else {
-          detailed.push(order)
+        // 走到这里即「未跳过」：新订单 / 指纹变化 / 指纹缺失待回填（升级前的旧行）
+        // → 必须重拉 detail。
+        // 2026-09-12 修正：这里原本还有一层 `existing.upstream_updated_at !== order.updatedAt`
+        // 比较，但 list 订单的 updatedAt 恒为 null，而明细被过滤的订单（0032）
+        // 入库时的 upstream_updated_at 也是 null —— 两边相等使判断恒为假，
+        // 这类订单即使指纹变化也永远不会重拉（测试已锁定该行为）。
+        const detailOrder = await client.detail(category, order.id, order.detailKey)
+        if (detailOrder) {
+          detailOrder.scheduledAt = detailOrder.scheduledAt ?? order.scheduledAt
+          detailOrder.channel = detailOrder.channel ?? order.channel
+          detailOrder.isEncryptedOrder = detailOrder.isEncryptedOrder ?? order.isEncryptedOrder ?? null
+          // 列表指纹必须随详情订单一并写库（2026-09-12）：detail() 内部重建的
+          // 订单对象不含 list 层字段，若不在此附加，指纹列永远为 NULL、
+          // 「指纹不变跳过 detail」的优化永不生效（测试已锁定该行为）。
+          detailOrder.listFingerprint = order.listFingerprint ?? null
+          detailed.push(detailOrder)
+        } else if (category !== 'ship') {
+          // 明细里没有自行车（detail() 的 isBikeItem 过滤）→ 订单不显示，
+          // 但必须把「已检查」结论落库（migration 0032），否则每轮对账重拉。
+          // 生产实测（2026-09-12）：1299 店上游 hand 7 单全为非自行车，
+          // 每 15 分钟一轮对账固定产生 7 次 detail 拉取。
+          filteredOrders.push(order)
         }
+        detailCount += 1
       }
       orders = detailed.map((order) => normalizeOrderForWrite(order, category))
     }
@@ -525,13 +538,14 @@ export async function syncStoreCategory(
         INSERT INTO shiphub_orders (
           store_id, category, upstream_order_id, display_label, source_label, order_status, order_number, customer_phone, is_encrypted_order, vehicle_info, channel,
           scheduled_at, upstream_updated_at, first_seen_at, last_seen_at, last_seen_run_id,
-          upstream_absent_at, created_at, updated_at, list_fingerprint
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
+          upstream_absent_at, created_at, updated_at, list_fingerprint, detail_filtered
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 0)
         ON CONFLICT(store_id, category, upstream_order_id) DO UPDATE SET
           display_label = excluded.display_label, source_label = excluded.source_label, order_status = excluded.order_status, order_number = excluded.order_number, customer_phone = excluded.customer_phone, is_encrypted_order = excluded.is_encrypted_order, vehicle_info = excluded.vehicle_info, channel = excluded.channel,
           scheduled_at = excluded.scheduled_at, upstream_updated_at = excluded.upstream_updated_at,
           last_seen_at = excluded.last_seen_at, last_seen_run_id = excluded.last_seen_run_id,
-          upstream_absent_at = NULL, updated_at = excluded.updated_at, list_fingerprint = excluded.list_fingerprint
+          upstream_absent_at = NULL, updated_at = excluded.updated_at, list_fingerprint = excluded.list_fingerprint,
+          detail_filtered = 0
       `).bind(storeId, category, order.id, order.displayLabel, order.sourceLabel, order.status, order.orderNumber ?? null, order.customerPhone ?? null, order.isEncryptedOrder ? 1 : 0, order.vehicleInfo ?? null, order.channel ?? null, order.scheduledAt ?? null, order.updatedAt ?? null, writeStamp, writeStamp, runId, writeStamp, writeStamp, order.listFingerprint ?? null))
       statements.push(db.prepare('DELETE FROM shiphub_order_items WHERE store_id = ? AND category = ? AND upstream_order_id = ?').bind(storeId, category, order.id))
       for (const item of order.items) {
@@ -543,18 +557,39 @@ export async function syncStoreCategory(
         `).bind(storeId, category, order.id, item.id, item.productLabel, item.sku, item.quantity, item.vehicleInfo ?? null, item.serialNumberMasked ?? null, item.imageUrl ?? null, writeStamp, writeStamp))
       }
     }
-    // 无变化订单的轻量更新（2026-09-12，migration 0031）：只刷新 last_seen 与活跃标记，
+    // 明细被过滤的订单（migration 0032）：把「已检查、明细无自行车」结论落库。
+    // 订单保持不可见（upstream_absent_at 非空 → 看板与计数查询天然过滤），
+    // 同时写入 list 指纹：下一轮对账指纹不变即可跳过 detail 重拉。
+    // 不写 customer_phone / items（明细不可用，且订单不展示）；保留既有 items。
+    for (const order of filteredOrders) {
+      statements.push(db.prepare(`
+        INSERT INTO shiphub_orders (
+          store_id, category, upstream_order_id, display_label, source_label, order_status, order_number, customer_phone, is_encrypted_order, vehicle_info, channel,
+          scheduled_at, upstream_updated_at, first_seen_at, last_seen_at, last_seen_run_id,
+          upstream_absent_at, created_at, updated_at, list_fingerprint, detail_filtered
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        ON CONFLICT(store_id, category, upstream_order_id) DO UPDATE SET
+          display_label = excluded.display_label, source_label = excluded.source_label, order_status = excluded.order_status, order_number = excluded.order_number,
+          is_encrypted_order = excluded.is_encrypted_order, channel = excluded.channel,
+          scheduled_at = excluded.scheduled_at, last_seen_at = excluded.last_seen_at, last_seen_run_id = excluded.last_seen_run_id,
+          updated_at = excluded.updated_at, list_fingerprint = excluded.list_fingerprint, detail_filtered = 1
+      `).bind(storeId, category, order.id, order.displayLabel, order.sourceLabel, order.status, order.orderNumber ?? null, order.isEncryptedOrder ? 1 : 0, order.channel ?? null, order.scheduledAt ?? null, order.updatedAt ?? null, writeStamp, writeStamp, runId, writeStamp, writeStamp, writeStamp, order.listFingerprint ?? null))
+    }
+    // 无变化订单的轻量更新（2026-09-12，migration 0031）：只刷新 last_seen，
     // 不重写 detail 字段与 items——数据本就与上游一致，重写是纯浪费（旧实现的
     // 「每单全部重写」是 tick CPU 峰值主因）。指纹列保持原值（没变）。
+    // 刻意不动 upstream_absent_at：活跃订单本就非空、明细被过滤的订单（0032）
+    // 必须保持不可见——若在此清空 absent 会让非自行车订单错误出现在待取车看板。
     for (const order of unchangedOrders) {
       statements.push(db.prepare(`
-        UPDATE shiphub_orders SET last_seen_at = ?, last_seen_run_id = ?, upstream_absent_at = NULL, updated_at = ?
+        UPDATE shiphub_orders SET last_seen_at = ?, last_seen_run_id = ?, updated_at = ?
         WHERE store_id = ? AND category = ? AND upstream_order_id = ?
       `).bind(writeStamp, runId, writeStamp, storeId, category, order.id))
     }
-    // 对账标记必须计入全部「本轮在上游看到的订单」——包含跳过节流详情的无变化订单，
-    // 否则它们会被错误标记为已不在上游（旧实现只有完整写入的订单参与标记）。
-    const allSeenIds = [...orders.map((order) => order.id), ...unchangedOrders.map((order) => order.id)]
+    // 对账标记必须计入全部「本轮在上游看到的订单」——包含跳过详情拉取的
+    // 无变化订单与明细被过滤的订单，否则它们会被错误标记为已不在上游
+    // （旧实现只有完整写入的订单参与标记）。
+    const allSeenIds = [...orders.map((order) => order.id), ...unchangedOrders.map((order) => order.id), ...filteredOrders.map((order) => order.id)]
     if (fullReconcile) {
       if (allSeenIds.length) {
         const placeholders = allSeenIds.map(() => '?').join(',')

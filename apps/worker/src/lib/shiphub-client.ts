@@ -30,9 +30,17 @@ export type ShipHubOrder = {
   /**
    * 列表层字段指纹（2026-09-12 tick CPU 优化）：由 normalizeListOrder 依据
    * list 可见字段算出，随订单写入 shiphub_orders.list_fingerprint。
-   * 对账时指纹不变且订单仍在上游 → 跳过 detail 重拉（详见 migration 0031）。
+   * 对账时指纹不变且订单状态已知 → 跳过 detail 重拉（详见 migration 0031）。
    */
   listFingerprint?: string | null
+  /**
+   * 指纹专用的原始状态分量（order_type + order_latest_status 拼接）。
+   *
+   * 不能只依赖 status 字段：它取 `orderType || statusCode`，当 order_type 非空时
+   * 状态码被完全忽略——只推进状态码的上游更新（如拣货完成）将不改变指纹，
+   * 导致订单状态显示停留在旧值。指纹必须同时覆盖两个分量。
+   */
+  listStatusRaw?: string | null
   items: ShipHubOrderItem[]
 }
 
@@ -239,7 +247,9 @@ function channelLabel(platform: string): string | null {
  */
 function listFingerprintOf(order: ShipHubOrder): string {
   return [
-    order.status,
+    // 状态分量：用 listStatusRaw（order_type + order_latest_status 两者拼接），
+    // 而非 status 字段——后者在 order_type 非空时忽略状态码（见类型注释）。
+    order.listStatusRaw ?? order.status,
     order.channel ?? '',
     order.scheduledAt ?? '',
     order.displayLabel,
@@ -268,6 +278,7 @@ function normalizeListOrder(category: ShipHubCategory, input: unknown): ShipHubO
     orderNumber: id,
     sourceLabel: CATEGORY_SOURCE_LABEL[category],
     status: orderType || statusCode || 'pending',
+    listStatusRaw: [orderType, statusCode].filter(Boolean).join('|') || null,
     channel: channelLabel(orderPlatform),
     isEncryptedOrder: isEncrypted || null,
     scheduledAt,
