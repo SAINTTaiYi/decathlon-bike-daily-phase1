@@ -19,7 +19,9 @@ const [
   workerService,
   domainFood,
   schemaVersion,
-  migration
+  migration,
+  foodHook,
+  foodApi
 ] = await Promise.all([
   read('../apps/web/src/App.jsx'),
   read('../apps/web/src/components/appselect/AppSelect.jsx'),
@@ -35,7 +37,9 @@ const [
   read('../apps/worker/src/services/food-ledger.ts'),
   read('../packages/domain/src/food.js'),
   read('../apps/worker/src/schema-version.ts'),
-  read('../migrations/d1/0035_food_ledger.sql')
+  read('../migrations/d1/0035_food_ledger.sql'),
+  read('../apps/web/src/hooks/useFoodLedger.js'),
+  read('../apps/web/src/api/food.js')
 ])
 
 // 提取类名：JSX 里静态 className 的类名 + 双端命名空间前缀过滤。
@@ -226,4 +230,62 @@ test('数据层：迁移 0035 建两表两索引，schema 版本跟随最新迁�
   assert.match(schemaVersion, /'0035_food_ledger'/u)
   assert.match(domainFood, /export function computeFoodDates/u)
   assert.match(domainFood, /export function foodBatchStage/u)
+})
+
+
+// ── 2026-09-14 用户反馈：排序错误 + 整页信息层级乱 ─────────────────────
+// 原实现「全部批次」用 ORDER BY warn_on ASC，最新登记的沉在最后；且四个页签里
+// 混着「动作」（登记）与「内容」（列表），顶部四个计数平铺无主次。
+test('排序：默认最新登记在前，切红标自动改预警最近', () => {
+  // 后端白名单
+  assert.match(workerService, /received_desc: FOOD_BATCH_DEFAULT_ORDER/u, '默认排序必须是最新登记在前')
+  assert.match(workerService, /warn_asc: 'warn_on ASC, id ASC'/u)
+  assert.match(workerService, /ORDER BY \$\{foodBatchOrderBy\(options\.sort\)\}/u, 'ORDER BY 必须走白名单函数')
+  assert.match(workerRoute, /foodBatchSorts as readonly string\[\]\)\.includes\(sortRaw\)/u, '路由必须校验排序取值')
+  // 前端默认值与联动
+  assert.match(foodHook, /const \[sort, setSort\] = useState\('received_desc'\)/u, '前端默认排序必须是最新登记')
+  assert.match(foodHook, /if \(nextFilter === 'flagged'\) return 'warn_asc'/u, '切到红标必须自动改预警最近')
+  assert.match(foodHook, /if \(current === 'warn_asc'\) return 'received_desc'/u, '切回其它筛选要还原默认排序')
+  // 排序参数确实发到了后端
+  assert.match(foodApi, /sort = 'received_desc'/u)
+  assert.match(foodApi, /params = new URLSearchParams\(\{ filter, sort,/u)
+})
+
+test('排序 UI：两端都有排序菜单，四个选项齐全', () => {
+  for (const [label, source, prefix] of [['移动端', foodMobile, 'food-m-sort'], ['桌面端', foodDesktop, 'food-d-sort']]) {
+    assert.match(source, new RegExp(`className="${prefix}"`, 'u'), `${label}必须有排序容器`)
+    assert.match(source, new RegExp(`className="${prefix}-trigger"`, 'u'), `${label}必须有排序触发按钮`)
+    assert.match(source, new RegExp(`className="${prefix}-menu"`, 'u'), `${label}必须有排序菜单`)
+    for (const option of ['最新登记', '最早登记', '预警最近', '预警最远']) {
+      assert.ok(source.includes(option), `${label}缺少排序选项「${option}」`)
+    }
+  }
+})
+
+test('信息层级：顶部三个状态数字可点即筛选，登记是主按钮而非页签', () => {
+  // 三个数字是按钮（可点即筛选），不是静态文本
+  for (const [label, source, statClass] of [['移动端', foodMobile, 'food-m-stat'], ['桌面端', foodDesktop, 'food-d-stat']]) {
+    const statButtons = source.match(new RegExp(`className="${statClass}"`, 'gu')) || []
+    assert.equal(statButtons.length, 3, `${label}顶部必须是三个状态按钮`)
+    assert.match(source, new RegExp(`className="${statClass}"[^>]*onClick`, 'u'), `${label}状态数字必须可点击筛选`)
+  }
+  // 登记改为按钮
+  assert.match(foodMobile, /className="food-m-register"/u, '移动端必须有登记主按钮')
+  assert.match(foodDesktop, /className="food-d-register"/u, '桌面端必须有登记主按钮')
+  // 页签只剩「批次 / 清单」两个内容页
+  assert.match(foodMobile, /const VIEWS = \[\s*\{ id: 'batches'[\s\S]{0,80}\{ id: 'shelf'/u, '页签必须只剩批次与清单')
+  assert.doesNotMatch(foodMobile, /id: 'todo'/u, '待办不再是独立页签')
+  assert.doesNotMatch(foodMobile, /id: 'entry'/u, '登记不再是页签（它是动作）')
+  // 已废弃的待办卡类名不得残留
+  assert.doesNotMatch(foodMobile, /food-m-todo/u, '待办卡组件必须已删除')
+  assert.doesNotMatch(foodCss, /food-m-todo/u, '待办卡样式必须已删除（不留死代码）')
+})
+
+test('批次行：点开才出现处理按钮，红标显示「待处理」', () => {
+  assert.match(foodMobile, /className="food-m-batch-tap"/u, '移动端整行可点')
+  assert.match(foodMobile, /className="food-m-batch-actions"/u, '移动端展开后才出现处理按钮')
+  assert.match(foodMobile, /needsAction \? <span className="food-m-batch-status" data-status="flagged">待处理<\/span>/u, '红标行必须标出待处理')
+  assert.match(foodDesktop, /batch\.status === 'open' \? \(needsAction \? '待处理' : '在库'\)/u, '桌面端同样要标出待处理')
+  // 行内动作只在展开态渲染（默认不渲染 = 列表保持紧凑）
+  assert.match(foodMobile, /\{expanded \? <RowActions/u, '处理按钮必须受展开态控制')
 })

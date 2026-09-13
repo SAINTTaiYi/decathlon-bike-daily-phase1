@@ -262,7 +262,10 @@ export const adminStoreMemberRemoveSchema = z.object({ expectedUpdatedAt: z.stri
 export const foodKinds = ['food', 'nonfood'] as const
 export const foodDateTypes = ['production', 'restricted'] as const
 export const foodBatchStatuses = ['open', 'sold_out', 'isolated'] as const
-export const foodBatchFilters = ['flagged', 'open', 'all'] as const
+export const foodBatchFilters = ['flagged', 'open', 'soon', 'all'] as const
+// 批次列表排序（2026-09-14 用户反馈：在库批次应按登记时间倒序，最新登记在最前）。
+// 白名单形态 —— 服务端只接受这几个取值，绝不拼接用户输入进 SQL。
+export const foodBatchSorts = ['received_desc', 'received_asc', 'warn_asc', 'warn_desc'] as const
 
 // 迪卡侬商品码为 6~14 位数字（台账现有条目 7~8 位，保留余量）。
 export const foodItemCodeSchema = z.string().trim().regex(/^\d{6,14}$/u, '商品码必须是 6~14 位数字。')

@@ -26,7 +26,10 @@ export function useFoodLedger(enabled) {
   const [shelfLifeReady, setShelfLifeReady] = useState(false)
   const [batches, setBatches] = useState([])
   const [hasMore, setHasMore] = useState(false)
-  const [filter, setFilter] = useState('flagged')
+  // 默认「在库」而非「红标」（2026-09-14 用户反馈）：日常打开台账最常看的是
+  // 刚登记了什么；红标是每周一清查时才聚焦的镜头，由顶部大数字一键切入。
+  const [filter, setFilter] = useState('open')
+  const [sort, setSort] = useState('received_desc')
   const [kind, setKind] = useState('')
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
@@ -47,10 +50,11 @@ export function useFoodLedger(enabled) {
     }
   }, [])
 
-  const loadBatches = useCallback(async ({ nextFilter, nextKind, nextQuery, append = false } = {}) => {
+  const loadBatches = useCallback(async ({ nextFilter, nextKind, nextQuery, nextSort, append = false } = {}) => {
     const targetFilter = nextFilter ?? filter
     const targetKind = nextKind ?? kind
     const targetQuery = nextQuery ?? query
+    const targetSort = nextSort ?? sort
     const offset = append ? batches.length : 0
     const ticket = requestRef.current + 1
     requestRef.current = ticket
@@ -58,6 +62,7 @@ export function useFoodLedger(enabled) {
     try {
       const payload = await getFoodBatches({
         filter: targetFilter,
+        sort: targetSort,
         kind: targetKind,
         q: targetQuery,
         limit: pageSizeRef.current,
@@ -75,7 +80,7 @@ export function useFoodLedger(enabled) {
     } finally {
       if (requestRef.current === ticket) setLoading(false)
     }
-  }, [filter, kind, query, batches.length])
+  }, [filter, kind, query, sort, batches.length])
 
   const loadShelfLife = useCallback(async (force = false) => {
     if (shelfLifeReady && !force) return shelfLife
@@ -93,7 +98,7 @@ export function useFoodLedger(enabled) {
   useEffect(() => {
     if (!enabled) return undefined
     void loadOverview()
-    void loadBatches({ nextFilter: 'flagged', nextKind: '', nextQuery: '' })
+    void loadBatches({ nextFilter: 'open', nextKind: '', nextQuery: '', nextSort: 'received_desc' })
     // 仅在进入应用时跑一次；后续由筛选变化与写操作驱动。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled])
@@ -103,10 +108,22 @@ export function useFoodLedger(enabled) {
   useEffect(() => {
     if (!enabled) return undefined
     if (firstRunRef.current) { firstRunRef.current = false; return undefined }
-    const timer = window.setTimeout(() => { void loadBatches({ nextFilter: filter, nextKind: kind, nextQuery: query }) }, query ? SEARCH_DEBOUNCE_MS : 0)
+    const timer = window.setTimeout(() => { void loadBatches({ nextFilter: filter, nextKind: kind, nextQuery: query, nextSort: sort }) }, query ? SEARCH_DEBOUNCE_MS : 0)
     return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, kind, query, enabled])
+  }, [filter, kind, query, sort, enabled])
+
+  // 顶部大数字/筛选标签共用：切到「红标」时同时把排序切到「预警最近」——
+  // 清查场景要的是最紧急的排最前，而不是最新登记的排最前。
+  // 切回其它筛选时若仍停在预警排序，也一并还原为「最新登记」，避免状态相互矛盾。
+  const focusFilter = useCallback((nextFilter) => {
+    setFilter(nextFilter)
+    setSort((current) => {
+      if (nextFilter === 'flagged') return 'warn_asc'
+      if (current === 'warn_asc') return 'received_desc'
+      return current
+    })
+  }, [])
 
   const loadMore = useCallback(() => {
     if (loading || !hasMore) return Promise.resolve(null)
@@ -118,7 +135,7 @@ export function useFoodLedger(enabled) {
     try {
       const payload = await createFoodBatch(input)
       await loadOverview()
-      await loadBatches({ nextFilter: filter, nextKind: kind, nextQuery: query })
+      await loadBatches({ nextFilter: filter, nextKind: kind, nextQuery: query, nextSort: sort })
       setError('')
       return { ok: true, ...payload }
     } catch (cause) {
@@ -126,14 +143,14 @@ export function useFoodLedger(enabled) {
     } finally {
       setSyncing(false)
     }
-  }, [filter, kind, query, loadOverview, loadBatches])
+  }, [filter, kind, query, sort, loadOverview, loadBatches])
 
   const handle = useCallback(async (batch, status) => {
     setSyncing(true)
     try {
       await updateFoodBatchStatus(batch.id, { expectedRevision: batch.revision, status })
       await loadOverview()
-      await loadBatches({ nextFilter: filter, nextKind: kind, nextQuery: query })
+      await loadBatches({ nextFilter: filter, nextKind: kind, nextQuery: query, nextSort: sort })
       setError('')
       return { ok: true }
     } catch (cause) {
@@ -141,7 +158,7 @@ export function useFoodLedger(enabled) {
     } finally {
       setSyncing(false)
     }
-  }, [filter, kind, query, loadOverview, loadBatches])
+  }, [filter, kind, query, sort, loadOverview, loadBatches])
 
   const applyShelfItem = useCallback((item) => {
     setShelfLife((previous) => {
@@ -159,6 +176,9 @@ export function useFoodLedger(enabled) {
     hasMore,
     filter,
     setFilter,
+    focusFilter,
+    sort,
+    setSort,
     kind,
     setKind,
     query,

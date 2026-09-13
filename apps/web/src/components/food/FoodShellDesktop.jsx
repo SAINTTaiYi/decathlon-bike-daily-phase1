@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
-import { computeFoodDates } from '@bike-ops/domain'
+import { computeFoodDates, isFoodBatchFlagged } from '@bike-ops/domain'
 import { upsertFoodShelfLife } from '../../api/food.js'
 import {
   FOOD_STATUS_LABEL,
@@ -14,120 +14,134 @@ import {
 /**
  * 食品台账 · 桌面端（独立实现，不与移动端共享 DOM）。
  *
- * 桌面按「一屏看全」组织：左侧 rail 导航 + 右侧表格。红标待办是默认视图，
- * 登记流与移动端同源（商品码 → 日期 → 自动算预警日），只是排成两栏加快录入。
+ * 信息架构与移动端一致（2026-09-14 重排）：左栏是状态与主操作，右栏是内容。
+ *   左栏 = 三个状态数字（点击即筛选）+「登记入库」主按钮 + 视图导航
+ *   右栏 = 标题 / 筛选与排序工具栏 / 表格
+ *
+ * 排序默认「最新登记」；切到「红标」自动改「预警最近」（清查场景最紧急在前）。
  */
 
 const VIEWS = [
-  { id: 'todo', label: '红标待办' },
-  { id: 'batches', label: '全部批次' },
-  { id: 'entry', label: '登记入库' },
-  { id: 'shelf', label: '保质期清单' }
+  { id: 'batches', label: '批次', desc: '全部在库与已处理批次，可按状态与品类筛选' },
+  { id: 'shelf', label: '保质期清单', desc: '全局商品字典，任何门店新增一次全体共享' }
 ]
 
-const HEAD_SUBTITLE = {
-  todo: '预警日已到、仍未处理的批次；每周一按 SOP 清查一遍',
-  batches: '全部在库与已处理批次，可按状态与品类筛选',
-  entry: '输入商品码带出保质期，系统按 Excel 同款口径计算预警日与到期日',
-  shelf: '全局商品字典，任何门店新增一次全体共享'
+const FILTERS = [
+  { id: 'open', label: '在库' },
+  { id: 'flagged', label: '红标' },
+  { id: 'soon', label: '临期' },
+  { id: 'all', label: '全部' }
+]
+
+const KINDS = [
+  { id: '', label: '全品类' },
+  { id: 'food', label: '食品' },
+  { id: 'nonfood', label: '非食品' }
+]
+
+const SORTS = [
+  { id: 'received_desc', label: '最新登记' },
+  { id: 'received_asc', label: '最早登记' },
+  { id: 'warn_asc', label: '预警最近' },
+  { id: 'warn_desc', label: '预警最远' }
+]
+
+function SortMenu({ sort, onChange }) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef(null)
+  const current = SORTS.find((entry) => entry.id === sort) || SORTS[0]
+
+  useEffect(() => {
+    if (!open) return undefined
+    const closeFromOutside = (event) => {
+      if (!rootRef.current?.contains(event.target)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', closeFromOutside)
+    return () => document.removeEventListener('pointerdown', closeFromOutside)
+  }, [open])
+
+  return (
+    <div className="food-d-sort" ref={rootRef}>
+      <button type="button" className="food-d-sort-trigger" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        排序：{current.label} <span aria-hidden="true">▾</span>
+      </button>
+      {open ? (
+        <div className="food-d-sort-menu" role="listbox" aria-label="排序方式">
+          {SORTS.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              role="option"
+              aria-selected={entry.id === sort}
+              data-active={entry.id === sort ? 'true' : 'false'}
+              onClick={() => { onChange(entry.id); setOpen(false) }}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
-function TodoView({ ledger, today, onNotify }) {
-  const { batches, loading, syncing, handle } = ledger
+function BatchesTable({ ledger, today, onNotify }) {
+  const { batches, loading, syncing, hasMore, loadMore, handle } = ledger
   const act = async (batch, status) => {
     const result = await handle(batch, status)
-    onNotify?.(result.ok ? (status === 'sold_out' ? '已标记售罄' : '已标记隔离') : { message: result.message, tone: 'error' })
+    onNotify?.(result.ok
+      ? (status === 'sold_out' ? '已标记售罄' : status === 'isolated' ? '已标记隔离' : '已恢复在库')
+      : { message: result.message, tone: 'error' })
     return result
   }
-  if (loading && !batches.length) return <p className="food-d-hint">正在读取红标待办…</p>
+  if (loading && !batches.length) return <p className="food-d-hint">正在读取…</p>
   if (!batches.length) {
     return (
       <div className="food-d-empty">
-        <strong>没有红标待处理</strong>
-        <span>预警日已到的批次会出现在这里。</span>
+        <strong>这里还没有批次</strong>
+        <span>换一个筛选条件，或点左侧「登记入库」新增。</span>
       </div>
     )
   }
   return (
-    <ul className="food-d-table" data-kind="todo">
-      <li className="food-d-row food-d-row-head" aria-hidden="true">
-        <span>商品</span><span>商品码</span><span>数量</span><span>收货</span><span>预警日</span><span>到期日</span><span>剩余</span><span>操作</span>
-      </li>
-      {batches.map((batch) => (
-        <li key={batch.id} className="food-d-row" data-food-stagger data-stage={batchStageLabel(batch, today)}>
-          <span className="food-d-name">{batch.itemName}</span>
-          <span className="food-d-code">{batch.itemCode}</span>
-          <span>{batch.quantity}</span>
-          <span>{shortDate(batch.receivedDate, today)}</span>
-          <span>{shortDate(batch.warnOn, today)}</span>
-          <span>{shortDate(batch.expiresOn, today)}</span>
-          <span className="food-d-days" data-urgency={urgencyLevel(batch.expiresOn, today)}>{remainingLabel(batch.expiresOn, today)}</span>
-          <span className="food-d-actions">
-            <button type="button" data-act="sold-out" disabled={syncing} onClick={() => void act(batch, 'sold_out')}>已售罄</button>
-            <button type="button" data-act="isolate" disabled={syncing} onClick={() => void act(batch, 'isolated')}>隔离</button>
-          </span>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function BatchesView({ ledger, today, onNotify }) {
-  const { batches, loading, syncing, hasMore, loadMore, filter, setFilter, kind, setKind, query, setQuery, handle } = ledger
-  const act = async (batch, status) => {
-    const result = await handle(batch, status)
-    onNotify?.(result.ok ? '已恢复在库' : { message: result.message, tone: 'error' })
-    return result
-  }
-  return (
     <div className="food-d-batches">
-      <div className="food-d-toolbar">
-        <div className="food-d-chips" role="group" aria-label="按状态筛选">
-          {[['all', '全部'], ['open', '在库'], ['flagged', '红标']].map(([value, label]) => (
-            <button key={value} type="button" data-active={filter === value ? 'true' : 'false'} onClick={() => setFilter(value)}>{label}</button>
-          ))}
-        </div>
-        <div className="food-d-chips" role="group" aria-label="按品类筛选">
-          {[['', '全品类'], ['food', '食品'], ['nonfood', '非食品']].map(([value, label]) => (
-            <button key={value || 'all'} type="button" data-active={kind === value ? 'true' : 'false'} onClick={() => setKind(value)}>{label}</button>
-          ))}
-        </div>
-        <input className="food-d-search" type="search" placeholder="搜商品码或名称" value={query} onChange={(event) => setQuery(event.target.value)} />
-      </div>
-      {loading && !batches.length ? <p className="food-d-hint">正在读取…</p> : null}
-      {!loading && !batches.length ? <p className="food-d-hint">没有匹配的批次。</p> : null}
       <ul className="food-d-table" data-kind="batches">
         <li className="food-d-row food-d-row-head" aria-hidden="true">
-          <span>商品</span><span>商品码</span><span>数量</span><span>收货</span><span>到期日</span><span>剩余</span><span>状态</span><span>操作</span>
+          <span>商品</span><span>商品码</span><span>数量</span><span>收货</span><span>到期</span><span>剩余</span><span>状态</span><span>操作</span>
         </li>
-        {batches.map((batch) => (
-          <li key={batch.id} className="food-d-row" data-food-stagger data-stage={batchStageLabel(batch, today)}>
-            <span className="food-d-name">{batch.itemName}</span>
-            <span className="food-d-code">{batch.itemCode}</span>
-            <span>{batch.quantity}</span>
-            <span>{shortDate(batch.receivedDate, today)}</span>
-            <span>{shortDate(batch.expiresOn, today)}</span>
-            <span className="food-d-days" data-urgency={urgencyLevel(batch.expiresOn, today)}>{remainingLabel(batch.expiresOn, today)}</span>
-            <span className="food-d-status" data-status={batch.status}>{FOOD_STATUS_LABEL[batch.status] || batch.status}</span>
-            <span className="food-d-actions">
-              {batch.status === 'open' ? (
-                <>
-                  <button type="button" data-act="sold-out" disabled={syncing} onClick={() => void act(batch, 'sold_out')}>已售罄</button>
-                  <button type="button" data-act="isolate" disabled={syncing} onClick={() => void act(batch, 'isolated')}>隔离</button>
-                </>
-              ) : (
-                <button type="button" data-act="reopen" disabled={syncing} onClick={() => void act(batch, 'open')}>撤销</button>
-              )}
-            </span>
-          </li>
-        ))}
+        {batches.map((batch) => {
+          const needsAction = isFoodBatchFlagged(batch, today)
+          return (
+            <li key={batch.id} className="food-d-row" data-food-stagger data-stage={batchStageLabel(batch, today)}>
+              <span className="food-d-name">{batch.itemName}</span>
+              <span className="food-d-code">{batch.itemCode}</span>
+              <span>{batch.quantity}</span>
+              <span>{shortDate(batch.receivedDate, today)}</span>
+              <span>{shortDate(batch.expiresOn, today)}</span>
+              <span className="food-d-days" data-urgency={urgencyLevel(batch.expiresOn, today)}>{remainingLabel(batch.expiresOn, today)}</span>
+              <span className="food-d-status" data-status={batch.status === 'open' && needsAction ? 'flagged' : batch.status}>
+                {batch.status === 'open' ? (needsAction ? '待处理' : '在库') : (FOOD_STATUS_LABEL[batch.status] || batch.status)}
+              </span>
+              <span className="food-d-actions">
+                {batch.status === 'open' ? (
+                  <>
+                    <button type="button" data-act="sold-out" disabled={syncing} onClick={() => void act(batch, 'sold_out')}>已售罄</button>
+                    <button type="button" data-act="isolate" disabled={syncing} onClick={() => void act(batch, 'isolated')}>隔离</button>
+                  </>
+                ) : (
+                  <button type="button" data-act="reopen" disabled={syncing} onClick={() => void act(batch, 'open')}>撤销</button>
+                )}
+              </span>
+            </li>
+          )
+        })}
       </ul>
       {hasMore ? <button type="button" className="food-d-more" onClick={() => void loadMore()} disabled={loading}>加载更多</button> : null}
     </div>
   )
 }
 
-function EntryView({ ledger, today, userName, onNotify }) {
+function EntryView({ ledger, today, userName, onNotify, onBack }) {
   const [itemCode, setItemCode] = useState('')
   const [kind, setKind] = useState('food')
   const [dateType, setDateType] = useState('production')
@@ -185,6 +199,7 @@ function EntryView({ ledger, today, userName, onNotify }) {
   return (
     <div className="food-d-entry">
       <div className="food-d-entry-form">
+        <button type="button" className="food-d-entry-back" onClick={onBack}>← 返回批次列表</button>
         <label className="food-d-field">
           <span>商品码</span>
           <input
@@ -192,7 +207,7 @@ function EntryView({ ledger, today, userName, onNotify }) {
             type="text"
             inputMode="numeric"
             autoComplete="off"
-            placeholder="扫码枪或键盘输入 8 位商品码"
+            placeholder="扫码枪或键盘输入商品码"
             value={itemCode}
             onChange={(event) => setItemCode(event.target.value.replace(/\D/gu, '').slice(0, 14))}
           />
@@ -237,7 +252,7 @@ function EntryView({ ledger, today, userName, onNotify }) {
           <div><dt>到期日</dt><dd>{preview ? preview.expiresOn : '—'}</dd></div>
           <div><dt>收货日</dt><dd>{today || '—'}</dd></div>
         </dl>
-        <p className="food-d-entry-note">口径与门店 Excel 台账一致：预警日 = 日期 +（保质期月数 − 1）。</p>
+        <p className="food-d-entry-note">口径与门店 Excel 台账一致：预警日 = 日期 +（保质期月数 − 1）。登记完成后商品码会清空，可以连续录入。</p>
       </aside>
     </div>
   )
@@ -321,10 +336,13 @@ function ShelfView({ ledger, canEdit, onNotify }) {
 }
 
 export default function FoodShellDesktop({ ledger, view, onViewChange, userName, storeName, role, onExit, onNotify }) {
+  const inEntry = view === 'entry'
+  const tab = inEntry ? 'batches' : view
   const bodyRef = useRef(null)
   const counts = ledger.counts
   const today = ledger.today
   const canEdit = role === 'manager' || role === 'admin'
+  const current = VIEWS.find((entry) => entry.id === tab) || VIEWS[0]
 
   useEffect(() => {
     const root = bodyRef.current
@@ -343,8 +361,6 @@ export default function FoodShellDesktop({ ledger, view, onViewChange, userName,
     return () => context.revert()
   }, [view])
 
-  const title = VIEWS.find((entry) => entry.id === view)?.label || '食品台账'
-
   return (
     <div className="food-d-root">
       <aside className="food-d-rail">
@@ -352,35 +368,63 @@ export default function FoodShellDesktop({ ledger, view, onViewChange, userName,
           <strong>食品台账</strong>
           <small>{storeName || ''}</small>
         </div>
+
+        <div className="food-d-rail-stats" role="group" aria-label="库存状态">
+          <button type="button" className="food-d-stat" data-tone="alert" data-active={ledger.filter === 'flagged' && !inEntry ? 'true' : 'false'} onClick={() => { ledger.focusFilter('flagged'); onViewChange('batches') }}>
+            <b>{counts ? counts.flagged : '—'}</b><span>红标</span>
+          </button>
+          <button type="button" className="food-d-stat" data-tone="soon" data-active={ledger.filter === 'soon' && !inEntry ? 'true' : 'false'} onClick={() => { ledger.focusFilter('soon'); onViewChange('batches') }}>
+            <b>{counts ? counts.soon : '—'}</b><span>临期</span>
+          </button>
+          <button type="button" className="food-d-stat" data-active={ledger.filter === 'open' && !inEntry ? 'true' : 'false'} onClick={() => { ledger.focusFilter('open'); onViewChange('batches') }}>
+            <b>{counts ? counts.open : '—'}</b><span>在库</span>
+          </button>
+        </div>
+
+        <button type="button" className="food-d-register" onClick={() => onViewChange('entry')}>＋ 登记入库</button>
+
         <nav className="food-d-nav" aria-label="食品台账视图">
           {VIEWS.map((entry) => (
-            <button key={entry.id} type="button" data-active={view === entry.id ? 'true' : 'false'} onClick={() => onViewChange(entry.id)}>
+            <button key={entry.id} type="button" data-active={!inEntry && tab === entry.id ? 'true' : 'false'} onClick={() => onViewChange(entry.id)}>
               <span>{entry.label}</span>
-              {entry.id === 'todo' && counts?.flagged ? <b>{counts.flagged}</b> : null}
             </button>
           ))}
         </nav>
+
         <div className="food-d-rail-foot">
-          <dl className="food-d-stats">
-            <div><dt>红标</dt><dd data-tone="alert">{counts ? counts.flagged : '—'}</dd></div>
-            <div><dt>临期</dt><dd>{counts ? counts.soon : '—'}</dd></div>
-            <div><dt>在库</dt><dd>{counts ? counts.open : '—'}</dd></div>
-            <div><dt>累计</dt><dd>{counts ? counts.total : '—'}</dd></div>
-          </dl>
           <button type="button" className="food-d-exit" onClick={onExit}>← 返回应用选择</button>
         </div>
       </aside>
+
       <main className="food-d-main">
         <header className="food-d-head">
-          <h2>{title}</h2>
-          <p>{HEAD_SUBTITLE[view] || ''}</p>
+          <h2>{inEntry ? '登记入库' : current.label}</h2>
+          <p>{inEntry ? '输入商品码带出保质期，系统按 Excel 同款口径计算预警日与到期日' : current.desc}</p>
         </header>
+
         {ledger.error ? <p className="food-d-alert" role="status">{ledger.error}</p> : null}
+
+        {!inEntry && tab === 'batches' ? (
+          <div className="food-d-toolbar">
+            <div className="food-d-chips" role="group" aria-label="按状态筛选">
+              {FILTERS.map((entry) => (
+                <button key={entry.id} type="button" data-active={ledger.filter === entry.id ? 'true' : 'false'} onClick={() => ledger.focusFilter(entry.id)}>{entry.label}</button>
+              ))}
+            </div>
+            <div className="food-d-chips" role="group" aria-label="按品类筛选">
+              {KINDS.map((entry) => (
+                <button key={entry.id || 'all'} type="button" data-active={ledger.kind === entry.id ? 'true' : 'false'} onClick={() => ledger.setKind(entry.id)}>{entry.label}</button>
+              ))}
+            </div>
+            <SortMenu sort={ledger.sort} onChange={ledger.setSort} />
+            <input className="food-d-search" type="search" placeholder="搜商品码或名称" value={ledger.query} onChange={(event) => ledger.setQuery(event.target.value)} />
+          </div>
+        ) : null}
+
         <div className="food-d-body" ref={bodyRef}>
-          {view === 'todo' ? <TodoView ledger={ledger} today={today} onNotify={onNotify} /> : null}
-          {view === 'batches' ? <BatchesView ledger={ledger} today={today} onNotify={onNotify} /> : null}
-          {view === 'entry' ? <EntryView ledger={ledger} today={today} userName={userName} onNotify={onNotify} /> : null}
-          {view === 'shelf' ? <ShelfView ledger={ledger} canEdit={canEdit} onNotify={onNotify} /> : null}
+          {inEntry ? <EntryView ledger={ledger} today={today} userName={userName} onNotify={onNotify} onBack={() => onViewChange('batches')} /> : null}
+          {!inEntry && tab === 'batches' ? <BatchesTable ledger={ledger} today={today} onNotify={onNotify} /> : null}
+          {!inEntry && tab === 'shelf' ? <ShelfView ledger={ledger} canEdit={canEdit} onNotify={onNotify} /> : null}
         </div>
       </main>
     </div>

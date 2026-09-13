@@ -154,10 +154,37 @@
 }
 .food-m-title { margin: 0; color: var(--ink); font-size: 17px; font-weight: 750; letter-spacing: -.01em; }
 .food-m-store { color: var(--muted); font-size: 11px; text-align: right; }
-.food-m-stats { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 0; }
-.food-m-stats span { color: var(--muted); font-size: 11px; }
-.food-m-stats b { color: var(--ink); font-family: var(--font-display); font-size: 14px; font-weight: 760; }
-.food-m-stats span[data-tone='alert'] b { color: var(--food-flagged); }
+.food-m-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.food-m-stat {
+  display: grid;
+  gap: 2px;
+  padding: 9px 10px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--food-chip-bg);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .18s ease;
+}
+.food-m-stat b { color: var(--ink); font-family: var(--font-display); font-size: 21px; font-weight: 780; line-height: 1; letter-spacing: -.02em; }
+.food-m-stat span { color: var(--muted); font-size: 11px; font-weight: 620; }
+.food-m-stat[data-tone='alert'] b { color: var(--food-flagged); }
+.food-m-stat[data-tone='soon'] b { color: var(--food-amber); }
+.food-m-stat[data-active='true'] { background: var(--food-chip-active); }
+.food-m-stat[data-active='true'] b, .food-m-stat[data-active='true'] span { color: #fff; }
+.food-m-register {
+  width: 100%;
+  padding: 12px 16px 13px;
+  border: 0;
+  border-radius: 15px;
+  background: var(--accent);
+  color: #14161a;
+  font-size: 15px;
+  font-weight: 740;
+  cursor: pointer;
+  transition: background-color .18s ease;
+}
+.food-m-register:active { background: #ffe888; }
 
 /* 分段：黄块是轨道里的独立绝对定位元素，GSAP 量测 x/width（memory 27） */
 .food-m-segments {
@@ -201,35 +228,49 @@
 .food-m-empty strong { color: var(--ink); font-size: 15px; font-weight: 700; }
 .food-m-empty span { color: var(--muted); font-size: 12px; line-height: 1.55; }
 
-/* 待办卡 */
-.food-m-todo-list { display: grid; gap: 10px; margin: 8px 0 0; padding: 0; list-style: none; }
-.food-m-todo-card { display: grid; gap: 7px; padding: 13px 14px 12px; border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-tight); }
-.food-m-todo-card[data-stage='已过期'] { background: linear-gradient(160deg, rgb(141 43 32 / .09), var(--surface) 58%); }
-.food-m-todo-card[data-stage='红标'] { background: linear-gradient(160deg, rgb(192 57 43 / .08), var(--surface) 58%); }
-.food-m-todo-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.food-m-todo-name { min-width: 0; color: var(--ink); font-size: 14.5px; font-weight: 720; line-height: 1.3; }
-.food-m-todo-days { flex-shrink: 0; color: var(--food-flagged); font-family: var(--font-display); font-size: 12.5px; font-weight: 760; white-space: nowrap; }
-.food-m-todo-days[data-urgency='expired'] { color: var(--food-expired); }
-.food-m-todo-days[data-urgency='pull'] { color: var(--food-flagged); }
-.food-m-todo-days[data-urgency='due'] { color: var(--food-amber); }
-.food-m-todo-days[data-urgency='near'] { color: var(--muted); }
-.food-m-todo-meta, .food-m-todo-dates { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 0; color: var(--muted); font-size: 11px; }
-.food-m-todo-dates { color: #8f8e88; }
-.food-m-todo-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 3px; }
-.food-m-todo-actions button {
-  padding: 10px 8px 11px;
-  border: 0;
-  border-radius: 13px;
-  background: var(--food-chip-bg);
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 680;
-  cursor: pointer;
-}
-.food-m-todo-actions button[data-act='sold-out'] { background: var(--accent); color: #14161a; }
-.food-m-todo-actions button:disabled { opacity: .55; }
 
 /* 全部批次 */
+.food-m-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.food-m-sort { position: relative; margin-left: auto; }
+.food-m-sort-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 11px 8px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--food-chip-bg);
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  font-weight: 620;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.food-m-sort-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  min-width: 148px;
+  padding: 5px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-panel);
+}
+.food-m-sort-menu button {
+  padding: 9px 12px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.food-m-sort-menu button[data-active='true'] { background: var(--accent); color: #14161a; font-weight: 720; }
+
 .food-m-batches { display: grid; gap: 10px; padding-top: 6px; }
 .food-m-filter-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .food-m-chips { display: flex; gap: 6px; padding: 3px; border-radius: 12px; background: var(--food-chip-bg); }
@@ -256,8 +297,37 @@
 }
 .food-m-search::placeholder { color: #9b9a94; }
 .food-m-batch-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.food-m-batch-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 11px 13px; border-radius: 15px; background: var(--surface); }
-.food-m-batch-row[data-stage='已处理'] { background: rgb(28 28 26 / .035); }
+.food-m-batch-row { display: grid; border-radius: 15px; background: var(--surface); overflow: hidden; }
+.food-m-batch-row[data-stage='已处理'] { background: rgb(28 28 26 / .045); }
+.food-m-batch-row[data-expanded='true'] { background: #fffdf6; }
+.food-m-batch-tap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.food-m-batch-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 0 14px 13px; }
+.food-m-batch-actions button {
+  padding: 10px 8px 11px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--food-chip-bg);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 680;
+  cursor: pointer;
+}
+.food-m-batch-actions button[data-act='sold-out'] { background: var(--accent); color: #14161a; }
+.food-m-batch-actions button[data-act='reopen'] { grid-column: 1 / -1; }
+.food-m-batch-actions button:disabled { opacity: .55; }
+.food-m-batch-meta { color: var(--muted); font-size: 11px; }
+.food-m-batch-meta[data-tone='dates'] { color: #8f8e88; }
 .food-m-batch-main { display: grid; gap: 3px; min-width: 0; }
 .food-m-batch-main strong { color: var(--ink); font-size: 13.5px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .food-m-batch-main small { color: var(--muted); font-size: 11px; }
@@ -269,11 +339,24 @@
 .food-m-batch-status { color: #8f8e88; font-size: 10.5px; }
 .food-m-batch-status[data-status='sold_out'] { color: var(--food-fresh); }
 .food-m-batch-status[data-status='isolated'] { color: var(--food-amber); }
+.food-m-batch-status[data-status='flagged'] { color: var(--food-flagged); font-weight: 680; }
 .food-m-batch-undo { padding: 6px 10px 7px; border: 0; border-radius: 10px; background: var(--food-chip-bg); color: var(--ink-soft); font-size: 11.5px; font-weight: 620; cursor: pointer; }
 .food-m-more { justify-self: center; margin-top: 6px; padding: 9px 22px 10px; border: 0; border-radius: 999px; background: var(--food-chip-bg); color: var(--ink); font-size: 12.5px; font-weight: 650; cursor: pointer; }
 
 /* 登记 */
 .food-m-entry { display: grid; gap: 11px; padding-top: 6px; }
+.food-m-entry-back {
+  justify-self: start;
+  padding: 7px 12px 8px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--food-chip-bg);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 620;
+  cursor: pointer;
+}
+.food-m-entry-tip { margin: 2px 0 0; color: #8f8e88; font-size: 11.5px; line-height: 1.5; }
 .food-m-field { display: grid; gap: 5px; }
 .food-m-field > span { color: var(--muted); font-size: 11.5px; font-weight: 600; }
 .food-m-field input {
@@ -354,14 +437,37 @@
   }
   .food-d-nav button:hover { background: var(--food-chip-bg); }
   .food-d-nav button[data-active='true'] { background: var(--accent); color: #14161a; font-weight: 720; }
-  .food-d-nav button b { color: var(--food-flagged); font-family: var(--font-display); font-size: 13px; font-weight: 780; }
-  .food-d-nav button[data-active='true'] b { color: #14161a; }
   .food-d-rail-foot { display: grid; gap: 12px; }
-  .food-d-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
-  .food-d-stats div { padding: 9px 11px 10px; border-radius: 12px; background: var(--surface); }
-  .food-d-stats dt { color: var(--muted); font-size: 10.5px; font-weight: 620; }
-  .food-d-stats dd { margin: 2px 0 0; color: var(--ink); font-family: var(--font-display); font-size: 19px; font-weight: 780; letter-spacing: -.02em; }
-  .food-d-stats dd[data-tone='alert'] { color: var(--food-flagged); }
+  .food-d-rail-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .food-d-stat {
+    display: grid;
+    gap: 2px;
+    padding: 9px 10px 10px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--surface);
+    text-align: left;
+    cursor: pointer;
+    transition: background-color .18s ease;
+  }
+  .food-d-stat b { color: var(--ink); font-family: var(--font-display); font-size: 19px; font-weight: 780; line-height: 1; letter-spacing: -.02em; }
+  .food-d-stat span { color: var(--muted); font-size: 10.5px; font-weight: 620; }
+  .food-d-stat[data-tone='alert'] b { color: var(--food-flagged); }
+  .food-d-stat[data-tone='soon'] b { color: var(--food-amber); }
+  .food-d-stat[data-active='true'] { background: var(--food-chip-active); }
+  .food-d-stat[data-active='true'] b, .food-d-stat[data-active='true'] span { color: #fff; }
+  .food-d-register {
+    padding: 11px 12px 12px;
+    border: 0;
+    border-radius: 13px;
+    background: var(--accent);
+    color: #14161a;
+    font-size: 13.5px;
+    font-weight: 740;
+    cursor: pointer;
+    transition: background-color .18s ease;
+  }
+  .food-d-register:hover { background: #ffe888; }
   .food-d-exit { padding: 9px 12px 10px; border: 0; border-radius: 12px; background: var(--food-chip-bg); color: var(--ink-soft); font-size: 12.5px; font-weight: 620; cursor: pointer; }
   .food-d-main { display: grid; grid-template-rows: auto auto minmax(0, 1fr); min-width: 0; padding: 24px 30px 26px; overflow: hidden; }
   .food-d-head { display: grid; gap: 5px; margin-bottom: 16px; }
@@ -403,6 +509,7 @@
   .food-d-status { color: var(--muted); font-size: 12px; }
   .food-d-status[data-status='sold_out'] { color: var(--food-fresh); }
   .food-d-status[data-status='isolated'] { color: var(--food-amber); }
+  .food-d-status[data-status='flagged'] { color: var(--food-flagged); font-weight: 660; }
   .food-d-actions { display: flex; gap: 6px; justify-content: flex-end; }
   .food-d-actions button {
     padding: 6px 11px 7px;
@@ -423,6 +530,45 @@
   /* 两列表容器：工具条 + 表格 + 加载更多，纵向留白交给 grid gap */
   .food-d-batches, .food-d-shelf { display: grid; gap: 12px; }
   .food-d-toolbar { display: flex; align-items: center; gap: 10px; }
+  .food-d-sort { position: relative; }
+  .food-d-sort-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px 9px;
+    border: 0;
+    border-radius: 11px;
+    background: var(--food-chip-bg);
+    color: var(--ink-soft);
+    font-size: 12px;
+    font-weight: 620;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .food-d-sort-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 30;
+    display: grid;
+    min-width: 156px;
+    padding: 5px;
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: var(--shadow-panel);
+  }
+  .food-d-sort-menu button {
+    padding: 9px 12px 10px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+  .food-d-sort-menu button[data-active='true'] { background: var(--accent); color: #14161a; font-weight: 720; }
   .food-d-chips { display: flex; gap: 5px; padding: 3px; border-radius: 12px; background: var(--food-chip-bg); }
   .food-d-chips button { padding: 6px 13px 7px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 620; cursor: pointer; transition: background-color .18s ease, color .18s ease; }
   .food-d-chips button[data-active='true'] { background: var(--food-chip-active); color: #fff; }
@@ -433,6 +579,17 @@
   /* 登记：左表单右预览 */
   .food-d-entry { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(260px, .75fr); gap: 20px; align-items: start; }
   .food-d-entry-form { display: grid; gap: 12px; }
+  .food-d-entry-back {
+    justify-self: start;
+    padding: 7px 13px 8px;
+    border: 0;
+    border-radius: 11px;
+    background: var(--food-chip-bg);
+    color: var(--ink-soft);
+    font-size: 12px;
+    font-weight: 620;
+    cursor: pointer;
+  }
   .food-d-field { display: grid; gap: 6px; }
   .food-d-field > span { color: var(--muted); font-size: 11.5px; font-weight: 620; }
   .food-d-field input { width: 100%; padding: 11px 14px 12px; border: 0; border-radius: 13px; background: var(--food-chip-bg); color: var(--ink); font-size: 14px; font-weight: 620; }

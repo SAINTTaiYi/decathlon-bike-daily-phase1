@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
-import { computeFoodDates } from '@bike-ops/domain'
+import { computeFoodDates, isFoodBatchFlagged } from '@bike-ops/domain'
 import { upsertFoodShelfLife } from '../../api/food.js'
 import useSegmentedPill from '../../hooks/useSegmentedPill.js'
 import {
@@ -15,129 +15,157 @@ import {
 /**
  * 食品台账 · 移动端（独立实现，不与桌面端共享 DOM）。
  *
- * 信息骨架取自调研结论（2026-09-13）：首屏即红标待办（Grocy 的 due 分类），
- * 登记流「单手三秒」——商品码进、日期出、焦点自动回位支持连续录入，
- * 处理动作在卡片上一步完成（已售罄 / 隔离）。
+ * 信息架构（2026-09-14 按用户反馈重排）：
+ *   顶部 = 三个状态大数字（红标 / 临期 / 在库，点一下即按该状态筛选）
+ *        + 一个「登记入库」主按钮（最常用的动作，永远在最显眼的位置）
+ *   中部 = 两个内容页签（批次 / 清单）—— 登记不再是页签，它是动作不是内容
+ *   列表 = 状态 / 品类筛选 + 排序 + 搜索，行内点开才出现处理按钮
+ *
+ * 排序默认「最新登记」：门店补货时第一眼要看的是刚登记了什么，而不是最早的。
+ * 切到「红标」时自动改成「预警最近」——清查场景要的是最紧急的排最前。
  */
 
 const VIEWS = [
-  { id: 'todo', label: '待办' },
-  { id: 'batches', label: '全部' },
-  { id: 'entry', label: '登记' },
+  { id: 'batches', label: '批次' },
   { id: 'shelf', label: '清单' }
 ]
 
-function TodoCard({ batch, today, syncing, onHandle }) {
-  const cardRef = useRef(null)
-  const stage = batchStageLabel(batch, today)
-  const urgency = urgencyLevel(batch.expiresOn, today)
+const FILTERS = [
+  { id: 'open', label: '在库' },
+  { id: 'flagged', label: '红标' },
+  { id: 'soon', label: '临期' },
+  { id: 'all', label: '全部' }
+]
 
-  const act = async (status) => {
-    const node = cardRef.current
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    if (node && !reduced) gsap.to(node, { autoAlpha: 0, x: 26, duration: .3, ease: 'power2.in' })
-    const result = await onHandle(batch, status)
-    if (!result?.ok && node) {
-      gsap.to(node, { autoAlpha: 1, x: 0, duration: .26, ease: 'power2.out' })
+const KINDS = [
+  { id: '', label: '全品类' },
+  { id: 'food', label: '食品' },
+  { id: 'nonfood', label: '非食品' }
+]
+
+const SORTS = [
+  { id: 'received_desc', label: '最新登记' },
+  { id: 'received_asc', label: '最早登记' },
+  { id: 'warn_asc', label: '预警最近' },
+  { id: 'warn_desc', label: '预警最远' }
+]
+
+function SortMenu({ sort, onChange }) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef(null)
+  const current = SORTS.find((entry) => entry.id === sort) || SORTS[0]
+
+  useEffect(() => {
+    if (!open) return undefined
+    const closeFromOutside = (event) => {
+      if (!rootRef.current?.contains(event.target)) setOpen(false)
     }
-    return result
-  }
+    document.addEventListener('pointerdown', closeFromOutside)
+    return () => document.removeEventListener('pointerdown', closeFromOutside)
+  }, [open])
 
   return (
-    <li className="food-m-todo-card" ref={cardRef} data-food-stagger data-stage={stage}>
-      <div className="food-m-todo-head">
-        <strong className="food-m-todo-name">{batch.itemName}</strong>
-        <span className="food-m-todo-days" data-urgency={urgency}>{remainingLabel(batch.expiresOn, today)}</span>
-      </div>
-      <p className="food-m-todo-meta">
-        <span>{batch.itemCode}</span>
-        <span>{batch.kind === 'food' ? '食品' : '非食品'}</span>
-        <span>{batch.quantity} 件</span>
-        <span>收货 {shortDate(batch.receivedDate, today)}</span>
-      </p>
-      <p className="food-m-todo-dates">
-        预警 {shortDate(batch.warnOn, today)} · 到期 {shortDate(batch.expiresOn, today)}
-      </p>
-      <div className="food-m-todo-actions">
-        <button type="button" data-act="sold-out" onClick={() => void act('sold_out')} disabled={syncing}>已售罄</button>
-        <button type="button" data-act="isolate" onClick={() => void act('isolated')} disabled={syncing}>隔离</button>
-      </div>
-    </li>
+    <div className="food-m-sort" ref={rootRef}>
+      <button type="button" className="food-m-sort-trigger" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        排序：{current.label}
+        <span aria-hidden="true">▾</span>
+      </button>
+      {open ? (
+        <div className="food-m-sort-menu" role="listbox" aria-label="排序方式">
+          {SORTS.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              role="option"
+              aria-selected={entry.id === sort}
+              data-active={entry.id === sort ? 'true' : 'false'}
+              onClick={() => { onChange(entry.id); setOpen(false) }}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
-function TodoView({ ledger, today, onNotify }) {
-  const { batches, loading, syncing, handle } = ledger
-  const onHandle = async (batch, status) => {
-    const result = await handle(batch, status)
-    onNotify?.(result.ok ? (status === 'sold_out' ? '已标记售罄' : status === 'isolated' ? '已标记隔离' : '已恢复在库') : { message: result.message, tone: 'error' })
-    return result
-  }
-  if (loading && !batches.length) return <p className="food-m-hint">正在读取红标待办…</p>
-  if (!batches.length) {
-    return (
-      <div className="food-m-empty">
-        <strong>没有红标待处理</strong>
-        <span>预警日已到的批次会出现在这里，每周一按 SOP 清查一遍。</span>
-      </div>
-    )
-  }
+function RowActions({ batch, syncing, onHandle }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const node = ref.current
+    if (!node) return undefined
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined
+    // 小面积展开，位移 + 透明度即可（大表面才禁的就是 scale/blur，这里本就没用）。
+    const tween = gsap.fromTo(node, { autoAlpha: 0, y: -6 }, { autoAlpha: 1, y: 0, duration: .22, ease: 'expo.out', clearProps: 'transform,opacity,visibility' })
+    return () => tween.kill()
+  }, [])
   return (
-    <ul className="food-m-todo-list">
-      {batches.map((batch) => (
-        <TodoCard key={batch.id} batch={batch} today={today} syncing={syncing} onHandle={onHandle} />
-      ))}
-    </ul>
+    <div className="food-m-batch-actions" ref={ref}>
+      {batch.status === 'open' ? (
+        <>
+          <button type="button" data-act="sold-out" disabled={syncing} onClick={() => void onHandle(batch, 'sold_out')}>已售罄</button>
+          <button type="button" data-act="isolate" disabled={syncing} onClick={() => void onHandle(batch, 'isolated')}>隔离</button>
+        </>
+      ) : (
+        <button type="button" data-act="reopen" disabled={syncing} onClick={() => void onHandle(batch, 'open')}>撤销处理，恢复在库</button>
+      )}
+    </div>
   )
 }
 
-function BatchRow({ batch, today, syncing, onHandle }) {
+function BatchRow({ batch, today, syncing, expanded, onToggle, onHandle }) {
   const urgency = urgencyLevel(batch.expiresOn, today)
+  const needsAction = isFoodBatchFlagged(batch, today)
   const closed = batch.status !== 'open'
   return (
-    <li className="food-m-batch-row" data-food-stagger data-stage={batchStageLabel(batch, today)}>
-      <div className="food-m-batch-main">
-        <strong>{batch.itemName}</strong>
-        <small>{batch.itemCode} · {batch.quantity} 件 · 收货 {shortDate(batch.receivedDate, today)}</small>
-      </div>
-      <div className="food-m-batch-side">
-        <span className="food-m-batch-days" data-urgency={urgency}>{remainingLabel(batch.expiresOn, today)}</span>
-        <span className="food-m-batch-status" data-status={batch.status}>{FOOD_STATUS_LABEL[batch.status] || batch.status}</span>
-      </div>
-      {closed ? (
-        <button
-          type="button"
-          className="food-m-batch-undo"
-          disabled={syncing}
-          onClick={() => void onHandle(batch, 'open')}
-        >
-          撤销
-        </button>
-      ) : null}
+    <li className="food-m-batch-row" data-food-stagger data-stage={batchStageLabel(batch, today)} data-expanded={expanded ? 'true' : 'false'}>
+      <button type="button" className="food-m-batch-tap" aria-expanded={expanded} onClick={onToggle}>
+        <span className="food-m-batch-main">
+          <strong>{batch.itemName}</strong>
+          <span className="food-m-batch-meta">{batch.itemCode} · {batch.quantity} 件</span>
+          <span className="food-m-batch-meta" data-tone="dates">收货 {shortDate(batch.receivedDate, today)} · 到期 {shortDate(batch.expiresOn, today)}</span>
+        </span>
+        <span className="food-m-batch-side">
+          <span className="food-m-batch-days" data-urgency={urgency}>{remainingLabel(batch.expiresOn, today)}</span>
+          {closed ? <span className="food-m-batch-status" data-status={batch.status}>{FOOD_STATUS_LABEL[batch.status] || batch.status}</span>
+            : needsAction ? <span className="food-m-batch-status" data-status="flagged">待处理</span> : null}
+        </span>
+      </button>
+      {expanded ? <RowActions batch={batch} syncing={syncing} onHandle={onHandle} /> : null}
     </li>
   )
 }
 
 function BatchesView({ ledger, today, onNotify }) {
-  const { batches, loading, syncing, hasMore, loadMore, filter, setFilter, kind, setKind, query, setQuery, handle } = ledger
+  const { batches, loading, syncing, hasMore, loadMore, filter, focusFilter, sort, setSort, kind, setKind, query, setQuery, handle } = ledger
+  const [expandedId, setExpandedId] = useState('')
+
   const onHandle = async (batch, status) => {
     const result = await handle(batch, status)
-    onNotify?.(result.ok ? '已恢复在库' : { message: result.message, tone: 'error' })
+    if (result.ok) setExpandedId('')
+    onNotify?.(result.ok
+      ? (status === 'sold_out' ? '已标记售罄' : status === 'isolated' ? '已标记隔离' : '已恢复在库')
+      : { message: result.message, tone: 'error' })
     return result
   }
+
   return (
     <div className="food-m-batches">
-      <div className="food-m-filter-row">
+      <div className="food-m-toolbar">
         <div className="food-m-chips" role="group" aria-label="按状态筛选">
-          {[['all', '全部'], ['open', '在库'], ['flagged', '红标']].map(([value, label]) => (
-            <button key={value} type="button" data-active={filter === value ? 'true' : 'false'} onClick={() => setFilter(value)}>{label}</button>
+          {FILTERS.map((entry) => (
+            <button key={entry.id} type="button" data-active={filter === entry.id ? 'true' : 'false'} onClick={() => focusFilter(entry.id)}>{entry.label}</button>
           ))}
         </div>
+      </div>
+      <div className="food-m-toolbar">
         <div className="food-m-chips" role="group" aria-label="按品类筛选">
-          {[['', '全品类'], ['food', '食品'], ['nonfood', '非食品']].map(([value, label]) => (
-            <button key={value || 'all'} type="button" data-active={kind === value ? 'true' : 'false'} onClick={() => setKind(value)}>{label}</button>
+          {KINDS.map((entry) => (
+            <button key={entry.id || 'all'} type="button" data-active={kind === entry.id ? 'true' : 'false'} onClick={() => setKind(entry.id)}>{entry.label}</button>
           ))}
         </div>
+        <SortMenu sort={sort} onChange={setSort} />
       </div>
       <input
         className="food-m-search"
@@ -148,10 +176,23 @@ function BatchesView({ ledger, today, onNotify }) {
         onChange={(event) => setQuery(event.target.value)}
       />
       {loading && !batches.length ? <p className="food-m-hint">正在读取…</p> : null}
-      {!loading && !batches.length ? <p className="food-m-hint">没有匹配的批次。</p> : null}
+      {!loading && !batches.length ? (
+        <div className="food-m-empty">
+          <strong>这里还没有批次</strong>
+          <span>{filter === 'flagged' ? '没有红标待处理，按 SOP 每周一清查一遍即可。' : '换一个筛选条件，或点上方「登记入库」新增。'}</span>
+        </div>
+      ) : null}
       <ul className="food-m-batch-list">
         {batches.map((batch) => (
-          <BatchRow key={batch.id} batch={batch} today={today} syncing={syncing} onHandle={onHandle} />
+          <BatchRow
+            key={batch.id}
+            batch={batch}
+            today={today}
+            syncing={syncing}
+            expanded={expandedId === batch.id}
+            onToggle={() => setExpandedId((current) => (current === batch.id ? '' : batch.id))}
+            onHandle={onHandle}
+          />
         ))}
       </ul>
       {hasMore ? (
@@ -161,7 +202,7 @@ function BatchesView({ ledger, today, onNotify }) {
   )
 }
 
-function EntryView({ ledger, today, userName, onNotify }) {
+function EntryView({ ledger, today, userName, onNotify, onBack }) {
   const [itemCode, setItemCode] = useState('')
   const [kind, setKind] = useState('food')
   const [dateType, setDateType] = useState('production')
@@ -213,6 +254,7 @@ function EntryView({ ledger, today, userName, onNotify }) {
     onNotify?.(warning !== null && warning !== undefined
       ? `已登记 · 距到期仅 ${warning} 天，记得在部门群沟通`
       : '已登记')
+    // 连续录入：清空商品码与日期，数量回到 1，焦点回商品码
     setItemCode('')
     setDateRaw('')
     setQuantity('1')
@@ -221,6 +263,8 @@ function EntryView({ ledger, today, userName, onNotify }) {
 
   return (
     <div className="food-m-entry">
+      <button type="button" className="food-m-entry-back" onClick={onBack}>← 返回批次列表</button>
+
       <label className="food-m-field">
         <span>商品码</span>
         <input
@@ -228,7 +272,7 @@ function EntryView({ ledger, today, userName, onNotify }) {
           type="text"
           inputMode="numeric"
           autoComplete="off"
-          placeholder="扫码或输入 8 位商品码"
+          placeholder="扫码或输入商品码"
           value={itemCode}
           onChange={(event) => setItemCode(event.target.value.replace(/\D/gu, '').slice(0, 14))}
         />
@@ -296,6 +340,7 @@ function EntryView({ ledger, today, userName, onNotify }) {
       <button type="button" className="food-m-entry-submit" onClick={() => void submit()} disabled={!canSubmit}>
         {busy ? '登记中…' : '登记入库'}
       </button>
+      <p className="food-m-entry-tip">登记完成后商品码会清空并回到输入框，可以接着扫下一件。</p>
     </div>
   )
 }
@@ -358,7 +403,7 @@ function ShelfRow({ item, canEdit, onSaved, onNotify }) {
   )
 }
 
-function ShelfView({ ledger, today, canEdit, onNotify }) {
+function ShelfView({ ledger, canEdit, onNotify }) {
   const [query, setQuery] = useState('')
   const { shelfLife, loadShelfLife, applyShelfItem } = ledger
   useEffect(() => { void loadShelfLife() }, [loadShelfLife])
@@ -388,7 +433,9 @@ function ShelfView({ ledger, today, canEdit, onNotify }) {
 }
 
 export default function FoodShellMobile({ ledger, view, onViewChange, userName, storeName, role, onExit, onNotify }) {
-  const { trackRef, pillRef } = useSegmentedPill(view)
+  const inEntry = view === 'entry'
+  const tab = inEntry ? 'batches' : view
+  const { trackRef, pillRef } = useSegmentedPill(tab)
   const bodyRef = useRef(null)
   const counts = ledger.counts
   const today = ledger.today
@@ -415,38 +462,55 @@ export default function FoodShellMobile({ ledger, view, onViewChange, userName, 
     <div className="food-m-root">
       <header className="food-m-header">
         <div className="food-m-top">
-          <button type="button" className="food-m-exit" onClick={onExit} aria-label="返回应用选择">←</button>
-          <h1 className="food-m-title">食品台账</h1>
+          <button
+            type="button"
+            className="food-m-exit"
+            onClick={inEntry ? () => onViewChange('batches') : onExit}
+            aria-label={inEntry ? '返回批次列表' : '返回应用选择'}
+          >←</button>
+          <h1 className="food-m-title">{inEntry ? '登记入库' : '食品台账'}</h1>
           <span className="food-m-store">{storeName || ''}</span>
         </div>
-        <p className="food-m-stats">
-          <span data-tone="alert">红标 <b>{counts ? counts.flagged : '—'}</b></span>
-          <span>临期 <b>{counts ? counts.soon : '—'}</b></span>
-          <span>在库 <b>{counts ? counts.open : '—'}</b></span>
-          <span>累计 <b>{counts ? counts.total : '—'}</b></span>
-        </p>
+
+        {inEntry ? null : (
+          <>
+            <div className="food-m-stats" role="group" aria-label="库存状态">
+              <button type="button" className="food-m-stat" data-tone="alert" data-active={ledger.filter === 'flagged' ? 'true' : 'false'} onClick={() => ledger.focusFilter('flagged')}>
+                <b>{counts ? counts.flagged : '—'}</b><span>红标</span>
+              </button>
+              <button type="button" className="food-m-stat" data-tone="soon" data-active={ledger.filter === 'soon' ? 'true' : 'false'} onClick={() => ledger.focusFilter('soon')}>
+                <b>{counts ? counts.soon : '—'}</b><span>临期</span>
+              </button>
+              <button type="button" className="food-m-stat" data-active={ledger.filter === 'open' ? 'true' : 'false'} onClick={() => ledger.focusFilter('open')}>
+                <b>{counts ? counts.open : '—'}</b><span>在库</span>
+              </button>
+            </div>
+            <button type="button" className="food-m-register" onClick={() => onViewChange('entry')}>＋ 登记入库</button>
+            <nav className="food-m-segments" ref={trackRef} role="tablist" aria-label="食品台账视图">
+              <span className="food-m-segment-pill" ref={pillRef} aria-hidden="true" />
+              {VIEWS.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  role="tab"
+                  data-active={tab === entry.id ? 'true' : 'false'}
+                  aria-selected={tab === entry.id}
+                  onClick={() => onViewChange(entry.id)}
+                >
+                  {entry.label}
+                </button>
+              ))}
+            </nav>
+          </>
+        )}
       </header>
-      <nav className="food-m-segments" ref={trackRef} role="tablist" aria-label="食品台账视图">
-        <span className="food-m-segment-pill" ref={pillRef} aria-hidden="true" />
-        {VIEWS.map((entry) => (
-          <button
-            key={entry.id}
-            type="button"
-            role="tab"
-            data-active={view === entry.id ? 'true' : 'false'}
-            aria-selected={view === entry.id}
-            onClick={() => onViewChange(entry.id)}
-          >
-            {entry.label}
-          </button>
-        ))}
-      </nav>
+
       {ledger.error ? <p className="food-m-alert" role="status">{ledger.error}</p> : null}
+
       <main className="food-m-body" ref={bodyRef}>
-        {view === 'todo' ? <TodoView ledger={ledger} today={today} onNotify={onNotify} /> : null}
-        {view === 'batches' ? <BatchesView ledger={ledger} today={today} onNotify={onNotify} /> : null}
-        {view === 'entry' ? <EntryView ledger={ledger} today={today} userName={userName} onNotify={onNotify} /> : null}
-        {view === 'shelf' ? <ShelfView ledger={ledger} today={today} canEdit={canEdit} onNotify={onNotify} /> : null}
+        {inEntry ? <EntryView ledger={ledger} today={today} userName={userName} onNotify={onNotify} onBack={() => onViewChange('batches')} /> : null}
+        {!inEntry && tab === 'batches' ? <BatchesView ledger={ledger} today={today} onNotify={onNotify} /> : null}
+        {!inEntry && tab === 'shelf' ? <ShelfView ledger={ledger} canEdit={canEdit} onNotify={onNotify} /> : null}
       </main>
     </div>
   )

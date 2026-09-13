@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { foodBatchActionSchema, foodBatchCreateSchema, foodBatchFilters, foodShelfLifeUpsertSchema } from '@bike-ops/contracts'
+import { foodBatchActionSchema, foodBatchCreateSchema, foodBatchFilters, foodBatchSorts, foodShelfLifeUpsertSchema } from '@bike-ops/contracts'
 import { localBusinessDate } from '@bike-ops/domain'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
@@ -46,16 +46,21 @@ export function foodRoutes() {
     if (!(foodBatchFilters as readonly string[]).includes(filterRaw)) {
       throw new ApiProblem(400, 'FOOD_FILTER_INVALID', '筛选条件无效。')
     }
+    const sortRaw = c.req.query('sort') ?? 'received_desc'
+    if (!(foodBatchSorts as readonly string[]).includes(sortRaw)) {
+      throw new ApiProblem(400, 'FOOD_SORT_INVALID', '排序方式无效。')
+    }
     const page = await listFoodBatches(c.env.DB, {
       storeId: context.storeId,
       today: localBusinessDate(context.storeTimezone),
       filter: filterRaw as typeof foodBatchFilters[number],
+      sort: sortRaw,
       kind: c.req.query('kind') ?? '',
       query: c.req.query('q') ?? '',
       limit: Number(c.req.query('limit') ?? 100),
       offset: Number(c.req.query('offset') ?? 0)
     })
-    return c.json({ ...page, today: localBusinessDate(context.storeTimezone), filter: filterRaw })
+    return c.json({ ...page, today: localBusinessDate(context.storeTimezone), filter: filterRaw, sort: sortRaw })
   })
 
   app.post('/api/v1/food/batches', ...write, async (c) => {

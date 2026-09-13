@@ -6,8 +6,8 @@ export const getFoodShelfLife = (signal) => api('/api/v1/food/shelf-life', { sig
 
 export const getFoodOverview = (signal) => api('/api/v1/food/overview', { signal })
 
-export const getFoodBatches = ({ filter = 'flagged', kind = '', q = '', limit = 100, offset = 0 } = {}, signal) => {
-  const params = new URLSearchParams({ filter, limit: String(limit), offset: String(offset) })
+export const getFoodBatches = ({ filter = 'open', sort = 'received_desc', kind = '', q = '', limit = 100, offset = 0 } = {}, signal) => {
+  const params = new URLSearchParams({ filter, sort, limit: String(limit), offset: String(offset) })
   if (kind) params.set('kind', kind)
   if (q) params.set('q', q)
   return api(`/api/v1/food/batches?${params.toString()}`, { signal })

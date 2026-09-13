@@ -14,7 +14,8 @@ import FoodShellMobile from './FoodShellMobile.jsx'
 export default function FoodApp({ enabled, userName, storeName, role, onExit, onNotify }) {
   const viewport = useViewportKind()
   const ledger = useFoodLedger(enabled)
-  const [view, setView] = useState('todo')
+  // 默认落在「批次」：台账最常见的用途是看刚登记了什么。
+  const [view, setView] = useState('batches')
 
   const shared = { ledger, view, onViewChange: setView, userName, storeName, role, onExit, onNotify }
   return viewport === 'mobile' ? <FoodShellMobile {...shared} /> : <FoodShellDesktop {...shared} />

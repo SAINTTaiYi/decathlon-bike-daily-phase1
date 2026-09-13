@@ -138,11 +138,26 @@ export async function foodOverview(db: D1Database, storeId: string, today: strin
 export interface ListFoodBatchesOptions {
   storeId: string
   today: string
-  filter: 'flagged' | 'open' | 'all'
+  filter: 'flagged' | 'open' | 'soon' | 'all'
+  sort?: string
   kind?: string
   query?: string
   limit?: number
   offset?: number
+}
+
+// 排序白名单（2026-09-14）。默认 received_desc：最新登记的排最前 —— 门店补货时
+// 第一眼要看的就是「刚登记了什么」。红标清查场景由前端切到 warn_asc（最紧急在前）。
+const FOOD_BATCH_DEFAULT_ORDER = 'received_date DESC, id DESC'
+const FOOD_BATCH_ORDER: Record<string, string> = {
+  received_desc: FOOD_BATCH_DEFAULT_ORDER,
+  received_asc: 'received_date ASC, id ASC',
+  warn_asc: 'warn_on ASC, id ASC',
+  warn_desc: 'warn_on DESC, id DESC'
+}
+
+export function foodBatchOrderBy(sort: string | undefined): string {
+  return FOOD_BATCH_ORDER[sort ?? 'received_desc'] ?? FOOD_BATCH_DEFAULT_ORDER
 }
 
 export async function listFoodBatches(
@@ -158,6 +173,10 @@ export async function listFoodBatches(
     values.push(options.today)
   } else if (options.filter === 'open') {
     conditions.push("status = 'open'")
+  } else if (options.filter === 'soon') {
+    // 临期：预警日还没到、但距到期已进入 45 天沟通线（与 overview 的 soon 口径一致）。
+    conditions.push("status = 'open'", 'warn_on > ?', 'expires_on <= ?')
+    values.push(options.today, addDays(options.today, 45))
   }
   if (options.kind === 'food' || options.kind === 'nonfood') {
     conditions.push('kind = ?')
@@ -173,7 +192,7 @@ export async function listFoodBatches(
     SELECT ${BATCH_COLUMNS}
     FROM food_batches
     WHERE ${conditions.join(' AND ')}
-    ORDER BY warn_on ASC, received_date ASC, id ASC
+    ORDER BY ${foodBatchOrderBy(options.sort)}
     LIMIT ? OFFSET ?
   `).bind(...values, limit + 1, offset))
   const hasMore = rows.length > limit

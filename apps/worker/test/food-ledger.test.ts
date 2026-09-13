@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFile } from 'node:fs/promises'
 import {
   createFoodBatch,
   foodOverview,
@@ -211,6 +212,86 @@ test('门店边界铁律：批次列表与处理只认本店数据，跨店不�
     () => setFoodBatchStatus(db, ACTOR_B, mine.batch.id, { expectedRevision: 1, status: 'sold_out' }),
     (error: unknown) => error instanceof Error && error.message.includes('不属于本门店')
   )
+})
+
+test('批次列表排序：默认最新登记在前，可切换预警日排序（2026-09-14 用户反馈）', async () => {
+  const db = await database()
+  await seedShelf(db)
+  // 三批不同收货日：09-01 / 09-05 / 09-10（生产日期相同，到期相同）
+  for (const received of ['2026-09-01', '2026-09-05', '2026-09-10']) {
+    await createFoodBatch(db, ACTOR_A, {
+      itemCode: '2074681', kind: 'food', dateType: 'production',
+      productionDate: '2026-07-23', receivedDate: received, quantity: 10, receiver: 'helen'
+    })
+  }
+  const receivedDates = (page: { batches: Array<{ receivedDate: string }> }) => page.batches.map((item) => item.receivedDate)
+
+  // 默认：最新登记在最前 —— 门店补货后第一眼要看刚登记了什么
+  const defaultPage = await listFoodBatches(db, { storeId: STORE_A, today: TODAY, filter: 'open' })
+  assert.deepEqual(receivedDates(defaultPage), ['2026-09-10', '2026-09-05', '2026-09-01'])
+  // 显式传 received_desc 与默认一致
+  const explicit = await listFoodBatches(db, { storeId: STORE_A, today: TODAY, filter: 'open', sort: 'received_desc' })
+  assert.deepEqual(receivedDates(explicit), ['2026-09-10', '2026-09-05', '2026-09-01'])
+  // 最早登记在前
+  const asc = await listFoodBatches(db, { storeId: STORE_A, today: TODAY, filter: 'open', sort: 'received_asc' })
+  assert.deepEqual(receivedDates(asc), ['2026-09-01', '2026-09-05', '2026-09-10'])
+  // 未知排序值回落到默认，绝不把用户输入拼进 SQL
+  const fallback = await listFoodBatches(db, { storeId: STORE_A, today: TODAY, filter: 'open', sort: 'DROP TABLE food_batches' })
+  assert.deepEqual(receivedDates(fallback), ['2026-09-10', '2026-09-05', '2026-09-01'])
+  const stillThere = await listFoodBatches(db, { storeId: STORE_A, today: TODAY, filter: 'open' })
+  assert.equal(stillThere.batches.length, 3, '注入式排序值不得影响数据')
+})
+
+test('排序白名单是纯映射，不含任何拼接路径', async () => {
+  const source = await readFile(new URL('../src/services/food-ledger.ts', import.meta.url), 'utf8')
+  assert.match(source, /const FOOD_BATCH_ORDER: Record<string, string> = \{/u, '排序必须是白名单映射')
+  assert.match(source, /export function foodBatchOrderBy/u)
+  // ORDER BY 只能由白名单函数产出
+  assert.match(source, /ORDER BY \$\{foodBatchOrderBy\(options\.sort\)\}/u, 'ORDER BY 必须走白名单函数')
+})
+
+test('「临期」筛选：预警日未到、但已进入 45 天沟通线的在库批次', async () => {
+  // 口径说明（重要）：预警日 = 到期日 − 1 个月，所以「预警日已过」等价于
+  // 「距到期 < 1 个月」。顶部三个数字必须互不重叠：
+  //   红标 = 预警日已过（该清查）  → 距到期 < 1 个月
+  //   临期 = 预警日未到但 45 天内到期 → 距到期 1～1.5 个月（即将变成红标）
+  //   在库 = 全部未处理
+  const db = await database()
+  await seedShelf(db)
+  const TODAY_LOCAL = '2026-09-13'
+
+  // 临期：生产 2026-01-20 + 9 月 → 到期 2026-10-20（距今 37 天）；预警 2026-09-20（未到）
+  const soon = await createFoodBatch(db, ACTOR_A, {
+    itemCode: '5144573', kind: 'food', dateType: 'production',
+    productionDate: '2026-01-20', receivedDate: '2026-01-25', quantity: 5, receiver: 'Anna'
+  })
+  assert.equal(soon.batch.warnOn, '2026-09-20', '前置：预警日必须未到')
+  assert.equal(soon.batch.expiresOn, '2026-10-20', '前置：必须在 45 天窗口内')
+
+  // 红标：生产 2026-01-01 + 9 月 → 到期 2026-10-01；预警 2026-09-01（已过）
+  const flagged = await createFoodBatch(db, ACTOR_A, {
+    itemCode: '5144573', kind: 'food', dateType: 'production',
+    productionDate: '2026-01-01', receivedDate: '2026-01-03', quantity: 5, receiver: 'Anna'
+  })
+  // 正常：生产 2026-03-01 + 9 月 → 到期 2026-12-01；预警 2026-11-01（远）
+  const normal = await createFoodBatch(db, ACTOR_A, {
+    itemCode: '5144573', kind: 'food', dateType: 'production',
+    productionDate: '2026-03-01', receivedDate: '2026-03-02', quantity: 5, receiver: 'Anna'
+  })
+
+  const soonPage = await listFoodBatches(db, { storeId: STORE_A, today: TODAY_LOCAL, filter: 'soon' })
+  assert.deepEqual(soonPage.batches.map((item) => item.id), [soon.batch.id], '临期只应给出预警日未到且 45 天内到期的批次')
+
+  const flaggedPage = await listFoodBatches(db, { storeId: STORE_A, today: TODAY_LOCAL, filter: 'flagged' })
+  assert.deepEqual(flaggedPage.batches.map((item) => item.id), [flagged.batch.id], '红标只应给出预警日已过的批次')
+
+  const openPage = await listFoodBatches(db, { storeId: STORE_A, today: TODAY_LOCAL, filter: 'open' })
+  assert.equal(openPage.batches.length, 3, '在库应包含全部未处理批次')
+  assert.ok(!openPage.batches.some((item) => item.id === normal.batch.id && item.warnOn <= TODAY_LOCAL))
+
+  // 三个数字互不重叠：红标与临期的集合不相交
+  const flaggedIds = new Set(flaggedPage.batches.map((item) => item.id))
+  assert.ok(!soonPage.batches.some((item) => flaggedIds.has(item.id)), '红标与临期不得重叠')
 })
 
 test('批次列表支持分页 hasMore 与商品码 / 名称搜索', async () => {
