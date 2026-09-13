@@ -150,6 +150,8 @@ jobs:
             process.env.STAGING_BASE_URL,
             'https://workshop.skin',
             'https://www.workshop.skin',
+            // 食品台账独立站点（2026-09-14）：与 ops 物理分开，避免两套界面互相遮挡。
+            'https://eat.workshop.skin',
             'https://bike-ops-staging.geeklightonefish.workers.dev'
           ].filter(Boolean))).join(',')
           text = text.replace('__APP_VERSION__', pkg.version)

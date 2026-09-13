@@ -189,3 +189,5 @@ export function describeChanges(before, after, labels = {}) {
     .filter(([key]) => String(before?.[key] ?? '') !== String(after?.[key] ?? ''))
     .map(([key, label]) => label)
 }
+
+export * from './food.js'

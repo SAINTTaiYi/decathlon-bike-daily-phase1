@@ -255,3 +255,46 @@ export type PasswordResetCompleteInput = z.infer<typeof passwordResetCompleteSch
 
 export const adminStoreMemberUpdateSchema = z.object({ displayName: z.string().trim().min(1).max(24).optional(), role: z.enum(['operator', 'manager', 'admin']).optional(), expectedUpdatedAt: z.string().min(1).max(80) }).strict().refine((value) => Boolean(value.displayName || value.role), { message: '至少提供一个成员字段。' })
 export const adminStoreMemberRemoveSchema = z.object({ expectedUpdatedAt: z.string().min(1).max(80) }).strict()
+
+// ---- 食品 / 非食品保质期台账（2026-09-13）----
+// 与门店 Excel 台账同口径：登记时给出「品类 + 日期类型 + 基准日期 + 数量」，
+// 预警日与到期日一律由服务端用 @bike-ops/domain 的 computeFoodDates 计算后落库。
+export const foodKinds = ['food', 'nonfood'] as const
+export const foodDateTypes = ['production', 'restricted'] as const
+export const foodBatchStatuses = ['open', 'sold_out', 'isolated'] as const
+export const foodBatchFilters = ['flagged', 'open', 'soon', 'all'] as const
+// 批次列表排序（2026-09-14 用户反馈：在库批次应按登记时间倒序，最新登记在最前）。
+// 白名单形态 —— 服务端只接受这几个取值，绝不拼接用户输入进 SQL。
+export const foodBatchSorts = ['received_desc', 'received_asc', 'warn_asc', 'warn_desc'] as const
+
+// 迪卡侬商品码为 6~14 位数字（台账现有条目 7~8 位，保留余量）。
+export const foodItemCodeSchema = z.string().trim().regex(/^\d{6,14}$/u, '商品码必须是 6~14 位数字。')
+
+export const foodBatchCreateSchema = z.object({
+  itemCode: foodItemCodeSchema,
+  kind: z.enum(foodKinds),
+  dateType: z.enum(foodDateTypes).default('production'),
+  productionDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/u).optional(),
+  restrictedDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/u).optional(),
+  receivedDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/u),
+  quantity: z.number().positive().max(100000),
+  receiver: z.string().trim().max(24).default('')
+}).strict()
+
+// 处理红标批次：sold_out / isolated；status = 'open' 表示撤销处理回到在库。
+export const foodBatchActionSchema = z.object({
+  expectedRevision: revisionSchema,
+  status: z.enum(['sold_out', 'isolated', 'open'])
+}).strict()
+
+export const foodShelfLifeUpsertSchema = z.object({
+  itemCode: foodItemCodeSchema,
+  name: z.string().trim().min(1).max(120),
+  shelfLifeMonths: z.number().positive().max(600),
+  category: z.string().trim().max(24).default(''),
+  packSize: z.number().positive().max(10000).nullable().optional()
+}).strict()
+
+export type FoodBatchCreateInput = z.infer<typeof foodBatchCreateSchema>
+export type FoodBatchActionInput = z.infer<typeof foodBatchActionSchema>
+export type FoodShelfLifeUpsertInput = z.infer<typeof foodShelfLifeUpsertSchema>

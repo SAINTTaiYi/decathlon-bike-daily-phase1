@@ -8,9 +8,10 @@ import IconUserPlus from '@iconoir/UserPlus.mjs'
 import IconJournal from '@iconoir/Journal.mjs'
 import IconShield from '@iconoir/Shield.mjs'
 import IconKey from '@iconoir/Key.mjs'
+import IconBoxIso from '@iconoir/BoxIso.mjs'
 import AppDialog from './AppDialog.jsx'
 
-export default function MenuDialog({ open, onClose, onUndo, canUndo, onCopyReport, onReset, locked, currentUser, currentRole, currentStore, onSwitchUser, onChangePassword, hasLocalData, onMigrate, canGovernance, onGovernance, onOpenPermanentHistory, canShipHub = false, onShipHubSettings, canAdmin, onAdmin, adminPending = 0 }) {
+export default function MenuDialog({ open, onClose, onUndo, canUndo, onCopyReport, onReset, locked, currentUser, currentRole, currentStore, onSwitchUser, onChangePassword, hasLocalData, onMigrate, canGovernance, onGovernance, onOpenPermanentHistory, canShipHub = false, onShipHubSettings, canAdmin, onAdmin, adminPending = 0, onOpenFoodApp }) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [confirmSwitch, setConfirmSwitch] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -46,6 +47,7 @@ export default function MenuDialog({ open, onClose, onUndo, canUndo, onCopyRepor
         <span>{currentStore} · {currentRole}</span>
         <strong>{currentUser}</strong>
       </div>
+      {onOpenFoodApp ? <button type="button" className="dialog-action" onClick={() => { close(); onOpenFoodApp() }} disabled={busy}><IconBoxIso width={20} height={20} aria-hidden="true" /><span><strong>食品台账</strong><small>保质期登记、红标清查与临期处理（本店独立台账）。</small></span></button> : null}
       <button type="button" className="dialog-action" onClick={() => { close(); onChangePassword?.() }} disabled={busy}><IconKey width={20} height={20} aria-hidden="true" /><span><strong>修改密码</strong><small>验证当前密码后更新；其它设备上的登录会话将被撤销。</small></span></button>
       <button type="button" className="dialog-action" onClick={undo} disabled={!canUndo || busy}><IconUndo width={20} height={20} aria-hidden="true" /><span><strong>{busy ? '正在处理…' : '撤回最近操作'}</strong><small>仅恢复当前仍可安全撤回的最近一次数据库操作。</small></span></button>
       <button type="button" className="dialog-action" onClick={onCopyReport} disabled={busy}><IconNotes width={20} height={20} aria-hidden="true" /><span><strong>复制当日报告</strong><small>复制销售数据、闭店状态和今天发生的台账操作。</small></span></button>

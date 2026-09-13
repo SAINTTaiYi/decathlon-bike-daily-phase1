@@ -51,10 +51,45 @@ import RepairScene from './scenes/RepairScene.jsx'
 import ResaleScene from './scenes/ResaleScene.jsx'
 import SalesScene from './scenes/SalesScene.jsx'
 import { getAdminPendingCount } from './api/admin.js'
+import { foodSiteUrl, isFoodOnlySite, isOpsProductionSite, opsSiteUrl } from './utils/siteMode.js'
+import AppSelect from './components/appselect/AppSelect.jsx'
+import FoodApp from './components/food/FoodApp.jsx'
 
 // 闭店自动同步 Shiphub 的等待上限：sync() 内部含 202 回捞等待，
 // 超过这个时间就先出图（用已有数据），不让闭店卡在网络上。
 const CLOSING_SHIPHUB_SYNC_TIMEOUT_MS = 12000
+
+// 应用选择（2026-09-13）：登录后先选「Workshop Ops」还是「食品台账」。
+// 记进 sessionStorage —— 每个会话选一次；刷新沿用，新开标签页重新选择，
+// 退出登录时清除。空字符串代表「还未选择」，此时展示应用选择屏。
+const ACTIVE_APP_KEY = 'bike-ops-active-app'
+const APP_CHOICES = ['ops', 'food']
+
+function readStoredAppChoice() {
+  try {
+    const value = window.sessionStorage.getItem(ACTIVE_APP_KEY) || ''
+    return APP_CHOICES.includes(value) ? value : ''
+  } catch {
+    // Safari 隐私模式等场景 sessionStorage 不可用：降级为本次会话内不记忆。
+    return ''
+  }
+}
+
+function storeAppChoice(value) {
+  try {
+    window.sessionStorage.setItem(ACTIVE_APP_KEY, value)
+  } catch {
+    // 同上，静默降级（下次仍会显示选择屏，不影响功能）。
+  }
+}
+
+function clearAppChoice() {
+  try {
+    window.sessionStorage.removeItem(ACTIVE_APP_KEY)
+  } catch {
+    // 同上。
+  }
+}
 
 // 平台管理后台仅平台管理员在 #admin 下访问：切成异步 chunk，
 // 让门店工作台首屏不必下载后台的组件与样式。
@@ -81,6 +116,12 @@ export default function App() {
   const auth = useAuth()
   const [loginAnimationDone, setLoginAnimationDone] = useState(false)
   const [workspaceAssemblyDone, setWorkspaceAssemblyDone] = useState(false)
+  const [appChoice, setAppChoice] = useState(readStoredAppChoice)
+  // 站点分流（2026-09-14）：eat.workshop.skin 是食品台账专用站点，直接进入该应用；
+  // 生产 workshop.skin 上食品台账改为整页跳转到独立站点（见 chooseApp）。
+  const foodOnlySite = isFoodOnlySite()
+  const opsProductionSite = isOpsProductionSite()
+  const effectiveApp = foodOnlySite ? 'food' : appChoice
   const [taskInputFocused, setTaskInputFocused] = useState(false)
   const [desktopLayout, setDesktopLayout] = useState(() => window.matchMedia?.('(min-width: 768px)').matches ?? false)
   const [desktopScene, setDesktopScene] = useState('pulse')
@@ -100,7 +141,7 @@ export default function App() {
   const introLocked = mustChangePassword || emailBindingRequired
   const deferUpdatePrompt = auth.source === 'login' && !introLocked && !workspaceAssemblyDone
   const workflow = useRemoteClosingWorkflow(authenticated && !introLocked)
-  const shiphub = useShipHub(authenticated && !introLocked)
+  const shiphub = useShipHub(authenticated && !introLocked && effectiveApp !== 'food')
   // 门店数据实时推送（2026-09-09）：服务端版本号一变就重新拉取，页面无需手动刷新。
   // 覆盖：工作单/台账、闭店状态、Shiphub 订单（含后台 cron 同步）、BI 销售数据。
   //
@@ -114,7 +155,7 @@ export default function App() {
       void workflow.refresh()
       void shiphub.ensureFresh()
     }, [workflow.refresh, shiphub.ensureFresh]),
-    { enabled: authenticated && !introLocked }
+    { enabled: authenticated && !introLocked && effectiveApp !== 'food' }
   )
   const [menuOpen, setMenuOpen] = useState(false)
   const [passwordChangeOpen, setPasswordChangeOpen] = useState(false)
@@ -190,7 +231,7 @@ export default function App() {
   const canReopenClosing = role === 'manager' || role === 'admin'
   const writeLocked = Boolean(workflow.closedAt) || !online || Boolean(workflow.storageError)
 
-  const workspaceLaunching = authenticated && auth.source === 'login' && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone
+  const workspaceLaunching = authenticated && auth.source === 'login' && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone && effectiveApp === 'ops'
 
   // 工作台是否真的已经呈现在用户面前。
   //
@@ -333,6 +374,25 @@ export default function App() {
     return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update) }
   }, [])
 
+  // 双保险（2026-09-14）：非 Ops 场景锁住文档滚动。主修复是下面那条「不渲染 Ops 容器」
+  // ——它消除了约 1500px 的文档流高度；这里再兜一层，防止将来有人在非 Ops 场景
+  // 引入新的流内元素、又把页面撑出可滚动区域，重新出现「滑一下露出 Ops」。
+  //
+  // 必须留在这一批 hooks 里、**不得下移到早期 return 之后** —— 下方有 8 个早期 return
+  // （setup / 平台管理 / restoring / 门卡 / 快照等待…），hook 放它们之后会让各次渲染的
+  // hook 数量不一致，React 直接抛 "Rendered more hooks than during the previous render"，
+  // 整页落进错误边界（实测表现为 fatal-state）。
+  // Ops 容器是否渲染 —— 只有真正进入 Ops 才渲染它。
+  // 之所以在这里展开（而不是引用下方的渲染变量），是因为它要参与 hooks 区的锁滚动 effect。
+  const renderOps = introDone && effectiveApp === 'ops'
+  useEffect(() => {
+    if (renderOps) return undefined
+    const root = document.documentElement
+    const previous = root.style.overflow
+    root.style.overflow = 'hidden'
+    return () => { root.style.overflow = previous }
+  }, [renderOps])
+
   const historyEvents = useMemo(() => historyTarget
     ? workflow.getOperationHistory(historyTarget.scene, historyTarget.record?.id || null)
     : [], [historyTarget, workflow])
@@ -347,8 +407,33 @@ export default function App() {
     setHistoryTarget(null)
     setRecordEditor(null)
     setMediaRecord(null)
+    // 退出登录后回到「先选应用」的状态（sessionStorage 也随之清空）。
+    clearAppChoice()
+    setAppChoice('')
     await auth.logout()
   }
+
+  // 应用选择（2026-09-13）：选完即记入 sessionStorage，刷新沿用；「返回应用选择」
+  // 则清空，让用户重新二选一。
+  const chooseApp = useCallback((appId) => {
+    // 生产双站：食品台账是独立站点，整页跳转过去 —— 本页不渲染它的 DOM，
+    // 从结构上杜绝两套界面互相遮挡（用户 2026-09-14 定案）。
+    if (appId === 'food' && opsProductionSite) {
+      window.location.assign(foodSiteUrl())
+      return
+    }
+    storeAppChoice(appId)
+    setAppChoice(appId)
+  }, [opsProductionSite])
+  // 退出食品台账：独立站点上直接回 Ops；单站环境（预览/本地）回到应用选择屏。
+  const exitFoodApp = useCallback(() => {
+    if (foodOnlySite) {
+      window.location.assign(opsSiteUrl())
+      return
+    }
+    clearAppChoice()
+    setAppChoice('')
+  }, [foodOnlySite])
 
   const completePasswordChange = () => {
     setPasswordChangeOpen(false)
@@ -697,7 +782,7 @@ export default function App() {
     return <><main className="hydration-state" role="status" aria-live="polite"><strong>SYNCING DATABASE</strong><span>正在读取门店业务台账…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
 
-  if (authenticated && introDone && workflow.hydrated && !workflow.hasSnapshot) {
+  if (authenticated && introDone && workflow.hydrated && !workflow.hasSnapshot && effectiveApp === 'ops') {
     return (
       <>
         <main className="hydration-state sync-failure" role="alert" aria-live="assertive">
@@ -722,6 +807,15 @@ export default function App() {
       : sceneRecordConfig[recordEditor.scene]
     : sceneRecordConfig.poster
   const showBoot = !introDone
+  // 应用选择（2026-09-13）：登录完成后先让用户选应用。选择屏与食品应用都是
+  // 全屏 fixed 层，渲染在 Ops 容器**之外**；选择屏期间 Ops 容器完全不渲染
+  // （2026-09-14 由「整层 inert」升级而来），两套界面不可能同时存在。
+  const showAppSelect = introDone && !effectiveApp && !introLocked
+  // 非 Ops 场景（应用选择屏 / 食品台账 / eat 独立站点）**完全不渲染 Ops 容器**。
+  // 只把它设成 inert 是不够的：容器仍占据文档流（约 1500px），页面因此可以滚动，
+  // 手机上一滑就能把 Ops 底栏拽出来 —— 这正是用户看到的「界面泄露」。
+  // 判据见上方 hooks 区（renderOps 与锁滚动 effect 必须待在一起）。
+
 
   return (
     <>
@@ -732,8 +826,8 @@ export default function App() {
           onRegistered={(payload) => { auth.acceptRegistration(payload); setLoginAnimationDone(true); setToast('注册完成，门店已开通。') }}
           onRecovered={() => { setLoginAnimationDone(false); setToast('密码已重设，请用新密码登录。') }}
         /> : null}
-      {introDone ? <a className="skip-link" href="#closing-summary-anchor">跳到闭店摘要</a> : null}
-      <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
+      {renderOps ? <a className="skip-link" href="#closing-summary-anchor">跳到闭店摘要</a> : null}
+      {renderOps ? <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={workspaceLaunching ? '' : undefined} aria-hidden={workspaceLaunching ? 'true' : undefined}>
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true">
           {/* Crextio 风格环境渐变光斑：品牌黄三层，GSAP 呼吸漂移/视差/转场脉冲 */}
           <div className="env-blob env-blob-a" />
@@ -783,7 +877,7 @@ export default function App() {
             <WorkshopModuleSection sceneId="sales"><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} storeCode={currentStore?.storeCode || ''} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></WorkshopModuleSection>
           </div>
         </main>
-        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} onChangePassword={() => setPasswordChangeOpen(true)} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} canShipHub={Boolean(shiphub.summary?.enabled && (role === 'manager' || role === 'admin'))} onShipHubSettings={() => setShiphubSettingsOpen(true)} canAdmin={auth.user?.isPlatformAdmin} onAdmin={() => { setMenuOpen(false); window.location.hash = '#admin' }} adminPending={adminPending} />
+        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} onChangePassword={() => setPasswordChangeOpen(true)} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} canShipHub={Boolean(shiphub.summary?.enabled && (role === 'manager' || role === 'admin'))} onShipHubSettings={() => setShiphubSettingsOpen(true)} onOpenFoodApp={() => chooseApp('food')} canAdmin={auth.user?.isPlatformAdmin} onAdmin={() => { setMenuOpen(false); window.location.hash = '#admin' }} adminPending={adminPending} />
         <PasswordChangeDialog open={passwordChangeOpen} userName={currentUser} onClose={() => setPasswordChangeOpen(false)} onChangePassword={auth.changePassword} onComplete={completePasswordChange} />
         <GovernanceDialog open={governanceOpen} onClose={() => setGovernanceOpen(false)} currentStoreId={currentStore?.storeId || auth.currentStoreId} onNotify={setToast} />
         <ShipHubSettingsDialog open={shiphubSettingsOpen || shiphubReconnectPrompt.shouldOpen} onClose={() => { setShiphubSettingsOpen(false); shiphubReconnectPrompt.dismiss() }} shiphub={shiphub} onNotify={setToast} canManage={role === 'manager' || role === 'admin'} />
@@ -805,7 +899,14 @@ export default function App() {
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
         <HandoverTodoDialog open={handoverTodoOpen} items={(workflow.assignedToMe || []).map((item) => ({ ...item, sceneLabel: sceneById(item.scene)?.cn || item.scene }))} onJump={(item) => { setHandoverTodoOpen(false); navigateToScene(item.scene) }} onClose={() => { setHandoverTodoOpen(false); window.localStorage.setItem(`handover-todo-dismissed-${workflow.dateKey}`, '1') }} />
         {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={visibleScene} onJump={jumpFromOverview} closedAt={workflow.closedAt} desktopLayout={desktopLayout} /></div> : null}
-      </div>
+      </div> : null}
+      {/* 应用选择屏与食品台账必须是 Ops 容器的**兄弟节点**，绝不能放进容器内部：
+          选择屏阶段应用未选 → 容器根本不渲染（旧版是 inert，见 2026-09-14 定案），
+          放在里面的话所有卡片都点不动（2026-09-13 用户实测「点了没反应」）。
+          容器还会承载 GSAP 动效残留的 transform，fixed 元素若在其中会以容器为
+          定位基准，高度不足就露出底部 Ops dock（同日用户截图确认）。 */}
+      {showAppSelect ? <AppSelect userName={currentUser} storeName={currentStore?.storeName} closeState={workflow.closedAt ? 'closed' : 'open'} onChoose={chooseApp} /> : null}
+      {introDone && effectiveApp === 'food' ? <FoodApp enabled={authenticated && !introLocked} userName={currentUser} storeName={currentStore?.storeName} role={role} onExit={exitFoodApp} exitLabel={foodOnlySite ? '去 Workshop Ops ↗' : '返回应用选择'} onNotify={setToast} /> : null}
       {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button></div> : null}
       <ReportImageDialog
         open={Boolean(reportImage?.objectUrl)}
