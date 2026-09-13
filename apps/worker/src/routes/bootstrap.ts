@@ -21,7 +21,8 @@ export function bootstrapRoutes() {
     // Cleanup 是跨日边界任务：只在当日首次 bootstrap（创建当日行）时执行，后续刷新
     // 不再重复扫描（2026-09-03 限额预算：该扫描每次读约一百行）。
     const [{ day, created: dayCreated }, records, trends, members, assignedToMe] = await Promise.all([
-      getOrCreateDay(c.env.DB, context.storeId, businessDate),
+      // 只读降级会话（2026-09-14）：写额度耗尽时不再尝试建当日行，直接用默认值渲染。
+      getOrCreateDay(c.env.DB, context.storeId, businessDate, { allowWrite: !context.readOnly }),
       listWorkItems(c.env.DB, context.storeId, businessDate, config),
       buildBusinessTrends(c.env.DB, context.storeId, businessDate),
       listStoreMembers(c.env.DB, context.storeId),

@@ -4,7 +4,8 @@ import { camelRow, first, nowIso } from '../db.js'
 import { safeEqualHex } from '../lib/crypto.js'
 import { ApiProblem } from '../services/problems.js'
 import type { AuthContext } from './types.js'
-import { csrfTokenHash, readCookie, SESSION_COOKIE, sessionTokenHash } from './session.js'
+import { csrfTokenHash, isReadOnlySessionToken, readCookie, sessionTokenHash, SESSION_COOKIE, verifyReadOnlySessionToken } from './session.js'
+import { d1LimitProblemBody } from '../lib/d1-limits.js'
 
 type Vars = {
   config: AppConfig
@@ -52,6 +53,46 @@ export function createAuthMiddleware(): {
     if (!token) throw new ApiProblem(401, 'UNAUTHENTICATED', '登录状态已失效，请重新登录。')
     const tokenHash = await sessionTokenHash(token, config)
     const selectedStore = c.req.header('x-store-id') ?? null
+    // ── 只读降级会话（2026-09-14）──────────────────────────────────────
+    // 写额度耗尽时登录签发的无状态令牌：验签 + 只读查询还原身份，不碰任何写。
+    if (isReadOnlySessionToken(token)) {
+      const parsed = await verifyReadOnlySessionToken(token, config)
+      if (!parsed) throw new ApiProblem(401, 'UNAUTHENTICATED', '登录状态已失效，请重新登录。')
+      const roRow = await first(c.env.DB.prepare(`
+        SELECT u.id AS user_id, u.display_name, u.must_change_password, u.is_platform_admin,
+               u.email_key, u.username_key,
+               st.id AS store_id, st.code AS store_code, st.name AS store_name, st.timezone AS store_timezone, sm.role
+        FROM users u
+        JOIN store_members sm ON sm.user_id = u.id AND sm.status = 'active'
+        JOIN stores st ON st.id = sm.store_id AND st.status = 'active'
+        WHERE u.id = ? AND u.status = 'active' AND st.id = ?
+        ORDER BY sm.effective_from ASC, sm.created_at ASC
+        LIMIT 1
+      `).bind(parsed.userId, selectedStore ?? parsed.storeId))
+      if (!roRow) throw new ApiProblem(401, 'UNAUTHENTICATED', '登录状态已失效，请重新登录。')
+      const roMapped = camelRow(roRow)
+      c.set('auth', {
+        userId: roMapped.userId,
+        displayName: roMapped.displayName,
+        mustChangePassword: roMapped.mustChangePassword === 1 || roMapped.mustChangePassword === true,
+        storeId: roMapped.storeId,
+        storeCode: roMapped.storeCode,
+        storeName: roMapped.storeName,
+        storeTimezone: roMapped.storeTimezone ?? roMapped.timezone,
+        role: roMapped.role,
+        isPlatformAdmin: roMapped.isPlatformAdmin === 1 || roMapped.isPlatformAdmin === true,
+        emailBound: Boolean(roMapped.emailKey),
+        emailBindingExempt: isEmailBindingExempt({
+          isPlatformAdmin: roMapped.isPlatformAdmin === 1 || roMapped.isPlatformAdmin === true,
+          usernameKey: roMapped.usernameKey
+        }),
+        sessionTokenHash: '',
+        csrfHash: '',
+        readOnly: true
+      } satisfies AuthContext)
+      // 只读会话没有数据库行：不写 last_seen_at，不做任何写操作。
+      return next()
+    }
     const row = await first(c.env.DB.prepare(`
       SELECT s.token_hash, s.csrf_hash, s.last_seen_at, u.id AS user_id, u.display_name, u.must_change_password, u.is_platform_admin,
              u.email_key, u.username_key,
@@ -113,6 +154,13 @@ export function createAuthMiddleware(): {
   const requireCsrf: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }> = async (c, next) => {
     const auth = c.get('auth')
     if (!auth) throw new ApiProblem(401, 'UNAUTHENTICATED', '请重新登录。')
+    // 只读降级会话：所有写操作统一拦成结构化额度提示（前端据此显示恢复时间）。
+    // 登出例外——它只需要清 cookie，不应该被额度问题挡住。
+    if (auth.readOnly) {
+      if (new URL(c.req.url).pathname === '/api/v1/auth/logout') return next()
+      const body = d1LimitProblemBody('write')
+      throw new ApiProblem(503, body.error, '数据库每日写入额度已用尽（免费套餐上限），预计北京时间 08:00 自动恢复。当前为只读模式：可以查看数据，暂时无法修改。')
+    }
     const header = c.req.header('x-csrf-token')
     if (!header) throw new ApiProblem(403, 'INVALID_CSRF', '安全令牌已失效，请刷新页面后重试。')
     const hash = await csrfTokenHash(header, c.get('config'))

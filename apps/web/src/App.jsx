@@ -809,6 +809,7 @@ export default function App() {
           />
         </div>
         {!online ? <p className="workshop-global-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据；恢复网络后才能修改。</p> : null}
+        {online && auth.readOnly ? <p className="workshop-global-alert" data-tone="readonly" role="status">只读模式 · 数据库写入额度已用尽（免费套餐上限），预计北京时间 08:00 自动恢复；期间可查看数据，暂时无法修改。</p> : null}
         <main className="workshop-shell" data-desktop-scene={desktopScene} id="main-content" tabIndex="-1" data-workspace-layer="structure">
           <div className="workshop-module-stack" data-workspace-layer="focus">
             <WorkshopModuleSection sceneId="pulse" className="workshop-overview-panel">

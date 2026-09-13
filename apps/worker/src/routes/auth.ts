@@ -4,12 +4,13 @@ import { localBusinessDate, usernameKey } from '@bike-ops/domain'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
 import { createAuthMiddleware, isEmailBindingExempt, isEmailBindingRequired } from '../auth/middleware.js'
-import { clearSessionCookie, createSessionSecrets, csrfTokenHash, setSessionCookie, SESSION_COOKIE } from '../auth/session.js'
+import { clearSessionCookie, createReadOnlySessionToken, createSessionSecrets, csrfTokenHash, setSessionCookie, SESSION_COOKIE } from '../auth/session.js'
 import { all, first, nowIso } from '../db.js'
 import { hashPassword, keyedHash, randomToken, verifyPassword } from '../lib/crypto.js'
 import { ApiProblem } from '../services/problems.js'
 import { prepareAudit, prepareConditionalAudit } from '../services/business.js'
 import { idempotent } from '../services/idempotency.js'
+import { d1LimitProblemBody, detectD1LimitError, errorChainText, nextD1QuotaReset } from '../lib/d1-limits.js'
 import { requireJsonBody } from '../lib/json.js'
 import { runLoginBiSkuSync } from '../services/bi-sku-sync.js'
 
@@ -95,13 +96,17 @@ export function authRoutes() {
       const nextFailedCount = user.failed_login_count + 1
       // 锁定已废除（见文件头注释）：失败计数只喂给退避与审计告警；
       // 顺手清掉历史遗留的锁定时间戳，防止旧值复活语义。
-      await c.env.DB.prepare(`
-        UPDATE users
-        SET failed_login_count = failed_login_count + 1,
-            locked_until = NULL,
-            updated_at = ?
-        WHERE id = ?
-      `).bind(stamp, user.id).run()
+      // 额度耗尽时这次写入也会失败——但「密码错误」就是密码错误，
+      // 绝不能因为记不上失败次数而把 401 变成 500。
+      try {
+        await c.env.DB.prepare(`
+          UPDATE users
+          SET failed_login_count = failed_login_count + 1,
+              locked_until = NULL,
+              updated_at = ?
+          WHERE id = ?
+        `).bind(stamp, user.id).run()
+      } catch { /* 计数丢了不影响这次的判定结果 */ }
 
       // Sustained failures must be visible after the fact, not only felt as latency.
       if (shouldAlertOnFailedLogin(nextFailedCount)) {
@@ -166,7 +171,12 @@ export function authRoutes() {
       context, action: 'login', entityType: 'account', entityId: user.id, businessDate: localBusinessDate(primaryStore.timezone),
       summary: `登录工作台：${user.display_name}`, after: { userId: user.id, storeId: primaryStore.store_id }, reversible: false
     }, loginStillValid, [user.id, user.password_hash])
-    const [sessionCreated] = await c.env.DB.batch([
+    // 只读降级（2026-09-14）：写额度耗尽时，登录本身也写不了库（会话行 + 用户表 +
+    // 审计事件），门店连「进去看数据」都做不到。此时改用无状态只读会话：不写任何一行，
+    // 让门店至少能查看台账与生成应急交接单；所有写操作会被统一拦成结构化额度提示。
+    let sessionCreated: D1Result | undefined
+    try {
+      ;[sessionCreated] = await c.env.DB.batch([
       c.env.DB.prepare(`
         INSERT INTO auth_sessions (token_hash, csrf_hash, user_id, expires_at, last_seen_at, created_at, ip_hash, user_agent)
         SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE ${loginStillValid}
@@ -180,7 +190,29 @@ export function authRoutes() {
         WHERE id = ? AND password_hash = ? AND status = 'active'
       `).bind(stamp, stamp, user.id, user.password_hash),
       audit.statement
-    ])
+      ])
+    } catch (error) {
+      const limitKind = detectD1LimitError(errorChainText(error))
+      if (limitKind !== 'write') throw error
+      const readOnlyToken = await createReadOnlySessionToken(config, { userId: user.id, storeId: primaryStore.store_id })
+      setSessionCookie(c, readOnlyToken, config)
+      const limitBody = d1LimitProblemBody('write')
+      return c.json({
+        user: {
+          id: user.id,
+          displayName: user.display_name,
+          mustChangePassword: user.must_change_password === 1,
+          isPlatformAdmin: user.is_platform_admin === 1,
+          emailBindingRequired: !user.email_key && !isEmailBindingExempt({ isPlatformAdmin: user.is_platform_admin === 1, usernameKey: user.username_key })
+        },
+        stores: mapMemberships(memberships),
+        currentStoreId: primaryStore.store_id,
+        csrfToken: '',
+        readOnly: true,
+        recoveryAt: nextD1QuotaReset(),
+        message: limitBody.message
+      })
+    }
     if (!sessionCreated?.meta.changes) return c.json(genericFailure, 401)
     setSessionCookie(c, secrets.token, config)
     // BI 车型名同步：当天首个成功登录触发一次（登录成功即代表当天有人使用工作台）。
@@ -207,19 +239,34 @@ export function authRoutes() {
     const config = c.get('config')
     const context = c.get('auth')!
     const csrfToken = randomToken()
-    const nextHash = await csrfTokenHash(csrfToken, config)
-    await c.env.DB.prepare('UPDATE auth_sessions SET csrf_hash = ?, last_seen_at = ? WHERE token_hash = ?').bind(nextHash, nowIso(), context.sessionTokenHash).run()
+    // 只读降级会话没有数据库行，也不允许写：跳过 CSRF 轮换。
+    if (!context.readOnly) {
+      const nextHash = await csrfTokenHash(csrfToken, config)
+      await c.env.DB.prepare('UPDATE auth_sessions SET csrf_hash = ?, last_seen_at = ? WHERE token_hash = ?').bind(nextHash, nowIso(), context.sessionTokenHash).run()
+    }
     const stores = await all<MembershipRow>(c.env.DB.prepare(`
       SELECT st.id AS store_id, st.code AS store_code, st.name AS store_name, st.timezone, sm.role
       FROM store_members sm JOIN stores st ON st.id = sm.store_id
       WHERE sm.user_id = ? AND sm.status = 'active' AND st.status = 'active'
       ORDER BY sm.effective_from ASC, sm.created_at ASC
     `).bind(context.userId))
-    return c.json({ user: { id: context.userId, displayName: context.displayName, mustChangePassword: context.mustChangePassword, isPlatformAdmin: context.isPlatformAdmin, emailBindingRequired: isEmailBindingRequired(context) }, stores: mapMemberships(stores), currentStoreId: context.storeId, csrfToken })
+    return c.json({
+      user: { id: context.userId, displayName: context.displayName, mustChangePassword: context.mustChangePassword, isPlatformAdmin: context.isPlatformAdmin, emailBindingRequired: isEmailBindingRequired(context) },
+      stores: mapMemberships(stores),
+      currentStoreId: context.storeId,
+      csrfToken,
+      // 只读降级会话（2026-09-14）：刷新页面后前端据此继续显示只读横幅。
+      ...(context.readOnly ? { readOnly: true, recoveryAt: nextD1QuotaReset(), message: d1LimitProblemBody('write').message } : {})
+    })
   })
 
   app.post('/api/v1/auth/logout', auth.loadSession, auth.requireCsrf, async (c) => {
     const context = c.get('auth')!
+    // 只读降级会话没有数据库行：撤销写不了也不需要，清 cookie 即可。
+    if (context.readOnly) {
+      clearSessionCookie(c, c.get('config'))
+      return c.body(null, 204)
+    }
     const audit = prepareAudit(c.env.DB, { context, action: 'logout', entityType: 'account', entityId: context.userId, businessDate: localBusinessDate(context.storeTimezone), summary: `退出工作台：${context.displayName}`, reversible: false })
     await c.env.DB.batch([c.env.DB.prepare('UPDATE auth_sessions SET revoked_at = ? WHERE token_hash = ?').bind(nowIso(), context.sessionTokenHash), audit.statement])
     clearSessionCookie(c, c.get('config'))

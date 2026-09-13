@@ -14,4 +14,8 @@ export interface AuthContext {
   emailBindingExempt?: boolean
   sessionTokenHash: string
   csrfHash: string
+  // 只读降级会话（2026-09-14）：D1 写额度耗尽时，登录改用无状态签名令牌，
+  // 该标记为真 → 所有写操作被 requireCsrf 拦成结构化额度提示。
+  readOnly?: boolean
 }
+

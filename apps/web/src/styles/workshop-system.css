@@ -228,6 +228,10 @@ button:disabled { opacity: .48; }
   font-weight: 800;
   text-align: center;
 }
+
+/* 只读降级横幅（2026-09-14）：写额度耗尽时可看不可改，用琥珀色区别于离线的红色语义。 */
+.workshop-global-alert[data-tone='readonly'] { background: #fff4d6; color: #7a4b06; }
+
 .workshop-shell {
   position: relative;
   width: min(100%, 1180px);

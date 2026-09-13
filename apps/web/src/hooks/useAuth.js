@@ -3,11 +3,23 @@ import { clearApiSession, setApiSession } from '../api/client.js'
 import { changePasswordAccount, completeRegistration, loginAccount, logoutAccount, restoreSession, verifyEmailBinding } from '../api/auth.js'
 
 export default function useAuth() {
-  const [state, setState] = useState({ status: 'restoring', source: 'restore', user: null, stores: [], currentStoreId: '', error: '' })
+  const [state, setState] = useState({ status: 'restoring', source: 'restore', user: null, stores: [], currentStoreId: '', error: '', readOnly: false, recoveryAt: '', readOnlyMessage: '' })
 
   const apply = useCallback((payload, source = 'restore') => {
     setApiSession({ csrf: payload.csrfToken, store: payload.currentStoreId })
-    setState({ status: 'authenticated', source, user: payload.user, stores: payload.stores, currentStoreId: payload.currentStoreId, error: '' })
+    // 只读降级（2026-09-14）：D1 写额度耗尽时服务端签发无状态只读会话，
+    // 这里把状态带到界面，让门店明确知道「能看、不能改」以及恢复时间。
+    setState({
+      status: 'authenticated',
+      source,
+      user: payload.user,
+      stores: payload.stores,
+      currentStoreId: payload.currentStoreId,
+      error: '',
+      readOnly: Boolean(payload.readOnly),
+      recoveryAt: payload.recoveryAt || '',
+      readOnlyMessage: payload.message || ''
+    })
   }, [])
 
   const clear = useCallback((error = '') => {
