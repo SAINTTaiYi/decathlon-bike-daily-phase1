@@ -772,8 +772,8 @@ export default function App() {
     : sceneRecordConfig.poster
   const showBoot = !introDone
   // 应用选择（2026-09-13）：登录完成后先让用户选应用。选择屏与食品应用都是
-  // 全屏 fixed 层（z-index 300），选择屏期间 Ops 容器保持挂载但整体 inert，
-  // 避免两套界面同时可交互（屏幕阅读器也不该读到背后的台账）。
+  // 全屏 fixed 层，渲染在 Ops 容器**之外**；选择屏期间 Ops 容器保持挂载但整体
+  // inert，避免两套界面同时可交互（屏幕阅读器也不该读到背后的台账）。
   const showAppSelect = introDone && !appChoice && !introLocked
   const opsPlayable = introDone && appChoice === 'ops'
 
@@ -841,8 +841,6 @@ export default function App() {
         <GovernanceDialog open={governanceOpen} onClose={() => setGovernanceOpen(false)} currentStoreId={currentStore?.storeId || auth.currentStoreId} onNotify={setToast} />
         <ShipHubSettingsDialog open={shiphubSettingsOpen || shiphubReconnectPrompt.shouldOpen} onClose={() => { setShiphubSettingsOpen(false); shiphubReconnectPrompt.dismiss() }} shiphub={shiphub} onNotify={setToast} canManage={role === 'manager' || role === 'admin'} />
         <LogDialog open={logOpen} onClose={() => setLogOpen(false)} events={workflow.events} />
-        {showAppSelect ? <AppSelect userName={currentUser} storeName={currentStore?.storeName} closeState={workflow.closedAt ? 'closed' : 'open'} onChoose={chooseApp} /> : null}
-        {introDone && appChoice === 'food' ? <FoodApp enabled={authenticated && !introLocked} userName={currentUser} storeName={currentStore?.storeName} role={role} onExit={exitFoodApp} onNotify={setToast} /> : null}
         <PermanentHistoryDialog open={permanentHistoryOpen} onClose={() => setPermanentHistoryOpen(false)} onLoad={workflow.getPermanentHistory} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
         <OperationHistoryDialog open={Boolean(historyTarget)} onClose={() => setHistoryTarget(null)} title={historyTitle} events={historyEvents} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
         <AttachmentDialog record={mediaRecord} onClose={() => setMediaRecord(null)} locked={writeLocked} onNotify={setToast} />
@@ -861,6 +859,13 @@ export default function App() {
         <HandoverTodoDialog open={handoverTodoOpen} items={(workflow.assignedToMe || []).map((item) => ({ ...item, sceneLabel: sceneById(item.scene)?.cn || item.scene }))} onJump={(item) => { setHandoverTodoOpen(false); navigateToScene(item.scene) }} onClose={() => { setHandoverTodoOpen(false); window.localStorage.setItem(`handover-todo-dismissed-${workflow.dateKey}`, '1') }} />
         {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={visibleScene} onJump={jumpFromOverview} closedAt={workflow.closedAt} desktopLayout={desktopLayout} /></div> : null}
       </div>
+      {/* 应用选择屏与食品台账必须是 Ops 容器的**兄弟节点**，绝不能放进容器内部：
+          选择屏阶段 appChoice 为空 → opsPlayable 为 false → 容器整层 inert，
+          放在里面的话所有卡片都点不动（2026-09-13 用户实测「点了没反应」）。
+          容器还会承载 GSAP 动效残留的 transform，fixed 元素若在其中会以容器为
+          定位基准，高度不足就露出底部 Ops dock（同日用户截图确认）。 */}
+      {showAppSelect ? <AppSelect userName={currentUser} storeName={currentStore?.storeName} closeState={workflow.closedAt ? 'closed' : 'open'} onChoose={chooseApp} /> : null}
+      {introDone && appChoice === 'food' ? <FoodApp enabled={authenticated && !introLocked} userName={currentUser} storeName={currentStore?.storeName} role={role} onExit={exitFoodApp} onNotify={setToast} /> : null}
       {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button></div> : null}
       <ReportImageDialog
         open={Boolean(reportImage?.objectUrl)}

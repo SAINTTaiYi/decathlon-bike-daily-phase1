@@ -146,6 +146,49 @@ test('应用选择：登录后先选应用，Ops 容器在选择屏与食品应�
   assert.match(app, /clearAppChoice\(\)/u)
 })
 
+// 2026-09-13 用户实测三项故障的共同根因：选择屏与食品台账被渲染在 Ops 容器内部。
+// 该容器在选择屏阶段 appChoice 为空 → opsPlayable 为 false → 整层 inert，
+// 里面的按钮全部点不动（「应用点了没反应」）；容器还承载 GSAP 动效残留的
+// transform，fixed 元素以容器为定位基准，高度不足就露出底部 Ops dock（截图确认）。
+//
+// 判据用「缩进 + DOM 顺序」而不是括号匹配：JSX 里含自闭合标签与表达式容器，
+// 计数 <div 会错位；缩进能直接表达「是不是容器的子元素」。
+test('应用选择屏与食品台账必须是 Ops 容器的兄弟节点，不得渲染进 inert 容器内', () => {
+  const lines = app.split('\n')
+  const indentOf = (needle) => {
+    const index = lines.findIndex((line) => line.includes(needle))
+    assert.ok(index > -1, `找不到：${needle}`)
+    return { index, indent: lines[index].length - lines[index].trimStart().length, text: lines[index].trim() }
+  }
+
+  const container = indentOf('className="app-runtime workshop-runtime"')
+  const dock = indentOf('data-workspace-layer="dock"')
+  const select = indentOf('{showAppSelect ? <AppSelect')
+  const food = indentOf("appChoice === 'food' ? <FoodApp")
+
+  // ① dock 是容器内的元素，缩进必须比容器深（确认缩进判据本身可信）
+  assert.ok(dock.indent > container.indent, 'dock 应在容器内部（缩进更深）')
+  // ② 选择屏与食品台账必须与容器同级（兄弟）——比容器更深就是被塞进了容器内
+  assert.equal(select.indent, container.indent, 'AppSelect 必须与 Ops 容器同级（不得嵌进容器）')
+  assert.equal(food.indent, container.indent, 'FoodApp 必须与 Ops 容器同级（不得嵌进容器）')
+  // ③ 顺序上必须在 dock 之后（dock 是容器内最后的内容）
+  assert.ok(select.index > dock.index, 'AppSelect 必须在 Ops 容器内容之后渲染')
+  assert.ok(food.index > dock.index, 'FoodApp 必须在 Ops 容器内容之后渲染')
+  // ④ Ops 容器在选择屏期间仍然要 inert（两套界面不得同时可交互）
+  assert.match(app, /inert=\{!opsPlayable \|\| workspaceLaunching/u)
+})
+
+test('应用选择屏：跳转不依赖 GSAP 回调，入场动画不留隐藏态', async () => {
+  const select = await read('../apps/web/src/components/appselect/AppSelect.jsx')
+  // 跳转必须有定时器兜底：动画被打断时 onComplete 永不触发 = 用户「点了没反应」
+  assert.match(select, /window\.setTimeout\(\(\) => onChoose\(appId\), delay\)/u, '跳转必须由定时器兜底')
+  assert.doesNotMatch(select, /onComplete:\s*finish/u, '跳转不得挂在 GSAP 的 onComplete 上')
+  assert.doesNotMatch(select, /gsap\.from\(/u, '入场动画不得用 gsap.from（revert 会把元素留在不可见初态）')
+  assert.match(select, /clearProps: 'transform,opacity,visibility'/u, '入场动画收尾必须清内联样式')
+  // effect 不得随视口变化重跑（重跑会把卡片重置回初始态）
+  assert.match(select, /\n  \}, \[\]\)/u, '入场 effect 只能依赖空数组')
+})
+
 test('食品台账 API：端点封装齐全且写操作带幂等键由 client 统一注入', async () => {
   const api = await read('../apps/web/src/api/food.js')
   for (const fn of ['getFoodShelfLife', 'getFoodOverview', 'getFoodBatches', 'createFoodBatch', 'updateFoodBatchStatus', 'upsertFoodShelfLife']) {
