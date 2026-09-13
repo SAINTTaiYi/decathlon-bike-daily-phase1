@@ -142,8 +142,36 @@ test('食品台账：双端组件与应用选择屏齐全，且样式表已被 i
 test('应用选择：登录后先选应用，非 Ops 场景根本不渲染 Ops 容器（比 inert 更强的隔离）', () => {
   assert.match(app, /const ACTIVE_APP_KEY = 'bike-ops-active-app'/u)
   assert.match(app, /const showAppSelect = introDone && !effectiveApp && !introLocked/u)
-  assert.match(app, /const opsPlayable = introDone && effectiveApp === 'ops'/u)
-  assert.match(app, /const renderOps = opsPlayable/u, 'Ops 容器必须由 renderOps 控制渲染')
+  assert.match(app, /const renderOps = introDone && effectiveApp === 'ops'/u, 'Ops 容器必须由 renderOps 控制渲染')
+  // 判据必须留在 hooks 区：下方有 8 个早期 return，hook 落到它们之后会让各次渲染的
+  // hook 数量不一致 → React 抛错 → 整页 fatal-state（2026-09-14 实测踩过）。
+  assert.ok(
+    app.indexOf('const renderOps = introDone') < app.indexOf("if (auth.status === 'restoring')"),
+    'renderOps 必须位于所有早期 return 之前（hooks 规则）'
+  )
+  assert.ok(
+    app.indexOf('if (renderOps) return undefined') < app.indexOf("if (auth.status === 'restoring')"),
+    '锁滚动 effect 必须位于所有早期 return 之前（hooks 规则）'
+  )
+  // 通用护栏：App() 里任何 hook 都不得出现在第一个早期 return 之后。
+  // 2026-09-14 实测踩过：把锁滚动 effect 加到 return 之后，restoring 阶段少调用一个 hook，
+  // 下一页渲染立刻抛 "Rendered more hooks than during the previous render"，
+  // 整页落进错误边界（无头浏览器探针显示 bottomHit=other:fatal-state）。
+  {
+    const lines = app.split('\n')
+    const isHook = (line) => {
+      const text = line.trim()
+      if (text.startsWith('//') || text.startsWith('*')) return false
+      return /(?:^|[^\w.])(?:use(?:Effect|Memo|Callback|LayoutEffect|Ref|State)|use[A-Z]\w*)\(/u.test(text)
+    }
+    const firstReturn = lines.findIndex((line) => /^  if \(/u.test(line) && line.trim().endsWith('{'))
+    assert.ok(firstReturn > 0, '必须能定位到 App 的早期 return')
+    const offenders = lines
+      .map((line, index) => ({ line, index }))
+      .filter(({ line, index }) => index > firstReturn && isHook(line))
+      .map(({ line, index }) => `${index + 1}: ${line.trim()}`)
+    assert.deepEqual(offenders, [], 'hooks 不得出现在早期 return 之后（否则各次渲染 hook 数量不一致 → fatal）')
+  }
   // 2026-09-14 用户定案：从「整层 inert」升级为「根本不渲染」。
   // inert 只挡交互，容器仍占据约 1500px 文档流（preview 实测 htmlScrollHeight=1499），
   // 页面因此可以滚动，手机上一滑就把 Ops 底栏拽出来 —— 这就是用户反复看到的「界面泄露」。

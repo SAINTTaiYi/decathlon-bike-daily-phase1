@@ -374,6 +374,25 @@ export default function App() {
     return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update) }
   }, [])
 
+  // 双保险（2026-09-14）：非 Ops 场景锁住文档滚动。主修复是下面那条「不渲染 Ops 容器」
+  // ——它消除了约 1500px 的文档流高度；这里再兜一层，防止将来有人在非 Ops 场景
+  // 引入新的流内元素、又把页面撑出可滚动区域，重新出现「滑一下露出 Ops」。
+  //
+  // 必须留在这一批 hooks 里、**不得下移到早期 return 之后** —— 下方有 8 个早期 return
+  // （setup / 平台管理 / restoring / 门卡 / 快照等待…），hook 放它们之后会让各次渲染的
+  // hook 数量不一致，React 直接抛 "Rendered more hooks than during the previous render"，
+  // 整页落进错误边界（实测表现为 fatal-state）。
+  // Ops 容器是否渲染 —— 只有真正进入 Ops 才渲染它。
+  // 之所以在这里展开（而不是引用下方的渲染变量），是因为它要参与 hooks 区的锁滚动 effect。
+  const renderOps = introDone && effectiveApp === 'ops'
+  useEffect(() => {
+    if (renderOps) return undefined
+    const root = document.documentElement
+    const previous = root.style.overflow
+    root.style.overflow = 'hidden'
+    return () => { root.style.overflow = previous }
+  }, [renderOps])
+
   const historyEvents = useMemo(() => historyTarget
     ? workflow.getOperationHistory(historyTarget.scene, historyTarget.record?.id || null)
     : [], [historyTarget, workflow])
@@ -789,25 +808,14 @@ export default function App() {
     : sceneRecordConfig.poster
   const showBoot = !introDone
   // 应用选择（2026-09-13）：登录完成后先让用户选应用。选择屏与食品应用都是
-  // 全屏 fixed 层，渲染在 Ops 容器**之外**；选择屏期间 Ops 容器保持挂载但整体
-  // inert，避免两套界面同时可交互（屏幕阅读器也不该读到背后的台账）。
+  // 全屏 fixed 层，渲染在 Ops 容器**之外**；选择屏期间 Ops 容器完全不渲染
+  // （2026-09-14 由「整层 inert」升级而来），两套界面不可能同时存在。
   const showAppSelect = introDone && !effectiveApp && !introLocked
-  const opsPlayable = introDone && effectiveApp === 'ops'
   // 非 Ops 场景（应用选择屏 / 食品台账 / eat 独立站点）**完全不渲染 Ops 容器**。
   // 只把它设成 inert 是不够的：容器仍占据文档流（约 1500px），页面因此可以滚动，
   // 手机上一滑就能把 Ops 底栏拽出来 —— 这正是用户看到的「界面泄露」。
-  const renderOps = opsPlayable
+  // 判据见上方 hooks 区（renderOps 与锁滚动 effect 必须待在一起）。
 
-  // 双保险（2026-09-14）：非 Ops 场景锁住文档滚动。主修复是上面那条「不渲染 Ops 容器」
-  // ——它消除了约 1500px 的文档流高度；这里再兜一层，防止将来有人在非 Ops 场景
-  // 引入新的流内元素、又把页面撑出可滚动区域，重新出现「滑一下露出 Ops」。
-  useEffect(() => {
-    if (renderOps) return undefined
-    const root = document.documentElement
-    const previous = root.style.overflow
-    root.style.overflow = 'hidden'
-    return () => { root.style.overflow = previous }
-  }, [renderOps])
 
   return (
     <>
@@ -893,7 +901,7 @@ export default function App() {
         {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={visibleScene} onJump={jumpFromOverview} closedAt={workflow.closedAt} desktopLayout={desktopLayout} /></div> : null}
       </div> : null}
       {/* 应用选择屏与食品台账必须是 Ops 容器的**兄弟节点**，绝不能放进容器内部：
-          选择屏阶段 appChoice 为空 → opsPlayable 为 false → 容器整层 inert，
+          选择屏阶段应用未选 → 容器根本不渲染（旧版是 inert，见 2026-09-14 定案），
           放在里面的话所有卡片都点不动（2026-09-13 用户实测「点了没反应」）。
           容器还会承载 GSAP 动效残留的 transform，fixed 元素若在其中会以容器为
           定位基准，高度不足就露出底部 Ops dock（同日用户截图确认）。 */}
