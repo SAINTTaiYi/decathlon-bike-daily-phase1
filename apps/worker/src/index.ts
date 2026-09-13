@@ -125,6 +125,12 @@ app.all('/api/v1/attachments/*', (c) => c.json({
 
 app.onError((error, c) => {
   if (error instanceof ApiProblem) {
+    // D1 限额类错误（含只读会话拦写）必须带上恢复时间：门店要靠它知道「还要等多久」，
+    // 少了这个字段前端只能显示一句无期限的报错。
+    if (error.code === 'D1_WRITE_LIMIT' || error.code === 'D1_READ_LIMIT') {
+      const body = d1LimitProblemBody(error.code === 'D1_WRITE_LIMIT' ? 'write' : 'read')
+      return c.json({ ...body, message: error.message }, error.status as any)
+    }
     return c.json({ error: error.code, message: error.message }, error.status as any)
   }
   if (error instanceof ZodError) {
