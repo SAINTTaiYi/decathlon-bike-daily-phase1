@@ -43,9 +43,39 @@ const selectDay = `
   WHERE store_id = ? AND business_date = ?
 `
 
-export async function getOrCreateDay(db: D1Database, storeId: string, businessDate: string): Promise<{ day: DayRow; created: boolean }> {
+export async function getOrCreateDay(
+  db: D1Database,
+  storeId: string,
+  businessDate: string,
+  options: { allowWrite?: boolean } = {}
+): Promise<{ day: DayRow; created: boolean }> {
   const existing = await first<DayRow>(db.prepare(selectDay).bind(storeId, businessDate))
   if (existing) return { day: existing, created: false }
+  // 只读降级（2026-09-14）：写额度耗尽时当日行可能还没建立，但读接口仍必须可用，
+  // 否则门店连历史台账都打不开。用内存里的默认值顶上，created 保持 false
+  // （跨日清理同样不执行）；任何写操作本来就会被拦成结构化额度提示。
+  if (options.allowWrite === false) {
+    const stamp = nowIso()
+    return {
+      day: {
+        id: '',
+        business_date: businessDate,
+        sales_vehicles: 0,
+        safety_checks: 0,
+        safety_model: '',
+        valid_reviews: 0,
+        used_sold: 0,
+        used_received: 0,
+        sales_saved_at: null,
+        closing_status: 'open',
+        closed_at: null,
+        revision: 0,
+        updated_at: stamp,
+        read_only_placeholder: 1
+      } as DayRow,
+      created: false
+    }
+  }
   const stamp = nowIso()
   const id = uuid()
   await db.prepare(`
