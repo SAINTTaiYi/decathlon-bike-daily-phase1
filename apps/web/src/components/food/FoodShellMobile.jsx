@@ -432,7 +432,7 @@ function ShelfView({ ledger, canEdit, onNotify }) {
   )
 }
 
-export default function FoodShellMobile({ ledger, view, onViewChange, userName, storeName, role, onExit, onNotify }) {
+export default function FoodShellMobile({ ledger, view, onViewChange, userName, storeName, role, onExit, exitLabel = '返回应用选择', onNotify }) {
   const inEntry = view === 'entry'
   const tab = inEntry ? 'batches' : view
   const { trackRef, pillRef } = useSegmentedPill(tab)
@@ -466,7 +466,7 @@ export default function FoodShellMobile({ ledger, view, onViewChange, userName, 
             type="button"
             className="food-m-exit"
             onClick={inEntry ? () => onViewChange('batches') : onExit}
-            aria-label={inEntry ? '返回批次列表' : '返回应用选择'}
+            aria-label={inEntry ? '返回批次列表' : exitLabel}
           >←</button>
           <h1 className="food-m-title">{inEntry ? '登记入库' : '食品台账'}</h1>
           <span className="food-m-store">{storeName || ''}</span>

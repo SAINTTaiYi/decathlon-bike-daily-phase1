@@ -51,6 +51,7 @@ import RepairScene from './scenes/RepairScene.jsx'
 import ResaleScene from './scenes/ResaleScene.jsx'
 import SalesScene from './scenes/SalesScene.jsx'
 import { getAdminPendingCount } from './api/admin.js'
+import { foodSiteUrl, isFoodOnlySite, isOpsProductionSite, opsSiteUrl } from './utils/siteMode.js'
 import AppSelect from './components/appselect/AppSelect.jsx'
 import FoodApp from './components/food/FoodApp.jsx'
 
@@ -116,6 +117,11 @@ export default function App() {
   const [loginAnimationDone, setLoginAnimationDone] = useState(false)
   const [workspaceAssemblyDone, setWorkspaceAssemblyDone] = useState(false)
   const [appChoice, setAppChoice] = useState(readStoredAppChoice)
+  // 站点分流（2026-09-14）：eat.workshop.skin 是食品台账专用站点，直接进入该应用；
+  // 生产 workshop.skin 上食品台账改为整页跳转到独立站点（见 chooseApp）。
+  const foodOnlySite = isFoodOnlySite()
+  const opsProductionSite = isOpsProductionSite()
+  const effectiveApp = foodOnlySite ? 'food' : appChoice
   const [taskInputFocused, setTaskInputFocused] = useState(false)
   const [desktopLayout, setDesktopLayout] = useState(() => window.matchMedia?.('(min-width: 768px)').matches ?? false)
   const [desktopScene, setDesktopScene] = useState('pulse')
@@ -135,7 +141,7 @@ export default function App() {
   const introLocked = mustChangePassword || emailBindingRequired
   const deferUpdatePrompt = auth.source === 'login' && !introLocked && !workspaceAssemblyDone
   const workflow = useRemoteClosingWorkflow(authenticated && !introLocked)
-  const shiphub = useShipHub(authenticated && !introLocked && appChoice !== 'food')
+  const shiphub = useShipHub(authenticated && !introLocked && effectiveApp !== 'food')
   // 门店数据实时推送（2026-09-09）：服务端版本号一变就重新拉取，页面无需手动刷新。
   // 覆盖：工作单/台账、闭店状态、Shiphub 订单（含后台 cron 同步）、BI 销售数据。
   //
@@ -149,7 +155,7 @@ export default function App() {
       void workflow.refresh()
       void shiphub.ensureFresh()
     }, [workflow.refresh, shiphub.ensureFresh]),
-    { enabled: authenticated && !introLocked && appChoice !== 'food' }
+    { enabled: authenticated && !introLocked && effectiveApp !== 'food' }
   )
   const [menuOpen, setMenuOpen] = useState(false)
   const [passwordChangeOpen, setPasswordChangeOpen] = useState(false)
@@ -225,7 +231,7 @@ export default function App() {
   const canReopenClosing = role === 'manager' || role === 'admin'
   const writeLocked = Boolean(workflow.closedAt) || !online || Boolean(workflow.storageError)
 
-  const workspaceLaunching = authenticated && auth.source === 'login' && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone && appChoice === 'ops'
+  const workspaceLaunching = authenticated && auth.source === 'login' && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone && effectiveApp === 'ops'
 
   // 工作台是否真的已经呈现在用户面前。
   //
@@ -391,13 +397,24 @@ export default function App() {
   // 应用选择（2026-09-13）：选完即记入 sessionStorage，刷新沿用；「返回应用选择」
   // 则清空，让用户重新二选一。
   const chooseApp = useCallback((appId) => {
+    // 生产双站：食品台账是独立站点，整页跳转过去 —— 本页不渲染它的 DOM，
+    // 从结构上杜绝两套界面互相遮挡（用户 2026-09-14 定案）。
+    if (appId === 'food' && opsProductionSite) {
+      window.location.assign(foodSiteUrl())
+      return
+    }
     storeAppChoice(appId)
     setAppChoice(appId)
-  }, [])
+  }, [opsProductionSite])
+  // 退出食品台账：独立站点上直接回 Ops；单站环境（预览/本地）回到应用选择屏。
   const exitFoodApp = useCallback(() => {
+    if (foodOnlySite) {
+      window.location.assign(opsSiteUrl())
+      return
+    }
     clearAppChoice()
     setAppChoice('')
-  }, [])
+  }, [foodOnlySite])
 
   const completePasswordChange = () => {
     setPasswordChangeOpen(false)
@@ -746,7 +763,7 @@ export default function App() {
     return <><main className="hydration-state" role="status" aria-live="polite"><strong>SYNCING DATABASE</strong><span>正在读取门店业务台账…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
 
-  if (authenticated && introDone && workflow.hydrated && !workflow.hasSnapshot && appChoice === 'ops') {
+  if (authenticated && introDone && workflow.hydrated && !workflow.hasSnapshot && effectiveApp === 'ops') {
     return (
       <>
         <main className="hydration-state sync-failure" role="alert" aria-live="assertive">
@@ -774,8 +791,23 @@ export default function App() {
   // 应用选择（2026-09-13）：登录完成后先让用户选应用。选择屏与食品应用都是
   // 全屏 fixed 层，渲染在 Ops 容器**之外**；选择屏期间 Ops 容器保持挂载但整体
   // inert，避免两套界面同时可交互（屏幕阅读器也不该读到背后的台账）。
-  const showAppSelect = introDone && !appChoice && !introLocked
-  const opsPlayable = introDone && appChoice === 'ops'
+  const showAppSelect = introDone && !effectiveApp && !introLocked
+  const opsPlayable = introDone && effectiveApp === 'ops'
+  // 非 Ops 场景（应用选择屏 / 食品台账 / eat 独立站点）**完全不渲染 Ops 容器**。
+  // 只把它设成 inert 是不够的：容器仍占据文档流（约 1500px），页面因此可以滚动，
+  // 手机上一滑就能把 Ops 底栏拽出来 —— 这正是用户看到的「界面泄露」。
+  const renderOps = opsPlayable
+
+  // 双保险（2026-09-14）：非 Ops 场景锁住文档滚动。主修复是上面那条「不渲染 Ops 容器」
+  // ——它消除了约 1500px 的文档流高度；这里再兜一层，防止将来有人在非 Ops 场景
+  // 引入新的流内元素、又把页面撑出可滚动区域，重新出现「滑一下露出 Ops」。
+  useEffect(() => {
+    if (renderOps) return undefined
+    const root = document.documentElement
+    const previous = root.style.overflow
+    root.style.overflow = 'hidden'
+    return () => { root.style.overflow = previous }
+  }, [renderOps])
 
   return (
     <>
@@ -786,8 +818,8 @@ export default function App() {
           onRegistered={(payload) => { auth.acceptRegistration(payload); setLoginAnimationDone(true); setToast('注册完成，门店已开通。') }}
           onRecovered={() => { setLoginAnimationDone(false); setToast('密码已重设，请用新密码登录。') }}
         /> : null}
-      {introDone ? <a className="skip-link" href="#closing-summary-anchor">跳到闭店摘要</a> : null}
-      <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!opsPlayable || workspaceLaunching ? '' : undefined} aria-hidden={!opsPlayable || workspaceLaunching ? 'true' : undefined}>
+      {renderOps ? <a className="skip-link" href="#closing-summary-anchor">跳到闭店摘要</a> : null}
+      {renderOps ? <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={workspaceLaunching ? '' : undefined} aria-hidden={workspaceLaunching ? 'true' : undefined}>
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true">
           {/* Crextio 风格环境渐变光斑：品牌黄三层，GSAP 呼吸漂移/视差/转场脉冲 */}
           <div className="env-blob env-blob-a" />
@@ -859,14 +891,14 @@ export default function App() {
         <RecordEditorDialog open={Boolean(recordEditor)} onClose={() => setRecordEditor(null)} config={editorConfig} record={recordEditor?.record || null} onSave={(values) => recordEditor?.record ? workflow.editRecord(recordEditor.record.id, values) : workflow.addRecord(recordEditor.scene, values)} onNotify={setToast} />
         <HandoverTodoDialog open={handoverTodoOpen} items={(workflow.assignedToMe || []).map((item) => ({ ...item, sceneLabel: sceneById(item.scene)?.cn || item.scene }))} onJump={(item) => { setHandoverTodoOpen(false); navigateToScene(item.scene) }} onClose={() => { setHandoverTodoOpen(false); window.localStorage.setItem(`handover-todo-dismissed-${workflow.dateKey}`, '1') }} />
         {introDone ? <div data-workspace-layer="dock" data-workspace-priority="true"><ActionDock activeScene={visibleScene} onJump={jumpFromOverview} closedAt={workflow.closedAt} desktopLayout={desktopLayout} /></div> : null}
-      </div>
+      </div> : null}
       {/* 应用选择屏与食品台账必须是 Ops 容器的**兄弟节点**，绝不能放进容器内部：
           选择屏阶段 appChoice 为空 → opsPlayable 为 false → 容器整层 inert，
           放在里面的话所有卡片都点不动（2026-09-13 用户实测「点了没反应」）。
           容器还会承载 GSAP 动效残留的 transform，fixed 元素若在其中会以容器为
           定位基准，高度不足就露出底部 Ops dock（同日用户截图确认）。 */}
       {showAppSelect ? <AppSelect userName={currentUser} storeName={currentStore?.storeName} closeState={workflow.closedAt ? 'closed' : 'open'} onChoose={chooseApp} /> : null}
-      {introDone && appChoice === 'food' ? <FoodApp enabled={authenticated && !introLocked} userName={currentUser} storeName={currentStore?.storeName} role={role} onExit={exitFoodApp} onNotify={setToast} /> : null}
+      {introDone && effectiveApp === 'food' ? <FoodApp enabled={authenticated && !introLocked} userName={currentUser} storeName={currentStore?.storeName} role={role} onExit={exitFoodApp} exitLabel={foodOnlySite ? '去 Workshop Ops ↗' : '返回应用选择'} onNotify={setToast} /> : null}
       {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button></div> : null}
       <ReportImageDialog
         open={Boolean(reportImage?.objectUrl)}

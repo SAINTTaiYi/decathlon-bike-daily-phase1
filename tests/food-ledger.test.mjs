@@ -21,7 +21,8 @@ const [
   schemaVersion,
   migration,
   foodHook,
-  foodApi
+  foodApi,
+  siteMode
 ] = await Promise.all([
   read('../apps/web/src/App.jsx'),
   read('../apps/web/src/components/appselect/AppSelect.jsx'),
@@ -39,7 +40,8 @@ const [
   read('../apps/worker/src/schema-version.ts'),
   read('../migrations/d1/0035_food_ledger.sql'),
   read('../apps/web/src/hooks/useFoodLedger.js'),
-  read('../apps/web/src/api/food.js')
+  read('../apps/web/src/api/food.js'),
+  read('../apps/web/src/utils/siteMode.js')
 ])
 
 // 提取类名：JSX 里静态 className 的类名 + 双端命名空间前缀过滤。
@@ -137,15 +139,28 @@ test('食品台账：双端组件与应用选择屏齐全，且样式表已被 i
   assert.match(styleIndex, /@import '\.\/food-ledger\.css';/u, '样式必须在 index.css 注册')
 })
 
-test('应用选择：登录后先选应用，Ops 容器在选择屏与食品应用期间整体 inert', () => {
+test('应用选择：登录后先选应用，非 Ops 场景根本不渲染 Ops 容器（比 inert 更强的隔离）', () => {
   assert.match(app, /const ACTIVE_APP_KEY = 'bike-ops-active-app'/u)
-  assert.match(app, /const showAppSelect = introDone && !appChoice && !introLocked/u)
-  assert.match(app, /const opsPlayable = introDone && appChoice === 'ops'/u)
-  assert.match(app, /inert=\{!opsPlayable \|\| workspaceLaunching/u, 'Ops 容器必须在非 Ops 应用期间整体 inert')
+  assert.match(app, /const showAppSelect = introDone && !effectiveApp && !introLocked/u)
+  assert.match(app, /const opsPlayable = introDone && effectiveApp === 'ops'/u)
+  assert.match(app, /const renderOps = opsPlayable/u, 'Ops 容器必须由 renderOps 控制渲染')
+  // 2026-09-14 用户定案：从「整层 inert」升级为「根本不渲染」。
+  // inert 只挡交互，容器仍占据约 1500px 文档流（preview 实测 htmlScrollHeight=1499），
+  // 页面因此可以滚动，手机上一滑就把 Ops 底栏拽出来 —— 这就是用户反复看到的「界面泄露」。
+  assert.match(
+    app,
+    /\{renderOps \? <div ref=\{workspaceRootRef\} className="app-runtime workshop-runtime"/u,
+    'Ops 容器必须条件渲染：非 Ops 场景页面上不得存在 Ops 节点'
+  )
+  assert.ok(
+    !app.includes('inert={!opsPlayable || workspaceLaunching ?'),
+    '不得回退到「整层 inert 遮挡」的旧写法 —— 容器在非 Ops 场景必须根本不存在'
+  )
+  assert.ok(app.includes('</div> : null}'), 'Ops 容器必须有条件闭合，否则 JSX 结构不成立')
   assert.match(app, /showAppSelect \? <AppSelect/u)
-  assert.match(app, /appChoice === 'food' \? <FoodApp/u)
+  assert.match(app, /effectiveApp === 'food' \? <FoodApp/u)
   // 装配动画只在真正进入 Ops 时播放
-  assert.match(app, /workspaceLaunching = .*&& appChoice === 'ops'/u)
+  assert.match(app, /workspaceLaunching = .*&& effectiveApp === 'ops'/u)
   // 退出登录清空选择，下次登录重新二选一
   assert.match(app, /clearAppChoice\(\)/u)
 })
@@ -157,7 +172,7 @@ test('应用选择：登录后先选应用，Ops 容器在选择屏与食品应�
 //
 // 判据用「缩进 + DOM 顺序」而不是括号匹配：JSX 里含自闭合标签与表达式容器，
 // 计数 <div 会错位；缩进能直接表达「是不是容器的子元素」。
-test('应用选择屏与食品台账必须是 Ops 容器的兄弟节点，不得渲染进 inert 容器内', () => {
+test('应用选择屏与食品台账必须是 Ops 容器的兄弟节点，不得渲染进 Ops 容器内', () => {
   const lines = app.split('\n')
   const indentOf = (needle) => {
     const index = lines.findIndex((line) => line.includes(needle))
@@ -168,7 +183,7 @@ test('应用选择屏与食品台账必须是 Ops 容器的兄弟节点，不得
   const container = indentOf('className="app-runtime workshop-runtime"')
   const dock = indentOf('data-workspace-layer="dock"')
   const select = indentOf('{showAppSelect ? <AppSelect')
-  const food = indentOf("appChoice === 'food' ? <FoodApp")
+  const food = indentOf("effectiveApp === 'food' ? <FoodApp")
 
   // ① dock 是容器内的元素，缩进必须比容器深（确认缩进判据本身可信）
   assert.ok(dock.indent > container.indent, 'dock 应在容器内部（缩进更深）')
@@ -178,8 +193,8 @@ test('应用选择屏与食品台账必须是 Ops 容器的兄弟节点，不得
   // ③ 顺序上必须在 dock 之后（dock 是容器内最后的内容）
   assert.ok(select.index > dock.index, 'AppSelect 必须在 Ops 容器内容之后渲染')
   assert.ok(food.index > dock.index, 'FoodApp 必须在 Ops 容器内容之后渲染')
-  // ④ Ops 容器在选择屏期间仍然要 inert（两套界面不得同时可交互）
-  assert.match(app, /inert=\{!opsPlayable \|\| workspaceLaunching/u)
+  // ④ 容器由 renderOps 条件渲染：非 Ops 场景它连节点都不存在（2026-09-14）
+  assert.match(app, /\{renderOps \? <div ref=\{workspaceRootRef\}/u, 'Ops 容器必须条件渲染')
 })
 
 test('应用选择屏：跳转不依赖 GSAP 回调，入场动画不留隐藏态', async () => {
@@ -288,4 +303,53 @@ test('批次行：点开才出现处理按钮，红标显示「待处理」', ()
   assert.match(foodDesktop, /batch\.status === 'open' \? \(needsAction \? '待处理' : '在库'\)/u, '桌面端同样要标出待处理')
   // 行内动作只在展开态渲染（默认不渲染 = 列表保持紧凑）
   assert.match(foodMobile, /\{expanded \? <RowActions/u, '处理按钮必须受展开态控制')
+})
+
+// ── 站点分流（2026-09-14 用户定案）────────────────────────────────────────────
+// 背景：食品台账此前与 ops 共用同一张页面，即使把食品层做成全屏 fixed，ops 的 DOM
+// 依然占据文档流（实测约 1500px），手机上一滑动就能把 ops 底栏拽出来 —— 这是
+// 「ops 界面泄露」的真正根源，靠 z-index / inert 遮挡治标不治本。
+// 现在：eat.workshop.skin 是独立站点，页面上不存在任何 ops 节点。
+
+test('站点分流：eat 子域判定为食品台账独立站点，且与 ops 生产域名互斥', () => {
+  const fn = siteMode.slice(siteMode.indexOf('export function isFoodOnlySite'))
+  assert.ok(fn.length > 0, 'siteMode 必须导出 isFoodOnlySite')
+  assert.ok(fn.includes('/^eat\\./iu'), 'eat 子域判据必须以 eat. 开头（大小写不敏感）')
+
+  const ops = siteMode.slice(siteMode.indexOf('export function isOpsProductionSite'))
+  assert.ok(ops.length > 0, 'siteMode 必须导出 isOpsProductionSite')
+  assert.ok(ops.includes('isFoodOnlySite(hostname)'), 'ops 生产站判据必须先排除 eat 子域，两者互斥')
+  assert.ok(ops.includes('workshop\\.skin$'), 'ops 生产站判据必须锚定 workshop.skin 后缀')
+
+  assert.ok(siteMode.includes("FOOD_SITE_HOST = 'eat.workshop.skin'"), '独立站点地址必须显式声明')
+  assert.ok(siteMode.includes('export function foodSiteUrl'), '必须提供 foodSiteUrl()')
+  assert.ok(siteMode.includes('export function opsSiteUrl'), '必须提供 opsSiteUrl()')
+})
+
+test('站点分流：生产站点击食品台账是整页跳转到独立站点，不就地打开', () => {
+  const choose = app.slice(app.indexOf('const chooseApp = useCallback'))
+  const body = choose.slice(0, choose.indexOf('}, ['))
+  assert.ok(body.includes("appId === 'food' && opsProductionSite"), '生产双站环境下食品应用必须走跳转分支')
+  assert.ok(body.includes('window.location.assign(foodSiteUrl())'), '跳转必须整页导航到 eat 站点')
+  // 非生产站（预览 / 本地）保持就地打开，否则预览环境无法验收这套界面
+  assert.ok(body.includes('storeAppChoice(appId)'), '单站环境仍应就地打开应用')
+
+  const exit = app.slice(app.indexOf('const exitFoodApp = useCallback'))
+  const exitBody = exit.slice(0, exit.indexOf('}, ['))
+  assert.ok(exitBody.includes('opsSiteUrl()'), 'eat 站点上的退出按钮必须能回到 Ops 站点')
+})
+
+test('站点分流：双保险锁住文档滚动，防止将来重新撑出可滚动区域', () => {
+  assert.ok(app.includes("root.style.overflow = 'hidden'"), '非 Ops 场景必须锁住文档滚动（双保险）')
+  const lock = app.slice(app.indexOf('if (renderOps) return undefined'))
+  assert.ok(lock.length > 0, '锁滚动必须在 renderOps 为真时提前返回（Ops 场景不锁）')
+  assert.ok(lock.slice(0, 400).includes('}, [renderOps])'), '锁滚动必须随 renderOps 变化重算')
+})
+
+test('站点分流：eat 站点的退出按钮文案指向 Ops，单站仍是返回应用选择', () => {
+  assert.ok(app.includes("exitLabel={foodOnlySite ? '去 Workshop Ops ↗' : '返回应用选择'}"), '退出文案必须按站点分流')
+  for (const [name, shell] of [['移动端', foodMobile], ['桌面端', foodDesktop]]) {
+    assert.ok(shell.includes('exitLabel'), `${name}食品 shell 必须接收 exitLabel`)
+  }
+  assert.ok(foodApp.includes('exitLabel'), 'FoodApp 必须透传 exitLabel')
 })

@@ -56,7 +56,10 @@ test('App 门卡挂接：绑定门卡优先于改密门卡，业务钩子在锁�
   assert.match(app, /useShipHub\(authenticated && !introLocked/u)
   // 食品台账（2026-09-13）：独立应用期间不挂 Ops 的 Shiphub 数据与门店实时长轮询，
   // 避免门店用户在食品台账里白白消耗 Ops 的请求与 D1 读额度。
-  assert.match(app, /useShipHub\(authenticated && !introLocked && appChoice !== 'food'\)/u)
-  assert.match(app, /enabled: authenticated && !introLocked && appChoice !== 'food'/u)
+  // 判据是 effectiveApp 而不是 appChoice（2026-09-14）：eat.workshop.skin 独立站点上
+  // appChoice 始终为空（用户不经过选择屏），只有 effectiveApp 才是「真正在跑哪个应用」，
+  // 否则食品站点会照常拉起 Shiphub 与门店长轮询。
+  assert.match(app, /useShipHub\(authenticated && !introLocked && effectiveApp !== 'food'\)/u)
+  assert.match(app, /enabled: authenticated && !introLocked && effectiveApp !== 'food'/u)
   assert.match(app, /deferUpdatePrompt = auth\.source === 'login' && !introLocked/u)
 })

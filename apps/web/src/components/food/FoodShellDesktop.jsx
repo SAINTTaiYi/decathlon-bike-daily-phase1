@@ -335,7 +335,7 @@ function ShelfView({ ledger, canEdit, onNotify }) {
   )
 }
 
-export default function FoodShellDesktop({ ledger, view, onViewChange, userName, storeName, role, onExit, onNotify }) {
+export default function FoodShellDesktop({ ledger, view, onViewChange, userName, storeName, role, onExit, exitLabel = '返回应用选择', onNotify }) {
   const inEntry = view === 'entry'
   const tab = inEntry ? 'batches' : view
   const bodyRef = useRef(null)
@@ -392,7 +392,7 @@ export default function FoodShellDesktop({ ledger, view, onViewChange, userName,
         </nav>
 
         <div className="food-d-rail-foot">
-          <button type="button" className="food-d-exit" onClick={onExit}>← 返回应用选择</button>
+          <button type="button" className="food-d-exit" onClick={onExit}>← {exitLabel}</button>
         </div>
       </aside>
 
