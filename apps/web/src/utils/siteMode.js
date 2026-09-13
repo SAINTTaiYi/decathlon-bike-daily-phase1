@@ -20,9 +20,16 @@ function readHostname() {
   return typeof window === 'undefined' ? '' : window.location.hostname
 }
 
-/** 当前是否运行在食品台账独立站点（eat.*）。 */
+/**
+ * 当前是否运行在食品台账独立站点。
+ *
+ * 必须**精确匹配完整主机名**，不能用 /^eat\./ 这类前缀判据 ——
+ * 实测 `eat.workshop.skin.evil.com` 会通过前缀检查，让一个别人的域名
+ * 也走进食品站分支（判定表回归时发现）。
+ * 预览站与本地刻意不在此列：它们保持单站模式，否则无法验收这套界面。
+ */
 export function isFoodOnlySite(hostname = readHostname()) {
-  return /^eat\./iu.test(hostname)
+  return hostname.toLowerCase() === FOOD_SITE_HOST
 }
 
 /**

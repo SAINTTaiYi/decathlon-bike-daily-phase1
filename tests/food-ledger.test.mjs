@@ -339,19 +339,39 @@ test('批次行：点开才出现处理按钮，红标显示「待处理」', ()
 // 「ops 界面泄露」的真正根源，靠 z-index / inert 遮挡治标不治本。
 // 现在：eat.workshop.skin 是独立站点，页面上不存在任何 ops 节点。
 
-test('站点分流：eat 子域判定为食品台账独立站点，且与 ops 生产域名互斥', () => {
-  const fn = siteMode.slice(siteMode.indexOf('export function isFoodOnlySite'))
-  assert.ok(fn.length > 0, 'siteMode 必须导出 isFoodOnlySite')
-  assert.ok(fn.includes('/^eat\\./iu'), 'eat 子域判据必须以 eat. 开头（大小写不敏感）')
+test('站点分流：主机名判定表（运行时跑真实函数，非字符串匹配）', async () => {
+  // 直接 import 真实模块跑 —— 比在源码里找字符串强得多：
+  // 判定逻辑改坏了这里立刻红，而且能覆盖大小写、子串伪装等边界。
+  const mod = await import('../apps/web/src/utils/siteMode.js')
+  const { isFoodOnlySite, isOpsProductionSite, foodSiteUrl, opsSiteUrl } = mod
 
-  const ops = siteMode.slice(siteMode.indexOf('export function isOpsProductionSite'))
-  assert.ok(ops.length > 0, 'siteMode 必须导出 isOpsProductionSite')
-  assert.ok(ops.includes('isFoodOnlySite(hostname)'), 'ops 生产站判据必须先排除 eat 子域，两者互斥')
-  assert.ok(ops.includes('workshop\\.skin$'), 'ops 生产站判据必须锚定 workshop.skin 后缀')
+  // [hostname, 期望食品独立站, 期望 ops 生产站]
+  const table = [
+    ['eat.workshop.skin', true, false],
+    ['EAT.WORKSHOP.SKIN', true, false],            // 大小写不敏感
+    ['workshop.skin', false, true],
+    ['www.workshop.skin', false, true],
+    // ★ 安全边界：前缀判据 /^eat\./ 会让这个别人的域名也走进食品站分支（回归时发现）
+    ['eat.workshop.skin.evil.com', false, false],
+    ['workshop.skin.evil.com', false, false],
+    ['evil-eat.workshop.skin', false, true],        // 本 zone 的子域，属 ops
+    // 预览站与本地必须是单站（否则无法就地验收这套界面）
+    ['bike-ops-preview.geeklightonefish.workers.dev', false, false],
+    ['localhost', false, false],
+    ['127.0.0.1', false, false]
+  ]
+  for (const [host, food, ops] of table) {
+    assert.equal(isFoodOnlySite(host), food, `isFoodOnlySite(${host})`)
+    assert.equal(isOpsProductionSite(host), ops, `isOpsProductionSite(${host})`)
+  }
+  // 两个判据必须互斥：不能有一个 host 同时命中两边
+  for (const [host] of table) {
+    assert.ok(!(isFoodOnlySite(host) && isOpsProductionSite(host)), `${host} 不得同时命中两个站点`)
+  }
+  assert.equal(foodSiteUrl(), 'https://eat.workshop.skin/', 'foodSiteUrl 必须指向独立站点')
+  assert.equal(opsSiteUrl(), 'https://workshop.skin/', 'opsSiteUrl 必须指向 ops 站点')
 
-  assert.ok(siteMode.includes("FOOD_SITE_HOST = 'eat.workshop.skin'"), '独立站点地址必须显式声明')
-  assert.ok(siteMode.includes('export function foodSiteUrl'), '必须提供 foodSiteUrl()')
-  assert.ok(siteMode.includes('export function opsSiteUrl'), '必须提供 opsSiteUrl()')
+  assert.ok(siteMode.includes('export function isFoodOnlySite'), 'siteMode 必须导出 isFoodOnlySite')
 })
 
 test('站点分流：生产站点击食品台账是整页跳转到独立站点，不就地打开', () => {
