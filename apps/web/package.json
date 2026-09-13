@@ -11,6 +11,7 @@
     "preview:lan": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "@bike-ops/domain": "workspace:*",
     "@fontsource-variable/noto-sans-sc": "5.3.0",
     "animejs": "4.5.0",
     "framer-motion": "^12",

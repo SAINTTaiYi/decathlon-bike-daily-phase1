@@ -24,5 +24,8 @@
 @import './frosted.css';
 @import './d1-metrics.css';
 
+/* 食品保质期台账 + 应用选择屏（2026-09-13，双端双命名空间） */
+@import './food-ledger.css';
+
 @import './palette-lab.css';
 @import './prompt-lab.css';

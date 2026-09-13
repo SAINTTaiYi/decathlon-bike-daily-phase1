@@ -51,10 +51,44 @@ import RepairScene from './scenes/RepairScene.jsx'
 import ResaleScene from './scenes/ResaleScene.jsx'
 import SalesScene from './scenes/SalesScene.jsx'
 import { getAdminPendingCount } from './api/admin.js'
+import AppSelect from './components/appselect/AppSelect.jsx'
+import FoodApp from './components/food/FoodApp.jsx'
 
 // 闭店自动同步 Shiphub 的等待上限：sync() 内部含 202 回捞等待，
 // 超过这个时间就先出图（用已有数据），不让闭店卡在网络上。
 const CLOSING_SHIPHUB_SYNC_TIMEOUT_MS = 12000
+
+// 应用选择（2026-09-13）：登录后先选「Workshop Ops」还是「食品台账」。
+// 记进 sessionStorage —— 每个会话选一次；刷新沿用，新开标签页重新选择，
+// 退出登录时清除。空字符串代表「还未选择」，此时展示应用选择屏。
+const ACTIVE_APP_KEY = 'bike-ops-active-app'
+const APP_CHOICES = ['ops', 'food']
+
+function readStoredAppChoice() {
+  try {
+    const value = window.sessionStorage.getItem(ACTIVE_APP_KEY) || ''
+    return APP_CHOICES.includes(value) ? value : ''
+  } catch {
+    // Safari 隐私模式等场景 sessionStorage 不可用：降级为本次会话内不记忆。
+    return ''
+  }
+}
+
+function storeAppChoice(value) {
+  try {
+    window.sessionStorage.setItem(ACTIVE_APP_KEY, value)
+  } catch {
+    // 同上，静默降级（下次仍会显示选择屏，不影响功能）。
+  }
+}
+
+function clearAppChoice() {
+  try {
+    window.sessionStorage.removeItem(ACTIVE_APP_KEY)
+  } catch {
+    // 同上。
+  }
+}
 
 // 平台管理后台仅平台管理员在 #admin 下访问：切成异步 chunk，
 // 让门店工作台首屏不必下载后台的组件与样式。
@@ -81,6 +115,7 @@ export default function App() {
   const auth = useAuth()
   const [loginAnimationDone, setLoginAnimationDone] = useState(false)
   const [workspaceAssemblyDone, setWorkspaceAssemblyDone] = useState(false)
+  const [appChoice, setAppChoice] = useState(readStoredAppChoice)
   const [taskInputFocused, setTaskInputFocused] = useState(false)
   const [desktopLayout, setDesktopLayout] = useState(() => window.matchMedia?.('(min-width: 768px)').matches ?? false)
   const [desktopScene, setDesktopScene] = useState('pulse')
@@ -100,7 +135,7 @@ export default function App() {
   const introLocked = mustChangePassword || emailBindingRequired
   const deferUpdatePrompt = auth.source === 'login' && !introLocked && !workspaceAssemblyDone
   const workflow = useRemoteClosingWorkflow(authenticated && !introLocked)
-  const shiphub = useShipHub(authenticated && !introLocked)
+  const shiphub = useShipHub(authenticated && !introLocked && appChoice !== 'food')
   // 门店数据实时推送（2026-09-09）：服务端版本号一变就重新拉取，页面无需手动刷新。
   // 覆盖：工作单/台账、闭店状态、Shiphub 订单（含后台 cron 同步）、BI 销售数据。
   //
@@ -114,7 +149,7 @@ export default function App() {
       void workflow.refresh()
       void shiphub.ensureFresh()
     }, [workflow.refresh, shiphub.ensureFresh]),
-    { enabled: authenticated && !introLocked }
+    { enabled: authenticated && !introLocked && appChoice !== 'food' }
   )
   const [menuOpen, setMenuOpen] = useState(false)
   const [passwordChangeOpen, setPasswordChangeOpen] = useState(false)
@@ -190,7 +225,7 @@ export default function App() {
   const canReopenClosing = role === 'manager' || role === 'admin'
   const writeLocked = Boolean(workflow.closedAt) || !online || Boolean(workflow.storageError)
 
-  const workspaceLaunching = authenticated && auth.source === 'login' && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone
+  const workspaceLaunching = authenticated && auth.source === 'login' && loginAnimationDone && workflow.hydrated && !workspaceAssemblyDone && appChoice === 'ops'
 
   // 工作台是否真的已经呈现在用户面前。
   //
@@ -347,8 +382,22 @@ export default function App() {
     setHistoryTarget(null)
     setRecordEditor(null)
     setMediaRecord(null)
+    // 退出登录后回到「先选应用」的状态（sessionStorage 也随之清空）。
+    clearAppChoice()
+    setAppChoice('')
     await auth.logout()
   }
+
+  // 应用选择（2026-09-13）：选完即记入 sessionStorage，刷新沿用；「返回应用选择」
+  // 则清空，让用户重新二选一。
+  const chooseApp = useCallback((appId) => {
+    storeAppChoice(appId)
+    setAppChoice(appId)
+  }, [])
+  const exitFoodApp = useCallback(() => {
+    clearAppChoice()
+    setAppChoice('')
+  }, [])
 
   const completePasswordChange = () => {
     setPasswordChangeOpen(false)
@@ -697,7 +746,7 @@ export default function App() {
     return <><main className="hydration-state" role="status" aria-live="polite"><strong>SYNCING DATABASE</strong><span>正在读取门店业务台账…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
 
-  if (authenticated && introDone && workflow.hydrated && !workflow.hasSnapshot) {
+  if (authenticated && introDone && workflow.hydrated && !workflow.hasSnapshot && appChoice === 'ops') {
     return (
       <>
         <main className="hydration-state sync-failure" role="alert" aria-live="assertive">
@@ -722,6 +771,11 @@ export default function App() {
       : sceneRecordConfig[recordEditor.scene]
     : sceneRecordConfig.poster
   const showBoot = !introDone
+  // 应用选择（2026-09-13）：登录完成后先让用户选应用。选择屏与食品应用都是
+  // 全屏 fixed 层（z-index 300），选择屏期间 Ops 容器保持挂载但整体 inert，
+  // 避免两套界面同时可交互（屏幕阅读器也不该读到背后的台账）。
+  const showAppSelect = introDone && !appChoice && !introLocked
+  const opsPlayable = introDone && appChoice === 'ops'
 
   return (
     <>
@@ -733,7 +787,7 @@ export default function App() {
           onRecovered={() => { setLoginAnimationDone(false); setToast('密码已重设，请用新密码登录。') }}
         /> : null}
       {introDone ? <a className="skip-link" href="#closing-summary-anchor">跳到闭店摘要</a> : null}
-      <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!introDone || workspaceLaunching ? '' : undefined} aria-hidden={!introDone || workspaceLaunching ? 'true' : undefined}>
+      <div ref={workspaceRootRef} className="app-runtime workshop-runtime" data-ready={introDone && workflow.hydrated ? 'true' : 'false'} data-workspace-launching={workspaceLaunching ? 'true' : 'false'} inert={!opsPlayable || workspaceLaunching ? '' : undefined} aria-hidden={!opsPlayable || workspaceLaunching ? 'true' : undefined}>
         <div className="workspace-environment" data-workspace-layer="environment" aria-hidden="true">
           {/* Crextio 风格环境渐变光斑：品牌黄三层，GSAP 呼吸漂移/视差/转场脉冲 */}
           <div className="env-blob env-blob-a" />
@@ -782,11 +836,13 @@ export default function App() {
             <WorkshopModuleSection sceneId="sales"><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} storeCode={currentStore?.storeCode || ''} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></WorkshopModuleSection>
           </div>
         </main>
-        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} onChangePassword={() => setPasswordChangeOpen(true)} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} canShipHub={Boolean(shiphub.summary?.enabled && (role === 'manager' || role === 'admin'))} onShipHubSettings={() => setShiphubSettingsOpen(true)} canAdmin={auth.user?.isPlatformAdmin} onAdmin={() => { setMenuOpen(false); window.location.hash = '#admin' }} adminPending={adminPending} />
+        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} onChangePassword={() => setPasswordChangeOpen(true)} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} canShipHub={Boolean(shiphub.summary?.enabled && (role === 'manager' || role === 'admin'))} onShipHubSettings={() => setShiphubSettingsOpen(true)} onOpenFoodApp={() => chooseApp('food')} canAdmin={auth.user?.isPlatformAdmin} onAdmin={() => { setMenuOpen(false); window.location.hash = '#admin' }} adminPending={adminPending} />
         <PasswordChangeDialog open={passwordChangeOpen} userName={currentUser} onClose={() => setPasswordChangeOpen(false)} onChangePassword={auth.changePassword} onComplete={completePasswordChange} />
         <GovernanceDialog open={governanceOpen} onClose={() => setGovernanceOpen(false)} currentStoreId={currentStore?.storeId || auth.currentStoreId} onNotify={setToast} />
         <ShipHubSettingsDialog open={shiphubSettingsOpen || shiphubReconnectPrompt.shouldOpen} onClose={() => { setShiphubSettingsOpen(false); shiphubReconnectPrompt.dismiss() }} shiphub={shiphub} onNotify={setToast} canManage={role === 'manager' || role === 'admin'} />
         <LogDialog open={logOpen} onClose={() => setLogOpen(false)} events={workflow.events} />
+        {showAppSelect ? <AppSelect userName={currentUser} storeName={currentStore?.storeName} closeState={workflow.closedAt ? 'closed' : 'open'} onChoose={chooseApp} /> : null}
+        {introDone && appChoice === 'food' ? <FoodApp enabled={authenticated && !introLocked} userName={currentUser} storeName={currentStore?.storeName} role={role} onExit={exitFoodApp} onNotify={setToast} /> : null}
         <PermanentHistoryDialog open={permanentHistoryOpen} onClose={() => setPermanentHistoryOpen(false)} onLoad={workflow.getPermanentHistory} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
         <OperationHistoryDialog open={Boolean(historyTarget)} onClose={() => setHistoryTarget(null)} title={historyTitle} events={historyEvents} canUndo={workflow.canUndoHistoryEvent} onUndo={workflow.undoHistoryEvent} onNotify={setToast} />
         <AttachmentDialog record={mediaRecord} onClose={() => setMediaRecord(null)} locked={writeLocked} onNotify={setToast} />

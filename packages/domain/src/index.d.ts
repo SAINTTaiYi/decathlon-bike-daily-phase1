@@ -52,3 +52,32 @@ export function validatePickupCompletion(record: PickupCompletionRecord, supplie
 export function localBusinessDate(timeZone?: string, now?: Date): string
 export function describeChanges(before: Record<string, unknown>, after: Record<string, unknown>, labels?: Record<string, string>): string[]
 export function redactEmail(emailKey: string): string
+
+export const FOOD_KINDS: string[]
+export const FOOD_DATE_TYPES: string[]
+export const FOOD_BATCH_STATUSES: string[]
+export const FOOD_NEAR_SHELF_DAYS: number
+export const FOOD_DUE_SHELF_DAYS: number
+export const FOOD_PULL_SHELF_DAYS: number
+export function isIsoDate(value: unknown): boolean
+export function edate(isoDate: string, months: number): string
+export function addDays(isoDate: string, days: number): string
+export function daysUntil(isoDate: string, today: string): number | null
+export interface FoodDateInput {
+  kind?: string
+  dateType?: string
+  productionDate?: string
+  restrictedDate?: string
+  shelfLifeMonths?: number | string
+}
+export function computeFoodDates(input: FoodDateInput): { ok: false; error: string } | { ok: true; warnOn: string; expiresOn: string }
+export interface FoodBatchLike {
+  status?: string
+  warnOn?: string
+  expiresOn?: string
+  warn_on?: string
+  expires_on?: string
+}
+export function foodBatchStage(batch: FoodBatchLike | null | undefined, today: string): 'closed' | 'expired' | 'flagged' | 'soon' | 'fresh'
+export function isFoodBatchFlagged(batch: FoodBatchLike | null | undefined, today: string): boolean
+export function foodReceiptWarning(expiresOn: string, receivedDate: string): number | null
