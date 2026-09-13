@@ -49,6 +49,9 @@ const classNamesIn = (source, prefixes) => {
   return names
 }
 
+// 分析前先剥掉注释：块扫描正则会把前置注释当成选择器的一部分，导致规则被跳过。
+const foodCssNoComments = foodCss.replace(/\/\*[\s\S]*?\*\//gu, '')
+
 const APP_PREFIXES = ['appselect-d-', 'appselect-m-']
 const FOOD_PREFIXES = ['food-d-', 'food-m-']
 
@@ -65,7 +68,10 @@ test('食品台账：每个 JSX 类名都有样式落地（组件与样式不得
   ]
   for (const [source, prefixes] of sources) {
     for (const name of classNamesIn(source, prefixes)) {
-      if (!new RegExp(`\\.${name}(?![\\w-])`, 'u').test(foodCss)) missing.push(name)
+      // 必须真的出现在选择器位置（类名之后到 { 之间只允许选择器字符），
+      // 只在注释或属性值里出现不算落地。
+      const selectorUse = new RegExp(`\\.${name}(?![\\w-])[^{}]*\\{`, 'u')
+      if (!selectorUse.test(foodCssNoComments)) missing.push(name)
     }
   }
   assert.deepEqual(missing, [], `以下类名在 food-ledger.css 里没有任何声明：${missing.join(', ')}`)
@@ -76,6 +82,35 @@ test('食品台账：双端命名空间互斥（移动端不写桌面类名，�
   assert.deepEqual([...classNamesIn(foodDesktop, ['food-m-'])], [], '桌面端组件不得使用移动端类名')
   assert.deepEqual([...classNamesIn(appSelectMobile, ['appselect-d-'])], [], '应用选择屏移动端不得使用桌面端类名')
   assert.deepEqual([...classNamesIn(appSelectDesktop, ['appselect-m-'])], [], '应用选择屏桌面端不得使用移动端类名')
+})
+
+test('食品台账：声明列宽的类必须同时声明 display:grid（列宽规则不得形同虚设）', () => {
+  // 2026-09-13 实测踩坑：.food-d-shelf-row 只写了 grid-template-columns、
+  // 没写 display:grid，整行退化成行内流——名称/商品码/类别/保质期挤在一处，
+  // 而冒烟脚本只查行数与文本，看不出布局垮掉。此断言覆盖这一整类错误。
+  const blocks = foodCssNoComments.match(/[^{}]+\{[^}]*\}/gu) ?? []
+  const problems = []
+  for (const block of blocks) {
+    const selector = block.slice(0, block.indexOf('{')).trim()
+    const body = block.slice(block.indexOf('{'))
+    if (!/grid-template-columns\s*:/u.test(body)) continue
+    if (!/^\.[a-z0-9-]+$/u.test(selector)) continue
+    if (/display\s*:\s*grid/u.test(body)) continue
+    problems.push(selector)
+  }
+  assert.deepEqual(problems, [], `以下类声明了列宽却没有 display:grid：${problems.join(', ')}`)
+})
+
+test('食品台账：清单列宽单一真值，表头与数据行不得各写一份', () => {
+  const tokenCount = (foodCssNoComments.match(/--food-shelf-cols\s*:/gu) ?? []).length
+  assert.equal(tokenCount, 1, '清单列宽 token 只能定义一次')
+  const sheetRow = foodCssNoComments.match(/\.food-d-shelf-row\s*\{[^}]*\}/u)?.[0] ?? ''
+  assert.match(sheetRow, /display:\s*grid/u, '清单行必须是网格容器')
+  assert.match(sheetRow, /grid-template-columns:\s*var\(--food-shelf-cols\)/u, '清单行必须引用列宽 token')
+  const head = foodCssNoComments.match(/\.food-d-table\[data-kind='shelf'\]\s+\.food-d-row-head\s*\{[^}]*\}/u)?.[0] ?? ''
+  assert.ok(head, '清单表头必须显式套用清单列宽（否则按通用 8 列排布、与数据行错位）')
+  assert.match(head, /grid-template-columns:\s*var\(--food-shelf-cols\)/u, '表头必须引用同一 token')
+  assert.match(foodDesktop, /className="food-d-row food-d-row-head"/u, '表头行需保留 .food-d-row 以继承网格显示类型')
 })
 
 test('食品台账：分段滑块有定位上下文（memory 27 回归）', () => {

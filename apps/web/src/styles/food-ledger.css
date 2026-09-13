@@ -20,6 +20,9 @@
   --food-fresh: #17613c;
   --food-chip-bg: rgb(28 28 26 / .06);
   --food-chip-active: #1c1c1a;
+  /* 保质期清单的列宽。数据行（.food-d-shelf-row）与表头（.food-d-row-head）
+     必须共用这一份真值，否则表头按通用表格排布、与数据行错位（2026-09-13 实测）。 */
+  --food-shelf-cols: minmax(0, 2.4fr) 96px 110px 96px 96px;
 }
 
 /* ══════════════════════════ 应用选择屏 · 移动端 ══════════════════════════ */
@@ -384,11 +387,11 @@
     color: var(--ink-soft);
     font-size: 12.5px;
   }
-  .food-d-table[data-kind='shelf'] .food-d-row { grid-template-columns: minmax(0, 2.4fr) 96px 110px 96px 96px; }
   .food-d-row[data-stage='已过期'] { background: rgb(141 43 32 / .07); }
   .food-d-row[data-stage='红标'] { background: rgb(192 57 43 / .06); }
   .food-d-row[data-stage='已处理'] { background: rgb(28 28 26 / .035); color: #8f8e88; }
   .food-d-row-head { background: transparent; color: #8f8e88; font-family: var(--font-display); font-size: 10.5px; font-weight: 700; letter-spacing: .1em; padding-top: 2px; padding-bottom: 6px; }
+  .food-d-table[data-kind='shelf'] .food-d-row-head { grid-template-columns: var(--food-shelf-cols); }
   .food-d-name { color: var(--ink); font-size: 13px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .food-d-code { color: var(--muted); font-family: var(--font-display); font-size: 12px; letter-spacing: .02em; }
   .food-d-cat { color: var(--muted); font-size: 12px; }
@@ -449,7 +452,18 @@
   .food-d-entry-note { margin: 0; color: #8f8e88; font-size: 11px; line-height: 1.55; }
 
   /* 清单编辑 */
-  .food-d-shelf-row { grid-template-columns: minmax(0, 2.4fr) 96px 110px 96px 96px; }
+  .food-d-shelf-row {
+    display: grid;
+    grid-template-columns: var(--food-shelf-cols);
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 13px;
+    background: var(--surface);
+    color: var(--ink-soft);
+    font-size: 12.5px;
+  }
+  .food-d-shelf-row[data-open='true'] { background: #fffdf6; }
   .food-d-shelf-form { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1.6fr) 130px 150px auto; gap: 10px; align-items: end; padding-top: 10px; }
   .food-d-shelf-save { padding: 11px 22px 12px; border: 0; border-radius: 12px; background: var(--accent); color: #14161a; font-size: 13px; font-weight: 700; cursor: pointer; }
   .food-d-shelf-save:disabled { opacity: .5; }
