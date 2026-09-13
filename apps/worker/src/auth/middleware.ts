@@ -26,6 +26,18 @@ export function isEmailBindingRequired(auth: { emailBound?: boolean; emailBindin
   return auth.emailBound === false && auth.emailBindingExempt !== true
 }
 
+// 会话活跃时间戳节流间隔（2026-09-14 D1 写配额事故）。
+//
+// 旧实现：每个已登录请求都无条件 `UPDATE auth_sessions SET last_seen_at = ?`。
+// 长轮询（useStoreRealtime，每页约 2.4 次/分钟、全天约 3,500 次）把请求量放大了
+// 两个数量级，「每请求一次写」于是成为门店规模下的写配额黑洞：2026-09-13 账号级
+// 写入 104,212 行，绝大部分是这一列的更新——而该列全仓只写不读（没有任何界面或
+// 接口展示它），属于纯浪费。
+//
+// 现在距上次写入超过该间隔才写一次，其余请求完全零写。10 分钟粒度对任何
+// 「设备最近活动」类用途都足够，且天然免疫长轮询的请求风暴。
+const SESSION_TOUCH_INTERVAL_MS = 10 * 60 * 1000
+
 export function createAuthMiddleware(): {
   loadSession: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }>
   requirePasswordChanged: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }>
@@ -41,7 +53,7 @@ export function createAuthMiddleware(): {
     const tokenHash = await sessionTokenHash(token, config)
     const selectedStore = c.req.header('x-store-id') ?? null
     const row = await first(c.env.DB.prepare(`
-      SELECT s.token_hash, s.csrf_hash, u.id AS user_id, u.display_name, u.must_change_password, u.is_platform_admin,
+      SELECT s.token_hash, s.csrf_hash, s.last_seen_at, u.id AS user_id, u.display_name, u.must_change_password, u.is_platform_admin,
              u.email_key, u.username_key,
              st.id AS store_id, st.code AS store_code, st.name AS store_name, st.timezone AS store_timezone, sm.role
       FROM auth_sessions s
@@ -75,11 +87,16 @@ export function createAuthMiddleware(): {
       sessionTokenHash: mapped.tokenHash,
       csrfHash: mapped.csrfHash
     } satisfies AuthContext)
-    c.executionCtx.waitUntil(
-      c.env.DB.prepare('UPDATE auth_sessions SET last_seen_at = ? WHERE token_hash = ?')
-        .bind(nowIso(), tokenHash)
-        .run()
-    )
+    // 节流写（见 SESSION_TOUCH_INTERVAL_MS 注释）：请求本身已经读到了这一列，
+    // 判断不额外产生任何 D1 操作；不满足间隔就完全跳过写。
+    const lastSeenAt = Date.parse(String(mapped.lastSeenAt ?? ''))
+    if (!Number.isFinite(lastSeenAt) || Date.now() - lastSeenAt >= SESSION_TOUCH_INTERVAL_MS) {
+      c.executionCtx.waitUntil(
+        c.env.DB.prepare('UPDATE auth_sessions SET last_seen_at = ? WHERE token_hash = ?')
+          .bind(nowIso(), tokenHash)
+          .run()
+      )
+    }
     return next()
   }
 
