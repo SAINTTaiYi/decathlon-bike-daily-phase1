@@ -1,0 +1,40 @@
+name: Ops · Bind eat.workshop.skin (food ledger site)
+
+# 食品台账独立站点（2026-09-14 用户定案）：eat.workshop.skin 与 ops 的 workshop.skin
+# 分开，两边各自渲染自己的 DOM，从结构上杜绝界面互相遮挡（此前 ops 的 DOM 占据
+# 约 1500px 文档流，手机一滑就把底栏拽出来）。
+#
+# 幂等：重复运行安全，已绑定视为成功。
+# 刻意独立于部署流程 —— 域名绑定的失败不应阻塞发版。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bind:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Bind eat.workshop.skin to the Staging Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN secret missing"; exit 1; }
+          api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/domains"
+          echo "── 绑定前 ──"
+          curl -sS "$api" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -o before.json
+          node -e "const r=require('./before.json');console.log((r.result||[]).map(d=>d.hostname).join(', ')||'(empty)')"
+          echo "── 创建 eat.workshop.skin ──"
+          curl -sS -X POST "$api" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"zone_name":"workshop.skin","hostname":"eat.workshop.skin","service":"bike-ops-staging","environment":"production"}' \
+            -o result.json
+          node -e "const r=require('./result.json');const errs=JSON.stringify(r.errors||[]);if(r.success){console.log('BOUND',r.result.hostname);process.exit(0)}if(/already|exist|duplicate/i.test(errs)){console.log('ALREADY_BOUND');process.exit(0)}console.error('FAILED',errs);process.exit(1)"
+          echo "── 绑定后 ──"
+          curl -sS "$api" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -o after.json
+          node -e "const r=require('./after.json');console.log((r.result||[]).map(d=>d.hostname).join(', ')||'(empty)')"
