@@ -20,6 +20,7 @@ const [
   domainFood,
   schemaVersion,
   migration,
+  migration36,
   foodHook,
   foodApi,
   siteMode
@@ -39,6 +40,7 @@ const [
   read('../packages/domain/src/food.js'),
   read('../apps/worker/src/schema-version.ts'),
   read('../migrations/d1/0035_food_ledger.sql'),
+  read('../migrations/d1/0036_food_ledger_read_amplification.sql'),
   read('../apps/web/src/hooks/useFoodLedger.js'),
   read('../apps/web/src/api/food.js'),
   read('../apps/web/src/utils/siteMode.js')
@@ -270,7 +272,7 @@ test('数据层：迁移 0035 建两表两索引，schema 版本跟随最新迁�
   assert.match(migration, /CREATE INDEX food_batches_store_status_warn_idx/u)
   assert.match(migration, /CREATE INDEX food_batches_store_item_idx/u)
   assert.match(migration, /store_id TEXT NOT NULL REFERENCES stores\(id\)/u, '批次表必须绑定门店外键')
-  assert.match(schemaVersion, /'0035_food_ledger'/u)
+  assert.match(schemaVersion, /'0036_food_ledger_read_amplification'/u)
   assert.match(domainFood, /export function computeFoodDates/u)
   assert.match(domainFood, /export function foodBatchStage/u)
 })
@@ -400,4 +402,53 @@ test('站点分流：eat 站点的退出按钮文案指向 Ops，单站仍是返
     assert.ok(shell.includes('exitLabel'), `${name}食品 shell 必须接收 exitLabel`)
   }
   assert.ok(foodApp.includes('exitLabel'), 'FoodApp 必须透传 exitLabel')
+})
+
+// ── 2026-09-14 D1 读放大优化（0036）──────────────────────────────────
+// 实测 staging（单店 1,405 条批次）：默认列表 2,810 读行/次、overview 1,405 读行/次、
+// 临期筛选 1,325 读行/次，且都随历史线性增长。0036 补两个索引 + 一张计数表。
+test('性能：0036 补排序索引与到期索引，overview 不再全店聚合', () => {
+  assert.match(
+    migration36,
+    /food_batches_store_received_idx[\s\S]{0,90}received_date DESC, id DESC/u,
+    '默认排序 received_date DESC, id DESC 必须有对应索引，否则退化为全店扫描 + TEMP B-TREE'
+  )
+  assert.match(
+    migration36,
+    /food_batches_store_status_expires_idx[\s\S]{0,90}status, expires_on/u,
+    '过期 / 临期计数按 expires_on 过滤，既有索引第三列是 warn_on，用不上'
+  )
+  assert.match(migration36, /CREATE TABLE food_ledger_counters/u, '全店聚合计数必须落计数器表')
+  assert.match(
+    migration36,
+    /INSERT INTO food_ledger_counters[\s\S]*?FROM food_batches\s*GROUP BY store_id/u,
+    '迁移必须按现有批次回填计数，否则读路径会一直走昂贵的回退分支'
+  )
+  assert.match(migration36, /store_id TEXT PRIMARY KEY NOT NULL REFERENCES stores\(id\)/u, '计数器必须绑定门店，禁止跨店')
+})
+
+test('性能：overview 走计数器 + 三条索引化计数，写路径同步维护', () => {
+  // 读路径：total / open 点查计数器，不得再聚合批次表
+  assert.match(workerService, /SELECT total, open_total FROM food_ledger_counters WHERE store_id = \?/u,
+    'overview 必须点查计数器')
+  const overviewBody = workerService.split('export async function foodOverview')[1]?.split('\nexport ')[0] ?? ''
+  assert.ok(overviewBody.length > 0, '必须能定位 foodOverview 函数体')
+  assert.doesNotMatch(overviewBody, /COUNT\(\*\) AS total/u,
+    'overview 不得直接聚合批次表总数（那是全店扫描，正是 0036 要消除的读放大）')
+  // 三个日期口径各自可走覆盖索引
+  assert.match(workerService, /status = 'open' AND warn_on <= \?/u, '红标计数走 (store_id,status,warn_on)')
+  assert.match(workerService, /status = 'open' AND expires_on < \?/u, '过期计数走 (store_id,status,expires_on)')
+  assert.match(workerService, /status = 'open' AND warn_on > \? AND expires_on <= \?/u, '临期计数走 expires_on 索引')
+  // 写路径：登记同事务递增计数
+  assert.match(workerService, /INSERT INTO food_ledger_counters \(store_id, total, open_total, updated_at\)[\s\S]{0,180}ON CONFLICT\(store_id\) DO UPDATE SET/u,
+    '登记必须在同一事务里递增计数')
+  assert.match(workerService, /UPDATE food_ledger_counters SET open_total = open_total \+ \?/u,
+    '状态流转必须调整 open_total')
+  // 漂移护栏：计数调整必须排在乐观锁校验之后
+  const statusBody = workerService.split('export async function setFoodBatchStatus')[1] ?? ''
+  const staleCheck = statusBody.indexOf('if (!updated.meta.changes) throw')
+  const counterUpdate = statusBody.indexOf('UPDATE food_ledger_counters SET open_total')
+  assert.ok(staleCheck !== -1 && counterUpdate !== -1, '必须能同时定位乐观锁校验与计数调整')
+  assert.ok(staleCheck < counterUpdate,
+    '计数调整必须在乐观锁校验之后：同批执行时 revision 失配会让批次没变、计数却动了')
 })

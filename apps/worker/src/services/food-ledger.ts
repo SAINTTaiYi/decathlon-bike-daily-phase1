@@ -110,27 +110,68 @@ export async function upsertShelfLife(db: D1Database, input: FoodShelfLifeUpsert
   }
 }
 
-export async function foodOverview(db: D1Database, storeId: string, today: string): Promise<FoodOverview> {
-  const row = await first<{ total: number | null; open_total: number | null; flagged: number | null; expired: number | null; soon: number | null }>(
+// 计数读取（0036）。total / open 是全店聚合（open 约占 97% 的行），任何索引都
+// 省不掉全扫，因此改走递增计数器；flagged / expired / soon 依赖「今天」，
+// 会随日期漂移，不能进计数器，仍在 foodOverview 里实时算（各自走覆盖索引）。
+//
+// 计数器缺失时不写库、回退实时聚合：外部批量导入会绕过写路径，且只读降级会话
+// （D1 写额度耗尽时）不允许写。缺失只会让这一次读变贵，不会算错。
+async function readFoodCounters(db: D1Database, storeId: string): Promise<{ total: number; open: number }> {
+  const row = await first<{ total: number | null; open_total: number | null }>(
+    db.prepare('SELECT total, open_total FROM food_ledger_counters WHERE store_id = ?').bind(storeId)
+  )
+  if (row) return { total: Number(row.total ?? 0), open: Number(row.open_total ?? 0) }
+  const fallback = await first<{ total: number | null; open_total: number | null }>(
     db.prepare(`
-      SELECT
-        COUNT(*) AS total,
-        SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) AS open_total,
-        SUM(CASE WHEN status = 'open' AND warn_on <= ? THEN 1 ELSE 0 END) AS flagged,
-        SUM(CASE WHEN status = 'open' AND expires_on < ? THEN 1 ELSE 0 END) AS expired,
-        SUM(CASE WHEN status = 'open' AND warn_on > ? AND expires_on <= ? THEN 1 ELSE 0 END) AS soon
+      SELECT COUNT(*) AS total, SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) AS open_total
       FROM food_batches
       WHERE store_id = ?
-    `).bind(today, today, today, addDays(today, 45), storeId)
+    `).bind(storeId)
   )
+  return { total: Number(fallback?.total ?? 0), open: Number(fallback?.open_total ?? 0) }
+}
+
+// 维护用：按批次表重算计数器（外部导入后调用；幂等）。不在读路径自动调用，
+// 避免只读会话写库；需要时可从 ops 脚本或测试触发。
+export async function rebuildFoodCounters(db: D1Database, storeId: string): Promise<void> {
+  await run(db.prepare(`
+    INSERT INTO food_ledger_counters (store_id, total, open_total, updated_at)
+    SELECT ?, COUNT(*), SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END), ?
+    FROM food_batches
+    WHERE store_id = ?
+    ON CONFLICT(store_id) DO UPDATE SET
+      total = excluded.total,
+      open_total = excluded.open_total,
+      updated_at = excluded.updated_at
+  `).bind(storeId, nowIso(), storeId))
+}
+
+export async function foodOverview(db: D1Database, storeId: string, today: string): Promise<FoodOverview> {
+  // 三个日期口径各走一个覆盖索引（0036），单条实测 37 / 2 / 67 行，
+  // 合计约 100 行；改回单条聚合会退化成全店扫描（约 1,400 行）。
+  const [counters, flagged, expired, soon] = await Promise.all([
+    readFoodCounters(db, storeId),
+    first<{ n: number | null }>(db.prepare(`
+      SELECT COUNT(*) AS n FROM food_batches
+      WHERE store_id = ? AND status = 'open' AND warn_on <= ?
+    `).bind(storeId, today)),
+    first<{ n: number | null }>(db.prepare(`
+      SELECT COUNT(*) AS n FROM food_batches
+      WHERE store_id = ? AND status = 'open' AND expires_on < ?
+    `).bind(storeId, today)),
+    first<{ n: number | null }>(db.prepare(`
+      SELECT COUNT(*) AS n FROM food_batches
+      WHERE store_id = ? AND status = 'open' AND warn_on > ? AND expires_on <= ?
+    `).bind(storeId, today, addDays(today, 45)))
+  ])
   return {
     today,
     counts: {
-      total: Number(row?.total ?? 0),
-      open: Number(row?.open_total ?? 0),
-      flagged: Number(row?.flagged ?? 0),
-      expired: Number(row?.expired ?? 0),
-      soon: Number(row?.soon ?? 0)
+      total: counters.total,
+      open: counters.open,
+      flagged: Number(flagged?.n ?? 0),
+      expired: Number(expired?.n ?? 0),
+      soon: Number(soon?.n ?? 0)
     }
   }
 }
@@ -232,7 +273,12 @@ export async function createFoodBatch(
   const stamp = nowIso()
   const receiver = input.receiver || context.displayName
   // 显式列清单：BATCH_COLUMNS 是查询投影（不含 store_id），写入必须自己带上门店列。
-  await run(db.prepare(`
+  //
+  // 计数递增（0036）：total / open_total 是全店聚合，索引省不掉全扫，改走写路径
+  // 增量维护。批次写入与计数递增放进同一个 D1 batch（事务），要么都成要么都不成，
+  // 避免计数漂移。新登记的批次一律是 open，所以两个计数都 +1。
+  await db.batch([
+    db.prepare(`
     INSERT INTO food_batches (
       id, store_id, item_code, item_name, kind, date_type, production_date, restricted_date,
       received_date, quantity, receiver, warn_on, expires_on, status, checked_at, checked_by,
@@ -240,10 +286,19 @@ export async function createFoodBatch(
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', NULL, NULL, 1, ?, ?)
   `).bind(
-    id, context.storeId, input.itemCode, shelf.name, input.kind, input.dateType,
-    input.productionDate ?? null, input.restrictedDate ?? null, input.receivedDate,
-    input.quantity, receiver, dates.warnOn, dates.expiresOn, stamp, stamp
-  ))
+      id, context.storeId, input.itemCode, shelf.name, input.kind, input.dateType,
+      input.productionDate ?? null, input.restrictedDate ?? null, input.receivedDate,
+      input.quantity, receiver, dates.warnOn, dates.expiresOn, stamp, stamp
+    ),
+    db.prepare(`
+    INSERT INTO food_ledger_counters (store_id, total, open_total, updated_at)
+    VALUES (?, 1, 1, ?)
+    ON CONFLICT(store_id) DO UPDATE SET
+      total = total + 1,
+      open_total = open_total + 1,
+      updated_at = excluded.updated_at
+  `).bind(context.storeId, stamp)
+  ])
   return {
     batch: {
       id,
@@ -295,6 +350,17 @@ export async function setFoodBatchStatus(
     stamp, id, context.storeId, input.expectedRevision
   ))
   if (!updated.meta.changes) throw new ApiProblem(409, 'FOOD_BATCH_STALE', '该批次已被他人更新，请刷新后重试。')
+  // 计数同步（0036）：只在「是否在库」发生变化时调整 open_total（处理 ↔ 重新打开）。
+  //
+  // 刻意不放进上面的 batch：D1 batch 里语句影响 0 行不会报错，若与乐观锁守着的
+  // UPDATE 同批，revision 失配时批次没变、计数却动了 = 静默漂移。放在 changes
+  // 校验之后串行执行，语义严格「批次更新成功才动计数」。
+  const wasOpen = String(existing.status) === 'open'
+  if (wasOpen !== reopen) {
+    await run(db.prepare(
+      'UPDATE food_ledger_counters SET open_total = open_total + ?, updated_at = ? WHERE store_id = ?'
+    ).bind(reopen ? 1 : -1, stamp, context.storeId))
+  }
   return mapFoodBatchRow({
     ...existing,
     status: input.status,
