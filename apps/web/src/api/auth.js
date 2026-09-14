@@ -3,6 +3,9 @@ import { api } from './client.js'
 export const restoreSession = (signal) => api('/api/v1/auth/me', { signal })
 export const loginAccount = (username, password) => api('/api/v1/auth/login', { method: 'POST', body: { username, password } })
 export const logoutAccount = () => api('/api/v1/auth/logout', { method: 'POST', body: {} })
+// 只读会话恢复（2026-09-14）：写额度恢复后，把无状态只读会话补签成可写会话。
+// 只读令牌不会自动变回可写——必须由前端在恢复后主动调用一次（自动重试见 useAuth）。
+export const upgradeReadOnlySession = () => api('/api/v1/auth/session/upgrade', { method: 'POST', body: {} })
 export const changePasswordAccount = (currentPassword, nextPassword, idempotencyKey) => api('/api/v1/auth/change-password', { method: 'POST', body: { currentPassword, nextPassword }, idempotencyKey })
 export const setupAdminAccount = (body) => api('/api/v1/auth/setup', { method: 'POST', body })
 export const createUserAccount = (body) => api('/api/v1/users', { method: 'POST', body })

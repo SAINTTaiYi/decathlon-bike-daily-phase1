@@ -232,6 +232,22 @@ button:disabled { opacity: .48; }
 /* 只读降级横幅（2026-09-14）：写额度耗尽时可看不可改，用琥珀色区别于离线的红色语义。 */
 .workshop-global-alert[data-tone='readonly'] { background: #fff4d6; color: #7a4b06; }
 
+/* 只读横幅的「立即恢复」按钮（2026-09-14）：手动触发只读会话补签；后台自动重试照跑。 */
+.workshop-global-alert-action {
+  margin-inline-start: 10px;
+  padding: 3px 12px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.workshop-global-alert-action:hover:not(:disabled) { background: rgb(122 75 6 / .08); }
+.workshop-global-alert-action:disabled { opacity: .55; cursor: default; }
+
 .workshop-shell {
   position: relative;
   width: min(100%, 1180px);

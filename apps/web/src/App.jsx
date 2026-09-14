@@ -185,6 +185,8 @@ export default function App() {
   const [handoverTodoOpen, setHandoverTodoOpen] = useState(false)
   const handoverTodoCheckedRef = useRef(false)
   const [toast, setToast] = useState('')
+  // 只读横幅「立即恢复」的手动重试忙态（自动重试循环在 useAuth 里，两者互不干扰）。
+  const [readonlyRetryBusy, setReadonlyRetryBusy] = useState(false)
   const [online, setOnline] = useState(() => navigator.onLine)
 
   const currentUser = auth.user?.displayName || ''
@@ -412,6 +414,31 @@ export default function App() {
     setAppChoice('')
     await auth.logout()
   }
+
+  // 只读恢复（2026-09-14）：横幅上的手动入口（自动重试在 useAuth 后台跑）。
+  const retryReadonly = useCallback(async () => {
+    setReadonlyRetryBusy(true)
+    try {
+      const result = await auth.upgrade()
+      if (!result.ok) setToast({ message: result.error || '恢复失败，请稍后重试。', tone: 'error' })
+    } finally {
+      setReadonlyRetryBusy(false)
+    }
+  }, [auth.upgrade])
+
+  // 只读解除（额度恢复）后补一次全量刷新 + 提示：只读期间的当日行是内存默认值（不落库），
+  // 恢复写权限后要拉回真实数据，并把界面上的「已保存 / 已闭店」状态对齐。
+  const readonlyRecoveredRef = useRef(false)
+  useEffect(() => {
+    if (auth.source !== 'upgrade') {
+      readonlyRecoveredRef.current = false
+      return
+    }
+    if (readonlyRecoveredRef.current) return
+    readonlyRecoveredRef.current = true
+    setToast('只读模式已解除，写入已恢复。')
+    void workflow.refresh()
+  }, [auth.source, workflow.refresh])
 
   // 应用选择（2026-09-13）：选完即记入 sessionStorage，刷新沿用；「返回应用选择」
   // 则清空，让用户重新二选一。
@@ -849,7 +876,7 @@ export default function App() {
           />
         </div>
         {!online ? <p className="workshop-global-alert" role="status">OFFLINE · 当前仅可查看最近成功加载的数据；恢复网络后才能修改。</p> : null}
-        {online && auth.readOnly ? <p className="workshop-global-alert" data-tone="readonly" role="status">只读模式 · 数据库写入额度已用尽（免费套餐上限），预计北京时间 08:00 自动恢复；期间可查看数据，暂时无法修改。</p> : null}
+        {online && auth.readOnly ? <p className="workshop-global-alert" data-tone="readonly" role="status">只读模式 · 数据库写入额度已用尽（免费套餐上限），预计北京时间 08:00 自动恢复；期间可查看数据，恢复后自动解除。<button type="button" className="workshop-global-alert-action" disabled={readonlyRetryBusy} onClick={() => void retryReadonly()}>{readonlyRetryBusy ? '正在恢复…' : '立即恢复'}</button></p> : null}
         <main className="workshop-shell" data-desktop-scene={desktopScene} id="main-content" tabIndex="-1" data-workspace-layer="structure">
           <div className="workshop-module-stack" data-workspace-layer="focus">
             <WorkshopModuleSection sceneId="pulse" className="workshop-overview-panel">

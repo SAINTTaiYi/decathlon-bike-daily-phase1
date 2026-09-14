@@ -260,6 +260,68 @@ export function authRoutes() {
     })
   })
 
+  // 只读会话恢复（2026-09-14 用户验收）：写额度恢复后把无状态只读会话补签成可写会话。
+  //
+  // 只读令牌是无状态的，服务端不会自动把它变回可写——必须由客户端在额度恢复后主动
+  // 请求本端点：INSERT 成功即换发正式会话 cookie（含新的 CSRF），只读横幅随之解除。
+  // 前端在只读期间每 3 分钟静默重试一次（useAuth），横幅上另有「立即恢复」手动入口。
+  // 不挂 requireCsrf：只读会话根本没有 CSRF 哈希（csrfToken 恒为空），挂了必炸；
+  // 端点本身不执行任何业务写，最坏情况只是给「已登录的本人」补一行会话记录。
+  app.post('/api/v1/auth/session/upgrade', auth.loadSession, async (c) => {
+    const config = c.get('config')
+    const context = c.get('auth')!
+    // 已经是可写会话：幂等返回，零写入（自动重试与手动点击可能重复触发）。
+    if (!context.readOnly) return c.json({ readOnly: false })
+    const secrets = await createSessionSecrets(config)
+    const expiresAt = new Date(Date.now() + config.SESSION_TTL_HOURS * 60 * 60 * 1000).toISOString()
+    const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || ''
+    const ipHash = ip ? await keyedHash(ip, config.SESSION_SECRET) : null
+    const stamp = nowIso()
+    const audit = prepareAudit(c.env.DB, {
+      context, action: 'login', entityType: 'account', entityId: context.userId,
+      businessDate: localBusinessDate(context.storeTimezone),
+      summary: `恢复只读会话：${context.displayName}`,
+      after: { userId: context.userId, storeId: context.storeId }, reversible: false
+    })
+    try {
+      const [created] = await c.env.DB.batch([
+        c.env.DB.prepare(`
+          INSERT INTO auth_sessions (token_hash, csrf_hash, user_id, expires_at, last_seen_at, created_at, ip_hash, user_agent)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          secrets.tokenHash, secrets.csrfHash, context.userId, expiresAt, stamp, stamp, ipHash,
+          (c.req.header('user-agent') ?? '').slice(0, 500) || null
+        ),
+        audit.statement
+      ])
+      if (!created?.meta.changes) throw new ApiProblem(500, 'SESSION_UPGRADE_FAILED', '会话恢复失败，请稍后重试。')
+    } catch (error) {
+      const limitKind = detectD1LimitError(errorChainText(error))
+      if (limitKind !== 'write') throw error
+      throw new ApiProblem(503, 'D1_WRITE_LIMIT', '数据库每日写入额度已用尽（免费套餐上限），预计北京时间 08:00 自动恢复；页面会自动重试，恢复后自动解除只读。')
+    }
+    setSessionCookie(c, secrets.token, config)
+    const stores = await all<MembershipRow>(c.env.DB.prepare(`
+      SELECT st.id AS store_id, st.code AS store_code, st.name AS store_name, st.timezone, sm.role
+      FROM store_members sm JOIN stores st ON st.id = sm.store_id
+      WHERE sm.user_id = ? AND sm.status = 'active' AND st.status = 'active'
+      ORDER BY sm.effective_from ASC, sm.created_at ASC
+    `).bind(context.userId))
+    return c.json({
+      user: {
+        id: context.userId,
+        displayName: context.displayName,
+        mustChangePassword: context.mustChangePassword,
+        isPlatformAdmin: context.isPlatformAdmin,
+        emailBindingRequired: isEmailBindingRequired(context)
+      },
+      stores: mapMemberships(stores),
+      currentStoreId: context.storeId,
+      csrfToken: secrets.csrfToken,
+      readOnly: false
+    })
+  })
+
   app.post('/api/v1/auth/logout', auth.loadSession, auth.requireCsrf, async (c) => {
     const context = c.get('auth')!
     // 只读降级会话没有数据库行：撤销写不了也不需要，清 cookie 即可。
