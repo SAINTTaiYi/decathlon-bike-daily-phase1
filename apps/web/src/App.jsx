@@ -51,19 +51,20 @@ import RepairScene from './scenes/RepairScene.jsx'
 import ResaleScene from './scenes/ResaleScene.jsx'
 import SalesScene from './scenes/SalesScene.jsx'
 import { getAdminPendingCount } from './api/admin.js'
-import { foodSiteUrl, isFoodOnlySite, isOpsProductionSite, opsSiteUrl } from './utils/siteMode.js'
+import { foodSiteUrl, isFoodOnlySite, isMassOnlySite, isOpsProductionSite, massSiteUrl, opsSiteUrl } from './utils/siteMode.js'
 import AppSelect from './components/appselect/AppSelect.jsx'
 import FoodApp from './components/food/FoodApp.jsx'
+import StoreDesignApp from './components/storedesign/StoreDesignApp.jsx'
 
 // 闭店自动同步 Shiphub 的等待上限：sync() 内部含 202 回捞等待，
 // 超过这个时间就先出图（用已有数据），不让闭店卡在网络上。
 const CLOSING_SHIPHUB_SYNC_TIMEOUT_MS = 12000
 
-// 应用选择（2026-09-13）：登录后先选「Workshop Ops」还是「食品台账」。
+// 应用选择（2026-09-13）：登录后先选「Workshop Ops」「食品台账」还是「门店设计」。
 // 记进 sessionStorage —— 每个会话选一次；刷新沿用，新开标签页重新选择，
 // 退出登录时清除。空字符串代表「还未选择」，此时展示应用选择屏。
 const ACTIVE_APP_KEY = 'bike-ops-active-app'
-const APP_CHOICES = ['ops', 'food']
+const APP_CHOICES = ['ops', 'food', 'mass']
 
 function readStoredAppChoice() {
   try {
@@ -117,11 +118,13 @@ export default function App() {
   const [loginAnimationDone, setLoginAnimationDone] = useState(false)
   const [workspaceAssemblyDone, setWorkspaceAssemblyDone] = useState(false)
   const [appChoice, setAppChoice] = useState(readStoredAppChoice)
-  // 站点分流（2026-09-14）：eat.workshop.skin 是食品台账专用站点，直接进入该应用；
-  // 生产 workshop.skin 上食品台账改为整页跳转到独立站点（见 chooseApp）。
+  // 站点分流（2026-09-14 食品台账 · 2026-09-15 门店设计）：eat / mass 是独立站点，
+  // 各自直接进入对应应用；生产 workshop.skin 上这两个应用改为整页跳转到
+  // 各自站点（见 chooseApp），本页不渲染它们的 DOM。
   const foodOnlySite = isFoodOnlySite()
+  const massOnlySite = isMassOnlySite()
   const opsProductionSite = isOpsProductionSite()
-  const effectiveApp = foodOnlySite ? 'food' : appChoice
+  const effectiveApp = foodOnlySite ? 'food' : (massOnlySite ? 'mass' : appChoice)
   const [taskInputFocused, setTaskInputFocused] = useState(false)
   const [desktopLayout, setDesktopLayout] = useState(() => window.matchMedia?.('(min-width: 768px)').matches ?? false)
   const [desktopScene, setDesktopScene] = useState('pulse')
@@ -140,8 +143,12 @@ export default function App() {
   const emailBindingRequired = Boolean(auth.user?.emailBindingRequired)
   const introLocked = mustChangePassword || emailBindingRequired
   const deferUpdatePrompt = auth.source === 'login' && !introLocked && !workspaceAssemblyDone
-  const workflow = useRemoteClosingWorkflow(authenticated && !introLocked)
-  const shiphub = useShipHub(authenticated && !introLocked && effectiveApp !== 'food')
+  // 非 Ops 场景（食品台账 / 门店设计，含各自的独立站点）不需要门店业务数据：
+  // bootstrap 与 Shiphub 只有 Ops 用得上。关掉既是语义正确，也省掉每次打开
+  // 这两站时的 D1 读行（2026-09-15）。
+  const opsDataNeeded = effectiveApp !== 'food' && effectiveApp !== 'mass'
+  const workflow = useRemoteClosingWorkflow(authenticated && !introLocked && opsDataNeeded)
+  const shiphub = useShipHub(authenticated && !introLocked && opsDataNeeded)
   // 门店数据实时推送（2026-09-09）：服务端版本号一变就重新拉取，页面无需手动刷新。
   // 覆盖：工作单/台账、闭店状态、Shiphub 订单（含后台 cron 同步）、BI 销售数据。
   //
@@ -155,7 +162,7 @@ export default function App() {
       void workflow.refresh()
       void shiphub.ensureFresh()
     }, [workflow.refresh, shiphub.ensureFresh]),
-    { enabled: authenticated && !introLocked && effectiveApp !== 'food' }
+    { enabled: authenticated && !introLocked && opsDataNeeded }
   )
   const [menuOpen, setMenuOpen] = useState(false)
   const [passwordChangeOpen, setPasswordChangeOpen] = useState(false)
@@ -384,7 +391,8 @@ export default function App() {
   // （setup / 平台管理 / restoring / 门卡 / 快照等待…），hook 放它们之后会让各次渲染的
   // hook 数量不一致，React 直接抛 "Rendered more hooks than during the previous render"，
   // 整页落进错误边界（实测表现为 fatal-state）。
-  // Ops 容器是否渲染 —— 只有真正进入 Ops 才渲染它。
+  // Ops 容器是否渲染 —— 只有真正进入 Ops 才渲染它（应用选择屏、食品台账、
+  // 门店设计，以及 eat / mass 独立站点上都**不**渲染，见下方注释）。
   // 之所以在这里展开（而不是引用下方的渲染变量），是因为它要参与 hooks 区的锁滚动 effect。
   const renderOps = introDone && effectiveApp === 'ops'
   useEffect(() => {
@@ -441,12 +449,16 @@ export default function App() {
   }, [auth.source, workflow.refresh])
 
   // 应用选择（2026-09-13）：选完即记入 sessionStorage，刷新沿用；「返回应用选择」
-  // 则清空，让用户重新二选一。
+  // 则清空，让用户重新选择。
   const chooseApp = useCallback((appId) => {
-    // 生产双站：食品台账是独立站点，整页跳转过去 —— 本页不渲染它的 DOM，
-    // 从结构上杜绝两套界面互相遮挡（用户 2026-09-14 定案）。
+    // 生产三站：食品台账与门店设计都是独立站点，整页跳转过去 —— 本页不渲染
+    // 它们的 DOM，从结构上杜绝两套界面互相遮挡（用户 2026-09-14 定案）。
     if (appId === 'food' && opsProductionSite) {
       window.location.assign(foodSiteUrl())
+      return
+    }
+    if (appId === 'mass' && opsProductionSite) {
+      window.location.assign(massSiteUrl())
       return
     }
     storeAppChoice(appId)
@@ -461,6 +473,15 @@ export default function App() {
     clearAppChoice()
     setAppChoice('')
   }, [foodOnlySite])
+  // 退出门店设计：同上（站点上的「退出」按钮 → iframe postMessage → 这里）。
+  const exitMassApp = useCallback(() => {
+    if (massOnlySite) {
+      window.location.assign(opsSiteUrl())
+      return
+    }
+    clearAppChoice()
+    setAppChoice('')
+  }, [massOnlySite])
 
   const completePasswordChange = () => {
     setPasswordChangeOpen(false)
@@ -834,11 +855,13 @@ export default function App() {
       : sceneRecordConfig[recordEditor.scene]
     : sceneRecordConfig.poster
   const showBoot = !introDone
-  // 应用选择（2026-09-13）：登录完成后先让用户选应用。选择屏与食品应用都是
-  // 全屏 fixed 层，渲染在 Ops 容器**之外**；选择屏期间 Ops 容器完全不渲染
+  // 应用选择（2026-09-13）：登录完成后先让用户选应用（Ops / 食品台账 / 门店设计）。
+  // 选择屏、食品应用、门店设计都是全屏 fixed 层，渲染在 Ops 容器**之外**；
+  // 选择屏期间 Ops 容器完全不渲染
   // （2026-09-14 由「整层 inert」升级而来），两套界面不可能同时存在。
   const showAppSelect = introDone && !effectiveApp && !introLocked
-  // 非 Ops 场景（应用选择屏 / 食品台账 / eat 独立站点）**完全不渲染 Ops 容器**。
+  // 非 Ops 场景（应用选择屏 / 食品台账 / 门店设计 / eat · mass 独立站点）
+  // **完全不渲染 Ops 容器**。
   // 只把它设成 inert 是不够的：容器仍占据文档流（约 1500px），页面因此可以滚动，
   // 手机上一滑就能把 Ops 底栏拽出来 —— 这正是用户看到的「界面泄露」。
   // 判据见上方 hooks 区（renderOps 与锁滚动 effect 必须待在一起）。
@@ -904,7 +927,7 @@ export default function App() {
             <WorkshopModuleSection sceneId="sales"><SalesScene kpi={workflow.kpi} kpiReady={workflow.kpiReady} savedAt={workflow.kpiSavedAt} closedAt={writeLocked} storeCode={currentStore?.storeCode || ''} onEditKpi={() => setKpiOpen(true)} onHistory={() => setHistoryTarget({ scene: 'sales', record: null })} /></WorkshopModuleSection>
           </div>
         </main>
-        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} onChangePassword={() => setPasswordChangeOpen(true)} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} canShipHub={Boolean(shiphub.summary?.enabled && (role === 'manager' || role === 'admin'))} onShipHubSettings={() => setShiphubSettingsOpen(true)} onOpenFoodApp={() => chooseApp('food')} canAdmin={auth.user?.isPlatformAdmin} onAdmin={() => { setMenuOpen(false); window.location.hash = '#admin' }} adminPending={adminPending} />
+        <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} onUndo={async () => { const result = await workflow.undoLast(); setToast(result.ok ? '已撤回最近一次数据库操作' : { message: result.error, tone: 'error' }); return result }} onCopyReport={copyReport} canUndo={workflow.canUndo && !writeLocked} onReset={async () => { const result = await workflow.resetDay(); setToast(result.ok ? '今天的销售数据已重置' : { message: result.error, tone: 'error' }); return result }} locked={writeLocked} currentUser={currentUser} currentRole={roleLabels[role]} currentStore={currentStore?.storeName || '门店'} onSwitchUser={logout} onChangePassword={() => setPasswordChangeOpen(true)} hasLocalData={canReopenClosing && hasLocalV5Data()} onMigrate={() => setMigrationOpen(true)} canGovernance={true} onGovernance={() => setGovernanceOpen(true)} onOpenPermanentHistory={() => setPermanentHistoryOpen(true)} canShipHub={Boolean(shiphub.summary?.enabled && (role === 'manager' || role === 'admin'))} onShipHubSettings={() => setShiphubSettingsOpen(true)} onOpenFoodApp={() => chooseApp('food')} onOpenMassDesign={() => chooseApp('mass')} canAdmin={auth.user?.isPlatformAdmin} onAdmin={() => { setMenuOpen(false); window.location.hash = '#admin' }} adminPending={adminPending} />
         <PasswordChangeDialog open={passwordChangeOpen} userName={currentUser} onClose={() => setPasswordChangeOpen(false)} onChangePassword={auth.changePassword} onComplete={completePasswordChange} />
         <GovernanceDialog open={governanceOpen} onClose={() => setGovernanceOpen(false)} currentStoreId={currentStore?.storeId || auth.currentStoreId} onNotify={setToast} />
         <ShipHubSettingsDialog open={shiphubSettingsOpen || shiphubReconnectPrompt.shouldOpen} onClose={() => { setShiphubSettingsOpen(false); shiphubReconnectPrompt.dismiss() }} shiphub={shiphub} onNotify={setToast} canManage={role === 'manager' || role === 'admin'} />
@@ -934,6 +957,12 @@ export default function App() {
           定位基准，高度不足就露出底部 Ops dock（同日用户截图确认）。 */}
       {showAppSelect ? <AppSelect userName={currentUser} storeName={currentStore?.storeName} closeState={workflow.closedAt ? 'closed' : 'open'} onChoose={chooseApp} /> : null}
       {introDone && effectiveApp === 'food' ? <FoodApp enabled={authenticated && !introLocked} userName={currentUser} storeName={currentStore?.storeName} role={role} onExit={exitFoodApp} exitLabel={foodOnlySite ? '去 Workshop Ops ↗' : '返回应用选择'} onNotify={setToast} /> : null}
+      {/* 门店设计渲染（2026-09-15）：独立站点 mass.workshop.skin 的宿主外壳。
+          工具本体是 /store-design/ 下的静态页（~/web/store-3d 的原样发布副本，
+          只在 index.html 加了页头退出按钮并附带 embed.js 钩子），这里只负责
+          登录门 + 整屏 iframe。预览站/本地是就地嵌入，「退出」按钮经 postMessage
+          回到应用选择屏；正式站点上该按钮整页跳回 Ops（exitMode）。 */}
+      {introDone && !introLocked && effectiveApp === 'mass' ? <StoreDesignApp exitMode={massOnlySite ? 'ops' : 'back'} onExit={exitMassApp} /> : null}
       {workspaceLaunching ? <div className="workspace-launch-overlay" data-workspace-launch-overlay role="dialog" aria-modal="true" aria-label="工作台入场动画" onPointerDown={(event) => { if (event.currentTarget === event.target) skipWorkspaceAssembly() }}><button type="button" autoFocus onClick={skipWorkspaceAssembly}>跳过入场动画 <small>ESC</small></button></div> : null}
       <ReportImageDialog
         open={Boolean(reportImage?.objectUrl)}

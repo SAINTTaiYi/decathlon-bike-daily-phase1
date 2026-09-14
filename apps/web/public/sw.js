@@ -16,9 +16,15 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/health/')) return
 
   if (event.request.mode === 'navigate') {
+    // 只有根路径的导航才刷新离线兜底副本：/store-design/ 这类内嵌页面同样以
+    // navigate 模式请求（门店设计的 iframe），若也写进 '/'，离线时就会拿工具页
+    // 顶替工作台外壳（2026-09-15 接入门店设计时发现）。
+    const isShellNavigation = url.pathname === '/'
     event.respondWith(fetch(event.request).then((response) => {
-      const copy = response.clone()
-      caches.open(CACHE).then((cache) => cache.put('/', copy))
+      if (isShellNavigation && response.ok) {
+        const copy = response.clone()
+        caches.open(CACHE).then((cache) => cache.put('/', copy))
+      }
       return response
     }).catch(() => caches.match('/')))
     return
