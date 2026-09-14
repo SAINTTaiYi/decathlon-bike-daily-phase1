@@ -6,6 +6,7 @@ import {
   foodOverview,
   listFoodBatches,
   listShelfLife,
+  rebuildFoodCounters,
   setFoodBatchStatus,
   upsertShelfLife
 } from '../src/services/food-ledger.js'
@@ -316,4 +317,120 @@ test('批次列表支持分页 hasMore 与商品码 / 名称搜索', async () =>
   assert.equal(byName.batches.length, 3)
   const noMatch = await listFoodBatches(db, { storeId: STORE_A, today: TODAY, filter: 'all', query: '能量胶' })
   assert.equal(noMatch.batches.length, 0)
+})
+
+// ── 2026-09-14 D1 读放大优化（0036）──────────────────────────────────
+// total / open 是对全店行的聚合（open 占约 97% 的行），任何索引都省不掉全扫
+// （staging 实测 1,405 读行/次，且随历史线性增长）。改为写路径增量维护后，
+// overview 只点查一行计数器；依赖「今天」的 flagged / expired / soon 仍实时算，
+// 各自走覆盖索引。以下断言锁死「计数与批次表始终一致」。
+
+const countersOf = (db: TestD1Database, storeId: string) =>
+  db.one<{ total: number; open_total: number }>(
+    'SELECT total, open_total FROM food_ledger_counters WHERE store_id = ?',
+    storeId
+  )
+
+test('计数：登记递增 total / open，处理减 open，重新打开加回', async () => {
+  const db = await database()
+  await seedShelf(db)
+  const created = await createFoodBatch(db, ACTOR_A, {
+    itemCode: '5144573', kind: 'food', dateType: 'production',
+    productionDate: '2026-07-23', receivedDate: '2026-09-01', quantity: 6, receiver: 'helen'
+  })
+  const afterCreate = countersOf(db, STORE_A)
+  assert.equal(afterCreate?.total, 1, '登记后 total +1')
+  assert.equal(afterCreate?.open_total, 1, '登记后 open +1')
+
+  await setFoodBatchStatus(db, ACTOR_A, created.batch.id, { status: 'sold_out', expectedRevision: 1 })
+  const afterSold = countersOf(db, STORE_A)
+  assert.equal(afterSold?.total, 1, '处理不改 total')
+  assert.equal(afterSold?.open_total, 0, '处理后在库 -1')
+
+  await setFoodBatchStatus(db, ACTOR_A, created.batch.id, { status: 'open', expectedRevision: 2 })
+  const afterReopen = countersOf(db, STORE_A)
+  assert.equal(afterReopen?.open_total, 1, '重新打开在库 +1')
+  assert.equal(afterReopen?.total, 1, '重新打开不改 total')
+})
+
+test('计数：乐观锁失配时不得改动计数（否则静默漂移）', async () => {
+  const db = await database()
+  await seedShelf(db)
+  const created = await createFoodBatch(db, ACTOR_A, {
+    itemCode: '5144573', kind: 'food', dateType: 'production',
+    productionDate: '2026-07-23', receivedDate: '2026-09-01', quantity: 6, receiver: 'helen'
+  })
+  await assert.rejects(
+    () => setFoodBatchStatus(db, ACTOR_A, created.batch.id, { expectedRevision: 9, status: 'sold_out' }),
+    (error: unknown) => error instanceof Error && error.message.includes('已被他人更新')
+  )
+  assert.equal(countersOf(db, STORE_A)?.open_total, 1, '批次没变，计数也必须原地不动')
+  assert.equal(countersOf(db, STORE_A)?.total, 1)
+})
+
+test('计数：计数器缺行时 overview 回退实时聚合，且不写库（只读会话安全）', async () => {
+  const db = await database()
+  await seedShelf(db)
+  await createFoodBatch(db, ACTOR_A, {
+    itemCode: '5144573', kind: 'food', dateType: 'production',
+    productionDate: '2026-07-23', receivedDate: '2026-09-01', quantity: 6, receiver: 'helen'
+  })
+  // 模拟外部批量导入：批次表有数据但计数器没有对应行
+  db.exec('DELETE FROM food_ledger_counters')
+  const overview = await foodOverview(db, STORE_A, TODAY)
+  assert.equal(overview.counts.total, 1, '回退路径也要给出正确总数')
+  assert.equal(overview.counts.open, 1)
+  const rows = db.query<{ n: number }>('SELECT COUNT(*) AS n FROM food_ledger_counters')
+  assert.equal(rows[0]?.n, 0, '读路径不得补写计数器（只读降级会话下会失败）')
+})
+
+test('计数：rebuildFoodCounters 修复漂移且幂等', async () => {
+  const db = await database()
+  await seedShelf(db)
+  const first = await createFoodBatch(db, ACTOR_A, {
+    itemCode: '5144573', kind: 'food', dateType: 'production',
+    productionDate: '2026-07-23', receivedDate: '2026-09-01', quantity: 6, receiver: 'helen'
+  })
+  await createFoodBatch(db, ACTOR_A, {
+    itemCode: '2074681', kind: 'food', dateType: 'production',
+    productionDate: '2026-07-23', receivedDate: '2026-09-02', quantity: 3, receiver: 'helen'
+  })
+  await setFoodBatchStatus(db, ACTOR_A, first.batch.id, { status: 'sold_out', expectedRevision: 1 })
+  db.exec("UPDATE food_ledger_counters SET total = 99, open_total = 99")
+  await rebuildFoodCounters(db, STORE_A)
+  assert.equal(countersOf(db, STORE_A)?.total, 2, '重算要还原真实总数')
+  assert.equal(countersOf(db, STORE_A)?.open_total, 1, '重算要还原真实在库数')
+  await rebuildFoodCounters(db, STORE_A)
+  assert.equal(countersOf(db, STORE_A)?.total, 2, '重复重算结果不变（幂等）')
+})
+
+test('计数：门店隔离，B 店不产生也不读取 A 店计数', async () => {
+  const db = await database()
+  await seedShelf(db)
+  await createFoodBatch(db, ACTOR_A, {
+    itemCode: '5144573', kind: 'food', dateType: 'production',
+    productionDate: '2026-07-23', receivedDate: '2026-09-01', quantity: 6, receiver: 'helen'
+  })
+  assert.equal(countersOf(db, STORE_B), null, 'B 店不得因 A 店写入而产生计数行')
+  const overviewB = await foodOverview(db, STORE_B, TODAY)
+  assert.equal(overviewB.counts.total, 0)
+  assert.equal(overviewB.counts.open, 0)
+})
+
+test('计数：overview 的 total / open 与实时聚合始终一致', async () => {
+  const db = await database()
+  await seedShelf(db)
+  for (let index = 0; index < 3; index += 1) {
+    await createFoodBatch(db, ACTOR_A, {
+      itemCode: '2074681', kind: 'food', dateType: 'production',
+      productionDate: '2026-07-23', receivedDate: `2026-09-0${index + 1}`, quantity: 5, receiver: 'helen'
+    })
+  }
+  const overview = await foodOverview(db, STORE_A, TODAY)
+  const truth = db.one<{ total: number; open_total: number }>(
+    "SELECT COUNT(*) AS total, SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) AS open_total FROM food_batches WHERE store_id = ?",
+    STORE_A
+  )
+  assert.equal(overview.counts.total, truth?.total, '计数器必须等于批次表实时聚合')
+  assert.equal(overview.counts.open, truth?.open_total)
 })
