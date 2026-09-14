@@ -826,7 +826,11 @@ export default function App() {
     )
   }
 
-  if (authenticated && !workflow.hydrated && (auth.source === 'restore' || loginAnimationDone)) {
+  // 「正在读取门店业务台账」占位**只在需要 Ops 数据的场景**出现（opsDataNeeded）：
+  // 食品台账与门店设计不拉 bootstrap，workflow.hydrated 永远不会变真，若不加这个
+  // 判断，这两站（以及预览站的就地打开）会永久停在 SYNCING DATABASE —— 2026-09-15
+  // 无头冒烟实测踩到（选择门店设计后就卡在这一屏）。
+  if (authenticated && opsDataNeeded && !workflow.hydrated && (auth.source === 'restore' || loginAnimationDone)) {
     return <><main className="hydration-state" role="status" aria-live="polite"><strong>SYNCING DATABASE</strong><span>正在读取门店业务台账…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
   }
 

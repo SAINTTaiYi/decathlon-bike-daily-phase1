@@ -74,6 +74,18 @@ test('App 接线：非 Ops 场景不渲染 Ops 容器，也不拉门店业务数
   assert.match(app, /\{ enabled: authenticated && !introLocked && opsDataNeeded \}/u)
   // 删旧不覆盖：旧门控（只排除 food）必须整体消失，不能两套并存
   assert.doesNotMatch(stripComments(app), /introLocked && effectiveApp !== 'food'/u, '旧门控残留=两套判据打架')
+  // 非 Ops 应用不拉 bootstrap ⇒ workflow.hydrated 恒为 false，SYNCING DATABASE 占位
+  // 必须同样只认 opsDataNeeded，否则门店设计/食品台账会永久停在该屏
+  // （2026-09-15 无头冒烟实测：选完门店设计就卡住）。
+  assert.match(
+    stripComments(app),
+    /if \(authenticated && opsDataNeeded && !workflow\.hydrated && \(auth\.source === 'restore' \|\| loginAnimationDone\)\)/u,
+    '业务数据加载占位必须只在需要 Ops 数据的场景出现'
+  )
+  const unguarded = [...stripComments(app).matchAll(/if \(authenticated && ([^)]*workflow\.hydrated[^)]*)\)/gu)]
+  for (const match of unguarded) {
+    assert.ok(match[1].includes('opsDataNeeded') || match[1].includes("effectiveApp === 'ops'"), `加载占位缺少应用判断：${match[0]}`)
+  }
 })
 
 test('App 接线：宿主外壳渲染在 Ops 容器之外，且按登录门/门卡收口', () => {
