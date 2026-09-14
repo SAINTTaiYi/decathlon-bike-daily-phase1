@@ -1,33 +1,54 @@
 {
   "kind": "formal-production-release",
-  "version": "6.7.9",
+  "version": "6.8.0",
   "previewRange": {
-    "fromExclusive": "476e110a1dec61450220c81640576c55c70933f7",
-    "toInclusive": "9b5aff9a629794030037277dba5afba046de7b5f",
+    "fromExclusive": "9f3ba30555e2eafdfad941ab529fcbfc464c9c3f",
+    "toInclusive": "0c37afd048a0a7a80ce196e5913f07038123da6a",
     "commits": [
       {
-        "sha": "426c6a66c87e4efcfc0435579fb6e0a4ee5f5ea5",
-        "subject": "chore(release): stamp V6.7.8 build metadata"
+        "sha": "4f56262cdcf0d29a338495179850708dc2c13157",
+        "subject": "chore(release): stamp V6.7.9 build metadata"
       },
       {
-        "sha": "ffc63e8e7b80decaf67b976ce93d5e577dbe1000",
-        "subject": "fix(auth): 只读会话自动恢复——额度恢复后自动解除只读模式"
+        "sha": "56f3f9f15f31a7bd6a19d7799a244e27f490e807",
+        "subject": "perf(food): 食品台账读放大收敛——补排序/到期索引 + 计数表 (#276)"
       },
       {
-        "sha": "9b5aff9a629794030037277dba5afba046de7b5f",
-        "subject": "feat(d1): 总览页新增写行监控（与读行卡同构的三卡）"
+        "sha": "08ff3675aa2808b51674682b15808cdc53917b36",
+        "subject": "chore(release): 后端版本 6.7.9-1 —— 食品台账读放大收敛"
+      },
+      {
+        "sha": "697fff405f9a064c49022c530d8462c86ded2ba3",
+        "subject": "feat(store-design): 门店设计渲染接入（mass.workshop.skin + 三选一应用屏）"
+      },
+      {
+        "sha": "4eedc2717a772c397931cda3cab82d9629e66921",
+        "subject": "ci(deploy): 部署验证要求 /health/ready 的 gitSha 也收敛到本次发布"
+      },
+      {
+        "sha": "754ae411e8fcdc0a019e6bbe025ec2e0502d1ff4",
+        "subject": "fix(app): 非 Ops 应用的业务数据占位不得阻塞食品台账/门店设计"
+      },
+      {
+        "sha": "5993b749d5a5ee367e63ff8d97f12b7e186c3618",
+        "subject": "feat(auth): 三站共享登录会话 + CSRF 失效自愈"
+      },
+      {
+        "sha": "0c37afd048a0a7a80ce196e5913f07038123da6a",
+        "subject": "chore(release): 版本基线回归公开版本 6.7.9"
       }
     ]
   },
   "announcement": {
-    "title": "只读模式自动恢复 + D1 写行监控",
-    "summary": "写入额度恢复后自动解除只读，不再需要重新登录；总览页新增 D1 写行监控：今日用量与预计全天、逐小时曲线、写行 Top 5",
+    "title": "门店设计接入 + 三站共享登录",
+    "summary": "新增门店设计渲染站点（平面布局编辑、3D 视角、方案校验）；Ops、食品台账、门店设计现在共用一次登录，跨站切换不再要求重复验证",
     "changes": [
-      "只读模式自动恢复：数据库写入额度恢复后自动解除只读、恢复写入，不再需要退出重新登录",
-      "只读期间横幅新增「立即恢复」按钮可手动触发；恢复成功后自动提示并重新加载当日真实数据",
-      "总览页新增 D1 写行监控：今日写行用量与预计全天、逐小时写行曲线、写行 Top 5 查询，与读行监控同款三卡",
-      "写行与读行监控共用同一次轮询，不产生额外请求"
+      "新增门店设计渲染：登录后选择进入，独立站点 mass.workshop.skin，支持平面布局编辑、3D 视角与方案校验",
+      "一次登录三站通用：Ops、食品台账、门店设计之间切换不再重复登录",
+      "安全令牌在跨标签页或跨站打开后自动续期，不再需要手动刷新页面",
+      "食品台账与门店设计不再拉取门店业务数据，每次打开少读约 800 行数据库",
+      "修复：进入食品台账或门店设计会卡在「正在读取门店业务台账」的问题"
     ]
   },
-  "preparedAt": "2026-09-14T05:49:38.840Z"
+  "preparedAt": "2026-09-14T17:45:12.209Z"
 }
