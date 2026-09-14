@@ -51,7 +51,7 @@ function idempotencyKey(): string {
 
 function headersFor(sessionToken: string): HeadersInit {
   return {
-    cookie: `__Host-bike_ops_session=${sessionToken}`,
+    cookie: `__Secure-bike_ops_session=${sessionToken}`,
     'x-csrf-token': CSRF,
     'x-store-id': STORE_ID,
     'content-type': 'application/json',
@@ -70,7 +70,7 @@ async function send(db: TestD1Database, token: string, method: string, path: str
 
 async function bootstrap(db: TestD1Database, token: string): Promise<any> {
   const response = await handleRequest(
-    new Request(`${ORIGIN}/api/v1/bootstrap`, { headers: { cookie: `__Host-bike_ops_session=${token}`, 'x-store-id': STORE_ID, origin: ORIGIN } }),
+    new Request(`${ORIGIN}/api/v1/bootstrap`, { headers: { cookie: `__Secure-bike_ops_session=${token}`, 'x-store-id': STORE_ID, origin: ORIGIN } }),
     environment(db),
     executionContext()
   )

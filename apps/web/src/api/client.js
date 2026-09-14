@@ -58,14 +58,52 @@ export function idempotencyKey() {
   return uuidV4FromBytes(bytes)
 }
 
+// CSRF 令牌换新（2026-09-15 三站 SSO 的配套）。
+//
+// 会话里的 csrf_hash 是**每会话一份**、每次 /auth/me 轮换一次。因此：
+//   · 同一站点开第二个标签页 → 新标签页的 /me 让旧标签页手里的令牌作废；
+//   · 三站共用一个会话后 → 从 Ops 打开食品台账/门店设计，也会让 Ops 标签页作废。
+// 旧行为是让用户自己刷新（「安全令牌已失效，请刷新页面后重试」），在跨站跳转成为
+// 常态后过于唠叨。现在遇到 INVALID_CSRF 就地补一次令牌并重放请求：
+//   ① 只补一次（retriedCsrf 标记），补不到令牌就照旧抛错，不会打转；
+//   ② 重放沿用**同一个幂等键** —— 即使首次请求其实已被执行过，服务端也只会认一次；
+//   ③ 并发失败共享同一次补票（refreshPromise），避免 N 个请求各拉一次 /me。
+let refreshPromise = null
+
+async function refreshCsrfToken() {
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${API_BASE}/api/v1/auth/me?_=${Date.now()}`, {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { accept: 'application/json' }
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (payload?.csrfToken) {
+          csrfToken = payload.csrfToken
+          return true
+        }
+        return false
+      })
+      .catch(() => false)
+      .finally(() => { refreshPromise = null })
+  }
+  return refreshPromise
+}
+
 export async function api(path, options = {}) {
   const method = options.method || 'GET'
   const headers = new Headers(options.headers || {})
   if (options.body !== undefined && !(options.body instanceof FormData)) headers.set('content-type', 'application/json')
   if (storeId) headers.set('x-store-id', storeId)
+  // 幂等键在重试之间保持一致：CSRF 自愈的重放必须被服务端认成同一次请求。
+  const key = ['GET', 'HEAD', 'OPTIONS'].includes(method)
+    ? null
+    : (options.idempotencyKey || idempotencyKey())
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     if (csrfToken) headers.set('x-csrf-token', csrfToken)
-    headers.set('idempotency-key', options.idempotencyKey || idempotencyKey())
+    headers.set('idempotency-key', key)
   }
   let response
   try {
@@ -85,6 +123,11 @@ export async function api(path, options = {}) {
   const payload = response.status === 204 ? null : await response.json().catch(() => null)
   if (!response.ok) {
     if (response.status === 401) window.dispatchEvent(new CustomEvent('bike-ops:session-expired'))
+    // 令牌被其他标签页/其他子站轮换掉了：补一次令牌后原样重放（只此一次）。
+    if (response.status === 403 && payload?.error === 'INVALID_CSRF' && !options.retriedCsrf) {
+      const refreshed = await refreshCsrfToken()
+      if (refreshed) return api(path, { ...options, retriedCsrf: true, idempotencyKey: key || undefined })
+    }
     throw new ApiError(payload?.message || `请求失败（${response.status}）`, { status: response.status, code: payload?.error || 'REQUEST_FAILED', details: payload?.details })
   }
   return payload

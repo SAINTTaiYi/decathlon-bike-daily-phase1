@@ -4,7 +4,7 @@ import { camelRow, first, nowIso } from '../db.js'
 import { safeEqualHex } from '../lib/crypto.js'
 import { ApiProblem } from '../services/problems.js'
 import type { AuthContext } from './types.js'
-import { csrfTokenHash, isReadOnlySessionToken, readCookie, sessionTokenHash, SESSION_COOKIE, verifyReadOnlySessionToken } from './session.js'
+import { csrfTokenHash, isReadOnlySessionToken, LEGACY_SESSION_COOKIE, readCookie, sessionCookieName, sessionTokenHash, verifyReadOnlySessionToken } from './session.js'
 import { d1LimitProblemBody } from '../lib/d1-limits.js'
 
 type Vars = {
@@ -49,7 +49,9 @@ export function createAuthMiddleware(): {
   const loadSession: MiddlewareHandler<{ Bindings: WorkerEnv; Variables: Vars }> = async (c, next) => {
     c.set('auth', null)
     const config = c.get('config')
-    const token = readCookie(c, SESSION_COOKIE)
+    // 优先读当前名；换名（2026-09-15 `__Host-` → `__Secure-` + Domain）的过渡期里，
+    // 浏览器里可能还留着旧名令牌，一并接受，避免用户被无谓登出。
+    const token = readCookie(c, sessionCookieName(config)) ?? readCookie(c, LEGACY_SESSION_COOKIE)
     if (!token) throw new ApiProblem(401, 'UNAUTHENTICATED', '登录状态已失效，请重新登录。')
     const tokenHash = await sessionTokenHash(token, config)
     const selectedStore = c.req.header('x-store-id') ?? null

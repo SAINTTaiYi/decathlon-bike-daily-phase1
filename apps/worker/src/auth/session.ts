@@ -2,7 +2,42 @@ import type { Context } from 'hono'
 import type { AppConfig } from '../env.js'
 import { keyedHash, randomToken, safeEqualHex } from '../lib/crypto.js'
 
-export const SESSION_COOKIE = '__Host-bike_ops_session'
+// 会话 cookie（2026-09-15 三站 SSO 定案）：
+//
+// 背景：原先用 `__Host-` 前缀。`__Host-` 强制 host-only（规范禁止它携带 Domain），
+// 于是 workshop.skin / eat.workshop.skin / mass.workshop.skin 各自独立登录 ——
+// 用户从 Ops 点进食品台账还要再登一次（2026-09-15 用户明确要求去掉这一步）。
+//
+// 现在改为 `__Secure-` 前缀 + **仅正式域名**带 `Domain=.workshop.skin`，一次登录
+// 三站通用。取舍与护栏：
+//   ① `__Secure-` 与 `__Host-` 同为浏览器强制的安全前缀（要求 Secure/HTTPS），
+//      只是允许携带 Domain —— 这正是跨子域共享的前提；
+//   ② Domain 只在 workshop.skin 及其子域启用：预览站（*.workers.dev）与本地仍是
+//      host-only，不扩大暴露面；
+//   ③ 会话令牌本身仍是服务端签名（keyedHash）+ 库内哈希比对，子域即使能覆写
+//      cookie 也无法伪造有效会话，最坏情况只是把本人登出（DoS 级）；
+//   ④ 三个子域当前都指向同一个 Worker，不存在「第三方子域拿到会话」的新面孔。
+export const SESSION_COOKIE_BASE = 'bike_ops_session'
+/** 旧 cookie 名（`__Host-` 前缀版）：仅用于过渡期读取与清理，不再签发。 */
+export const LEGACY_SESSION_COOKIE = '__Host-bike_ops_session'
+/** 跨子域共享的 cookie 作用域。 */
+export const SHARED_COOKIE_DOMAIN = '.workshop.skin'
+
+/** 当前部署应使用的会话 cookie 名：HTTPS 环境带 `__Secure-` 前缀。 */
+export function sessionCookieName(config: Pick<AppConfig, 'COOKIE_SECURE'>): string {
+  return config.COOKIE_SECURE ? `__Secure-${SESSION_COOKIE_BASE}` : SESSION_COOKIE_BASE
+}
+
+/**
+ * 会话 cookie 的 Domain 属性（空串 = host-only）。
+ * 只有正式域名（workshop.skin / www / eat / mass）才跨子域共享。
+ */
+export function sessionCookieDomainAttribute(hostname: string): string {
+  const host = String(hostname || '').toLowerCase()
+  if (!host) return ''
+  const isProductionHost = host === 'workshop.skin' || host === 'www.workshop.skin' || host.endsWith(SHARED_COOKIE_DOMAIN)
+  return isProductionHost ? `; Domain=${SHARED_COOKIE_DOMAIN}` : ''
+}
 
 export async function createSessionSecrets(config: AppConfig) {
   const token = randomToken()
@@ -26,18 +61,27 @@ export async function csrfTokenHash(token: string, config: AppConfig): Promise<s
 export function setSessionCookie(c: Context, token: string, config: AppConfig): void {
   const maxAge = config.SESSION_TTL_HOURS * 60 * 60
   const secure = config.COOKIE_SECURE ? '; Secure' : ''
+  const domain = sessionCookieDomainAttribute(new URL(c.req.url).hostname)
   c.header(
     'Set-Cookie',
-    `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`,
+    `${sessionCookieName(config)}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${domain}${secure}`,
     { append: true }
   )
 }
 
 export function clearSessionCookie(c: Context, config: AppConfig): void {
   const secure = config.COOKIE_SECURE ? '; Secure' : ''
+  const domain = sessionCookieDomainAttribute(new URL(c.req.url).hostname)
   c.header(
     'Set-Cookie',
-    `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`,
+    `${sessionCookieName(config)}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${domain}${secure}`,
+    { append: true }
+  )
+  // 过渡期清理：旧版 `__Host-` 前缀 cookie（host-only，不能带 Domain）也要一并清掉，
+  // 否则浏览器里会长期留着一份无效令牌（2026-09-15 换名前登录的会话）。
+  c.header(
+    'Set-Cookie',
+    `${LEGACY_SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`,
     { append: true }
   )
 }

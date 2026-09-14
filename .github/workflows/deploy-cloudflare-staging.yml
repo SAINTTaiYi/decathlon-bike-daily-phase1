@@ -152,6 +152,9 @@ jobs:
             'https://www.workshop.skin',
             // 食品台账独立站点（2026-09-14）：与 ops 物理分开，避免两套界面互相遮挡。
             'https://eat.workshop.skin',
+            // 门店设计渲染独立站点（2026-09-15）：同上；且三站共享会话 cookie，
+            // 缺了这条会让该站的写操作被 ORIGIN_NOT_ALLOWED 拦下。
+            'https://mass.workshop.skin',
             'https://bike-ops-staging.geeklightonefish.workers.dev'
           ].filter(Boolean))).join(',')
           text = text.replace('__APP_VERSION__', pkg.version)

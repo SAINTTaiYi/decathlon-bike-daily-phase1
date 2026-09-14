@@ -6,7 +6,7 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const read = (rel) => readFile(new URL(rel, import.meta.url), 'utf8')
 
-const [app, storeApp, siteMode, appSelectMobile, appSelectDesktop, menuDialog, appSelectCss, shellCss, styleIndex, sw, toolHtml, toolEmbed, toolApp, toolEngine, borderlessCss] = await Promise.all([
+const [app, storeApp, siteMode, appSelectMobile, appSelectDesktop, menuDialog, appSelectCss, shellCss, styleIndex, sw, toolHtml, toolEmbed, toolApp, toolEngine, borderlessCss, stagingWorkflow, productionWorkflow, workerSession, workerMiddleware, workerAuthRoute, webClient] = await Promise.all([
   read('../apps/web/src/App.jsx'),
   read('../apps/web/src/components/storedesign/StoreDesignApp.jsx'),
   read('../apps/web/src/utils/siteMode.js'),
@@ -21,7 +21,13 @@ const [app, storeApp, siteMode, appSelectMobile, appSelectDesktop, menuDialog, a
   read('../apps/web/public/store-design/embed.js'),
   read('../apps/web/public/store-design/app.js'),
   read('../apps/web/public/store-design/engine.js'),
-  read('../apps/web/src/styles/borderless.css')
+  read('../apps/web/src/styles/borderless.css'),
+  read('../.github/workflows/deploy-cloudflare-staging.yml'),
+  read('../.github/workflows/deploy-production.yml'),
+  read('../apps/worker/src/auth/session.ts'),
+  read('../apps/worker/src/auth/middleware.ts'),
+  read('../apps/worker/src/routes/auth.ts'),
+  read('../apps/web/src/api/client.js')
 ])
 
 // 断言一律基于剥掉注释后的源码：命中的可能是注释里的字样（2026-09-13 假绿事故）。
@@ -213,4 +219,40 @@ test('Service Worker：只有根路径导航才刷新离线兜底副本', () => 
   // 无条件 put('/') 会让 /store-design/ 的 iframe 导航顶替工作台外壳
   assert.match(src, /if \(isShellNavigation && response\.ok\)/u, '写缓存必须被根路径判定守卫')
   assert.doesNotMatch(src, /if \(event\.request\.mode === 'navigate'\) \{\n\s*event\.respondWith\(fetch\(event\.request\)\.then\(\(response\) => \{\n\s*const copy/u, '不得退回无条件写 / 的旧写法')
+})
+
+// ── 2026-09-15 三站共享会话（用户：「第一次登录后，选择进入食品登记模块就不要再一次登录了」）
+
+test('来源白名单：三个正式站点都要能调 API（缺谁谁被 ORIGIN_NOT_ALLOWED 拦下）', () => {
+  // 线上三站（workshop.skin / eat / mass）都由 bike-ops-staging 这个 Worker 提供服务，
+  // 所以它的来源白名单必须三站齐全；生产工作流另绑 www 与独立域名，同样列出两个子站。
+  for (const host of ['workshop.skin', 'eat.workshop.skin', 'mass.workshop.skin']) {
+    assert.ok(stagingWorkflow.includes(`https://${host}`), `staging 的 CORS 来源必须包含 ${host}`)
+  }
+  for (const host of ['www.workshop.skin', 'eat.workshop.skin', 'mass.workshop.skin']) {
+    assert.ok(productionWorkflow.includes(`https://${host}`), `production 的 CORS 来源必须包含 ${host}`)
+  }
+})
+
+test('会话 cookie：跨子域共享（__Secure- + Domain），且只对正式域名放开', () => {
+  const session = stripComments(workerSession)
+  // `__Host-` 前缀在规范上禁止 Domain —— 留着它就等于放弃跨子域共享
+  assert.doesNotMatch(session, /__Host-\$\{/u, '会话 cookie 不得再使用 __Host- 前缀')
+  assert.ok(session.includes("`__Secure-${SESSION_COOKIE_BASE}`"), 'HTTPS 环境必须带 __Secure- 前缀')
+  assert.ok(session.includes("return isProductionHost ? `; Domain=${SHARED_COOKIE_DOMAIN}` : ''"), 'Domain 必须收敛到正式域名判定')
+  assert.ok(session.includes("host.endsWith(SHARED_COOKIE_DOMAIN)"), '子域共享必须按后缀匹配')
+  assert.ok(session.includes("host === 'workshop.skin'"), '裸域必须显式列出（endsWith 匹配不到 workshop.skin 本身）')
+  // 旧名兼容：换名后不能把已登录用户踢出去
+  assert.ok(workerMiddleware.includes('readCookie(c, LEGACY_SESSION_COOKIE)'), '过渡期必须仍能读取旧名 cookie')
+  assert.ok(session.includes('LEGACY_SESSION_COOKIE}=;'), '登出必须同时清理旧名 cookie')
+  assert.ok(workerAuthRoute.includes('sessionCookieName(c.get(\'config\'))'), '会话名端点必须返回当前名')
+})
+
+test('CSRF 自愈：INVALID_CSRF 就地补票重放，且沿用同一幂等键', () => {
+  const client = stripComments(webClient)
+  assert.ok(client.includes("payload?.error === 'INVALID_CSRF'"), '必须识别 INVALID_CSRF')
+  assert.ok(client.includes('retriedCsrf: true'), '必须带重试标记（只补一次）')
+  assert.ok(client.includes('idempotencyKey: key || undefined'), '重放必须沿用同一幂等键，避免重复执行')
+  assert.ok(client.includes('refreshCsrfToken'), '必须有补票实现')
+  assert.ok(client.includes("fetch(`${API_BASE}/api/v1/auth/me?_=${Date.now()}`"), '补票走 /auth/me（服务端每次轮换 CSRF）')
 })
