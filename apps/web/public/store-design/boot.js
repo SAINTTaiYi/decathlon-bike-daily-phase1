@@ -1,7 +1,5 @@
-/* 门店布局设计渲染 · 启动钩子（页面错误收集）。
-   原先是 index.html 里的内联脚本；生产站点的 CSP 是 script-src 'self'，
-   内联脚本会被浏览器拒绝执行（控制台报 CSP 违规），因此抽成外部文件。 */
-
+/* 门店设计 · 页面错误收集（CSP script-src 'self'，因此不能内联在 index.html 里）。
+   捕获到的错误会显示在页面底部的 #errlog，无头回归测试也据此判断页面是否健康。 */
 window.__errs = [];
 (function(){
   function push(msg){

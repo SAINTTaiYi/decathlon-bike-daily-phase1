@@ -1,0 +1,98 @@
+/* ==========================================================================
+   门店设计 · 基础层（设计令牌 + 元素级默认样式）
+   --------------------------------------------------------------------------
+   这一层只放「两端共用的事实」：配色令牌、字体、元素默认外观。
+   具体布局与组件外观全部归各自的实现所有：
+       sd-mobile.css   移动端（类名 sd-m-*）
+       sd-desktop.css  桌面端（类名 sd-d-*）
+   两份样式互斥加载，任何一端都不需要媒体查询去「兼容另一端」。
+
+   视觉方向与 ops 一致（2026-09-15 用户要求）：
+     · 无边线：任何地方都不画 1px 线，层次靠底色 + 圆角 + 间距；
+     · 平面：页面 #f4f5f7 / 卡片 #fff / 输入与轨道 #eef0f4；
+     · 主色 #ffde59（ops 黄），按下/选中用 #14161a 或深黄；
+     · 大圆角 18/12/26/999；不使用投影（浮层除外）。
+   ========================================================================== */
+@font-face { font-family: 'Barlow Condensed Ops'; src: url('fonts/barlow-condensed-500.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Barlow Condensed Ops'; src: url('fonts/barlow-condensed-700.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+
+:root {
+  color-scheme: light;
+  --sd-page: #f4f5f7;
+  --sd-card: #ffffff;
+  --sd-sunken: #eef0f4;
+  --sd-sunken-strong: #e3e7ee;
+  --sd-ink: #14161a;
+  --sd-muted: #5b6270;
+  --sd-accent: #ffde59;
+  --sd-accent-press: #14161a;
+  --sd-accent-soft: #fff4d6;
+  --sd-danger: #d92d20;
+  --sd-success: #12805c;
+  --sd-amber: #b25e09;
+  --sd-r-sm: 12px;
+  --sd-r: 18px;
+  --sd-r-lg: 26px;
+  --sd-r-pill: 999px;
+  --sd-font-display: 'Barlow Condensed Ops', ui-sans-serif, system-ui, sans-serif;
+  --sd-font: -apple-system, 'PingFang SC', 'Noto Sans SC', 'Noto Sans CJK SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --sd-gap: 10px;
+  --sd-pad: 14px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--sd-page);
+  color: var(--sd-ink);
+  font: 14px/1.5 var(--sd-font);
+  -webkit-text-size-adjust: 100%;
+}
+
+body { min-height: 100vh; }
+
+/* 原生外观清掉：无边线设计的输入控件靠底色区分 */
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+input, select, textarea {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  border-radius: var(--sd-r-sm);
+  background: var(--sd-sunken);
+  padding: 9px 12px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type='number'] { font-variant-numeric: tabular-nums; }
+input[type='range'] { background: transparent; padding: 0; accent-color: var(--sd-accent); }
+input[type='checkbox'] { width: auto; padding: 0; border-radius: 5px; accent-color: var(--sd-ink); }
+input::placeholder { color: #9aa1ad; font-weight: 500; }
+:focus-visible { outline: 2px solid var(--sd-ink); outline-offset: 2px; }
+
+/* 界面实现就绪前不显示骨架：sd-boot.js 按视口动态加载样式与脚本，
+   避免用户看到一帧没有样式的骨架（就绪标记由 app.js 置位）。 */
+html:not([data-sd-ready='true']) #sdApp { visibility: hidden; }
+
+/* 图纸画布：SVG 自适应宽度 */
+#view3d svg, #viewplan svg { display: block; width: 100%; height: auto; }
+
+/* 页面错误收集（boot.js 控制显隐） */
+#errlog {
+  display: none;
+  margin: 10px var(--sd-pad);
+  padding: 10px 12px;
+  border-radius: var(--sd-r-sm);
+  background: #fff2f0;
+  color: #a3241a;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+}
