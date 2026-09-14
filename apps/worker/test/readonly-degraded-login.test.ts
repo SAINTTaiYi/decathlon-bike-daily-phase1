@@ -257,3 +257,92 @@ test('写额度正常时不受影响：仍签发数据库会话（无回归）',
     db.close()
   }
 })
+
+
+// ── 只读恢复（2026-09-14 用户验收）────────────────────────────────────
+// 只读令牌是无状态的，服务端不会自动升级；客户端在额度恢复后调用补签端点，
+// INSERT 成功即换发正式会话 cookie。这里用「同一个库、换成不被拒的环境」模拟
+// 额度恢复，验证补签真的落到数据库、写权限真的随之解禁。
+
+async function upgrade(env: WorkerEnv, cookie: string, key = '34000000-0000-4000-8000-0000000000aa'): Promise<Response> {
+  return handleRequest(
+    new Request(`${ORIGIN}/api/v1/auth/session/upgrade`, {
+      method: 'POST',
+      headers: { cookie, 'x-store-id': STORE_ID, origin: ORIGIN, 'content-type': 'application/json', 'idempotency-key': key }
+    }),
+    env,
+    executionContext()
+  )
+}
+
+test('额度恢复后：只读会话补签成可写会话，写入随之解禁', async () => {
+  const db = await seededDatabase()
+  try {
+    const roCookie = cookieFrom(await login(quotaBlockedEnvironment(db)))
+    assert.match(roCookie, /=ro1\./u)
+    assert.equal((db.sqlite.prepare('SELECT COUNT(*) AS n FROM auth_sessions').get() as { n: number }).n, 0, '前置：只读降级不写会话行')
+
+    const env = baseEnv(db as unknown as D1Database) // 额度恢复 = 写不再被拒
+    const response = await upgrade(env, roCookie)
+    const payload = await response.json() as any
+    assert.equal(response.status, 200, JSON.stringify(payload))
+    assert.equal(payload.readOnly, false, '补签后必须解除只读')
+    assert.ok(payload.csrfToken, '必须换发新的 CSRF 令牌（只读期间恒为空）')
+    assert.equal(payload.user.id, USER_ID, '必须还原到同一个账号')
+    const newCookie = cookieFrom(response)
+    assert.doesNotMatch(newCookie, /ro1\./u, '必须换发数据库会话 cookie')
+    assert.equal((db.sqlite.prepare('SELECT COUNT(*) AS n FROM auth_sessions').get() as { n: number }).n, 1, '补签必须写入会话行')
+
+    // 新会话必须能真正写入（用户的目标是「恢复后可以记账」）。
+    const write = await handleRequest(
+      new Request(`${ORIGIN}/api/v1/work-items`, {
+        method: 'POST',
+        headers: { cookie: newCookie, 'x-store-id': STORE_ID, origin: ORIGIN, 'content-type': 'application/json', 'x-csrf-token': payload.csrfToken, 'idempotency-key': '34000000-0000-4000-8000-0000000000ab' },
+        body: JSON.stringify({ scene: 'poster', values: { title: '只读恢复测试', detail: '只读恢复测试', meta: '', status: '继续跟进', assignedTo: null } })
+      }),
+      env,
+      executionContext()
+    )
+    const writePayload = await write.json() as any
+    assert.equal(write.status, 201, `补签后写操作必须成功：${write.status} ${JSON.stringify(writePayload).slice(0, 200)}`)
+    const audit = db.sqlite.prepare("SELECT COUNT(*) AS n FROM audit_events WHERE action = 'login' AND summary LIKE '恢复只读会话%'").get() as { n: number }
+    assert.equal(audit.n, 1, '恢复动作必须留审计记录（会话无登录记录会造成审计缺口）')
+  } finally {
+    db.close()
+  }
+})
+
+test('额度未恢复时：补签请求返回结构化 503 + recoveryAt，不写行也不换 cookie', async () => {
+  const db = await seededDatabase()
+  try {
+    const env = quotaBlockedEnvironment(db)
+    const roCookie = cookieFrom(await login(env))
+    const response = await upgrade(env, roCookie)
+    const payload = await response.json() as any
+    assert.equal(response.status, 503, JSON.stringify(payload))
+    assert.equal(payload.error, 'D1_WRITE_LIMIT')
+    assert.ok(payload.recoveryAt, '必须给出恢复时间（前端据此提示）')
+    assert.equal(response.headers.get('set-cookie'), null, '失败时不得换发 cookie')
+    assert.equal((db.sqlite.prepare('SELECT COUNT(*) AS n FROM auth_sessions').get() as { n: number }).n, 0, '仍不得写会话行')
+  } finally {
+    db.close()
+  }
+})
+
+test('已是可写会话时调用补签：幂等返回且零写入（无回归）', async () => {
+  const db = await seededDatabase()
+  try {
+    const env = baseEnv(db as unknown as D1Database)
+    const cookie = cookieFrom(await login(env))
+    const before = (db.sqlite.prepare('SELECT COUNT(*) AS n FROM auth_sessions').get() as { n: number }).n
+    assert.equal(before, 1)
+    const response = await upgrade(env, cookie)
+    const payload = await response.json() as any
+    assert.equal(response.status, 200)
+    assert.equal(payload.readOnly, false)
+    assert.equal((db.sqlite.prepare('SELECT COUNT(*) AS n FROM auth_sessions').get() as { n: number }).n, before, '不得新增会话行')
+    assert.equal(response.headers.get('set-cookie'), null, '不得重发 cookie')
+  } finally {
+    db.close()
+  }
+})

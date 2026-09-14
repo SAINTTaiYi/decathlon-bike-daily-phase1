@@ -14,18 +14,23 @@ function graphqlResponse(): Response {
           {
             totals: [{ count: 32, sum: { rowsRead: 411570, rowsWritten: 34632, readQueries: 18936, writeQueries: 21395 } }],
           perDb: [
-              { sum: { rowsRead: 363546 }, dimensions: { databaseId: '91e78387-9b24-4126-a5a1-27f9c1792975' } },
-              { sum: { rowsRead: 48024 }, dimensions: { databaseId: 'e40af8eb-6340-4b9e-8484-20247323fd84' } }
+              { sum: { rowsRead: 363546, rowsWritten: 31418 }, dimensions: { databaseId: '91e78387-9b24-4126-a5a1-27f9c1792975' } },
+              { sum: { rowsRead: 48024, rowsWritten: 3214 }, dimensions: { databaseId: 'e40af8eb-6340-4b9e-8484-20247323fd84' } }
             ],
             hourly: [
-              { sum: { rowsRead: 1029 }, dimensions: { datetimeHour: '2026-09-03T00:00:00Z' } },
-              { sum: { rowsRead: 7134 }, dimensions: { datetimeHour: '2026-09-03T10:00:00Z' } },
-              { sum: { rowsRead: 7134 }, dimensions: { datetimeHour: '2026-09-03T10:00:00Z' } }
+              { sum: { rowsRead: 1029, rowsWritten: 0 }, dimensions: { datetimeHour: '2026-09-03T00:00:00Z' } },
+              { sum: { rowsRead: 7134, rowsWritten: 500 }, dimensions: { datetimeHour: '2026-09-03T10:00:00Z' } },
+              { sum: { rowsRead: 7134, rowsWritten: 700 }, dimensions: { datetimeHour: '2026-09-03T10:00:00Z' } }
             ],
             top: [
               { count: 213, sum: { rowsRead: 265824 }, dimensions: { query: '  SELECT e.id, e.action\n  FROM audit_events' } },
               { count: 3465, sum: { rowsRead: 10395 }, dimensions: { query: 'INSERT INTO shiphub_sync_runs' } },
               { count: 2, sum: { rowsRead: 5 }, dimensions: { query: '' } }
+            ],
+            topWrites: [
+              { count: 485, sum: { rowsWritten: 1940 }, dimensions: { query: 'INSERT INTO shiphub_sync_runs (id, store_id,\n  category) VALUES (?, ?, ?)' } },
+              { count: 501, sum: { rowsWritten: 1002 }, dimensions: { query: 'INSERT INTO shiphub_sync_leases' } },
+              { count: 9, sum: { rowsWritten: 3 }, dimensions: { query: '   ' } }
             ]
           }
         ]
@@ -57,21 +62,36 @@ test('fetchD1MetricsSnapshot：解析 totals/perDb/hourly/top + 投影 + 请求�
     assert.match(body, /date_geq: \\?"2026-09-03\\?"/)
     assert.match(body, /datetimeHour_geq: \\?"2026-09-03T00:00:00Z\\?"/)
     assert.match(body, /sum_rowsRead_DESC/)
+    assert.match(body, /sum_rowsWritten_DESC/)
+    assert.match(body, /topWrites: d1QueriesAdaptiveGroups/)
     assert.equal(snapshot.available, true)
     assert.equal(snapshot.limit, 5_000_000)
+    assert.equal(snapshot.writeLimit, 100_000)
     assert.equal(snapshot.totals.rowsRead, 411570)
     assert.equal(snapshot.databases.length, 2)
     assert.equal(snapshot.databases[0].database, 'staging')
     assert.equal(snapshot.databases[0].rowsRead, 363546)
+    assert.equal(snapshot.databases[0].rowsWritten, 31418)
     assert.equal(snapshot.databases[1].database, 'preview')
-    // datetimeHour 聚合：两条 10 时桶合并为 14268
-    assert.deepEqual(snapshot.series, [{ hour: 0, rowsRead: 1029 }, { hour: 10, rowsRead: 14268 }])
+    assert.equal(snapshot.databases[1].rowsWritten, 3214)
+    // datetimeHour 聚合：两条 10 时桶合并为 14268（写行同样合并 500+700）
+    assert.deepEqual(snapshot.series, [
+      { hour: 0, rowsRead: 1029, rowsWritten: 0 },
+      { hour: 10, rowsRead: 14268, rowsWritten: 1200 }
+    ])
     // SQL 压空白 + 空 query 剔除
     assert.equal(snapshot.top.length, 2)
     assert.equal(snapshot.top[0].query, 'SELECT e.id, e.action FROM audit_events')
     assert.equal(snapshot.top[0].count, 213)
-    // 14.5h 已过 → 投影 = 411570/14.5*24
+    // 写行 Top：单独按 sum_rowsWritten 排序返回，解析与读行同规则（压空白 + 剔除空 query）
+    assert.equal(snapshot.topWrites.length, 2)
+    assert.equal(snapshot.topWrites[0].query, 'INSERT INTO shiphub_sync_runs (id, store_id, category) VALUES (?, ?, ?)')
+    assert.equal(snapshot.topWrites[0].count, 485)
+    assert.equal(snapshot.topWrites[0].rowsWritten, 1940)
+    assert.equal(snapshot.topWrites[1].rowsWritten, 1002)
+    // 14.5h 已过 → 投影 = 值/14.5*24（读行 411570、写行 34632）
     assert.equal(snapshot.projectedFullDay, Math.round(411570 / 14.5 * 24))
+    assert.equal(snapshot.projectedWritesFullDay, Math.round(34632 / 14.5 * 24))
   } finally {
     globalThis.fetch = originalFetch
   }

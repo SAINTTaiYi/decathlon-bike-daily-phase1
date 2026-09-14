@@ -1,8 +1,9 @@
-// D1 当日读行监控 —— Cloudflare GraphQL Analytics 透传 + 模块级缓存。
-// 口径：UTC 自然日 = 免费套餐配额窗口（北京 08:00 归零重置），账号级 5M 行/日。
+// D1 当日读行 + 写行监控 —— Cloudflare GraphQL Analytics 透传 + 模块级缓存。
+// 口径：UTC 自然日 = 免费套餐配额窗口（北京 08:00 归零重置），账号级 5M 读行/日、100k 写行/日。
 // 本服务绝不触碰数据库绑定：监控端点自身零行读，不会自己烧配额。
 // GraphQL 形态已于 2026-09-03 用只读 MCP 实测验证（别名复用 + datetimeHour 桶 + orderBy）。
 export const D1_DAILY_ROW_LIMIT = 5_000_000
+export const D1_DAILY_WRITE_LIMIT = 100_000
 export const D1_METRICS_CACHE_TTL_MS = 60_000
 
 const ACCOUNT_TAG = '02cb272ad6a5fd7e157a84061c8c5d42'
@@ -16,17 +17,21 @@ const TOP_QUERY_TEXT_LIMIT = 240
 const REQUEST_TIMEOUT_MS = 8000
 
 export interface D1MetricsTopQuery { query: string; count: number; rowsRead: number }
-export interface D1MetricsDatabaseUsage { database: string; rowsRead: number }
+export interface D1MetricsTopWriteQuery { query: string; count: number; rowsWritten: number }
+export interface D1MetricsDatabaseUsage { database: string; rowsRead: number; rowsWritten: number }
 export interface D1MetricsSnapshot {
   available: true
   windowStart: string
   fetchedAt: string
   limit: number
+  writeLimit: number
   totals: { rowsRead: number; rowsWritten: number; readQueries: number; writeQueries: number }
   databases: D1MetricsDatabaseUsage[]
-  series: { hour: number; rowsRead: number }[]
+  series: { hour: number; rowsRead: number; rowsWritten: number }[]
   top: D1MetricsTopQuery[]
+  topWrites: D1MetricsTopWriteQuery[]
   projectedFullDay: number
+  projectedWritesFullDay: number
 }
 
 export class D1MetricsUpstreamError extends Error {
@@ -58,16 +63,21 @@ function buildGraphQLQuery(day: string): string {
           sum { rowsRead rowsWritten readQueries writeQueries }
         }
         perDb: d1AnalyticsAdaptiveGroups(limit: 20, filter: {date_geq: "${day}"}) {
-          sum { rowsRead }
+          sum { rowsRead rowsWritten }
           dimensions { databaseId }
         }
         hourly: d1AnalyticsAdaptiveGroups(limit: 100, filter: {date_geq: "${day}", datetimeHour_geq: "${day}T00:00:00Z"}, orderBy: [datetimeHour_ASC]) {
-          sum { rowsRead }
+          sum { rowsRead rowsWritten }
           dimensions { datetimeHour }
         }
         top: d1QueriesAdaptiveGroups(limit: ${TOP_QUERY_LIMIT}, filter: {date_geq: "${day}"}, orderBy: [sum_rowsRead_DESC]) {
           count
           sum { rowsRead }
+          dimensions { query }
+        }
+        topWrites: d1QueriesAdaptiveGroups(limit: ${TOP_QUERY_LIMIT}, filter: {date_geq: "${day}"}, orderBy: [sum_rowsWritten_DESC]) {
+          count
+          sum { rowsWritten }
           dimensions { query }
         }
       }
@@ -119,24 +129,30 @@ export async function fetchD1MetricsSnapshot(env: { D1_METRICS_TOKEN?: string },
     writeQueries: numberOrZero(totalsRow?.sum?.writeQueries)
   }
 
-  const perDb = new Map<string, number>()
+  const perDb = new Map<string, { rowsRead: number; rowsWritten: number }>()
   for (const group of account.perDb ?? []) {
     const id = group.dimensions?.databaseId
     if (typeof id !== 'string' || !id) continue
     const label = DATABASE_LABELS[id] ?? id.slice(0, 8)
-    perDb.set(label, (perDb.get(label) ?? 0) + numberOrZero(group.sum?.rowsRead))
+    const bucket = perDb.get(label) ?? { rowsRead: 0, rowsWritten: 0 }
+    bucket.rowsRead += numberOrZero(group.sum?.rowsRead)
+    bucket.rowsWritten += numberOrZero(group.sum?.rowsWritten)
+    perDb.set(label, bucket)
   }
-  const databases = [...perDb.entries()].map(([database, rowsRead]) => ({ database, rowsRead })).sort((a, b) => b.rowsRead - a.rowsRead)
+  const databases = [...perDb.entries()].map(([database, usage]) => ({ database, ...usage })).sort((a, b) => b.rowsRead - a.rowsRead)
 
-  const hourBuckets = new Map<number, number>()
+  const hourBuckets = new Map<number, { rowsRead: number; rowsWritten: number }>()
   for (const group of account.hourly ?? []) {
     const stamp = group.dimensions?.datetimeHour
     if (typeof stamp !== 'string' || stamp.length < 13) continue
     const hour = Number.parseInt(stamp.slice(11, 13), 10)
     if (!Number.isInteger(hour) || hour < 0 || hour > 23) continue
-    hourBuckets.set(hour, (hourBuckets.get(hour) ?? 0) + numberOrZero(group.sum?.rowsRead))
+    const bucket = hourBuckets.get(hour) ?? { rowsRead: 0, rowsWritten: 0 }
+    bucket.rowsRead += numberOrZero(group.sum?.rowsRead)
+    bucket.rowsWritten += numberOrZero(group.sum?.rowsWritten)
+    hourBuckets.set(hour, bucket)
   }
-  const series = [...hourBuckets.entries()].map(([hour, rowsRead]) => ({ hour, rowsRead })).sort((a, b) => a.hour - b.hour)
+  const series = [...hourBuckets.entries()].map(([hour, usage]) => ({ hour, ...usage })).sort((a, b) => a.hour - b.hour)
 
   const top: D1MetricsTopQuery[] = []
   for (const group of account.top ?? []) {
@@ -145,20 +161,31 @@ export async function fetchD1MetricsSnapshot(env: { D1_METRICS_TOKEN?: string },
     top.push({ query, count: numberOrZero(group.count), rowsRead: numberOrZero(group.sum?.rowsRead) })
   }
 
+  const topWrites: D1MetricsTopWriteQuery[] = []
+  for (const group of account.topWrites ?? []) {
+    const query = (group.dimensions?.query ?? '').replace(/\s+/gu, ' ').trim().slice(0, TOP_QUERY_TEXT_LIMIT)
+    if (!query) continue
+    topWrites.push({ query, count: numberOrZero(group.count), rowsWritten: numberOrZero(group.sum?.rowsWritten) })
+  }
+
   const dayStartMs = Date.parse(`${day}T00:00:00Z`)
   const elapsedHours = Math.max(0.1, (now.getTime() - dayStartMs) / 3_600_000)
   const projectedFullDay = Math.round((totals.rowsRead / elapsedHours) * 24)
+  const projectedWritesFullDay = Math.round((totals.rowsWritten / elapsedHours) * 24)
 
   const snapshot: D1MetricsSnapshot = {
     available: true,
     windowStart: `${day}T00:00:00Z`,
     fetchedAt: now.toISOString(),
     limit: D1_DAILY_ROW_LIMIT,
+    writeLimit: D1_DAILY_WRITE_LIMIT,
     totals,
     databases,
     series,
     top,
-    projectedFullDay
+    topWrites,
+    projectedFullDay,
+    projectedWritesFullDay
   }
   cache = { day, at: now.getTime(), snapshot }
   return snapshot

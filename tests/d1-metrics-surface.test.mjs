@@ -112,3 +112,47 @@ test('workflow：preview 与 staging 均有可选 token 注入步骤', () => {
   }
   assert.match(envTs, /D1_METRICS_TOKEN\?: string/u)
 })
+
+
+test('前端：写行监控卡（桌面写行三卡 + 移动写行三卡，共用同一快照）', () => {
+  for (const name of ['D1WriteUsageCard', 'D1WriteHourlyCard', 'D1WriteTopQueriesCard']) {
+    assert.ok(panel.includes(`export function ${name}`), `missing export ${name}`)
+  }
+  for (const name of ['D1MobileWriteUsage', 'D1MobileWriteHourly', 'D1MobileWriteTop']) {
+    assert.ok(mobile.includes(`export function ${name}`), `missing export ${name}`)
+  }
+  // 桌面：读行 / 写行两段 grid，写行三卡与读行同构接线
+  const grids = [...panel.matchAll(/className="d1-md-grid"/gu)]
+  assert.equal(grids.length, 2, '读行与写行各一段 d1-md-grid')
+  assert.match(panel, /<D1WriteUsageCard snapshot=\{snapshot\} stale=\{stale\} \/>/u)
+  assert.match(panel, /<D1WriteHourlyCard snapshot=\{snapshot\} \/>/u)
+  assert.match(panel, /<D1WriteTopQueriesCard snapshot=\{snapshot\} \/>/u)
+  // 写行专属数据属性（与读行 data-d1-* / data-d1m-* 分离，避免两块卡 GSAP 查询串台）。
+  // 每个属性必须同时出现在 JSX 属性位（data-xxx=""）与 GSAP 选择器位（[data-xxx]）——
+  // 只查其一会被「选择器和属性分家」骗过：查询命中不到就是静默不动，测试必须能抓住。
+  for (const attr of ['data-d1w-counter', 'data-d1w-bar-fill', 'data-d1w-line', 'data-d1w-tickrow-tick']) {
+    assert.ok(panel.includes(`${attr}=""`), `desktop missing JSX attribute ${attr}`)
+    assert.ok(panel.includes(`[${attr}]`), `desktop missing GSAP selector [${attr}]`)
+  }
+  for (const attr of ['data-d1mw-counter', 'data-d1mw-bar-fill', 'data-d1mw-line', 'data-d1mw-row']) {
+    assert.ok(mobile.includes(`${attr}=""`), `mobile missing JSX attribute ${attr}`)
+    assert.ok(mobile.includes(`[${attr}]`), `mobile missing GSAP selector [${attr}]`)
+  }
+  // 写行 Top 标签：按 SQL 目标表识别（写行热点随当天变化），且有「写入 N」回退
+  assert.match(panel, /export function writeQueryLabel/u)
+  assert.match(mobile, /export function writeQueryLabel/u)
+  assert.match(panel, /Shiphub 同步锁/u)
+  assert.match(mobile, /食品批次写入/u)
+  assert.match(panel, /\u5199\u5165 \$\{index \+ 1\}/u)
+  // 写行限额取自快照，不在前端硬编码
+  assert.match(panel, /fmtRows\(writeLimit\)/u)
+  assert.match(mobile, /writeLimit/u)
+})
+
+test('worker：写行口径断言（限额 / 排序枚举 / Top 写行 / 投影）', () => {
+  assert.match(workerService, /D1_DAILY_WRITE_LIMIT = 100_000/u)
+  assert.match(workerService, /writeLimit: D1_DAILY_WRITE_LIMIT/u)
+  assert.match(workerService, /sum_rowsWritten_DESC/u)
+  assert.match(workerService, /topWrites: d1QueriesAdaptiveGroups/u)
+  assert.match(workerService, /projectedWritesFullDay/u)
+})

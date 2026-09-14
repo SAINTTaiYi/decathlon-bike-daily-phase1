@@ -1,177 +1,33 @@
 {
   "kind": "formal-production-release",
-  "version": "6.7.8",
+  "version": "6.7.9",
   "previewRange": {
-    "fromExclusive": "7fc6e5eecde7be1f875b29aab83e53f96b274b31",
-    "toInclusive": "abfc74321dc0a49c7ac0016f020ef3e46df00467",
+    "fromExclusive": "476e110a1dec61450220c81640576c55c70933f7",
+    "toInclusive": "9b5aff9a629794030037277dba5afba046de7b5f",
     "commits": [
       {
-        "sha": "d78ae2494c4a09e3b256056bd699a42638044a18",
-        "subject": "chore(release): stamp V6.7.7 build metadata"
+        "sha": "426c6a66c87e4efcfc0435579fb6e0a4ee5f5ea5",
+        "subject": "chore(release): stamp V6.7.8 build metadata"
       },
       {
-        "sha": "319d5f102349f55ed252533a8da49af19c88174c",
-        "subject": "fix(shiphub): OAUTH_TOKEN_HTTP_400 根因修复（access token 复用 + 内联重登 + reauth 收窄） (#264)"
+        "sha": "ffc63e8e7b80decaf67b976ce93d5e577dbe1000",
+        "subject": "fix(auth): 只读会话自动恢复——额度恢复后自动解除只读模式"
       },
       {
-        "sha": "c076db2daabfbb2d292962b3e2b8e3f4d493c8a7",
-        "subject": "fix(worker): 上游 fetch 统一加超时护栏，挂死转可控失败 (#265)"
-      },
-      {
-        "sha": "63b83325fe911bd1d6f8a9e85c2703115071200a",
-        "subject": "chore(release): 后端版本 6.7.7-2（上游 fetch 超时护栏）"
-      },
-      {
-        "sha": "6feb163bb6228995cb22a1b42aa7ad6a4ba5c54e",
-        "subject": "chore(release): 6.7.7-2 更新公告写入 releaseNotes（公开版本 V6.7.7 不变）"
-      },
-      {
-        "sha": "b3dd1f4889f19790d8048d0cc9f600044bdea45f",
-        "subject": "perf(worker): tick CPU 压回免费层 10ms 预算内（Intl 缓存 / 列表指纹 / 去重解密） (#266)"
-      },
-      {
-        "sha": "0c7b32a6ccdcbd3b9028d39ea32db1ca253175a2",
-        "subject": "chore(release): 后端版本 6.7.7-3（tick CPU 预算优化）"
-      },
-      {
-        "sha": "0cf26d61d43c83ae30f99120fb03cbe4406bda12",
-        "subject": "chore(release): 6.7.7-3 更新公告写入 releaseNotes（公开版本 V6.7.7 不变）"
-      },
-      {
-        "sha": "e42db3971955503f94f090f3bd05e82680f98f11",
-        "subject": "perf(worker): 明细无自行车订单只检查一次（补全 tick CPU 优化的真实缺口） (#267)"
-      },
-      {
-        "sha": "586b1fd8f74fb91e8273f2c564b8624eff563347",
-        "subject": "chore(release): 后端版本 6.7.7-4（明细过滤订单只检查一次）"
-      },
-      {
-        "sha": "e66b0c10b0dbffb098d0fbfdf88606a91b443618",
-        "subject": "chore(release): 6.7.7-4 更新公告写入 releaseNotes（公开版本 V6.7.7 不变）"
-      },
-      {
-        "sha": "7f8d0399d1b2dffef7aac78ac0bfe14727be5c8c",
-        "subject": "fix(shiphub): 定时同步不再驱动未配置账号的门店，Preview 注销 cron（D1 写配额事故修复） (#268)"
-      },
-      {
-        "sha": "efdaca24e8bcf248d86591c54eb9096e4c3e14e0",
-        "subject": "chore(release): 后端版本 6.7.7-5（Preview 定时同步治理与 D1 写配额保护）"
-      },
-      {
-        "sha": "6ac5b42d71fd52323ad81a64619d2558b1f70b85",
-        "subject": "chore(release): 6.7.7-5 更新公告写入 releaseNotes（公开版本 V6.7.7 不变）"
-      },
-      {
-        "sha": "81350bd8c5b8cf891b1faf0737ed4dd717293de4",
-        "subject": "fix(d1): 限额错误结构化 503 + 用量 80% 邮件预警（D1 写配额事故的提前信号） (#269)"
-      },
-      {
-        "sha": "c5e0ea3ab67f1617efaff001e8e2b76e75233581",
-        "subject": "chore(release): 后端版本 6.7.7-6（D1 限额 503 + 用量 80% 邮件预警）"
-      },
-      {
-        "sha": "b5b7041d82995cd3f853a28a9bebe0606ee7fc3f",
-        "subject": "chore(release): 6.7.7-6 更新公告写入 releaseNotes（公开版本 V6.7.7 不变）"
-      },
-      {
-        "sha": "c346782bc37660fc277be4fb106568a5c5287268",
-        "subject": "perf(d1): shiphub_sync_runs 增加 started_at 单列索引（时间窗口查询不再整表扫描） (#271)"
-      },
-      {
-        "sha": "939428f0fbcea4df8fcdd23973316af26bceb6e7",
-        "subject": "chore(release): 后端版本 6.7.7-7（shiphub_sync_runs 时间窗口索引）"
-      },
-      {
-        "sha": "3c65e96ffa0621b4f932b648351a59b9da7097a8",
-        "subject": "chore(release): 6.7.7-7 更新公告写入 releaseNotes（公开版本 V6.7.7 不变）"
-      },
-      {
-        "sha": "8ac83a35f59e2657d0fa1e0d4a793926b569152e",
-        "subject": "feat(food): 食品保质期台账应用（Phase 1）"
-      },
-      {
-        "sha": "9e008ba94634049a110119367e07aa47854283cc",
-        "subject": "fix(food): 保质期清单行布局修复 + 断言加固"
-      },
-      {
-        "sha": "e684a7b4e4fa7dec3fff6b24625e4b80d4f49e8e",
-        "subject": "fix(food): 选择屏点不动、底部 Ops 泄露、卡片不显示"
-      },
-      {
-        "sha": "d732c7cd76b375f4dc41a3dab952fed4f61c9922",
-        "subject": "perf(d1): 会话活跃时间戳改为节流写入 (#272)"
-      },
-      {
-        "sha": "420bca1ab1cf0672aa23dc8025931a7f4cd0ac21",
-        "subject": "chore(release): 后端版本 6.7.7-8（会话活跃时间戳节流）"
-      },
-      {
-        "sha": "ec3811187a916690cfd6dbb794c7aca97d99fb44",
-        "subject": "chore(release): 6.7.7-8 更新公告写入 releaseNotes（公开版本 V6.7.7 不变）"
-      },
-      {
-        "sha": "28ed850bdd84bb50bf8618b96b1566046f5ac16f",
-        "subject": "Merge remote-tracking branch 'origin/main' into feat/food-ledger-20260913"
-      },
-      {
-        "sha": "9dbda0082c2c7eb3fa66802b8a26e31d63a52414",
-        "subject": "fix(auth): 写额度耗尽时登录降级为只读会话 (#273)"
-      },
-      {
-        "sha": "bb7dc97b4d2e0341eda7326f45142a62bedcab1f",
-        "subject": "chore(release): 后端版本 6.7.7-9（写额度耗尽时的只读降级登录）"
-      },
-      {
-        "sha": "68a1953ded08d4d5d304193268f885d0c01c26e8",
-        "subject": "chore(release): 6.7.7-9 更新公告写入 releaseNotes（公开版本 V6.7.7 不变）"
-      },
-      {
-        "sha": "dc42a820bf48e554101bec59b8f17289f79c8ffc",
-        "subject": "Merge remote-tracking branch 'origin/main' into feat/food-ledger-20260913"
-      },
-      {
-        "sha": "fa37ae9af9bc0208345f28dfa7528518310f5e79",
-        "subject": "refactor(food): 批次默认按最新登记排序 + 重排页面信息层级"
-      },
-      {
-        "sha": "c3cc178ff33ee352d2eab3e9f5d4809c5a7ea3d7",
-        "subject": "feat(food): 食品台账独立到 eat.workshop.skin，消除 ops 界面泄露"
-      },
-      {
-        "sha": "c20066733c7e7010f2965abaf41211cc5b36aa0f",
-        "subject": "chore(ops): 绑定食品台账独立域名 eat.workshop.skin 的运维 workflow"
-      },
-      {
-        "sha": "1f7a6fa3ecb54db4873b9d0e5d0225f07e7f3ea3",
-        "subject": "fix(food): 锁滚动 effect 落到早期 return 之后导致整页 fatal-state"
-      },
-      {
-        "sha": "494742606d6c82517aedf7e677bddbcf0ad40f05",
-        "subject": "chore(ops): 撤下 eat 域名绑定 workflow（令牌无 Workers Routes 权限）"
-      },
-      {
-        "sha": "98d83efe9347a3c86068fec9c99f3ae26e1c485c",
-        "subject": "fix(food): eat 站点判定改为精确匹配，堵住前缀判据的伪装域名"
-      },
-      {
-        "sha": "abfc74321dc0a49c7ac0016f020ef3e46df00467",
-        "subject": "chore(release): 版本基线回归公开版本 6.7.7（后端后缀 6.7.7-9 已发布，正式发布需三段式基线）"
+        "sha": "9b5aff9a629794030037277dba5afba046de7b5f",
+        "subject": "feat(d1): 总览页新增写行监控（与读行卡同构的三卡）"
       }
     ]
   },
   "announcement": {
-    "title": "食品保质期台账上线（独立站点 eat.workshop.skin）",
-    "summary": "门店食品与产品的保质期登记本搬进系统：红标待办一眼可见、登记入库、一键处理售罄或隔离；独立域名与 Ops 分开，互不干扰",
+    "title": "只读模式自动恢复 + D1 写行监控",
+    "summary": "写入额度恢复后自动解除只读，不再需要重新登录；总览页新增 D1 写行监控：今日用量与预计全天、逐小时曲线、写行 Top 5",
     "changes": [
-      "新增「食品台账」：把门店食品与产品的保质期登记本搬进系统，红标、临期、在库数量一屏可见",
-      "顶部三个数字可直接点开当筛选：红标（已过预警日，需尽快处理）、临期（观察带）、在库",
-      "登记入库：输入商品码自动带出名称与保质期，只需填生产日期或限制使用日期",
-      "红标商品点开后一键处理「已售罄」或「隔离」，处理记录留痕、可随时撤销",
-      "台账默认按最新登记排序，也可切换最早登记、预警最近 / 预警最远",
-      "食品台账独立到 eat.workshop.skin：与 Workshop Ops 分成两个站点互不干扰（需单独登录一次）",
-      "Ops 菜单里保留「食品台账」入口，点击会跳转到独立站点",
-      "判断口径：预警日 = 到期日减 1 个月；距到期不足 1 个月即标红"
+      "只读模式自动恢复：数据库写入额度恢复后自动解除只读、恢复写入，不再需要退出重新登录",
+      "只读期间横幅新增「立即恢复」按钮可手动触发；恢复成功后自动提示并重新加载当日真实数据",
+      "总览页新增 D1 写行监控：今日写行用量与预计全天、逐小时写行曲线、写行 Top 5 查询，与读行监控同款三卡",
+      "写行与读行监控共用同一次轮询，不产生额外请求"
     ]
   },
-  "preparedAt": "2026-09-13T18:25:51.963Z"
+  "preparedAt": "2026-09-14T05:49:38.840Z"
 }
