@@ -216,6 +216,7 @@ jobs:
               && grep -q '"status":"ready"' /tmp/ready.json \
               && grep -Fq "\"appVersion\":\"$APP_VERSION\"" /tmp/meta.json \
               && grep -Fq "\"gitSha\":\"$RELEASE_SHA\"" /tmp/live.json \
+              && grep -Fq "\"gitSha\":\"$RELEASE_SHA\"" /tmp/ready.json \
               && grep -Fq "\"version\":\"$APP_VERSION\"" /tmp/live.json \
               && grep -Fq "\"version\":\"$APP_VERSION\"" /tmp/ready.json \
               && grep -qi '<!doctype html' /tmp/index.html; then

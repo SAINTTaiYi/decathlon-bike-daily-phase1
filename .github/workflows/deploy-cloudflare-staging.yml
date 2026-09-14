@@ -227,6 +227,7 @@ jobs:
               && grep -q '"status":"ready"' /tmp/ready.json \
               && grep -Fq "\"appVersion\":\"$APP_VERSION\"" /tmp/meta.json \
               && grep -Fq "\"gitSha\":\"$RELEASE_SHA\"" /tmp/live.json \
+              && grep -Fq "\"gitSha\":\"$RELEASE_SHA\"" /tmp/ready.json \
               && grep -Fq "\"environment\":\"staging\"" /tmp/meta.json \
               && grep -qi '<!doctype html' /tmp/index.html; then
               echo "Staging identity matched on attempt $attempt"
