@@ -1,0 +1,47 @@
+/* ══════════════════════════ 门店设计渲染 · 宿主外壳 ══════════════════════════
+   2026-09-15：mass.workshop.skin（以及预览站的就地嵌入）用整屏 iframe 承载
+   public/store-design/ 下的静态工具页。
+
+   这一层没有自己的布局 —— 整屏 iframe 撑满视口，响应式断点全部在工具内部
+   （它自带桌面两栏 / 窄屏单列），因此**刻意不做双端拆分**：两份实现只会是
+   逐字节相同的代码。判据与说明见 components/storedesign/StoreDesignApp.jsx。
+
+   工具本体的样式内联在 public/store-design/index.html 里，不经过这份表。 */
+
+.store-design-app {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: var(--paper);
+}
+
+/* 整屏 iframe：不加任何 padding —— 任何内边距都会让工具页看起来多出一层边框。
+   页面滚动交给 iframe 内部（文档锁滚动由 App.jsx 的非 Ops 分支统一负责）。 */
+.store-design-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--paper);
+}
+
+/* 首帧遮罩：iframe onLoad 后由 GSAP 淡出并 display:none（reduced-motion 直接隐藏）。 */
+.store-design-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  text-align: center;
+  background: var(--paper);
+}
+
+.store-design-loading strong {
+  color: var(--ink-soft);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .3em;
+}
+
+.store-design-loading span { color: var(--muted); font-size: 13px; }

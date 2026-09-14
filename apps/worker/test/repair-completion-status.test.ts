@@ -50,7 +50,7 @@ function idempotencyKey(): string {
 
 function writeHeaders(): HeadersInit {
   return {
-    cookie: `__Host-bike_ops_session=${SESSION_TOKEN}`,
+    cookie: `__Secure-bike_ops_session=${SESSION_TOKEN}`,
     'x-csrf-token': CSRF_TOKEN,
     'x-store-id': STORE_ID,
     'content-type': 'application/json',

@@ -216,18 +216,18 @@ test('只读令牌防篡改与过期：签名不匹配或过期一律 401', asyn
 
     // 篡改签名最后一位
     const tampered = `${good.slice(0, -1)}${good.endsWith('a') ? 'b' : 'a'}`
-    const tamperedResponse = await get(env, '/api/v1/auth/me', `__Host-bike_ops_session=${tampered}`)
+    const tamperedResponse = await get(env, '/api/v1/auth/me', `__Secure-bike_ops_session=${tampered}`)
     assert.equal(tamperedResponse.status, 401, '篡改的令牌必须被拒')
 
     // 篡改载荷（换一个用户 id）——签名随即失效
     const forgedPayload = Buffer.from(JSON.stringify({ v: 1, u: 'somebody-else', s: STORE_ID, e: new Date(Date.now() + 3_600_000).toISOString() })).toString('base64url')
     const forged = `ro1.${forgedPayload}.${good.slice(good.lastIndexOf('.') + 1)}`
-    const forgedResponse = await get(env, '/api/v1/auth/me', `__Host-bike_ops_session=${forged}`)
+    const forgedResponse = await get(env, '/api/v1/auth/me', `__Secure-bike_ops_session=${forged}`)
     assert.equal(forgedResponse.status, 401, '伪造载荷必须被拒')
 
     // 过期令牌
     const expired = await createReadOnlySessionToken({ ...config(), SESSION_TTL_HOURS: -1 }, { userId: USER_ID, storeId: STORE_ID })
-    const expiredResponse = await get(env, '/api/v1/auth/me', `__Host-bike_ops_session=${expired}`)
+    const expiredResponse = await get(env, '/api/v1/auth/me', `__Secure-bike_ops_session=${expired}`)
     assert.equal(expiredResponse.status, 401, '过期令牌必须被拒')
 
     // 有效令牌可被解析（正例，确认上面的拒绝不是「一律拒绝」）

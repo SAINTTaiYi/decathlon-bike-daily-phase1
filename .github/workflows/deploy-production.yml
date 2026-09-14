@@ -203,7 +203,14 @@ jobs:
           const pkg = require('./package.json')
           const path = 'wrangler.production.jsonc'
           let text = fs.readFileSync(path, 'utf8')
-          const origins = Array.from(new Set([process.env.PRODUCTION_BASE_URL, 'https://www.workshop.skin'].filter(Boolean))).join(',')
+          // 三个正式站点都要能调 API（2026-09-15）：eat / mass 是两个独立站点，
+          // 三站共享同一个会话 cookie；来源白名单缺谁，谁就会被 ORIGIN_NOT_ALLOWED 拦下。
+          const origins = Array.from(new Set([
+            process.env.PRODUCTION_BASE_URL,
+            'https://www.workshop.skin',
+            'https://eat.workshop.skin',
+            'https://mass.workshop.skin'
+          ].filter(Boolean))).join(',')
           text = text.replace('__APP_VERSION__', pkg.version)
             .replace('__RELEASE_SHA__', process.env.RELEASE_SHA)
             .replace('__PRODUCTION_D1_DATABASE_ID__', process.env.PRODUCTION_D1_DATABASE_ID)

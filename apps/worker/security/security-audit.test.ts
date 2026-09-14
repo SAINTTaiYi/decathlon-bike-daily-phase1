@@ -90,7 +90,7 @@ async function seedSession(db: TestD1Database, userId: string, token: string, cs
 
 function headers(token?: string, csrf?: string, storeId?: string): HeadersInit {
   return {
-    ...(token ? { cookie: `__Host-bike_ops_session=${token}` } : {}),
+    ...(token ? { cookie: `__Secure-bike_ops_session=${token}` } : {}),
     ...(csrf ? { 'x-csrf-token': csrf } : {}),
     ...(storeId ? { 'x-store-id': storeId } : {}),
     origin: 'https://bike-ops-preview.geeklightonefish.workers.dev'
@@ -301,11 +301,13 @@ test('安全基线：登录 Cookie 属性完整，API 响应显式禁止缓存�
     })
     assert.equal(login.status, 200)
     const cookie = login.headers.get('set-cookie') ?? ''
-    assert.match(cookie, /^__Host-bike_ops_session=/u)
+    assert.match(cookie, /^__Secure-bike_ops_session=/u)
     assert.match(cookie, /; Path=\//u)
     assert.match(cookie, /; HttpOnly/u)
     assert.match(cookie, /; SameSite=Lax/u)
     assert.match(cookie, /; Secure/u)
+    // 非正式域名（预览站）必须保持 host-only：跨子域共享只对 workshop.skin 开放
+    // （2026-09-15 三站 SSO 定案，见 auth/session.ts）。
     assert.doesNotMatch(cookie, /Domain=/iu)
     assert.match(login.headers.get('cache-control') ?? '', /no-store/iu)
     assert.equal(login.headers.get('x-content-type-options'), 'nosniff')

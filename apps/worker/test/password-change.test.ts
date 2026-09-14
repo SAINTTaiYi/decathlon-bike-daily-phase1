@@ -75,7 +75,7 @@ async function login(db: TestD1Database, password = CURRENT_PASSWORD): Promise<{
   if (!response.ok) return { response }
   const body: any = await response.json()
   const cookie = (response.headers.get('set-cookie') ?? '').split(';', 1)[0] ?? ''
-  assert.match(cookie, /^__Host-bike_ops_session=/u)
+  assert.match(cookie, /^__Secure-bike_ops_session=/u)
   return { response, session: { cookie, csrfToken: body.csrfToken, storeId: body.currentStoreId } }
 }
 

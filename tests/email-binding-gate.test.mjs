@@ -52,14 +52,17 @@ test('App 门卡挂接：绑定门卡优先于改密门卡，业务钩子在锁�
   assert.ok(passwordGate > -1, '既有改密门卡保留')
   assert.ok(bindingGate < passwordGate, '绑定门卡必须先于改密门卡判定')
   assert.match(app, /const introLocked = mustChangePassword \|\| emailBindingRequired/u)
-  assert.match(app, /useRemoteClosingWorkflow\(authenticated && !introLocked\)/u)
+  assert.match(app, /useRemoteClosingWorkflow\(authenticated && !introLocked/u)
   assert.match(app, /useShipHub\(authenticated && !introLocked/u)
   // 食品台账（2026-09-13）：独立应用期间不挂 Ops 的 Shiphub 数据与门店实时长轮询，
   // 避免门店用户在食品台账里白白消耗 Ops 的请求与 D1 读额度。
   // 判据是 effectiveApp 而不是 appChoice（2026-09-14）：eat.workshop.skin 独立站点上
   // appChoice 始终为空（用户不经过选择屏），只有 effectiveApp 才是「真正在跑哪个应用」，
   // 否则食品站点会照常拉起 Shiphub 与门店长轮询。
-  assert.match(app, /useShipHub\(authenticated && !introLocked && effectiveApp !== 'food'\)/u)
-  assert.match(app, /enabled: authenticated && !introLocked && effectiveApp !== 'food'/u)
+  // 2026-09-15 门店设计接入后收敛为单一判据 opsDataNeeded（= 既不是食品台账也不是
+  // 门店设计）；断言跟着实现搬家，但守的还是同一条规则：非 Ops 应用不得拉 Ops 数据。
+  assert.match(app, /const opsDataNeeded = effectiveApp !== 'food' && effectiveApp !== 'mass'/u)
+  assert.match(app, /useShipHub\(authenticated && !introLocked && opsDataNeeded\)/u)
+  assert.match(app, /enabled: authenticated && !introLocked && opsDataNeeded/u)
   assert.match(app, /deferUpdatePrompt = auth\.source === 'login' && !introLocked/u)
 })

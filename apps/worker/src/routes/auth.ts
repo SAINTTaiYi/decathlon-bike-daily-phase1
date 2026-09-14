@@ -4,7 +4,7 @@ import { localBusinessDate, usernameKey } from '@bike-ops/domain'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
 import { createAuthMiddleware, isEmailBindingExempt, isEmailBindingRequired } from '../auth/middleware.js'
-import { clearSessionCookie, createReadOnlySessionToken, createSessionSecrets, csrfTokenHash, setSessionCookie, SESSION_COOKIE } from '../auth/session.js'
+import { clearSessionCookie, createReadOnlySessionToken, createSessionSecrets, csrfTokenHash, sessionCookieName, setSessionCookie } from '../auth/session.js'
 import { all, first, nowIso } from '../db.js'
 import { hashPassword, keyedHash, randomToken, verifyPassword } from '../lib/crypto.js'
 import { ApiProblem } from '../services/problems.js'
@@ -383,6 +383,6 @@ export function authRoutes() {
     return c.json(result.body, result.status as any)
   })
 
-  app.get('/api/v1/auth/session-cookie-name', async (c) => c.json({ cookieName: SESSION_COOKIE }))
+  app.get('/api/v1/auth/session-cookie-name', async (c) => c.json({ cookieName: sessionCookieName(c.get('config')) }))
   return app
 }

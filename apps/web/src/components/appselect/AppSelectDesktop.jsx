@@ -1,9 +1,10 @@
 /**
  * 应用选择屏 · 桌面端（独立实现，不与移动端共享 DOM）。
- * 两张大卡并排；卡片信息层级 = 名称 → 一句话说明 → 当日状态。
+ * 三张大卡并排（Ops / 食品台账 / 门店设计）；信息层级 = 名称 → 一句话说明 → 当日状态。
  */
 function statusLine(app, { closeState, flagged }) {
   if (app === 'ops') return closeState === 'closed' ? '今日已闭店' : '今日营业中'
+  if (app === 'mass') return '本机图纸 · 自动保存'
   if (flagged === null) return '保质期登记 · 红标清查'
   return flagged > 0 ? `${flagged} 条红标待处理` : '暂无红标待处理'
 }
@@ -47,6 +48,22 @@ export default function AppSelectDesktop({ rootRef, userName, storeName, closeSt
             <span className="appselect-d-card-desc">保质期登记 · 红标清查 · 临期处理</span>
             <span className="appselect-d-card-status" data-state={(flagged ?? 0) > 0 ? 'alert' : 'open'}>
               {statusLine('food', { closeState, flagged })}
+            </span>
+            <span className="appselect-d-card-go" aria-hidden="true">进入 →</span>
+          </button>
+          <button
+            type="button"
+            className="appselect-d-card"
+            data-app-card="mass"
+            data-tone="mass"
+            onClick={() => onChoose('mass')}
+            disabled={Boolean(leaving)}
+          >
+            <span className="appselect-d-card-eyebrow">03</span>
+            <strong className="appselect-d-card-name">门店设计</strong>
+            <span className="appselect-d-card-desc">平面布局 · 3D 渲染 · 方案校验</span>
+            <span className="appselect-d-card-status" data-state="open">
+              {statusLine('mass', { closeState, flagged })}
             </span>
             <span className="appselect-d-card-go" aria-hidden="true">进入 →</span>
           </button>

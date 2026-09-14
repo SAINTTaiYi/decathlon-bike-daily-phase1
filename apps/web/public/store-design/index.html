@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>门店设计 · 布局与 3D 渲染</title>
+<link rel="icon" href="/favicon.png">
+<script src="boot.js?v=1"></script>
+<style>
+:root { --accent:#2f7fd0; --ok:#2e9e5b; --bad:#d04545; --line:#e6e4df; --ink:#2c2c2c; --mut:#888; }
+* { box-sizing: border-box; }
+html, body { margin:0; padding:0; }
+body { font:14px/1.5 -apple-system, "PingFang SC", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif; background:#f6f5f1; color:var(--ink); -webkit-text-size-adjust:100%; }
+header { position:sticky; top:0; z-index:20; display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 12px; background:#fff; border-bottom:1px solid var(--line); }
+header h1 { margin:0; font-size:15px; flex:1 1 auto; display:flex; align-items:baseline; gap:6px; }
+header h1 .sub { font-size:11px; color:var(--mut); font-weight:400; }
+.actions { display:flex; gap:6px; flex-wrap:wrap; }
+button { font:inherit; padding:6px 10px; border-radius:9px; border:1px solid #d8d5cf; background:#fff; color:var(--ink); cursor:pointer; }
+button:active { transform:translateY(1px); }
+button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+button.exit { border-color:#cfd6de; color:#41546a; background:#f7f9fb; }
+.chips { display:flex; flex-wrap:wrap; gap:6px; padding:8px 12px 2px; }
+.chip { font-size:12.5px; padding:4px 10px; border-radius:999px; border:1px solid; }
+.chip.ok { color:#1c7a45; background:#e9f6ee; border-color:#bfe3cd; }
+.chip.bad { color:#b23a3a; background:#fdeceb; border-color:#f2c3c0; }
+.chip.warn { color:#96660a; background:#fdf5e3; border-color:#eeddb3; }
+.chip.info { color:#4a6b8a; background:#eef4fa; border-color:#cfdfee; }
+nav.tabs { display:flex; background:#fff; border-bottom:1px solid var(--line); padding:0 8px; gap:2px; }
+nav.tabs button { border:0; border-radius:0; border-bottom:2px solid transparent; padding:9px 12px; color:var(--mut); background:transparent; }
+nav.tabs button.on { color:#111; border-bottom-color:var(--accent); font-weight:600; }
+main { max-width:1480px; margin:0 auto; padding-bottom:20px; }
+.card { background:#fff; border:1px solid var(--line); border-radius:14px; margin:10px 12px 0; padding:10px; }
+.viewbox { border-radius:10px; overflow:hidden; background:#f7f6f3; }
+.viewbox svg { display:block; width:100%; height:auto; }
+.vrow { display:flex; align-items:center; gap:8px; padding:5px 2px; font-size:13px; flex-wrap:wrap; }
+.vrow label { color:#666; flex:none; min-width:52px; }
+.vrow input[type=range] { flex:1 1 120px; min-width:100px; accent-color:var(--accent); }
+.vrow span.mini { flex:none; width:46px; text-align:right; }
+.mini { font-size:12px; color:var(--mut); }
+.inline { display:inline-flex; align-items:center; gap:4px; }
+.small { font-size:12.5px; color:#777; }
+.warn { color:#96660a; }
+.btns button { padding:6px 9px; }
+details { background:#fff; border:1px solid var(--line); border-radius:14px; margin:10px 12px 0; overflow:hidden; }
+details > summary { list-style:none; padding:11px 12px; font-weight:600; font-size:13.5px; cursor:pointer; display:flex; align-items:center; gap:8px; }
+details > summary::-webkit-details-marker { display:none; }
+details > summary::after { content:"▾"; margin-left:auto; color:#aaa; transition:transform .15s; }
+details[open] > summary::after { transform:rotate(180deg); }
+.dbody { border-top:1px solid #f2f0eb; padding:6px 12px 12px; }
+.rowline { display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:4px 0; font-size:13px; }
+.rl { color:#666; }
+.subhead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 0 2px; font-size:12.5px; color:#555; font-weight:600; border-bottom:1px dashed #f0eee9; margin-bottom:2px; }
+.unit { color:#999; font-size:12px; }
+input[type=number], input[type=text], select { font:inherit; padding:5px 6px; border:1px solid #d8d5cf; border-radius:8px; background:#fff; color:inherit; }
+input[type=number] { width:66px; }
+input[type=text] { width:96px; }
+input.wtxt { width:74px; }
+input.namein { width:132px; }
+input.stxt { width:66px; }
+select { max-width:48vw; }
+input[type=checkbox] { width:auto; accent-color:var(--accent); }
+#planScroll { overflow:auto; max-height:64vh; border:1px solid #f0eee9; border-radius:10px; background:#fff; -webkit-user-select:none; user-select:none; overscroll-behavior:contain; }
+#planScroll svg { touch-action:pan-x pan-y; }
+#planScroll .it, #planScroll .it * { touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+#planScroll .it { -webkit-tap-highlight-color:transparent; }
+.placehintrow { background:#eef5fd; border-radius:9px; padding:4px 8px; margin-bottom:2px; }
+.placehintrow b { color:#1f5fa8; }
+/* 底部快捷编辑条（移动端） */
+.selbar { position:fixed; left:0; right:0; bottom:0; z-index:70; display:none; background:#fff; border-top:1px solid var(--line); box-shadow:0 -6px 20px rgba(0,0,0,.13); padding:7px 10px calc(9px + env(safe-area-inset-bottom)); }
+.selbar.show { display:block; }
+.selrow { display:flex; align-items:center; gap:6px; overflow-x:auto; -webkit-overflow-scrolling:touch; padding:2px 0; scrollbar-width:none; }
+.selrow::-webkit-scrollbar { display:none; }
+.selrow > * { flex:none; }
+.selbar button, .selbar input { touch-action:manipulation; }
+.selbar button { min-height:32px; }
+.selbar .tag { font-size:12px; color:#888; }
+.selbar input.selname { width:112px; height:32px; }
+.selbar button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+.selbar button.addbtn { border-color:#9ec9a8; color:#227a42; background:#f2faf4; font-weight:600; }
+.selbar .xbtn { width:32px; min-height:32px; padding:0; }
+.stepper { display:inline-flex; align-items:center; gap:2px; border:1px solid #ddd8d0; border-radius:10px; padding:1px; background:#fbfaf8; }
+.stepper button { min-width:30px; min-height:30px; padding:0 4px; border:0; border-radius:8px; background:#fff; font-size:15px; line-height:1; }
+.stepper .val { min-width:42px; text-align:center; font-size:12.5px; font-variant-numeric:tabular-nums; }
+body.selbar-on main { padding-bottom:170px; }
+body.selbar-on #toast { bottom:150px; }
+/* 悬浮「＋」添加按钮 与 添加面板 */
+.fab { position:fixed; right:16px; bottom:calc(20px + env(safe-area-inset-bottom)); z-index:65; width:54px; height:54px; border-radius:50%; border:0; background:var(--accent); color:#fff; font-size:28px; line-height:1; padding:0; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 18px rgba(47,127,208,.45); transition:bottom .2s; }
+.fab:active { transform:scale(.93); }
+body.selbar-on .fab { bottom:calc(168px + env(safe-area-inset-bottom)); }
+.addmask { position:fixed; inset:0; background:rgba(0,0,0,.3); z-index:80; display:none; }
+.addmask.show { display:block; }
+.addsheet { position:fixed; left:0; right:0; bottom:0; z-index:81; background:#fff; border-radius:18px 18px 0 0; padding:12px 14px calc(18px + env(safe-area-inset-bottom)); transform:translateY(108%); transition:transform .22s ease; max-height:74vh; overflow:auto; }
+.addsheet.show { transform:translateY(0); }
+.sheethead { display:flex; align-items:center; font-weight:700; font-size:15px; padding:2px 2px 10px; }
+.sheethead .xbtn { margin-left:auto; }
+.sheetgrid { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+.sheetgrid button { min-height:56px; border-radius:12px; font-size:12.5px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:6px 4px; background:#fbfaf8; border:1px solid #e6e3dd; }
+.sheetgrid button:active { background:#f2efe9; }
+.sheetgrid .ic { font-size:19px; line-height:1; }
+.sheetsec { grid-column:1 / -1; font-size:12px; color:#999; padding:8px 2px 0; }
+@media (min-width:1024px) {
+  .addsheet { left:50%; transform:translateX(-50%) translateY(108%); width:min(900px, calc(100vw - 40px)); }
+  .addsheet.show { transform:translateX(-50%) translateY(0); }
+  .sheetgrid { grid-template-columns:repeat(5, 1fr); }
+}
+#toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(16px); background:rgba(42,42,42,.93); color:#fff; padding:9px 15px; border-radius:11px; font-size:13px; opacity:0; pointer-events:none; transition:all .25s; z-index:60; max-width:86vw; }
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+#errlog { display:none; margin:10px 12px 0; padding:10px; border-radius:10px; background:#fff4f4; border:1px solid #f2c9c9; color:#a33; font:12px/1.5 ui-monospace, monospace; white-space:pre-wrap; }
+footer.mini { padding:10px 14px 24px; }
+@media (min-width: 1024px) {
+  header { padding:10px 18px; }
+  .chips { padding:8px 18px 2px; }
+  main { display:grid; grid-template-columns: minmax(0, 1.36fr) minmax(400px, 0.94fr); column-gap:6px; }
+  #tab3d, #tabplan { grid-column:1; }
+  #editors { grid-column:2; grid-row:1 / span 2; margin-top:10px; }
+  #errlog, footer { grid-column:1 / -1; }
+  /* 左侧视图吸顶：滚动看参数时图纸不消失 */
+  #tab3d .card, #tabplan .card { position:sticky; top:58px; }
+  #planScroll { max-height:68vh; }
+  /* 参数面板桌面多列网格：短行并排，长行横跨整行 */
+  .dbody { display:grid; grid-template-columns:repeat(auto-fill, minmax(272px, 1fr)); gap:2px 12px; }
+  .dbody .subhead { grid-column:1 / -1; }
+  .dbody .rowline { border-radius:9px; padding:4px 8px; min-width:0; }
+  .dbody .rowline:hover { background:#faf9f6; }
+  .dbody .rowline.small,
+  details[data-sec="chk"] .dbody .rowline,
+  details[data-sec="help"] .dbody .rowline { grid-column:1 / -1; }
+  /* 快捷条桌面居中、圆角 */
+  .selbar { left:50%; transform:translateX(-50%); width:min(1060px, calc(100vw - 30px)); border:1px solid var(--line); border-bottom:0; border-radius:14px 14px 0 0; padding:7px 14px 10px; }
+  body.selbar-on main { padding-bottom:170px; }
+  body.selbar-on #tabplan .card, body.selbar-on #tab3d .card { margin-bottom:120px; }
+  .selrow { justify-content:flex-start; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>门店设计 <span class="sub">布局编辑 · 3D 渲染 · 方案校验</span></h1>
+  <div class="actions">
+    <button id="btnRandom" class="primary">🎲 随机方案</button>
+    <button id="btnExportSvg">导出SVG</button>
+    <button id="btnExportJson">导出配置</button>
+    <button id="btnImportJson">导入配置</button>
+    <button id="btnReset">重置</button>
+    <button id="btnExit" class="exit" hidden>返回应用选择</button>
+  </div>
+</header>
+<div class="chips" id="chips"></div>
+<nav class="tabs">
+  <button data-tab="t3d" class="on">3D 视角（可旋转）</button>
+  <button data-tab="tplan">平面编辑</button>
+</nav>
+<main>
+  <section id="tab3d">
+    <div class="card">
+      <div id="view3d" class="viewbox"></div>
+      <div class="vrow"><label>方位角</label><input type="range" id="az" min="0" max="360" step="1"><span class="mini" id="azv">90°</span></div>
+      <div class="vrow"><label>俯仰角</label><input type="range" id="el" min="8" max="85" step="1"><span class="mini" id="elv">33°</span></div>
+      <div class="vrow"><label>缩放</label><input type="range" id="zm" min="40" max="260" step="2"><span class="mini" id="zmv">100%</span></div>
+      <div class="vrow btns">
+        <button id="rotL">⟲ 左转45°</button><button id="rotR">⟳ 右转45°</button>
+        <button id="vIso">轴测</button><button id="vTop">俯视</button><button id="vReset">复位</button><button id="spin">自动旋转</button>
+      </div>
+      <div class="mini">单指拖动 = 旋转视角 · 双指捏合 / 滚轮 = 缩放。墙体高度可在「空间与显示」里切换为半墙/全墙。</div>
+    </div>
+  </section>
+  <section id="tabplan" style="display:none">
+    <div class="card">
+      <div class="vrow btns">
+        <button id="pzOut">－</button><button id="pzIn">＋</button><button id="pzFit">适应</button>
+        <span class="mini" id="pzInfo" style="flex:1;text-align:left"></span>
+        <label class="mini inline"><input type="checkbox" id="pgrid" checked> 网格</label>
+        <label class="mini inline">吸附
+          <select id="snap"><option value="0.5">0.5m</option><option value="0.25">0.25m</option><option value="0.1">0.1m</option></select>
+        </label>
+      </div>
+      <div id="planScroll"><div id="viewplan"></div></div>
+      <div class="mini" style="padding-top:6px">拖动元素即可移动（自动吸附）｜点选后屏幕底部出现「快捷编辑条」：改名 / 单双面 / 长度 / 贴墙 / 微调位置，无需滚动页面。</div>
+    </div>
+  </section>
+  <div id="editors"></div>
+  <div id="errlog"></div>
+  <footer class="mini">
+    空间 23.0 × 17.0 m（按原图 0.5m 网格量取）· 默认方案：双面货架 26m（货道间距 ≥5m）｜ 工作室 4×4m（背靠库区网面 + 西侧玻璃窗，挂洞洞板）｜ 骑行试用区 8.5×2.8m（避开三个出入口净空区）· 门帘 / 矮货架 / 自行车斜45°（2m·1.5m）· 数据自动保存在本机浏览器。
+  </footer>
+</main>
+<input type="file" id="fileImport" accept=".json,application/json" style="display:none">
+<button id="fab" class="fab" aria-label="添加组件" title="添加组件">＋</button>
+<div id="addmask" class="addmask"></div>
+<div id="addsheet" class="addsheet">
+  <div class="sheethead">添加组件<button class="xbtn" id="sheetClose" aria-label="关闭">✕</button></div>
+  <div class="sheetgrid" id="sheetgrid"></div>
+</div>
+<div id="selbar" class="selbar"></div>
+<div id="toast"></div>
+<script src="engine.js?v=2.2"></script>
+<script src="app.js?v=2.2"></script>
+<script src="embed.js?v=1"></script>
+</body>
+</html>

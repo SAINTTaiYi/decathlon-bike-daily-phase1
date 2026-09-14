@@ -76,7 +76,7 @@ async function hit(db: TestD1Database, path: string, sink: Promise<unknown>[]): 
   return handleRequest(
     new Request(`${ORIGIN}${path}`, {
       headers: {
-        cookie: `__Host-bike_ops_session=${TOKEN}`,
+        cookie: `__Secure-bike_ops_session=${TOKEN}`,
         'x-store-id': STORE_ID,
         origin: ORIGIN
       }
@@ -130,7 +130,7 @@ test('节流不改变鉴权语义：无效会话仍然 401', async () => {
     const sink: Promise<unknown>[] = []
     const response = await handleRequest(
       new Request(`${ORIGIN}/api/v1/changes?since=0`, {
-        headers: { cookie: '__Host-bike_ops_session=not-a-real-session', 'x-store-id': STORE_ID, origin: ORIGIN }
+        headers: { cookie: '__Secure-bike_ops_session=not-a-real-session', 'x-store-id': STORE_ID, origin: ORIGIN }
       }),
       environment(db),
       executionContext(sink)
