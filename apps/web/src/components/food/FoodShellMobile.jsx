@@ -15,11 +15,12 @@ import {
 /**
  * 食品台账 · 移动端（独立实现，不与桌面端共享 DOM）。
  *
- * 信息架构（2026-09-14 按用户反馈重排）：
- *   顶部 = 三个状态大数字（红标 / 临期 / 在库，点一下即按该状态筛选）
- *        + 一个「登记入库」主按钮（最常用的动作，永远在最显眼的位置）
- *   中部 = 两个内容页签（批次 / 清单）—— 登记不再是页签，它是动作不是内容
- *   列表 = 状态 / 品类筛选 + 排序 + 搜索，行内点开才出现处理按钮
+ * 信息架构（2026-09-14 设计定案二次收敛）：
+ *   顶部 = 四个状态大数字（全部 / 红标 / 临期 / 在库）—— 唯一的状态筛选入口，
+ *        点一下直接过滤下方列表（带按压反馈与选中态）
+ *        + 一个「登记入库」主按钮（唯一的主操作）
+ *   中部 = 两个内容页签（批次 / 清单）—— 登记不是页签，它是动作
+ *   列表 = 品类筛选 + 排序 + 搜索；状态筛选行已删除（不再重复一排筛选）
  *
  * 排序默认「最新登记」：门店补货时第一眼要看的是刚登记了什么，而不是最早的。
  * 切到「红标」时自动改成「预警最近」——清查场景要的是最紧急的排最前。
@@ -30,11 +31,14 @@ const VIEWS = [
   { id: 'shelf', label: '清单' }
 ]
 
-const FILTERS = [
-  { id: 'open', label: '在库' },
-  { id: 'flagged', label: '红标' },
-  { id: 'soon', label: '临期' },
-  { id: 'all', label: '全部' }
+// 顶部数字卡 = 唯一的状态筛选入口（2026-09-14 用户定案）：
+// 四张卡按「全部 / 红标 / 临期 / 在库」排列，点击即过滤列表；列表区里那排
+// 重复的状态筛选已删除，数字卡本身带按压反馈与选中态。
+const STAT_FILTERS = [
+  { id: 'all', label: '全部', countKey: 'total' },
+  { id: 'flagged', label: '红标', countKey: 'flagged', tone: 'alert' },
+  { id: 'soon', label: '临期', countKey: 'soon', tone: 'soon' },
+  { id: 'open', label: '在库', countKey: 'open' }
 ]
 
 const KINDS = [
@@ -49,6 +53,42 @@ const SORTS = [
   { id: 'warn_asc', label: '预警最近' },
   { id: 'warn_desc', label: '预警最远' }
 ]
+
+function StatCard({ entry, count, active, onSelect }) {
+  const ref = useRef(null)
+  const pressRef = useRef(null)
+
+  useEffect(() => {
+    const node = ref.current
+    if (!node) return undefined
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined
+    // 按压反馈：小面积卡片按下时轻微缩小、松开回弹（memory 22：大面积表面禁 scale，
+    // 这张卡只有几十像素，不涉及大字重排与糊字）。状态色过渡交给 CSS。
+    pressRef.current = gsap.quickTo(node, 'scale', { duration: .16, ease: 'power2.out' })
+    return () => { pressRef.current = null; gsap.set(node, { clearProps: 'transform' }) }
+  }, [])
+
+  const press = () => pressRef.current?.(.96)
+  const release = () => pressRef.current?.(1)
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      className="food-m-stat"
+      data-stat={entry.id}
+      data-tone={entry.tone || undefined}
+      data-active={active ? 'true' : 'false'}
+      onClick={() => onSelect(entry.id)}
+      onPointerDown={press}
+      onPointerUp={release}
+      onPointerLeave={release}
+      onPointerCancel={release}
+    >
+      <b>{count === null || count === undefined ? '—' : count}</b><span>{entry.label}</span>
+    </button>
+  )
+}
 
 function SortMenu({ sort, onChange }) {
   const [open, setOpen] = useState(false)
@@ -138,7 +178,7 @@ function BatchRow({ batch, today, syncing, expanded, onToggle, onHandle }) {
 }
 
 function BatchesView({ ledger, today, onNotify }) {
-  const { batches, loading, syncing, hasMore, loadMore, filter, focusFilter, sort, setSort, kind, setKind, query, setQuery, handle } = ledger
+  const { batches, loading, syncing, hasMore, loadMore, filter, sort, setSort, kind, setKind, query, setQuery, handle } = ledger
   const [expandedId, setExpandedId] = useState('')
 
   const onHandle = async (batch, status) => {
@@ -152,13 +192,6 @@ function BatchesView({ ledger, today, onNotify }) {
 
   return (
     <div className="food-m-batches">
-      <div className="food-m-toolbar">
-        <div className="food-m-chips" role="group" aria-label="按状态筛选">
-          {FILTERS.map((entry) => (
-            <button key={entry.id} type="button" data-active={filter === entry.id ? 'true' : 'false'} onClick={() => focusFilter(entry.id)}>{entry.label}</button>
-          ))}
-        </div>
-      </div>
       <div className="food-m-toolbar">
         <div className="food-m-chips" role="group" aria-label="按品类筛选">
           {KINDS.map((entry) => (
@@ -475,15 +508,15 @@ export default function FoodShellMobile({ ledger, view, onViewChange, userName, 
         {inEntry ? null : (
           <>
             <div className="food-m-stats" role="group" aria-label="库存状态">
-              <button type="button" className="food-m-stat" data-tone="alert" data-active={ledger.filter === 'flagged' ? 'true' : 'false'} onClick={() => ledger.focusFilter('flagged')}>
-                <b>{counts ? counts.flagged : '—'}</b><span>红标</span>
-              </button>
-              <button type="button" className="food-m-stat" data-tone="soon" data-active={ledger.filter === 'soon' ? 'true' : 'false'} onClick={() => ledger.focusFilter('soon')}>
-                <b>{counts ? counts.soon : '—'}</b><span>临期</span>
-              </button>
-              <button type="button" className="food-m-stat" data-active={ledger.filter === 'open' ? 'true' : 'false'} onClick={() => ledger.focusFilter('open')}>
-                <b>{counts ? counts.open : '—'}</b><span>在库</span>
-              </button>
+              {STAT_FILTERS.map((entry) => (
+                <StatCard
+                  key={entry.id}
+                  entry={entry}
+                  count={counts ? counts[entry.countKey] : null}
+                  active={ledger.filter === entry.id}
+                  onSelect={ledger.focusFilter}
+                />
+              ))}
             </div>
             <button type="button" className="food-m-register" onClick={() => onViewChange('entry')}>＋ 登记入库</button>
             <nav className="food-m-segments" ref={trackRef} role="tablist" aria-label="食品台账视图">

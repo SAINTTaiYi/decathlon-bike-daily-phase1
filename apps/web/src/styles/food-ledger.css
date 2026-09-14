@@ -154,7 +154,9 @@
 }
 .food-m-title { margin: 0; color: var(--ink); font-size: 17px; font-weight: 750; letter-spacing: -.01em; }
 .food-m-store { color: var(--muted); font-size: 11px; text-align: right; }
-.food-m-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+/* 四张数字卡 = 唯一的状态筛选入口（2026-09-14 定案）：全部 / 红标 / 临期 / 在库。
+   一行四列排满；列表区不再出现重复的状态筛选行。 */
+.food-m-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .food-m-stat {
   display: grid;
   gap: 2px;
@@ -190,7 +192,9 @@
 .food-m-segments {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* 两个内容页签（批次 / 清单）各占一半。repeat(4) 是四页签时代的遗留，
+     页签收敛成两个之后没跟着改，按钮会挤在左半边（2026-09-14 修复）。 */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
   margin: 0 16px 8px;
   padding: 4px;
@@ -272,7 +276,6 @@
 .food-m-sort-menu button[data-active='true'] { background: var(--accent); color: #14161a; font-weight: 720; }
 
 .food-m-batches { display: grid; gap: 10px; padding-top: 6px; }
-.food-m-filter-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .food-m-chips { display: flex; gap: 6px; padding: 3px; border-radius: 12px; background: var(--food-chip-bg); }
 .food-m-chips button {
   padding: 6px 12px 7px;

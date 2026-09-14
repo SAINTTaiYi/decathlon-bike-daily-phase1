@@ -307,14 +307,47 @@ test('排序 UI：两端都有排序菜单，四个选项齐全', () => {
   }
 })
 
-test('信息层级：顶部三个状态数字可点即筛选，登记是主按钮而非页签', () => {
-  // 三个数字是按钮（可点即筛选），不是静态文本
-  for (const [label, source, statClass] of [['移动端', foodMobile, 'food-m-stat'], ['桌面端', foodDesktop, 'food-d-stat']]) {
-    const statButtons = source.match(new RegExp(`className="${statClass}"`, 'gu')) || []
-    assert.equal(statButtons.length, 3, `${label}顶部必须是三个状态按钮`)
-    assert.match(source, new RegExp(`className="${statClass}"[^>]*onClick`, 'u'), `${label}状态数字必须可点击筛选`)
+test('信息层级：顶部四个状态数字（全部 / 红标 / 临期 / 在库）是唯一筛选入口，登记是主按钮而非页签', () => {
+  // 移动端（2026-09-14 用户定案）：四张数字卡由 STAT_FILTERS 驱动，顺序与文案锁定
+  const stats = foodMobile.match(/const STAT_FILTERS = \[([\s\S]*?)\n\]/u)?.[1] ?? ''
+  assert.ok(stats, '移动端必须定义 STAT_FILTERS')
+  const ids = [...stats.matchAll(/id: '([a-z_]+)'/gu)].map((match) => match[1])
+  assert.deepEqual(ids, ['all', 'flagged', 'soon', 'open'], '数字卡顺序必须是 全部 / 红标 / 临期 / 在库')
+  const labels = [...stats.matchAll(/label: '([^']+)'/gu)].map((match) => match[1])
+  assert.deepEqual(labels, ['全部', '红标', '临期', '在库'], '数字卡文案必须齐全')
+  for (const key of ['total', 'flagged', 'soon', 'open']) {
+    assert.ok(stats.includes(`countKey: '${key}'`), `数字卡必须绑定计数 ${key}`)
   }
-  // 登记改为按钮
+  assert.match(foodMobile, /STAT_FILTERS\.map\(/u, '数字卡必须由数组渲染')
+  assert.match(foodMobile, /onSelect=\{ledger\.focusFilter\}/u, '点数字卡必须直达该状态筛选')
+  assert.match(foodMobile, /data-active=\{active \? 'true' : 'false'\}/u, '数字卡必须有选中态')
+
+  // 按压反馈：GSAP quickTo scale + pointer 事件；尊重 reduced-motion
+  const statCard = foodMobile.slice(foodMobile.indexOf('function StatCard'), foodMobile.indexOf('function SortMenu'))
+  assert.ok(statCard.length > 0, '必须存在 StatCard 组件')
+  assert.match(statCard, /gsap\.quickTo\(node, 'scale'/u, '数字卡必须有按压反馈')
+  assert.match(statCard, /onPointerDown=\{press\}/u, '按压反馈必须响应 pointerdown')
+  assert.match(statCard, /onPointerUp=\{release\}/u, '松开必须回弹')
+  assert.match(statCard, /prefers-reduced-motion: reduce/u, '按压反馈必须尊重 reduced-motion')
+
+  // 状态筛选入口唯一：列表区不得再有重复的那排筛选
+  assert.doesNotMatch(foodMobile, /aria-label="按状态筛选"/u, '移动端列表区不得再有重复的状态筛选行')
+  assert.doesNotMatch(foodMobile, /const FILTERS = /u, '旧的 FILTERS 数组必须删除（不留死代码）')
+  assert.doesNotMatch(foodCss, /food-m-filter-row/u, '已废弃的筛选行样式必须删除')
+  assert.match(foodMobile, /aria-label="按品类筛选"/u, '品类筛选是另一维度，仍应保留')
+
+  // CSS：四张卡一行排满（不换行）；分段两页签各占一半（修复 repeat(4) 遗留）
+  const statsRule = foodCss.match(/\.food-m-stats\s*\{[^}]*\}/u)?.[0] ?? ''
+  assert.match(statsRule, /grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/u, '数字卡必须一行四列排满')
+  const segmentsRule = foodCss.match(/\.food-m-segments\s*\{[^}]*\}/u)?.[0] ?? ''
+  assert.match(segmentsRule, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/u, '两个页签必须各占一半，不得沿用四页签的 repeat(4)')
+
+  // 桌面端本轮不动：仍是三个状态按钮
+  const deskStats = foodDesktop.match(/className="food-d-stat"/gu) || []
+  assert.equal(deskStats.length, 3, '桌面端仍保持三个状态按钮（本轮只改移动端）')
+  assert.match(foodDesktop, /className="food-d-stat"[^>]*onClick/u, '桌面端状态数字必须可点击筛选')
+
+  // 登记改为按钮（双端）
   assert.match(foodMobile, /className="food-m-register"/u, '移动端必须有登记主按钮')
   assert.match(foodDesktop, /className="food-d-register"/u, '桌面端必须有登记主按钮')
   // 页签只剩「批次 / 清单」两个内容页
