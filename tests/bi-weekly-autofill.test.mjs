@@ -6,12 +6,19 @@ const read = (p) => readFile(new URL(`../apps/web/src/${p}`, import.meta.url), '
 const readWorker = (p) => readFile(new URL(`../apps/worker/src/${p}`, import.meta.url), 'utf8')
 
 // ── Worker：周结定时拉取 ──
-test('cron 挂载：BI 周结 + Shiphub + D1 用量预警并行，scheduledTime 传递', async () => {
+test('cron 拆分：BI 周结走独立 cron；每分钟 tick 只跑 Shiphub + D1 用量预警', async () => {
   const index = await readWorker('index.ts')
-  // 2026-09-13：D1 用量预警（80% 邮件）加入同一并行组；三者都绝不抛错。
-  assert.match(index, /Promise\.allSettled\(\[\s*runScheduledShipHubSync\(env\),\s*runScheduledBiSync\(env, fireTime\),\s*runD1UsageAlert\(env, fireTime\)\s*\]\)/u)
+  const svc = await readWorker('services/bi-weekly.ts')
+  // 2026-09-15 晚间 CPU 风暴修复：BI 拉取重路径（单次 20–49ms CPU）不得与 Shiphub
+  // 同步同处一次 scheduled 调用——否则平台 CPU 限流终止调用时连带 Shiphub 同步停摆。
+  assert.match(svc, /export const BI_SCHEDULED_CRON = '7,37 \* \* \* \*'/u, 'BI 独立 cron 常量')
+  assert.match(index, /import \{ BI_SCHEDULED_CRON, runScheduledBiSync \} from '\.\/services\/bi-weekly\.js'/u)
+  assert.match(index, /if \(controller\.cron === BI_SCHEDULED_CRON\) \{/u, '必须按 cron 串路由')
+  assert.match(index, /Promise\.allSettled\(\[runScheduledBiSync\(env, fireTime\)\]\)/u, 'BI 独立执行')
+  // 每分钟 tick：Shiphub + 预警（BI 不在其中）
+  assert.match(index, /Promise\.allSettled\(\[\s*runScheduledShipHubSync\(env\),\s*runD1UsageAlert\(env, fireTime\)\s*\]\)/u)
+  assert.doesNotMatch(index, /runScheduledShipHubSync\(env\),\s*runScheduledBiSync/u, 'BI 不得再与 Shiphub 并行在每分钟 tick')
   assert.match(index, /new Date\(controller\.scheduledTime\)/u)
-  assert.match(index, /import \{ runScheduledBiSync \} from '\.\/services\/bi-weekly\.js'/u)
   assert.match(index, /import \{ runD1UsageAlert \} from '\.\/services\/d1-usage-alert\.js'/u)
 })
 

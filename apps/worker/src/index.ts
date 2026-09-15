@@ -23,7 +23,7 @@ import { biRoutes } from './routes/bi.js'
 import { d1MetricsRoutes } from './routes/d1-metrics.js'
 import { foodRoutes } from './routes/food.js'
 import { runScheduledShipHubSync } from './services/shiphub-sync.js'
-import { runScheduledBiSync } from './services/bi-weekly.js'
+import { BI_SCHEDULED_CRON, runScheduledBiSync } from './services/bi-weekly.js'
 import { runD1UsageAlert } from './services/d1-usage-alert.js'
 import { detectD1LimitError, d1LimitProblemBody, errorChainText } from './lib/d1-limits.js'
 import { ApiProblem } from './services/problems.js'
@@ -161,12 +161,24 @@ export async function handleRequest(request: Request, env: WorkerEnv, executionC
 
 export default {
   fetch: handleRequest,
+  // ── 定时任务拆分（2026-09-15 晚间 CPU 风暴修复）──────────────────────────
+  // 背景：免费层 CPU 预算 10ms/调用。BI 缓存过期时的拉取重路径（perfeco 拉取 +
+  // 解析 + 落库，单次实测 20–49ms）此前与 Shiphub 同步同处一次 scheduled 调用，
+  // 把整轮 tick 拖过预算；平台在用量高峰会终止这类超限调用，连带正在进行的
+  // Shiphub 同步被腰斩、50 秒租约残留 —— 晚间 25–45 分钟同步停摆的机制。
+  // 拆分后：BI 走独立 cron（每小时 :07/:37），被杀只损失一次缓存预热；
+  // 每分钟 tick 只剩 Shiphub 同步与 D1 用量预警，回到 CPU 预算内。
+  // 路由用精确匹配：若未来 cron 串被平台规范化，BI 会回落到每分钟 tick
+  // （即旧行为），不会静默漏跑。
   scheduled(controller: ScheduledController, env: WorkerEnv, executionCtx: ExecutionContext): void {
-    // Shiphub 同步 + BI 周结定时拉取 + D1 用量预警并行；三者都绝不抛错（内部全量兜底）。
     const fireTime = new Date(controller.scheduledTime)
+    if (controller.cron === BI_SCHEDULED_CRON) {
+      executionCtx.waitUntil(Promise.allSettled([runScheduledBiSync(env, fireTime)]))
+      return
+    }
+    // 每分钟 tick：Shiphub 同步 + D1 用量预警；两者都绝不抛错（内部全量兜底）。
     executionCtx.waitUntil(Promise.allSettled([
       runScheduledShipHubSync(env),
-      runScheduledBiSync(env, fireTime),
       runD1UsageAlert(env, fireTime)
     ]))
   }

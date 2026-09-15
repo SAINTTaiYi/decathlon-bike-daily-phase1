@@ -44,7 +44,12 @@ const SELF_HEAL_BACKOFF_MS = 30 * 60_000
 // 单次 4xx 多为「BI/Cube 重登作废 RT 族」的瞬时撞车，内联重登即可恢复；
 // 只有反复失败（自愈也没救回来）才说明凭据真失效，需要门店人工重连。
 const TOKEN_REAUTH_THRESHOLD = 3
-const LEASE_MS = 90_000
+// 同步租约（2026-09-15 调整 90s → 50s）：租约只在同步进行期间生效，50 秒足以覆盖
+// 常态最长同步（<10 秒）并留 5 倍余量；一旦 tick 被平台终止（CPU 超限），残留租约
+// 最多挡住下一轮一次——下一分钟 tick 即可接管重试，而不是被挡两轮（自愈从 ~2 分钟
+// 缩短到 ~1 分钟）。极端情况下真实同步若超过 50 秒，下一轮接管只会重复一轮上游拉取
+// （幂等 upsert），不会写坏数据。
+const LEASE_MS = 50_000
 
 export type ShipHubConnection = {
   storeId: string

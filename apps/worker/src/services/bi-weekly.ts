@@ -8,9 +8,15 @@ import type { WorkerEnv } from '../env.js'
 // ── BI 周结定时拉取（2026-09-06）────────────────────────────────────────
 // BI 门户（TableauRest）VizQL 链路 2026-09-01 协议变更后无法从 Worker 稳定拉取，
 // 周口径数据源统一换 CIS perfeco（与 09-04 车型榜换源同一决策）。
-// 周报节奏：周日→周六，周六关店后该周完结；cron 每 5 分钟触发本服务，
+// 周报节奏：周日→周六，周六关店后该周完结；由独立 cron（每小时 :07/:37）触发本服务，
 // 窗口内（北京时间 09:00–23:00）对每个 active store 确保最后一个已完结周已落库。
 // 首个 tick（周日上午）即完成「周报出的那一天自动拉取完毕」，无需任何人打开页面。
+
+// BI 独立 cron（2026-09-15 晚间 CPU 风暴修复）：BI 拉取重路径不得与 Shiphub 每分钟
+// 同步同处一次 scheduled 调用——缓存过期时的拉取（单次 20–49ms CPU）会把整轮 tick
+// 拖过免费层 10ms 预算，平台终止时连带 Shiphub 同步停摆。本常量必须与
+// wrangler.jsonc 与 deploy-cloudflare-staging.yml 的 triggers.crons 保持一致。
+export const BI_SCHEDULED_CRON = '7,37 * * * *'
 
 export const BI_SYNC_TIMEZONE = 'Asia/Shanghai'
 export const BI_SYNC_START_HOUR = 9
