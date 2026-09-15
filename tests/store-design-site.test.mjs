@@ -630,3 +630,118 @@ test('托臂：旧数据迁移（单条托臂 → 托臂排；货架高度 1.5m 
   low.shelves = [{ id: 'z2', name: '', kind: 'low', orient: 'h', x: 2, y: 2, len: 4, h: 0.9, acc: {} }]
   assert.equal(engine.migrateLegacy(low).shelves[0].h, 0.9, '矮货架高度不动')
 })
+
+// ── 2026-09-15 穿模修复（挂车不得被货架面盖住）+ 货架正面视角 ──────────────────
+
+test('穿模：挂车 / 附件在货架面之后绘制（按所属货架的深度区间排序）', async () => {
+  const engine = await loadToolEngine()
+  const c = engine.defaultConfig()
+  c.bikes = []
+  c.shelves = [Object.assign({}, c.shelves[0], {
+    id: 's1', len: 7.5, h: 3.3,
+    acc: { armRows: [
+      { id: 'a1', z: 0.9, len: 'short', size: 'adult', u0: 0, u1: 7.5 },
+      { id: 'a2', z: 2.15, len: 'short', size: 'adult', u0: 0, u1: 7.5 }
+    ] }
+  })]
+  // 45°（用户截图的角度）：修复前挂车被货架正面面的平均深度压住 → 整台车看不见
+  const svg = engine.render3D(c, { az: 45, el: 33, zoom: 1, vw: 1000, vh: 700 })
+  const firstBike = svg.indexOf('data-acc="arm"')
+  assert.ok(firstBike > 0, '3D 里必须有挂车')
+  // 货架正面面填充色（PAL.shelfD.t）最后出现的位置 = 该面绘制的位置
+  const lastFace = Math.max(svg.lastIndexOf('fill="#f5e6ca"'), svg.lastIndexOf('fill="#ecd7ae"'))
+  assert.ok(lastFace > 0, '3D 里必须有货架的正面面')
+  assert.ok(firstBike > lastFace, '挂车必须在货架面之后绘制（否则就是穿模：被货架吃掉）')
+  // 下层与上层都要可见（修复前只有上层可见）
+  const keys = []
+  const re = /data-acc="arm"/gu
+  let m
+  while ((m = re.exec(svg))) keys.push(m.index)
+  assert.equal(keys.length, 6, '两排共 6 台挂车')
+  for (const k of keys) assert.ok(k > lastFace, '每一台挂车都必须在货架面之后')
+  // 结构护栏：附件走所属货架的深度区间（相机在附件一侧 → 之后；否则 → 之前）
+  const eng = stripComments(toolEngine)
+  assert.ok(eng.includes('function boxKeyRange('), '引擎必须有盒子深度区间工具')
+  assert.ok(eng.includes('function cameraOnSide('), '引擎必须能判断相机在货架哪一侧')
+  assert.ok(eng.includes('var attachKeyOf = null;'), '货架循环必须建立附件排序上下文')
+  assert.ok(eng.includes('return sOnSide ? (k > sRange.max + 0.02 ? k : sRange.max + 0.02)'), '附件在一侧时画在货架之后')
+  assert.ok(eng.includes('(k < sRange.min - 0.02 ? k : sRange.min - 0.02)'), '附件在另一侧时画在货架之前')
+  assert.ok(eng.includes('function boxAdd(bx, pal, op, keyOf){'), 'boxAdd 必须支持自定义深度键')
+  const ownerIdx = eng.indexOf('var bikeOwner = {};')
+  const concatIdx = eng.indexOf('(cfg.bikes || []).concat(accBikesOf(cfg)).forEach(function(bk){')
+  assert.ok(ownerIdx > 0 && ownerIdx < concatIdx, '挂车排序表必须在渲染前建立')
+})
+
+test('货架正面视角：引擎渲染（立面 / 托臂排 / 挂车 / 手柄 / 空态）', async () => {
+  const engine = await loadToolEngine()
+  const c = engine.defaultConfig()
+  c.bikes = []
+  c.shelves = [Object.assign({}, c.shelves[0], {
+    id: 's1', name: '童车区', len: 7.5, h: 3.3,
+    acc: { armRows: [
+      { id: 'a1', z: 0.9, len: 'short', size: 'kids', u0: 0, u1: 7.5 },
+      { id: 'a2', z: 2.15, len: 'long', size: 'adult', u0: 1.5, u1: 5.5 }
+    ] }
+  })]
+  const r = engine.renderShelfFront(c, 's1', { vw: 1000, vh: 640, selRow: 'a2' })
+  assert.ok(r.svg.includes('<svg'), '必须返回 SVG')
+  assert.ok(!/NaN|undefined/u.test(r.svg), '正面视图不得含 NaN/undefined')
+  assert.equal((r.svg.match(/data-rowgroup=/gu) ?? []).length, 2, '两排托臂各一组')
+  assert.equal((r.svg.match(/data-rowhandle=/gu) ?? []).length, 2, '选中排两端各一个手柄')
+  assert.equal((r.svg.match(/data-row=/gu) ?? []).length, 2, '每排都有可拖动命中区')
+  assert.ok(r.svg.includes('长托臂 1m'), '选中排必须标注托臂长度')
+  assert.ok(r.svg.includes('离地 2.15m'), '选中排必须标注高度')
+  const r1 = engine.renderShelfFront(c, 's1', { vw: 1000, selRow: 'a1' })
+  assert.ok(r1.svg.includes('短托臂 0.5m') && r1.svg.includes('16″ 童车'), '换成另一排时标注随之更新')
+  assert.ok(r.svg.includes('data-scale=') && r.svg.includes('data-mx=') && r.svg.includes('data-my='), 'SVG 必须带交互所需的 meta（data-*）')
+  // 立面坐标换算：mx + u*scale = 屏幕 x；my - z*scale = 屏幕 y
+  assert.equal(r.meta.len, 7.5)
+  assert.equal(r.meta.h, 3.3)
+  assert.ok(r.meta.scale >= 10 && r.meta.scale <= 220, '缩放必须在合理区间')
+  // 挂车数量：童车排 5 台 + 成人排 2 台 = 7 台；每台 2 个轮 × (轮胎圈 + 花鼓圈) = 4 个圆
+  assert.equal((r.svg.match(/<circle/gu) ?? []).length, 7 * 4 + 2, '挂车轮圈（胎 + 花鼓）+ 选中排两端手柄')
+  // 空货架：提示添加，不报错
+  const empty = engine.renderShelfFront(Object.assign({}, c, { shelves: [Object.assign({}, c.shelves[0], { acc: {} })] }), 's1', { vw: 800 })
+  assert.ok(empty.svg.includes('还没有托臂排'), '无托臂排时必须给出提示')
+  // 找不到货架 → 空结果（调用方回退到提示态）
+  assert.equal(engine.renderShelfFront(c, 'nope', {}).svg, '')
+  // 窄容器必须自动缩小，不产生横向溢出
+  const narrow = engine.renderShelfFront(c, 's1', { vw: 360 })
+  assert.ok(narrow.meta.scale < r.meta.scale, '窄容器自动缩小')
+  assert.ok(narrow.meta.mx + narrow.meta.len * narrow.meta.scale + 30 <= 360 + 1, '宽度必须落在容器内')
+})
+
+test('货架正面视角：双端页签 + 入口 + 交互接线', () => {
+  for (const [label, src] of [['桌面端', stripComments(toolUiDesktop)], ['移动端', stripComments(toolUiMobile)]]) {
+    assert.ok(src.includes('<button data-tab="tfront">货架正面</button>'), `${label}必须有第三个页签`)
+    assert.ok(src.includes('id="tabfront"'), `${label}必须有正面视图面板`)
+    assert.ok(src.includes('id="frontScroll"') && src.includes('id="viewfront"'), `${label}必须有滚动容器与画布`)
+    assert.ok(src.includes('id="frontBar"'), `${label}必须有正面视图工具栏`)
+    assert.ok(src.includes('slots.viewfront') && src.includes('slots.frontScroll') && src.includes('slots.frontBar'), `${label}必须把挂载点交给 app.js`)
+    assert.ok(src.includes('data-bact="openFront"'), `${label}快捷条必须有「正面视角」入口`)
+  }
+  // 移动端三个页签 → 三列（原来写死两列，会挤在左半边）
+  const mcss = stripComments(toolMobileCss)
+  const vs = mcss.match(/\.sd-m-vswitch\s*\{[^}]*\}/gu) ?? []
+  assert.equal(vs.length, 1, '移动端页签样式只允许一处声明')
+  assert.match(vs[0], /repeat\(3,\s*minmax\(0,\s*1fr\)\)/u, '三个页签必须三列等宽')
+  const app = stripComments(toolApp)
+  for (const fn of ['function renderFrontNow(', 'function bindFront(', 'function renderFrontBar(', 'function frontZoom(', 'function frontMeta(', 'function toFrontUZ(', 'function frontShelfOf(', 'function frontRowGet(', 'function materializeRow(']) {
+    assert.ok(app.includes(fn), 'app.js 必须实现 ' + fn)
+  }
+  assert.ok(app.includes("openFront: function(ds){"), 'acts 必须接 openFront')
+  assert.ok(app.includes("if (tab === 'tfront') renderFrontNow();"), 'setTab 必须处理正面视图')
+  assert.ok(app.includes("render3DNow(); renderPlanNow(); renderFrontNow(); }"), '结构变化后必须刷新正面视图')
+  assert.ok(app.includes("if (/^sh:/.test(String(ui.sel || ''))) ui.frontShelf = String(ui.sel).slice(3);"), '选中货架必须同步正面视图')
+  assert.ok(app.includes("if (ui.tab !== 'tfront') setTab('tfront'); else renderFrontNow();"), '入口必须切到正面视图')
+  // 拖拽语义：移动 = 改高度 + 整排平移；手柄 = 改起止范围
+  assert.ok(app.includes("mode = (hp[1] === '0') ? 'left' : 'right';"), '手柄拖动必须区分左右端')
+  assert.ok(app.includes("r.u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, Math.max(0, start.u1 - 0.4));"), '左端手柄必须改起点并留出最小宽度')
+  assert.ok(app.includes("r.u1 = E.clamp(Math.round((start.u1 + du) / 0.1) * 0.1, Math.min(m.len, start.u0 + 0.4), m.len);"), '右端手柄必须改终点并留出最小宽度')
+  assert.ok(app.includes("var u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, Math.max(0, m.len - w));"), '整排平移必须夹在货架内')
+  assert.ok(app.includes("r.z = E.clamp(Math.round((start.z + dz) / 0.05) * 0.05, 0.2, Math.max(0.3, m.h - 0.85));"), '高度必须夹在货架范围内')
+  assert.ok(app.includes('Math.hypot(du, dz) * m.scale < 4'), '必须有点击/拖动死区（否则点选会被当成拖动）')
+  assert.ok(app.includes("ui.frontRow = rowId;"), '点选一排必须记录排 id（用于高亮与手柄）')
+  const schema = stripComments(toolSchema)
+  assert.ok(schema.includes("action('openFront', s.id, '🧍 正面视角')"), '元素清单必须有正面视角入口')
+})

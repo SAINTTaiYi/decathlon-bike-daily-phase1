@@ -27,7 +27,7 @@ body[data-sd-ui='mobile'] { height: 100vh; overflow: hidden; }
 /* ---------- 视觉窗口（主角） ---------- */
 .sd-m-viewport { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 0 12px; }
 .sd-m-vpbar { flex: none; display: grid; gap: 6px; }
-.sd-m-vswitch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 15px; background: var(--sd-sunken); }
+.sd-m-vswitch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 15px; background: var(--sd-sunken); }
 .sd-m-vswitch button { padding: 9px 6px 10px; border-radius: 12px; color: var(--sd-muted); font-size: 13px; font-weight: 640; }
 .sd-m-vswitch button.on { background: var(--sd-card); color: var(--sd-ink); font-weight: 740; }
 /* 状态条：单行横向滚动，绝不换行堆高 */

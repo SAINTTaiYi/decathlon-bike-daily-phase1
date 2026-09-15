@@ -85,6 +85,7 @@ function skeleton(){
   +     '<nav class="tabs sd-m-vswitch">'
   +       '<button data-tab="t3d" class="on">3D 视角</button>'
   +       '<button data-tab="tplan">平面编辑</button>'
+  +       '<button data-tab="tfront">货架正面</button>'
   +     '</nav>'
   +     '<div class="sd-m-status" id="chips"></div>'
   +   '</div>'
@@ -110,6 +111,10 @@ function skeleton(){
   +       '<label class="sd-m-check">吸附<select id="snap"><option value="0.5">0.5m</option><option value="0.25">0.25m</option><option value="0.1">0.1m</option></select></label>'
   +     '</div>'
   +     '<div id="planScroll" class="sd-m-planscroll"><div id="viewplan"></div></div>'
+  +   '</div>'
+  +   '<div id="tabfront" class="sd-m-pane" style="display:none">'
+  +     '<div class="sd-m-vtools" id="frontBar"></div>'
+  +     '<div id="frontScroll" class="sd-m-planscroll"><div id="viewfront"></div></div>'
   +   '</div>'
   + '</section>'
   + '<button class="sd-m-toolfab" data-sd-tools="1" aria-label="添加组件">＋</button>'
@@ -304,6 +309,8 @@ function selBarHTML(ctx){
       + '<button data-bact="dup">复制</button>' + del + '</div>';
     h += '<div class="sd-m-selrow"><span class="sd-m-tag">🚲</span><button data-bact="fillb" data-bt="adult">排成人车</button>'
       + '<button data-bact="fillb" data-bt="kids">排童车</button><button data-bact="clearb">清空本架</button></div>';
+    h += '<div class="sd-m-selrow"><span class="sd-m-tag">🧍</span>'
+      + '<button data-bact="openFront">正面视角（调托臂高度）</button></div>';
     h += '<div class="sd-m-selrow"><span class="sd-m-tag">🪝</span>'
       + '<button data-bact="addArm" data-arm="short">＋短托臂</button>'
       + '<button data-bact="addArm" data-arm="long">＋长托臂</button>'
@@ -377,6 +384,9 @@ function mount(root){
   slots.view3d = document.getElementById('view3d');
   slots.viewplan = document.getElementById('viewplan');
   slots.planScroll = document.getElementById('planScroll');
+  slots.viewfront = document.getElementById('viewfront');
+  slots.frontScroll = document.getElementById('frontScroll');
+  slots.frontBar = document.getElementById('frontBar');
   document.body.setAttribute('data-sd-ui', 'mobile');
 
   root.addEventListener('click', function(e){

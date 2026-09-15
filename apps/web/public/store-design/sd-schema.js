@@ -109,6 +109,7 @@ function shelfFields(s, i){
 }
 function shelfActions(s){
   return [
+    action('openFront', s.id, '🧍 正面视角'),
     action('flushWall', s.id + ':n', '贴北墙'), action('flushWall', s.id + ':s', '贴南墙'),
     action('flushWall', s.id + ':w', '贴西墙'), action('flushWall', s.id + ':e', '贴东墙'),
     action('dupShelf', s.id, '复制'), action('delShelf', s.id, '删除', 'danger')

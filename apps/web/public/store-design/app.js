@@ -60,7 +60,8 @@ try {
     if (rv.zoom) view.zoom = rv.zoom;
   }
 } catch(e1){}
-var ui = { tab: 't3d', sel: null, planZ: null, grid: true, snap: 0.5 };
+var ui = { tab: 't3d', sel: null, planZ: null, grid: true, snap: 0.5,
+           frontShelf: null, frontRow: null, frontScale: null };
 
 function $(q, root){ return (root || document).querySelector(q); }
 function $all(q, root){ return Array.prototype.slice.call((root || document).querySelectorAll(q)); }
@@ -274,6 +275,8 @@ var HELP_LINES = [
   '矮货架默认高 0.9m，颜色淡紫以便区分；长/高/单双面照常可调。',
   '门帘默认放在「商场出入口」与「进出口」，半透明条纹；可增删、拖动、改尺寸朝向。',
   '自行车：成人车 2.0m / 童车 1.5m。两种摆放：立地（90° 直放、车头 45° 倾斜）与上架平放（架顶，2m/位）。单台可调朝向与车头角度。',
+  '货架陈列：默认高 3.3m。托臂按排放置（短托臂 0.5m / 长托臂 1m，可分别放），每排高度、车型、起止范围都能单独调；地架每米 3 个、挂钩每米 4 个。',
+  '货架正面视角：选中货架后点「🧍 正面视角」（或切顶部「货架正面」页签）——在里面直接拖动托臂排调高度与位置，两端圆点调范围。',
   '出入口净空区：三个出入口各一块橙色虚线框，货架/试用区/区域/工作室/柱子/网面墙都不得占用；随机方案会自动避开。',
   '🎲 随机方案：随机货架排布、工作室位置、试用区大小位置，自动重试直到满足全部要求。',
   '数据安全：布局只写入同一个存储键，版本升级不会重置；每次修改自动留存「上一版」，可在「历史版本恢复」里换回。',
@@ -290,7 +293,7 @@ function buildEditors(){
 function nid(){ return 'x' + Math.random().toString(36).slice(2, 7); }
 function shelfGet(id){ for (var i=0;i<cfg.shelves.length;i++){ if (String(cfg.shelves[i].id) === String(id)) return cfg.shelves[i]; } return null; }
 function findBy(arr, id){ for (var i=0;i<arr.length;i++){ if (String(arr[i].id) === String(id)) return arr[i]; } return null; }
-function afterStruct(){ saveSoon(); buildEditors(); renderChips(); render3DNow(); renderPlanNow(); }
+function afterStruct(){ saveSoon(); buildEditors(); renderChips(); render3DNow(); renderPlanNow(); renderFrontNow(); }
 function addShelf(kind){
   var h = (kind === 'low') ? 0.9 : E.SHELF_H_DEFAULT;
   cfg.shelves.push({ id: nid(), name: '', kind: kind, orient: 'h', x: 2, y: 2, len: 4, h: h });
@@ -426,6 +429,7 @@ var acts = {
     if (!ds || ds.id == null) return;
     if (String(ds.id) === '__clear__'){
       ui.sel = null;
+      ui.frontRow = null;
       endPlacing(true);
       afterSelect();
       return;
@@ -441,6 +445,18 @@ var acts = {
   },
   flushWall: function(ds){ flushWallTo(ds.id); },
   fillb: function(ds){ fillShelfBikes(ds.id); },
+  openFront: function(ds){
+    var id = (ds && ds.id != null) ? String(ds.id).split(':')[0] : null;
+    if (!id && /^sh:/.test(String(ui.sel || ''))) id = String(ui.sel).slice(3);
+    var s = id ? shelfGet(id) : null;
+    if (!s){ toast('先选中一个货架'); return; }
+    if (ui.placing) endPlacing(true);
+    ui.frontShelf = s.id; ui.frontRow = null;
+    ui.sel = 'sh:' + s.id;
+    if (ui.tab !== 'tfront') setTab('tfront'); else renderFrontNow();
+    buildEditors();
+    toast('正面视角：拖托臂排调高度 / 左右平移，两端圆点调范围');
+  },
   accRack: function(ds){ cycleAcc(ds.id, 'rack'); },
   accHook: function(ds){ cycleAcc(ds.id, 'hook'); },
   addArm: function(ds){ var p = String(ds.id).split(':'); addArmRow(p[0], p[1]); },
@@ -837,6 +853,9 @@ function postSelUpdate(){
 function afterSelect(){
   updateSelFrame();
   renderSelBar();
+  /* 选中货架时把「货架正面」视图也跟随过去（在平面/大纲里换货架，正面视图同步换） */
+  if (/^sh:/.test(String(ui.sel || ''))) ui.frontShelf = String(ui.sel).slice(3);
+  renderFrontNow();
   if (window.SDUI && SDUI.onSelectionChange) SDUI.onSelectionChange();
   buildEditors();
 }
@@ -897,6 +916,8 @@ function bindSelBar(){
     } else if (act === 'fillb'){
       fillShelfBikes(id + ':' + b.getAttribute('data-bt'));
       renderSelBar();
+    } else if (act === 'openFront'){
+      acts.openFront({ id: id });
     } else if (act === 'accRack' || act === 'accHook'){
       cycleAcc(id, act === 'accRack' ? 'rack' : 'hook');
     } else if (act === 'addArm'){
@@ -1077,14 +1098,165 @@ function importJson(e){
   e.target.value = '';
 }
 
+/* ---------------- 货架正面（立面）视角 ----------------
+   进入方式：选中货架 → 快捷条「正面视角」/ 元素清单「正面视角」/ 直接切「货架正面」页签。
+   在这里可以拖动托臂排：上下 = 改高度、左右 = 整排平移，两端圆点 = 改起止范围。
+   视图数据全在 SVG 的 data-* 上（scale/mx/my/len/h），交互层不需要额外状态。 */
+/* 屏幕坐标 → 立面局部坐标（u 沿货架、z 离地），与平面视图的 toWorld 同一套 CTM 变换 */
+function toFrontUZ(svgEl, cx, cy){
+  var m = frontMeta(); if (!m) return null;
+  var pt = svgEl.createSVGPoint(); pt.x = cx; pt.y = cy;
+  var q = pt.matrixTransform(svgEl.getScreenCTM().inverse());
+  return { u: (q.x - m.mx) / m.scale, z: (m.my - q.y) / m.scale };
+}
+function frontMeta(){
+  var svg = els.viewfront ? els.viewfront.querySelector('svg') : null;
+  if (!svg) return null;
+  var sc = +svg.getAttribute('data-scale');
+  if (!sc) return null;
+  return { scale: sc, mx:+svg.getAttribute('data-mx'), my:+svg.getAttribute('data-my'),
+           len:+svg.getAttribute('data-len'), h:+svg.getAttribute('data-h'), shelf: svg.getAttribute('data-shelf') };
+}
+function frontShelfOf(){
+  var id = ui.frontShelf || (/^sh:/.test(String(ui.sel || '')) ? String(ui.sel).slice(3) : null);
+  return id ? shelfGet(id) : null;
+}
+function frontRowGet(s, rowId){
+  if (!s || !s.acc || !Array.isArray(s.acc.armRows)) return null;
+  for (var i = 0; i < s.acc.armRows.length; i++){
+    if (String(s.acc.armRows[i].id) === String(rowId)) return s.acc.armRows[i];
+  }
+  return null;
+}
+/* 行内数值可能在未显式设置时走默认值：拖动前先落成显式值，避免「看不见的默认」被改坏 */
+function materializeRow(s, r){
+  var norm = E.accOf(s).rows.filter(function(x){ return String(x.id) === String(r.id); })[0];
+  if (!norm) return r;
+  if (r.z == null) r.z = norm.z;
+  if (r.len !== 'short' && r.len !== 'long') r.len = norm.len;
+  if (r.size !== 'adult' && r.size !== 'kids') r.size = norm.size;
+  if (r.u0 == null) r.u0 = norm.u0;
+  if (r.u1 == null) r.u1 = norm.u1;
+  return r;
+}
+function renderFrontBar(){
+  var bar = els.frontBar; if (!bar) return;
+  var s = frontShelfOf();
+  if (!s){
+    bar.innerHTML = '<span class="sd-d-mini sd-m-mini">先选中一个货架，再进入正面视角</span>';
+    return;
+  }
+  var acc = E.accOf(s), rows = acc.rows.length;
+  bar.innerHTML =
+    '<button data-act="addArm" data-id="' + esc2(s.id) + ':short">＋短托臂 0.5m</button>'
+    + '<button data-act="addArm" data-id="' + esc2(s.id) + ':long">＋长托臂 1m</button>'
+    + (rows ? '<button data-act="clearArms" data-id="' + esc2(s.id) + '" data-tone="danger">清空托臂（' + rows + ' 排）</button>' : '')
+    + '<button data-frontzoom="out">－</button><button data-frontzoom="in">＋</button><button data-frontzoom="fit">适应</button>';
+}
+function renderFrontNow(){
+  if (!els.viewfront) return;
+  if (ui.tab !== 'tfront') return;
+  var s = frontShelfOf();
+  renderFrontBar();
+  if (!s){
+    els.viewfront.innerHTML = '<p class="sd-d-mini sd-m-mini">先在 3D / 平面里点选一个货架，再回到这里：可以拖动托臂排调高度与位置。</p>';
+    return;
+  }
+  /* 容器内宽要先扣掉内边距（否则可视区比 SVG 窄几个像素，出现横向滚动条） */
+  var vw = (els.frontScroll ? els.frontScroll.clientWidth : 900) - 18;
+  var vh = els.frontScroll ? els.frontScroll.clientHeight - 12 : 0;
+  var r = E.renderShelfFront(cfg, s.id, { vw: vw, vh: vh, scale: ui.frontScale || 0, selRow: ui.frontRow });
+  els.viewfront.innerHTML = r.svg;
+  if (r.meta && !ui.frontScale) ui.frontScale = r.meta.scale;
+}
+function frontZoom(kind){
+  var s = frontShelfOf(); if (!s) return;
+  var m = frontMeta();
+  var cur = (ui.frontScale || (m ? m.scale : 60));
+  if (kind === 'fit') ui.frontScale = null;
+  else if (kind === 'in') ui.frontScale = Math.min(220, Math.round(cur * 1.25));
+  else ui.frontScale = Math.max(10, Math.round(cur / 1.25));
+  renderFrontNow();
+}
+function bindFront(){
+  var sc = els.frontScroll;
+  if (!sc || sc.getAttribute('data-bound') === '1') return;
+  sc.setAttribute('data-bound', '1');
+  /* 触摸：按在托臂排上时不滚动页面，交给拖拽 */
+  sc.addEventListener('touchstart', function(ev){
+    if (!ev.cancelable) return;
+    if (ev.target && ev.target.closest && (ev.target.closest('[data-row]') || ev.target.closest('[data-rowhandle]'))) ev.preventDefault();
+  }, { passive:false, capture:true });
+  sc.addEventListener('pointerdown', function(e){
+    if (e.button != null && e.button > 0) return;
+    var svgEl = sc.querySelector('svg'); if (!svgEl) return;
+    var m = frontMeta(); if (!m) return;
+    var s = shelfGet(m.shelf); if (!s) return;
+    var hEl = e.target && e.target.closest ? e.target.closest('[data-rowhandle]') : null;
+    var rEl = e.target && e.target.closest ? e.target.closest('[data-row]') : null;
+    if (!hEl && !rEl) return;
+    var rowId, mode;
+    if (hEl){
+      var hp = String(hEl.getAttribute('data-rowhandle')).split(':');
+      rowId = hp[0]; mode = (hp[1] === '0') ? 'left' : 'right';
+    } else { rowId = rEl.getAttribute('data-row'); mode = 'move'; }
+    var r = frontRowGet(s, rowId); if (!r) return;
+    materializeRow(s, r);
+    var start = { z: r.z, u0: r.u0, u1: r.u1 };
+    var pt = toFrontUZ(svgEl, e.clientX, e.clientY); if (!pt) return;
+    var s0 = { u: pt.u, z: pt.z }, moved = false;
+    e.preventDefault();
+    try { sc.setPointerCapture(e.pointerId); } catch(e1){}
+    function blockTM(ev){ ev.preventDefault(); }
+    sc.addEventListener('touchmove', blockTM, { passive:false });
+    function move(ev){
+      var p = toFrontUZ(svgEl, ev.clientX, ev.clientY); if (!p) return;
+      var du = p.u - s0.u, dz = p.z - s0.z;
+      if (!moved && Math.hypot(du, dz) * m.scale < 4) return;   /* 4px 死区：点选 vs 拖动 */
+      moved = true;
+      if (mode === 'move'){
+        r.z = E.clamp(Math.round((start.z + dz) / 0.05) * 0.05, 0.2, Math.max(0.3, m.h - 0.85));
+        var w = start.u1 - start.u0;
+        var u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, Math.max(0, m.len - w));
+        r.u0 = u0; r.u1 = Math.round((u0 + w) * 100) / 100;
+      } else if (mode === 'left'){
+        r.u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, Math.max(0, start.u1 - 0.4));
+      } else {
+        r.u1 = E.clamp(Math.round((start.u1 + du) / 0.1) * 0.1, Math.min(m.len, start.u0 + 0.4), m.len);
+      }
+      r.z = Math.round(r.z * 100) / 100;
+      renderFrontNow();
+      if (window.SDUI && SDUI.refreshSelVals) renderSelBar(true);
+    }
+    function up(){
+      sc.removeEventListener('touchmove', blockTM);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      try { sc.releasePointerCapture(e.pointerId); } catch(e2){}
+      if (moved){
+        if (window.SDUI && SDUI.refreshSelVals) renderSelBar(true);
+        saveSoon(); renderChips(); schedule3D(); renderPlanNow(); buildEditors();
+      } else {
+        ui.frontRow = rowId;
+        ui.sel = 'sh:' + s.id;
+        afterSelect();
+      }
+    }
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  });
+}
+
 /* ---------------- 全局绑定 ---------------- */
 function setTab(tab){
   ui.tab = tab;
   $all('nav.tabs button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-tab') === tab); });
-  var t3 = $('#tab3d'), tp = $('#tabplan');
+  var t3 = $('#tab3d'), tp = $('#tabplan'), tf = $('#tabfront');
   if (t3) t3.style.display = (tab === 't3d') ? '' : 'none';
   if (tp) tp.style.display = (tab === 'tplan') ? '' : 'none';
+  if (tf) tf.style.display = (tab === 'tfront') ? '' : 'none';
   if (tab === 'tplan') renderPlanNow();
+  if (tab === 'tfront') renderFrontNow();
   if (tab === 't3d'){ endPlacing(true); setTimeout(render3DNow, 30); }
   renderSelBar();
 }
@@ -1151,6 +1323,23 @@ function bindGlobal(){
   bindPlan();
   bindPlanZoom();
   bindGestures();
+  els.frontScroll = els.frontScroll || $('#frontScroll');
+  els.viewfront = els.viewfront || $('#viewfront');
+  els.frontBar = els.frontBar || $('#frontBar');
+  bindFront();
+  var frontRT = null;
+  window.addEventListener('resize', function(){
+    if (ui.tab !== 'tfront') return;
+    clearTimeout(frontRT);
+    frontRT = setTimeout(function(){ ui.frontScale = null; renderFrontNow(); }, 260);
+  });
+  if (els.frontBar){
+    els.frontBar.addEventListener('click', function(e){
+      var b = e.target && e.target.closest ? e.target.closest('[data-frontzoom]') : null;
+      if (!b) return;
+      frontZoom(b.getAttribute('data-frontzoom'));
+    });
+  }
 }
 
 /* ---------------- 启动 ---------------- */
@@ -1158,6 +1347,8 @@ function applyQuery(){
   try {
     var q = new URLSearchParams(location.search);
     if (q.get('tab') === 'plan') setTab('tplan');
+    if (q.get('tab') === 'front') setTab('tfront');
+    if (q.get('shelf')) ui.frontShelf = q.get('shelf');
     if (q.get('az') != null && q.get('az') !== '') view.az = parseFloat(q.get('az')) || view.az;
     if (q.get('el') != null && q.get('el') !== '') view.el = parseFloat(q.get('el')) || view.el;
     if (q.get('zoom') != null && q.get('zoom') !== '') view.zoom = parseFloat(q.get('zoom')) || view.zoom;
@@ -1313,6 +1504,7 @@ function init(){
   renderChips();
   render3DNow();
   renderPlanNow();
+  renderFrontNow();
   if (restoredFrom) toast('✓ 已恢复你之前保存的布局（来源 ' + restoredFrom.replace('store3d.cfg.','') + '）。如不理想，可在「历史版本恢复」中切换其他备份。');
   runSelfTest();
   window.addEventListener('resize', function(){

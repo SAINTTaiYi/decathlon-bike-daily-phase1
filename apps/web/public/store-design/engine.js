@@ -37,6 +37,29 @@ function deepMerge(base, src){
 
 /* --------------------------- 几何小工具 --------------------------- */
 function shelfDepth(s){ return s.kind === 'single' ? 0.35 : 0.5; }
+/* 货架的 3D 盒子（与 render3D 里 boxAdd 用的是同一个范围） */
+function shelfBox(s){
+  var d = shelfDepth(s), h = s.h || SHELF_H_DEFAULT;
+  return (s.orient === 'v')
+    ? { x1: s.x, y1: s.y, x2: s.x + d, y2: s.y + s.len, z1: 0, z2: h }
+    : { x1: s.x, y1: s.y, x2: s.x + s.len, y2: s.y + d, z1: 0, z2: h };
+}
+/* 盒子 8 个角在相机视线方向上的深度区间（用于附件排序：见 render3D 里的 attachKey） */
+function boxKeyRange(bx, d3){
+  var mn = Infinity, mx = -Infinity;
+  [[bx.x1,bx.y1],[bx.x1,bx.y2],[bx.x2,bx.y1],[bx.x2,bx.y2]].forEach(function(c){
+    [bx.z1, bx.z2].forEach(function(z){
+      var k = c[0]*d3[0] + c[1]*d3[1] + z*d3[2];
+      if (k < mn) mn = k;
+      if (k > mx) mx = k;
+    });
+  });
+  return { min: mn, max: mx };
+}
+/* 相机在货架的哪一侧：'pos' = 附件所在的那一侧朝向相机 */
+function cameraOnSide(s, d3){
+  return (s.orient === 'v') ? (d3[0] > 0) : (d3[1] > 0);
+}
 function shelfRect(s){
   var d = shelfDepth(s);
   return (s.orient === 'v') ? { x:s.x, y:s.y, w:d, h:s.len } : { x:s.x, y:s.y, w:s.len, h:d };
@@ -257,7 +280,7 @@ function armHardwareOf(cfg, s){
       var u = rowBikeU(s, r, i);
       [-1, 1].forEach(function(sg){
         var uu = u + sg * 0.55 * scale;
-        if (uu < 0.04) return;
+        if (uu < 0.04 || uu > s.len - 0.04) return;   /* 托臂不得伸出货架端头 */
         out.push({
           rowId: r.id, z: r.z, len: r.len, size: r.size, armLen: armLen, u: r2(uu),
           inner: accPos(s, uu, 0.02, face),
@@ -617,11 +640,15 @@ function render3D(cfg, view){
   function add2(k, s){ L2.push({ k:k, s:s }); }
   var trans = !!cfg.opt.translucent;
 
-  function boxAdd(bx, pal, op){
+  /* keyOf（可选）：自定义深度键。附件（托臂 / 地架 / 挂钩）与挂车必须按「所属货架」
+     排序，否则大货架面的平均深度会把它们盖住（2026-09-15 穿模修复）。 */
+  function boxAdd(bx, pal, op, keyOf){
     function face(pts, fill){
       var k = 0;
       for (var i=0;i<pts.length;i++) k += dot(pts[i], d3);
-      add1(k/pts.length, polyStr(pts, fill, pal.s, 0.9, op));
+      k /= pts.length;
+      if (keyOf) k = keyOf(k);
+      add1(k, polyStr(pts, fill, pal.s, 0.9, op));
     }
     if (d3[2] >  1e-4) face([[bx.x1,bx.y1,bx.z2],[bx.x2,bx.y1,bx.z2],[bx.x2,bx.y2,bx.z2],[bx.x1,bx.y2,bx.z2]], pal.t);
     if (d3[0] >  1e-4) face([[bx.x2,bx.y1,bx.z1],[bx.x2,bx.y2,bx.z1],[bx.x2,bx.y2,bx.z2],[bx.x2,bx.y1,bx.z2]], pal.xp);
@@ -874,9 +901,20 @@ function render3D(cfg, view){
   }
 
   /* ---------- 货架 ---------- */
+  /* 附件（托臂 / 地架 / 挂钩 / 挂车）的排序：相机在附件这一侧 → 画在货架之后（可见）；
+     相机在另一侧 → 画在货架之前（被货架挡住）。用货架盒子的深度区间做基准，
+     与相机方位无关地保证「挂车永远在自己那一面上」。 */
+  var attachKeyOf = null;
   cfg.shelves.forEach(function(s){
     var d = shelfDepth(s), pal = s.kind==='double' ? PAL.shelfD : (s.kind==='single' ? PAL.shelfS : PAL.shelfLow);
     var hS = s.h || SHELF_H_DEFAULT;
+    var sRange = boxKeyRange(shelfBox(s), d3);
+    var sOnSide = cameraOnSide(s, d3);
+    attachKeyOf = function(x, y, z){
+      var k = x*d3[0] + y*d3[1] + z*d3[2];
+      return sOnSide ? (k > sRange.max + 0.02 ? k : sRange.max + 0.02)
+                     : (k < sRange.min - 0.02 ? k : sRange.min - 0.02);
+    };
     var rx1, ry1, rx2, ry2;
     if (s.orient === 'v'){ rx1=s.x; ry1=s.y; rx2=s.x+d; ry2=s.y+s.len; }
     else { rx1=s.x; ry1=s.y; rx2=s.x+s.len; ry2=s.y+d; }
@@ -908,11 +946,12 @@ function render3D(cfg, view){
     var face2 = accFace(s, cfg), hS2 = s.h || 1.5;
     /* 托臂（短 0.5m / 长 1m，可多排、每排高度可调）：臂从架面伸出，外端挡钩托住车轮 */
     armHardwareOf(cfg, s).forEach(function(hw){
+      var kA = attachKeyOf((hw.inner.x + hw.tip.x) / 2, (hw.inner.y + hw.tip.y) / 2, hw.z - 0.03);
       boxAdd({ x1: Math.min(hw.inner.x, hw.tip.x) - 0.026, y1: Math.min(hw.inner.y, hw.tip.y) - 0.026,
                x2: Math.max(hw.inner.x, hw.tip.x) + 0.026, y2: Math.max(hw.inner.y, hw.tip.y) + 0.026,
-               z1: hw.z - 0.05, z2: hw.z - 0.006 }, PAL_ACC);
+               z1: hw.z - 0.05, z2: hw.z - 0.006 }, PAL_ACC, null, function(){ return kA; });
       boxAdd({ x1: hw.cradle.x - 0.026, y1: hw.cradle.y - 0.026, x2: hw.cradle.x + 0.026, y2: hw.cradle.y + 0.026,
-               z1: hw.z - 0.01, z2: hw.z + 0.10 }, PAL_ACC);
+               z1: hw.z - 0.01, z2: hw.z + 0.10 }, PAL_ACC, null, function(){ return kA + 0.001; });
     });
     /* 地架：地面托条 + 前端挡块 */
     if (a2.rack !== 'none'){
@@ -920,26 +959,29 @@ function render3D(cfg, view){
       for (var jR = 0; jR < nR; jR++){
         var uR = (jR + 0.5) * s.len / nR;
         var paR = accPos(s, uR, 0.05, face2), pbR = accPos(s, uR, 0.36, face2);
+        var kR = attachKeyOf((paR.x + pbR.x) / 2, (paR.y + pbR.y) / 2, 0.1);
         boxAdd({ x1: Math.min(paR.x,pbR.x)-0.05, y1: Math.min(paR.y,pbR.y)-0.05,
                  x2: Math.max(paR.x,pbR.x)+0.05, y2: Math.max(paR.y,pbR.y)+0.05,
-                 z1: 0, z2: 0.07 }, PAL_ACC);
+                 z1: 0, z2: 0.07 }, PAL_ACC, null, function(){ return kR; });
         var pcR = accPos(s, uR, 0.32, face2);
         boxAdd({ x1: pcR.x-0.055, y1: pcR.y-0.055, x2: pcR.x+0.055, y2: pcR.y+0.055,
-                 z1: 0.07, z2: 0.22 }, PAL_ACC);
+                 z1: 0.07, z2: 0.22 }, PAL_ACC, null, function(){ return kR + 0.001; });
       }
     }
     /* 挂钩：前缘横杆 + 每米 4 个 J 形小钩 */
     if (a2.hook === 'on'){
       var nH = hookCount(s), ztH = hS2 + 0.03;
       var pAH = accPos(s, 0.05, 0.08, face2), pBH = accPos(s, s.len - 0.05, 0.08, face2);
+      var kH2 = attachKeyOf((pAH.x + pBH.x) / 2, (pAH.y + pBH.y) / 2, ztH);
       boxAdd({ x1: Math.min(pAH.x,pBH.x)-0.026, y1: Math.min(pAH.y,pBH.y)-0.026,
                x2: Math.max(pAH.x,pBH.x)+0.026, y2: Math.max(pAH.y,pBH.y)+0.026,
-               z1: ztH-0.026, z2: ztH+0.026 }, PAL_ACC);
+               z1: ztH-0.026, z2: ztH+0.026 }, PAL_ACC, null, function(){ return kH2; });
       for (var kH = 0; kH < nH; kH++){
         var uH = (kH + 0.5) * s.len / nH;
         var phH = accPos(s, uH, 0.08, face2), peH = accPos(s, uH, 0.15, face2);
-        addLine1([phH.x, phH.y, ztH-0.03], [phH.x, phH.y, ztH-0.12], '#7c8288', 0.7);
-        addLine1([phH.x, phH.y, ztH-0.12], [peH.x, peH.y, ztH-0.19], '#7c8288', 0.7);
+        var kHook = attachKeyOf(phH.x, phH.y, ztH - 0.11) + 0.002;
+        add1(kHook, lineStr([phH.x, phH.y, ztH-0.03], [phH.x, phH.y, ztH-0.12], '#7c8288', 0.7));
+        add1(kHook, lineStr([phH.x, phH.y, ztH-0.12], [peH.x, peH.y, ztH-0.19], '#7c8288', 0.7));
       }
     }
   });
@@ -970,6 +1012,22 @@ function render3D(cfg, view){
   }
   var PAL_RIM = { t:'#eef0f1', xp:'#e3e6e8', xm:'#dde0e2', yp:'#e8ebed', ym:'#e1e4e6', s:'#b9bec2' };
   /* 货架附件车（托臂 / 地架）与散车一起渲染：pose 仅区分 top（平放）与其余（立体车） */
+  /* 每台车记录所属货架（附件车）→ 用该货架的深度区间排序，避免被货架面盖住 */
+  var bikeOwner = {};
+  cfg.shelves.forEach(function(s){
+    var rng = boxKeyRange(shelfBox(s), d3), onSide = cameraOnSide(s, d3);
+    accOf(s).rows.forEach(function(r){
+      var nB = rowBikeCount(s, r);
+      for (var iB = 0; iB < nB; iB++){
+        bikeOwner['acc:' + s.id + ':arm:' + r.id + ':' + iB] = { rng: rng, onSide: onSide };
+      }
+    });
+    if (accOf(s).rack !== 'none'){
+      for (var iR = 0; iR < rackCount(s); iR++){
+        bikeOwner['acc:' + s.id + ':rack:' + iR] = { rng: rng, onSide: onSide };
+      }
+    }
+  });
   (cfg.bikes || []).concat(accBikesOf(cfg)).forEach(function(bk){
     var btype = (bk.type === 'kids') ? 'kids' : 'adult';
     var scl = (btype === 'kids') ? 0.78 : 1.0;
@@ -1071,7 +1129,17 @@ function render3D(cfg, view){
       bp(dot(sd2,d3)+0.015, prismAddN(circlePtsH(sd2[0], sd2[1], sd2[2], 0.10*scl, rotD), sd2[2]+0.04, sd2[2]+0.075, col));
     }
     bikeParts.sort(function(p1, p2){ return p1.k - p2.k; });
-    add1(dot([cx3, cy3, baseZ + 0.3], d3), '<g data-bike="' + esc(bk.id || '') + '"' + (bk.acc ? ' data-acc="' + esc(bk.acc) + '"' : '') + '>' + bikeParts.map(function(p){ return p.s; }).join('') + '</g>');
+    var own = bikeOwner[bk.id];
+    var bKey = own
+      ? (function(){
+          var k0 = 0;
+          for (var iK = 0; iK < bikeParts.length; iK++) k0 += bikeParts[iK].k;
+          k0 /= Math.max(1, bikeParts.length);
+          return own.onSide ? Math.max(k0, own.rng.max + 0.02) : Math.min(k0, own.rng.min - 0.02);
+        })()
+      : dot([cx3, cy3, baseZ + 0.5 * scl], d3);
+    add1(bKey, '<g data-bike="' + esc(bk.id || '') + '" data-lift="' + (bk.lift != null ? esc(bk.lift) : '') + '"'
+      + (bk.acc ? ' data-acc="' + esc(bk.acc) + '"' : '') + '>' + bikeParts.map(function(p){ return p.s; }).join('') + '</g>');
   });
 
   /* ---------- 标记 ---------- */
@@ -1526,6 +1594,140 @@ function renderPlan(cfg, ui){
   return o.join('');
 }
 
+/* ======================== 货架正面（立面）视图 ========================
+   用途：正对货架立面看，直接拖动调整托臂排 —— 高度（离地）、托臂长度（短 0.5m /
+   长 1m）、车型（成人 2m / 16″ 童车 4/3m）、排的起止范围。平面俯视图里调这些很不直观。
+   坐标：u 沿货架长度（0..len 米），z 离地高度（0..h 米）→ 屏幕 (X(u), Y(z))。
+   opt: { scale?: px/m, selRow?: rowId, vw?: 容器宽 }
+   返回 { svg, meta }，meta 含 scale / mx / my / len / h（同时写进 <svg> 的 data-* 供交互层读取）。
+*/
+function renderShelfFront(cfg, shelfId, opt){
+  opt = opt || {};
+  var s = null;
+  (cfg.shelves || []).forEach(function(x){ if (String(x.id) === String(shelfId)) s = x; });
+  if (!s) return { svg: '', meta: null };
+  var L = +s.len || 0, H = (s.h == null) ? SHELF_H_DEFAULT : +s.h;
+  var acc = accOf(s);
+  var ML = 70, MR = 30, MT = 46, MB = 56;
+  var vw = opt.vw || 900, vhAvail = opt.vh || 0;
+  var fitW = (vw - ML - MR) / Math.max(0.5, L);
+  var fitH = vhAvail ? ((vhAvail - MT - MB) / Math.max(1, H + 1.3)) : Infinity;   /* 1.3m：挂车在货架顶之上可能占的高度 */
+  var sc = +opt.scale || clamp(Math.min(fitW, fitH), 12, 130);
+  sc = clamp(sc, 10, 220);
+  var mx = ML, my = MT + H * sc;
+  var W = mx + L * sc + MR, Hh = my + MB;
+  function X(u){ return r2(mx + u * sc); }
+  function Y(z){ return r2(my - z * sc); }
+
+  var o = [];
+  var FACE = s.kind === 'double' ? '#f5e6ca' : (s.kind === 'single' ? '#e6eff8' : '#e8e2f2');
+  var FACE_LN = s.kind === 'double' ? '#d8c39a' : (s.kind === 'single' ? '#c3d5e6' : '#cdc3e0');
+  var INK = '#3d3d3d', MUT = '#8d8a84', LINE = '#d6d2ca', ACC = '#c9a227';
+
+  o.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + r2(W) + '" height="' + r2(Hh) + '" viewBox="0 0 ' + r2(W) + ' ' + r2(Hh) + '"'
+    + ' data-scale="' + sc + '" data-mx="' + mx + '" data-my="' + my + '" data-len="' + r2(L) + '" data-h="' + r2(H) + '"'
+    + ' data-shelf="' + esc(s.id) + '">');
+  o.push('<defs><style>text{font-family:"PingFang SC","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",system-ui,sans-serif;}</style></defs>');
+
+  /* 地面 + 立面 */
+  o.push('<rect x="0" y="0" width="' + r2(W) + '" height="' + r2(Hh) + '" fill="#f7f6f3"/>');
+  o.push('<rect x="' + mx + '" y="' + Y(H) + '" width="' + r2(L * sc) + '" height="' + r2(H * sc) + '" fill="' + FACE + '" stroke="' + FACE_LN + '" stroke-width="1"/>');
+  for (var xd = 2; xd < L - 0.05; xd += 2){
+    o.push('<line x1="' + X(xd) + '" y1="' + Y(H) + '" x2="' + X(xd) + '" y2="' + Y(0) + '" stroke="' + FACE_LN + '" stroke-width="1" stroke-dasharray="4 5"/>');
+  }
+  o.push('<line x1="' + (mx - 14) + '" y1="' + Y(0) + '" x2="' + r2(W - 8) + '" y2="' + Y(0) + '" stroke="#b9b4aa" stroke-width="2"/>');
+
+  /* 刻度：左侧高度 / 底部长度 */
+  o.push('<g fill="' + MUT + '" font-size="10.5">');
+  for (var zz = 0; zz <= H + 1e-6; zz += 0.25){
+    var big = Math.abs(zz - Math.round(zz)) < 1e-6;
+    o.push('<line x1="' + (mx - (big ? 9 : 5)) + '" y1="' + Y(zz) + '" x2="' + (mx - 1) + '" y2="' + Y(zz) + '" stroke="' + LINE + '" stroke-width="1"/>');
+    if (big && zz > 0.01) o.push('<text x="' + (mx - 13) + '" y="' + r2(Y(zz) + 3.5) + '" text-anchor="end">' + fnum(zz) + '</text>');
+  }
+  o.push('<text x="' + (mx - 13) + '" y="' + r2(Y(0) + 12) + '" text-anchor="end">0m</text>');
+  for (var uu = 0; uu <= L + 1e-6; uu += 0.5){
+    var ubig = Math.abs(uu - Math.round(uu)) < 1e-6;
+    o.push('<line x1="' + X(uu) + '" y1="' + (Y(0) + 2) + '" x2="' + X(uu) + '" y2="' + (Y(0) + (ubig ? 9 : 5)) + '" stroke="' + LINE + '" stroke-width="1"/>');
+    if (ubig) o.push('<text x="' + X(uu) + '" y="' + r2(Y(0) + 22) + '" text-anchor="middle">' + fnum(uu) + '</text>');
+  }
+  o.push('</g>');
+
+  /* 托臂排（从下到上绘制，保证选中排最后画） */
+  var rows = acc.rows.slice().sort(function(a, b){ return a.z - b.z; });
+  rows.forEach(function(r, ri){
+    var on = String(opt.selRow || '') === String(r.id);
+    var armLen = ARM_LEN[r.len], scl = (r.size === 'kids') ? 0.78 : 1.0;
+    var n = rowBikeCount(s, r);
+    var x0 = X(r.u0), x1 = X(r.u1), yr = Y(r.z);
+    var g = [];
+    /* 选中高亮：整排的可视范围（含挂车高度） */
+    if (on){
+      g.push('<rect x="' + x0 + '" y="' + r2(yr - 1.18 * sc) + '" width="' + r2(+x1 - +x0) + '" height="' + r2(1.3 * sc)
+        + '" rx="' + r2(0.12 * sc) + '" fill="' + ACC + '" fill-opacity="0.14" stroke="' + ACC + '" stroke-width="1.2"/>');
+    }
+    /* 托臂导轨（这一排的横向范围） */
+    g.push('<rect x="' + x0 + '" y="' + r2(yr - 0.035 * sc) + '" width="' + r2(+x1 - +x0) + '" height="' + r2(0.07 * sc)
+      + '" fill="#c2c8cd" stroke="#9aa0a6" stroke-width="1"/>');
+    /* 每台车两根托臂（前 / 后轮），托臂朝屏幕外 → 画成短托 + 轮托 */
+    for (var i = 0; i < n; i++){
+      var uc = rowBikeU(s, r, i);
+      [-1, 1].forEach(function(sg){
+        var uu = uc + sg * 0.55 * scl;
+        var xa = X(uu);
+        g.push('<line x1="' + xa + '" y1="' + r2(yr + 0.02 * sc) + '" x2="' + xa + '" y2="' + r2(yr + 0.16 * sc) + '" stroke="#9aa0a6" stroke-width="1.6"/>');
+        g.push('<path d="M' + r2(xa - 0.07 * sc) + ' ' + r2(yr + 0.16 * sc) + ' L' + xa + ' ' + r2(yr + 0.05 * sc) + ' L' + r2(xa + 0.07 * sc) + ' ' + r2(yr + 0.16 * sc) + '" fill="none" stroke="#8f959b" stroke-width="1.6"/>');
+      });
+      /* 车（侧视剪影）：与 3D 同一套坐标（x 沿车长、z 高度） */
+      var col = (r.size === 'kids') ? '#e0a35e' : '#6d747c';
+      var colS = (r.size === 'kids') ? '#a97838' : '#454b52';
+      var tire = (r.size === 'kids') ? '#a86f28' : '#3a3f45';
+      function P(px, pz){ return [r2(X(uc + px * scl)), r2(Y(r.z + pz * scl))]; }
+      function bar(A, B, w2){
+        var a = P(A[0], A[1]), b = P(B[0], B[1]);
+        g.push('<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '" stroke="' + col + '" stroke-width="' + r2(Math.max(1.2, w2 * scl * sc)) + '" stroke-linecap="round"/>');
+      }
+      [-0.55, 0.55].forEach(function(wx){
+        var c = P(wx, 0.35), rr = r2(0.35 * scl * sc);
+        g.push('<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + rr + '" fill="none" stroke="' + tire + '" stroke-width="' + r2(Math.max(1.6, 0.05 * scl * sc)) + '"/>');
+        g.push('<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + r2(Math.max(0.7, 0.03 * scl * sc)) + '" fill="' + colS + '"/>');
+      });
+      bar([-0.26, 0.90], [0.40, 0.86], 0.07);
+      bar([-0.10, 0.33], [0.40, 0.84], 0.08);
+      bar([-0.10, 0.33], [-0.26, 0.90], 0.07);
+      bar([-0.10, 0.33], [-0.55, 0.35], 0.05);
+      bar([-0.26, 0.90], [-0.55, 0.35], 0.05);
+      bar([0.42, 0.86], [0.55, 0.35], 0.06);
+      bar([0.42, 0.86], [0.50, 0.99], 0.06);
+      bar([0.38, 0.99], [0.62, 0.99], 0.07);          /* 车把 */
+      bar([-0.36, 0.93], [-0.20, 0.93], 0.09);        /* 车座 */
+    }
+    /* 排标号 + 命中区（点它 = 选中该排；拖动 = 移动/改高度） */
+    g.push('<g data-row="' + esc(r.id) + '" data-id="sh:' + esc(s.id) + '" data-rowi="' + ri + '">'
+      + '<rect x="' + x0 + '" y="' + r2(yr - 1.18 * sc) + '" width="' + r2(+x1 - +x0) + '" height="' + r2(1.3 * sc) + '" fill="transparent" style="cursor:grab"/>'
+      + '</g>');
+    var badgeX = +x0 - 12, badgeY = r2(yr - 0.02 * sc);
+    g.push('<text x="' + badgeX + '" y="' + badgeY + '" text-anchor="end" font-size="11" fill="' + (on ? '#7a5b06' : MUT) + '">'
+      + (ri + 1) + '</text>');
+    if (on){
+      g.push('<g data-rowhandle="' + esc(r.id) + ':0"><circle cx="' + x0 + '" cy="' + yr + '" r="7" fill="#fff" stroke="' + ACC + '" stroke-width="2" style="cursor:ew-resize"/></g>');
+      g.push('<g data-rowhandle="' + esc(r.id) + ':1"><circle cx="' + x1 + '" cy="' + yr + '" r="7" fill="#fff" stroke="' + ACC + '" stroke-width="2" style="cursor:ew-resize"/></g>');
+      g.push('<text x="' + r2((+x0 + +x1) / 2) + '" y="' + r2(yr - 1.26 * sc) + '" text-anchor="middle" font-size="11.5" fill="#7a5b06">'
+        + (r.len === 'long' ? '长托臂 1m' : '短托臂 0.5m') + ' · ' + (r.size === 'kids' ? '16″ 童车' : '成人车')
+        + ' ×' + n + ' · 离地 ' + fnum(r.z) + 'm</text>');
+    }
+    o.push('<g data-rowgroup="' + esc(r.id) + '">' + g.join('') + '</g>');
+  });
+
+  if (!rows.length){
+    o.push('<text x="' + r2(mx + L * sc / 2) + '" y="' + r2(Y(H / 2)) + '" text-anchor="middle" font-size="13" fill="' + MUT + '">还没有托臂排：点上方「＋短托臂 / ＋长托臂」添加</text>');
+  }
+  o.push('<text x="' + mx + '" y="' + 22 + '" font-size="12.5" fill="' + INK + '">'
+    + esc(s.name || '货架') + ' · 长 ' + fnum(L) + 'm · 高 ' + fnum(H) + 'm · ' + (s.kind === 'double' ? '双面' : (s.kind === 'single' ? '单面' : '矮货架'))
+    + (rows.length ? ' · 托臂 ' + rows.length + ' 排 / ' + armBikeCount(s) + ' 台' : '') + '</text>');
+  o.push('</svg>');
+  return { svg: o.join(''), meta: { scale: sc, mx: mx, my: my, len: r2(L), h: r2(H), shelfId: s.id } };
+}
+
 /* ======================== ASCII 布局转储（调试用） ======================== */
 function asciiDump(cfg, cols){
   cols = cols || 100;
@@ -1754,9 +1956,13 @@ return {
   bestBikeDir: bestBikeDir,
   accOf: accOf,
   accOn: accOn,
+  shelfBox: shelfBox,
+  boxKeyRange: boxKeyRange,
+  cameraOnSide: cameraOnSide,
   accFace: accFace,
   accBikesOf: accBikesOf,
   armHardwareOf: armHardwareOf,
+  renderShelfFront: renderShelfFront,
   rowBikeCount: rowBikeCount,
   rowBikeU: rowBikeU,
   armBikeCount: armBikeCount,

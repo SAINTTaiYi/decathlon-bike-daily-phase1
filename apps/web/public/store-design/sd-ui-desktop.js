@@ -115,6 +115,7 @@ function skeleton(){
   +       '<nav class="tabs sd-d-vswitch">'
   +         '<button data-tab="t3d" class="on">3D 视角</button>'
   +         '<button data-tab="tplan">平面编辑</button>'
+  +         '<button data-tab="tfront">货架正面</button>'
   +       '</nav>'
   +       '<div class="sd-d-status" id="chips"></div>'
   +     '</header>'
@@ -139,6 +140,11 @@ function skeleton(){
   +       '</div>'
   +       '<div id="planScroll" class="sd-d-planscroll"><div id="viewplan"></div></div>'
   +       '<p class="sd-d-vphint">拖动元素移动（自动吸附）· 滚轮 / 双指缩放 · 中键或空格拖动平移</p>'
+  +     '</div>'
+  +     '<div id="tabfront" class="sd-d-pane" style="display:none">'
+  +       '<div class="sd-d-vtools" id="frontBar"></div>'
+  +       '<div id="frontScroll" class="sd-d-planscroll"><div id="viewfront"></div></div>'
+  +       '<p class="sd-d-vphint">上下拖动托臂排 = 改高度 · 左右拖动 = 整排平移 · 两端圆点 = 改起止范围</p>'
   +     '</div>'
   +   '</section>'
   +   '<aside class="sd-d-props" id="sdProps" aria-label="属性栏">'
@@ -299,6 +305,7 @@ function selBarHTML(ctx){
       + '<button class="sd-d-act" data-bact="fillb" data-bt="adult">排成人车</button>'
       + '<button class="sd-d-act" data-bact="fillb" data-bt="kids">排童车</button>'
       + '<button class="sd-d-act" data-bact="clearb">清空本架车</button>'
+      + '<button class="sd-d-act" data-bact="openFront" data-tone="primary">🧍 正面视角</button>'
       + '<button class="sd-d-act" data-bact="addArm" data-arm="short">＋短托臂</button>'
       + '<button class="sd-d-act" data-bact="addArm" data-arm="long">＋长托臂</button>'
       + (accRows(o).length ? '<b class="sd-d-selflag">托臂 ' + accRows(o).length + ' 排</b>' : '')
@@ -379,6 +386,9 @@ function mount(root){
   slots.view3d = document.getElementById('view3d');
   slots.viewplan = document.getElementById('viewplan');
   slots.planScroll = document.getElementById('planScroll');
+  slots.viewfront = document.getElementById('viewfront');
+  slots.frontScroll = document.getElementById('frontScroll');
+  slots.frontBar = document.getElementById('frontBar');
   document.body.setAttribute('data-sd-ui', 'desktop');
 
   // 工具栏随后由 renderPanel(vm) 填充（工具清单来自数据层，与移动端同一份）
