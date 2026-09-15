@@ -8,7 +8,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
 'use strict';
 
-var VERSION = 'store3d-1.9';
+var VERSION = 'store3d-1.10';
 var WALL_T  = 0.3;     // 外墙厚（米）
 var BIKE_LEN = { adult: 2.0, kids: 1.5 };   // 自行车长度（米）
 var BIKE_SLOT = { adult: 2.0, kids: 1.6 };  // 每个自行车位 2m（童车 1.6m）
@@ -59,6 +59,11 @@ function boxKeyRange(bx, d3){
 /* 相机在货架的哪一侧：'pos' = 附件所在的那一侧朝向相机 */
 function cameraOnSide(s, d3){
   return (s.orient === 'v') ? (d3[0] > 0) : (d3[1] > 0);
+}
+/* 某个点（物件）落在货架的哪一侧：'pos' = 货架正面那一侧 */
+function objectSideOf(s, x, y){
+  if (s.orient === 'v') return (x >= s.x + shelfDepth(s) / 2) ? 'pos' : 'neg';
+  return (y >= s.y + shelfDepth(s) / 2) ? 'pos' : 'neg';
 }
 function shelfRect(s){
   var d = shelfDepth(s);
@@ -1130,6 +1135,23 @@ function render3D(cfg, view){
     }
     bikeParts.sort(function(p1, p2){ return p1.k - p2.k; });
     var own = bikeOwner[bk.id];
+    if (!own){
+      /* 散车（不是托臂/地架挂车）：紧邻货架时（2m 内）同样按该货架排序 ——
+         否则站在 3.3m 高货架旁边的车会被货架立面盖住（与挂车同一类穿模）。 */
+      var near = null, nearD = 2.0;
+      (cfg.shelves || []).forEach(function(s2){
+        var bx = shelfBox(s2);
+        var dx = Math.max(bx.x1 - cx3, 0, cx3 - bx.x2);
+        var dy = Math.max(bx.y1 - cy3, 0, cy3 - bx.y2);
+        var dd = Math.sqrt(dx*dx + dy*dy);
+        if (dd < nearD){ nearD = dd; near = s2; }
+      });
+      if (near){
+        var nSide = objectSideOf(near, cx3, cy3);
+        var cSide = cameraOnSide(near, d3) ? 'pos' : 'neg';
+        own = { rng: boxKeyRange(shelfBox(near), d3), onSide: nSide === cSide };
+      }
+    }
     var bKey = own
       ? (function(){
           var k0 = 0;
@@ -1959,6 +1981,7 @@ return {
   shelfBox: shelfBox,
   boxKeyRange: boxKeyRange,
   cameraOnSide: cameraOnSide,
+  objectSideOf: objectSideOf,
   accFace: accFace,
   accBikesOf: accBikesOf,
   armHardwareOf: armHardwareOf,

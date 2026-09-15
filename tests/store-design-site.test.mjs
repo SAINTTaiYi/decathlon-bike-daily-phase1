@@ -670,6 +670,11 @@ test('穿模：挂车 / 附件在货架面之后绘制（按所属货架的深�
   const ownerIdx = eng.indexOf('var bikeOwner = {};')
   const concatIdx = eng.indexOf('(cfg.bikes || []).concat(accBikesOf(cfg)).forEach(function(bk){')
   assert.ok(ownerIdx > 0 && ownerIdx < concatIdx, '挂车排序表必须在渲染前建立')
+  // 散车（非挂车）紧邻货架时同样按该货架排序：否则站在 3.3m 高货架旁的车会被货架面盖住
+  assert.ok(eng.includes('function objectSideOf('), '引擎必须能判断物件在货架哪一侧')
+  assert.ok(eng.includes('if (!own){'), '散车必须走「就近货架」排序分支')
+  assert.ok(eng.includes('var near = null, nearD = 2.0;'), '就近判定阈值 2m')
+  assert.ok(eng.includes("own = { rng: boxKeyRange(shelfBox(near), d3), onSide: nSide === cSide };"), '散车按就近货架的深度区间排序')
 })
 
 test('货架正面视角：引擎渲染（立面 / 托臂排 / 挂车 / 手柄 / 空态）', async () => {
