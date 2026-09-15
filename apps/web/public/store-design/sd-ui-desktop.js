@@ -1,10 +1,19 @@
 /* ==========================================================================
    门店设计 · 桌面端界面实现（独立实现，不与移动端共享 DOM/CSS）
    --------------------------------------------------------------------------
-   只由运行时在宽屏（>860px）加载，样式在 sd-desktop.css。布局方向与移动端
-   完全不同：左侧图纸 + 右侧参数栏；移动端是单列画布 + 底部面板。
-   两套实现之间没有共享选择器，也没有「一套 DOM + 媒体查询适配两端」。
+   布局按建模/剪辑软件的通行逻辑（用户 2026-09-15 定案）：
+       ┌──────────────────────────────────────────────────────────┐
+       │ 顶栏：品牌 + 文件动作（导出/导入/重置/退出）                │
+       ├────────┬────────────────────────────────┬────────────────┤
+       │ 工具栏 │  视觉窗口（3D / 平面）           │  属性栏         │
+       │ 左     │  中（主空间）                    │  右（可收起/拖宽）│
+       └────────┴────────────────────────────────┴────────────────┘
+   要点：
+     · 视口占绝对主要空间：整页不滚动，左/右两栏各自内部滚动；
+     · 右栏可收起成 56px 图标条，也可拖左边缘改宽度（280–620），偏好存本机；
+     · 工具 → 就地添加元素并进入摆放模式（拖动屏幕定位）。
 
+   只由运行时在宽屏（>860px）加载，样式在 sd-desktop.css。
    对外契约与移动端一致（见 sd-ui-mobile.js 头部注释）。
    ========================================================================== */
 (function(){
@@ -12,10 +21,26 @@
 
 var slots = {};
 var lastVM = null;
-var railTab = 'check';
+var railTab = 'props';
+var prefs = { w: 360, collapsed: false };
+var PREFS_KEY = 'store3d.ui.v1';
 
 function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fnum(v){ return window.Engine ? window.Engine.fnum(v) : String(v); }
+function loadPrefs(){
+  try {
+    var raw = window.localStorage.getItem(PREFS_KEY);
+    if (!raw) return;
+    var o = JSON.parse(raw);
+    if (o && typeof o === 'object'){
+      if (typeof o.w === 'number') prefs.w = Math.min(620, Math.max(280, o.w));
+      prefs.collapsed = !!o.collapsed;
+    }
+  } catch(e){}
+}
+function savePrefs(){
+  try { window.localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch(e){}
+}
 
 /* ---------- 字段 / 动作（桌面端自己的 DOM 结构：标签在左、控件在右） ---------- */
 function fieldHTML(f){
@@ -55,6 +80,17 @@ function fieldsGrid(fields){
 }
 
 /* ---------- 骨架 ---------- */
+function toolRail(vm){
+  var groups = (vm && vm.tools) || [];
+  return groups.map(function(g){
+    return '<div class="sd-d-toolgroup"><p class="sd-d-tooltitle">' + esc(g.title) + '</p>'
+      + g.items.map(function(it){
+          return '<button class="sd-d-tool" data-act="add" data-kind="' + esc(it.kind) + '">'
+            + '<span class="sd-d-toolicon">' + esc(it.icon) + '</span><span class="sd-d-toolname">' + esc(it.label) + '</span></button>';
+        }).join('')
+      + '</div>';
+  }).join('');
+}
 function skeleton(){
   return ''
   + '<header class="sd-d-topbar">'
@@ -69,16 +105,21 @@ function skeleton(){
   +     '<button id="btnExit" class="sd-d-btn sd-d-btn-ghost" hidden>返回应用选择</button>'
   +   '</div>'
   + '</header>'
-  + '<div class="sd-d-status" id="chips"></div>'
-  + '<main class="sd-d-main">'
-  +   '<section class="sd-d-stage">'
-  +     '<nav class="tabs sd-d-tabs">'
-  +       '<button data-tab="t3d" class="on">3D 视角</button>'
-  +       '<button data-tab="tplan">平面编辑</button>'
-  +     '</nav>'
+  + '<div class="sd-d-workbench">'
+  +   '<aside class="sd-d-tools" id="sdTools" aria-label="工具栏">'
+  +     '<div class="sd-d-toolscroll" id="sdToolList"></div>'
+  +     '<div class="sd-d-toolfoot"><span class="sd-d-toolhint">点工具即添加，随后拖动屏幕摆放</span></div>'
+  +   '</aside>'
+  +   '<section class="sd-d-viewport" id="sdViewport">'
+  +     '<header class="sd-d-vpbar">'
+  +       '<nav class="tabs sd-d-vswitch">'
+  +         '<button data-tab="t3d" class="on">3D 视角</button>'
+  +         '<button data-tab="tplan">平面编辑</button>'
+  +       '</nav>'
+  +       '<div class="sd-d-status" id="chips"></div>'
+  +     '</header>'
   +     '<div id="tab3d" class="sd-d-pane">'
-  +       '<div class="sd-d-view" id="view3d"></div>'
-  +       '<div class="sd-d-viewbar">'
+  +       '<div class="sd-d-vtools">'
   +         '<button id="rotL">⟲ 左转45°</button><button id="rotR">⟳ 右转45°</button>'
   +         '<button id="vIso">轴测</button><button id="vTop">俯视</button>'
   +         '<button id="vReset">复位</button><button id="spin">自动旋转</button>'
@@ -86,41 +127,75 @@ function skeleton(){
   +         '<span class="sd-d-slider"><i>俯仰角</i><input type="range" id="el" min="8" max="85" step="1"><b id="elv">33°</b></span>'
   +         '<span class="sd-d-slider"><i>缩放</i><input type="range" id="zm" min="40" max="260" step="2"><b id="zmv">100%</b></span>'
   +       '</div>'
+  +       '<div id="view3d" class="sd-d-canvas"></div>'
+  +       '<p class="sd-d-vphint">拖动旋转视角 · 滚轮 / 双指缩放</p>'
   +     '</div>'
   +     '<div id="tabplan" class="sd-d-pane" style="display:none">'
-  +       '<div class="sd-d-planbar">'
+  +       '<div class="sd-d-vtools">'
   +         '<button id="pzOut">－</button><button id="pzIn">＋</button><button id="pzFit">适应</button>'
   +         '<span class="sd-d-mini" id="pzInfo"></span>'
   +         '<label class="sd-d-check"><input type="checkbox" id="pgrid" checked> 网格</label>'
   +         '<label class="sd-d-check">吸附<select id="snap"><option value="0.5">0.5m</option><option value="0.25">0.25m</option><option value="0.1">0.1m</option></select></label>'
-  +         '<span class="sd-d-hint">拖动元素即可移动（自动吸附）；点选后右侧直接编辑参数</span>'
   +       '</div>'
   +       '<div id="planScroll" class="sd-d-planscroll"><div id="viewplan"></div></div>'
+  +       '<p class="sd-d-vphint">拖动元素移动（自动吸附）· 滚轮 / 双指缩放 · 中键或空格拖动平移</p>'
   +     '</div>'
   +   '</section>'
-  +   '<aside class="sd-d-rail">'
+  +   '<aside class="sd-d-props" id="sdProps" aria-label="属性栏">'
+  +     '<div class="sd-d-resize" data-sd-resize="1" title="拖动调整宽度（双击复位）"></div>'
+  +     '<header class="sd-d-propshead">'
+  +       '<nav class="sd-d-proptabs">'
+  +         '<button data-sd-tab="props" data-short="⚙"><span>属性</span></button>'
+  +         '<button data-sd-tab="outline" data-short="☰"><span>大纲</span></button>'
+  +         '<button data-sd-tab="checks" data-short="✓"><span>检查</span></button>'
+  +         '<button data-sd-tab="settings" data-short="⋯"><span>设置</span></button>'
+  +       '</nav>'
+  +       '<button class="sd-d-collapse" data-sd-collapse="1" title="收起属性栏">⟩</button>'
+  +     '</header>'
   +     '<div id="selbar" class="sd-d-selbar"></div>'
-  +     '<nav class="sd-d-railtabs">'
-  +       '<button data-sd-tab="check">检查</button>'
-  +       '<button data-sd-tab="elements">元素</button>'
-  +       '<button data-sd-tab="settings">设置</button>'
-  +     '</nav>'
-  +     '<div class="sd-d-railbody"><div id="editors"></div></div>'
+  +     '<div class="sd-d-propsbody"><div id="editors"></div></div>'
   +   '</aside>'
-  + '</main>'
-  + '<button id="fab" class="sd-d-add" aria-label="添加组件">＋ 添加组件</button>'
-  + '<div id="addmask" class="sd-d-mask"></div>'
-  + '<div id="addsheet" class="sd-d-addsheet">'
-  +   '<div class="sd-d-sheettitle">添加组件<button class="sd-d-act" id="sheetClose">关闭</button></div>'
-  +   '<div class="sd-d-addgrid" id="sheetgrid"></div>'
   + '</div>'
   + '<input type="file" id="fileImport" accept=".json,application/json" style="display:none">'
   + '<div id="toast" class="sd-d-toast"></div>'
   + '<div id="errlog"></div>';
 }
 
-/* ---------- 三页内容 ---------- */
-function checkPage(vm){
+/* ---------- 属性栏四页 ---------- */
+function propsPage(vm){
+  var sel = vm.selection;
+  if (!sel){
+    return '<div class="sd-d-empty"><b>未选中元素</b><span>在视觉窗口里点选货架、工作室、区域等；或切到「大纲」按类型挑选。</span></div>'
+      + '<div class="sd-d-stats">'
+      +   statRow('货架', vm.counters.shelves + ' 组') + statRow('区域', vm.counters.zones + ' 个')
+      +   statRow('自行车', vm.counters.bikes + ' 台') + statRow('出入口净空', vm.counters.entranceOk ? '已满足' : '未满足')
+      + '</div>';
+  }
+  return '<div class="sd-d-selcard">'
+    + '<div class="sd-d-selhead"><b>' + esc(sel.title) + '</b><span>' + esc(sel.badge) + '</span>'
+    +   '<button class="sd-d-selclose" data-act="pick" data-id="__clear__" aria-label="取消选中">✕</button></div>'
+    + fieldsGrid(sel.fields)
+    + actionsRow(sel.actions)
+    + (sel.extra ? actionsRow(sel.extra) : '')
+    + '</div>';
+}
+function statRow(label, value){
+  return '<div class="sd-d-statrow"><span>' + esc(label) + '</span><b>' + esc(value) + '</b></div>';
+}
+function outlinePage(vm){
+  return '<div class="sd-d-list">' + vm.elements.map(function(g){
+    return '<section class="sd-d-group" data-sd-group="' + g.key + '">'
+      + '<h3 class="sd-d-grouphead">' + esc(g.title) + '<i>' + g.items.length + '</i></h3>'
+      + g.items.map(function(it){
+          var on = vm.selection && String(vm.selection.id) === String(it.id);
+          return '<button class="sd-d-item" data-act="pick" data-id="' + esc(it.id) + '"' + (on ? ' data-on="true"' : '') + '>'
+            + '<span class="sd-d-itemname">' + esc(it.title) + '</span>'
+            + '<span class="sd-d-itembadge">' + esc(it.badge) + '</span></button>';
+        }).join('')
+      + '</section>';
+  }).join('') + '</div>';
+}
+function checksPage(vm){
   var rows = vm.checks.map(function(c){
     return '<div class="sd-d-checkrow" data-tone="' + c.tone + '">'
       + '<span class="sd-d-dot"></span>'
@@ -133,30 +208,6 @@ function checkPage(vm){
     : '<p class="sd-d-okline">无越界 / 重叠提示</p>';
   return '<div class="sd-d-checks">' + rows + '</div>' + warn
     + actionsRow([{ act:'rand', label:'🎲 重新随机方案' }]);
-}
-function selectionCard(sel){
-  if (!sel) return '<div class="sd-d-empty"><b>未选中元素</b><span>在左侧平面图里点选货架、工作室、区域等，或从下表选择。</span></div>';
-  return '<div class="sd-d-selcard">'
-    + '<div class="sd-d-selhead"><b>' + esc(sel.title) + '</b><span>' + esc(sel.badge) + '</span>'
-    +   '<button class="sd-d-selclose" data-act="pick" data-id="__clear__" aria-label="取消选中">✕</button></div>'
-    + fieldsGrid(sel.fields)
-    + actionsRow(sel.actions)
-    + (sel.extra ? actionsRow(sel.extra) : '')
-    + '</div>';
-}
-function elementsPage(vm){
-  var list = vm.elements.map(function(g){
-    return '<section class="sd-d-group" data-sd-group="' + g.key + '">'
-      + '<h3 class="sd-d-grouphead">' + esc(g.title) + '<i>' + g.items.length + '</i></h3>'
-      + g.items.map(function(it){
-          var on = vm.selection && String(vm.selection.id) === String(it.id);
-          return '<button class="sd-d-item" data-act="pick" data-id="' + esc(it.id) + '"' + (on ? ' data-on="true"' : '') + '>'
-            + '<span class="sd-d-itemname">' + esc(it.title) + '</span>'
-            + '<span class="sd-d-itembadge">' + esc(it.badge) + '</span></button>';
-        }).join('')
-      + '</section>';
-  }).join('');
-  return selectionCard(vm.selection) + '<div class="sd-d-list">' + list + '</div>';
 }
 function settingsPage(vm){
   var out = vm.settings.map(function(g){
@@ -187,12 +238,19 @@ function settingsPage(vm){
 function renderRailBody(){
   var host = slots.editors;
   if (!host || !lastVM) return;
-  host.innerHTML = railTab === 'elements' ? elementsPage(lastVM)
+  host.innerHTML = railTab === 'outline' ? outlinePage(lastVM)
+    : railTab === 'checks' ? checksPage(lastVM)
     : railTab === 'settings' ? settingsPage(lastVM)
-    : checkPage(lastVM);
-  Array.prototype.forEach.call(document.querySelectorAll('.sd-d-railtabs button'), function(b){
+    : propsPage(lastVM);
+  Array.prototype.forEach.call(document.querySelectorAll('.sd-d-proptabs button'), function(b){
     b.setAttribute('data-on', String(b.getAttribute('data-sd-tab') === railTab));
   });
+}
+function setCollapsed(flag){
+  prefs.collapsed = !!flag;
+  var root = document.getElementById('sdApp');
+  if (root) root.setAttribute('data-collapsed', String(prefs.collapsed));
+  savePrefs();
 }
 
 /* ---------- 状态条 ---------- */
@@ -204,7 +262,7 @@ function renderStatus(items){
   }).join('');
 }
 
-/* ---------- 选中快捷条：桌面端是「动作条」，完整参数在右侧栏 ---------- */
+/* ---------- 选中动作条（右栏顶部，完整参数在下面） ---------- */
 function selBarHTML(ctx){
   var k = ctx.kind, o = ctx.item, h = '';
   var close = '<button class="sd-d-act sd-d-act-ghost" data-bact="close">取消选中</button>';
@@ -228,21 +286,19 @@ function selBarHTML(ctx){
       + '<button class="sd-d-act" data-bact="fillb" data-bt="kids">排童车</button>'
       + '<button class="sd-d-act" data-bact="clearb">清空本架车</button>' + del + close;
   } else if (k === 'st'){
-    h += '<b class="sd-d-selflag">工作室</b><button class="sd-d-act" data-bact="more">查看参数</button>' + close;
+    h += '<b class="sd-d-selflag">工作室</b>' + close;
   } else if (k === 'zn'){
-    h += '<b class="sd-d-selflag">区域</b><button class="sd-d-act" data-bact="more">查看参数</button>' + del + close;
+    h += '<b class="sd-d-selflag">区域</b>' + del + close;
   } else if (k === 'pl'){
-    h += '<b class="sd-d-selflag">柱子</b><button class="sd-d-act" data-bact="more">查看参数</button>' + del + close;
+    h += '<b class="sd-d-selflag">柱子</b>' + del + close;
   } else if (k === 'mk'){
-    h += '<b class="sd-d-selflag">标记</b><button class="sd-d-act" data-bact="more">查看参数</button>' + del + close;
+    h += '<b class="sd-d-selflag">标记</b>' + del + close;
   } else if (k === 'ms'){
-    h += '<b class="sd-d-selflag">网面墙</b><button class="sd-d-act" data-bact="rot">改朝向</button>'
-      + '<button class="sd-d-act" data-bact="more">查看参数</button>' + del + close;
+    h += '<b class="sd-d-selflag">网面墙</b><button class="sd-d-act" data-bact="rot">改朝向</button>' + del + close;
   } else if (k === 'en'){
-    h += '<b class="sd-d-selflag">出入口净空</b><button class="sd-d-act" data-bact="more">查看参数</button>' + del + close;
+    h += '<b class="sd-d-selflag">出入口净空</b>' + del + close;
   } else if (k === 'ct'){
-    h += '<b class="sd-d-selflag">门帘</b><button class="sd-d-act" data-bact="rot">改朝向</button>'
-      + '<button class="sd-d-act" data-bact="more">查看参数</button>' + del + close;
+    h += '<b class="sd-d-selflag">门帘</b><button class="sd-d-act" data-bact="rot">改朝向</button>' + del + close;
   } else if (k === 'bk'){
     var top = (o.pose === 'top');
     h += '<b class="sd-d-selflag">自行车</b>'
@@ -260,11 +316,42 @@ function selBarHTML(ctx){
   }
   return h;
 }
-function refreshSelVals(){ /* 桌面端快捷条没有数值步进器：参数在右栏编辑 */ }
+function refreshSelVals(){ /* 桌面端动作条没有数值步进器：参数在属性栏编辑 */ }
+
+/* ---------- 右栏：收起 / 拖宽 ---------- */
+function bindRail(root){
+  var handle = root.querySelector('[data-sd-resize]');
+  var rail = root.querySelector('.sd-d-props');
+  if (handle && rail){
+    var drag = false, x0 = 0, w0 = 0;
+    handle.addEventListener('pointerdown', function(e){
+      drag = true; x0 = e.clientX; w0 = rail.getBoundingClientRect().width;
+      try { handle.setPointerCapture(e.pointerId); } catch(e0){}
+      e.preventDefault();
+    });
+    handle.addEventListener('pointermove', function(e){
+      if (!drag) return;
+      var w = Math.min(620, Math.max(280, w0 - (e.clientX - x0)));
+      prefs.w = Math.round(w);
+      root.style.setProperty('--sd-props-w', prefs.w + 'px');
+    });
+    function stop(){ if (!drag) return; drag = false; savePrefs(); }
+    handle.addEventListener('pointerup', stop);
+    handle.addEventListener('pointercancel', stop);
+    handle.addEventListener('dblclick', function(){
+      prefs.w = 360; root.style.setProperty('--sd-props-w', '360px'); savePrefs();
+    });
+  }
+  var collapse = root.querySelector('[data-sd-collapse]');
+  if (collapse) collapse.addEventListener('click', function(){ setCollapsed(!prefs.collapsed); });
+}
 
 /* ---------- 装配 ---------- */
 function mount(root){
+  loadPrefs();
   root.innerHTML = skeleton();
+  root.setAttribute('data-collapsed', String(prefs.collapsed));
+  root.style.setProperty('--sd-props-w', prefs.w + 'px');
   slots.root = root;
   slots.chips = document.getElementById('chips');
   slots.editors = document.getElementById('editors');
@@ -274,11 +361,19 @@ function mount(root){
   slots.planScroll = document.getElementById('planScroll');
   document.body.setAttribute('data-sd-ui', 'desktop');
 
+  // 工具栏随后由 renderPanel(vm) 填充（工具清单来自数据层，与移动端同一份）
   root.addEventListener('click', function(e){
     var t = e.target;
-    var tabBtn = t.closest ? t.closest('[data-sd-tab]') : null;
-    if (tabBtn){ railTab = tabBtn.getAttribute('data-sd-tab'); renderRailBody(); return; }
+    var tabBtn = t.closest ? t.closest('.sd-d-proptabs [data-sd-tab]') : null;
+    if (tabBtn){
+      railTab = tabBtn.getAttribute('data-sd-tab');
+      // 收起时点图标 = 展开并切到该页（建模软件里的常见做法）
+      if (prefs.collapsed) setCollapsed(false);
+      renderRailBody();
+      return;
+    }
   }, true);
+  bindRail(root);
   return slots;
 }
 
@@ -286,17 +381,24 @@ window.SDUI = {
   id: 'desktop',
   mount: mount,
   renderStatus: renderStatus,
-  renderPanel: function(vm){ lastVM = vm; renderRailBody(); },
+  renderPanel: function(vm){
+    lastVM = vm;
+    var list = document.getElementById('sdToolList');
+    if (list && !list.childNodes.length) list.innerHTML = toolRail(vm);
+    renderRailBody();
+  },
   selBarHTML: selBarHTML,
   refreshSelVals: refreshSelVals,
   onSelectionChange: function(){ renderRailBody(); },
   revealSelection: function(){
-    railTab = 'elements';
+    railTab = 'props';
+    if (prefs.collapsed) setCollapsed(false);
     renderRailBody();
-    var el = document.querySelector('.sd-d-selcard');
-    if (el && el.scrollIntoView) el.scrollIntoView({ behavior:'smooth', block:'nearest' });
   },
   setSheetOpen: function(){},
-  isSheetOpen: function(){ return true; }
+  isSheetOpen: function(){ return true; },
+  collapse: setCollapsed,
+  isCollapsed: function(){ return prefs.collapsed; },
+  railWidth: function(){ return prefs.w; }
 };
 })();

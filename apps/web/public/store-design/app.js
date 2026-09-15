@@ -135,6 +135,79 @@ function currentPlanZ(){
   var auto = E.clamp(avail / (W + 2*pad), 16, 46);
   return ui.planZ || Math.max(auto, 20);
 }
+/* 平面视图缩放（2026-09-15 用户报告「平面编辑无法缩放」）：
+   根因是 CSS 把 #viewplan svg 也强制成 width:100%，改 z 只改内部坐标、外观不变。
+   修掉样式之后，这里补齐建模软件该有的缩放交互：
+     · 滚轮 = 缩放（以指针为锚点，缩放后指针下的位置保持不动）；
+     · 双指捏合 = 缩放；单指拖动 = 平移（浏览器原生滚动）；
+     · 中键 / 空格 + 拖动 = 平移。 */
+function planViewport(){ return els.planScroll; }
+function zoomPlanAt(nextZ, clientX, clientY){
+  var sc = planViewport();
+  if (!sc) return;
+  var prevZ = currentPlanZ();
+  var z = E.clamp(nextZ, 8, 120);
+  if (Math.abs(z - prevZ) < 0.01) return;
+  var rect = sc.getBoundingClientRect();
+  // 指针在内容坐标系里的位置（含 padding 与滚动偏移）
+  var px = sc.scrollLeft + (clientX != null ? clientX - rect.left : rect.width / 2);
+  var py = sc.scrollTop + (clientY != null ? clientY - rect.top : rect.height / 2);
+  var ratio = z / prevZ;
+  ui.planZ = z;
+  renderPlanNow();
+  sc.scrollLeft = px * ratio - (clientX != null ? clientX - rect.left : rect.width / 2);
+  sc.scrollTop = py * ratio - (clientY != null ? clientY - rect.top : rect.height / 2);
+}
+function bindPlanZoom(){
+  var sc = els.planScroll;
+  if (!sc || sc.getAttribute('data-zoom-bound') === '1') return;
+  sc.setAttribute('data-zoom-bound', '1');
+
+  sc.addEventListener('wheel', function(e){
+    if (e.ctrlKey || !e.shiftKey){
+      // 滚轮 = 缩放（与 3D 视角一致；按住 Shift 仍是缩放，保持行为可预期）
+      e.preventDefault();
+      var factor = Math.pow(1.0016, -e.deltaY);
+      zoomPlanAt(currentPlanZ() * factor, e.clientX, e.clientY);
+    }
+  }, { passive: false });
+
+  // 双指捏合缩放 + 中键平移
+  var pts = {}, pinch = null, pan = null;
+  sc.addEventListener('pointerdown', function(e){
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var ids = Object.keys(pts);
+    if (ids.length === 2){
+      var a = pts[ids[0]], b = pts[ids[1]];
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: currentPlanZ() };
+    } else if (e.button === 1){   // 中键拖动平移
+      pan = { x: e.clientX, y: e.clientY, sl: sc.scrollLeft, st: sc.scrollTop };
+      e.preventDefault();
+    }
+  });
+  sc.addEventListener('pointermove', function(e){
+    if (!pts[e.pointerId]) return;
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var ids = Object.keys(pts);
+    if (ids.length === 2 && pinch){
+      var a = pts[ids[0]], b = pts[ids[1]];
+      var d = Math.hypot(a.x - b.x, a.y - b.y);
+      var cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+      zoomPlanAt(pinch.z * d / (pinch.d || 1), cx, cy);
+      pinch.d = d; pinch.z = currentPlanZ();
+    } else if (pan){
+      sc.scrollLeft = pan.sl - (e.clientX - pan.x);
+      sc.scrollTop = pan.st - (e.clientY - pan.y);
+    }
+  });
+  function endPlanPointer(e){
+    delete pts[e.pointerId];
+    if (Object.keys(pts).length < 2) pinch = null;
+    if (e.button === 1) pan = null;
+  }
+  sc.addEventListener('pointerup', endPlanPointer);
+  sc.addEventListener('pointercancel', endPlanPointer);
+}
 function renderPlanNow(){
   if (!els.viewplan) return;
   var z = currentPlanZ();
@@ -283,6 +356,11 @@ function fillShelfBikes(ids){
 
 var acts = {
   rand: function(){ doRandom(); },
+  /* 左侧工具栏：点工具即就地添加并进入摆放模式（拖动屏幕定位）。 */
+  add: function(ds){
+    if (!ds || !ds.kind) return;
+    addComponent(ds.kind);
+  },
   /* 面板清单里点选元素（两个界面实现的「元素」页都用 data-act="pick"）。
      id 约定 '__clear__' = 取消选中。 */
   pick: function(ds){
@@ -299,7 +377,7 @@ var acts = {
     updateSelFrame();
     renderPlanNow();
     renderSelBar();
-    if (window.SDUI && SDUI.onSelectionChange) SDUI.onSelectionChange();
+    if (window.SDUI && SDUI.onSelectionChange) SDUI.onSelectionChange({ placing: !!ui.placing });
     buildEditors();
   },
   flushWall: function(ds){ flushWallTo(ds.id); },
@@ -794,36 +872,16 @@ function bindSelBar(){
   });
 }
 
-/* ---------------- 添加组件（悬浮＋按钮 + 底部面板） ---------------- */
-var ADD_LIST = [
-  ['货架', null],
-  ['shelfD','双面货架','🟨'], ['shelfS','单面货架','🟦'], ['shelfL','矮货架','🟪'],
-  ['自行车', null],
-  ['bikeA','成人车 2m','🚲'], ['bikeK','童车 1.5m','🚲'],
-  ['其他', null],
-  ['pillar','柱子','⬛'], ['curtain','门帘','🚪'], ['marker','标记点','🔴'],
-  ['mesh','网面墙','🕸️'], ['zone','区域','🟩'], ['entrance','出入口净空','🟧']
-];
-function addLabel(kind){
-  for (var i=0;i<ADD_LIST.length;i++){ if (ADD_LIST[i][0] === kind) return ADD_LIST[i][1]; }
-  return '组件';
-}
-function openSheet(open){
-  var sh = $('#addsheet'), mask = $('#addmask');
-  if (!sh || !mask) return;
-  if (open && ui.placing) endPlacing(true);
-  sh.classList.toggle('show', !!open);
-  mask.classList.toggle('show', !!open);
-}
-function buildSheet(){
-  var g = $('#sheetgrid'); if (!g) return;
-  var h = '';
-  ADD_LIST.forEach(function(it){
-    if (!it[1]){ h += '<div class="sheetsec">' + it[0] + '</div>'; return; }
-    h += '<button data-add="' + it[0] + '"><span class="ic">' + it[2] + '</span>' + it[1] + '</button>';
-  });
-  g.innerHTML = h;
-}
+/* ---------------- 添加组件（入口 = 左侧工具栏） ----------------
+   旧版是右下角悬浮「＋」+ 底部弹出面板（ADD_LIST / buildSheet / openSheet 三个函数
+   与它们的清单），现在整段删除：工具清单由数据层统一给（sd-schema.js 的 TOOL_GROUPS），
+   左侧工具栏（移动端为左滑抽屉）点击 → acts.add → addComponent(kind) → 进入摆放模式。 */
+var TOOL_LABELS = {
+  shelfD:'双面货架', shelfS:'单面货架', shelfL:'矮货架',
+  bikeA:'成人车', bikeK:'童车', marker:'标记点', curtain:'门帘',
+  zone:'区域', entrance:'出入口净空', mesh:'网面墙', pillar:'柱子'
+};
+function addLabel(kind){ return TOOL_LABELS[kind] || '组件'; }
 function occupiedRects(){
   var arr = [];
   cfg.shelves.forEach(function(s){ arr.push(E.shelfRect(s)); });
@@ -973,8 +1031,8 @@ function bindGlobal(){
       spinTimer = setInterval(function(){ view.az = (view.az + 1.2) % 360; syncViewUI(); schedule3D(); }, 40);
     } else if (spinTimer){ clearInterval(spinTimer); spinTimer = null; }
   });
-  $('#pzIn').addEventListener('click', function(){ ui.planZ = E.clamp(currentPlanZ() * 1.3, 8, 120); renderPlanNow(); });
-  $('#pzOut').addEventListener('click', function(){ ui.planZ = E.clamp(currentPlanZ() / 1.3, 8, 120); renderPlanNow(); });
+  $('#pzIn').addEventListener('click', function(){ zoomPlanAt(currentPlanZ() * 1.3); });
+  $('#pzOut').addEventListener('click', function(){ zoomPlanAt(currentPlanZ() / 1.3); });
   $('#pzFit').addEventListener('click', function(){ ui.planZ = null; renderPlanNow(); });
   $('#pgrid').addEventListener('change', function(){ ui.grid = this.checked; renderPlanNow(); });
   $('#snap').addEventListener('change', function(){ ui.snap = parseFloat(this.value) || 0.5; });
@@ -989,21 +1047,18 @@ function bindGlobal(){
     afterStruct();
     syncInputs();
   });
-  buildSheet();
-  var fab = $('#fab');
-  if (fab) fab.addEventListener('click', function(){ openSheet(!$('#addsheet').classList.contains('show')); });
-  var mask = $('#addmask');
-  if (mask) mask.addEventListener('click', function(){ openSheet(false); });
-  var sClose = $('#sheetClose');
-  if (sClose) sClose.addEventListener('click', function(){ openSheet(false); });
-  var sg = $('#sheetgrid');
-  if (sg) sg.addEventListener('click', function(e){
-    var b = e.target.closest ? e.target.closest('button[data-add]') : null;
+  /* 全局动作委托：左侧工具栏（移动端 = 左滑抽屉）与属性栏里的按钮都带 data-act，
+     它们不在 #editors / #selbar 子树里，因此需要一层文档级委托。
+     子树内的按钮仍由各自的监听器处理（这里跳过，避免重复触发）。 */
+  document.addEventListener('click', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('[data-act]') : null;
     if (!b) return;
-    openSheet(false);
-    addComponent(b.getAttribute('data-add'));
+    if (b.closest('#editors') || b.closest('#selbar')) return;
+    var fn = acts[b.getAttribute('data-act')];
+    if (fn) fn(b.dataset || {});
   });
-  document.addEventListener('keydown', function(e){ if (e.key === 'Escape'){ openSheet(false); endPlacing(true); } });
+  /* Escape：结束摆放模式（旧的「关闭添加面板」已随面板删除）。 */
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') endPlacing(true); });
   var bR = $('#btnRandom');
   if (bR) bR.addEventListener('click', doRandom);
   els.editors.addEventListener('input', onEditInput);
@@ -1011,6 +1066,7 @@ function bindGlobal(){
   els.editors.addEventListener('click', onEditClick);
   bindSelBar();
   bindPlan();
+  bindPlanZoom();
   bindGestures();
 }
 
@@ -1051,17 +1107,11 @@ function runSelfTest(){
           if (addK){ addK.dispatchEvent(new MouseEvent('click', {bubbles:true})); log.push('afterAddK=' + bikes()); }
           else log.push('NO-ADDK');
           log.push('selAfter=' + $('#selbar').getAttribute('data-sel'));
-          var fab = $('#fab');
-          if (fab){
-            var nSh0 = document.querySelectorAll('[data-id^="sh:"]').length;
-            fab.click();
-            log.push('sheetOpen=' + $('#addsheet').classList.contains('show'));
-            var bs = $('#addsheet [data-add="shelfD"]');
-            if (bs){ bs.click(); log.push('shelf ' + nSh0 + '->' + document.querySelectorAll('[data-id^="sh:"]').length); }
-            var nb = $('#addsheet [data-add="bikeK"]');
-            if (nb){ nb.click(); log.push('addKidBike=' + bikes()); }
-            log.push('newSel=' + $('#selbar').getAttribute('data-sel'));
-          }
+          var nSh0 = document.querySelectorAll('[data-id^="sh:"]').length;
+          var bs = document.querySelector('[data-act="add"][data-kind="shelfD"]');
+          if (bs){ bs.click(); log.push('shelf ' + nSh0 + '->' + document.querySelectorAll('[data-id^="sh:"]').length); }
+          var nb = document.querySelector('[data-act="add"][data-kind="bikeK"]');
+          if (nb){ nb.click(); log.push('addKidBike=' + bikes()); log.push('newSel=' + $('#selbar').getAttribute('data-sel')); }
           /* --- 拖拽测试1：自行车拖动后 transform 必须叠乘（不飞走）--- */
           var bg = document.querySelector('[data-id^="bk:"]');
           if (bg){
@@ -1091,8 +1141,7 @@ function runSelfTest(){
             window.dispatchEvent(new PointerEvent('pointerup', {bubbles:true, clientX:sr.x+70, clientY:sr.y+30, pointerId:13}));
           }
           /* --- 拖拽测试2：摆放模式（加组件后拖动屏幕摆放）--- */
-          $('#fab').click();
-          var bS = $('#addsheet [data-add="shelfS"]');
+          var bS = document.querySelector('[data-act="add"][data-kind="shelfS"]');
           if (bS) bS.click();
           log.push('placingActive=' + !!$('[data-bact="placeDone"]'));
           var scl = $('#planScroll');

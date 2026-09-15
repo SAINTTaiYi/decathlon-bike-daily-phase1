@@ -296,6 +296,30 @@ function fieldsForItem(type, cfg, index){
   return [];
 }
 
+/* ---------- 左侧工具栏（建模软件的工具箱） ----------
+   工具点击后就地添加一个元素并进入「摆放模式」（拖动屏幕定位），
+   与旧版悬浮「＋」面板是同一套动作（acts.add → addComponent），
+   只是入口从右下角悬浮按钮换成左侧常驻工具栏。 */
+var TOOL_GROUPS = [
+  { title:'货架', items:[
+    { kind:'shelfD', label:'双面货架', icon:'▤' },
+    { kind:'shelfS', label:'单面货架', icon:'▭' },
+    { kind:'shelfL', label:'矮货架', icon:'▬' }
+  ] },
+  { title:'陈列', items:[
+    { kind:'bikeA', label:'成人车 2m', icon:'🚲' },
+    { kind:'bikeK', label:'童车 1.5m', icon:'🚲' },
+    { kind:'marker', label:'标记点', icon:'◎' },
+    { kind:'curtain', label:'门帘', icon:'🚪' }
+  ] },
+  { title:'空间', items:[
+    { kind:'zone', label:'区域', icon:'▢' },
+    { kind:'entrance', label:'出入口净空', icon:'⬚' },
+    { kind:'mesh', label:'网面墙', icon:'▦' },
+    { kind:'pillar', label:'柱子', icon:'■' }
+  ] }
+];
+
 /* ---------- 视图模型入口 ---------- */
 function buildVM(cfg, ctx){
   var ck = E().computeChecks(cfg);
@@ -314,6 +338,7 @@ function buildVM(cfg, ctx){
     }
   }
   return {
+    tools: TOOL_GROUPS,
     checks: checklist(ck),
     warnings: ck.warnings || [],
     status: statusItems(ck),
@@ -331,6 +356,7 @@ function buildVM(cfg, ctx){
 
 window.SD_SCHEMA = {
   KIND: KIND,
+  TOOL_GROUPS: TOOL_GROUPS,
   buildVM: buildVM,
   statusItems: statusItems,
   elementGroups: elementGroups,

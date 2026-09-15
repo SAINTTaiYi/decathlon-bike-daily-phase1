@@ -1,51 +1,50 @@
 /* ==========================================================================
    门店设计 · 移动端界面实现（独立实现，不与桌面端共享 DOM/CSS）
    --------------------------------------------------------------------------
-   只由运行时在窄屏（<=860px）加载，样式在 sd-mobile.css。桌面端是另一份完全
-   独立的实现（sd-ui-desktop.js + sd-desktop.css），两者之间没有共享的选择器，
-   也没有「一套 DOM + 媒体查询适配两端」。
+   与桌面端同一套操作逻辑（工具栏 / 视觉窗口 / 属性栏），按手机屏幕重排：
+     · 视觉窗口占满屏（唯一主角，下面只留一条属性把手）；
+     · 左侧工具栏 = 从左边缘滑出的抽屉（顶部「工具」按钮或边缘右滑打开）；
+     · 右侧属性栏 = 底部上拉面板，四页：属性 / 大纲 / 检查 / 设置；
+     · 选中元素后，属性面板上方浮出快捷条（改名 / 类型 / 长度 / 贴墙 / 排车）。
 
-   对外契约（app.js 依赖，两个实现都必须满足）：
-     SDUI.mount(root)            渲染骨架并返回
-     SDUI.renderStatus(items)    状态条（检查摘要）
-     SDUI.renderPanel(vm)        面板内容（检查 / 元素 / 设置 三页）
-     SDUI.selBarHTML(ctx)        选中元素的快捷条内容
-     SDUI.refreshSelVals(bar,it) 仅刷新快捷条数值（不重建 DOM）
-     SDUI.onSelectionChange()    选中变化时的界面反应
-   必须提供的元素 id：见 SKELETON 内注释（app.js 按 id 取用）。
+   只由运行时在窄屏（<=860px）加载，样式在 sd-mobile.css。
+   对外契约与桌面端一致（见文件尾 SDUI 导出）。
    ========================================================================== */
 (function(){
 'use strict';
 
 var slots = {};
 var lastVM = null;
-var panelTab = 'check';
+var panelTab = 'props';
 var sheetOpen = false;
+var drawerOpen = false;
 
 function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fnum(v){ return window.Engine ? window.Engine.fnum(v) : String(v); }
 
-/* ---------- 字段 / 动作渲染（移动端自己的 DOM 结构） ---------- */
+/* ---------- 字段 / 动作（移动端布局：标签在上、控件在下） ---------- */
 function fieldHTML(f){
   if (f.kind === 'note') return '<p class="sd-m-note">' + esc(f.text) + '</p>';
   var id = 'f' + Math.random().toString(36).slice(2, 8);
-  var label = '<label class="sd-m-field" for="' + id + '"><span class="sd-m-field-label">' + esc(f.label) + '</span>';
   if (f.kind === 'number'){
-    return label + '<span class="sd-m-inputwrap"><input id="' + id + '" type="number" inputmode="decimal" data-path="' + f.path + '" value="' + esc(fnum(f.value)) + '"'
+    return '<label class="sd-m-field" for="' + id + '"><span class="sd-m-field-label">' + esc(f.label) + '</span>'
+      + '<span class="sd-m-inputwrap"><input id="' + id + '" type="number" inputmode="decimal" data-path="' + f.path + '" value="' + esc(fnum(f.value)) + '"'
       + (f.min != null ? ' min="' + f.min + '"' : '') + (f.max != null ? ' max="' + f.max + '"' : '')
       + (f.step != null ? ' step="' + f.step + '"' : '') + '>'
       + (f.unit ? '<i class="sd-m-unit">' + esc(f.unit) + '</i>' : '') + '</span></label>';
   }
   if (f.kind === 'select'){
-    return label + '<select id="' + id + '" data-path="' + f.path + '">' + f.options.map(function(o){
-      return '<option value="' + esc(o[0]) + '"' + (String(f.value) === String(o[0]) ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
-    }).join('') + '</select></label>';
+    return '<label class="sd-m-field" for="' + id + '"><span class="sd-m-field-label">' + esc(f.label) + '</span>'
+      + '<select id="' + id + '" data-path="' + f.path + '">' + f.options.map(function(o){
+        return '<option value="' + esc(o[0]) + '"' + (String(f.value) === String(o[0]) ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+      }).join('') + '</select></label>';
   }
   if (f.kind === 'toggle'){
     return '<label class="sd-m-switch" for="' + id + '"><span class="sd-m-field-label">' + esc(f.label) + '</span>'
       + '<input id="' + id + '" type="checkbox" data-path="' + f.path + '"' + (f.value ? ' checked' : '') + '></label>';
   }
-  return label + '<input id="' + id + '" type="text" data-path="' + f.path + '" value="' + esc(f.value) + '" placeholder="' + esc(f.placeholder || '') + '"></label>';
+  return '<label class="sd-m-field" for="' + id + '"><span class="sd-m-field-label">' + esc(f.label) + '</span>'
+    + '<input id="' + id + '" type="text" data-path="' + f.path + '" value="' + esc(f.value) + '" placeholder="' + esc(f.placeholder || '') + '"></label>';
 }
 function actionHTML(a){
   return '<button class="sd-m-act" data-act="' + a.act + '"' + (a.id != null ? ' data-id="' + esc(a.id) + '"' : '')
@@ -61,80 +60,132 @@ function fieldsGrid(fields, cls){
 }
 
 /* ---------- 骨架 ---------- */
+function toolDrawer(vm){
+  return ((vm && vm.tools) || []).map(function(g){
+    return '<div class="sd-m-toolgroup"><p class="sd-m-tooltitle">' + esc(g.title) + '</p>'
+      + g.items.map(function(it){
+          return '<button class="sd-m-tool" data-act="add" data-kind="' + esc(it.kind) + '">'
+            + '<span class="sd-m-toolicon">' + esc(it.icon) + '</span>' + esc(it.label) + '</button>';
+        }).join('')
+      + '</div>';
+  }).join('');
+}
 function skeleton(){
   return ''
-  + '<header class="sd-m-head">'
-  +   '<div class="sd-m-headrow">'
-  +     '<div class="sd-m-brand"><span class="sd-m-kicker">STORE DESIGN</span><h1 class="sd-m-title">门店设计</h1></div>'
-  +     '<div class="sd-m-headbtns">'
-  +       '<button id="btnRandom" class="sd-m-pill">随机</button>'
-  +       '<button class="sd-m-icon" data-sd-menu="1" aria-label="更多">⋯</button>'
-  +       '<button id="btnExit" class="sd-m-icon sd-m-exit" hidden aria-label="退出">↗</button>'
-  +     '</div>'
+  + '<header class="sd-m-top">'
+  +   '<div class="sd-m-brand"><span class="sd-m-kicker">STORE DESIGN</span><h1 class="sd-m-title">门店设计</h1></div>'
+  +   '<div class="sd-m-topbtns">'
+  +     '<button class="sd-m-icon" data-sd-tools="1" aria-label="工具栏">☰</button>'
+  +     '<button class="sd-m-icon" data-sd-menu="1" aria-label="更多">⋯</button>'
+  +     '<button id="btnExit" class="sd-m-icon sd-m-exit" hidden aria-label="退出">↗</button>'
   +   '</div>'
-  +   '<div class="sd-m-status" id="chips"></div>'
-  +   '<nav class="tabs sd-m-seg">'
-  +     '<button data-tab="t3d" class="on">3D 视角</button>'
-  +     '<button data-tab="tplan">平面编辑</button>'
-  +   '</nav>'
   + '</header>'
-  + '<main class="sd-m-body">'
-  +   '<section id="tab3d">'
-  +     '<div class="sd-m-view" id="view3d"></div>'
-  +     '<div class="sd-m-ctrls">'
+  + '<section class="sd-m-viewport" id="sdViewport">'
+  +   '<div class="sd-m-vpbar">'
+  +     '<nav class="tabs sd-m-vswitch">'
+  +       '<button data-tab="t3d" class="on">3D 视角</button>'
+  +       '<button data-tab="tplan">平面编辑</button>'
+  +     '</nav>'
+  +     '<div class="sd-m-status" id="chips"></div>'
+  +   '</div>'
+  +   '<div id="tab3d" class="sd-m-pane">'
+  +     '<div class="sd-m-vtools">'
   +       '<button id="rotL">⟲</button><button id="rotR">⟳</button>'
   +       '<button id="vIso">轴测</button><button id="vTop">俯视</button>'
-  +       '<button id="vReset">复位</button><button id="spin">自动旋转</button>'
+  +       '<button id="vReset">复位</button><button id="spin">旋转</button>'
+  +       '<button class="sd-m-more" data-sd-fold="1">视角微调</button>'
   +     '</div>'
-  +     '<details class="sd-m-details"><summary>视角微调</summary><div class="sd-m-dbody">'
+  +     '<div class="sd-m-fold" data-sd-foldbody="1" data-open="false">'
   +       '<div class="sd-m-slider"><span>方位角</span><input type="range" id="az" min="0" max="360" step="1"><b id="azv">90°</b></div>'
   +       '<div class="sd-m-slider"><span>俯仰角</span><input type="range" id="el" min="8" max="85" step="1"><b id="elv">33°</b></div>'
   +       '<div class="sd-m-slider"><span>缩放</span><input type="range" id="zm" min="40" max="260" step="2"><b id="zmv">100%</b></div>'
-  +     '</div></details>'
-  +   '</section>'
-  +   '<section id="tabplan" style="display:none">'
-  +     '<div class="sd-m-planbar">'
+  +     '</div>'
+  +     '<div id="view3d" class="sd-m-canvas"></div>'
+  +   '</div>'
+  +   '<div id="tabplan" class="sd-m-pane" style="display:none">'
+  +     '<div class="sd-m-vtools">'
   +       '<button id="pzOut">－</button><button id="pzIn">＋</button><button id="pzFit">适应</button>'
   +       '<span class="sd-m-mini" id="pzInfo"></span>'
   +       '<label class="sd-m-check"><input type="checkbox" id="pgrid" checked> 网格</label>'
   +       '<label class="sd-m-check">吸附<select id="snap"><option value="0.5">0.5m</option><option value="0.25">0.25m</option><option value="0.1">0.1m</option></select></label>'
   +     '</div>'
   +     '<div id="planScroll" class="sd-m-planscroll"><div id="viewplan"></div></div>'
-  +   '</section>'
-  + '</main>'
-  + '<div id="selbar" class="sd-m-selbar"></div>'
-  + '<section id="sdSheet" class="sd-m-sheet" data-open="false">'
-  +   '<div class="sd-m-sheethead">'
-  +     '<button class="sd-m-tab" data-sd-tab="check">检查</button>'
-  +     '<button class="sd-m-tab" data-sd-tab="elements">元素</button>'
-  +     '<button class="sd-m-tab" data-sd-tab="settings">设置</button>'
-  +     '<button class="sd-m-toggle" data-sd-toggle="1" aria-label="展开面板">▴</button>'
   +   '</div>'
-  +   '<div class="sd-m-sheetbody"><div id="editors"></div></div>'
   + '</section>'
-  + '<button id="fab" class="sd-m-fab" aria-label="添加组件">＋</button>'
-  + '<div id="addmask" class="sd-m-mask"></div>'
-  + '<div id="addsheet" class="sd-m-addsheet">'
-  +   '<div class="sd-m-sheettitle">添加组件<button class="sd-m-icon" id="sheetClose" aria-label="关闭">✕</button></div>'
-  +   '<div class="sd-m-addgrid" id="sheetgrid"></div>'
-  + '</div>'
-  + '<div class="sd-m-mask" id="sdMenuMask"></div>'
-  + '<div class="sd-m-menu" id="sdMenu">'
-  +   '<div class="sd-m-sheettitle">方案与导出<button class="sd-m-icon" data-sd-menu-close="1" aria-label="关闭">✕</button></div>'
+  + '<button class="sd-m-toolfab" data-sd-tools="1" aria-label="添加组件">＋</button>'
+  + '<div class="sd-m-mask" data-sd-close="1"></div>'
+  + '<aside class="sd-m-tools" id="sdTools" data-open="false" aria-label="工具栏">'
+  +   '<div class="sd-m-drawerhead"><b>工具栏</b><button class="sd-m-icon" data-sd-close="1" aria-label="关闭">✕</button></div>'
+  +   '<div class="sd-m-toolscroll" id="sdToolList"></div>'
+  +   '<p class="sd-m-toolhint">点工具即添加，随后拖动屏幕摆放</p>'
+  + '</aside>'
+  + '<aside class="sd-m-menu" id="sdMenu" data-open="false" aria-label="更多">'
+  +   '<div class="sd-m-drawerhead"><b>方案与导出</b><button class="sd-m-icon" data-sd-close="1" aria-label="关闭">✕</button></div>'
   +   '<div class="sd-m-menulist">'
+  +     '<button id="btnRandom">🎲 随机方案</button>'
   +     '<button id="btnExportSvg">导出 SVG 视角</button>'
   +     '<button id="btnExportJson">导出配置（JSON 备份）</button>'
   +     '<button id="btnImportJson">导入配置</button>'
   +     '<button id="btnReset" data-tone="danger">恢复默认布置</button>'
   +   '</div>'
-  + '</div>'
+  + '</aside>'
+  + '<section class="sd-m-props" id="sdProps" data-open="false" aria-label="属性栏">'
+  +   '<div class="sd-m-handle" data-sd-sheet="1"><span></span></div>'
+  +   '<div id="selbar" class="sd-m-selbar"></div>'
+  +   '<div class="sd-m-propshead">'
+  +     '<nav class="sd-m-proptabs">'
+  +       '<button data-sd-tab="props">属性</button>'
+  +       '<button data-sd-tab="outline">大纲</button>'
+  +       '<button data-sd-tab="checks">检查</button>'
+  +       '<button data-sd-tab="settings">设置</button>'
+  +     '</nav>'
+  +     '<button class="sd-m-toggle" data-sd-sheet="1" aria-label="展开属性栏">▴</button>'
+  +   '</div>'
+  +   '<div class="sd-m-propsbody"><div id="editors"></div></div>'
+  + '</section>'
   + '<input type="file" id="fileImport" accept=".json,application/json" style="display:none">'
   + '<div id="toast" class="sd-m-toast"></div>'
   + '<div id="errlog"></div>';
 }
 
-/* ---------- 面板内容（检查 / 元素 / 设置） ---------- */
-function checkPage(vm){
+/* ---------- 属性栏四页 ---------- */
+function propsPage(vm){
+  var sel = vm.selection;
+  if (!sel){
+    return '<div class="sd-m-empty"><b>未选中元素</b><span>在视觉窗口点选货架、工作室、区域等；或到「大纲」按类型挑选。</span></div>'
+      + '<div class="sd-m-stats">'
+      +   statRow('货架', vm.counters.shelves + ' 组') + statRow('区域', vm.counters.zones + ' 个')
+      +   statRow('自行车', vm.counters.bikes + ' 台') + statRow('出入口净空', vm.counters.entranceOk ? '已满足' : '未满足')
+      + '</div>';
+  }
+  return '<div class="sd-m-selcard">'
+    + '<div class="sd-m-selhead"><b>' + esc(sel.title) + '</b><span>' + esc(sel.badge) + '</span>'
+    +   '<button class="sd-m-icon" data-act="pick" data-id="__clear__" aria-label="取消选中">✕</button></div>'
+    + fieldsGrid(sel.fields)
+    + actionsRow(sel.actions)
+    + (sel.extra ? actionsRow(sel.extra, 'sd-m-actions sd-m-actions-soft') : '')
+    + '</div>';
+}
+function statRow(label, value){
+  return '<div class="sd-m-statrow"><span>' + esc(label) + '</span><b>' + esc(value) + '</b></div>';
+}
+function outlinePage(vm){
+  return '<div class="sd-m-counts">' + vm.elements.map(function(g){
+    return '<button class="sd-m-count" data-sd-scroll="' + g.key + '">' + esc(g.title) + ' <b>' + g.items.length + '</b></button>';
+  }).join('') + '</div>'
+  + '<div class="sd-m-list">' + vm.elements.map(function(g){
+    return '<div class="sd-m-group" data-sd-group="' + g.key + '">'
+      + '<p class="sd-m-grouphead">' + esc(g.title) + '</p>'
+      + g.items.map(function(it){
+          var on = vm.selection && String(vm.selection.id) === String(it.id);
+          return '<button class="sd-m-item" data-act="pick" data-id="' + esc(it.id) + '"' + (on ? ' data-on="true"' : '') + '>'
+            + '<span class="sd-m-itemtext"><b>' + esc(it.title) + '</b>' + (it.badge ? '<i>' + esc(it.badge) + '</i>' : '') + '</span>'
+            + '<span class="sd-m-itemgo">›</span></button>';
+        }).join('')
+      + '</div>';
+  }).join('') + '</div>';
+}
+function checksPage(vm){
   var rows = vm.checks.map(function(c){
     return '<div class="sd-m-checkrow" data-tone="' + c.tone + '">'
       + '<span class="sd-m-dot"></span>'
@@ -147,37 +198,6 @@ function checkPage(vm){
   return '<div class="sd-m-checks">' + rows + '</div>' + warn
     + actionsRow([{ act:'rand', label:'🎲 随机生成方案' }], 'sd-m-actions sd-m-actions-wide');
 }
-
-function selectionCard(sel){
-  if (!sel) return '<div class="sd-m-empty">在平面图里点选任意元素即可编辑；也可以从下面的清单选择。</div>';
-  return '<div class="sd-m-selcard">'
-    + '<div class="sd-m-selhead"><b>' + esc(sel.title) + '</b><span>' + esc(sel.badge) + '</span>'
-    +   '<button class="sd-m-icon" data-act="pick" data-id="__clear__" aria-label="取消选中">✕</button></div>'
-    + fieldsGrid(sel.fields)
-    + actionsRow(sel.actions)
-    + (sel.extra ? actionsRow(sel.extra, 'sd-m-actions sd-m-actions-soft') : '')
-    + '</div>';
-}
-function elementsPage(vm){
-  var counts = vm.elements.map(function(g){
-    return '<button class="sd-m-count" data-sd-scroll="' + g.key + '">' + esc(g.title) + ' <b>' + g.items.length + '</b></button>';
-  }).join('');
-  var list = vm.elements.map(function(g){
-    return '<div class="sd-m-group" data-sd-group="' + g.key + '">'
-      + '<p class="sd-m-grouphead">' + esc(g.title) + '</p>'
-      + g.items.map(function(it){
-          var on = vm.selection && String(vm.selection.id) === String(it.id);
-          return '<button class="sd-m-item" data-act="pick" data-id="' + esc(it.id) + '"' + (on ? ' data-on="true"' : '') + '>'
-            + '<span class="sd-m-itemtext"><b>' + esc(it.title) + '</b>' + (it.badge ? '<i>' + esc(it.badge) + '</i>' : '') + '</span>'
-            + '<span class="sd-m-itemgo">›</span></button>';
-        }).join('')
-      + '</div>';
-  }).join('');
-  return '<div class="sd-m-counts">' + counts + '</div>'
-    + selectionCard(vm.selection)
-    + '<div class="sd-m-list">' + list + '</div>';
-}
-
 function settingsPage(vm){
   var out = vm.settings.map(function(g){
     return '<details class="sd-m-details" data-sec="' + g.key + '"><summary>' + esc(g.title) + '</summary><div class="sd-m-dbody">'
@@ -196,35 +216,42 @@ function settingsPage(vm){
               + '<button class="sd-m-act" data-act="restoreBak" data-id="' + esc(b.tag) + '">恢复</button></div>';
           }).join('')
         : '<p class="sd-m-hint">暂无历史备份（做过修改后会自动出现）</p>')
-    + '<p class="sd-m-hint">每次修改都会自动留存「上一版」；升级版本时旧数据也会留档。布局不对时点「恢复」即可换回。</p>'
+    + '<p class="sd-m-hint">每次修改都会自动留存「上一版」；升级版本时旧数据也会留档。</p>'
     + '</div></details>';
   var help = '<details class="sd-m-details" data-sec="help"><summary>使用说明</summary><div class="sd-m-dbody">'
     + vm.help.map(function(t){ return '<p class="sd-m-helpline">' + t + '</p>'; }).join('')
     + '</div></details>';
   return out + backups + help;
 }
-
 function renderPanelBody(){
   var host = slots.editors;
   if (!host || !lastVM) return;
-  host.innerHTML = panelTab === 'elements' ? elementsPage(lastVM)
+  host.innerHTML = panelTab === 'outline' ? outlinePage(lastVM)
+    : panelTab === 'checks' ? checksPage(lastVM)
     : panelTab === 'settings' ? settingsPage(lastVM)
-    : checkPage(lastVM);
-  var tabs = document.querySelectorAll('.sd-m-tab');
-  Array.prototype.forEach.call(tabs, function(b){
+    : propsPage(lastVM);
+  Array.prototype.forEach.call(document.querySelectorAll('.sd-m-proptabs button'), function(b){
     b.setAttribute('data-on', String(b.getAttribute('data-sd-tab') === panelTab));
   });
 }
 function setSheetOpen(open){
   sheetOpen = !!open;
-  var el = document.getElementById('sdSheet');
+  var el = document.getElementById('sdProps');
   if (el) el.setAttribute('data-open', String(sheetOpen));
+}
+function setDrawer(open, which){
+  drawerOpen = !!open;
+  var tools = document.getElementById('sdTools'), menu = document.getElementById('sdMenu');
+  var mask = document.querySelector('.sd-m-mask');
+  if (tools) tools.setAttribute('data-open', String(drawerOpen && which === 'tools'));
+  if (menu) menu.setAttribute('data-open', String(drawerOpen && which === 'menu'));
+  if (mask) mask.classList.toggle('show', drawerOpen);
 }
 function pickTab(tab){
   panelTab = tab;
   setSheetOpen(true);
   renderPanelBody();
-  var body = document.querySelector('.sd-m-sheetbody');
+  var body = document.querySelector('.sd-m-propsbody');
   if (body) body.scrollTop = 0;
 }
 
@@ -308,7 +335,7 @@ function selBarHTML(ctx){
       + '<button data-bact="bpose" data-p="stand"' + (!top ? ' data-on="true"' : '') + '>立地</button>'
       + '<button data-bact="bpose" data-p="top"' + (top ? ' data-on="true"' : '') + '>上架</button></span>'
       + '车头<button data-bact="bsteer" data-v="-45">-45°</button><button data-bact="bsteer" data-v="0">0°</button><button data-bact="bsteer" data-v="45">45°</button></div>';
-    h += '<div class="sd-m-selrow">' + '<button data-bact="rot">转90°</button><button data-bact="dup">复制</button>'
+    h += '<div class="sd-m-selrow"><button data-bact="rot">转90°</button><button data-bact="dup">复制</button>'
       + '<button data-bact="addA">+成人</button><button data-bact="addK">+童车</button>' + del + '</div>';
   }
   return h;
@@ -339,47 +366,54 @@ function mount(root){
 
   root.addEventListener('click', function(e){
     var t = e.target;
-    var tabBtn = t.closest ? t.closest('[data-sd-tab]') : null;
+    if (t.closest && t.closest('[data-sd-tools]')){ setDrawer(!drawerOpen || document.getElementById('sdMenu').getAttribute('data-open') === 'true', 'tools'); return; }
+    // 选了工具就收起抽屉，让出画布（接着就能拖动摆放）
+    if (t.closest && t.closest('[data-act="add"]')){ setDrawer(false); return; }
+    if (t.closest && t.closest('[data-sd-menu]')){ setDrawer(!drawerOpen || document.getElementById('sdTools').getAttribute('data-open') === 'true', 'menu'); return; }
+    if (t.closest && t.closest('[data-sd-close]')){ setDrawer(false); return; }
+    if (t.closest && t.closest('[data-sd-sheet]')){ setSheetOpen(!sheetOpen); if (sheetOpen) renderPanelBody(); return; }
+    if (t.closest && t.closest('[data-sd-fold]')){
+      var fold = root.querySelector('[data-sd-foldbody]');
+      if (fold) fold.setAttribute('data-open', String(fold.getAttribute('data-open') !== 'true'));
+      return;
+    }
+    var tabBtn = t.closest ? t.closest('.sd-m-proptabs [data-sd-tab]') : null;
     if (tabBtn){ pickTab(tabBtn.getAttribute('data-sd-tab')); return; }
-    if (t.closest && t.closest('[data-sd-toggle]')){ setSheetOpen(!sheetOpen); return; }
     var scroll = t.closest ? t.closest('[data-sd-scroll]') : null;
     if (scroll){
       var g = root.querySelector('[data-sd-group="' + scroll.getAttribute('data-sd-scroll') + '"]');
       if (g) g.scrollIntoView({ behavior:'smooth', block:'start' });
       return;
     }
-    if (t.closest && t.closest('[data-sd-menu]')){ toggleMenu(true); return; }
-    if (t.closest && (t.closest('[data-sd-menu-close]') || t.closest('#sdMenuMask'))){ toggleMenu(false); return; }
-    // 列表里点「✕」= 取消选中（pick 的空 id 约定）
-    var pick = t.closest ? t.closest('button[data-act="pick"]') : null;
-    if (pick && pick.getAttribute('data-id') === '__clear__'){ e.stopPropagation(); }
   }, true);
   return slots;
-}
-function toggleMenu(open){
-  var m = document.getElementById('sdMenu'), mask = document.getElementById('sdMenuMask');
-  if (m) m.setAttribute('data-open', String(!!open));
-  if (mask) mask.setAttribute('data-open', String(!!open));
 }
 
 window.SDUI = {
   id: 'mobile',
   mount: mount,
   renderStatus: renderStatus,
-  renderPanel: function(vm){ lastVM = vm; renderPanelBody(); },
+  renderPanel: function(vm){
+    lastVM = vm;
+    var list = document.getElementById('sdToolList');
+    if (list && !list.childNodes.length) list.innerHTML = toolDrawer(vm);
+    renderPanelBody();
+  },
   selBarHTML: selBarHTML,
   refreshSelVals: refreshSelVals,
-  onSelectionChange: function(){
-    // 面板收起时不重建；展开时同步高亮与选中卡片。
-    if (!sheetOpen) return;
+  onSelectionChange: function(ctx){
+    // 摆放模式必须让「完成」按钮可见：自动展开属性面板（面板收起时它被移出屏幕）
+    if (ctx && ctx.placing){ setSheetOpen(true); renderPanelBody(); return; }
+    if (!sheetOpen) return;   // 其余情况收起时不打断看图
     renderPanelBody();
   },
   revealSelection: function(id){
-    pickTab('elements');
+    pickTab('props');
     var el = (id && document.querySelector('.sd-m-item[data-id="' + id + '"]')) || document.querySelector('.sd-m-selcard');
     if (el && el.scrollIntoView) el.scrollIntoView({ behavior:'smooth', block:'center' });
   },
   setSheetOpen: setSheetOpen,
-  isSheetOpen: function(){ return sheetOpen; }
+  isSheetOpen: function(){ return sheetOpen; },
+  openTools: function(){ setDrawer(true, 'tools'); }
 };
 })();

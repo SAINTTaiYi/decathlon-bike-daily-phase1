@@ -392,3 +392,65 @@ test('删旧不覆盖：旧的面板构建器与旧样式已从源码移除', ()
   assert.doesNotMatch(toolHtml, /<style>/u, 'index.html 不得再内联 <style>（样式已拆到两份实现文件）')
   assert.ok(toolHtml.includes('sd-base.css'), 'index.html 必须引入基础样式')
 });
+
+// ── 2026-09-15 三栏工作台（建模软件布局）+ 平面缩放修复 ──────────────────
+
+test('桌面端：三栏工作台（左工具栏 / 中视觉窗口 / 右属性栏），右栏可收起可拖宽', () => {
+  const css = toolDesktopCss.replace(/\/\*[\s\S]*?\*\//gu, '')
+  const ui = stripComments(toolUiDesktop)
+  // 三栏栅格：左固定、中吃掉剩余、右由变量控制（可拖宽）
+  // 连选择器一起抓：收起态那条规则的前缀是 #sdApp[data-collapsed='true']
+  const grids = css.match(/[^{}]*\.sd-d-workbench\s*\{[^}]*\}/gu) || []
+  assert.equal(grids.length, 2, '工作台栅格只允许两处（默认 + 收起态）')
+  assert.match(grids[0], /grid-template-columns:\s*152px minmax\(0, 1fr\) var\(--sd-props-w/u, '默认三栏：左工具栏固定、中自适应、右可调')
+  assert.match(grids[1], /#sdApp\[data-collapsed='true'\]/u, '收起态必须由 data-collapsed 驱动')
+  assert.match(grids[1], /56px/u, '收起后右栏只留图标条')
+  // 交互：拖宽手柄 + 收起按钮 + 宽度持久化
+  assert.ok(ui.includes("data-sd-resize=\"1\""), '必须有拖宽手柄')
+  assert.ok(ui.includes("data-sd-collapse=\"1\""), '必须有收起按钮')
+  assert.ok(ui.includes("localStorage.setItem(PREFS_KEY"), '右栏宽度/收起状态必须持久化')
+  assert.ok(ui.includes('dblclick'), '手柄双击复位')
+  // 视觉窗口必须是主要空间：中栏 minmax(0, 1fr) 且视口容器占满剩余高度
+  assert.match(css, /\.sd-d-viewport\s*\{[^}]*min-height:\s*0/u, '视觉窗口需要 min-height:0 才能撑满')
+  assert.match(css, /\.sd-d-canvas\s*\{[^}]*flex:\s*1 1 auto/u, '画布必须吃掉窗口剩余高度')
+  // 工具清单来自数据层（两端共用），不允许各自硬编码
+  assert.ok(toolSchema.includes('TOOL_GROUPS'), '工具清单必须在 sd-schema（数据层）里')
+  assert.ok(ui.includes('vm.tools') || ui.includes('vm && vm.tools'), '桌面端工具从视图模型取')
+  assert.ok(toolUiMobile.includes('vm.tools') || toolUiMobile.includes('vm && vm.tools'), '移动端工具从视图模型取')
+});
+
+test('平面缩放：SVG 保持固有尺寸（不得被 CSS 拉伸），且滚轮/双指可缩放', () => {
+  const base = toolBaseCss.replace(/\/\*[\s\S]*?\*\//gu, '')
+  // 根因：把 #viewplan svg 也写成 width:100% 会让「改 z」只改内部坐标、外观不变
+  const planRule = base.match(/#viewplan svg\s*\{[^}]*\}/u)
+  assert.ok(planRule, '#viewplan svg 必须有独立规则')
+  assert.doesNotMatch(planRule[0], /width:\s*100%/u, '平面 SVG 不得被拉伸（那正是「无法缩放」的根因）')
+  assert.match(base, /#view3d svg\s*\{[^}]*width:\s*100%/u, '3D 视角仍应自适应容器宽度')
+  // 交互：滚轮 / 双指 / 中键，且缩放以指针为锚点
+  const app = stripComments(toolApp)
+  assert.ok(app.includes('function zoomPlanAt('), '必须有以指针为锚点的缩放函数')
+  // 断言「行首的语句」而不是「字符串出现过」：把调用塞进 if (false) 也必须变红
+  assert.match(app, /\n\s*sc\.addEventListener\('wheel'/u, '平面必须真正注册滚轮缩放（不能是死分支）')
+  assert.ok(app.includes('pinch'), '平面必须支持双指捏合缩放')
+  assert.ok(app.includes('e.button === 1'), '平面必须支持中键平移')
+  assert.ok(app.includes('bindPlanZoom();'), '初始化时必须绑定缩放')
+  assert.ok(app.includes('zoomPlanAt(currentPlanZ() * 1.3)'), '＋按钮也要走同一缩放函数（保持锚点一致）')
+});
+
+test('工具栏接线：点工具即添加并进入摆放模式（旧悬浮面板已删除）', () => {
+  const app = stripComments(toolApp)
+  assert.ok(app.includes('add: function(ds)'), '必须有 add 动作')
+  assert.ok(app.includes('addComponent(ds.kind)'), 'add 动作必须调用 addComponent')
+  // 旧的悬浮面板整段删除，不能再复活
+  for (const gone of ['ADD_LIST', 'buildSheet', 'openSheet', '#fab', 'addsheet', 'sheetgrid']) {
+    assert.ok(!app.includes(gone), `app.js 仍残留旧悬浮面板实现：${gone}`)
+  }
+  // 工具栏按钮不在 #editors/#selbar 子树里 → 必须有文档级委托
+  assert.match(app, /\n\s*document\.addEventListener\('click'/u, '工具栏需要真正注册全局动作委托（不能是死分支）')
+  assert.ok(app.includes("b.closest('#editors') || b.closest('#selbar')"), '子树内按钮必须跳过，避免重复触发')
+  // 移动端：摆放时要能看到「完成」，因此自动展开属性面板；选工具后收起抽屉让出画布
+  const mob = stripComments(toolUiMobile)
+  assert.match(mob, /\n\s*if \(ctx && ctx\.placing\)\s*\{/u, '移动端摆放模式必须真正自动展开属性面板（不能是死分支）')
+  // 用正则而不是字符串拼接：这里的引号嵌套极易写坏（本轮踩过）
+  assert.match(mob, /closest\('\[data-act="add"\]'\)/u, '移动端选工具后应收起抽屉')
+});

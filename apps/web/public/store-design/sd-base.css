@@ -82,8 +82,13 @@ input::placeholder { color: #9aa1ad; font-weight: 500; }
    避免用户看到一帧没有样式的骨架（就绪标记由 app.js 置位）。 */
 html:not([data-sd-ready='true']) #sdApp { visibility: hidden; }
 
-/* 图纸画布：SVG 自适应宽度 */
-#view3d svg, #viewplan svg { display: block; width: 100%; height: auto; }
+/* 画布尺寸规则（两种截然不同的尺寸语义，别混）
+   3D 视角：投影后按容器宽度铺满，高度自适应 → width:100%。
+   平面编辑：缩放的本质就是改 SVG 的固有宽高（px/m × 米），**绝不能**用 CSS 拉伸，
+             否则改 z 只改内部坐标、外观不变 —— 这正是「平面编辑无法缩放」的根因
+             （2026-09-15 用户报告）。容器负责滚动，svg 保持固有尺寸。 */
+#view3d svg { display: block; width: 100%; height: auto; }
+#viewplan svg { display: block; }
 
 /* 页面错误收集（boot.js 控制显隐） */
 #errlog {
