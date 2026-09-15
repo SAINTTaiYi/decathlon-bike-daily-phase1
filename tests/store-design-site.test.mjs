@@ -363,7 +363,7 @@ test('数据模型：只有「选中的那一个」带字段，底部不再全�
   const shelfId = 'sh:' + cfg.shelves[0].id
   const picked = schema.buildVM(cfg, { sel: shelfId })
   assert.ok(picked.selection, '选中货架后必须有选中卡片')
-  assert.equal(picked.selection.fields.length, 10, '货架字段数（7 基础 + 3 附件：托臂/地架/挂钩）')
+  assert.equal(picked.selection.fields.length, 9, '货架字段数（名称/类型/朝向/长度/高度 + 地架/挂钩 + x/y）')
   assert.ok(picked.selection.fields.every((f) => f.path.startsWith('shelves.')), '字段路径必须指向该货架')
   const stillBare = picked.elements.flatMap((g) => g.items).filter((it) => (it.fields || []).length > 0)
   assert.equal(stillBare.length, 1, '只有选中的那一个元素携带字段')
@@ -455,86 +455,178 @@ test('工具栏接线：点工具即添加并进入摆放模式（旧悬浮面�
   assert.match(mob, /closest\('\[data-act="add"\]'\)/u, '移动端选工具后应收起抽屉')
 });
 
-// ── 2026-09-15 货架自行车附件（托臂 / 地架 / 挂钩，门店实际陈列规格）────────────
-// 用户口径：1m 货架放 3 个自行车地架；2m 货架托臂上下各横放 1 台；4m 货架托臂
-// 上下横放 6 台 16″ 童车；挂钩 1m 4 个。
+// ── 2026-09-15 货架自行车托臂 / 地架 / 挂钩（门店实际陈列规格）────────────────
+// 用户口径：货架高 3.3m；托臂分短托臂（伸出 0.5m）与长托臂（伸出 1m），两者可分别
+// 放置、每排高度可在货架上调整；1m 货架放 3 个地架；挂钩 1m 4 个；
+// 每排位宽：成人车 2m、16″ 童车 4/3m（2m 货架 1 台/排；4m 货架 3 台童车/排）。
 
-test('货架附件：引擎规格与门店口径一致（2m 上下 1 台 / 4m 童车 6 台 / 1m 地架 3 个 / 1m 挂钩 4 个）', async () => {
+async function loadToolEngine() {
   const vm = await import('node:vm')
   const sandbox = vm.createContext({ module: { exports: {} }, exports: {}, console })
   vm.runInContext(toolEngine, sandbox, { filename: 'store-design/engine.js' })
-  const engine = sandbox.module.exports
-  const mkShelf = (o) => Object.assign({ id: 's1', name: '', kind: 'double', orient: 'h', x: 2, y: 2, h: 1.5, acc: {} }, o)
-  const mkCfg = (shelves) => {
-    const c = engine.defaultConfig()
-    c.bikes = []
-    c.shelves = shelves
-    return c
-  }
-  // 2m 货架 + 成人托臂 → 上下各 1 台（共 2）
-  let cfg = mkCfg([mkShelf({ len: 2, acc: { arm: 'adult' } })])
-  assert.equal(engine.armCount(cfg.shelves[0]), 1, '2m 成人托臂每层 1 台')
-  assert.equal(engine.accBikesOf(cfg).filter((b) => b.acc === 'arm').length, 2, '2m 成人托臂上下共 2 台')
-  // 4m 货架 + 16″ 童车托臂 → 上下各 3 台（共 6）
-  cfg = mkCfg([mkShelf({ len: 4, acc: { arm: 'kids' } })])
-  assert.equal(engine.armCount(cfg.shelves[0]), 3, '4m 童车托臂每层 3 台')
-  assert.equal(engine.accBikesOf(cfg).filter((b) => b.acc === 'arm').length, 6, '4m 童车托臂上下共 6 台')
+  return sandbox.module.exports
+}
+function shelfWith(engine, acc, len) {
+  const c = engine.defaultConfig()
+  c.bikes = []
+  c.shelves = [Object.assign({}, c.shelves[0], { id: 's1', len: len ?? 4, acc: acc })]
+  return c
+}
+
+test('托臂：短/长两种长度与门店口径一致（0.5m / 1m），货架默认高 3.3m', async () => {
+  const engine = await loadToolEngine()
+  assert.equal(engine.SHELF_H_DEFAULT, 3.3, '门店货架高度默认 3.3m')
+  assert.equal(engine.defaultConfig().shelves[0].h, 3.3, '默认方案货架高 3.3m')
+  assert.equal(engine.ARM_LEN.short, 0.5, '短托臂伸出 0.5m')
+  assert.equal(engine.ARM_LEN.long, 1.0, '长托臂伸出 1m')
+  // 每排台数：2m 货架 1 台成人车；4m 货架 3 台 16″ 童车
+  const two = shelfWith(engine, { armRows: [{ id: 'a1', z: 0.9, len: 'short', size: 'adult' }] }, 2)
+  assert.equal(engine.accBikesOf(two).filter((b) => b.acc === 'arm').length, 1, '2m 货架 1 台成人车/排')
+  const four = shelfWith(engine, { armRows: [{ id: 'a1', z: 0.9, len: 'short', size: 'kids' }] }, 4)
+  assert.equal(engine.accBikesOf(four).filter((b) => b.acc === 'arm').length, 3, '4m 货架 3 台童车/排')
   // 地架 3 个/m、挂钩 4 个/m
-  cfg = mkCfg([mkShelf({ len: 1, acc: { rack: 'kids', hook: 'on' } })])
-  assert.equal(engine.rackCount(cfg.shelves[0]), 3, '1m 地架 3 个')
-  assert.equal(engine.hookCount(cfg.shelves[0]), 4, '1m 挂钩 4 个')
-  cfg = mkCfg([mkShelf({ len: 3, acc: { rack: 'adult', hook: 'on' } })])
-  assert.equal(engine.rackCount(cfg.shelves[0]), 9, '3m 地架 9 个')
-  assert.equal(engine.hookCount(cfg.shelves[0]), 12, '3m 挂钩 12 个')
-  // 默认配置不含附件（不改变既有默认方案）
+  const r1 = shelfWith(engine, { rack: 'kids', hook: 'on' }, 1)
+  assert.equal(engine.rackCount(r1.shelves[0]), 3, '1m 地架 3 个')
+  assert.equal(engine.hookCount(r1.shelves[0]), 4, '1m 挂钩 4 个')
+  // 默认方案不装任何附件
   const d = engine.defaultConfig()
   assert.equal(engine.accOn(d.shelves[0]), false, '默认货架不装附件')
-  assert.equal(engine.accBikesOf(d).filter((b) => b.acc === 'arm').length, 0, '默认无托臂车')
-  assert.equal(engine.accBikesOf(d).filter((b) => b.acc === 'rack').length, 0, '默认无地架车')
+  assert.equal(engine.accOf(d.shelves[0]).rows.length, 0, '默认没有托臂排')
 })
 
-test('货架附件：渲染落地（3D + 平面都有装置与附件车，无 NaN）', async () => {
-  const vm = await import('node:vm')
-  const sandbox = vm.createContext({ module: { exports: {} }, exports: {}, console })
-  vm.runInContext(toolEngine, sandbox, { filename: 'store-design/engine.js' })
-  const engine = sandbox.module.exports
-  const cfg = engine.defaultConfig()
-  cfg.bikes = []
-  cfg.shelves = [Object.assign({}, cfg.shelves[0], { id: 'r1', len: 4, acc: { arm: 'kids', rack: 'kids', hook: 'on' } })]
-  const svg3 = engine.render3D(cfg, { az: 90, el: 33, zoom: 1, vw: 1000, vh: 700 })
-  const svgP = engine.renderPlan(cfg, { sel: null })
+test('托臂：短 / 长可分别放置，每排高度与范围独立（含左右混排）', async () => {
+  const engine = await loadToolEngine()
+  // 两排：下层短托臂挂童车 + 上层长托臂挂成人车，高度各自独立
+  const c = shelfWith(engine, { armRows: [
+    { id: 'a1', z: 0.9, len: 'short', size: 'kids', u0: 0, u1: 4 },
+    { id: 'a2', z: 2.15, len: 'long', size: 'adult', u0: 0, u1: 4 }
+  ] }, 4)
+  const bikes = engine.accBikesOf(c).filter((b) => b.acc === 'arm')
+  assert.equal(bikes.length, 5, '4m 货架：童车排 3 台 + 成人车排 2 台（各排独立计算）')
+  const lifts = bikes.map((b) => b.lift)
+  assert.deepEqual(lifts.filter((z) => z === 0.9).length, 3, '三台童车在 0.9m 层')
+  assert.deepEqual(lifts.filter((z) => z === 2.15).length, 2, '两台成人车在 2.15m 层')
+  // 长托臂把车挂得更靠外（伸出 1m → 车离货架 0.90m），短托臂 0.5m → 0.40m
+  const shelfY = c.shelves[0].y, depth = engine.shelfDepth(c.shelves[0])
+  const kid = bikes.find((b) => b.lift === 0.9), adult = bikes.find((b) => b.lift === 2.15)
+  assert.ok(Math.abs((kid.y - (shelfY + depth)) - 0.40) < 0.02, '短托臂：车离货架面 0.40m')
+  assert.ok(Math.abs((adult.y - (shelfY + depth)) - 0.90) < 0.02, '长托臂：车离货架面 0.90m')
+  // 每排两根托臂（前后轮），长度与排规格一致
+  const hw = engine.armHardwareOf(c, c.shelves[0])
+  assert.equal(hw.length, 10, '5 台车 × 2 根托臂 = 10 根')
+  const shortArms = hw.filter((h) => h.len === 'short'), longArms = hw.filter((h) => h.len === 'long')
+  assert.equal(shortArms.length, 6, '童车排 3 台 × 2 根 = 6 根短托臂')
+  assert.equal(longArms.length, 4, '成人车排 2 台 × 2 根 = 4 根长托臂')
+  for (const h of shortArms) {
+    assert.equal(h.armLen, 0.5, '短托臂伸出 0.5m')
+    assert.ok(Math.abs(Math.abs(h.tip.y - h.inner.y) - 0.48) < 0.01, '短托臂管身 0.48m（内端留 0.02 贴面）')
+  }
+  for (const h of longArms) {
+    assert.equal(h.armLen, 1.0, '长托臂伸出 1m')
+    assert.ok(Math.abs(Math.abs(h.tip.y - h.inner.y) - 0.98) < 0.01, '长托臂管身 0.98m')
+  }
+  // 高度可调：改 z 后排内车与托臂跟着走
+  const c2 = shelfWith(engine, { armRows: [{ id: 'a1', z: 1.4, len: 'short', size: 'kids', u0: 0, u1: 4 }] }, 4)
+  assert.equal(engine.accBikesOf(c2)[0].lift, 1.4, '托臂排高度直接决定挂车高度')
+  // 范围：只占货架一段时台数与位置随之变化
+  const c3 = shelfWith(engine, { armRows: [{ id: 'a1', z: 0.9, len: 'short', size: 'kids', u0: 0, u1: 2.7 }] }, 4)
+  const b3 = engine.accBikesOf(c3).filter((b) => b.acc === 'arm')
+  assert.equal(b3.length, 2, '2.7m 范围内 2 台童车')
+  assert.ok(Math.max.apply(null, b3.map((b) => b.x - c3.shelves[0].x)) <= 2.7, '车不超出该排范围')
+})
+
+test('托臂：3D 与平面渲染落地（装置 + 挂车，无 NaN/undefined）', async () => {
+  const engine = await loadToolEngine()
+  const c = shelfWith(engine, { armRows: [
+    { id: 'a1', z: 0.9, len: 'short', size: 'kids', u0: 0, u1: 4 },
+    { id: 'a2', z: 2.15, len: 'long', size: 'adult', u0: 0, u1: 4 }
+  ], rack: 'kids', hook: 'on' }, 4)
+  const svg3 = engine.render3D(c, { az: 90, el: 33, zoom: 1, vw: 1000, vh: 700 })
+  const svgP = engine.renderPlan(c, { sel: null })
   assert.ok(!/NaN|undefined/u.test(svg3), '3D 渲染不得含 NaN/undefined')
   assert.ok(!/NaN|undefined/u.test(svgP), '平面渲染不得含 NaN/undefined')
-  assert.equal((svg3.match(/data-acc="arm"/gu) ?? []).length, 6, '3D 托臂车 6 台')
+  assert.equal((svg3.match(/data-acc="arm"/gu) ?? []).length, 5, '3D 托臂挂车 5 台')
+  assert.equal((svgP.match(/data-acc="arm"/gu) ?? []).length, 5, '平面托臂挂车 5 台')
   assert.equal((svg3.match(/data-acc="rack"/gu) ?? []).length, 12, '3D 地架车 12 台')
-  assert.equal((svgP.match(/data-acc="arm"/gu) ?? []).length, 6, '平面托臂车 6 台')
-  assert.equal((svgP.match(/data-acc="rack"/gu) ?? []).length, 12, '平面地架车 12 台')
-  assert.match(svgP, /data-id="acc:r1:arm:/u, '平面附件车用 acc: 前缀 id（点它映射到所属货架）')
+  assert.match(svgP, /data-id="acc:s1:arm:/u, '平面挂车用 acc: 前缀 id（点它映射到所属货架）')
+  // 长托臂挂得远：平面里这排车的 y 明显更靠外
+  const longBike = engine.accBikesOf(c).filter((b) => b.acc === 'arm').find((b) => b.lift === 2.15)
+  const shortBike = engine.accBikesOf(c).filter((b) => b.acc === 'arm').find((b) => b.lift === 0.9)
+  assert.ok(longBike.y > shortBike.y, '长托臂挂车比短托臂更远离货架')
 })
 
-test('货架附件：交互接线（双端按钮 + 循环切换 + 面板字段 + 点击映射）', () => {
+test('托臂：交互接线（双端按钮 + 排管理 + 面板字段 + 点击映射）', () => {
   const app = stripComments(toolApp)
-  assert.ok(app.includes('function cycleAcc('), 'app.js 必须有附件循环切换')
-  assert.ok(app.includes("accArm: function(ds){ cycleAcc(ds.id, 'arm'); }"), 'acts 表必须接 accArm')
-  assert.ok(app.includes("accRack: function(ds){ cycleAcc(ds.id, 'rack'); }"), 'acts 表必须接 accRack')
-  assert.ok(app.includes("accHook: function(ds){ cycleAcc(ds.id, 'hook'); }"), 'acts 表必须接 accHook')
-  assert.ok(app.includes("act === 'accArm'"), 'selbar 必须处理附件按钮点击')
-  assert.ok(app.includes("if (id && id.slice(0, 4) === 'acc:') id = 'sh:' + id.split(':')[1];"), '点击附件车必须映射到所属货架')
+  for (const fn of ['function addArmRow(', 'function delArmRow(', 'function clearArms(', 'function nextArmRowId(']) {
+    assert.ok(app.includes(fn), 'app.js 必须实现 ' + fn)
+  }
+  assert.ok(app.includes("addArm: function(ds){ var p = String(ds.id).split(':'); addArmRow(p[0], p[1]); }"), 'acts 必须接 addArm')
+  assert.ok(app.includes("delArmRow: function(ds){ var p = String(ds.id).split(':'); delArmRow(p[0], +p[1]); }"), 'acts 必须接 delArmRow')
+  assert.ok(app.includes("clearArms: function(ds){ clearArms(ds.id); }"), 'acts 必须接 clearArms')
+  assert.ok(app.includes("act === 'addArm'"), 'selbar 必须处理「＋短/长托臂」')
+  assert.ok(app.includes("if (id && id.slice(0, 4) === 'acc:') id = 'sh:' + id.split(':')[1];"), '点击挂车 / 附件车必须映射到所属货架')
   assert.ok(app.includes('function renderSelBar(force)'), 'renderSelBar 必须支持强制重建（按钮态随点随变）')
-  assert.ok(app.includes('afterStruct(); renderSelBar(true);'), '附件切换后必须重建快捷条')
-  assert.ok(app.includes("if (/^shelves\\.\\d+\\.acc\\./.test(p)) renderSelBar(true);"), '属性面板改附件要刷新快捷条')
-  // 双端各自实现：桌面端经 accBtnDesktop() 生成（data-bact 拼接），移动端直接拼字符串
+  assert.ok(app.includes("if (/^shelves\\.\\d+\\.acc\\./.test(p))"), '属性面板改附件要刷新快捷条')
+  // 双端各自实现（桌面经 accBtnDesktop 风格的原生按钮；移动端直接拼字符串）
   const dtUi = stripComments(toolUiDesktop)
-  for (const [act, name] of [['accArm', '托臂'], ['accRack', '地架'], ['accHook', '挂钩']]) {
-    assert.ok(dtUi.includes(`accBtnDesktop('${act}', '${name}'`), `桌面端必须有${name}按钮`)
+  for (const arm of ['short', 'long']) {
+    assert.ok(dtUi.includes(`data-bact="addArm" data-arm="${arm}"`), `桌面端必须有 ＋${arm} 托臂按钮`)
   }
-  assert.ok(dtUi.includes("data-bact=\"' + act + '\""), '桌面端按钮必须带 data-bact 分发')
+  assert.ok(dtUi.includes('data-bact="clearArms"'), '桌面端必须有清空托臂按钮')
+  assert.ok(!dtUi.includes("accBtnDesktop('accArm'"), '桌面端旧托臂循环按钮必须删除（删旧不覆盖）')
   const mbUi = stripComments(toolUiMobile)
-  for (const act of ['accArm', 'accRack', 'accHook']) {
-    assert.ok(mbUi.includes(`data-bact="${act}"`), `移动端必须有 ${act} 按钮`)
+  for (const arm of ['short', 'long']) {
+    assert.ok(mbUi.includes(`data-bact="addArm" data-arm="${arm}"`), `移动端必须有 ＋${arm} 托臂按钮`)
   }
+  assert.ok(mbUi.includes('data-bact="clearArms"'), '移动端必须有清空托臂按钮')
+  assert.ok(!mbUi.includes('data-bact="accArm"'), '移动端旧托臂循环按钮必须删除')
+  // 属性面板：每排 5 个字段（高度 / 托臂长度 / 车型 / 起始 / 结束）
   const schema = stripComments(toolSchema)
-  assert.ok(schema.includes("'shelves.' + i + '.acc.arm'"), '属性面板必须有托臂字段')
-  assert.ok(schema.includes("'shelves.' + i + '.acc.rack'"), '属性面板必须有地架字段')
-  assert.ok(schema.includes("'shelves.' + i + '.acc.hook'"), '属性面板必须有挂钩字段')
+  for (const field of ['armRows.', '.z', '.len', '.size', '.u0', '.u1']) {
+    assert.ok(schema.includes("'shelves.' + i + '.acc.armRows.' + ri + '" + field) || schema.includes(field), '属性面板托臂排字段：' + field)
+  }
+  assert.ok(schema.includes("['short','短托臂 0.5m'],['long','长托臂 1m']"), '托臂长度选项必须写明 0.5m / 1m')
+  assert.ok(schema.includes("action('addArm', s.id + ':short', '＋短托臂 0.5m')"), '元素清单必须有 ＋短托臂')
+  assert.ok(schema.includes("action('addArm', s.id + ':long', '＋长托臂 1m')"), '元素清单必须有 ＋长托臂')
+  assert.ok(schema.includes("action('delArmRow'"), '元素清单必须能删单排托臂')
+  assert.ok(schema.includes("action('clearArms'"), '元素清单必须能清空托臂')
+})
+
+test('事件委托：面板按钮在重建后面板时不得被重复触发（删一排托臂只删一排）', () => {
+  const app = stripComments(toolApp)
+  // 事故（2026-09-15 实机复现）：点「删托臂排」→ acts.delArmRow → afterStruct 重建面板 →
+  // 按钮脱离文档 → 文档级委托里 closest('#editors') 失效 → 同一动作执行两次（3 排→1 排）。
+  assert.ok(app.includes('if (!b.isConnected) return;'), '文档级委托必须用 isConnected 判定按钮是否还在树上')
+  const guard = app.indexOf('if (!b.isConnected) return;')
+  const skip = app.indexOf("if (b.closest('#editors') || b.closest('#selbar')) return;")
+  assert.ok(guard > 0 && guard < skip, 'isConnected 判定必须在 closest 跳过之前')
+  // 面板内的按钮处理器（onEditClick）不得依赖「按钮仍在文档里」
+  assert.ok(app.includes('function onEditClick(e){'), '面板按钮仍由 onEditClick 处理')
+  assert.ok(app.includes('var fn = acts[b.getAttribute(\'data-act\')];\n  if (fn) fn(b.dataset || {});'),
+    'onEditClick 必须用 dataset 快照分发（重建后依然可用）')
+})
+
+test('托臂：旧数据迁移（单条托臂 → 托臂排；货架高度 1.5m → 3.3m，只做一次）', async () => {
+  const engine = await loadToolEngine()
+  const legacy = engine.defaultConfig()
+  legacy.v = 1
+  legacy.shelves = [{ id: 'z1', name: '', kind: 'double', orient: 'h', x: 2, y: 2, len: 7.5, h: 1.5, acc: { arm: 'kids', rack: 'kids', hook: 'on' } }]
+  const mig = engine.migrateLegacy(legacy)
+  assert.equal(mig.shelves[0].h, 3.3, '旧默认 1.5m 货架一次性升到 3.3m')
+  assert.equal(mig.shelves[0].acc.arm, undefined, '旧 acc.arm 必须清掉')
+  assert.equal(mig.shelves[0].acc.armRows.length, 1, '旧单条托臂迁移成一排')
+  assert.equal(mig.shelves[0].acc.armRows[0].size, 'kids', '车型沿用旧值')
+  assert.equal(mig.shelves[0].acc.armRows[0].len, 'short', '旧版按短托臂迁移')
+  assert.equal(mig.shelves[0].acc.rack, 'kids', '地架 / 挂钩不受影响')
+  // 重复迁移不叠加
+  const mig2 = engine.migrateLegacy(mig)
+  assert.equal(mig2.shelves[0].acc.armRows.length, 1, '迁移幂等')
+  // 用户自己把高度改回去后不会被再覆盖（v>=2）
+  mig.shelves[0].h = 1.5
+  assert.equal(engine.migrateLegacy(mig).shelves[0].h, 1.5, '一次性迁移不得反复覆盖用户设定')
+  // 矮货架保持 0.9m
+  const low = engine.defaultConfig()
+  low.v = 1
+  low.shelves = [{ id: 'z2', name: '', kind: 'low', orient: 'h', x: 2, y: 2, len: 4, h: 0.9, acc: {} }]
+  assert.equal(engine.migrateLegacy(low).shelves[0].h, 0.9, '矮货架高度不动')
 })

@@ -273,7 +273,11 @@ function stepper(field, val, unit){
 function accLab(v){ return v === 'adult' ? '成人' : (v === 'kids' ? '童车' : '无'); }
 function accNow(o, key){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
-  return a ? a[key] : 'none';
+  return (a && a[key]) ? a[key] : 'none';
+}
+function accRows(o){
+  var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
+  return (a && a.rows) ? a.rows : [];
 }
 function selBarHTML(ctx){
   var k = ctx.kind, o = ctx.item, h = '';
@@ -301,7 +305,9 @@ function selBarHTML(ctx){
     h += '<div class="sd-m-selrow"><span class="sd-m-tag">🚲</span><button data-bact="fillb" data-bt="adult">排成人车</button>'
       + '<button data-bact="fillb" data-bt="kids">排童车</button><button data-bact="clearb">清空本架</button></div>';
     h += '<div class="sd-m-selrow"><span class="sd-m-tag">🪝</span>'
-      + '<button data-bact="accArm"' + (accNow(o, 'arm') !== 'none' ? ' data-on="true"' : '') + '>托臂：' + accLab(accNow(o, 'arm')) + '</button>'
+      + '<button data-bact="addArm" data-arm="short">＋短托臂</button>'
+      + '<button data-bact="addArm" data-arm="long">＋长托臂</button>'
+      + (accRows(o).length ? '<button data-bact="clearArms">清空托臂(' + accRows(o).length + '排)</button>' : '')
       + '<button data-bact="accRack"' + (accNow(o, 'rack') !== 'none' ? ' data-on="true"' : '') + '>地架：' + accLab(accNow(o, 'rack')) + '</button>'
       + '<button data-bact="accHook"' + (accNow(o, 'hook') === 'on' ? ' data-on="true"' : '') + '>挂钩：' + (accNow(o, 'hook') === 'on' ? '开' : '无') + '</button></div>';
   } else if (k === 'st'){

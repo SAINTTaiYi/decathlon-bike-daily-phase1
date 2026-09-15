@@ -292,7 +292,7 @@ function shelfGet(id){ for (var i=0;i<cfg.shelves.length;i++){ if (String(cfg.sh
 function findBy(arr, id){ for (var i=0;i<arr.length;i++){ if (String(arr[i].id) === String(id)) return arr[i]; } return null; }
 function afterStruct(){ saveSoon(); buildEditors(); renderChips(); render3DNow(); renderPlanNow(); }
 function addShelf(kind){
-  var h = (kind === 'low') ? 0.9 : 1.5;
+  var h = (kind === 'low') ? 0.9 : E.SHELF_H_DEFAULT;
   cfg.shelves.push({ id: nid(), name: '', kind: kind, orient: 'h', x: 2, y: 2, len: 4, h: h });
   afterStruct();
 }
@@ -354,9 +354,12 @@ function fillShelfBikes(ids){
   toast('已排入 ' + list.length + ' 台' + (typ === 'kids' ? '童车(1.5m)' : '成人车(2m)') + (pose === 'top' ? '，平放架顶，2m/位' : '，垂直90°摆放，车头45°倾斜'));
 }
 
-/* 货架陈列附件（托臂 / 地架 / 挂钩）：点击循环切换「无 → 成人 → 童车 → 无」。
+/* 货架陈列附件（托臂 / 地架 / 挂钩）。
+   托臂按「排」放置：短托臂（伸出 0.5m）与长托臂（伸出 1m）可分别放置，
+   每排高度（z，车轮底离地）可调，也可用起止位置只占货架的一段（左右混排）。
+   地架 / 挂钩仍是单值开关（点击循环「无 → 成人 → 童车 → 无」）。
    附件不落盘成独立元素：全部由货架配置（shelves[].acc）派生渲染，随货架自动跟随。 */
-var ACC_CYCLE = { arm: ['none', 'adult', 'kids'], rack: ['none', 'adult', 'kids'], hook: ['none', 'on'] };
+var ACC_CYCLE = { rack: ['none', 'adult', 'kids'], hook: ['none', 'on'] };
 var ACC_LABEL = { none: '无', adult: '成人', kids: '童车', on: '开' };
 function accLabel(v){ return ACC_LABEL[v] || '无'; }
 function cycleAcc(id, key){
@@ -368,10 +371,46 @@ function cycleAcc(id, key){
   s.acc[key] = seq[(idx + 1) % seq.length];
   afterStruct(); renderSelBar(true);
   var a = E.accOf(s), msg;
-  if (key === 'arm') msg = '托臂：' + (a.arm === 'none' ? '已拆除' : ((a.arm === 'kids' ? '挂 16″ 童车' : '挂成人车') + ' ×' + (2 * E.armCount(s)) + '（上下各 ' + E.armCount(s) + '）'));
-  else if (key === 'rack') msg = '地架：' + (a.rack === 'none' ? '已拆除' : ((a.rack === 'kids' ? '童车' : '成人车') + ' ×' + E.rackCount(s) + '（每米 3 个）'));
+  if (key === 'rack') msg = '地架：' + (a.rack === 'none' ? '已拆除' : ((a.rack === 'kids' ? '童车' : '成人车') + ' ×' + E.rackCount(s) + '（每米 3 个）'));
   else msg = '挂钩：' + (a.hook === 'on' ? (E.hookCount(s) + ' 个（每米 4 个）') : '已拆除');
   toast(msg);
+}
+/* 托臂排：新增 / 删除 / 清空。排 id 依次 a1、a2…（用于稳定的派生元素 id） */
+function nextArmRowId(rows){
+  var max = 0;
+  (rows || []).forEach(function(r){
+    var m = /^a(\d+)$/.exec(r && r.id ? r.id : '');
+    if (m) max = Math.max(max, +m[1]);
+  });
+  return 'a' + Math.max(1, max + 1);
+}
+function addArmRow(id, len){
+  var s = shelfGet(id); if (!s) return;
+  s.acc = s.acc || {};
+  if (!Array.isArray(s.acc.armRows)) s.acc.armRows = [];
+  var rows = s.acc.armRows;
+  var isLong = (len === 'long');
+  var row = { id: nextArmRowId(rows), z: E.nextArmZ(s, rows), len: isLong ? 'long' : 'short',
+              size: isLong ? 'adult' : 'kids', u0: 0, u1: (+s.len || 4) };
+  rows.push(row);
+  afterStruct(); renderSelBar(true);
+  var norm = E.accOf(s).rows[rows.length - 1];
+  toast('已加' + (isLong ? '长托臂 1m（成人车）' : '短托臂 0.5m（16″ 童车）') + '：'
+    + norm.z + 'm 高 · ' + E.rowBikeCount(s, norm) + ' 台（高度可在属性栏调）');
+}
+function delArmRow(id, idx){
+  var s = shelfGet(id); if (!s) return;
+  var rows = (s.acc && Array.isArray(s.acc.armRows)) ? s.acc.armRows : null;
+  if (!rows || !rows[idx]) return;
+  var n = rows.splice(idx, 1).length;
+  afterStruct(); renderSelBar(true);
+  toast('已删除托臂排 ' + (idx + 1) + (n ? '' : ''));
+}
+function clearArms(id){
+  var s = shelfGet(id); if (!s || !s.acc) return;
+  s.acc.armRows = [];
+  afterStruct(); renderSelBar(true);
+  toast('已清空该货架的托臂');
 }
 
 var acts = {
@@ -402,9 +441,11 @@ var acts = {
   },
   flushWall: function(ds){ flushWallTo(ds.id); },
   fillb: function(ds){ fillShelfBikes(ds.id); },
-  accArm: function(ds){ cycleAcc(ds.id, 'arm'); },
   accRack: function(ds){ cycleAcc(ds.id, 'rack'); },
   accHook: function(ds){ cycleAcc(ds.id, 'hook'); },
+  addArm: function(ds){ var p = String(ds.id).split(':'); addArmRow(p[0], p[1]); },
+  delArmRow: function(ds){ var p = String(ds.id).split(':'); delArmRow(p[0], +p[1]); },
+  clearArms: function(ds){ clearArms(ds.id); },
   addCurtain: function(){ cfg.curtains = cfg.curtains || []; cfg.curtains.push({ id: nid(), orient:'h', x: 3, y: 0.22, len: 3, h: 1.9 }); afterStruct(); },
   delCurtain: function(ds){ cfg.curtains = (cfg.curtains || []).filter(function(x){ return String(x.id) !== String(ds.id); }); afterStruct(); },
   addBikeA: function(){ cfg.bikes = cfg.bikes || []; cfg.bikes.push({ id: nid(), type:'adult', x: 5, y: 5, angle: 45 }); afterStruct(); },
@@ -477,11 +518,15 @@ function onEditInput(e){
     var sx = cfg.shelves[+p.split('.')[1]];
     if (sx){
       if (v === 'low' && (sx.h == null || sx.h > 1.2)) sx.h = 0.9;
-      if (v !== 'low' && (sx.h == null || sx.h < 1.0)) sx.h = 1.5;
+      if (v !== 'low' && (sx.h == null || sx.h < 1.0)) sx.h = E.SHELF_H_DEFAULT;
     }
   }
   ensureStructures(p);
-  if (/^shelves\.\d+\.acc\./.test(p)) renderSelBar(true);
+  if (/^shelves\.\d+\.acc\./.test(p)){
+    renderSelBar(true);
+    /* 改托臂长度 / 车型 / 起止后，面板里的「托臂排 N」说明与台数要跟着重算（select 才重建，避免打字时丢焦点） */
+    if (t.tagName === 'SELECT') buildEditors();
+  }
   saveSoon(); renderChips(); schedule3D(); renderPlanNow();
 }
 function onEditClick(e){
@@ -852,8 +897,12 @@ function bindSelBar(){
     } else if (act === 'fillb'){
       fillShelfBikes(id + ':' + b.getAttribute('data-bt'));
       renderSelBar();
-    } else if (act === 'accArm' || act === 'accRack' || act === 'accHook'){
-      cycleAcc(id, act === 'accArm' ? 'arm' : (act === 'accRack' ? 'rack' : 'hook'));
+    } else if (act === 'accRack' || act === 'accHook'){
+      cycleAcc(id, act === 'accRack' ? 'rack' : 'hook');
+    } else if (act === 'addArm'){
+      addArmRow(id, b.getAttribute('data-arm'));
+    } else if (act === 'clearArms'){
+      clearArms(id);
     } else if (act === 'clearb'){
       var rc0 = E.shelfRect(it.o), pad0 = 0.9;
       cfg.bikes = (cfg.bikes || []).filter(function(b2){
@@ -863,7 +912,7 @@ function bindSelBar(){
     } else if (act === 'kind'){
       it.o.kind = b.getAttribute('data-bk');
       if (it.o.kind === 'low' && (it.o.h == null || it.o.h > 1.2)) it.o.h = 0.9;
-      if (it.o.kind !== 'low' && (it.o.h == null || it.o.h < 1.0)) it.o.h = 1.5;
+      if (it.o.kind !== 'low' && (it.o.h == null || it.o.h < 1.0)) it.o.h = E.SHELF_H_DEFAULT;
       postSelUpdate();
     } else if (act === 'flush'){
       flushWallTo(id + ':' + b.getAttribute('data-side'));
@@ -959,7 +1008,7 @@ function addComponent(kind){
     var kk = kind === 'shelfD' ? 'double' : (kind === 'shelfS' ? 'single' : 'low');
     var len0 = 4, dep = E.shelfDepth({ kind:kk });
     sp = findFreeSpot(len0, dep, pref);
-    s = { id:id, name:'', kind:kk, orient:'h', x:sp.x, y:sp.y, len:len0, h: kk === 'low' ? 0.9 : 1.5 };
+    s = { id:id, name:'', kind:kk, orient:'h', x:sp.x, y:sp.y, len:len0, h: kk === 'low' ? 0.9 : E.SHELF_H_DEFAULT };
     cfg.shelves.push(s); selId = 'sh:' + id;
   } else if (kind === 'bikeA' || kind === 'bikeK'){
     var typ = kind === 'bikeK' ? 'kids' : 'adult';
@@ -1082,6 +1131,11 @@ function bindGlobal(){
   document.addEventListener('click', function(e){
     var b = e.target && e.target.closest ? e.target.closest('[data-act]') : null;
     if (!b) return;
+    /* 面板 / 快捷条里的按钮由各自的监听器处理，这里跳过以免重复触发。
+       关键兜底：若按钮的处理过程重建了面板（afterStruct / buildEditors），按钮会脱离文档，
+       closest('#editors') 随即失效 → 同一动作会被执行两次（2026-09-15 修：
+       点一次「删托臂排」删掉两排）。用 isConnected 判定「事件发出时按钮还在树上」。 */
+    if (!b.isConnected) return;
     if (b.closest('#editors') || b.closest('#selbar')) return;
     var fn = acts[b.getAttribute('data-act')];
     if (fn) fn(b.dataset || {});
@@ -1188,23 +1242,32 @@ function runSelfTest(){
           var dn = $('[data-bact="placeDone"]');
           if (dn) dn.click();
           log.push('placingEnded=' + !$('[data-bact="placeDone"]'));
-          /* --- 货架陈列附件：托臂 / 地架 / 挂钩 循环切换（2026-09-15 新增）--- */
+          /* --- 货架陈列附件：托臂排（＋短托臂 / ＋长托臂 / 删一排 / 清空）2026-09-15 --- */
           var sg3 = document.querySelector('[data-id^="sh:"]');
           if (sg3){
             var r3 = sg3.getBoundingClientRect();
-            sg3.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true, clientX:r3.x+20, clientY:r3.y+8, pointerId:31, button:0}));
-            window.dispatchEvent(new PointerEvent('pointerup', {bubbles:true, clientX:r3.x+20, clientY:r3.y+8, pointerId:31}));
+            sg3.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true, clientX:r3.x+8, clientY:r3.y+5, pointerId:31, button:0}));
+            window.dispatchEvent(new PointerEvent('pointerup', {bubbles:true, clientX:r3.x+8, clientY:r3.y+5, pointerId:31}));
           }
+          /* 计数只看平面图那一张 SVG（3D 面板里是同一份数据，合计会翻倍造成误判） */
+          function armBikes(){ var s = document.querySelector('#viewplan svg'); return s ? (s.outerHTML.match(/data-acc="arm"/g) || []).length : -1; }
+          /* 面板里的「删托臂排」按钮数 = 当前选中货架的托臂排数（DOM 即时反映，避开 250ms 保存防抖） */
+          function armRowsNow(){ return document.querySelectorAll('#editors [data-act="delArmRow"]').length; }
           function cntAcc(kind){ return document.querySelectorAll('[data-acc="' + kind + '"]').length; }
-          var armBtn0 = $('[data-bact="accArm"]');
-          if (armBtn0){
-            var seqA = [cntAcc('arm')];
-            armBtn0.click(); seqA.push(cntAcc('arm'));
-            $('[data-bact="accArm"]').click(); seqA.push(cntAcc('arm'));
-            $('[data-bact="accArm"]').click(); seqA.push(cntAcc('arm'));
-            log.push('accArm=' + seqA.join('>'));
-            log.push('accArmLabel=' + $('[data-bact="accArm"]').textContent);
-          } else { log.push('NO-ACCARM'); }
+          var shShort = $('[data-bact="addArm"][data-arm="short"]');
+          if (shShort){
+            var ab0 = armBikes();
+            shShort.click();
+            var ab1 = armBikes(), rowsA = armRowsNow();
+            $('[data-bact="addArm"][data-arm="long"]').click();
+            var ab2 = armBikes(), rowsB = armRowsNow();
+            var delBtn = $('#editors [data-act="delArmRow"]');
+            if (delBtn) delBtn.dispatchEvent(new MouseEvent('click', {bubbles:true}));
+            var rowsC = armRowsNow(), ab3 = armBikes();
+            var clr = $('[data-bact="clearArms"]');
+            if (clr) clr.click();
+            log.push('arm=' + ab0 + '>' + ab1 + '>' + ab2 + '>' + ab3 + ' rows=' + rowsA + '>' + rowsB + '>' + rowsC + '>' + armRowsNow());
+          } else { log.push('NO-ADDARM'); }
           var rackBtn0 = $('[data-bact="accRack"]');
           if (rackBtn0){
             var rb0 = cntAcc('rack');

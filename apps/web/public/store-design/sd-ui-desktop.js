@@ -266,7 +266,11 @@ function renderStatus(items){
 function accLab(v){ return v === 'adult' ? '成人' : (v === 'kids' ? '童车' : '无'); }
 function accNow(o, key){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
-  return a ? a[key] : (key === 'hook' ? 'none' : 'none');
+  return (a && a[key]) ? a[key] : 'none';
+}
+function accRows(o){
+  var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
+  return (a && a.rows) ? a.rows : [];
 }
 function accBtnDesktop(act, name, val){
   var on = (val === 'adult' || val === 'kids' || val === 'on');
@@ -295,7 +299,10 @@ function selBarHTML(ctx){
       + '<button class="sd-d-act" data-bact="fillb" data-bt="adult">排成人车</button>'
       + '<button class="sd-d-act" data-bact="fillb" data-bt="kids">排童车</button>'
       + '<button class="sd-d-act" data-bact="clearb">清空本架车</button>'
-      + accBtnDesktop('accArm', '托臂', accNow(o, 'arm'))
+      + '<button class="sd-d-act" data-bact="addArm" data-arm="short">＋短托臂</button>'
+      + '<button class="sd-d-act" data-bact="addArm" data-arm="long">＋长托臂</button>'
+      + (accRows(o).length ? '<b class="sd-d-selflag">托臂 ' + accRows(o).length + ' 排</b>' : '')
+      + (accRows(o).length ? '<button class="sd-d-act" data-bact="clearArms">清空托臂</button>' : '')
       + accBtnDesktop('accRack', '地架', accNow(o, 'rack'))
       + accBtnDesktop('accHook', '挂钩', accNow(o, 'hook')) + del + close;
   } else if (k === 'st'){
