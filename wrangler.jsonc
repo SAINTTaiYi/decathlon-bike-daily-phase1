@@ -12,7 +12,7 @@
   "placement": { "mode": "smart" },
   "workers_dev": true,
   "preview_urls": true,
-  "triggers": { "crons": ["* * * * *"] },
+  "triggers": { "crons": ["* * * * *", "7,37 * * * *"] },
   "assets": {
     "directory": "apps/web/dist",
     "not_found_handling": "single-page-application",

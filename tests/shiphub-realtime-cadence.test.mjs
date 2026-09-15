@@ -12,19 +12,41 @@ import test from 'node:test'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('cron 每分钟触发一次（staging / wrangler 两处一致；preview 不得注册 cron）', async () => {
+test('cron 注册：每分钟 tick + BI 独立 cron（staging / wrangler 两处一致；preview 不得注册 cron）', async () => {
   const [wrangler, staging, preview] = await Promise.all([
     read('../wrangler.jsonc'),
     read('../.github/workflows/deploy-cloudflare-staging.yml'),
     read('../.github/workflows/deploy-cloudflare-preview.yml')
   ])
   for (const [label, source] of [['wrangler.jsonc', wrangler], ['staging workflow', staging]]) {
-    assert.match(source, /"crons": \["\* \* \* \* \*"\]/u, `${label} 必须每分钟触发一次（实时化前提）`)
-    assert.doesNotMatch(source, /"crons": \["\*\/5 \* \* \* \*"\]/u, `${label} 不得残留旧的 5 分钟频率`)
+    // 2026-09-15（晚间 CPU 风暴修复）：BI 预热拆到独立 cron（:07/:37），
+    // 每分钟 tick 只跑 Shiphub 同步——两条缺一不可。
+    assert.match(source, /"crons": \["\* \* \* \* \*", "7,37 \* \* \* \*"\]/u, `${label} 必须注册每分钟 tick 与 BI 独立 cron（:07/:37）`)
+    assert.doesNotMatch(source, /"\*\/5 \* \* \* \*"/u, `${label} 不得残留旧的 5 分钟频率`)
   }
   // 2026-09-12（D1 写配额事故）：Preview 不得注册任何 cron——preview 环境不得有
   // 任何自动化 D1 调用（定时同步只服务已配置本店账号的门店，preview 无此类门店）。
   assert.doesNotMatch(preview, /"crons"/u, 'preview workflow 不得注册 cron（preview 无自动化同步）')
+})
+
+test('定时拆分与租约（2026-09-15 晚间风暴修复）：BI cron 常量三处一致、租约 50 秒允许下一轮接管', async () => {
+  const [wrangler, staging, biWeekly, sync] = await Promise.all([
+    read('../wrangler.jsonc'),
+    read('../.github/workflows/deploy-cloudflare-staging.yml'),
+    read('../apps/worker/src/services/bi-weekly.ts'),
+    read('../apps/worker/src/services/shiphub-sync.ts')
+  ])
+  // 路由按 controller.cron 精确匹配 → 代码常量必须与两处部署配置逐字一致。
+  const biCron = biWeekly.match(/export const BI_SCHEDULED_CRON = '([^']+)'/u)?.[1]
+  assert.equal(biCron, '7,37 * * * *', 'BI_SCHEDULED_CRON 常量必须是 :07/:37')
+  for (const [label, source] of [['wrangler.jsonc', wrangler], ['staging workflow', staging]]) {
+    const crons = JSON.parse(source.match(/"crons": (\[[^\]]+\])/u)?.[1] ?? '[]')
+    assert.ok(crons.includes('* * * * *'), `${label} 必须含每分钟 tick`)
+    assert.ok(crons.includes(biCron), `${label} 必须含 BI cron（与代码常量一致）`)
+  }
+  // 租约必须短于「下一分钟 tick 到达」：90 秒会挡两轮，50 秒只挡至多一轮。
+  assert.match(sync, /const LEASE_MS = 50_000/u, '租约必须为 50 秒')
+  assert.doesNotMatch(sync, /const LEASE_MS = 90_000/u, '不得残留旧的 90 秒租约')
 })
 
 test('前端 API 暴露 ensure-fresh 端点', async () => {

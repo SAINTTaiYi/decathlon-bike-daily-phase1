@@ -122,7 +122,7 @@ jobs:
               "migrations_dir": "migrations/d1"
             }],
             "triggers": {
-              "crons": ["* * * * *"]
+              "crons": ["* * * * *", "7,37 * * * *"]
             },
             "vars": {
               "APP_ENV": "staging",
