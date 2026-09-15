@@ -85,6 +85,7 @@ function skeleton(){
   +     '<nav class="tabs sd-m-vswitch">'
   +       '<button data-tab="t3d" class="on">3D 视角</button>'
   +       '<button data-tab="tplan">平面编辑</button>'
+  +       '<button data-tab="tfront">货架正面</button>'
   +     '</nav>'
   +     '<div class="sd-m-status" id="chips"></div>'
   +   '</div>'
@@ -110,6 +111,10 @@ function skeleton(){
   +       '<label class="sd-m-check">吸附<select id="snap"><option value="0.5">0.5m</option><option value="0.25">0.25m</option><option value="0.1">0.1m</option></select></label>'
   +     '</div>'
   +     '<div id="planScroll" class="sd-m-planscroll"><div id="viewplan"></div></div>'
+  +   '</div>'
+  +   '<div id="tabfront" class="sd-m-pane" style="display:none">'
+  +     '<div class="sd-m-vtools" id="frontBar"></div>'
+  +     '<div id="frontScroll" class="sd-m-planscroll"><div id="viewfront"></div></div>'
   +   '</div>'
   + '</section>'
   + '<button class="sd-m-toolfab" data-sd-tools="1" aria-label="添加组件">＋</button>'
@@ -270,6 +275,15 @@ function stepper(field, val, unit){
     + '<b data-bval="' + field + '" data-unit="' + (unit || '') + '">' + fnum(val) + (unit || '') + '</b>'
     + '<button data-bstep="' + field + '" data-bsign="1">＋</button></span>';
 }
+function accLab(v){ return v === 'adult' ? '成人' : (v === 'kids' ? '童车' : '无'); }
+function accNow(o, key){
+  var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
+  return (a && a[key]) ? a[key] : 'none';
+}
+function accRows(o){
+  var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
+  return (a && a.rows) ? a.rows : [];
+}
 function selBarHTML(ctx){
   var k = ctx.kind, o = ctx.item, h = '';
   var close = '<button class="sd-m-x" data-bact="close" aria-label="取消选中">✕</button>';
@@ -295,6 +309,14 @@ function selBarHTML(ctx){
       + '<button data-bact="dup">复制</button>' + del + '</div>';
     h += '<div class="sd-m-selrow"><span class="sd-m-tag">🚲</span><button data-bact="fillb" data-bt="adult">排成人车</button>'
       + '<button data-bact="fillb" data-bt="kids">排童车</button><button data-bact="clearb">清空本架</button></div>';
+    h += '<div class="sd-m-selrow"><span class="sd-m-tag">🧍</span>'
+      + '<button data-bact="openFront">正面视角（调托臂高度）</button></div>';
+    h += '<div class="sd-m-selrow"><span class="sd-m-tag">🪝</span>'
+      + '<button data-bact="addArm" data-arm="short">＋短托臂</button>'
+      + '<button data-bact="addArm" data-arm="long">＋长托臂</button>'
+      + (accRows(o).length ? '<button data-bact="clearArms">清空托臂(' + accRows(o).length + '排)</button>' : '')
+      + '<button data-bact="accRack"' + (accNow(o, 'rack') !== 'none' ? ' data-on="true"' : '') + '>地架：' + accLab(accNow(o, 'rack')) + '</button>'
+      + '<button data-bact="accHook"' + (accNow(o, 'hook') === 'on' ? ' data-on="true"' : '') + '>挂钩：' + (accNow(o, 'hook') === 'on' ? '开' : '无') + '</button></div>';
   } else if (k === 'st'){
     h += '<div class="sd-m-selrow">' + close
       + '<input class="sd-m-name" type="text" placeholder="工作室名称" value="' + esc(o.name || '') + '">'
@@ -362,6 +384,9 @@ function mount(root){
   slots.view3d = document.getElementById('view3d');
   slots.viewplan = document.getElementById('viewplan');
   slots.planScroll = document.getElementById('planScroll');
+  slots.viewfront = document.getElementById('viewfront');
+  slots.frontScroll = document.getElementById('frontScroll');
+  slots.frontBar = document.getElementById('frontBar');
   document.body.setAttribute('data-sd-ui', 'mobile');
 
   root.addEventListener('click', function(e){

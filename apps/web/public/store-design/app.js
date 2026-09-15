@@ -60,7 +60,8 @@ try {
     if (rv.zoom) view.zoom = rv.zoom;
   }
 } catch(e1){}
-var ui = { tab: 't3d', sel: null, planZ: null, grid: true, snap: 0.5 };
+var ui = { tab: 't3d', sel: null, planZ: null, grid: true, snap: 0.5,
+           frontShelf: null, frontRow: null, frontScale: null };
 
 function $(q, root){ return (root || document).querySelector(q); }
 function $all(q, root){ return Array.prototype.slice.call((root || document).querySelectorAll(q)); }
@@ -274,6 +275,8 @@ var HELP_LINES = [
   '矮货架默认高 0.9m，颜色淡紫以便区分；长/高/单双面照常可调。',
   '门帘默认放在「商场出入口」与「进出口」，半透明条纹；可增删、拖动、改尺寸朝向。',
   '自行车：成人车 2.0m / 童车 1.5m。两种摆放：立地（90° 直放、车头 45° 倾斜）与上架平放（架顶，2m/位）。单台可调朝向与车头角度。',
+  '货架陈列：默认高 3.3m。托臂按排放置（短托臂 0.5m / 长托臂 1m，可分别放），每排高度、车型、起止范围都能单独调；地架每米 3 个、挂钩每米 4 个。',
+  '货架正面视角：选中货架后点「🧍 正面视角」（或切顶部「货架正面」页签）——在里面直接拖动托臂排调高度与位置，两端圆点调范围。',
   '出入口净空区：三个出入口各一块橙色虚线框，货架/试用区/区域/工作室/柱子/网面墙都不得占用；随机方案会自动避开。',
   '🎲 随机方案：随机货架排布、工作室位置、试用区大小位置，自动重试直到满足全部要求。',
   '数据安全：布局只写入同一个存储键，版本升级不会重置；每次修改自动留存「上一版」，可在「历史版本恢复」里换回。',
@@ -290,9 +293,9 @@ function buildEditors(){
 function nid(){ return 'x' + Math.random().toString(36).slice(2, 7); }
 function shelfGet(id){ for (var i=0;i<cfg.shelves.length;i++){ if (String(cfg.shelves[i].id) === String(id)) return cfg.shelves[i]; } return null; }
 function findBy(arr, id){ for (var i=0;i<arr.length;i++){ if (String(arr[i].id) === String(id)) return arr[i]; } return null; }
-function afterStruct(){ saveSoon(); buildEditors(); renderChips(); render3DNow(); renderPlanNow(); }
+function afterStruct(){ saveSoon(); buildEditors(); renderChips(); render3DNow(); renderPlanNow(); renderFrontNow(); }
 function addShelf(kind){
-  var h = (kind === 'low') ? 0.9 : 1.5;
+  var h = (kind === 'low') ? 0.9 : E.SHELF_H_DEFAULT;
   cfg.shelves.push({ id: nid(), name: '', kind: kind, orient: 'h', x: 2, y: 2, len: 4, h: h });
   afterStruct();
 }
@@ -354,6 +357,65 @@ function fillShelfBikes(ids){
   toast('已排入 ' + list.length + ' 台' + (typ === 'kids' ? '童车(1.5m)' : '成人车(2m)') + (pose === 'top' ? '，平放架顶，2m/位' : '，垂直90°摆放，车头45°倾斜'));
 }
 
+/* 货架陈列附件（托臂 / 地架 / 挂钩）。
+   托臂按「排」放置：短托臂（伸出 0.5m）与长托臂（伸出 1m）可分别放置，
+   每排高度（z，车轮底离地）可调，也可用起止位置只占货架的一段（左右混排）。
+   地架 / 挂钩仍是单值开关（点击循环「无 → 成人 → 童车 → 无」）。
+   附件不落盘成独立元素：全部由货架配置（shelves[].acc）派生渲染，随货架自动跟随。 */
+var ACC_CYCLE = { rack: ['none', 'adult', 'kids'], hook: ['none', 'on'] };
+var ACC_LABEL = { none: '无', adult: '成人', kids: '童车', on: '开' };
+function accLabel(v){ return ACC_LABEL[v] || '无'; }
+function cycleAcc(id, key){
+  var s = shelfGet(id); if (!s) return;
+  s.acc = s.acc || {};
+  var seq = ACC_CYCLE[key] || ['none'];
+  var cur = s.acc[key];
+  var idx = seq.indexOf(cur); if (idx < 0) idx = 0;
+  s.acc[key] = seq[(idx + 1) % seq.length];
+  afterStruct(); renderSelBar(true);
+  var a = E.accOf(s), msg;
+  if (key === 'rack') msg = '地架：' + (a.rack === 'none' ? '已拆除' : ((a.rack === 'kids' ? '童车' : '成人车') + ' ×' + E.rackCount(s) + '（每米 3 个）'));
+  else msg = '挂钩：' + (a.hook === 'on' ? (E.hookCount(s) + ' 个（每米 4 个）') : '已拆除');
+  toast(msg);
+}
+/* 托臂排：新增 / 删除 / 清空。排 id 依次 a1、a2…（用于稳定的派生元素 id） */
+function nextArmRowId(rows){
+  var max = 0;
+  (rows || []).forEach(function(r){
+    var m = /^a(\d+)$/.exec(r && r.id ? r.id : '');
+    if (m) max = Math.max(max, +m[1]);
+  });
+  return 'a' + Math.max(1, max + 1);
+}
+function addArmRow(id, len){
+  var s = shelfGet(id); if (!s) return;
+  s.acc = s.acc || {};
+  if (!Array.isArray(s.acc.armRows)) s.acc.armRows = [];
+  var rows = s.acc.armRows;
+  var isLong = (len === 'long');
+  var row = { id: nextArmRowId(rows), z: E.nextArmZ(s, rows), len: isLong ? 'long' : 'short',
+              size: isLong ? 'adult' : 'kids', u0: 0, u1: (+s.len || 4) };
+  rows.push(row);
+  afterStruct(); renderSelBar(true);
+  var norm = E.accOf(s).rows[rows.length - 1];
+  toast('已加' + (isLong ? '长托臂 1m（成人车）' : '短托臂 0.5m（16″ 童车）') + '：'
+    + norm.z + 'm 高 · ' + E.rowBikeCount(s, norm) + ' 台（高度可在属性栏调）');
+}
+function delArmRow(id, idx){
+  var s = shelfGet(id); if (!s) return;
+  var rows = (s.acc && Array.isArray(s.acc.armRows)) ? s.acc.armRows : null;
+  if (!rows || !rows[idx]) return;
+  var n = rows.splice(idx, 1).length;
+  afterStruct(); renderSelBar(true);
+  toast('已删除托臂排 ' + (idx + 1) + (n ? '' : ''));
+}
+function clearArms(id){
+  var s = shelfGet(id); if (!s || !s.acc) return;
+  s.acc.armRows = [];
+  afterStruct(); renderSelBar(true);
+  toast('已清空该货架的托臂');
+}
+
 var acts = {
   rand: function(){ doRandom(); },
   /* 左侧工具栏：点工具即就地添加并进入摆放模式（拖动屏幕定位）。 */
@@ -367,6 +429,7 @@ var acts = {
     if (!ds || ds.id == null) return;
     if (String(ds.id) === '__clear__'){
       ui.sel = null;
+      ui.frontRow = null;
       endPlacing(true);
       afterSelect();
       return;
@@ -382,6 +445,23 @@ var acts = {
   },
   flushWall: function(ds){ flushWallTo(ds.id); },
   fillb: function(ds){ fillShelfBikes(ds.id); },
+  openFront: function(ds){
+    var id = (ds && ds.id != null) ? String(ds.id).split(':')[0] : null;
+    if (!id && /^sh:/.test(String(ui.sel || ''))) id = String(ui.sel).slice(3);
+    var s = id ? shelfGet(id) : null;
+    if (!s){ toast('先选中一个货架'); return; }
+    if (ui.placing) endPlacing(true);
+    ui.frontShelf = s.id; ui.frontRow = null;
+    ui.sel = 'sh:' + s.id;
+    if (ui.tab !== 'tfront') setTab('tfront'); else renderFrontNow();
+    buildEditors();
+    toast('正面视角：拖托臂排调高度 / 左右平移，两端圆点调范围');
+  },
+  accRack: function(ds){ cycleAcc(ds.id, 'rack'); },
+  accHook: function(ds){ cycleAcc(ds.id, 'hook'); },
+  addArm: function(ds){ var p = String(ds.id).split(':'); addArmRow(p[0], p[1]); },
+  delArmRow: function(ds){ var p = String(ds.id).split(':'); delArmRow(p[0], +p[1]); },
+  clearArms: function(ds){ clearArms(ds.id); },
   addCurtain: function(){ cfg.curtains = cfg.curtains || []; cfg.curtains.push({ id: nid(), orient:'h', x: 3, y: 0.22, len: 3, h: 1.9 }); afterStruct(); },
   delCurtain: function(ds){ cfg.curtains = (cfg.curtains || []).filter(function(x){ return String(x.id) !== String(ds.id); }); afterStruct(); },
   addBikeA: function(){ cfg.bikes = cfg.bikes || []; cfg.bikes.push({ id: nid(), type:'adult', x: 5, y: 5, angle: 45 }); afterStruct(); },
@@ -454,10 +534,16 @@ function onEditInput(e){
     var sx = cfg.shelves[+p.split('.')[1]];
     if (sx){
       if (v === 'low' && (sx.h == null || sx.h > 1.2)) sx.h = 0.9;
-      if (v !== 'low' && (sx.h == null || sx.h < 1.0)) sx.h = 1.5;
+      if (v !== 'low' && (sx.h == null || sx.h < 1.0)) sx.h = E.SHELF_H_DEFAULT;
     }
   }
   ensureStructures(p);
+  renderFrontNow();
+  if (/^shelves\.\d+\.acc\./.test(p)){
+    renderSelBar(true);
+    /* 改托臂长度 / 车型 / 起止后，面板里的「托臂排 N」说明与台数要跟着重算（select 才重建，避免打字时丢焦点） */
+    if (t.tagName === 'SELECT') buildEditors();
+  }
   saveSoon(); renderChips(); schedule3D(); renderPlanNow();
 }
 function onEditClick(e){
@@ -590,6 +676,8 @@ function bindPlan(){
     if (!id){
       if (!t){ ui.sel = null; afterSelect(); return; }
       id = t.getAttribute('data-id');
+      /* 货架附件车（托臂 / 地架）是派生元素：点它等于选中所属货架，参数在货架面板上改 */
+      if (id && id.slice(0, 4) === 'acc:') id = 'sh:' + id.split(':')[1];
     }
     if (ui.sel !== id){
       try {
@@ -733,7 +821,7 @@ function scrollToSection(){ if (window.SDUI && SDUI.revealSelection) SDUI.reveal
 
 /* 快捷条：结构由当前界面实现产出（移动端=底部浮动条含步进器；桌面端=动作条），
    这里只负责「何时显示」与状态属性的维护。 */
-function renderSelBar(){
+function renderSelBar(force){
   var bar = els.selbar || $('#selbar');
   if (!bar) return;
   var it = selGet();
@@ -743,7 +831,8 @@ function renderSelBar(){
     return;
   }
   var placing = !!(ui.placing && String(ui.sel) === String(ui.placing));
-  if (bar.classList.contains('show') && bar.getAttribute('data-sel') === String(ui.sel)
+  /* 附件按钮的选中态 / 文字随点随变，切换时必须强制重建（force=true） */
+  if (!force && bar.classList.contains('show') && bar.getAttribute('data-sel') === String(ui.sel)
       && bar.getAttribute('data-place') === (placing ? '1' : '')){
     if (window.SDUI) SDUI.refreshSelVals(bar, it);
     return;
@@ -759,12 +848,15 @@ function renderSelBar(){
 function postSelUpdate(){
   /* 面板与快捷条一起刷新：此前只 syncInputs()（面板输入框），快捷条上的步进器
      数值要等下次重建才更新，点了「＋」数字不动（2026-09-15 一起修掉）。 */
-  saveSoon(); renderChips(); schedule3D(); renderPlanNow(); syncInputs(); renderSelBar();
+  saveSoon(); renderChips(); schedule3D(); renderPlanNow(); renderFrontNow(); syncInputs(); renderSelBar();
 }
 /* 选中状态变化后的统一收尾：选中框 → 快捷条 → 面板（双端各自的反应由 SDUI 决定）。 */
 function afterSelect(){
   updateSelFrame();
   renderSelBar();
+  /* 选中货架时把「货架正面」视图也跟随过去（在平面/大纲里换货架，正面视图同步换） */
+  if (/^sh:/.test(String(ui.sel || ''))) ui.frontShelf = String(ui.sel).slice(3);
+  renderFrontNow();
   if (window.SDUI && SDUI.onSelectionChange) SDUI.onSelectionChange();
   buildEditors();
 }
@@ -825,6 +917,14 @@ function bindSelBar(){
     } else if (act === 'fillb'){
       fillShelfBikes(id + ':' + b.getAttribute('data-bt'));
       renderSelBar();
+    } else if (act === 'openFront'){
+      acts.openFront({ id: id });
+    } else if (act === 'accRack' || act === 'accHook'){
+      cycleAcc(id, act === 'accRack' ? 'rack' : 'hook');
+    } else if (act === 'addArm'){
+      addArmRow(id, b.getAttribute('data-arm'));
+    } else if (act === 'clearArms'){
+      clearArms(id);
     } else if (act === 'clearb'){
       var rc0 = E.shelfRect(it.o), pad0 = 0.9;
       cfg.bikes = (cfg.bikes || []).filter(function(b2){
@@ -834,7 +934,7 @@ function bindSelBar(){
     } else if (act === 'kind'){
       it.o.kind = b.getAttribute('data-bk');
       if (it.o.kind === 'low' && (it.o.h == null || it.o.h > 1.2)) it.o.h = 0.9;
-      if (it.o.kind !== 'low' && (it.o.h == null || it.o.h < 1.0)) it.o.h = 1.5;
+      if (it.o.kind !== 'low' && (it.o.h == null || it.o.h < 1.0)) it.o.h = E.SHELF_H_DEFAULT;
       postSelUpdate();
     } else if (act === 'flush'){
       flushWallTo(id + ':' + b.getAttribute('data-side'));
@@ -930,7 +1030,7 @@ function addComponent(kind){
     var kk = kind === 'shelfD' ? 'double' : (kind === 'shelfS' ? 'single' : 'low');
     var len0 = 4, dep = E.shelfDepth({ kind:kk });
     sp = findFreeSpot(len0, dep, pref);
-    s = { id:id, name:'', kind:kk, orient:'h', x:sp.x, y:sp.y, len:len0, h: kk === 'low' ? 0.9 : 1.5 };
+    s = { id:id, name:'', kind:kk, orient:'h', x:sp.x, y:sp.y, len:len0, h: kk === 'low' ? 0.9 : E.SHELF_H_DEFAULT };
     cfg.shelves.push(s); selId = 'sh:' + id;
   } else if (kind === 'bikeA' || kind === 'bikeK'){
     var typ = kind === 'bikeK' ? 'kids' : 'adult';
@@ -999,14 +1099,165 @@ function importJson(e){
   e.target.value = '';
 }
 
+/* ---------------- 货架正面（立面）视角 ----------------
+   进入方式：选中货架 → 快捷条「正面视角」/ 元素清单「正面视角」/ 直接切「货架正面」页签。
+   在这里可以拖动托臂排：上下 = 改高度、左右 = 整排平移，两端圆点 = 改起止范围。
+   视图数据全在 SVG 的 data-* 上（scale/mx/my/len/h），交互层不需要额外状态。 */
+/* 屏幕坐标 → 立面局部坐标（u 沿货架、z 离地），与平面视图的 toWorld 同一套 CTM 变换 */
+function toFrontUZ(svgEl, cx, cy){
+  var m = frontMeta(); if (!m) return null;
+  var pt = svgEl.createSVGPoint(); pt.x = cx; pt.y = cy;
+  var q = pt.matrixTransform(svgEl.getScreenCTM().inverse());
+  return { u: (q.x - m.mx) / m.scale, z: (m.my - q.y) / m.scale };
+}
+function frontMeta(){
+  var svg = els.viewfront ? els.viewfront.querySelector('svg') : null;
+  if (!svg) return null;
+  var sc = +svg.getAttribute('data-scale');
+  if (!sc) return null;
+  return { scale: sc, mx:+svg.getAttribute('data-mx'), my:+svg.getAttribute('data-my'),
+           len:+svg.getAttribute('data-len'), h:+svg.getAttribute('data-h'), shelf: svg.getAttribute('data-shelf') };
+}
+function frontShelfOf(){
+  var id = ui.frontShelf || (/^sh:/.test(String(ui.sel || '')) ? String(ui.sel).slice(3) : null);
+  return id ? shelfGet(id) : null;
+}
+function frontRowGet(s, rowId){
+  if (!s || !s.acc || !Array.isArray(s.acc.armRows)) return null;
+  for (var i = 0; i < s.acc.armRows.length; i++){
+    if (String(s.acc.armRows[i].id) === String(rowId)) return s.acc.armRows[i];
+  }
+  return null;
+}
+/* 行内数值可能在未显式设置时走默认值：拖动前先落成显式值，避免「看不见的默认」被改坏 */
+function materializeRow(s, r){
+  var norm = E.accOf(s).rows.filter(function(x){ return String(x.id) === String(r.id); })[0];
+  if (!norm) return r;
+  if (r.z == null) r.z = norm.z;
+  if (r.len !== 'short' && r.len !== 'long') r.len = norm.len;
+  if (r.size !== 'adult' && r.size !== 'kids') r.size = norm.size;
+  if (r.u0 == null) r.u0 = norm.u0;
+  if (r.u1 == null) r.u1 = norm.u1;
+  return r;
+}
+function renderFrontBar(){
+  var bar = els.frontBar; if (!bar) return;
+  var s = frontShelfOf();
+  if (!s){
+    bar.innerHTML = '<span class="sd-d-mini sd-m-mini">先选中一个货架，再进入正面视角</span>';
+    return;
+  }
+  var acc = E.accOf(s), rows = acc.rows.length;
+  bar.innerHTML =
+    '<button data-act="addArm" data-id="' + esc2(s.id) + ':short">＋短托臂 0.5m</button>'
+    + '<button data-act="addArm" data-id="' + esc2(s.id) + ':long">＋长托臂 1m</button>'
+    + (rows ? '<button data-act="clearArms" data-id="' + esc2(s.id) + '" data-tone="danger">清空托臂（' + rows + ' 排）</button>' : '')
+    + '<button data-frontzoom="out">－</button><button data-frontzoom="in">＋</button><button data-frontzoom="fit">适应</button>';
+}
+function renderFrontNow(){
+  if (!els.viewfront) return;
+  if (ui.tab !== 'tfront') return;
+  var s = frontShelfOf();
+  renderFrontBar();
+  if (!s){
+    els.viewfront.innerHTML = '<p class="sd-d-mini sd-m-mini">先在 3D / 平面里点选一个货架，再回到这里：可以拖动托臂排调高度与位置。</p>';
+    return;
+  }
+  /* 容器内宽要先扣掉内边距（否则可视区比 SVG 窄几个像素，出现横向滚动条） */
+  var vw = (els.frontScroll ? els.frontScroll.clientWidth : 900) - 18;
+  var vh = els.frontScroll ? els.frontScroll.clientHeight - 12 : 0;
+  var r = E.renderShelfFront(cfg, s.id, { vw: vw, vh: vh, scale: ui.frontScale || 0, selRow: ui.frontRow });
+  els.viewfront.innerHTML = r.svg;
+  if (r.meta && !ui.frontScale) ui.frontScale = r.meta.scale;
+}
+function frontZoom(kind){
+  var s = frontShelfOf(); if (!s) return;
+  var m = frontMeta();
+  var cur = (ui.frontScale || (m ? m.scale : 60));
+  if (kind === 'fit') ui.frontScale = null;
+  else if (kind === 'in') ui.frontScale = Math.min(220, Math.round(cur * 1.25));
+  else ui.frontScale = Math.max(10, Math.round(cur / 1.25));
+  renderFrontNow();
+}
+function bindFront(){
+  var sc = els.frontScroll;
+  if (!sc || sc.getAttribute('data-bound') === '1') return;
+  sc.setAttribute('data-bound', '1');
+  /* 触摸：按在托臂排上时不滚动页面，交给拖拽 */
+  sc.addEventListener('touchstart', function(ev){
+    if (!ev.cancelable) return;
+    if (ev.target && ev.target.closest && (ev.target.closest('[data-row]') || ev.target.closest('[data-rowhandle]'))) ev.preventDefault();
+  }, { passive:false, capture:true });
+  sc.addEventListener('pointerdown', function(e){
+    if (e.button != null && e.button > 0) return;
+    var svgEl = sc.querySelector('svg'); if (!svgEl) return;
+    var m = frontMeta(); if (!m) return;
+    var s = shelfGet(m.shelf); if (!s) return;
+    var hEl = e.target && e.target.closest ? e.target.closest('[data-rowhandle]') : null;
+    var rEl = e.target && e.target.closest ? e.target.closest('[data-row]') : null;
+    if (!hEl && !rEl) return;
+    var rowId, mode;
+    if (hEl){
+      var hp = String(hEl.getAttribute('data-rowhandle')).split(':');
+      rowId = hp[0]; mode = (hp[1] === '0') ? 'left' : 'right';
+    } else { rowId = rEl.getAttribute('data-row'); mode = 'move'; }
+    var r = frontRowGet(s, rowId); if (!r) return;
+    materializeRow(s, r);
+    var start = { z: r.z, u0: r.u0, u1: r.u1 };
+    var pt = toFrontUZ(svgEl, e.clientX, e.clientY); if (!pt) return;
+    var s0 = { u: pt.u, z: pt.z }, moved = false;
+    e.preventDefault();
+    try { sc.setPointerCapture(e.pointerId); } catch(e1){}
+    function blockTM(ev){ ev.preventDefault(); }
+    sc.addEventListener('touchmove', blockTM, { passive:false });
+    function move(ev){
+      var p = toFrontUZ(svgEl, ev.clientX, ev.clientY); if (!p) return;
+      var du = p.u - s0.u, dz = p.z - s0.z;
+      if (!moved && Math.hypot(du, dz) * m.scale < 4) return;   /* 4px 死区：点选 vs 拖动 */
+      moved = true;
+      if (mode === 'move'){
+        r.z = E.clamp(Math.round((start.z + dz) / 0.05) * 0.05, 0.2, Math.max(0.3, m.h - 0.85));
+        var w = start.u1 - start.u0;
+        var u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, Math.max(0, m.len - w));
+        r.u0 = u0; r.u1 = Math.round((u0 + w) * 100) / 100;
+      } else if (mode === 'left'){
+        r.u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, Math.max(0, start.u1 - 0.4));
+      } else {
+        r.u1 = E.clamp(Math.round((start.u1 + du) / 0.1) * 0.1, Math.min(m.len, start.u0 + 0.4), m.len);
+      }
+      r.z = Math.round(r.z * 100) / 100;
+      renderFrontNow();
+      if (window.SDUI && SDUI.refreshSelVals) renderSelBar(true);
+    }
+    function up(){
+      sc.removeEventListener('touchmove', blockTM);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      try { sc.releasePointerCapture(e.pointerId); } catch(e2){}
+      if (moved){
+        if (window.SDUI && SDUI.refreshSelVals) renderSelBar(true);
+        saveSoon(); renderChips(); schedule3D(); renderPlanNow(); buildEditors();
+      } else {
+        ui.frontRow = rowId;
+        ui.sel = 'sh:' + s.id;
+        afterSelect();
+      }
+    }
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  });
+}
+
 /* ---------------- 全局绑定 ---------------- */
 function setTab(tab){
   ui.tab = tab;
   $all('nav.tabs button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-tab') === tab); });
-  var t3 = $('#tab3d'), tp = $('#tabplan');
+  var t3 = $('#tab3d'), tp = $('#tabplan'), tf = $('#tabfront');
   if (t3) t3.style.display = (tab === 't3d') ? '' : 'none';
   if (tp) tp.style.display = (tab === 'tplan') ? '' : 'none';
+  if (tf) tf.style.display = (tab === 'tfront') ? '' : 'none';
   if (tab === 'tplan') renderPlanNow();
+  if (tab === 'tfront') renderFrontNow();
   if (tab === 't3d'){ endPlacing(true); setTimeout(render3DNow, 30); }
   renderSelBar();
 }
@@ -1053,6 +1304,11 @@ function bindGlobal(){
   document.addEventListener('click', function(e){
     var b = e.target && e.target.closest ? e.target.closest('[data-act]') : null;
     if (!b) return;
+    /* 面板 / 快捷条里的按钮由各自的监听器处理，这里跳过以免重复触发。
+       关键兜底：若按钮的处理过程重建了面板（afterStruct / buildEditors），按钮会脱离文档，
+       closest('#editors') 随即失效 → 同一动作会被执行两次（2026-09-15 修：
+       点一次「删托臂排」删掉两排）。用 isConnected 判定「事件发出时按钮还在树上」。 */
+    if (!b.isConnected) return;
     if (b.closest('#editors') || b.closest('#selbar')) return;
     var fn = acts[b.getAttribute('data-act')];
     if (fn) fn(b.dataset || {});
@@ -1068,6 +1324,23 @@ function bindGlobal(){
   bindPlan();
   bindPlanZoom();
   bindGestures();
+  els.frontScroll = els.frontScroll || $('#frontScroll');
+  els.viewfront = els.viewfront || $('#viewfront');
+  els.frontBar = els.frontBar || $('#frontBar');
+  bindFront();
+  var frontRT = null;
+  window.addEventListener('resize', function(){
+    if (ui.tab !== 'tfront') return;
+    clearTimeout(frontRT);
+    frontRT = setTimeout(function(){ ui.frontScale = null; renderFrontNow(); }, 260);
+  });
+  if (els.frontBar){
+    els.frontBar.addEventListener('click', function(e){
+      var b = e.target && e.target.closest ? e.target.closest('[data-frontzoom]') : null;
+      if (!b) return;
+      frontZoom(b.getAttribute('data-frontzoom'));
+    });
+  }
 }
 
 /* ---------------- 启动 ---------------- */
@@ -1075,6 +1348,8 @@ function applyQuery(){
   try {
     var q = new URLSearchParams(location.search);
     if (q.get('tab') === 'plan') setTab('tplan');
+    if (q.get('tab') === 'front') setTab('tfront');
+    if (q.get('shelf')) ui.frontShelf = q.get('shelf');
     if (q.get('az') != null && q.get('az') !== '') view.az = parseFloat(q.get('az')) || view.az;
     if (q.get('el') != null && q.get('el') !== '') view.el = parseFloat(q.get('el')) || view.el;
     if (q.get('zoom') != null && q.get('zoom') !== '') view.zoom = parseFloat(q.get('zoom')) || view.zoom;
@@ -1159,6 +1434,47 @@ function runSelfTest(){
           var dn = $('[data-bact="placeDone"]');
           if (dn) dn.click();
           log.push('placingEnded=' + !$('[data-bact="placeDone"]'));
+          /* --- 货架陈列附件：托臂排（＋短托臂 / ＋长托臂 / 删一排 / 清空）2026-09-15 --- */
+          var sg3 = document.querySelector('[data-id^="sh:"]');
+          if (sg3){
+            var r3 = sg3.getBoundingClientRect();
+            sg3.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true, clientX:r3.x+8, clientY:r3.y+5, pointerId:31, button:0}));
+            window.dispatchEvent(new PointerEvent('pointerup', {bubbles:true, clientX:r3.x+8, clientY:r3.y+5, pointerId:31}));
+          }
+          /* 计数只看平面图那一张 SVG（3D 面板里是同一份数据，合计会翻倍造成误判） */
+          function armBikes(){ var s = document.querySelector('#viewplan svg'); return s ? (s.outerHTML.match(/data-acc="arm"/g) || []).length : -1; }
+          /* 面板里的「删托臂排」按钮数 = 当前选中货架的托臂排数（DOM 即时反映，避开 250ms 保存防抖） */
+          function armRowsNow(){ return document.querySelectorAll('#editors [data-act="delArmRow"]').length; }
+          function cntAcc(kind){ return document.querySelectorAll('[data-acc="' + kind + '"]').length; }
+          var shShort = $('[data-bact="addArm"][data-arm="short"]');
+          if (shShort){
+            var ab0 = armBikes();
+            shShort.click();
+            var ab1 = armBikes(), rowsA = armRowsNow();
+            $('[data-bact="addArm"][data-arm="long"]').click();
+            var ab2 = armBikes(), rowsB = armRowsNow();
+            var delBtn = $('#editors [data-act="delArmRow"]');
+            if (delBtn) delBtn.dispatchEvent(new MouseEvent('click', {bubbles:true}));
+            var rowsC = armRowsNow(), ab3 = armBikes();
+            var clr = $('[data-bact="clearArms"]');
+            if (clr) clr.click();
+            log.push('arm=' + ab0 + '>' + ab1 + '>' + ab2 + '>' + ab3 + ' rows=' + rowsA + '>' + rowsB + '>' + rowsC + '>' + armRowsNow());
+          } else { log.push('NO-ADDARM'); }
+          var rackBtn0 = $('[data-bact="accRack"]');
+          if (rackBtn0){
+            var rb0 = cntAcc('rack');
+            rackBtn0.click();
+            var ra0 = cntAcc('rack'), rl0 = $('[data-bact="accRack"]').textContent;
+            $('[data-bact="accRack"]').click();
+            log.push('accRack=' + rb0 + '>' + ra0 + '(' + rl0 + ')');
+          } else { log.push('NO-ACCRACK'); }
+          var hookBtn0 = $('[data-bact="accHook"]');
+          if (hookBtn0){
+            hookBtn0.click();
+            var hl0 = $('[data-bact="accHook"]').textContent;
+            $('[data-bact="accHook"]').click();
+            log.push('accHook=' + hl0 + '>' + $('[data-bact="accHook"]').textContent);
+          } else { log.push('NO-ACCHOOK'); }
           log.push('errlog=' + JSON.stringify(($('#errlog').textContent || '').slice(0,80)));
         } else { log.push('NO-BIKE-ELEM'); }
       } catch(e){ log.push('THREW: ' + (e && e.message)); }
@@ -1189,6 +1505,7 @@ function init(){
   renderChips();
   render3DNow();
   renderPlanNow();
+  renderFrontNow();
   if (restoredFrom) toast('✓ 已恢复你之前保存的布局（来源 ' + restoredFrom.replace('store3d.cfg.','') + '）。如不理想，可在「历史版本恢复」中切换其他备份。');
   runSelfTest();
   window.addEventListener('resize', function(){

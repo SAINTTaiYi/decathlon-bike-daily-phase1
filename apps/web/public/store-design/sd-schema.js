@@ -65,24 +65,51 @@ function statusItems(ck){
     { tone: ck.okEntrance ? 'ok' : 'bad', text:'出入口净空' }
   ];
   if (ck.bikeAdult || ck.bikeKid) items.push({ tone:'info', text:'🚲 成人 ' + ck.bikeAdult + ' · 童车 ' + ck.bikeKid });
+  if (ck.accArm || ck.accRack || ck.accHook){
+    items.push({ tone:'info', text:'托臂 ' + ck.accArm + ' 台' + (ck.accArmRows ? '（' + ck.accArmRows + ' 排）' : '')
+      + (ck.accRack ? ' · 地架 ' + ck.accRack : '') + (ck.accHook ? ' · 挂钩 ' + ck.accHook : '') });
+  }
   if (ck.warnings && ck.warnings.length) items.push({ tone:'warn', text:'⚠ ' + ck.warnings.length + ' 条提示' });
   return items;
 }
 
 /* ---------- 各类型元素的字段 ---------- */
 function shelfFields(s, i){
-  return [
+  var acc = E().accOf(s);
+  var hS = (s.h == null) ? E().SHELF_H_DEFAULT : s.h;
+  var f = [
     text('shelves.' + i + '.name', '名称', s.name, '如 A区热销'),
     select('shelves.' + i + '.kind', '类型', s.kind, SHELF_KINDS),
     select('shelves.' + i + '.orient', '朝向', s.orient, ORIENT_HV),
     number('shelves.' + i + '.len', '长度', s.len, { unit:'m', min:0.3, max:100, step:0.1 }),
-    number('shelves.' + i + '.h', '高度', (s.h == null ? 1.5 : s.h), { unit:'m', min:0.5, max:3, step:0.1 }),
-    number('shelves.' + i + '.x', 'x 坐标', s.x, { unit:'m', min:0, max:200, step:0.1 }),
-    number('shelves.' + i + '.y', 'y 坐标', s.y, { unit:'m', min:0, max:200, step:0.1 })
+    number('shelves.' + i + '.h', '高度', hS, { unit:'m', min:0.5, max:4, step:0.1 })
   ];
+  /* 自行车托臂：按「排」放置（短托臂 0.5m / 长托臂 1m 可分别放、每排高度可调）；
+     每排可用「起始 / 结束位置」限定只占货架的一段（左右混排）。 */
+  acc.rows.forEach(function(r, ri){
+    f.push(note('托臂排 ' + (ri + 1) + '：' + (r.len === 'long' ? '长托臂 1m' : '短托臂 0.5m')
+      + ' · ' + (r.size === 'kids' ? '16″ 童车' : '成人车')
+      + ' ×' + E().rowBikeCount(s, r) + ' 台'));
+    f.push(number('shelves.' + i + '.acc.armRows.' + ri + '.z', '　高度（离地）', r.z,
+      { unit:'m', min:0.2, max: Math.max(0.5, hS - 0.85), step:0.05 }));
+    f.push(select('shelves.' + i + '.acc.armRows.' + ri + '.len', '　托臂长度', r.len,
+      [['short','短托臂 0.5m'],['long','长托臂 1m']]));
+    f.push(select('shelves.' + i + '.acc.armRows.' + ri + '.size', '　车型', r.size,
+      [['adult','成人车（2m/台）'],['kids','16″ 童车（4/3m/台）']]));
+    f.push(number('shelves.' + i + '.acc.armRows.' + ri + '.u0', '　起始位置', r.u0,
+      { unit:'m', min:0, max:s.len, step:0.1 }));
+    f.push(number('shelves.' + i + '.acc.armRows.' + ri + '.u1', '　结束位置', r.u1,
+      { unit:'m', min:0, max:s.len, step:0.1 }));
+  });
+  f.push(select('shelves.' + i + '.acc.rack', '地架排车', acc.rack, [['none','不装'],['adult','成人车'],['kids','童车']]));
+  f.push(select('shelves.' + i + '.acc.hook', '自行车挂钩', acc.hook, [['none','不装'],['on','装（4 个/米）']]));
+  f.push(number('shelves.' + i + '.x', 'x 坐标', s.x, { unit:'m', min:0, max:200, step:0.1 }));
+  f.push(number('shelves.' + i + '.y', 'y 坐标', s.y, { unit:'m', min:0, max:200, step:0.1 }));
+  return f;
 }
 function shelfActions(s){
   return [
+    action('openFront', s.id, '🧍 正面视角'),
     action('flushWall', s.id + ':n', '贴北墙'), action('flushWall', s.id + ':s', '贴南墙'),
     action('flushWall', s.id + ':w', '贴西墙'), action('flushWall', s.id + ':e', '贴东墙'),
     action('dupShelf', s.id, '复制'), action('delShelf', s.id, '删除', 'danger')
@@ -189,16 +216,24 @@ function elementGroups(cfg){
   if (cfg.shelves.length){
     g.push({ key:'sh', title:'货架', items: cfg.shelves.map(function(s, i){
       var nA = E().bikesForShelf(s, 'adult').length, nK = E().bikesForShelf(s, 'kids').length;
+      var acc = E().accOf(s), accBit = '';
+      if (acc.rows.length) accBit += ' · 托臂×' + E().armBikeCount(s) + (acc.rows.length > 1 ? '(' + acc.rows.length + '排)' : '');
+      if (acc.rack !== 'none') accBit += ' · 地架×' + E().rackCount(s);
+      if (acc.hook === 'on') accBit += ' · 挂钩×' + E().hookCount(s);
       return { id:'sh:' + s.id, type:'sh', index:i, title: s.name ? s.name : ('货架 #' + (i + 1)),
         badge: (s.kind === 'double' ? '双面' : s.kind === 'single' ? '单面' : '矮货架') + ' ' + num(s.len) + 'm'
-          + (nA + nK ? ' · 🚲' + (nA + nK) : ''),
+          + (nA + nK ? ' · 🚲' + (nA + nK) : '') + accBit,
         actions: shelfActions(s),
         extra: [
           action('fillb', s.id + ':adult:stand', '🚲 成人 ×' + nA),
           action('fillb', s.id + ':kids:stand', '🚲 童车 ×' + nK),
           action('fillb', s.id + ':adult:top', '⤓ 上架成人'),
-          action('fillb', s.id + ':kids:top', '⤓ 上架童车')
-        ] };
+          action('fillb', s.id + ':kids:top', '⤓ 上架童车'),
+          action('addArm', s.id + ':short', '＋短托臂 0.5m'),
+          action('addArm', s.id + ':long', '＋长托臂 1m')
+        ].concat(acc.rows.map(function(r, ri){
+          return action('delArmRow', s.id + ':' + ri, '删托臂排 ' + (ri + 1), 'danger');
+        })).concat(acc.rows.length ? [action('clearArms', s.id, '清空托臂', 'danger')] : []) };
     }) });
   }
   g.push({ key:'st', title:'工作室', items: [{
