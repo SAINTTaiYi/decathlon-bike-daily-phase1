@@ -538,6 +538,7 @@ function onEditInput(e){
     }
   }
   ensureStructures(p);
+  renderFrontNow();
   if (/^shelves\.\d+\.acc\./.test(p)){
     renderSelBar(true);
     /* 改托臂长度 / 车型 / 起止后，面板里的「托臂排 N」说明与台数要跟着重算（select 才重建，避免打字时丢焦点） */
@@ -847,7 +848,7 @@ function renderSelBar(force){
 function postSelUpdate(){
   /* 面板与快捷条一起刷新：此前只 syncInputs()（面板输入框），快捷条上的步进器
      数值要等下次重建才更新，点了「＋」数字不动（2026-09-15 一起修掉）。 */
-  saveSoon(); renderChips(); schedule3D(); renderPlanNow(); syncInputs(); renderSelBar();
+  saveSoon(); renderChips(); schedule3D(); renderPlanNow(); renderFrontNow(); syncInputs(); renderSelBar();
 }
 /* 选中状态变化后的统一收尾：选中框 → 快捷条 → 面板（双端各自的反应由 SDUI 决定）。 */
 function afterSelect(){

@@ -1743,6 +1743,14 @@ function renderShelfFront(cfg, shelfId, opt){
   if (!rows.length){
     o.push('<text x="' + r2(mx + L * sc / 2) + '" y="' + r2(Y(H / 2)) + '" text-anchor="middle" font-size="13" fill="' + MUT + '">还没有托臂排：点上方「＋短托臂 / ＋长托臂」添加</text>');
   }
+  /* 地架 / 挂钩在正面上看不到（贴在货架前缘 / 地面），给一行说明避免误以为丢了 */
+  var extra = [];
+  if (acc.rack !== 'none') extra.push('地架 ' + rackCount(s) + ' 个');
+  if (acc.hook === 'on') extra.push('挂钩 ' + hookCount(s) + ' 个');
+  if (extra.length){
+    o.push('<text x="' + mx + '" y="' + r2(my + 44) + '" font-size="11.5" fill="' + MUT + '">'
+      + esc(extra.join(' · ')) + '（在 3D / 平面视图查看）</text>');
+  }
   o.push('<text x="' + mx + '" y="' + 22 + '" font-size="12.5" fill="' + INK + '">'
     + esc(s.name || '货架') + ' · 长 ' + fnum(L) + 'm · 高 ' + fnum(H) + 'm · ' + (s.kind === 'double' ? '双面' : (s.kind === 'single' ? '单面' : '矮货架'))
     + (rows.length ? ' · 托臂 ' + rows.length + ' 排 / ' + armBikeCount(s) + ' 台' : '') + '</text>');

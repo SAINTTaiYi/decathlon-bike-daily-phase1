@@ -675,6 +675,24 @@ test('穿模：挂车 / 附件在货架面之后绘制（按所属货架的深�
   assert.ok(eng.includes('if (!own){'), '散车必须走「就近货架」排序分支')
   assert.ok(eng.includes('var near = null, nearD = 2.0;'), '就近判定阈值 2m')
   assert.ok(eng.includes("own = { rng: boxKeyRange(shelfBox(near), d3), onSide: nSide === cSide };"), '散车按就近货架的深度区间排序')
+  // 行为断言：货架越长、车越靠近货架端头，画家算法的平均深度误差越大
+  //（结构断言挡不住「分支被写死成 if (false)」，必须用真实渲染的绘制顺序验证）
+  const c2 = engine.defaultConfig()
+  c2.bikes = [{ id: 'loose1', type: 'adult', pose: 'stand', x: 5.2, y: 7.6, rot: 0, steer: 45 }]
+  c2.shelves = [Object.assign({}, c2.shelves[0], { id: 's1', kind: 'double', orient: 'h', x: 4, y: 6, len: 12, h: 3.3, acc: {} })]
+  const svg2 = engine.render3D(c2, { az: 45, el: 33, zoom: 1, vw: 1000, vh: 700 })
+  const bikeIdx = svg2.indexOf('data-bike="loose1"')
+  assert.ok(bikeIdx > 0, '散车必须渲染')
+  assert.ok(bikeIdx > Math.max(svg2.lastIndexOf('fill="#f5e6ca"'), svg2.lastIndexOf('fill="#ecd7ae"')),
+    '12m 货架旁的散车必须画在货架面之后（否则被货架吃掉）')
+  // 对照：同一台车在同角度下、货架另一侧（远离相机）时，仍应被货架正确遮挡
+  const c3 = engine.defaultConfig()
+  c3.bikes = [{ id: 'loose1', type: 'adult', pose: 'stand', x: 5.2, y: 4.9, rot: 0, steer: 45 }]
+  c3.shelves = [Object.assign({}, c3.shelves[0], { id: 's1', kind: 'double', orient: 'h', x: 4, y: 6, len: 12, h: 3.3, acc: {} })]
+  const svg3 = engine.render3D(c3, { az: 45, el: 33, zoom: 1, vw: 1000, vh: 700 })
+  const bikeIdx3 = svg3.indexOf('data-bike="loose1"')
+  assert.ok(bikeIdx3 < Math.max(svg3.lastIndexOf('fill="#f5e6ca"'), svg3.lastIndexOf('fill="#ecd7ae"')),
+    '货架另一侧的散车必须被货架遮住（画在货架面之前）')
 })
 
 test('货架正面视角：引擎渲染（立面 / 托臂排 / 挂车 / 手柄 / 空态）', async () => {

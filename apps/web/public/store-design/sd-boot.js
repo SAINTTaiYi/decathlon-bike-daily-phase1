@@ -21,7 +21,7 @@
   document.head.appendChild(link);
 
   var script = document.createElement('script');
-  script.src = 'sd-ui-' + impl + '.js?v=6';
+  script.src = 'sd-ui-' + impl + '.js?v=7';
   script.setAttribute('data-sd-js', impl);
   script.async = false;
   script.onload = function(){ window.dispatchEvent(new Event('sd-ui-ready')); };
