@@ -16,7 +16,7 @@
 
   var link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = 'sd-' + impl + '.css?v=3';
+  link.href = 'sd-' + impl + '.css?v=4';
   link.setAttribute('data-sd-css', impl);
   document.head.appendChild(link);
 

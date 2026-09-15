@@ -61,7 +61,7 @@ try {
   }
 } catch(e1){}
 var ui = { tab: 't3d', sel: null, planZ: null, grid: true, snap: 0.5,
-           frontShelf: null, frontRow: null, frontScale: null };
+           frontShelf: null, frontRow: null, frontScale: null, frontFace: {} };
 
 function $(q, root){ return (root || document).querySelector(q); }
 function $all(q, root){ return Array.prototype.slice.call((root || document).querySelectorAll(q)); }
@@ -389,6 +389,8 @@ function nextArmRowId(rows){
 }
 function addArmRow(id, len){
   var s = shelfGet(id); if (!s) return;
+  /* 新增的排挂到「当前正在看的那一面」（双面货架可分别往两面加） */
+  var faceWanted = (ui.tab === 'tfront') ? frontFaceOf(s) : null;
   s.acc = s.acc || {};
   if (!Array.isArray(s.acc.armRows)) s.acc.armRows = [];
   var rows = s.acc.armRows;
@@ -398,13 +400,21 @@ function addArmRow(id, len){
   /* 默认范围 = 这排车的实际占位（每台一个位宽），而不是整根货架：
      这样新加的排默认就是「可左右移动」的，不用先手动缩范围（2026-09-15）。 */
   var fit = Math.max(1, Math.floor(shelfLen / E.ARM_SLOT[size] + 1e-6));
+  /* 层高避让只看「同一面」已有的排（两面各自排层） */
+  var rowZ = null;
+  if (faceWanted){
+    var onFace = rows.filter(function(r){ return (r.face === faceWanted); });
+    rowZ = E.nextArmZ(s, onFace);
+  }
   var span = Math.min(shelfLen, Math.round(fit * E.ARM_SLOT[size] * 100) / 100);
-  var row = { id: nextArmRowId(rows), z: E.nextArmZ(s, rows), len: isLong ? 'long' : 'short',
+  var row = { id: nextArmRowId(rows), z: (rowZ == null) ? E.nextArmZ(s, rows) : rowZ, len: isLong ? 'long' : 'short',
               size: size, u0: 0, u1: span };
+  if (faceWanted) row.face = faceWanted;
   rows.push(row);
   afterStruct(); renderSelBar(true);
   var norm = E.accOf(s).rows[rows.length - 1];
-  toast('已加' + (isLong ? '长托臂 1m（成人车）' : '短托臂 0.5m（16″ 童车）') + '：'
+  toast('已加' + (isLong ? '长托臂 1m（成人车）' : '短托臂 0.5m（16″ 童车）')
+    + (faceWanted ? '（' + frontFaceName(s, faceWanted) + '）' : '') + '：'
     + norm.z + 'm 高 · ' + E.rowBikeCount(s, norm) + ' 台 · 占货架 ' + norm.u0 + '~' + norm.u1 + 'm'
     + (norm.u1 - norm.u0 < shelfLen - 0.05 ? '（可左右拖动）' : '（高度可在属性栏调）'));
 }
@@ -1158,6 +1168,42 @@ function materializeRow(s, r){
   if (r.u1 == null) r.u1 = norm.u1;
   return r;
 }
+/* 当前正在看的面：优先用户选的，否则用货架的自动面 */
+function frontFaceOf(s){
+  if (!s) return 'pos';
+  var picked = ui.frontFace[s.id];
+  if (picked === 'pos' || picked === 'neg') return picked;
+  return E.accFace(s, cfg);
+}
+function frontFaceSet(id, face){
+  if (face !== 'pos' && face !== 'neg') delete ui.frontFace[id];
+  else ui.frontFace[id] = face;
+  renderFrontNow();
+}
+/* 把当前面的托臂排镜像到另一面（用户：「另一面没有办法添加组件」） */
+function mirrorRowsToOtherFace(s){
+  var acc = E.accOf(s);
+  var here = frontFaceOf(s), there = (here === 'pos') ? 'neg' : 'pos';
+  var mine = acc.rows.filter(function(r){ return E.rowFace(s, r, cfg) === here; });
+  if (!mine.length){ toast(frontFaceName(s, here) + '还没有托臂排'); return; }
+  s.acc = s.acc || {};
+  if (!Array.isArray(s.acc.armRows)) s.acc.armRows = [];
+  var maxN = 0;
+  s.acc.armRows.forEach(function(r){
+    var m = /^a(\d+)$/.exec(r && r.id ? r.id : '');
+    if (m) maxN = Math.max(maxN, +m[1]);
+  });
+  mine.forEach(function(r){
+    maxN += 1;
+    s.acc.armRows.push({ id: 'a' + maxN, z: r.z, len: r.len, size: r.size, u0: r.u0, u1: r.u1, face: there });
+  });
+  afterStruct(); renderSelBar(true);
+  toast('已把 ' + mine.length + ' 排托臂复制到' + frontFaceName(s, there));
+}
+function frontFaceName(s, face){
+  var n = E.faceNames(s);
+  return n[face] || face;
+}
 function renderFrontBar(){
   var bar = els.frontBar; if (!bar) return;
   var s = frontShelfOf();
@@ -1166,9 +1212,20 @@ function renderFrontBar(){
     return;
   }
   var acc = E.accOf(s), rows = acc.rows.length;
+  var names = E.faceNames(s);
+  var here = frontFaceOf(s), there = (here === 'pos') ? 'neg' : 'pos';
+  var nHere = E.armRowsOnFace(s, cfg, here).length;
+  var nThere = E.armRowsOnFace(s, cfg, there).length;
+  var dbl = (s.kind === 'double');
   bar.innerHTML =
-    '<button data-act="addArm" data-id="' + esc2(s.id) + ':short">＋短托臂 0.5m</button>'
+    (dbl
+      ? '<span class="sd-d-mini sd-m-mini">挂载面</span>'
+        + '<button data-frontface="pos"' + (here === 'pos' ? ' data-on="true"' : '') + '>' + names.pos + '（' + E.armRowsOnFace(s, cfg, 'pos').length + '）</button>'
+        + '<button data-frontface="neg"' + (here === 'neg' ? ' data-on="true"' : '') + '>' + names.neg + '（' + E.armRowsOnFace(s, cfg, 'neg').length + '）</button>'
+      : '')
+    + '<button data-act="addArm" data-id="' + esc2(s.id) + ':short">＋短托臂 0.5m</button>'
     + '<button data-act="addArm" data-id="' + esc2(s.id) + ':long">＋长托臂 1m</button>'
+    + (dbl && nHere ? '<button data-frontmirror="1">镜像到' + names[there] + '（' + nHere + ' 排）</button>' : '')
     + (rows ? '<button data-act="clearArms" data-id="' + esc2(s.id) + '" data-tone="danger">清空托臂（' + rows + ' 排）</button>' : '')
     + '<button data-frontzoom="out">－</button><button data-frontzoom="in">＋</button><button data-frontzoom="fit">适应</button>';
 }
@@ -1184,8 +1241,15 @@ function renderFrontNow(){
   /* 容器内宽要先扣掉内边距（否则可视区比 SVG 窄几个像素，出现横向滚动条） */
   var vw = (els.frontScroll ? els.frontScroll.clientWidth : 900) - 18;
   var vh = els.frontScroll ? els.frontScroll.clientHeight - 12 : 0;
-  var r = E.renderShelfFront(cfg, s.id, { vw: vw, vh: vh, scale: ui.frontScale || 0, selRow: ui.frontRow });
+  var r = E.renderShelfFront(cfg, s.id, { vw: vw, vh: vh, scale: ui.frontScale || 0, selRow: ui.frontRow,
+                                          face: frontFaceOf(s) });
   els.viewfront.innerHTML = r.svg;
+  var fsvgEl = els.viewfront.querySelector('svg');
+  if (fsvgEl){
+    fsvgEl.setAttribute('data-face', r.meta.face || '');
+    fsvgEl.setAttribute('data-rows', String(r.meta.rows || 0));
+    fsvgEl.setAttribute('data-other-rows', String(r.meta.otherRows || 0));
+  }
   if (r.meta && !ui.frontScale) ui.frontScale = r.meta.scale;
 }
 function frontZoom(kind){
@@ -1365,9 +1429,19 @@ function bindGlobal(){
   });
   if (els.frontBar){
     els.frontBar.addEventListener('click', function(e){
-      var b = e.target && e.target.closest ? e.target.closest('[data-frontzoom]') : null;
-      if (!b) return;
-      frontZoom(b.getAttribute('data-frontzoom'));
+      var z = e.target && e.target.closest ? e.target.closest('[data-frontzoom]') : null;
+      if (z){ frontZoom(z.getAttribute('data-frontzoom')); return; }
+      var fb = e.target && e.target.closest ? e.target.closest('[data-frontface]') : null;
+      if (fb){
+        var s0 = frontShelfOf();
+        if (s0) frontFaceSet(s0.id, fb.getAttribute('data-frontface'));
+        return;
+      }
+      var mb = e.target && e.target.closest ? e.target.closest('[data-frontmirror]') : null;
+      if (mb){
+        var s1 = frontShelfOf();
+        if (s1) mirrorRowsToOtherFace(s1);
+      }
     });
   }
 }
