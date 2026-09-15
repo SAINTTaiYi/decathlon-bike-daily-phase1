@@ -6,7 +6,7 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const read = (rel) => readFile(new URL(rel, import.meta.url), 'utf8')
 
-const [app, storeApp, siteMode, appSelectMobile, appSelectDesktop, menuDialog, appSelectCss, shellCss, styleIndex, sw, toolHtml, toolEmbed, toolApp, toolEngine, borderlessCss, stagingWorkflow, productionWorkflow, workerSession, workerMiddleware, workerAuthRoute, webClient] = await Promise.all([
+const [app, storeApp, siteMode, appSelectMobile, appSelectDesktop, menuDialog, appSelectCss, shellCss, styleIndex, sw, toolHtml, toolEmbed, toolApp, toolEngine, borderlessCss, stagingWorkflow, productionWorkflow, workerSession, workerMiddleware, workerAuthRoute, webClient, toolSchema, toolBaseCss, toolMobileCss, toolDesktopCss, toolBoot, toolUiMobile, toolUiDesktop] = await Promise.all([
   read('../apps/web/src/App.jsx'),
   read('../apps/web/src/components/storedesign/StoreDesignApp.jsx'),
   read('../apps/web/src/utils/siteMode.js'),
@@ -27,7 +27,14 @@ const [app, storeApp, siteMode, appSelectMobile, appSelectDesktop, menuDialog, a
   read('../apps/worker/src/auth/session.ts'),
   read('../apps/worker/src/auth/middleware.ts'),
   read('../apps/worker/src/routes/auth.ts'),
-  read('../apps/web/src/api/client.js')
+  read('../apps/web/src/api/client.js'),
+  read('../apps/web/public/store-design/sd-schema.js'),
+  read('../apps/web/public/store-design/sd-base.css'),
+  read('../apps/web/public/store-design/sd-mobile.css'),
+  read('../apps/web/public/store-design/sd-desktop.css'),
+  read('../apps/web/public/store-design/sd-boot.js'),
+  read('../apps/web/public/store-design/sd-ui-mobile.js'),
+  read('../apps/web/public/store-design/sd-ui-desktop.js')
 ])
 
 // 断言一律基于剥掉注释后的源码：命中的可能是注释里的字样（2026-09-13 假绿事故）。
@@ -127,7 +134,7 @@ test('工具页：本地工具原样发布 + 嵌入钩子（标题/退出按钮/
   assert.match(toolHtml, /<script src="engine\.js\?v=[\d.]+"><\/script>/u, '必须按版本引用引擎')
   assert.match(toolHtml, /<script src="app\.js\?v=[\d.]+"><\/script>/u, '必须按版本引用应用脚本')
   assert.match(toolHtml, /<script src="embed\.js\?v=\d+"><\/script>/u, '必须加载嵌入钩子')
-  assert.match(toolHtml, /<button id="btnExit"[^>]*hidden/u, '退出按钮默认隐藏（直接打开工具页时不显示）')
+  // 退出按钮默认隐藏在宿主钩子侧（两个界面实现各自渲染），见下方「双端实现」用例
   // 钩子：只在 embed=1 显示；两种文案；同源 postMessage
   assert.ok(toolEmbed.includes("params.get('embed') !== '1'"), '未嵌入时必须直接返回')
   assert.ok(toolEmbed.includes("'去 Workshop Ops ↗'") && toolEmbed.includes("'返回应用选择'"), '两种退出文案都要有')
@@ -256,3 +263,194 @@ test('CSRF 自愈：INVALID_CSRF 就地补票重放，且沿用同一幂等键',
   assert.ok(client.includes('refreshCsrfToken'), '必须有补票实现')
   assert.ok(client.includes("fetch(`${API_BASE}/api/v1/auth/me?_=${Date.now()}`"), '补票走 /auth/me（服务端每次轮换 CSRF）')
 })
+
+// ── 2026-09-15 无边线改造 + 双端拆分（用户要求：ops 同款无边线、着重清理底部杂乱数据、双端分开）──
+
+test('双端实现：两套独立实现 + 互斥加载，运行时按视口二选一', () => {
+  // 两套实现各自成文件，各自有完整样式；任何一端都不靠媒体查询去兼容另一端
+  for (const [name, source] of [['移动端', toolUiMobile], ['桌面端', toolUiDesktop]]) {
+    assert.ok(source.includes('window.SDUI = {'), `${name} 必须导出 SDUI 接口`)
+    for (const fn of ['mount', 'renderStatus', 'renderPanel', 'selBarHTML', 'refreshSelVals', 'onSelectionChange', 'revealSelection']) {
+      assert.ok(source.includes(fn + ':'), `${name} 必须实现 ${fn}`)
+    }
+  }
+  assert.match(toolUiMobile, /id: 'mobile'/u)
+  assert.match(toolUiDesktop, /id: 'desktop'/u)
+  // 互斥加载：两端样式里不得出现对方类名，也不得写媒体查询（因为根本不会同时存在）
+  const mobileCssNoComments = toolMobileCss.replace(/\/\*[\s\S]*?\*\//gu, '')
+  const desktopCssNoComments = toolDesktopCss.replace(/\/\*[\s\S]*?\*\//gu, '')
+  assert.equal((mobileCssNoComments.match(/\.sd-d-[a-z]/gu) || []).length, 0, '移动端样式不得包含桌面端类名')
+  assert.equal((desktopCssNoComments.match(/\.sd-m-[a-z]/gu) || []).length, 0, '桌面端样式不得包含移动端类名')
+  assert.equal((mobileCssNoComments.match(/@media/gu) || []).length, 0, '互斥加载的样式不需要媒体查询')
+  assert.equal((desktopCssNoComments.match(/@media/gu) || []).length, 0, '互斥加载的样式不需要媒体查询')
+  // 选择器：运行时按视口决定加载哪一套
+  assert.match(toolBoot, /matchMedia\('\(max-width: ' \+ NARROW_MAX \+ 'px\)'\)/u, '必须按视口选择实现')
+  assert.ok(toolBoot.includes("'sd-' + impl + '.css"), '按视口注入样式')
+  assert.ok(toolBoot.includes("'sd-ui-' + impl + '.js"), '按视口注入实现脚本')
+  assert.ok(toolBoot.includes("window.dispatchEvent(new Event('sd-ui-ready'))"), '就绪后通知 app.js')
+  // 页面本身不得直接引入 UI 实现（否则等于两套都加载）
+  // 只看 <script src>：注释里会提到这两个文件名（说明性文字，不算引入）
+  assert.doesNotMatch(
+    toolHtml.replace(/<!--[\s\S]*?-->/gu, ''),
+    /<script[^>]*sd-ui-(mobile|desktop)/u,
+    'index.html 不得直接引入界面实现（否则等于两套都加载）'
+  )
+  assert.ok(toolHtml.includes('sd-boot.js'), 'index.html 必须由选择器接管')
+});
+
+test('无边线：三份样式表里没有一处可见描边', () => {
+  for (const [name, source] of [['基础', toolBaseCss], ['移动端', toolMobileCss], ['桌面端', toolDesktopCss]]) {
+    const decls = [...source.matchAll(/border(?:-(?:top|right|bottom|left|width|style|color))?\s*:\s*([^;]+);/gu)].map((m) => m[1].trim());
+    const visible = decls.filter((value) => !/^(0|none)/u.test(value));
+    assert.deepEqual(visible, [], `${name}样式仍有可见描边：${visible.join(' | ')}`);
+  }
+  // 层次必须来自底色：三档底色令牌都在
+  for (const token of ['--sd-page', '--sd-card', '--sd-sunken', '--sd-accent']) {
+    assert.ok(toolBaseCss.includes(token + ':'), `缺少底色令牌 ${token}`);
+  }
+});
+
+test('每个类名都有样式落地（JS 与样式不得脱节）', () => {
+  // memory 26/27 教训：只断言结构不断言样式，会做出「类名齐了但样式全缺」的白板页面
+  const classNames = (source, re) => {
+    const found = new Set();
+    for (const match of source.matchAll(/class="([^"]*)"/gu)) {
+      for (const name of match[1].split(/\s+/u)) if (re.test(name)) found.add(name);
+    }
+    for (const match of source.matchAll(/'([a-z0-9-]*sd-[md]-[a-z0-9-]+)[^']*'/gu)) {
+      for (const name of match[1].split(/\s+/u)) if (re.test(name)) found.add(name);
+    }
+    return found;
+  };
+  const missing = [];
+  for (const [js, css, re, label] of [
+    [toolUiMobile, toolMobileCss, /^sd-m-/u, '移动端'],
+    [toolUiDesktop, toolDesktopCss, /^sd-d-/u, '桌面端']
+  ]) {
+    const cssBody = css.replace(/\/\*[\s\S]*?\*\//gu, '');
+    for (const name of classNames(js, re)) {
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+      if (!new RegExp('\\.' + escaped + '(?![\\w-])[^{}]*\\{', 'u').test(cssBody)) missing.push(`${label}:${name}`);
+    }
+  }
+  assert.deepEqual(missing, [], `以下类名没有任何样式：${missing.join(', ')}`);
+});
+
+test('数据模型：只有「选中的那一个」带字段，底部不再全量铺开', async () => {
+  // 旧版把 15 组段落里每个元素的所有字段一次性铺在页面底部（默认就 200+ 个输入框）。
+  // 现在元素清单是「清单 + 当前选中项的字段」，其余项只有标题与摘要。
+  const vm = await import('node:vm')
+  const sandbox = vm.createContext({ module: { exports: {} }, exports: {}, console, window: {} })
+  vm.runInContext(toolEngine, sandbox, { filename: 'engine.js' })
+  sandbox.window.Engine = sandbox.module.exports
+  sandbox.module = { exports: {} }
+  vm.runInContext(toolSchema, sandbox, { filename: 'sd-schema.js' })
+  const schema = sandbox.window.SD_SCHEMA
+  assert.ok(schema && typeof schema.buildVM === 'function', 'sd-schema 必须导出 buildVM')
+
+  const engine = sandbox.window.Engine
+  const cfg = engine.defaultConfig()
+
+  const bare = schema.buildVM(cfg, {})
+  assert.equal(bare.selection, null, '未选中时不应有选中卡片')
+  // 跨 vm realm 的数组原型不同，deepEqual 会误判 —— 只比长度（memory 21 的老坑）
+  const withFields = bare.elements.flatMap((g) => g.items).filter((it) => (it.fields || []).length > 0)
+  assert.equal(withFields.length, 0, '未选中时元素清单不应携带任何字段（否则又变成全量铺开）')
+  assert.ok(bare.elements.length >= 5, '元素清单必须按类型分组')
+  assert.ok(bare.elements.flatMap((g) => g.items).length >= 10, '元素清单必须列出全部元素')
+  assert.equal(bare.checks.length, 6, '检查页固定六项')
+
+  const shelfId = 'sh:' + cfg.shelves[0].id
+  const picked = schema.buildVM(cfg, { sel: shelfId })
+  assert.ok(picked.selection, '选中货架后必须有选中卡片')
+  assert.equal(picked.selection.fields.length, 7, '货架字段数')
+  assert.ok(picked.selection.fields.every((f) => f.path.startsWith('shelves.')), '字段路径必须指向该货架')
+  const stillBare = picked.elements.flatMap((g) => g.items).filter((it) => (it.fields || []).length > 0)
+  assert.equal(stillBare.length, 1, '只有选中的那一个元素携带字段')
+
+  // 设置页：结构级参数（空间/外墙/内隔墙）
+  assert.equal(picked.settings.map((g) => g.key).join(','), 'space,walls,segs', '设置页分组')
+  const pathCount = picked.selection.fields.length
+    + picked.settings.reduce((acc, g) => acc + g.items.reduce((n, it) => n + it.fields.length, 0), 0)
+  assert.ok(pathCount < 80, `字段总数应远小于旧版全量清单（当前 ${pathCount}）`);
+});
+
+test('删旧不覆盖：旧的面板构建器与旧样式已从源码移除', () => {
+  // 用户明确要求：改 UI 时直接删掉旧实现，不许用新规则去覆盖旧规则。
+  // 注意：buildSheet / ADD_LIST 是「添加组件」面板（仍然需要，只是换了皮肤），不在删除之列。
+  // 扫描范围是全部工具脚本（不只是 app.js）：旧的全量铺开实现不得从任何文件里复活。
+  const legacy = ['function shelvesBody', 'function studioBody', 'function zonesBody', 'function chkLines',
+    'function helpBody', 'function sec(', '<details data-sec=', 'els.chips.innerHTML',
+    "bar.innerHTML = '<div class=\"selrow\">", 'function spaceBody', 'function wallsBody',
+    'function backupsBody', 'function markersBody', 'function meshesBody']
+  for (const [name, source] of [['app.js', toolApp], ['sd-schema.js', toolSchema], ['sd-ui-mobile.js', toolUiMobile], ['sd-ui-desktop.js', toolUiDesktop]]) {
+    for (const gone of legacy) {
+      assert.ok(!source.includes(gone), `${name} 仍残留旧实现：${gone}`)
+    }
+  }
+  // 旧的单文件样式（内联 <style> + 媒体查询适配双端）必须整段消失
+  assert.doesNotMatch(toolHtml, /<style>/u, 'index.html 不得再内联 <style>（样式已拆到两份实现文件）')
+  assert.ok(toolHtml.includes('sd-base.css'), 'index.html 必须引入基础样式')
+});
+
+// ── 2026-09-15 三栏工作台（建模软件布局）+ 平面缩放修复 ──────────────────
+
+test('桌面端：三栏工作台（左工具栏 / 中视觉窗口 / 右属性栏），右栏可收起可拖宽', () => {
+  const css = toolDesktopCss.replace(/\/\*[\s\S]*?\*\//gu, '')
+  const ui = stripComments(toolUiDesktop)
+  // 三栏栅格：左固定、中吃掉剩余、右由变量控制（可拖宽）
+  // 连选择器一起抓：收起态那条规则的前缀是 #sdApp[data-collapsed='true']
+  const grids = css.match(/[^{}]*\.sd-d-workbench\s*\{[^}]*\}/gu) || []
+  assert.equal(grids.length, 2, '工作台栅格只允许两处（默认 + 收起态）')
+  assert.match(grids[0], /grid-template-columns:\s*152px minmax\(0, 1fr\) var\(--sd-props-w/u, '默认三栏：左工具栏固定、中自适应、右可调')
+  assert.match(grids[1], /#sdApp\[data-collapsed='true'\]/u, '收起态必须由 data-collapsed 驱动')
+  assert.match(grids[1], /56px/u, '收起后右栏只留图标条')
+  // 交互：拖宽手柄 + 收起按钮 + 宽度持久化
+  assert.ok(ui.includes("data-sd-resize=\"1\""), '必须有拖宽手柄')
+  assert.ok(ui.includes("data-sd-collapse=\"1\""), '必须有收起按钮')
+  assert.ok(ui.includes("localStorage.setItem(PREFS_KEY"), '右栏宽度/收起状态必须持久化')
+  assert.ok(ui.includes('dblclick'), '手柄双击复位')
+  // 视觉窗口必须是主要空间：中栏 minmax(0, 1fr) 且视口容器占满剩余高度
+  assert.match(css, /\.sd-d-viewport\s*\{[^}]*min-height:\s*0/u, '视觉窗口需要 min-height:0 才能撑满')
+  assert.match(css, /\.sd-d-canvas\s*\{[^}]*flex:\s*1 1 auto/u, '画布必须吃掉窗口剩余高度')
+  // 工具清单来自数据层（两端共用），不允许各自硬编码
+  assert.ok(toolSchema.includes('TOOL_GROUPS'), '工具清单必须在 sd-schema（数据层）里')
+  assert.ok(ui.includes('vm.tools') || ui.includes('vm && vm.tools'), '桌面端工具从视图模型取')
+  assert.ok(toolUiMobile.includes('vm.tools') || toolUiMobile.includes('vm && vm.tools'), '移动端工具从视图模型取')
+});
+
+test('平面缩放：SVG 保持固有尺寸（不得被 CSS 拉伸），且滚轮/双指可缩放', () => {
+  const base = toolBaseCss.replace(/\/\*[\s\S]*?\*\//gu, '')
+  // 根因：把 #viewplan svg 也写成 width:100% 会让「改 z」只改内部坐标、外观不变
+  const planRule = base.match(/#viewplan svg\s*\{[^}]*\}/u)
+  assert.ok(planRule, '#viewplan svg 必须有独立规则')
+  assert.doesNotMatch(planRule[0], /width:\s*100%/u, '平面 SVG 不得被拉伸（那正是「无法缩放」的根因）')
+  assert.match(base, /#view3d svg\s*\{[^}]*width:\s*100%/u, '3D 视角仍应自适应容器宽度')
+  // 交互：滚轮 / 双指 / 中键，且缩放以指针为锚点
+  const app = stripComments(toolApp)
+  assert.ok(app.includes('function zoomPlanAt('), '必须有以指针为锚点的缩放函数')
+  // 断言「行首的语句」而不是「字符串出现过」：把调用塞进 if (false) 也必须变红
+  assert.match(app, /\n\s*sc\.addEventListener\('wheel'/u, '平面必须真正注册滚轮缩放（不能是死分支）')
+  assert.ok(app.includes('pinch'), '平面必须支持双指捏合缩放')
+  assert.ok(app.includes('e.button === 1'), '平面必须支持中键平移')
+  assert.ok(app.includes('bindPlanZoom();'), '初始化时必须绑定缩放')
+  assert.ok(app.includes('zoomPlanAt(currentPlanZ() * 1.3)'), '＋按钮也要走同一缩放函数（保持锚点一致）')
+});
+
+test('工具栏接线：点工具即添加并进入摆放模式（旧悬浮面板已删除）', () => {
+  const app = stripComments(toolApp)
+  assert.ok(app.includes('add: function(ds)'), '必须有 add 动作')
+  assert.ok(app.includes('addComponent(ds.kind)'), 'add 动作必须调用 addComponent')
+  // 旧的悬浮面板整段删除，不能再复活
+  for (const gone of ['ADD_LIST', 'buildSheet', 'openSheet', '#fab', 'addsheet', 'sheetgrid']) {
+    assert.ok(!app.includes(gone), `app.js 仍残留旧悬浮面板实现：${gone}`)
+  }
+  // 工具栏按钮不在 #editors/#selbar 子树里 → 必须有文档级委托
+  assert.match(app, /\n\s*document\.addEventListener\('click'/u, '工具栏需要真正注册全局动作委托（不能是死分支）')
+  assert.ok(app.includes("b.closest('#editors') || b.closest('#selbar')"), '子树内按钮必须跳过，避免重复触发')
+  // 移动端：摆放时要能看到「完成」，因此自动展开属性面板；选工具后收起抽屉让出画布
+  const mob = stripComments(toolUiMobile)
+  assert.match(mob, /\n\s*if \(ctx && ctx\.placing\)\s*\{/u, '移动端摆放模式必须真正自动展开属性面板（不能是死分支）')
+  // 用正则而不是字符串拼接：这里的引号嵌套极易写坏（本轮踩过）
+  assert.match(mob, /closest\('\[data-act="add"\]'\)/u, '移动端选工具后应收起抽屉')
+});
