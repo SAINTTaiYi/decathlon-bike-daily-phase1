@@ -1,54 +1,35 @@
 {
   "kind": "formal-production-release",
-  "version": "6.8.0",
+  "version": "6.8.1",
   "previewRange": {
-    "fromExclusive": "9f3ba30555e2eafdfad941ab529fcbfc464c9c3f",
-    "toInclusive": "0c37afd048a0a7a80ce196e5913f07038123da6a",
+    "fromExclusive": "5e42cea39181b872a77e459d18bb4a542373d5af",
+    "toInclusive": "8f1c5a0ae61f64e786aada3472f55d54c40594b6",
     "commits": [
       {
-        "sha": "4f56262cdcf0d29a338495179850708dc2c13157",
-        "subject": "chore(release): stamp V6.7.9 build metadata"
+        "sha": "2e5243231fec3853ad1c66cf5f69a5047b7f62bd",
+        "subject": "chore(release): stamp V6.8.0 build metadata"
       },
       {
-        "sha": "56f3f9f15f31a7bd6a19d7799a244e27f490e807",
-        "subject": "perf(food): 食品台账读放大收敛——补排序/到期索引 + 计数表 (#276)"
+        "sha": "836d0c083e1bb78a905484cd42862e9638970175",
+        "subject": "feat(store-design): 无边线改造 + 双端拆分，底部数据改为「选中即编辑」"
       },
       {
-        "sha": "08ff3675aa2808b51674682b15808cdc53917b36",
-        "subject": "chore(release): 后端版本 6.7.9-1 —— 食品台账读放大收敛"
-      },
-      {
-        "sha": "697fff405f9a064c49022c530d8462c86ded2ba3",
-        "subject": "feat(store-design): 门店设计渲染接入（mass.workshop.skin + 三选一应用屏）"
-      },
-      {
-        "sha": "4eedc2717a772c397931cda3cab82d9629e66921",
-        "subject": "ci(deploy): 部署验证要求 /health/ready 的 gitSha 也收敛到本次发布"
-      },
-      {
-        "sha": "754ae411e8fcdc0a019e6bbe025ec2e0502d1ff4",
-        "subject": "fix(app): 非 Ops 应用的业务数据占位不得阻塞食品台账/门店设计"
-      },
-      {
-        "sha": "5993b749d5a5ee367e63ff8d97f12b7e186c3618",
-        "subject": "feat(auth): 三站共享登录会话 + CSRF 失效自愈"
-      },
-      {
-        "sha": "0c37afd048a0a7a80ce196e5913f07038123da6a",
-        "subject": "chore(release): 版本基线回归公开版本 6.7.9"
+        "sha": "8f1c5a0ae61f64e786aada3472f55d54c40594b6",
+        "subject": "feat(store-design): 三栏工作台改造（建模软件布局）+ 修复平面编辑无法缩放"
       }
     ]
   },
   "announcement": {
-    "title": "门店设计接入 + 三站共享登录",
-    "summary": "新增门店设计渲染站点（平面布局编辑、3D 视角、方案校验）；Ops、食品台账、门店设计现在共用一次登录，跨站切换不再要求重复验证",
+    "title": "门店设计改为三栏工作台 · 平面缩放修复",
+    "summary": "门店设计改成建模软件式的三栏布局（工具栏 / 视觉窗口 / 属性栏），属性栏可收起、可拖宽，把空间留给视觉窗口；同时修复平面编辑无法缩放的问题",
     "changes": [
-      "新增门店设计渲染：登录后选择进入，独立站点 mass.workshop.skin，支持平面布局编辑、3D 视角与方案校验",
-      "一次登录三站通用：Ops、食品台账、门店设计之间切换不再重复登录",
-      "安全令牌在跨标签页或跨站打开后自动续期，不再需要手动刷新页面",
-      "食品台账与门店设计不再拉取门店业务数据，每次打开少读约 800 行数据库",
-      "修复：进入食品台账或门店设计会卡在「正在读取门店业务台账」的问题"
+      "门店设计改为三栏工作台：左侧工具栏、中间视觉窗口、右侧属性栏，属性栏可收起成图标条也可拖宽",
+      "修复平面编辑无法缩放：滚轮与双指捏合可缩放（以指针为锚点）、中键拖动平移，＋/－/适应按钮同步生效",
+      "底部参数收敛为四页——属性 / 大纲 / 检查 / 设置，默认不再一次铺开全部输入框（由 222 个降到 0 个）",
+      "详情改为「选中即编辑」：点选元素后属性栏只显示这一个的参数与动作（改名 / 贴墙 / 排车等）",
+      "移动端同步同一套操作逻辑：视觉窗口占满屏幕、工具栏为左侧抽屉、属性栏由底部上拉",
+      "门店设计全面无边线化：层次改用底色与圆角，主色与 Ops 保持一致"
     ]
   },
-  "preparedAt": "2026-09-14T17:45:12.209Z"
+  "preparedAt": "2026-09-15T05:12:22.090Z"
 }
