@@ -363,7 +363,7 @@ test('数据模型：只有「选中的那一个」带字段，底部不再全�
   const shelfId = 'sh:' + cfg.shelves[0].id
   const picked = schema.buildVM(cfg, { sel: shelfId })
   assert.ok(picked.selection, '选中货架后必须有选中卡片')
-  assert.equal(picked.selection.fields.length, 7, '货架字段数')
+  assert.equal(picked.selection.fields.length, 10, '货架字段数（7 基础 + 3 附件：托臂/地架/挂钩）')
   assert.ok(picked.selection.fields.every((f) => f.path.startsWith('shelves.')), '字段路径必须指向该货架')
   const stillBare = picked.elements.flatMap((g) => g.items).filter((it) => (it.fields || []).length > 0)
   assert.equal(stillBare.length, 1, '只有选中的那一个元素携带字段')
@@ -454,3 +454,87 @@ test('工具栏接线：点工具即添加并进入摆放模式（旧悬浮面�
   // 用正则而不是字符串拼接：这里的引号嵌套极易写坏（本轮踩过）
   assert.match(mob, /closest\('\[data-act="add"\]'\)/u, '移动端选工具后应收起抽屉')
 });
+
+// ── 2026-09-15 货架自行车附件（托臂 / 地架 / 挂钩，门店实际陈列规格）────────────
+// 用户口径：1m 货架放 3 个自行车地架；2m 货架托臂上下各横放 1 台；4m 货架托臂
+// 上下横放 6 台 16″ 童车；挂钩 1m 4 个。
+
+test('货架附件：引擎规格与门店口径一致（2m 上下 1 台 / 4m 童车 6 台 / 1m 地架 3 个 / 1m 挂钩 4 个）', async () => {
+  const vm = await import('node:vm')
+  const sandbox = vm.createContext({ module: { exports: {} }, exports: {}, console })
+  vm.runInContext(toolEngine, sandbox, { filename: 'store-design/engine.js' })
+  const engine = sandbox.module.exports
+  const mkShelf = (o) => Object.assign({ id: 's1', name: '', kind: 'double', orient: 'h', x: 2, y: 2, h: 1.5, acc: {} }, o)
+  const mkCfg = (shelves) => {
+    const c = engine.defaultConfig()
+    c.bikes = []
+    c.shelves = shelves
+    return c
+  }
+  // 2m 货架 + 成人托臂 → 上下各 1 台（共 2）
+  let cfg = mkCfg([mkShelf({ len: 2, acc: { arm: 'adult' } })])
+  assert.equal(engine.armCount(cfg.shelves[0]), 1, '2m 成人托臂每层 1 台')
+  assert.equal(engine.accBikesOf(cfg).filter((b) => b.acc === 'arm').length, 2, '2m 成人托臂上下共 2 台')
+  // 4m 货架 + 16″ 童车托臂 → 上下各 3 台（共 6）
+  cfg = mkCfg([mkShelf({ len: 4, acc: { arm: 'kids' } })])
+  assert.equal(engine.armCount(cfg.shelves[0]), 3, '4m 童车托臂每层 3 台')
+  assert.equal(engine.accBikesOf(cfg).filter((b) => b.acc === 'arm').length, 6, '4m 童车托臂上下共 6 台')
+  // 地架 3 个/m、挂钩 4 个/m
+  cfg = mkCfg([mkShelf({ len: 1, acc: { rack: 'kids', hook: 'on' } })])
+  assert.equal(engine.rackCount(cfg.shelves[0]), 3, '1m 地架 3 个')
+  assert.equal(engine.hookCount(cfg.shelves[0]), 4, '1m 挂钩 4 个')
+  cfg = mkCfg([mkShelf({ len: 3, acc: { rack: 'adult', hook: 'on' } })])
+  assert.equal(engine.rackCount(cfg.shelves[0]), 9, '3m 地架 9 个')
+  assert.equal(engine.hookCount(cfg.shelves[0]), 12, '3m 挂钩 12 个')
+  // 默认配置不含附件（不改变既有默认方案）
+  const d = engine.defaultConfig()
+  assert.equal(engine.accOn(d.shelves[0]), false, '默认货架不装附件')
+  assert.equal(engine.accBikesOf(d).filter((b) => b.acc === 'arm').length, 0, '默认无托臂车')
+  assert.equal(engine.accBikesOf(d).filter((b) => b.acc === 'rack').length, 0, '默认无地架车')
+})
+
+test('货架附件：渲染落地（3D + 平面都有装置与附件车，无 NaN）', async () => {
+  const vm = await import('node:vm')
+  const sandbox = vm.createContext({ module: { exports: {} }, exports: {}, console })
+  vm.runInContext(toolEngine, sandbox, { filename: 'store-design/engine.js' })
+  const engine = sandbox.module.exports
+  const cfg = engine.defaultConfig()
+  cfg.bikes = []
+  cfg.shelves = [Object.assign({}, cfg.shelves[0], { id: 'r1', len: 4, acc: { arm: 'kids', rack: 'kids', hook: 'on' } })]
+  const svg3 = engine.render3D(cfg, { az: 90, el: 33, zoom: 1, vw: 1000, vh: 700 })
+  const svgP = engine.renderPlan(cfg, { sel: null })
+  assert.ok(!/NaN|undefined/u.test(svg3), '3D 渲染不得含 NaN/undefined')
+  assert.ok(!/NaN|undefined/u.test(svgP), '平面渲染不得含 NaN/undefined')
+  assert.equal((svg3.match(/data-acc="arm"/gu) ?? []).length, 6, '3D 托臂车 6 台')
+  assert.equal((svg3.match(/data-acc="rack"/gu) ?? []).length, 12, '3D 地架车 12 台')
+  assert.equal((svgP.match(/data-acc="arm"/gu) ?? []).length, 6, '平面托臂车 6 台')
+  assert.equal((svgP.match(/data-acc="rack"/gu) ?? []).length, 12, '平面地架车 12 台')
+  assert.match(svgP, /data-id="acc:r1:arm:/u, '平面附件车用 acc: 前缀 id（点它映射到所属货架）')
+})
+
+test('货架附件：交互接线（双端按钮 + 循环切换 + 面板字段 + 点击映射）', () => {
+  const app = stripComments(toolApp)
+  assert.ok(app.includes('function cycleAcc('), 'app.js 必须有附件循环切换')
+  assert.ok(app.includes("accArm: function(ds){ cycleAcc(ds.id, 'arm'); }"), 'acts 表必须接 accArm')
+  assert.ok(app.includes("accRack: function(ds){ cycleAcc(ds.id, 'rack'); }"), 'acts 表必须接 accRack')
+  assert.ok(app.includes("accHook: function(ds){ cycleAcc(ds.id, 'hook'); }"), 'acts 表必须接 accHook')
+  assert.ok(app.includes("act === 'accArm'"), 'selbar 必须处理附件按钮点击')
+  assert.ok(app.includes("if (id && id.slice(0, 4) === 'acc:') id = 'sh:' + id.split(':')[1];"), '点击附件车必须映射到所属货架')
+  assert.ok(app.includes('function renderSelBar(force)'), 'renderSelBar 必须支持强制重建（按钮态随点随变）')
+  assert.ok(app.includes('afterStruct(); renderSelBar(true);'), '附件切换后必须重建快捷条')
+  assert.ok(app.includes("if (/^shelves\\.\\d+\\.acc\\./.test(p)) renderSelBar(true);"), '属性面板改附件要刷新快捷条')
+  // 双端各自实现：桌面端经 accBtnDesktop() 生成（data-bact 拼接），移动端直接拼字符串
+  const dtUi = stripComments(toolUiDesktop)
+  for (const [act, name] of [['accArm', '托臂'], ['accRack', '地架'], ['accHook', '挂钩']]) {
+    assert.ok(dtUi.includes(`accBtnDesktop('${act}', '${name}'`), `桌面端必须有${name}按钮`)
+  }
+  assert.ok(dtUi.includes("data-bact=\"' + act + '\""), '桌面端按钮必须带 data-bact 分发')
+  const mbUi = stripComments(toolUiMobile)
+  for (const act of ['accArm', 'accRack', 'accHook']) {
+    assert.ok(mbUi.includes(`data-bact="${act}"`), `移动端必须有 ${act} 按钮`)
+  }
+  const schema = stripComments(toolSchema)
+  assert.ok(schema.includes("'shelves.' + i + '.acc.arm'"), '属性面板必须有托臂字段')
+  assert.ok(schema.includes("'shelves.' + i + '.acc.rack'"), '属性面板必须有地架字段')
+  assert.ok(schema.includes("'shelves.' + i + '.acc.hook'"), '属性面板必须有挂钩字段')
+})

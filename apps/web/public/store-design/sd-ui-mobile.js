@@ -270,6 +270,11 @@ function stepper(field, val, unit){
     + '<b data-bval="' + field + '" data-unit="' + (unit || '') + '">' + fnum(val) + (unit || '') + '</b>'
     + '<button data-bstep="' + field + '" data-bsign="1">＋</button></span>';
 }
+function accLab(v){ return v === 'adult' ? '成人' : (v === 'kids' ? '童车' : '无'); }
+function accNow(o, key){
+  var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
+  return a ? a[key] : 'none';
+}
 function selBarHTML(ctx){
   var k = ctx.kind, o = ctx.item, h = '';
   var close = '<button class="sd-m-x" data-bact="close" aria-label="取消选中">✕</button>';
@@ -295,6 +300,10 @@ function selBarHTML(ctx){
       + '<button data-bact="dup">复制</button>' + del + '</div>';
     h += '<div class="sd-m-selrow"><span class="sd-m-tag">🚲</span><button data-bact="fillb" data-bt="adult">排成人车</button>'
       + '<button data-bact="fillb" data-bt="kids">排童车</button><button data-bact="clearb">清空本架</button></div>';
+    h += '<div class="sd-m-selrow"><span class="sd-m-tag">🪝</span>'
+      + '<button data-bact="accArm"' + (accNow(o, 'arm') !== 'none' ? ' data-on="true"' : '') + '>托臂：' + accLab(accNow(o, 'arm')) + '</button>'
+      + '<button data-bact="accRack"' + (accNow(o, 'rack') !== 'none' ? ' data-on="true"' : '') + '>地架：' + accLab(accNow(o, 'rack')) + '</button>'
+      + '<button data-bact="accHook"' + (accNow(o, 'hook') === 'on' ? ' data-on="true"' : '') + '>挂钩：' + (accNow(o, 'hook') === 'on' ? '开' : '无') + '</button></div>';
   } else if (k === 'st'){
     h += '<div class="sd-m-selrow">' + close
       + '<input class="sd-m-name" type="text" placeholder="工作室名称" value="' + esc(o.name || '') + '">'

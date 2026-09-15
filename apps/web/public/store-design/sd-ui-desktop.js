@@ -263,6 +263,16 @@ function renderStatus(items){
 }
 
 /* ---------- 选中动作条（右栏顶部，完整参数在下面） ---------- */
+function accLab(v){ return v === 'adult' ? '成人' : (v === 'kids' ? '童车' : '无'); }
+function accNow(o, key){
+  var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
+  return a ? a[key] : (key === 'hook' ? 'none' : 'none');
+}
+function accBtnDesktop(act, name, val){
+  var on = (val === 'adult' || val === 'kids' || val === 'on');
+  var lab = (val === 'on') ? '开' : accLab(val);
+  return '<button class="sd-d-act" data-bact="' + act + '"' + (on ? ' data-on="true"' : '') + '>' + name + '：' + lab + '</button>';
+}
 function selBarHTML(ctx){
   var k = ctx.kind, o = ctx.item, h = '';
   var close = '<button class="sd-d-act sd-d-act-ghost" data-bact="close">取消选中</button>';
@@ -284,7 +294,10 @@ function selBarHTML(ctx){
       + '<button class="sd-d-act" data-bact="dup">复制</button>'
       + '<button class="sd-d-act" data-bact="fillb" data-bt="adult">排成人车</button>'
       + '<button class="sd-d-act" data-bact="fillb" data-bt="kids">排童车</button>'
-      + '<button class="sd-d-act" data-bact="clearb">清空本架车</button>' + del + close;
+      + '<button class="sd-d-act" data-bact="clearb">清空本架车</button>'
+      + accBtnDesktop('accArm', '托臂', accNow(o, 'arm'))
+      + accBtnDesktop('accRack', '地架', accNow(o, 'rack'))
+      + accBtnDesktop('accHook', '挂钩', accNow(o, 'hook')) + del + close;
   } else if (k === 'st'){
     h += '<b class="sd-d-selflag">工作室</b>' + close;
   } else if (k === 'zn'){

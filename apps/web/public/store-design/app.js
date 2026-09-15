@@ -354,6 +354,26 @@ function fillShelfBikes(ids){
   toast('已排入 ' + list.length + ' 台' + (typ === 'kids' ? '童车(1.5m)' : '成人车(2m)') + (pose === 'top' ? '，平放架顶，2m/位' : '，垂直90°摆放，车头45°倾斜'));
 }
 
+/* 货架陈列附件（托臂 / 地架 / 挂钩）：点击循环切换「无 → 成人 → 童车 → 无」。
+   附件不落盘成独立元素：全部由货架配置（shelves[].acc）派生渲染，随货架自动跟随。 */
+var ACC_CYCLE = { arm: ['none', 'adult', 'kids'], rack: ['none', 'adult', 'kids'], hook: ['none', 'on'] };
+var ACC_LABEL = { none: '无', adult: '成人', kids: '童车', on: '开' };
+function accLabel(v){ return ACC_LABEL[v] || '无'; }
+function cycleAcc(id, key){
+  var s = shelfGet(id); if (!s) return;
+  s.acc = s.acc || {};
+  var seq = ACC_CYCLE[key] || ['none'];
+  var cur = s.acc[key];
+  var idx = seq.indexOf(cur); if (idx < 0) idx = 0;
+  s.acc[key] = seq[(idx + 1) % seq.length];
+  afterStruct(); renderSelBar(true);
+  var a = E.accOf(s), msg;
+  if (key === 'arm') msg = '托臂：' + (a.arm === 'none' ? '已拆除' : ((a.arm === 'kids' ? '挂 16″ 童车' : '挂成人车') + ' ×' + (2 * E.armCount(s)) + '（上下各 ' + E.armCount(s) + '）'));
+  else if (key === 'rack') msg = '地架：' + (a.rack === 'none' ? '已拆除' : ((a.rack === 'kids' ? '童车' : '成人车') + ' ×' + E.rackCount(s) + '（每米 3 个）'));
+  else msg = '挂钩：' + (a.hook === 'on' ? (E.hookCount(s) + ' 个（每米 4 个）') : '已拆除');
+  toast(msg);
+}
+
 var acts = {
   rand: function(){ doRandom(); },
   /* 左侧工具栏：点工具即就地添加并进入摆放模式（拖动屏幕定位）。 */
@@ -382,6 +402,9 @@ var acts = {
   },
   flushWall: function(ds){ flushWallTo(ds.id); },
   fillb: function(ds){ fillShelfBikes(ds.id); },
+  accArm: function(ds){ cycleAcc(ds.id, 'arm'); },
+  accRack: function(ds){ cycleAcc(ds.id, 'rack'); },
+  accHook: function(ds){ cycleAcc(ds.id, 'hook'); },
   addCurtain: function(){ cfg.curtains = cfg.curtains || []; cfg.curtains.push({ id: nid(), orient:'h', x: 3, y: 0.22, len: 3, h: 1.9 }); afterStruct(); },
   delCurtain: function(ds){ cfg.curtains = (cfg.curtains || []).filter(function(x){ return String(x.id) !== String(ds.id); }); afterStruct(); },
   addBikeA: function(){ cfg.bikes = cfg.bikes || []; cfg.bikes.push({ id: nid(), type:'adult', x: 5, y: 5, angle: 45 }); afterStruct(); },
@@ -458,6 +481,7 @@ function onEditInput(e){
     }
   }
   ensureStructures(p);
+  if (/^shelves\.\d+\.acc\./.test(p)) renderSelBar(true);
   saveSoon(); renderChips(); schedule3D(); renderPlanNow();
 }
 function onEditClick(e){
@@ -590,6 +614,8 @@ function bindPlan(){
     if (!id){
       if (!t){ ui.sel = null; afterSelect(); return; }
       id = t.getAttribute('data-id');
+      /* 货架附件车（托臂 / 地架）是派生元素：点它等于选中所属货架，参数在货架面板上改 */
+      if (id && id.slice(0, 4) === 'acc:') id = 'sh:' + id.split(':')[1];
     }
     if (ui.sel !== id){
       try {
@@ -733,7 +759,7 @@ function scrollToSection(){ if (window.SDUI && SDUI.revealSelection) SDUI.reveal
 
 /* 快捷条：结构由当前界面实现产出（移动端=底部浮动条含步进器；桌面端=动作条），
    这里只负责「何时显示」与状态属性的维护。 */
-function renderSelBar(){
+function renderSelBar(force){
   var bar = els.selbar || $('#selbar');
   if (!bar) return;
   var it = selGet();
@@ -743,7 +769,8 @@ function renderSelBar(){
     return;
   }
   var placing = !!(ui.placing && String(ui.sel) === String(ui.placing));
-  if (bar.classList.contains('show') && bar.getAttribute('data-sel') === String(ui.sel)
+  /* 附件按钮的选中态 / 文字随点随变，切换时必须强制重建（force=true） */
+  if (!force && bar.classList.contains('show') && bar.getAttribute('data-sel') === String(ui.sel)
       && bar.getAttribute('data-place') === (placing ? '1' : '')){
     if (window.SDUI) SDUI.refreshSelVals(bar, it);
     return;
@@ -825,6 +852,8 @@ function bindSelBar(){
     } else if (act === 'fillb'){
       fillShelfBikes(id + ':' + b.getAttribute('data-bt'));
       renderSelBar();
+    } else if (act === 'accArm' || act === 'accRack' || act === 'accHook'){
+      cycleAcc(id, act === 'accArm' ? 'arm' : (act === 'accRack' ? 'rack' : 'hook'));
     } else if (act === 'clearb'){
       var rc0 = E.shelfRect(it.o), pad0 = 0.9;
       cfg.bikes = (cfg.bikes || []).filter(function(b2){
@@ -1159,6 +1188,38 @@ function runSelfTest(){
           var dn = $('[data-bact="placeDone"]');
           if (dn) dn.click();
           log.push('placingEnded=' + !$('[data-bact="placeDone"]'));
+          /* --- 货架陈列附件：托臂 / 地架 / 挂钩 循环切换（2026-09-15 新增）--- */
+          var sg3 = document.querySelector('[data-id^="sh:"]');
+          if (sg3){
+            var r3 = sg3.getBoundingClientRect();
+            sg3.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true, clientX:r3.x+20, clientY:r3.y+8, pointerId:31, button:0}));
+            window.dispatchEvent(new PointerEvent('pointerup', {bubbles:true, clientX:r3.x+20, clientY:r3.y+8, pointerId:31}));
+          }
+          function cntAcc(kind){ return document.querySelectorAll('[data-acc="' + kind + '"]').length; }
+          var armBtn0 = $('[data-bact="accArm"]');
+          if (armBtn0){
+            var seqA = [cntAcc('arm')];
+            armBtn0.click(); seqA.push(cntAcc('arm'));
+            $('[data-bact="accArm"]').click(); seqA.push(cntAcc('arm'));
+            $('[data-bact="accArm"]').click(); seqA.push(cntAcc('arm'));
+            log.push('accArm=' + seqA.join('>'));
+            log.push('accArmLabel=' + $('[data-bact="accArm"]').textContent);
+          } else { log.push('NO-ACCARM'); }
+          var rackBtn0 = $('[data-bact="accRack"]');
+          if (rackBtn0){
+            var rb0 = cntAcc('rack');
+            rackBtn0.click();
+            var ra0 = cntAcc('rack'), rl0 = $('[data-bact="accRack"]').textContent;
+            $('[data-bact="accRack"]').click();
+            log.push('accRack=' + rb0 + '>' + ra0 + '(' + rl0 + ')');
+          } else { log.push('NO-ACCRACK'); }
+          var hookBtn0 = $('[data-bact="accHook"]');
+          if (hookBtn0){
+            hookBtn0.click();
+            var hl0 = $('[data-bact="accHook"]').textContent;
+            $('[data-bact="accHook"]').click();
+            log.push('accHook=' + hl0 + '>' + $('[data-bact="accHook"]').textContent);
+          } else { log.push('NO-ACCHOOK'); }
           log.push('errlog=' + JSON.stringify(($('#errlog').textContent || '').slice(0,80)));
         } else { log.push('NO-BIKE-ELEM'); }
       } catch(e){ log.push('THREW: ' + (e && e.message)); }

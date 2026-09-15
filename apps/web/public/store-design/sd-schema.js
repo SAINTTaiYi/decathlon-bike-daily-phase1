@@ -65,17 +65,23 @@ function statusItems(ck){
     { tone: ck.okEntrance ? 'ok' : 'bad', text:'出入口净空' }
   ];
   if (ck.bikeAdult || ck.bikeKid) items.push({ tone:'info', text:'🚲 成人 ' + ck.bikeAdult + ' · 童车 ' + ck.bikeKid });
+  if (ck.accArm || ck.accRack || ck.accHook) items.push({ tone:'info', text:'托臂 ' + ck.accArm + ' · 地架 ' + ck.accRack + (ck.accHook ? ' · 挂钩 ' + ck.accHook : '') });
   if (ck.warnings && ck.warnings.length) items.push({ tone:'warn', text:'⚠ ' + ck.warnings.length + ' 条提示' });
   return items;
 }
 
 /* ---------- 各类型元素的字段 ---------- */
 function shelfFields(s, i){
+  var acc = E().accOf(s);
   return [
     text('shelves.' + i + '.name', '名称', s.name, '如 A区热销'),
     select('shelves.' + i + '.kind', '类型', s.kind, SHELF_KINDS),
     select('shelves.' + i + '.orient', '朝向', s.orient, ORIENT_HV),
     number('shelves.' + i + '.len', '长度', s.len, { unit:'m', min:0.3, max:100, step:0.1 }),
+    /* 自行车陈列附件（门店规格：托臂每层 2m/位·成人车、4/3m/位·16″ 童车；地架 3 个/m；挂钩 4 个/m） */
+    select('shelves.' + i + '.acc.arm', '托臂挂车', acc.arm, [['none','不装'],['adult','成人车'],['kids','16″ 童车']]),
+    select('shelves.' + i + '.acc.rack', '地架排车', acc.rack, [['none','不装'],['adult','成人车'],['kids','童车']]),
+    select('shelves.' + i + '.acc.hook', '自行车挂钩', acc.hook, [['none','不装'],['on','装（4 个/米）']]),
     number('shelves.' + i + '.h', '高度', (s.h == null ? 1.5 : s.h), { unit:'m', min:0.5, max:3, step:0.1 }),
     number('shelves.' + i + '.x', 'x 坐标', s.x, { unit:'m', min:0, max:200, step:0.1 }),
     number('shelves.' + i + '.y', 'y 坐标', s.y, { unit:'m', min:0, max:200, step:0.1 })
@@ -189,9 +195,13 @@ function elementGroups(cfg){
   if (cfg.shelves.length){
     g.push({ key:'sh', title:'货架', items: cfg.shelves.map(function(s, i){
       var nA = E().bikesForShelf(s, 'adult').length, nK = E().bikesForShelf(s, 'kids').length;
+      var acc = E().accOf(s), accBit = '';
+      if (acc.arm !== 'none') accBit += ' · 托臂×' + (2 * E().armCount(s));
+      if (acc.rack !== 'none') accBit += ' · 地架×' + E().rackCount(s);
+      if (acc.hook === 'on') accBit += ' · 挂钩×' + E().hookCount(s);
       return { id:'sh:' + s.id, type:'sh', index:i, title: s.name ? s.name : ('货架 #' + (i + 1)),
         badge: (s.kind === 'double' ? '双面' : s.kind === 'single' ? '单面' : '矮货架') + ' ' + num(s.len) + 'm'
-          + (nA + nK ? ' · 🚲' + (nA + nK) : ''),
+          + (nA + nK ? ' · 🚲' + (nA + nK) : '') + accBit,
         actions: shelfActions(s),
         extra: [
           action('fillb', s.id + ':adult:stand', '🚲 成人 ×' + nA),
