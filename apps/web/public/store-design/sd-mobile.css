@@ -43,6 +43,7 @@ body[data-sd-ui='mobile'] { height: 100vh; overflow: hidden; }
 .sd-m-vtools::-webkit-scrollbar { display: none; }
 .sd-m-vtools button { flex: none; padding: 8px 12px 9px; border-radius: var(--sd-r-sm); background: var(--sd-sunken); color: var(--sd-ink); font-size: 12.5px; font-weight: 620; }
 .sd-m-vtools button:active { background: var(--sd-sunken-strong); }
+.sd-m-vtools button[data-on='true'] { background: var(--sd-accent); color: var(--sd-accent-press); }
 .sd-m-more { background: var(--sd-accent-soft); color: #7a5b06; }
 .sd-m-fold { flex: none; display: none; gap: 8px; padding: 2px 2px 8px; }
 .sd-m-fold[data-open='true'] { display: grid; }

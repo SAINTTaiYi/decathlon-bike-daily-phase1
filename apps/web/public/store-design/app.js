@@ -61,7 +61,7 @@ try {
   }
 } catch(e1){}
 var ui = { tab: 't3d', sel: null, planZ: null, grid: true, snap: 0.5,
-           frontShelf: null, frontRow: null, frontScale: null };
+           frontShelf: null, frontRow: null, frontScale: null, frontFace: {} };
 
 function $(q, root){ return (root || document).querySelector(q); }
 function $all(q, root){ return Array.prototype.slice.call((root || document).querySelectorAll(q)); }
@@ -389,17 +389,34 @@ function nextArmRowId(rows){
 }
 function addArmRow(id, len){
   var s = shelfGet(id); if (!s) return;
+  /* 新增的排挂到「当前正在看的那一面」（双面货架可分别往两面加） */
+  var faceWanted = (ui.tab === 'tfront') ? frontFaceOf(s) : null;
   s.acc = s.acc || {};
   if (!Array.isArray(s.acc.armRows)) s.acc.armRows = [];
   var rows = s.acc.armRows;
   var isLong = (len === 'long');
-  var row = { id: nextArmRowId(rows), z: E.nextArmZ(s, rows), len: isLong ? 'long' : 'short',
-              size: isLong ? 'adult' : 'kids', u0: 0, u1: (+s.len || 4) };
+  var shelfLen = (+s.len || 4);
+  var size = isLong ? 'adult' : 'kids';
+  /* 默认范围 = 这排车的实际占位（每台一个位宽），而不是整根货架：
+     这样新加的排默认就是「可左右移动」的，不用先手动缩范围（2026-09-15）。 */
+  var fit = Math.max(1, Math.floor(shelfLen / E.ARM_SLOT[size] + 1e-6));
+  /* 层高避让只看「同一面」已有的排（两面各自排层） */
+  var rowZ = null;
+  if (faceWanted){
+    var onFace = rows.filter(function(r){ return (r.face === faceWanted); });
+    rowZ = E.nextArmZ(s, onFace);
+  }
+  var span = Math.min(shelfLen, Math.round(fit * E.ARM_SLOT[size] * 100) / 100);
+  var row = { id: nextArmRowId(rows), z: (rowZ == null) ? E.nextArmZ(s, rows) : rowZ, len: isLong ? 'long' : 'short',
+              size: size, u0: 0, u1: span };
+  if (faceWanted) row.face = faceWanted;
   rows.push(row);
   afterStruct(); renderSelBar(true);
   var norm = E.accOf(s).rows[rows.length - 1];
-  toast('已加' + (isLong ? '长托臂 1m（成人车）' : '短托臂 0.5m（16″ 童车）') + '：'
-    + norm.z + 'm 高 · ' + E.rowBikeCount(s, norm) + ' 台（高度可在属性栏调）');
+  toast('已加' + (isLong ? '长托臂 1m（成人车）' : '短托臂 0.5m（16″ 童车）')
+    + (faceWanted ? '（' + frontFaceName(s, faceWanted) + '）' : '') + '：'
+    + norm.z + 'm 高 · ' + E.rowBikeCount(s, norm) + ' 台 · 占货架 ' + norm.u0 + '~' + norm.u1 + 'm'
+    + (norm.u1 - norm.u0 < shelfLen - 0.05 ? '（可左右拖动）' : '（高度可在属性栏调）'));
 }
 function delArmRow(id, idx){
   var s = shelfGet(id); if (!s) return;
@@ -1104,11 +1121,22 @@ function importJson(e){
    在这里可以拖动托臂排：上下 = 改高度、左右 = 整排平移，两端圆点 = 改起止范围。
    视图数据全在 SVG 的 data-* 上（scale/mx/my/len/h），交互层不需要额外状态。 */
 /* 屏幕坐标 → 立面局部坐标（u 沿货架、z 离地），与平面视图的 toWorld 同一套 CTM 变换 */
+/* 屏幕坐标 → 立面局部坐标（u 沿货架、z 离地）。
+   注意：拖动过程中每一帧都会重建 SVG，旧元素随即脱离文档、getScreenCTM() 变成 null ——
+   若继续拿它换算，得到的坐标是垃圾值（被 clamp 到边界），表现为「拖一下就跳到角落」。
+   所以这里必须判空，由调用方传入当前还在文档里的 SVG（2026-09-15 修）。 */
 function toFrontUZ(svgEl, cx, cy){
   var m = frontMeta(); if (!m) return null;
+  if (!svgEl || !svgEl.isConnected || typeof svgEl.getScreenCTM !== 'function') return null;
+  var ctm = svgEl.getScreenCTM();
+  if (!ctm) return null;
   var pt = svgEl.createSVGPoint(); pt.x = cx; pt.y = cy;
-  var q = pt.matrixTransform(svgEl.getScreenCTM().inverse());
+  var q = pt.matrixTransform(ctm.inverse());
   return { u: (q.x - m.mx) / m.scale, z: (m.my - q.y) / m.scale };
+}
+/* 当前正在显示的正面视图 SVG（拖动中每帧都要重新取，不能用捕获的旧引用） */
+function frontSvgLive(){
+  return els.viewfront ? els.viewfront.querySelector('svg') : null;
 }
 function frontMeta(){
   var svg = els.viewfront ? els.viewfront.querySelector('svg') : null;
@@ -1140,6 +1168,42 @@ function materializeRow(s, r){
   if (r.u1 == null) r.u1 = norm.u1;
   return r;
 }
+/* 当前正在看的面：优先用户选的，否则用货架的自动面 */
+function frontFaceOf(s){
+  if (!s) return 'pos';
+  var picked = ui.frontFace[s.id];
+  if (picked === 'pos' || picked === 'neg') return picked;
+  return E.accFace(s, cfg);
+}
+function frontFaceSet(id, face){
+  if (face !== 'pos' && face !== 'neg') delete ui.frontFace[id];
+  else ui.frontFace[id] = face;
+  renderFrontNow();
+}
+/* 把当前面的托臂排镜像到另一面（用户：「另一面没有办法添加组件」） */
+function mirrorRowsToOtherFace(s){
+  var acc = E.accOf(s);
+  var here = frontFaceOf(s), there = (here === 'pos') ? 'neg' : 'pos';
+  var mine = acc.rows.filter(function(r){ return E.rowFace(s, r, cfg) === here; });
+  if (!mine.length){ toast(frontFaceName(s, here) + '还没有托臂排'); return; }
+  s.acc = s.acc || {};
+  if (!Array.isArray(s.acc.armRows)) s.acc.armRows = [];
+  var maxN = 0;
+  s.acc.armRows.forEach(function(r){
+    var m = /^a(\d+)$/.exec(r && r.id ? r.id : '');
+    if (m) maxN = Math.max(maxN, +m[1]);
+  });
+  mine.forEach(function(r){
+    maxN += 1;
+    s.acc.armRows.push({ id: 'a' + maxN, z: r.z, len: r.len, size: r.size, u0: r.u0, u1: r.u1, face: there });
+  });
+  afterStruct(); renderSelBar(true);
+  toast('已把 ' + mine.length + ' 排托臂复制到' + frontFaceName(s, there));
+}
+function frontFaceName(s, face){
+  var n = E.faceNames(s);
+  return n[face] || face;
+}
 function renderFrontBar(){
   var bar = els.frontBar; if (!bar) return;
   var s = frontShelfOf();
@@ -1148,9 +1212,20 @@ function renderFrontBar(){
     return;
   }
   var acc = E.accOf(s), rows = acc.rows.length;
+  var names = E.faceNames(s);
+  var here = frontFaceOf(s), there = (here === 'pos') ? 'neg' : 'pos';
+  var nHere = E.armRowsOnFace(s, cfg, here).length;
+  var nThere = E.armRowsOnFace(s, cfg, there).length;
+  var dbl = (s.kind === 'double');
   bar.innerHTML =
-    '<button data-act="addArm" data-id="' + esc2(s.id) + ':short">＋短托臂 0.5m</button>'
+    (dbl
+      ? '<span class="sd-d-mini sd-m-mini">挂载面</span>'
+        + '<button data-frontface="pos"' + (here === 'pos' ? ' data-on="true"' : '') + '>' + names.pos + '（' + E.armRowsOnFace(s, cfg, 'pos').length + '）</button>'
+        + '<button data-frontface="neg"' + (here === 'neg' ? ' data-on="true"' : '') + '>' + names.neg + '（' + E.armRowsOnFace(s, cfg, 'neg').length + '）</button>'
+      : '')
+    + '<button data-act="addArm" data-id="' + esc2(s.id) + ':short">＋短托臂 0.5m</button>'
     + '<button data-act="addArm" data-id="' + esc2(s.id) + ':long">＋长托臂 1m</button>'
+    + (dbl && nHere ? '<button data-frontmirror="1">镜像到' + names[there] + '（' + nHere + ' 排）</button>' : '')
     + (rows ? '<button data-act="clearArms" data-id="' + esc2(s.id) + '" data-tone="danger">清空托臂（' + rows + ' 排）</button>' : '')
     + '<button data-frontzoom="out">－</button><button data-frontzoom="in">＋</button><button data-frontzoom="fit">适应</button>';
 }
@@ -1166,8 +1241,15 @@ function renderFrontNow(){
   /* 容器内宽要先扣掉内边距（否则可视区比 SVG 窄几个像素，出现横向滚动条） */
   var vw = (els.frontScroll ? els.frontScroll.clientWidth : 900) - 18;
   var vh = els.frontScroll ? els.frontScroll.clientHeight - 12 : 0;
-  var r = E.renderShelfFront(cfg, s.id, { vw: vw, vh: vh, scale: ui.frontScale || 0, selRow: ui.frontRow });
+  var r = E.renderShelfFront(cfg, s.id, { vw: vw, vh: vh, scale: ui.frontScale || 0, selRow: ui.frontRow,
+                                          face: frontFaceOf(s) });
   els.viewfront.innerHTML = r.svg;
+  var fsvgEl = els.viewfront.querySelector('svg');
+  if (fsvgEl){
+    fsvgEl.setAttribute('data-face', r.meta.face || '');
+    fsvgEl.setAttribute('data-rows', String(r.meta.rows || 0));
+    fsvgEl.setAttribute('data-other-rows', String(r.meta.otherRows || 0));
+  }
   if (r.meta && !ui.frontScale) ui.frontScale = r.meta.scale;
 }
 function frontZoom(kind){
@@ -1205,21 +1287,27 @@ function bindFront(){
     materializeRow(s, r);
     var start = { z: r.z, u0: r.u0, u1: r.u1 };
     var pt = toFrontUZ(svgEl, e.clientX, e.clientY); if (!pt) return;
-    var s0 = { u: pt.u, z: pt.z }, moved = false;
+    var s0 = { u: pt.u, z: pt.z }, moved = false, hinted = false;
     e.preventDefault();
     try { sc.setPointerCapture(e.pointerId); } catch(e1){}
     function blockTM(ev){ ev.preventDefault(); }
     sc.addEventListener('touchmove', blockTM, { passive:false });
     function move(ev){
-      var p = toFrontUZ(svgEl, ev.clientX, ev.clientY); if (!p) return;
+      var p = toFrontUZ(frontSvgLive(), ev.clientX, ev.clientY); if (!p) return;
       var du = p.u - s0.u, dz = p.z - s0.z;
       if (!moved && Math.hypot(du, dz) * m.scale < 4) return;   /* 4px 死区：点选 vs 拖动 */
       moved = true;
       if (mode === 'move'){
         r.z = E.clamp(Math.round((start.z + dz) / 0.05) * 0.05, 0.2, Math.max(0.3, m.h - 0.85));
         var w = start.u1 - start.u0;
-        var u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, Math.max(0, m.len - w));
+        var slack = Math.max(0, m.len - w);
+        var u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, slack);
         r.u0 = u0; r.u1 = Math.round((u0 + w) * 100) / 100;
+        /* 已经占满货架长度的排没有可移动空间：横向意图明显时提示一次怎么腾出空间 */
+        if (!hinted && slack < 0.05 && Math.abs(du) > 0.4){
+          hinted = true;
+          toast('这一排已经占满货架长度：拖两端圆点缩小范围后即可左右移动');
+        }
       } else if (mode === 'left'){
         r.u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, Math.max(0, start.u1 - 0.4));
       } else {
@@ -1235,8 +1323,13 @@ function bindFront(){
       window.removeEventListener('pointerup', up);
       try { sc.releasePointerCapture(e.pointerId); } catch(e2){}
       if (moved){
-        if (window.SDUI && SDUI.refreshSelVals) renderSelBar(true);
+        /* 拖完这一排就把它设为「当前排」：立即画出两端手柄、属性栏同步到这一排，
+           接着就能调起止范围（否则拖完还得再点一下才能拿到手柄）。 */
+        ui.frontRow = rowId;
+        ui.sel = 'sh:' + s.id;
         saveSoon(); renderChips(); schedule3D(); renderPlanNow(); buildEditors();
+        renderSelBar();
+        renderFrontNow();
       } else {
         ui.frontRow = rowId;
         ui.sel = 'sh:' + s.id;
@@ -1336,9 +1429,19 @@ function bindGlobal(){
   });
   if (els.frontBar){
     els.frontBar.addEventListener('click', function(e){
-      var b = e.target && e.target.closest ? e.target.closest('[data-frontzoom]') : null;
-      if (!b) return;
-      frontZoom(b.getAttribute('data-frontzoom'));
+      var z = e.target && e.target.closest ? e.target.closest('[data-frontzoom]') : null;
+      if (z){ frontZoom(z.getAttribute('data-frontzoom')); return; }
+      var fb = e.target && e.target.closest ? e.target.closest('[data-frontface]') : null;
+      if (fb){
+        var s0 = frontShelfOf();
+        if (s0) frontFaceSet(s0.id, fb.getAttribute('data-frontface'));
+        return;
+      }
+      var mb = e.target && e.target.closest ? e.target.closest('[data-frontmirror]') : null;
+      if (mb){
+        var s1 = frontShelfOf();
+        if (s1) mirrorRowsToOtherFace(s1);
+      }
     });
   }
 }
@@ -1475,6 +1578,36 @@ function runSelfTest(){
             $('[data-bact="accHook"]').click();
             log.push('accHook=' + hl0 + '>' + $('[data-bact="accHook"]').textContent);
           } else { log.push('NO-ACCHOOK'); }
+          /* --- 货架正面：连续拖动必须稳定（每帧重绘后坐标换算仍用当前 SVG）--- */
+          function frontRailInfo(){
+            var rg = document.querySelector('#viewfront [data-rowgroup]');
+            if (!rg) return 'NO-ROW';
+            var rail = rg.querySelector('rect');
+            return [Math.round(+rail.getAttribute('x')), Math.round(+rail.getAttribute('y')), Math.round(+rail.getAttribute('width'))].join('/');
+          }
+          var fb = $('[data-bact="openFront"]');
+          if (fb){
+            fb.click();
+            var fAdd = document.querySelector('#frontBar [data-act="addArm"][data-id$=":short"]');
+            if (fAdd) fAdd.click();
+            var fg = document.querySelectorAll('#viewfront [data-row]')[0];
+            if (fg){
+              var fr0 = fg.getBoundingClientRect(), fx0 = fr0.x + fr0.width / 2, fy0 = fr0.y + fr0.height / 2;
+              var fsvg = document.querySelector('#viewfront svg');
+              var info0 = frontRailInfo();
+              fg.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true, clientX:fx0, clientY:fy0, pointerId:301, button:0}));
+              var mid = '?';
+              for (var mi = 1; mi <= 6; mi++){
+                window.dispatchEvent(new PointerEvent('pointermove', {bubbles:true, clientX:fx0 + mi * 9, clientY:fy0 - mi * 8, pointerId:301}));
+                if (mi === 2) mid = frontRailInfo();
+              }
+              window.dispatchEvent(new PointerEvent('pointerup', {bubbles:true, clientX:fx0 + 54, clientY:fy0 - 48, pointerId:301}));
+              var info1 = frontRailInfo();
+              var fh = document.querySelectorAll('#viewfront [data-rowhandle]').length;
+              log.push('frontDrag=' + info0 + '>' + mid + '>' + info1
+                + ' moved=' + (info1 !== info0) + ' handles=' + fh + ' scale=' + (fsvg ? fsvg.getAttribute('data-scale') : '-'));
+            } else { log.push('NO-FRONT-ROW'); }
+          } else { log.push('NO-FRONT-BTN'); }
           log.push('errlog=' + JSON.stringify(($('#errlog').textContent || '').slice(0,80)));
         } else { log.push('NO-BIKE-ELEM'); }
       } catch(e){ log.push('THREW: ' + (e && e.message)); }

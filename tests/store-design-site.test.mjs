@@ -659,26 +659,28 @@ test('穿模：挂车 / 附件在货架面之后绘制（按所属货架的深�
   while ((m = re.exec(svg))) keys.push(m.index)
   assert.equal(keys.length, 6, '两排共 6 台挂车')
   for (const k of keys) assert.ok(k > lastFace, '每一台挂车都必须在货架面之后')
-  // 结构护栏：附件走所属货架的深度区间（相机在附件一侧 → 之后；否则 → 之前）
+  // 结构护栏：实心遮挡（射线判定），不再依赖「相机在哪一侧」的近似
   const eng = stripComments(toolEngine)
   assert.ok(eng.includes('function boxKeyRange('), '引擎必须有盒子深度区间工具')
-  assert.ok(eng.includes('function cameraOnSide('), '引擎必须能判断相机在货架哪一侧')
-  assert.ok(eng.includes('var attachKeyOf = null;'), '货架循环必须建立附件排序上下文')
-  assert.ok(eng.includes('return sOnSide ? (k > sRange.max + 0.02 ? k : sRange.max + 0.02)'), '附件在一侧时画在货架之后')
-  assert.ok(eng.includes('(k < sRange.min - 0.02 ? k : sRange.min - 0.02)'), '附件在另一侧时画在货架之前')
-  assert.ok(eng.includes('function boxAdd(bx, pal, op, keyOf){'), 'boxAdd 必须支持自定义深度键')
-  const ownerIdx = eng.indexOf('var bikeOwner = {};')
-  const concatIdx = eng.indexOf('(cfg.bikes || []).concat(accBikesOf(cfg)).forEach(function(bk){')
-  assert.ok(ownerIdx > 0 && ownerIdx < concatIdx, '挂车排序表必须在渲染前建立')
-  // 散车（非挂车）紧邻货架时同样按该货架排序：否则站在 3.3m 高货架旁的车会被货架面盖住
-  assert.ok(eng.includes('function objectSideOf('), '引擎必须能判断物件在货架哪一侧')
-  assert.ok(eng.includes('if (!own){'), '散车必须走「就近货架」排序分支')
-  assert.ok(eng.includes('var near = null, nearD = 2.0;'), '就近判定阈值 2m')
-  assert.ok(eng.includes("own = { rng: boxKeyRange(shelfBox(near), d3), onSide: nSide === cSide };"), '散车按就近货架的深度区间排序')
+  assert.ok(eng.includes('var occluders = [];'), '渲染前必须登记实心遮挡体')
+  assert.ok(eng.includes('function occl(bx, tag){'), '实心体登记函数必须存在')
+  assert.ok(eng.includes('function rayBoxHit(pt, bx, pad, dir){'), '必须有射线-盒体求交（实心遮挡靠它判定）')
+  assert.ok(eng.includes('function pointWindow(pt, hz){'), '每个采样点必须算出「被谁挡 / 在谁前面」的深度窗口')
+  assert.ok(eng.includes('function resolveObjs(){'), '摆件必须在排序前统一结算')
+  assert.ok(eng.indexOf('resolveObjs();') > 0 && eng.indexOf('resolveObjs();') < eng.indexOf('L1.sort(function(a,b){ return a.k-b.k; });'),
+    '结算必须发生在排序之前（否则摆件定位无效）')
+  assert.ok(!eng.includes('function cameraOnSide('), '旧的「相机在哪一侧」近似必须删除（实心遮挡是射线判定）')
+  assert.ok(!eng.includes('function attachFacesCam('), '旧的附件朝向近似必须删除')
+  assert.ok(!eng.includes('function attachKeyFor('), '旧的排序键必须删除（删旧不覆盖）')
+  assert.ok(!eng.includes('function objectSideOf('), '旧的「就近货架」近似必须删除（散车同样走射线）')
+  assert.ok(!eng.includes('var bikeOwner = {};'), '旧的挂车排序表必须删除')
+  assert.ok(eng.includes('function boxAdd(bx, pal, op, keyOf, tag, noTile){'), 'boxAdd 必须支持自定义深度键 / 结构标记 / 免细分')
   // 行为断言：货架越长、车越靠近货架端头，画家算法的平均深度误差越大
   //（结构断言挡不住「分支被写死成 if (false)」，必须用真实渲染的绘制顺序验证）
   const c2 = engine.defaultConfig()
-  c2.bikes = [{ id: 'loose1', type: 'adult', pose: 'stand', x: 5.2, y: 7.6, rot: 0, steer: 45 }]
+  /* 车距货架面 0.4m：它的屏幕轮廓确实压在货架立面上（更远时按视线根本压不到，画序无所谓） */
+  c2.pillars = []
+  c2.bikes = [{ id: 'loose1', type: 'adult', pose: 'stand', x: 5.2, y: 6.9, rot: 0, steer: 45 }]
   c2.shelves = [Object.assign({}, c2.shelves[0], { id: 's1', kind: 'double', orient: 'h', x: 4, y: 6, len: 12, h: 3.3, acc: {} })]
   const svg2 = engine.render3D(c2, { az: 45, el: 33, zoom: 1, vw: 1000, vh: 700 })
   const bikeIdx = svg2.indexOf('data-bike="loose1"')
@@ -687,12 +689,51 @@ test('穿模：挂车 / 附件在货架面之后绘制（按所属货架的深�
     '12m 货架旁的散车必须画在货架面之后（否则被货架吃掉）')
   // 对照：同一台车在同角度下、货架另一侧（远离相机）时，仍应被货架正确遮挡
   const c3 = engine.defaultConfig()
+  c3.pillars = []
   c3.bikes = [{ id: 'loose1', type: 'adult', pose: 'stand', x: 5.2, y: 4.9, rot: 0, steer: 45 }]
   c3.shelves = [Object.assign({}, c3.shelves[0], { id: 's1', kind: 'double', orient: 'h', x: 4, y: 6, len: 12, h: 3.3, acc: {} })]
   const svg3 = engine.render3D(c3, { az: 45, el: 33, zoom: 1, vw: 1000, vh: 700 })
   const bikeIdx3 = svg3.indexOf('data-bike="loose1"')
   assert.ok(bikeIdx3 < Math.max(svg3.lastIndexOf('fill="#f5e6ca"'), svg3.lastIndexOf('fill="#ecd7ae"')),
     '货架另一侧的散车必须被货架遮住（画在货架面之前）')
+})
+
+test('穿模：附件装在货架另一面时前后不得颠倒（贴南墙 = 附件朝北）', async () => {
+  const engine = await loadToolEngine()
+  const scene = (y) => {
+    const c = engine.defaultConfig()
+    c.bikes = []
+    c.shelves = [Object.assign({}, c.shelves[0], {
+      id: 's1', kind: 'double', orient: 'h', x: 8, y, len: 7.5, h: 3.3,
+      acc: { armRows: [{ id: 'a1', z: 0.9, len: 'short', size: 'adult', u0: 0, u1: 7.5 }] }
+    })]
+    return c
+  }
+  const drawnAfterShelf = (c, az) => {
+    const svg = engine.render3D(c, { az, el: 33, zoom: 1, vw: 1000, vh: 700 })
+    const bike = svg.indexOf('data-acc="arm"')
+    const lastSide = Math.max(svg.lastIndexOf('fill="#e2ca9b"'), svg.lastIndexOf('fill="#e9d3aa"'))
+    return { bike, lastSide, after: bike > lastSide }
+  }
+  // 贴南墙：附件朝北（'neg' 面）→ 相机在北侧（az=270）才看得见
+  const south = scene(15.5)
+  assert.equal(engine.accFace(south.shelves[0], south), 'neg', '贴南墙的货架附件应朝北（neg 面）')
+  assert.ok(drawnAfterShelf(south, 270).after, '附件侧（az=270）挂车必须画在货架之后（可见）')
+  assert.ok(!drawnAfterShelf(south, 90).after, '背面（az=90）挂车必须画在货架之前（被挡住）')
+  // 贴北墙：附件朝南（'pos' 面）→ 相机在南侧（az=90）才看得见
+  const north = scene(2.5)
+  assert.equal(engine.accFace(north.shelves[0], north), 'pos', '贴北墙的货架附件应朝南（pos 面）')
+  assert.ok(drawnAfterShelf(north, 90).after, '附件侧（az=90）挂车必须画在货架之后（可见）')
+  assert.ok(!drawnAfterShelf(north, 270).after, '背面（az=270）挂车必须画在货架之前（被挡住）')
+  // 结构护栏：可见性必须比较「附件所在面 vs 相机侧」，不能只看相机侧
+  const eng = stripComments(toolEngine)
+  assert.ok(eng.includes("occl(sBox, 'shelf:' + s.id);"), '货架必须登记为实心遮挡体')
+  assert.ok(eng.includes('objBegin([boxMid(aBox), boxMid(cBox)], 0.06);'), '托臂必须作为摆件走射线定位')
+  assert.ok(eng.includes('objBegin([boxMid(rBox), boxMid(rStub)], 0.12);'), '地架必须作为摆件走射线定位')
+  assert.ok(eng.includes('objBegin([boxMid(hRail), [hTip.x, hTip.y, ztH - 0.12]], 0.10);'), '挂钩必须作为摆件走射线定位')
+  assert.ok(eng.includes('loc(-0.55, 0, 0.35), loc(0.55, 0, 0.35), loc(0, 0, 0.18),'),
+    '自行车必须沿车身取多个采样点（一半被挡也能按段处理）')
+  assert.ok(!eng.includes('attachFacesCamera'), '只看相机侧的旧判定不得残留（删旧不覆盖）')
 })
 
 test('货架正面视角：引擎渲染（立面 / 托臂排 / 挂车 / 手柄 / 空态）', async () => {
@@ -761,10 +802,251 @@ test('货架正面视角：双端页签 + 入口 + 交互接线', () => {
   assert.ok(app.includes("mode = (hp[1] === '0') ? 'left' : 'right';"), '手柄拖动必须区分左右端')
   assert.ok(app.includes("r.u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, Math.max(0, start.u1 - 0.4));"), '左端手柄必须改起点并留出最小宽度')
   assert.ok(app.includes("r.u1 = E.clamp(Math.round((start.u1 + du) / 0.1) * 0.1, Math.min(m.len, start.u0 + 0.4), m.len);"), '右端手柄必须改终点并留出最小宽度')
-  assert.ok(app.includes("var u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, Math.max(0, m.len - w));"), '整排平移必须夹在货架内')
+  assert.ok(app.includes('var slack = Math.max(0, m.len - w);'), '整排平移必须先算出可移动余量')
+  assert.ok(app.includes('var u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, slack);'), '整排平移必须夹在货架内')
   assert.ok(app.includes("r.z = E.clamp(Math.round((start.z + dz) / 0.05) * 0.05, 0.2, Math.max(0.3, m.h - 0.85));"), '高度必须夹在货架范围内')
   assert.ok(app.includes('Math.hypot(du, dz) * m.scale < 4'), '必须有点击/拖动死区（否则点选会被当成拖动）')
+  // 拖动中每帧重绘 SVG：坐标换算必须用「当前」元素，不能用指针按下时捕获的旧引用
+  //（2026-09-15 事故：旧元素脱离文档 → getScreenCTM() 为 null → 坐标变垃圾值 → 托臂排跳到边界）
+  assert.ok(app.includes('function frontSvgLive('), 'app.js 必须提供「取当前正面 SVG」的辅助函数')
+  assert.ok(app.includes('var p = toFrontUZ(frontSvgLive(), ev.clientX, ev.clientY); if (!p) return;'),
+    '拖动每帧必须用当前 SVG 换算坐标（不得复用捕获的旧元素）')
+  assert.ok(app.includes("if (!svgEl || !svgEl.isConnected || typeof svgEl.getScreenCTM !== 'function') return null;"),
+    'toFrontUZ 必须对脱离文档的元素判空')
+  assert.ok(app.includes('if (!ctm) return null;'), 'toFrontUZ 必须对空 CTM 判空')
+  assert.ok(app.includes("        ui.frontRow = rowId;\n        ui.sel = 'sh:' + s.id;\n        saveSoon(); renderChips(); schedule3D(); renderPlanNow(); buildEditors();"),
+    '拖动结束后必须把该排设为当前排（否则拿不到两端手柄、没法接着调范围）')
+  assert.ok(app.includes("toast('这一排已经占满货架长度：拖两端圆点缩小范围后即可左右移动');"),
+    '占满货架长度的排横向拖动必须给出提示（否则用户不知道要先缩范围）')
+  // 新加的托臂排默认范围 = 这排车的实际占位（默认就能左右移动），而不是整根货架
+  assert.ok(app.includes('var span = Math.min(shelfLen, Math.round(fit * E.ARM_SLOT[size] * 100) / 100);'),
+    '新排默认范围必须按车位数计算')
+  assert.ok(app.includes('size: size, u0: 0, u1: span }'), '新排必须使用计算出的范围')
   assert.ok(app.includes("ui.frontRow = rowId;"), '点选一排必须记录排 id（用于高亮与手柄）')
   const schema = stripComments(toolSchema)
   assert.ok(schema.includes("action('openFront', s.id, '🧍 正面视角')"), '元素清单必须有正面视角入口')
+})
+
+test('地架自行车：车头朝外（背对货架、朝着通道）', async () => {
+  const engine = await loadToolEngine()
+  const mk = (orient, face) => {
+    const c = engine.defaultConfig()
+    c.bikes = []
+    c.shelves = [Object.assign({}, c.shelves[0], {
+      id: 's1', kind: 'double', orient, x: orient === 'h' ? 4 : 6, y: orient === 'h' ? 6 : 4,
+      len: 7.5, h: 3.3, acc: { rack: 'adult', rackSide: face }
+    })]
+    return c
+  }
+  /* 车头方向与编辑器约定一致：rot=0 → +x（东）、90 → +y（南）、180 → -x（西）、270 → -y（北） */
+  const front = (rot) => [Math.cos((rot || 0) * Math.PI / 180), Math.sin((rot || 0) * Math.PI / 180)]
+  const check = (cfg, label) => {
+    const racks = engine.accBikesOf(cfg).filter((b) => b.acc === 'rack')
+    assert.ok(racks.length > 0, label + '：必须生成地架车')
+    racks.forEach((b) => {
+      const s = cfg.shelves[0]
+      const d = engine.shelfDepth(s)
+      const cx = s.orient === 'h' ? s.x + s.len / 2 : s.x + d / 2
+      const cy = s.orient === 'h' ? s.y + d / 2 : s.y + s.len / 2
+      const f = front(b.rot)
+      const dot = f[0] * (b.x - cx) + f[1] * (b.y - cy)
+      assert.ok(dot > 0, label + '：' + b.id + ' 车头必须朝外（背对货架），实测 rot=' + b.rot + ' dot=' + dot.toFixed(2))
+    })
+  }
+  check(mk('h', 'pos'), '东西向货架·南面')
+  check(mk('h', 'neg'), '东西向货架·北面')
+  check(mk('v', 'pos'), '南北向货架·东面')
+  check(mk('v', 'neg'), '南北向货架·西面')
+  check(mk('h', 'both'), '东西向货架·两面')
+  /* 与「货架自带车位」的方向一致：dir='s' 车位也是车头朝外（rot=90 在南侧） */
+  const c = engine.defaultConfig()
+  c.bikes = []
+  c.shelves = [Object.assign({}, c.shelves[0], { id: 's1', kind: 'double', orient: 'h', x: 4, y: 6, len: 7.5, h: 3.3, acc: { rack: 'adult' } })]
+  const south = engine.accBikesOf(c).filter((b) => b.acc === 'rack')[0]
+  assert.equal(south.rot, 90, '东西向货架南侧的地架车 rot 必须是 90（车头朝 +y）')
+  const eng = stripComments(toolEngine)
+  assert.ok(toolEngine.includes('车头朝外（2026-09-15 用户指正）'), '引擎注释必须写明地架车头朝外的口径')
+  assert.ok(eng.includes("var rot2 = (s.orient === 'h') ? ((face === 'pos') ? 90 : 270) : ((face === 'pos') ? 0 : 180);"),
+    '地架车朝向必须是「车头朝外」（此前装反 = 车头扎进货架）')
+})
+
+test('双面货架：托臂排 / 地架 / 挂钩可分别指定挂载面（两面都能加）', async () => {
+  const engine = await loadToolEngine()
+  const c = engine.defaultConfig()
+  c.bikes = []
+  c.shelves = [Object.assign({}, c.shelves[0], {
+    id: 's1', kind: 'double', orient: 'h', x: 4, y: 6, len: 7.5, h: 3.3,
+    acc: {
+      armRows: [
+        { id: 'a1', z: 0.9, len: 'short', size: 'kids', u0: 0, u1: 4, face: 'pos' },
+        { id: 'a2', z: 2.15, len: 'long', size: 'adult', u0: 0, u1: 4, face: 'neg' }
+      ],
+      rack: 'kids', rackSide: 'both', hook: 'on', hookSide: 'neg'
+    }
+  })]
+  const s = c.shelves[0]
+  assert.deepEqual({ ...engine.faceNames(s) }, { pos: '南面', neg: '北面' }, '东西向货架两面 = 南 / 北')
+  assert.deepEqual({ ...engine.faceNames({ ...s, orient: 'v' }) }, { pos: '东面', neg: '西面' },
+    '南北向货架两面 = 东 / 西')
+  /* 排归属面 */
+  assert.equal(engine.rowFace(s, engine.accOf(s).rows[0], c), 'pos', 'a1 挂在南面')
+  assert.equal(engine.rowFace(s, engine.accOf(s).rows[1], c), 'neg', 'a2 挂在北面')
+  assert.equal(engine.armRowsOnFace(s, c, 'pos').length, 1, '南面 1 排')
+  assert.equal(engine.armRowsOnFace(s, c, 'neg').length, 1, '北面 1 排')
+  /* 两面各自的挂车 + 地架两面 */
+  const bikes = engine.accBikesOf(c)
+  const arms = bikes.filter((b) => b.acc === 'arm')
+  const racks = bikes.filter((b) => b.acc === 'rack')
+  const d = engine.shelfDepth(s)
+  const cy = s.y + d / 2
+  assert.ok(arms.some((b) => b.y > cy && b.face === 'pos'), '南面的托臂车必须在货架南侧')
+  assert.ok(arms.some((b) => b.y < cy && b.face === 'neg'), '北面的托臂车必须在货架北侧')
+  assert.equal(new Set(racks.map((b) => b.face)).size, 2, "rackSide='both' 时两面都要有地架车")
+  assert.equal(racks.length, engine.rackCount(s) * 2, '两面地架车数量 = 单面 × 2')
+  /* 未指定面时保持老行为（自动朝空侧） */
+  const auto = Object.assign({}, s, { acc: { armRows: [{ id: 'a1', z: 0.9, len: 'short', size: 'kids', u0: 0, u1: 4 }] } })
+  const ac = Object.assign({}, c, { shelves: [auto] })
+  assert.equal(engine.rowFace(auto, engine.accOf(auto).rows[0], ac), engine.accFace(auto, ac), '未指定面 = 自动面（老图纸行为不变）')
+  /* 正面视角：可以只看某一面，且标出面名与对侧排数 */
+  const fp = engine.renderShelfFront(c, 's1', { vw: 1000, face: 'pos' })
+  assert.equal(fp.meta.face, 'pos', '正面视角必须能指定查看面')
+  assert.equal(fp.meta.rows, 1, '只看当前面的排')
+  assert.equal(fp.meta.otherRows, 1, '必须知道另一面还有几排')
+  assert.ok(fp.svg.includes('南面'), '页头必须写明正在看哪一面')
+  assert.ok(fp.svg.includes('北面另有 1 排'), '必须提示另一面还有排（否则用户以为只有这些）')
+  const fn = engine.renderShelfFront(c, 's1', { vw: 1000, face: 'neg' })
+  assert.equal(fn.meta.face, 'neg', '可以切到另一面')
+  assert.ok(!/NaN|undefined/u.test(fp.svg + fn.svg), '正面视角不得出现 NaN/undefined')
+  /* 渲染层：3D 两面都要有挂车；平面也要有 */
+  const svg = engine.render3D(c, { az: 90, el: 33, zoom: 1, vw: 1000, vh: 700 })
+  assert.ok((svg.match(/data-acc="arm"/gu) || []).length > 0, '3D 必须有挂车')
+  assert.ok((svg.match(/data-acc="rack"/gu) || []).length > 0, '3D 必须有地架车')
+  const plan = engine.renderPlan(c, { sel: null })
+  assert.ok(!/NaN|undefined/u.test(svg + plan), '3D / 平面都不得出现 NaN')
+  /* 接线：工具栏面切换 / 镜像 / 面板字段 */
+  const appSrc = stripComments(toolApp)
+  assert.ok(appSrc.includes('function frontFaceOf(s){'), 'app 必须能算出「当前正在看哪一面」')
+  assert.ok(appSrc.includes('sd-d-mini sd-m-mini">挂载面</span>'), '正面视角工具栏必须有挂载面切换（双面货架）')
+  assert.ok(appSrc.includes('data-frontface="pos"'), '必须有面按钮（pos）')
+  assert.ok(appSrc.includes('data-frontface="neg"'), '必须有面按钮（neg）')
+  assert.ok(appSrc.includes('function frontFaceSet(id, face){'), '切面必须重渲染')
+  assert.ok(appSrc.includes('function mirrorRowsToOtherFace(s){'), '必须有「镜像到另一面」（另一面一键加排）')
+  assert.ok(appSrc.includes("var faceWanted = (ui.tab === 'tfront') ? frontFaceOf(s) : null;"),
+    '新加的排必须落到当前正在看的那一面')
+  assert.ok(appSrc.includes("if (faceWanted) row.face = faceWanted;"), '新排必须写入 face')
+  assert.ok(appSrc.includes('var onFace = rows.filter(function(r){ return (r.face === faceWanted); });'),
+    '层高避让只看同一面已有的排（两面各自排层）')
+  const schema = stripComments(toolSchema)
+  assert.ok(schema.includes("select('shelves.' + i + '.acc.armRows.' + ri + '.face', '　挂载面', r.face, FACE_OPTS)"),
+    '属性栏每一排都要能选挂载面')
+  assert.ok(schema.includes("select('shelves.' + i + '.acc.rackSide', '　地架挂载面', acc.rackSide, SIDE_OPTS)"),
+    '属性栏地架要能选挂载面（含两面）')
+  assert.ok(schema.includes("select('shelves.' + i + '.acc.hookSide', '　挂钩挂载面', acc.hookSide, SIDE_OPTS)"),
+    '属性栏挂钩要能选挂载面（含两面）')
+})
+
+test('穿模深度修复：大面细分 + 逐部件排序 + 每货架每面排序键', async () => {
+  const engine = await loadToolEngine()
+  const eng = stripComments(toolEngine)
+  /* ① 大面细分：整块 7.5m×3.3m 立面按平均深度排序会误判前后，必须切小片 */
+  assert.ok(eng.includes('  var TILE = 1.1;'), '必须有大面细分片长常量')
+  assert.ok(eng.includes('var tiling = !noTile && op == null;'), '面必须按边长切成小片再排序（半透明面除外）')
+  assert.ok(eng.includes('var nu = tiling ? Math.max(1, Math.min(40, Math.ceil(e1 / TILE))) : 1;'),
+    '小片数量必须由边长与片长决定')
+  assert.ok(eng.includes('add1(k2, polyStr(q, fill, isPattern ? null : fill, 1, op, attr));'),
+    '小片之间必须同色描边（否则出现发丝缝）')
+  assert.ok(eng.includes("add1(k3, polyStr(pts, 'none', pal.s, 0.9, null, attr));"),
+    '整面外轮廓必须单独描边（保持原外观）')
+  /* 外墙不做细分（房间边界，细分只增加体积） */
+  assert.ok(eng.includes("null, 'wall:top', true)"), '外墙必须免细分')
+  /* ② 逐部件排序：整台车一个深度键时，与货架相交的部分会被整体误判 */
+  assert.ok(eng.includes('for (var ip = 0; ip < bikeParts.length; ip++){'), '自行车必须逐部件参与排序')
+  assert.ok(eng.includes(`add1(pI.k, '<g data-bike="' + bId + '"' + extra + '>' + pI.s + '</g>');`),
+    '每个部件各自带深度键（再按射线结论整段平移 / 必要时压缩）')
+  assert.ok(eng.includes('function fitWindow(kmin, kmax, lo, hi){'), '摆件深度键必须能塞进窗口（平移优先，冲突时遮挡优先）')
+  /* ③ 每货架 + 每面：此前用一个变量存「最后一个货架」的基准，多货架时全错 */
+  assert.ok(eng.includes("occl(sBox, 'shelf:' + s.id);"), '每个货架都要登记成实心遮挡体（多货架互不干扰）')
+  assert.ok(eng.includes("occl(pBox, 'pillar');"), '柱子必须登记为实心遮挡体')
+  assert.ok(eng.includes("occl(b, 'studio');"), '工作室墙必须登记为实心遮挡体')
+  assert.ok(eng.includes("occl(mvBox, 'mesh');") && eng.includes("occl(mhBox, 'mesh');"), '网面墙必须登记为实心遮挡体')
+  assert.ok(!eng.includes('var attachKeyOf = null;'), '旧的「最后一个货架」排序基准必须删除（不得残留）')
+  /* 行为断言：多货架时，挂在「远离相机那个货架」背面的车不得穿透到前面来 */
+  const c = engine.defaultConfig()
+  c.bikes = []
+  c.opt = Object.assign({}, c.opt, { labels: false, dims: false })
+  c.shelves = [
+    Object.assign({}, c.shelves[0], { id: 'near', kind: 'double', orient: 'h', x: 1.5, y: 5.5, len: 7.5, h: 3.3,
+      acc: { armRows: [{ id: 'a1', z: 0.9, len: 'short', size: 'kids', u0: 0, u1: 7.5, face: 'pos' }] } }),
+    Object.assign({}, c.shelves[0], { id: 'far', kind: 'double', orient: 'h', x: 1.5, y: 10.5, len: 7.5, h: 3.3,
+      acc: { armRows: [{ id: 'a1', z: 0.9, len: 'short', size: 'kids', u0: 0, u1: 7.5, face: 'neg' }] } })
+  ]
+  /* az=45：相机在南侧偏东 → far 货架的挂车挂在其北面（背对相机），必须画在 far 货架之后（被挡住） */
+  const svg = engine.render3D(c, { az: 45, el: 33, zoom: 1, vw: 1000, vh: 700 })
+  const farBike = svg.indexOf('data-bike="acc:far:arm:a1:0"')
+  assert.ok(farBike > 0, 'far 货架的挂车必须渲染')
+  const farFirst = svg.indexOf('data-struct="shelf:far"')
+  const farLast = svg.lastIndexOf('data-struct="shelf:far"')
+  assert.ok(farLast > farFirst, 'far 货架必须有多个结构面（便于判断画序）')
+  assert.ok(farBike < farFirst, '背对相机的挂车必须画在自己货架的「第一个面之前」（被货架正确遮住，不得穿透到前面）')
+  /* 对照：同一场景换成正对相机的南面（near 货架），同样必须在货架面之后 */
+  const nearBike = svg.indexOf('data-bike="acc:near:arm:a1:0"')
+  assert.ok(nearBike > 0, 'near 货架的挂车必须渲染')
+  assert.ok(nearBike > svg.lastIndexOf('data-struct="shelf:near"'), '面向相机的挂车也必须画在货架面之后')
+})
+
+test('实心遮挡：柱子 / 货架按射线决定前后（实心体不会被穿透、也不会吃掉前面的车）', async () => {
+  const engine = await loadToolEngine()
+  const scene = (bx, by, opts) => {
+    const c = engine.defaultConfig()
+    c.opt = Object.assign({}, c.opt, { labels: false, dims: false })
+    c.shelves = []
+    c.studio = Object.assign({}, c.studio, { peg: { on: false } })
+    c.pillars = [{ id: 'p1', x: 8, y: 8, s: 1.2 }]
+    c.bikes = [{ id: 'T1', type: 'adult', pose: 'stand', x: bx, y: by, rot: 0, steer: 45 }]
+    return Object.assign(c, opts || {})
+  }
+  const pillarRange = (svg) => {
+    const first = svg.indexOf('data-struct="pillar"')
+    return { first, last: svg.lastIndexOf('data-struct="pillar"') }
+  }
+  /* az=90 = 相机在南侧（+y 方向），y 越大离相机越近：
+     车在柱子北侧（y 更小）= 被柱子挡住 → 必须画在柱子之前 */
+  const behind = engine.render3D(scene(8, 6.4), { az: 90, el: 30, zoom: 1, vw: 900, vh: 620 })
+  const bBike = behind.indexOf('data-bike="T1"')
+  const pB = pillarRange(behind)
+  assert.ok(bBike > 0 && pB.first > 0, '车与柱子都必须渲染')
+  assert.ok(bBike < pB.first, '柱子后面的车必须画在柱子之前（否则穿透柱子）')
+  /* 车在柱子南侧（离相机更近）= 在柱子前面 → 上半部必须画在柱子之后（盖住柱子）。
+     注：车身最低的采样点会投到柱子底边以下（视线角度决定），那部分与柱子不重叠，
+     画在柱子前后都一样 —— 所以这里断言「至少车身有部件画在柱子之后」。 */
+  const front = engine.render3D(scene(8, 9.6), { az: 90, el: 30, zoom: 1, vw: 900, vh: 620 })
+  const fBikeLast = front.lastIndexOf('data-bike="T1"')
+  const pF = pillarRange(front)
+  assert.ok(fBikeLast > 0 && pF.first > 0, '车与柱子都必须渲染')
+  assert.ok(fBikeLast > pF.last, '柱子前面的车必须画在柱子之后（不得被柱子吃掉）')
+  /* 货架同理：近面挂车在前、远面挂车在后 —— 同一场景两次只改挂载面 */
+  const withFace = (face) => {
+    const c = engine.defaultConfig()
+    c.opt = Object.assign({}, c.opt, { labels: false, dims: false })
+    c.bikes = []
+    c.pillars = []
+    c.shelves = [Object.assign({}, c.shelves[0], {
+      id: 's1', kind: 'double', orient: 'h', x: 4, y: 6, len: 7.5, h: 3.3,
+      acc: { armRows: [{ id: 'a1', z: 0.9, len: 'short', size: 'kids', u0: 0, u1: 7.5, face: face }] }
+    })]
+    return c
+  }
+  const near = engine.render3D(withFace('pos'), { az: 90, el: 33, zoom: 1, vw: 1000, vh: 700 })
+  assert.ok(near.indexOf('data-bike="acc:s1:arm:a1:0"') > near.lastIndexOf('data-struct="shelf:s1"'),
+    '朝相机那一面的挂车必须画在货架面之后（不被货架吃掉）')
+  const far = engine.render3D(withFace('neg'), { az: 90, el: 33, zoom: 1, vw: 1000, vh: 700 })
+  assert.ok(far.indexOf('data-bike="acc:s1:arm:a1:0"') < far.indexOf('data-struct="shelf:s1"'),
+    '背对相机那一面的挂车必须画在货架面之前（被货架挡住，不得穿透）')
+  /* 结构护栏：实心体登记 + 双向射线 + 结算时机 */
+  const eng = stripComments(toolEngine)
+  assert.ok(eng.includes('function rayBoxHit(pt, bx, pad, dir){'), '射线求交必须支持反方向（判点是否落在轮廓内）')
+  assert.ok(eng.includes('var tB = rayBoxEntryT(pt, ob.box, 0.03, -1);'), '压在实心体前面的判定必须是反向射线（不用包围盒）')
+  assert.ok(eng.includes('var lo = (w.loBox <= w.hi - 0.02) ? w.loBox : w.loRay;'),
+    '保守界与该点「被挡住」的界打架时，必须退到射线精确界（不同实心体的深度区间会重叠）')
+  assert.ok(eng.includes("        occl(fBox, 'fence');"), '库区围栏也要登记为实心遮挡体')
 })

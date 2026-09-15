@@ -77,6 +77,9 @@ function statusItems(ck){
 function shelfFields(s, i){
   var acc = E().accOf(s);
   var hS = (s.h == null) ? E().SHELF_H_DEFAULT : s.h;
+  var fn = E().faceNames(s);
+  var FACE_OPTS = [['auto', '自动（朝空侧）'], ['pos', fn.pos], ['neg', fn.neg]];
+  var isDouble = (s.kind === 'double');
   var f = [
     text('shelves.' + i + '.name', '名称', s.name, '如 A区热销'),
     select('shelves.' + i + '.kind', '类型', s.kind, SHELF_KINDS),
@@ -100,9 +103,13 @@ function shelfFields(s, i){
       { unit:'m', min:0, max:s.len, step:0.1 }));
     f.push(number('shelves.' + i + '.acc.armRows.' + ri + '.u1', '　结束位置', r.u1,
       { unit:'m', min:0, max:s.len, step:0.1 }));
+    if (isDouble) f.push(select('shelves.' + i + '.acc.armRows.' + ri + '.face', '　挂载面', r.face, FACE_OPTS));
   });
+  var SIDE_OPTS = [['auto', '自动（朝空侧）'], ['pos', fn.pos], ['neg', fn.neg], ['both', '两面都装']];
   f.push(select('shelves.' + i + '.acc.rack', '地架排车', acc.rack, [['none','不装'],['adult','成人车'],['kids','童车']]));
+  if (isDouble && acc.rack !== 'none') f.push(select('shelves.' + i + '.acc.rackSide', '　地架挂载面', acc.rackSide, SIDE_OPTS));
   f.push(select('shelves.' + i + '.acc.hook', '自行车挂钩', acc.hook, [['none','不装'],['on','装（4 个/米）']]));
+  if (isDouble && acc.hook === 'on') f.push(select('shelves.' + i + '.acc.hookSide', '　挂钩挂载面', acc.hookSide, SIDE_OPTS));
   f.push(number('shelves.' + i + '.x', 'x 坐标', s.x, { unit:'m', min:0, max:200, step:0.1 }));
   f.push(number('shelves.' + i + '.y', 'y 坐标', s.y, { unit:'m', min:0, max:200, step:0.1 }));
   return f;
@@ -217,7 +224,13 @@ function elementGroups(cfg){
     g.push({ key:'sh', title:'货架', items: cfg.shelves.map(function(s, i){
       var nA = E().bikesForShelf(s, 'adult').length, nK = E().bikesForShelf(s, 'kids').length;
       var acc = E().accOf(s), accBit = '';
-      if (acc.rows.length) accBit += ' · 托臂×' + E().armBikeCount(s) + (acc.rows.length > 1 ? '(' + acc.rows.length + '排)' : '');
+      if (acc.rows.length){
+        accBit += ' · 托臂×' + E().armBikeCount(s) + (acc.rows.length > 1 ? '(' + acc.rows.length + '排)' : '');
+        if (s.kind === 'double'){
+          var fn2 = E().faceNames(s);
+          accBit += '[' + fn2.pos + E().armRowsOnFace(s, cfg, 'pos').length + '/' + fn2.neg + E().armRowsOnFace(s, cfg, 'neg').length + ']';
+        }
+      }
       if (acc.rack !== 'none') accBit += ' · 地架×' + E().rackCount(s);
       if (acc.hook === 'on') accBit += ' · 挂钩×' + E().hookCount(s);
       return { id:'sh:' + s.id, type:'sh', index:i, title: s.name ? s.name : ('货架 #' + (i + 1)),
