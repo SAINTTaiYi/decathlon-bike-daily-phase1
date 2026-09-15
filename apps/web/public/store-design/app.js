@@ -393,13 +393,20 @@ function addArmRow(id, len){
   if (!Array.isArray(s.acc.armRows)) s.acc.armRows = [];
   var rows = s.acc.armRows;
   var isLong = (len === 'long');
+  var shelfLen = (+s.len || 4);
+  var size = isLong ? 'adult' : 'kids';
+  /* 默认范围 = 这排车的实际占位（每台一个位宽），而不是整根货架：
+     这样新加的排默认就是「可左右移动」的，不用先手动缩范围（2026-09-15）。 */
+  var fit = Math.max(1, Math.floor(shelfLen / E.ARM_SLOT[size] + 1e-6));
+  var span = Math.min(shelfLen, Math.round(fit * E.ARM_SLOT[size] * 100) / 100);
   var row = { id: nextArmRowId(rows), z: E.nextArmZ(s, rows), len: isLong ? 'long' : 'short',
-              size: isLong ? 'adult' : 'kids', u0: 0, u1: (+s.len || 4) };
+              size: size, u0: 0, u1: span };
   rows.push(row);
   afterStruct(); renderSelBar(true);
   var norm = E.accOf(s).rows[rows.length - 1];
   toast('已加' + (isLong ? '长托臂 1m（成人车）' : '短托臂 0.5m（16″ 童车）') + '：'
-    + norm.z + 'm 高 · ' + E.rowBikeCount(s, norm) + ' 台（高度可在属性栏调）');
+    + norm.z + 'm 高 · ' + E.rowBikeCount(s, norm) + ' 台 · 占货架 ' + norm.u0 + '~' + norm.u1 + 'm'
+    + (norm.u1 - norm.u0 < shelfLen - 0.05 ? '（可左右拖动）' : '（高度可在属性栏调）'));
 }
 function delArmRow(id, idx){
   var s = shelfGet(id); if (!s) return;
@@ -1104,11 +1111,22 @@ function importJson(e){
    在这里可以拖动托臂排：上下 = 改高度、左右 = 整排平移，两端圆点 = 改起止范围。
    视图数据全在 SVG 的 data-* 上（scale/mx/my/len/h），交互层不需要额外状态。 */
 /* 屏幕坐标 → 立面局部坐标（u 沿货架、z 离地），与平面视图的 toWorld 同一套 CTM 变换 */
+/* 屏幕坐标 → 立面局部坐标（u 沿货架、z 离地）。
+   注意：拖动过程中每一帧都会重建 SVG，旧元素随即脱离文档、getScreenCTM() 变成 null ——
+   若继续拿它换算，得到的坐标是垃圾值（被 clamp 到边界），表现为「拖一下就跳到角落」。
+   所以这里必须判空，由调用方传入当前还在文档里的 SVG（2026-09-15 修）。 */
 function toFrontUZ(svgEl, cx, cy){
   var m = frontMeta(); if (!m) return null;
+  if (!svgEl || !svgEl.isConnected || typeof svgEl.getScreenCTM !== 'function') return null;
+  var ctm = svgEl.getScreenCTM();
+  if (!ctm) return null;
   var pt = svgEl.createSVGPoint(); pt.x = cx; pt.y = cy;
-  var q = pt.matrixTransform(svgEl.getScreenCTM().inverse());
+  var q = pt.matrixTransform(ctm.inverse());
   return { u: (q.x - m.mx) / m.scale, z: (m.my - q.y) / m.scale };
+}
+/* 当前正在显示的正面视图 SVG（拖动中每帧都要重新取，不能用捕获的旧引用） */
+function frontSvgLive(){
+  return els.viewfront ? els.viewfront.querySelector('svg') : null;
 }
 function frontMeta(){
   var svg = els.viewfront ? els.viewfront.querySelector('svg') : null;
@@ -1205,21 +1223,27 @@ function bindFront(){
     materializeRow(s, r);
     var start = { z: r.z, u0: r.u0, u1: r.u1 };
     var pt = toFrontUZ(svgEl, e.clientX, e.clientY); if (!pt) return;
-    var s0 = { u: pt.u, z: pt.z }, moved = false;
+    var s0 = { u: pt.u, z: pt.z }, moved = false, hinted = false;
     e.preventDefault();
     try { sc.setPointerCapture(e.pointerId); } catch(e1){}
     function blockTM(ev){ ev.preventDefault(); }
     sc.addEventListener('touchmove', blockTM, { passive:false });
     function move(ev){
-      var p = toFrontUZ(svgEl, ev.clientX, ev.clientY); if (!p) return;
+      var p = toFrontUZ(frontSvgLive(), ev.clientX, ev.clientY); if (!p) return;
       var du = p.u - s0.u, dz = p.z - s0.z;
       if (!moved && Math.hypot(du, dz) * m.scale < 4) return;   /* 4px 死区：点选 vs 拖动 */
       moved = true;
       if (mode === 'move'){
         r.z = E.clamp(Math.round((start.z + dz) / 0.05) * 0.05, 0.2, Math.max(0.3, m.h - 0.85));
         var w = start.u1 - start.u0;
-        var u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, Math.max(0, m.len - w));
+        var slack = Math.max(0, m.len - w);
+        var u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, slack);
         r.u0 = u0; r.u1 = Math.round((u0 + w) * 100) / 100;
+        /* 已经占满货架长度的排没有可移动空间：横向意图明显时提示一次怎么腾出空间 */
+        if (!hinted && slack < 0.05 && Math.abs(du) > 0.4){
+          hinted = true;
+          toast('这一排已经占满货架长度：拖两端圆点缩小范围后即可左右移动');
+        }
       } else if (mode === 'left'){
         r.u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, Math.max(0, start.u1 - 0.4));
       } else {
@@ -1235,8 +1259,13 @@ function bindFront(){
       window.removeEventListener('pointerup', up);
       try { sc.releasePointerCapture(e.pointerId); } catch(e2){}
       if (moved){
-        if (window.SDUI && SDUI.refreshSelVals) renderSelBar(true);
+        /* 拖完这一排就把它设为「当前排」：立即画出两端手柄、属性栏同步到这一排，
+           接着就能调起止范围（否则拖完还得再点一下才能拿到手柄）。 */
+        ui.frontRow = rowId;
+        ui.sel = 'sh:' + s.id;
         saveSoon(); renderChips(); schedule3D(); renderPlanNow(); buildEditors();
+        renderSelBar();
+        renderFrontNow();
       } else {
         ui.frontRow = rowId;
         ui.sel = 'sh:' + s.id;
@@ -1475,6 +1504,36 @@ function runSelfTest(){
             $('[data-bact="accHook"]').click();
             log.push('accHook=' + hl0 + '>' + $('[data-bact="accHook"]').textContent);
           } else { log.push('NO-ACCHOOK'); }
+          /* --- 货架正面：连续拖动必须稳定（每帧重绘后坐标换算仍用当前 SVG）--- */
+          function frontRailInfo(){
+            var rg = document.querySelector('#viewfront [data-rowgroup]');
+            if (!rg) return 'NO-ROW';
+            var rail = rg.querySelector('rect');
+            return [Math.round(+rail.getAttribute('x')), Math.round(+rail.getAttribute('y')), Math.round(+rail.getAttribute('width'))].join('/');
+          }
+          var fb = $('[data-bact="openFront"]');
+          if (fb){
+            fb.click();
+            var fAdd = document.querySelector('#frontBar [data-act="addArm"][data-id$=":short"]');
+            if (fAdd) fAdd.click();
+            var fg = document.querySelectorAll('#viewfront [data-row]')[0];
+            if (fg){
+              var fr0 = fg.getBoundingClientRect(), fx0 = fr0.x + fr0.width / 2, fy0 = fr0.y + fr0.height / 2;
+              var fsvg = document.querySelector('#viewfront svg');
+              var info0 = frontRailInfo();
+              fg.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true, clientX:fx0, clientY:fy0, pointerId:301, button:0}));
+              var mid = '?';
+              for (var mi = 1; mi <= 6; mi++){
+                window.dispatchEvent(new PointerEvent('pointermove', {bubbles:true, clientX:fx0 + mi * 9, clientY:fy0 - mi * 8, pointerId:301}));
+                if (mi === 2) mid = frontRailInfo();
+              }
+              window.dispatchEvent(new PointerEvent('pointerup', {bubbles:true, clientX:fx0 + 54, clientY:fy0 - 48, pointerId:301}));
+              var info1 = frontRailInfo();
+              var fh = document.querySelectorAll('#viewfront [data-rowhandle]').length;
+              log.push('frontDrag=' + info0 + '>' + mid + '>' + info1
+                + ' moved=' + (info1 !== info0) + ' handles=' + fh + ' scale=' + (fsvg ? fsvg.getAttribute('data-scale') : '-'));
+            } else { log.push('NO-FRONT-ROW'); }
+          } else { log.push('NO-FRONT-BTN'); }
           log.push('errlog=' + JSON.stringify(($('#errlog').textContent || '').slice(0,80)));
         } else { log.push('NO-BIKE-ELEM'); }
       } catch(e){ log.push('THREW: ' + (e && e.message)); }

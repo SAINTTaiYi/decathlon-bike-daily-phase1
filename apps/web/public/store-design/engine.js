@@ -8,7 +8,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
 'use strict';
 
-var VERSION = 'store3d-1.10';
+var VERSION = 'store3d-1.11';
 var WALL_T  = 0.3;     // 外墙厚（米）
 var BIKE_LEN = { adult: 2.0, kids: 1.5 };   // 自行车长度（米）
 var BIKE_SLOT = { adult: 2.0, kids: 1.6 };  // 每个自行车位 2m（童车 1.6m）
@@ -59,6 +59,13 @@ function boxKeyRange(bx, d3){
 /* 相机在货架的哪一侧：'pos' = 附件所在的那一侧朝向相机 */
 function cameraOnSide(s, d3){
   return (s.orient === 'v') ? (d3[0] > 0) : (d3[1] > 0);
+}
+/* 附件（托臂 / 地架 / 挂钩 / 挂车）所在的这一面是否朝向相机。
+   注意：不能用 cameraOnSide 直接判定 —— 附件可能装在 'neg' 面（例如贴南墙的货架，
+   附件朝北），此时相机在 -y 侧才是「看得见」的那一侧。2026-09-15 修正：
+   只看相机侧会导致附件装反时前后颠倒（正确方向看不到挂车、背面反而看得见）。 */
+function attachFacesCamera(s, cfg, d3){
+  return (accFace(s, cfg) === 'pos') === cameraOnSide(s, d3);
 }
 /* 某个点（物件）落在货架的哪一侧：'pos' = 货架正面那一侧 */
 function objectSideOf(s, x, y){
@@ -914,7 +921,7 @@ function render3D(cfg, view){
     var d = shelfDepth(s), pal = s.kind==='double' ? PAL.shelfD : (s.kind==='single' ? PAL.shelfS : PAL.shelfLow);
     var hS = s.h || SHELF_H_DEFAULT;
     var sRange = boxKeyRange(shelfBox(s), d3);
-    var sOnSide = cameraOnSide(s, d3);
+    var sOnSide = attachFacesCamera(s, cfg, d3);
     attachKeyOf = function(x, y, z){
       var k = x*d3[0] + y*d3[1] + z*d3[2];
       return sOnSide ? (k > sRange.max + 0.02 ? k : sRange.max + 0.02)
@@ -1020,7 +1027,7 @@ function render3D(cfg, view){
   /* 每台车记录所属货架（附件车）→ 用该货架的深度区间排序，避免被货架面盖住 */
   var bikeOwner = {};
   cfg.shelves.forEach(function(s){
-    var rng = boxKeyRange(shelfBox(s), d3), onSide = cameraOnSide(s, d3);
+    var rng = boxKeyRange(shelfBox(s), d3), onSide = attachFacesCamera(s, cfg, d3);
     accOf(s).rows.forEach(function(r){
       var nB = rowBikeCount(s, r);
       for (var iB = 0; iB < nB; iB++){
@@ -1147,6 +1154,7 @@ function render3D(cfg, view){
         if (dd < nearD){ nearD = dd; near = s2; }
       });
       if (near){
+        /* 车落在货架的哪一侧 vs 相机在哪一侧：同侧才画在货架之后（可见） */
         var nSide = objectSideOf(near, cx3, cy3);
         var cSide = cameraOnSide(near, d3) ? 'pos' : 'neg';
         own = { rng: boxKeyRange(shelfBox(near), d3), onSide: nSide === cSide };
@@ -1989,6 +1997,7 @@ return {
   shelfBox: shelfBox,
   boxKeyRange: boxKeyRange,
   cameraOnSide: cameraOnSide,
+  attachFacesCamera: attachFacesCamera,
   objectSideOf: objectSideOf,
   accFace: accFace,
   accBikesOf: accBikesOf,

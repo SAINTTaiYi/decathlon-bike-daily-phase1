@@ -695,6 +695,42 @@ test('穿模：挂车 / 附件在货架面之后绘制（按所属货架的深�
     '货架另一侧的散车必须被货架遮住（画在货架面之前）')
 })
 
+test('穿模：附件装在货架另一面时前后不得颠倒（贴南墙 = 附件朝北）', async () => {
+  const engine = await loadToolEngine()
+  const scene = (y) => {
+    const c = engine.defaultConfig()
+    c.bikes = []
+    c.shelves = [Object.assign({}, c.shelves[0], {
+      id: 's1', kind: 'double', orient: 'h', x: 8, y, len: 7.5, h: 3.3,
+      acc: { armRows: [{ id: 'a1', z: 0.9, len: 'short', size: 'adult', u0: 0, u1: 7.5 }] }
+    })]
+    return c
+  }
+  const drawnAfterShelf = (c, az) => {
+    const svg = engine.render3D(c, { az, el: 33, zoom: 1, vw: 1000, vh: 700 })
+    const bike = svg.indexOf('data-acc="arm"')
+    const lastSide = Math.max(svg.lastIndexOf('fill="#e2ca9b"'), svg.lastIndexOf('fill="#e9d3aa"'))
+    return { bike, lastSide, after: bike > lastSide }
+  }
+  // 贴南墙：附件朝北（'neg' 面）→ 相机在北侧（az=270）才看得见
+  const south = scene(15.5)
+  assert.equal(engine.accFace(south.shelves[0], south), 'neg', '贴南墙的货架附件应朝北（neg 面）')
+  assert.ok(drawnAfterShelf(south, 270).after, '附件侧（az=270）挂车必须画在货架之后（可见）')
+  assert.ok(!drawnAfterShelf(south, 90).after, '背面（az=90）挂车必须画在货架之前（被挡住）')
+  // 贴北墙：附件朝南（'pos' 面）→ 相机在南侧（az=90）才看得见
+  const north = scene(2.5)
+  assert.equal(engine.accFace(north.shelves[0], north), 'pos', '贴北墙的货架附件应朝南（pos 面）')
+  assert.ok(drawnAfterShelf(north, 90).after, '附件侧（az=90）挂车必须画在货架之后（可见）')
+  assert.ok(!drawnAfterShelf(north, 270).after, '背面（az=270）挂车必须画在货架之前（被挡住）')
+  // 结构护栏：可见性必须比较「附件所在面 vs 相机侧」，不能只看相机侧
+  const eng = stripComments(toolEngine)
+  assert.ok(eng.includes('function attachFacesCamera(s, cfg, d3){'), '引擎必须有「附件是否朝向相机」判定')
+  assert.ok(eng.includes("return (accFace(s, cfg) === 'pos') === cameraOnSide(s, d3);"), '判定必须比较附件面与相机侧')
+  assert.ok(eng.includes('var sOnSide = attachFacesCamera(s, cfg, d3);'), '附件排序上下文必须用该判定')
+  assert.ok(eng.includes('var rng = boxKeyRange(shelfBox(s), d3), onSide = attachFacesCamera(s, cfg, d3);'),
+    '挂车排序表必须用该判定（此前只看相机侧，导致附件装反时前后颠倒）')
+})
+
 test('货架正面视角：引擎渲染（立面 / 托臂排 / 挂车 / 手柄 / 空态）', async () => {
   const engine = await loadToolEngine()
   const c = engine.defaultConfig()
@@ -761,9 +797,26 @@ test('货架正面视角：双端页签 + 入口 + 交互接线', () => {
   assert.ok(app.includes("mode = (hp[1] === '0') ? 'left' : 'right';"), '手柄拖动必须区分左右端')
   assert.ok(app.includes("r.u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, Math.max(0, start.u1 - 0.4));"), '左端手柄必须改起点并留出最小宽度')
   assert.ok(app.includes("r.u1 = E.clamp(Math.round((start.u1 + du) / 0.1) * 0.1, Math.min(m.len, start.u0 + 0.4), m.len);"), '右端手柄必须改终点并留出最小宽度')
-  assert.ok(app.includes("var u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, Math.max(0, m.len - w));"), '整排平移必须夹在货架内')
+  assert.ok(app.includes('var slack = Math.max(0, m.len - w);'), '整排平移必须先算出可移动余量')
+  assert.ok(app.includes('var u0 = E.clamp(Math.round((start.u0 + du) / 0.1) * 0.1, 0, slack);'), '整排平移必须夹在货架内')
   assert.ok(app.includes("r.z = E.clamp(Math.round((start.z + dz) / 0.05) * 0.05, 0.2, Math.max(0.3, m.h - 0.85));"), '高度必须夹在货架范围内')
   assert.ok(app.includes('Math.hypot(du, dz) * m.scale < 4'), '必须有点击/拖动死区（否则点选会被当成拖动）')
+  // 拖动中每帧重绘 SVG：坐标换算必须用「当前」元素，不能用指针按下时捕获的旧引用
+  //（2026-09-15 事故：旧元素脱离文档 → getScreenCTM() 为 null → 坐标变垃圾值 → 托臂排跳到边界）
+  assert.ok(app.includes('function frontSvgLive('), 'app.js 必须提供「取当前正面 SVG」的辅助函数')
+  assert.ok(app.includes('var p = toFrontUZ(frontSvgLive(), ev.clientX, ev.clientY); if (!p) return;'),
+    '拖动每帧必须用当前 SVG 换算坐标（不得复用捕获的旧元素）')
+  assert.ok(app.includes("if (!svgEl || !svgEl.isConnected || typeof svgEl.getScreenCTM !== 'function') return null;"),
+    'toFrontUZ 必须对脱离文档的元素判空')
+  assert.ok(app.includes('if (!ctm) return null;'), 'toFrontUZ 必须对空 CTM 判空')
+  assert.ok(app.includes("        ui.frontRow = rowId;\n        ui.sel = 'sh:' + s.id;\n        saveSoon(); renderChips(); schedule3D(); renderPlanNow(); buildEditors();"),
+    '拖动结束后必须把该排设为当前排（否则拿不到两端手柄、没法接着调范围）')
+  assert.ok(app.includes("toast('这一排已经占满货架长度：拖两端圆点缩小范围后即可左右移动');"),
+    '占满货架长度的排横向拖动必须给出提示（否则用户不知道要先缩范围）')
+  // 新加的托臂排默认范围 = 这排车的实际占位（默认就能左右移动），而不是整根货架
+  assert.ok(app.includes('var span = Math.min(shelfLen, Math.round(fit * E.ARM_SLOT[size] * 100) / 100);'),
+    '新排默认范围必须按车位数计算')
+  assert.ok(app.includes('size: size, u0: 0, u1: span }'), '新排必须使用计算出的范围')
   assert.ok(app.includes("ui.frontRow = rowId;"), '点选一排必须记录排 id（用于高亮与手柄）')
   const schema = stripComments(toolSchema)
   assert.ok(schema.includes("action('openFront', s.id, '🧍 正面视角')"), '元素清单必须有正面视角入口')
