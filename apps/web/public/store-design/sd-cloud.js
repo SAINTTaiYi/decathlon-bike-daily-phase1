@@ -22,7 +22,8 @@
   var state = {
     attached: false, offline: false, loading: true, busy: false,
     dirty: false, conflict: false, conflictName: '', revision: 0,
-    savedAt: '', savedBy: '', message: '', savedJson: null
+    savedAt: '', savedBy: '', message: '', savedJson: null,
+    csrf: '', userName: ''
   }
   var api = null
 
@@ -208,9 +209,18 @@
       api = hooks
       state.attached = true
       paint()
-      load({ silent: true, announce: false })
-      var identity = refreshIdentity
-      if (identity) { /* 身份在第一次请求时按需获取 */ }
+      // 先取一次身份：拿到写操作要用的 CSRF 令牌，同时判定登录状态
+      // （未登录时直接进入「仅存本机」，不必等到用户点保存才发现）。
+      refreshIdentity().then(function (me) {
+        if (!me) {
+          state.offline = true
+          state.loading = false
+          state.message = ''
+          paint()
+          return null
+        }
+        return load({ silent: true, announce: false })
+      })
     },
     markDirty: markDirty,
     load: function () { load({ announce: true }) },

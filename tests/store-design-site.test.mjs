@@ -1462,6 +1462,7 @@ test('云端图纸：工具侧保存 / 载入接线（同源接口、CSRF、冲�
   assert.ok(cloud.includes('expectedRevision: state.revision'), '保存必须带 expectedRevision（乐观锁）')
   assert.ok(cloud.includes('result.response.status === 409'), '必须处理 409 冲突')
   // 未登录 / 只读：不得假装保存成功
+  assert.ok(cloud.includes('refreshIdentity().then('), '启动时必须先取身份（拿到 CSRF 令牌并判定登录态）再读图纸')
   assert.ok(cloud.includes('state.offline = true'), '未登录必须进入「仅存本机」模式')
   assert.ok(cloud.includes("if (state.offline) return '未登录 · 图纸仅存本机'"), '状态必须写明未登录')
   // 载入覆盖前必须确认，且不覆盖未保存改动
