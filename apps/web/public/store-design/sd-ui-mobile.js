@@ -23,15 +23,39 @@ function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace
 function fnum(v){ return window.Engine ? window.Engine.fnum(v) : String(v); }
 
 /* ---------- 字段 / 动作（移动端布局：标签在上、控件在下） ---------- */
+/* 数值步进按钮（2026-09-17 用户要求：墙体参数要像货架那样能点上下箭头改）。
+   与桌面端同一套行为：按字段自身 step / min / max 加减后派发 input 事件，
+   数据写入走 app.js 的 onEditInput。 */
+function stepBoxHTML(){
+  return '<span class="sd-m-stepbox">'
+    + '<button type="button" class="sd-m-nudge" data-sd-step="1" aria-label="增加">▴</button>'
+    + '<button type="button" class="sd-m-nudge" data-sd-step="-1" aria-label="减少">▾</button>'
+    + '</span>';
+}
+function nudgeField(btn){
+  var wrap = btn.parentNode;
+  var inp = (wrap && wrap.querySelector) ? wrap.querySelector('input[data-path]') : null;
+  if (!inp) return;
+  var v = parseFloat(inp.value); if (!isFinite(v)) v = 0;
+  var step = parseFloat(inp.getAttribute('step')); if (!isFinite(step) || step <= 0) step = 1;
+  var nv = v + (btn.getAttribute('data-sd-step') === '-1' ? -step : step);
+  var mn = parseFloat(inp.getAttribute('min')), mx = parseFloat(inp.getAttribute('max'));
+  if (isFinite(mn) && nv < mn) nv = mn;
+  if (isFinite(mx) && nv > mx) nv = mx;
+  nv = Math.round(nv * 1000) / 1000;
+  if (nv === v) return;
+  inp.value = nv;
+  inp.dispatchEvent(new Event('input', { bubbles: true }));
+}
 function fieldHTML(f){
   if (f.kind === 'note') return '<p class="sd-m-note">' + esc(f.text) + '</p>';
   var id = 'f' + Math.random().toString(36).slice(2, 8);
   if (f.kind === 'number'){
     return '<label class="sd-m-field" for="' + id + '"><span class="sd-m-field-label">' + esc(f.label) + '</span>'
-      + '<span class="sd-m-inputwrap"><input id="' + id + '" type="number" inputmode="decimal" data-path="' + f.path + '" value="' + esc(fnum(f.value)) + '"'
+      + '<span class="sd-m-inputwrap sd-m-hasstep"><input id="' + id + '" type="number" inputmode="decimal" data-path="' + f.path + '" value="' + esc(fnum(f.value)) + '"'
       + (f.min != null ? ' min="' + f.min + '"' : '') + (f.max != null ? ' max="' + f.max + '"' : '')
       + (f.step != null ? ' step="' + f.step + '"' : '') + '>'
-      + (f.unit ? '<i class="sd-m-unit">' + esc(f.unit) + '</i>' : '') + '</span></label>';
+      + (f.unit ? '<i class="sd-m-unit">' + esc(f.unit) + '</i>' : '') + stepBoxHTML() + '</span></label>';
   }
   if (f.kind === 'select'){
     return '<label class="sd-m-field" for="' + id + '"><span class="sd-m-field-label">' + esc(f.label) + '</span>'
@@ -408,6 +432,16 @@ function mount(root){
   slots.frontScroll = document.getElementById('frontScroll');
   slots.frontBar = document.getElementById('frontBar');
   document.body.setAttribute('data-sd-ui', 'mobile');
+
+  /* 步进按钮：同桌面端，捕获阶段截住点击后按字段 step 微调。 */
+  if (slots.editors){
+    slots.editors.addEventListener('click', function(e){
+      var b = e.target && e.target.closest ? e.target.closest('[data-sd-step]') : null;
+      if (!b) return;
+      e.preventDefault();
+      nudgeField(b);
+    }, true);
+  }
 
   root.addEventListener('click', function(e){
     var t = e.target;

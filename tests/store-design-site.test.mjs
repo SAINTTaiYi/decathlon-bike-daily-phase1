@@ -134,9 +134,13 @@ test('工具页：本地工具原样发布 + 嵌入钩子（标题/退出按钮/
   assert.match(toolHtml, /<script src="engine\.js\?v=[\d.]+"><\/script>/u, '必须按版本引用引擎')
   assert.match(toolHtml, /<script src="app\.js\?v=[\d.]+"><\/script>/u, '必须按版本引用应用脚本')
   assert.match(toolHtml, /<script src="embed\.js\?v=\d+"><\/script>/u, '必须加载嵌入钩子')
-  // 退出按钮默认隐藏在宿主钩子侧（两个界面实现各自渲染），见下方「双端实现」用例
-  // 钩子：只在 embed=1 显示；两种文案；同源 postMessage
-  assert.ok(toolEmbed.includes("params.get('embed') !== '1'"), '未嵌入时必须直接返回')
+  // 退出按钮（2026-09-17 用户要求：独立打开也要能返回模块选择屏）——按钮始终显示：
+  //   嵌入（有父窗口）→ 同源 postMessage，去向由宿主决定；
+  //   独立打开       → 整页回站点根（= 应用选择屏）。
+  assert.ok(toolEmbed.includes('button.hidden = false'), '退出按钮必须始终显示（不得只在 embed=1 时出现）')
+  assert.ok(toolEmbed.includes('window.parent !== window'), '嵌入时走 postMessage，独立打开不得只通知父窗口')
+  assert.ok(toolEmbed.includes("window.location.assign('/')"), '独立打开时退出按钮必须回站点根（应用选择屏）')
+  assert.doesNotMatch(toolEmbed, /params\.get\('embed'\) !== '1'\)\s*return/u, '不得再因未嵌入而直接返回（否则独立打开没有返回入口）')
   assert.ok(toolEmbed.includes("'去 Workshop Ops ↗'") && toolEmbed.includes("'返回应用选择'"), '两种退出文案都要有')
   assert.ok(toolEmbed.includes('window.parent.postMessage'), '退出必须通知父页面')
   assert.ok(toolEmbed.includes('window.location.origin'), 'postMessage 目标必须限定同源')
@@ -146,6 +150,25 @@ test('工具页：本地工具原样发布 + 嵌入钩子（标题/退出按钮/
   // 页面错误钩子因此抽成 boot.js（2026-09-15）。
   assert.match(toolHtml, /<script src="boot\.js\?v=\d+"><\/script>/u, '必须加载页面错误钩子')
   assert.equal(toolHtml.match(/<script(?![^>]*src=)[^>]*>/gu), null, '工具页不得再有内联脚本（CSP script-src \'self\'）')
+})
+
+test('数值步进：墙体 / 货架参数可点上下箭头微调（双端各自实现，复用 input 路径）', () => {
+  for (const [name, ui, cls] of [['桌面', toolUiDesktop, 'sd-d'], ['移动', toolUiMobile, 'sd-m']]) {
+    assert.ok(ui.includes('data-sd-step="1"') && ui.includes('data-sd-step="-1"'), `${name}端数值字段必须渲染上下箭头按钮`)
+    assert.ok(ui.includes(cls + '-hasstep'), `${name}端数值字段必须标记步进容器`)
+    assert.ok(ui.includes('function nudgeField(btn){'), `${name}端必须有步进处理函数`)
+    assert.ok(ui.includes("inp.dispatchEvent(new Event('input', { bubbles: true }))"), `${name}端步进必须派发 input 事件（复用 onEditInput，不另开写入路径）`)
+    assert.ok(ui.includes("inp.getAttribute('step')"), `${name}端步进必须按字段自身 step 增减`)
+    assert.ok(ui.includes('isFinite(mn) && nv < mn') && ui.includes('isFinite(mx) && nv > mx'), `${name}端步进必须夹到 min/max`)
+    assert.ok(ui.includes("e.target.closest ? e.target.closest('[data-sd-step]')"), `${name}端必须有步进点击委托`)
+  }
+  const desktopCss = stripComments(toolDesktopCss)
+  const mobileCss = stripComments(toolMobileCss)
+  assert.ok(desktopCss.includes('.sd-d-stepbox') && desktopCss.includes('.sd-d-step {'), '桌面端必须有步进按钮样式')
+  assert.ok(mobileCss.includes('.sd-m-stepbox') && mobileCss.includes('.sd-m-nudge'), '移动端必须有步进按钮样式')
+  assert.ok(desktopCss.includes('::-webkit-inner-spin-button') && mobileCss.includes('::-webkit-inner-spin-button'), '自绘箭头后必须隐藏原生 spinner（避免双份箭头）')
+  assert.ok(desktopCss.includes('.sd-d-hasstep input { padding-right: 52px; }'), '桌面端要为箭头留出输入内边距')
+  assert.ok(mobileCss.includes('.sd-m-hasstep input { padding-right: 52px; }'), '移动端要为箭头留出输入内边距')
 })
 
 test('工具引擎：副本可 require，默认方案校验与渲染全部通过（真功能断言）', async () => {

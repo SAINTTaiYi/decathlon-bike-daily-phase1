@@ -237,3 +237,13 @@ body[data-sd-ui='desktop'] { height: 100vh; overflow: hidden; }
   transition: opacity .22s, transform .22s;
 }
 .sd-d-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- 数值步进（2026-09-17）：墙体 / 货架等参数点上下箭头微调 ---------- */
+.sd-d-hasstep input { padding-right: 52px; }
+.sd-d-hasstep i { right: 30px; }
+.sd-d-hasstep input::-webkit-outer-spin-button,
+.sd-d-hasstep input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.sd-d-stepbox { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: grid; gap: 2px; }
+.sd-d-step { display: grid; place-items: center; width: 22px; height: 14px; padding: 0; border-radius: 5px; background: var(--sd-sunken-strong); color: var(--sd-muted); font-size: 9px; line-height: 1; }
+.sd-d-step:hover { background: var(--sd-accent); color: var(--sd-ink); }
+.sd-d-step:active { background: var(--sd-accent-press); color: #fff; }
