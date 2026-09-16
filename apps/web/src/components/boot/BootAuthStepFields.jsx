@@ -174,7 +174,7 @@ export function BootAuthStepFields({ prefix, panel, itemClassName = '' }) {
           <Field
             prefix={prefix}
             itemClassName={itemClassName}
-            label="公司邮箱"
+            label="邮箱"
             hint="验证码只发送到此邮箱，不会进入操作审计。"
           >
             <input
@@ -186,7 +186,7 @@ export function BootAuthStepFields({ prefix, panel, itemClassName = '' }) {
               value={form.email}
               onChange={(event) => setField('email', event.target.value)}
               aria-invalid={invalid}
-              placeholder="name@decathlon.com"
+              placeholder="name@example.com"
               enterKeyHint="go"
             />
           </Field>
@@ -217,8 +217,8 @@ export function BootAuthStepFields({ prefix, panel, itemClassName = '' }) {
         <Field
           prefix={prefix}
           itemClassName={itemClassName}
-          label="绑定的公司邮箱"
-          hint="需与注册时使用的公司邮箱一致，否则不会收到验证码。"
+          label="绑定的邮箱"
+          hint="需与注册时使用的邮箱一致，否则不会收到验证码。"
         >
           <input
             type="email"
@@ -229,7 +229,7 @@ export function BootAuthStepFields({ prefix, panel, itemClassName = '' }) {
             value={form.email}
             onChange={(event) => setField('email', event.target.value)}
             aria-invalid={invalid}
-            placeholder="name@decathlon.com"
+            placeholder="name@example.com"
             enterKeyHint="go"
           />
         </Field>

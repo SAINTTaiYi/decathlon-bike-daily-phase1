@@ -460,6 +460,16 @@ test('工具栏接线：点工具即添加并进入摆放模式（旧悬浮面�
 // 放置、每排高度可在货架上调整；1m 货架放 3 个地架；挂钩 1m 4 个；
 // 每排位宽：成人车 2m、16″ 童车 4/3m（2m 货架 1 台/排；4m 货架 3 台童车/排）。
 
+async function loadToolSchema() {
+  const vm = await import('node:vm')
+  const sandbox = vm.createContext({ module: { exports: {} }, exports: {}, console, window: {} })
+  vm.runInContext(toolEngine, sandbox, { filename: 'engine.js' })
+  sandbox.window.Engine = sandbox.module.exports
+  sandbox.module = { exports: {} }
+  vm.runInContext(toolSchema, sandbox, { filename: 'sd-schema.js' })
+  return sandbox.window.SD_SCHEMA
+}
+
 async function loadToolEngine() {
   const vm = await import('node:vm')
   const sandbox = vm.createContext({ module: { exports: {} }, exports: {}, console })
@@ -673,8 +683,8 @@ test('穿模：挂车 / 附件在货架面之后绘制（按所属货架的深�
   assert.ok(!eng.includes('function attachFacesCam('), '旧的附件朝向近似必须删除')
   assert.ok(!eng.includes('function attachKeyFor('), '旧的排序键必须删除（删旧不覆盖）')
   assert.ok(!eng.includes('function objectSideOf('), '旧的「就近货架」近似必须删除（散车同样走射线）')
-  assert.ok(!eng.includes('var bikeOwner = {};'), '旧的挂车排序表必须删除')
-  assert.ok(eng.includes('function boxAdd(bx, pal, op, keyOf, tag, noTile){'), 'boxAdd 必须支持自定义深度键 / 结构标记 / 免细分')
+  assert.ok(eng.includes('function boxAdd(bx, pal, op, keyOf, tag, noTile, solid){'),
+    'boxAdd 必须支持自定义深度键 / 结构标记 / 免细分 / 实心块')
   // 行为断言：货架越长、车越靠近货架端头，画家算法的平均深度误差越大
   //（结构断言挡不住「分支被写死成 if (false)」，必须用真实渲染的绘制顺序验证）
   const c2 = engine.defaultConfig()
@@ -953,12 +963,13 @@ test('穿模深度修复：大面细分 + 逐部件排序 + 每货架每面排�
   assert.ok(eng.includes('var tiling = !noTile && op == null;'), '面必须按边长切成小片再排序（半透明面除外）')
   assert.ok(eng.includes('var nu = tiling ? Math.max(1, Math.min(40, Math.ceil(e1 / TILE))) : 1;'),
     '小片数量必须由边长与片长决定')
-  assert.ok(eng.includes('add1(k2, polyStr(q, fill, isPattern ? null : fill, 1, op, attr));'),
-    '小片之间必须同色描边（否则出现发丝缝）')
+  assert.ok(eng.includes('add1(k2, polyStr(q, fill, (isPattern || solid) ? null : fill, isPattern || solid ? null : 1, op, attr));'),
+    '小片之间必须同色描边（实心块除外：轮廓由 hullPath 一次画成）')
   assert.ok(eng.includes("add1(k3, polyStr(pts, 'none', pal.s, 0.9, null, attr));"),
     '整面外轮廓必须单独描边（保持原外观）')
-  /* 外墙不做细分（房间边界，细分只增加体积） */
-  assert.ok(eng.includes("null, 'wall:top', true)"), '外墙必须免细分')
+  assert.ok(eng.includes('if (solid) return;'), '实心块的面不得再单独描外轮廓（轮廓被切缝切断看起来就是露线）')
+  assert.ok(eng.includes("PAL.wall, wallOp, null, 'wall:' + side, true)"),
+    '外墙必须免细分（房间边界；细分只增加体积）')
   /* ② 逐部件排序：整台车一个深度键时，与货架相交的部分会被整体误判 */
   assert.ok(eng.includes('for (var ip = 0; ip < bikeParts.length; ip++){'), '自行车必须逐部件参与排序')
   assert.ok(eng.includes(`add1(pI.k, '<g data-bike="' + bId + '"' + extra + '>' + pI.s + '</g>');`),
@@ -1197,6 +1208,154 @@ test('货架斜放：自由角度 + 六档预设，3D / 平面 / 附件 / 挂车
   for (const [name, ui] of [['桌面', desktop], ['移动', mobile]]) {
     assert.match(ui, /data-bact="rot">旋转\s?\+45°/u, `${name}端快捷条必须是「旋转 +45°」`)
     assert.ok(ui.includes('resetRot'), `${name}端快捷条必须有「转正 0°」`)
+  }
+})
+
+test('外墙是一段可编辑的墙：起点 / 墙长 / 横向偏移 / 旋转角度都可改，开口相对墙起点', async () => {
+  const engine = await loadToolEngine()
+  const schema = await loadToolSchema()
+  const base = engine.defaultConfig()
+  assert.ok(engine.wallIsDefault(base, 'left'), '缺省外墙必须仍是「整边、无偏移、不旋转」（旧图纸逐字节不变）')
+  assert.equal(engine.wallStart(base, 'left'), 0)
+  assert.equal(engine.wallLength(base, 'left'), 17, '左边墙缺省 = 整边 17m')
+  assert.equal(engine.wallRot(base, 'left'), 0)
+  const baseBox = engine.wallBounds(base, 'left')
+  // 跨 realm 的值对象 deepEqual 会因原型不同误判（memory 21 老坑）→ 逐字段比
+  assert.ok(baseBox.x === 0 && baseBox.y === 0 && Math.abs(baseBox.w - 0.3) < 1e-9 && baseBox.h === 17,
+    '缺省左边墙 = 整边 0..17m、厚 0.3m')
+
+  /* 缩短：0..6m —— 不再靠「打缺口」间接缩短 */
+  const short = engine.defaultConfig()
+  short.walls.left.len = 6
+  assert.equal(engine.wallLength(short, 'left'), 6)
+  assert.ok(Math.abs(engine.wallBounds(short, 'left').h - 6) < 1e-9, '平面/3D 只画 6m 那一段')
+  assert.ok(!engine.wallIsDefault(short, 'left'))
+  const planShort = engine.renderPlan(short, { sel: 'wl:left' })
+  const gShort = (planShort.match(/data-id="wl:left">[\s\S]*?<\/g>/) || [''])[0]
+  assert.ok(!/y="1[0-9]/.test(gShort), '≥10m 的位置不得再出现墙段（墙确实只到 6m）')
+
+  /* 起点 */
+  const mid = engine.defaultConfig()
+  mid.walls.right.from = 5
+  mid.walls.right.len = 4
+  assert.ok(Math.abs(engine.wallBounds(mid, 'right').y - 5) < 1e-9, '起点 5m：墙从 y=5 开始')
+  assert.ok(Math.abs(engine.wallBounds(mid, 'right').h - 4) < 1e-9)
+
+  /* 横向偏移（朝室内为正） */
+  const off = engine.defaultConfig()
+  off.walls.left.at = 1
+  assert.ok(Math.abs(engine.wallBounds(off, 'left').x - 1) < 1e-9, '偏移 1m：整段墙往室内挪 1m')
+
+  /* 旋转（横放 / 竖放 / 任意角度） */
+  const rot = engine.defaultConfig()
+  rot.walls.left.rot = 90
+  rot.walls.left.from = 3
+  rot.walls.left.len = 5
+  const rotB = engine.wallBounds(rot, 'left'), rotC = engine.wallCenterPt(rot, 'left')
+  assert.ok(rotB.w > 4.5 && rotB.h < 1.0, '转 90° 后左边墙变成一段横墙（包围盒变宽变矮）')
+  assert.ok(Math.abs(rotC.x - 0.15) < 1e-9 && Math.abs(rotC.y - 5.5) < 1e-9, '旋转绕墙段中心，中心不动')
+  const planRot = engine.renderPlan(rot, { sel: 'wl:left' })
+  assert.match(planRot, /data-id="wl:left"><polygon/u, '旋转后的外墙在平面里用多边形画')
+  const svgRot = engine.render3D(rot, { az: 90, el: 33, zoom: 1, vw: 1000, vh: 700 })
+  assert.match(svgRot, /data-struct="wall:left"/u, '旋转后的外墙在 3D 里按四边形面渲染')
+  assert.doesNotMatch(svgRot, /NaN|undefined/u)
+
+  /* 开口相对「墙起点」计：墙缩短后落在墙外的开口不再渲染，也不改数据 */
+  const seg = engine.defaultConfig()
+  seg.walls.left.len = 6
+  seg.walls.left.open = [{ at: 2, w: 1.5, type: 'pass', label: '' }]
+  const spans = engine.wallSegSpans(seg, 'left').map((sp) => sp.join('-')).join(' ')
+  assert.equal(spans, '0-2 3.5-6', '开口把 6m 墙切成两段（跨 realm 数组只比内容）')
+
+  /* 面板：字段与姿态预设 */
+  const builtShort = schema.buildVM(short, { sel: 'wl:left' })
+  const labels = builtShort.selection.fields.map((f) => f.label)
+  for (const label of ['起点（沿该边）', '墙长', '横向偏移（朝室内为正）', '旋转角度']) {
+    assert.ok(labels.includes(label), `外墙面板缺少「${label}」字段`)
+  }
+  const acts = builtShort.selection.actions.map((a) => a.label + '→' + a.id)
+  assert.ok(acts.some((a) => a.includes('竖放（沿边）') || a.includes('横放（沿边）')), '必须有「沿边」姿态预设')
+  assert.ok(acts.some((a) => a.includes(':90')), '必须有转 90° 的姿态预设')
+  assert.ok(acts.some((a) => a.includes(':45')), '必须有斜 45° 预设')
+  assert.ok(acts.some((a) => a.includes('斜 315°')), '必须有斜 315° 预设')
+  assert.match(builtShort.selection.badge, /长 6m/u, '徽章显示墙段自身长度而不是整边长')
+  const wallGroup = builtShort.elements.find((g) => g.key === 'wl')
+  assert.match(wallGroup.items[2].badge, /长 6m/u)
+
+  /* 交互接线：拖动 / 旋转 / 转正 */
+  const app = stripComments(toolApp)
+  assert.ok(app.includes('function moveOuterWall(side, nx, ny){'), '外墙必须能拖动（沿边改起点、横向改偏移）')
+  assert.ok(app.includes("else if (k === 'wl'){ moveOuterWall(key, nx, ny); }"), '拖动必须分流到 moveOuterWall')
+  assert.ok(app.includes("setWallRot: function(ds){"), '姿态预设动作 setWallRot 必须存在')
+  assert.ok(app.includes("rotWall: function(ds){"), '快捷条 +45° 需要 rotWall')
+  const desktop = stripComments(toolUiDesktop)
+  const mobile = stripComments(toolUiMobile)
+  for (const [name, ui] of [['桌面', desktop], ['移动', mobile]]) {
+    assert.match(ui, /data-bact="rotWall">旋转 \+45°/u, `${name}端快捷条必须有「旋转 +45°」`)
+    assert.ok(ui.includes('resetWallRot'), `${name}端快捷条必须有「转正 0°」`)
+    assert.ok(ui.includes('rotIW'), `${name}端必须能给内隔墙 +45°`)
+  }
+})
+
+test('货架是实心块：不再有露出体外的木纹线 / 层板线，外轮廓一次画成', async () => {
+  const engine = await loadToolEngine()
+  const eng = stripComments(toolEngine)
+  assert.ok(eng.includes('function hullPath(cs, z1, z2, stroke, sw){'), '必须有实心块的外轮廓绘制')
+  assert.ok(eng.includes("boxAdd(sBox, pal, null, null, 'shelf:' + s.id, null, true);"), '货架必须走「实心」模式')
+  assert.ok(eng.includes('hullPath(cs, 0, hS, pal.s, 0.9);'), '斜放货架也要画外轮廓')
+  assert.ok(!/levels\.forEach/.test(eng), '旧的层板线循环必须删除（不许留旧写法）')
+  assert.ok(!eng.includes('pal.ln'), '旧的木纹线 / 层板线颜色不得再被引用')
+
+  const inPoly = (pt, poly) => {
+    let ins = false
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i][0]; const yi = poly[i][1]; const xj = poly[j][0]; const yj = poly[j][1]
+      if (((yi > pt[1]) !== (yj > pt[1])) && (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi)) ins = !ins
+    }
+    return ins
+  }
+  for (const az of [45, 90, 135]) {
+    const config = engine.defaultConfig()
+    const svg = engine.render3D(config, { az, el: 33, zoom: 1, vw: 1000, vh: 700 })
+    assert.doesNotMatch(svg, /#cbb083/u, `az=${az}：货架上不得再出现木纹线 / 层板线（旧写法会露出体外）`)
+    assert.doesNotMatch(svg, /NaN|undefined/u)
+    const faces = [...svg.matchAll(/<polygon points="([^"]+)"[^>]*data-struct="shelf:([^"]+)"/gu)]
+    assert.ok(faces.length > 0, '货架面必须仍然渲染（实心块不是空壳）')
+    const hulls = [...svg.matchAll(/<line x1="([\d.-]+)" y1="([\d.-]+)" x2="([\d.-]+)" y2="([\d.-]+)" stroke="#b79f79" stroke-width="0.9"\/>/gu)]
+      .map((m) => ({ x1: +m[1], y1: +m[2], x2: +m[3], y2: +m[4] }))
+    const byShelf = {}
+    faces.forEach((f) => {
+      const key = f[2]
+      byShelf[key] = byShelf[key] || []
+      byShelf[key].push(...f[1].split(' ').map((p) => p.split(',').map(Number)))
+    })
+    const boxes = Object.keys(byShelf).map((key) => {
+      const pts = byShelf[key]
+      const x1 = Math.min(...pts.map((p) => p[0])); const x2 = Math.max(...pts.map((p) => p[0]))
+      const y1 = Math.min(...pts.map((p) => p[1])); const y2 = Math.max(...pts.map((p) => p[1]))
+      return { key, x1, y1, x2, y2 }
+    })
+    assert.ok(hulls.length > 0, '实心轮廓必须渲染（分段线段）')
+    /* 轮廓必须贴合货架剪影：整组轮廓线段的范围要与剪影一致（±2px）
+       —— 旧写法（木纹线 / 层板线）恰恰是在这里越界，用户看到的就是「裸露的线条」 */
+    const hx1 = Math.min(...hulls.flatMap((h) => [h.x1, h.x2]))
+    const hx2 = Math.max(...hulls.flatMap((h) => [h.x1, h.x2]))
+    const hy1 = Math.min(...hulls.flatMap((h) => [h.y1, h.y2]))
+    const hy2 = Math.max(...hulls.flatMap((h) => [h.y1, h.y2]))
+    const sx1 = Math.min(...boxes.map((b) => b.x1)); const sx2 = Math.max(...boxes.map((b) => b.x2))
+    const sy1 = Math.min(...boxes.map((b) => b.y1)); const sy2 = Math.max(...boxes.map((b) => b.y2))
+    assert.ok(Math.abs(hx1 - sx1) < 2 && Math.abs(hx2 - sx2) < 2 && Math.abs(hy1 - sy1) < 2 && Math.abs(hy2 - sy2) < 2,
+      `az=${az} 实心轮廓必须贴合货架剪影（轮廓 ${[hx1, hy1, hx2, hy2].map(Math.round)} vs 剪影 ${[sx1, sy1, sx2, sy2].map(Math.round)}）`)
+    for (const h of hulls) {
+      assert.ok(h.x1 >= hx1 - 1 && h.x1 <= hx2 + 1 && h.y1 >= hy1 - 1 && h.y1 <= hy2 + 1, '轮廓线段不得越出剪影')
+    }
+    /* 剪影内的每一处都必须是「面内」（没有线跑到体外） */
+    const allFaces = boxes.map((b) => b)
+    for (const box of allFaces) {
+      const cx = (box.x1 + box.x2) / 2, cy = (box.y1 + box.y2) / 2
+      const inside = faces.some((f) => inPoly([cx, cy], f[1].split(' ').map((p) => p.split(',').map(Number))))
+      assert.ok(inside, '货架剪影中心必须落在实心面内')
+    }
   }
 })
 

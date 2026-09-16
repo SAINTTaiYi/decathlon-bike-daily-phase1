@@ -3,7 +3,8 @@ import { UPSTREAM_TIMEOUT_MS } from '../lib/fetch-timeout.js'
 
 const encoder = new TextEncoder()
 
-export function normalizeCorporateEmail(value: string): string {
+/* 账号邮箱归一化（2026-09-17 起不限域名）：email_key 的稳定性与唯一性由它保证。 */
+export function normalizeAccountEmail(value: string): string {
   return value.normalize('NFKC').trim().toLocaleLowerCase('en-US')
 }
 
@@ -85,8 +86,8 @@ export async function sendEmailBindingOtp(config: AppConfig, input: { email: str
       from: config.RESEND_FROM,
       to: [input.email],
       subject: 'Workshop Bike Ops 邮箱绑定验证码',
-      text: `${input.displayName}，你正在为 Workshop Bike Ops 账号绑定公司邮箱，验证码是：${input.otp}。验证码将在 ${expiry} 过期。若不是你本人操作，请立即退出登录并联系门店管理员。`,
-      html: `<p>${escapeHtml(input.displayName)}，你正在为 Workshop Bike Ops 账号绑定公司邮箱，验证码是：</p><p style="font-size:24px;font-weight:700;letter-spacing:0.12em">${input.otp}</p><p>验证码将在 ${escapeHtml(expiry)} 过期。若不是你本人操作，请立即退出登录并联系门店管理员。</p>`
+      text: `${input.displayName}，你正在为 Workshop Bike Ops 账号绑定邮箱，验证码是：${input.otp}。验证码将在 ${expiry} 过期。若不是你本人操作，请立即退出登录并联系门店管理员。`,
+      html: `<p>${escapeHtml(input.displayName)}，你正在为 Workshop Bike Ops 账号绑定邮箱，验证码是：</p><p style="font-size:24px;font-weight:700;letter-spacing:0.12em">${input.otp}</p><p>验证码将在 ${escapeHtml(expiry)} 过期。若不是你本人操作，请立即退出登录并联系门店管理员。</p>`
     }),
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
   })

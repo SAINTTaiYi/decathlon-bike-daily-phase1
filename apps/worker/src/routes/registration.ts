@@ -12,7 +12,7 @@ import { createAuthMiddleware } from '../auth/middleware.js'
 import { all, first, nowIso, uuid } from '../db.js'
 import { hashPassword, keyedHash, randomToken, safeEqualHex, sha256 } from '../lib/crypto.js'
 import { prepareAudit, prepareConditionalAudit } from '../services/business.js'
-import { normalizeCorporateEmail, randomOtp, requestClientHash, sendRegistrationOtp } from '../services/registration.js'
+import { normalizeAccountEmail, randomOtp, requestClientHash, sendRegistrationOtp } from '../services/registration.js'
 import { ApiProblem } from '../services/problems.js'
 import { requireJsonBody } from '../lib/json.js'
 
@@ -44,7 +44,7 @@ function delay(ms: number): Promise<void> {
 }
 
 function genericRegistrationMessage() {
-  return '如邮箱与门店信息有效，验证码会发送到公司邮箱。请检查收件箱后继续。'
+  return '如邮箱与门店信息有效，验证码会发送到该邮箱。请检查收件箱后继续。'
 }
 
 function registrationOtpResponse(challengeId: string, retryAfterSeconds = 60) {
@@ -131,7 +131,7 @@ export function registrationRoutes() {
     const config = c.get('config')
     requireRegistrationConfig(config)
     const input = registrationOtpSchema.parse(await c.req.json())
-    const emailKey = normalizeCorporateEmail(input.email)
+    const emailKey = normalizeAccountEmail(input.email)
     const userKey = usernameKey(input.username)
     const displayName = input.displayName ?? input.username
     const storeCode = input.storeCode.toLocaleUpperCase('en-US')

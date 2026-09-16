@@ -270,6 +270,13 @@ function renderStatus(items){
 
 /* ---------- 选中动作条（右栏顶部，完整参数在下面） ---------- */
 function accLab(v){ return v === 'adult' ? '成人' : (v === 'kids' ? '童车' : '无'); }
+/* 角度归一化（墙体 / 货架同一口径；界面层不依赖 cfg） */
+function rotOn(o){
+  var r = +((o || {}).rot);
+  if (!isFinite(r) || Math.abs(r) < 1e-6) return 0;
+  r = r % 360; if (r < 0) r += 360;
+  return (Math.abs(r) < 1e-6) ? 0 : r;
+}
 function accNow(o, key){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
   return (a && a[key]) ? a[key] : 'none';
@@ -328,9 +335,16 @@ function selBarHTML(ctx){
   } else if (k === 'en'){
     h += '<b class="sd-d-selflag">出入口净空</b>' + del + close;
   } else if (k === 'iw'){
-    h += '<b class="sd-d-selflag">内隔墙</b><button class="sd-d-act" data-bact="rot">改朝向</button>' + del + close;
+    h += '<b class="sd-d-selflag">内隔墙</b><button class="sd-d-act" data-bact="rot">改朝向</button>'
+      + '<button class="sd-d-act" data-bact="rotIW">旋转 +45°</button>'
+      + (rotOn(o) ? '<button class="sd-d-act" data-bact="resetRotIW">转正 0°</button>' : '')
+      + del + close;
   } else if (k === 'wl'){
-    h += '<b class="sd-d-selflag">外墙</b><button class="sd-d-act" data-bact="addOpen">＋ 开口</button>' + close;
+    /* 外墙（2026-09-17）：可拖动、可改长度、可横放/竖放/旋转 */
+    h += '<b class="sd-d-selflag">外墙</b>'
+      + '<button class="sd-d-act" data-bact="rotWall">旋转 +45°</button>'
+      + (rotOn(o) ? '<button class="sd-d-act" data-bact="resetWallRot">转正 0°</button>' : '')
+      + '<button class="sd-d-act" data-bact="addOpen">＋ 开口</button>' + close;
   } else if (k === 'ct'){
     h += '<b class="sd-d-selflag">门帘</b><button class="sd-d-act" data-bact="rot">改朝向</button>' + del + close;
   } else if (k === 'bk'){

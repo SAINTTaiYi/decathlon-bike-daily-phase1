@@ -143,7 +143,7 @@ export function useBootAuthPanel({ onRegistered, onRecovered } = {}) {
     } else {
       if (!form.storeCode.trim() || !form.storeName.trim()) return setError('请填写门店编号和门店名称。')
     }
-    if (!form.username.trim() || !form.email.trim()) return setError('请填写 Profile 和公司邮箱。')
+    if (!form.username.trim() || !form.email.trim()) return setError('请填写 Profile 和邮箱。')
 
     const selected = storeOptions.find((store) => store.code === form.storeCode.trim())
     const result = await run(() => requestRegistrationOtp({
@@ -160,7 +160,7 @@ export function useBootAuthPanel({ onRegistered, onRecovered } = {}) {
       setChallenge({ id: result.data.challengeId, completionToken: '' })
       setStep(1)
     }
-    setNotice(result.data?.message || '验证码已发送，请检查公司邮箱。')
+    setNotice(result.data?.message || '验证码已发送，请检查邮箱。')
     return undefined
   }, [form, registerPath, storeOptions, run])
 
@@ -210,7 +210,7 @@ export function useBootAuthPanel({ onRegistered, onRecovered } = {}) {
   const submitRecoverClaim = useCallback(async (event) => {
     event?.preventDefault?.()
     if (!form.username.trim()) return setError('请输入用户名。')
-    if (!form.email.trim()) return setError('请输入账号绑定的公司邮箱。')
+    if (!form.email.trim()) return setError('请输入账号绑定的邮箱。')
 
     const result = await run(() => requestPasswordRecoveryOtp({
       username: form.username.trim(),
@@ -286,7 +286,7 @@ export function useBootAuthPanel({ onRegistered, onRecovered } = {}) {
       ? '选择你所在的门店，加入申请将由该门店管理员审批。'
       : '新门店需要平台管理员审核后开通，首位注册人成为门店管理员。')
     : mode === 'recover'
-      ? '验证码只发送到账号绑定的公司邮箱。'
+      ? '验证码只发送到账号绑定的邮箱。'
       : ''
 
   return {

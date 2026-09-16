@@ -84,7 +84,7 @@ export function BootLoaderDesktop({ form, panel, rootRef, cardRef }) {
                   onClick={() => panel.switchMode('register')}
                   disabled={submitting}
                 >
-                  使用公司邮箱注册
+                  使用邮箱注册
                 </button>
               </div>
             </form>

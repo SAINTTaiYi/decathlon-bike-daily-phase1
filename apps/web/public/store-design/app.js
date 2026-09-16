@@ -526,11 +526,28 @@ var acts = {
       toast('已恢复备份 ' + ds.id + ' ✓');
     } catch(e2){ toast('恢复失败：' + (e2 && e2.message ? e2.message : e2)); }
   },
+  /* 外墙姿态（用户 2026-09-17：墙体也可以横放、竖放、旋转）。
+     id 形如 "left:90" —— 绕墙段中心转到指定角度；0 = 沿边（竖放，左右边）/（横放，上下边）。 */
+  setWallRot: function(ds){
+    var p = String(ds.id).split(':'), side = p[0], e = cfg.walls[side];
+    if (!e) return;
+    var deg = ((+p[1] || 0) % 360 + 360) % 360;
+    e.rot = deg;
+    afterStruct(); renderSelBar(true);
+    toast('外墙已切换到 ' + (deg === 0 ? '沿边（0°）' : deg + '°'));
+  },
+  rotWall: function(ds){
+    var side = ds.id, e = cfg.walls[side]; if (!e) return;
+    e.rot = ((E.wallRot(cfg, side) + 45) % 360);
+    afterStruct(); renderSelBar(true);
+    toast('外墙旋转 ' + e.rot + '°');
+  },
   addOpen: function(ds){
     var key = ds.id, e = cfg.walls[key];
-    var L = (key === 'top' || key === 'bottom') ? cfg.space.w : cfg.space.d;
+    /* 新开口落在「当前墙段」中间（墙缩短后不再把开口加在墙外） */
+    var L = E.wallLength(cfg, key), w = Math.min(2.0, Math.max(0.5, L - 0.2));
     e.open = e.open || [];
-    e.open.push({ at: Math.max(0, Math.round((L/2 - 1)*10)/10), w: 2.0, type: 'pass', label: '' });
+    e.open.push({ at: Math.max(0, Math.round((L/2 - w/2)*10)/10), w: w, type: 'pass', label: '' });
     afterStruct();
   },
   delOpen: function(ds){
@@ -614,6 +631,7 @@ function anchorOf(id){
   if (k === 'en'){ var en = findBy(cfg.entrances || [], key); return en ? { x: en.x, y: en.y } : null; }
   if (k === 'ct'){ var ct = findBy(cfg.curtains || [], key); return ct ? { x: ct.x, y: ct.y } : null; }
   if (k === 'bk'){ var bkk = findBy(cfg.bikes || [], key); return bkk ? { x: bkk.x, y: bkk.y } : null; }
+  if (k === 'wl'){ if (!cfg.walls[key]) return null; return E.wallPt(cfg, key, 0, 0); }
   if (k === 'iw'){ var wsA = findBy(cfg.wallSegs || [], key); if (!wsA) return null;
     var thA = wsA.thick || 0.3, aA = Math.min(wsA.from, wsA.to);
     return (wsA.orient === 'v') ? { x: wsA.at - thA/2, y: aA } : { x: aA, y: wsA.at - thA/2 }; }
@@ -632,9 +650,10 @@ function sizeOf(id){
   if (k === 'bk'){ return { w: 1.0, h: 1.0 }; }
   if (k === 'iw'){ var wsS = findBy(cfg.wallSegs || [], key); if (!wsS) return null;
     var thS = wsS.thick || 0.3, lenS = Math.abs((+wsS.to || 0) - (+wsS.from || 0));
+    if (E.wallSegRot(wsS)){ var bS = E.boundsOfPts(E.wallSegCorners(wsS)); return { w: bS.w, h: bS.h }; }
     return (wsS.orient === 'v') ? { w: thS, h: lenS } : { w: lenS, h: thS }; }
   if (k === 'wl'){ var eS = cfg.walls[key]; if (!eS) return null;
-    return (key === 'top' || key === 'bottom') ? { w: cfg.space.w, h: E.WALL_T } : { w: E.WALL_T, h: cfg.space.d }; }
+    var bW = E.wallBounds(cfg, key); return { w: bW.w, h: bW.h }; }
   return null;
 }
 function moveItem(id, nx, ny){
@@ -662,6 +681,23 @@ function moveItem(id, nx, ny){
     if (bkk){ bkk.x = E.clamp(nx, 0.2, cfg.space.w - 0.2); bkk.y = E.clamp(ny, 0.2, cfg.space.d - 0.2); }
   }
   else if (k === 'iw'){ moveInnerWall(key, nx, ny); }
+  else if (k === 'wl'){ moveOuterWall(key, nx, ny); }
+}
+/* 外墙整段平移（2026-09-17）：拖动的锚点 = 墙段起点。沿边方向改 from，
+   垂直方向改 at（朝室内为正）。墙长不变，所以不再靠「打缺口」缩短墙。 */
+function moveOuterWall(side, nx, ny){
+  var e = cfg.walls[side]; if (!e) return;
+  var g = E.wallGeom(cfg, side), L = E.wallLength(cfg, side);
+  var ax = E.wallPt(cfg, side, 0, 0).x, ay = E.wallPt(cfg, side, 0, 0).y;
+  var dx = nx - ax, dy = ny - ay;
+  var du = dx * g.dx + dy * g.dy;
+  var dv = dx * g.ix + dy * g.iy;
+  var from0 = E.wallStart(cfg, side), at0 = E.wallOffset(cfg, side);
+  var nFrom = E.clamp(Math.round((from0 + du) / 0.5) * 0.5, 0, Math.max(0, g.edgeLen - L));
+  var nAt = E.clamp(Math.round((at0 + dv) / 0.5) * 0.5, -6, 6);
+  if (nFrom === from0 && nAt === at0) return;
+  e.from = nFrom; e.at = nAt;
+  postSelUpdate();
 }
 /* 内隔墙整体平移：v 向 → at 跟 x 走、起止跟 y 走；h 向相反。起止一起平移，长度不变。 */
 function moveInnerWall(id, nx, ny){
@@ -701,11 +737,14 @@ function clampRaw(id, nx, ny){
   if (k === 'pl') return { x: E.clamp(nx, sz.w/2, W - sz.w/2), y: E.clamp(ny, sz.h/2, D - sz.h/2) };
   if (k === 'bk') return { x: E.clamp(nx, 0.2, W - 0.2), y: E.clamp(ny, 0.2, D - 0.2) };
   if (k === 'iw') return { x: E.clamp(nx, 0, Math.max(0, W - sz.w)), y: E.clamp(ny, 0, Math.max(0, D - sz.h)) };
+  /* 外墙可以往室内外自由移动（横向偏移），不按包围盒夹在空间里 */
+  if (k === 'wl') return { x: nx, y: ny };
   return { x: E.clamp(nx, 0, Math.max(0, W - sz.w)), y: E.clamp(ny, 0, Math.max(0, D - sz.h)) };
 }
 function isCenterAnchored(id){
   var k = String(id).split(':')[0];
-  return k === 'pl' || k === 'bk';
+  /* 外墙的锚点 = 墙段起点（角点），按中心锚定拖动才不会跳 */
+  return k === 'pl' || k === 'bk' || k === 'wl';
 }
 /* ---------- 摆放模式（添加组件后拖拽放置） ---------- */
 function startPlacing(selId, label){
@@ -760,8 +799,6 @@ function bindPlan(){
     /* 轻量移动选中框，绝不重建 SVG（重建会触发 pointercancel → 拖拽变滚动）；
        面板与快捷条由 afterSelect 统一收尾。 */
     afterSelect();
-    /* 外墙是房间边界：只选中、不拖动（位置由「空间宽/深」决定）。 */
-    if (String(id).slice(0, 3) === 'wl:') return;
     var g = sc.querySelector('[data-id="' + id + '"]');
     if (!g) return;
     var baseT = g.getAttribute('transform') || '';
@@ -979,6 +1016,17 @@ function bindSelBar(){
       postSelUpdate();
       /* 货架快捷条的「贴墙 / 转正」按钮随角度切换，必须强制重建（refreshSelVals 只刷数值） */
       if (it.k === 'sh') renderSelBar(true);
+    } else if (act === 'rotWall'){
+      acts.rotWall({ id: id });
+    } else if (act === 'resetWallRot'){
+      acts.setWallRot({ id: id + ':0' });
+    } else if (act === 'rotIW'){
+      /* 内隔墙旋转 +45°（用户 2026-09-17：墙体也可以横放 / 竖放 / 旋转） */
+      var wsR = findBy(cfg.wallSegs || [], id);
+      if (wsR){ wsR.rot = ((+wsR.rot || 0) + 45) % 360; postSelUpdate(); renderSelBar(true); }
+    } else if (act === 'resetRotIW'){
+      var wsR0 = findBy(cfg.wallSegs || [], id);
+      if (wsR0){ wsR0.rot = 0; postSelUpdate(); renderSelBar(true); }
     } else if (act === 'resetRot'){
       /* 斜放货架的一键转正（快捷条「转正 0°」） */
       rotateShelfTo(it.o, it.o.orient, 0);

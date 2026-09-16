@@ -234,16 +234,22 @@ function elementGroups(cfg){
   /* 墙体（2026-09-17 用户要求「灰色墙体要可编辑」）：外墙每侧一条、内隔墙每段一条，
      都能在平面里点选 / 在元素清单里选中后改参数；内隔墙还能拖动整段平移。 */
   g.push({ key:'wl', title:'外墙', items: WALL_SIDE_KEYS.map(function(key, i){
-    var e = cfg.walls[key], L = wallEdgeLength(cfg, key);
+    var e = cfg.walls[key];
     var openCount = (e.open || []).length;
+    var wLen = wallCurLen(cfg, key), wFrom = wallCurFrom(cfg, key);
+    var wAt = isFinite(+e.at) ? +e.at : 0;
+    var wRot = isFinite(+e.rot) ? (((+e.rot % 360) + 360) % 360) : 0;
     return { id:'wl:' + key, type:'wl', index:i, title: WALL_SIDE_TITLES[i],
-      badge: (e.on === false ? '已关闭' : '长 ' + num(L) + 'm') + (openCount ? ' · 开口 ' + openCount : ''),
+      badge: (e.on === false ? '已关闭' : '长 ' + num(wLen) + 'm')
+        + (wFrom ? ' · 起点 ' + num(wFrom) : '') + (wRot ? ' · ' + Math.round(wRot) + '°' : '')
+        + (wAt ? ' · 偏移 ' + num(wAt) : '') + (openCount ? ' · 开口 ' + openCount : ''),
       actions: wallEdgeActions(cfg, key) };
   }) });
   if ((cfg.wallSegs || []).length) g.push({ key:'iw', title:'内隔墙', items: cfg.wallSegs.map(function(ws, i){
     var a = Math.min(+ws.from || 0, +ws.to || 0), b = Math.max(+ws.from || 0, +ws.to || 0);
     return { id:'iw:' + ws.id, type:'iw', index:i, title:'内隔墙 #' + (i + 1),
-      badge: (ws.orient === 'v' ? '竖直' : '水平') + ' ' + num(b - a) + 'm',
+      badge: (ws.orient === 'v' ? '竖直' : '水平') + ' ' + num(b - a) + 'm'
+        + (isFinite(+ws.rot) && Math.abs(+ws.rot % 360) > 1e-6 ? ' · ' + Math.round(((+ws.rot % 360) + 360) % 360) + '°' : ''),
       actions: [action('delSeg', ws.id, '删除', 'danger')] };
   }) });
   if (cfg.shelves.length){
@@ -315,13 +321,38 @@ function elementGroups(cfg){
 var WALL_SIDE_KEYS = ['top', 'bottom', 'left', 'right'];
 var WALL_SIDE_TITLES = ['上边（商场方向）', '下边', '左边', '右边'];
 function wallEdgeLength(cfg, key){ return (key === 'top' || key === 'bottom') ? cfg.space.w : cfg.space.d; }
+/* 外墙 = 一段可直接编辑的墙（2026-09-17 用户定案）：
+   起点 / 墙长 / 横向偏移 / 旋转角度，开口相对「墙起点」计 —— 不再靠打缺口间接缩短。 */
+function wallCurFrom(cfg, key){
+  var e = cfg.walls[key], L = wallEdgeLength(cfg, key), f = +e.from;
+  if (!isFinite(f)) f = 0;
+  return Math.max(0, Math.min(f, Math.max(0, L - 0.2)));
+}
+function wallCurLen(cfg, key){
+  var e = cfg.walls[key], L = wallEdgeLength(cfg, key), ln = +e.len;
+  if (!isFinite(ln) || ln <= 0) ln = L;
+  return Math.max(0.2, Math.min(ln, L - wallCurFrom(cfg, key)));
+}
 function wallEdgeFields(cfg, key){
   var e = cfg.walls[key], L = wallEdgeLength(cfg, key);
-  var fields = [toggle('walls.' + key + '.on', '有墙', e.on)];
+  var from = wallCurFrom(cfg, key), len = wallCurLen(cfg, key);
+  var at = isFinite(+e.at) ? +e.at : 0;
+  var rot = isFinite(+e.rot) ? (((+e.rot % 360) + 360) % 360) : 0;
+  var across = (key === 'top' || key === 'bottom') ? '横放' : '竖放';
+  var fields = [
+    toggle('walls.' + key + '.on', '有墙', e.on),
+    note('该边全长 ' + num(L) + ' m · 当前墙段 ' + across + ' ' + num(len) + ' m'),
+    number('walls.' + key + '.from', '起点（沿该边）', from, { unit:'m', min:0, max:Math.max(0, L - 0.2), step:0.5 }),
+    number('walls.' + key + '.len', '墙长', len, { unit:'m', min:0.2, max:Math.max(0.2, L - from), step:0.5 }),
+    number('walls.' + key + '.at', '横向偏移（朝室内为正）', at, { unit:'m', min:-6, max:6, step:0.5 }),
+    number('walls.' + key + '.rot', '旋转角度', rot, { unit:'°', min:0, max:345, step:5 })
+  ];
   (e.open || []).forEach(function(op, i){
-    fields.push(note('开口 ' + (i + 1) + ' · 该边全长 ' + num(L) + ' m'));
-    fields.push(number('walls.' + key + '.open.' + i + '.at', '开口起点', op.at, { unit:'m', min:0, max:L, step:0.1 }));
-    fields.push(number('walls.' + key + '.open.' + i + '.w', '开口宽', op.w, { unit:'m', min:0, max:L, step:0.1 }));
+    fields.push(note('开口 ' + (i + 1) + ' · 起点相对墙起点，墙长 ' + num(len) + ' m'));
+    /* 墙缩短后，落在墙外的开口不渲染 —— 面板里的起点也夹到墙长内（改回长墙时原值仍在数据里） */
+    var opAt = Math.min(+op.at || 0, Math.max(0, len - 0.1));
+    fields.push(number('walls.' + key + '.open.' + i + '.at', '开口起点', opAt, { unit:'m', min:0, max:len, step:0.1 }));
+    fields.push(number('walls.' + key + '.open.' + i + '.w', '开口宽', op.w, { unit:'m', min:0, max:len, step:0.1 }));
     fields.push(select('walls.' + key + '.open.' + i + '.type', '开口类型', op.type, [['main','主入口'],['pass','通道'],['other','其他']]));
     fields.push(text('walls.' + key + '.open.' + i + '.label', '开口名称', op.label, '如 商场出入口'));
   });
@@ -329,7 +360,14 @@ function wallEdgeFields(cfg, key){
 }
 function wallEdgeActions(cfg, key){
   var e = cfg.walls[key];
-  return [action('addOpen', key, '＋ 开口')].concat((e.open || []).map(function(op, i){
+  var rotNow = isFinite(+e.rot) ? (((+e.rot % 360) + 360) % 360) : 0;
+  var along = (key === 'top' || key === 'bottom') ? '横放（沿边）' : '竖放（沿边）';
+  var turn = (key === 'top' || key === 'bottom') ? '竖放（转 90°）' : '横放（转 90°）';
+  function pose(deg, label){ return action('setWallRot', key + ':' + deg, (rotNow === deg ? '● ' : '') + label); }
+  return [
+    pose(0, along), pose(90, turn), pose(45, '斜 45°'), pose(135, '斜 135°'), pose(225, '斜 225°'), pose(315, '斜 315°'),
+    action('addOpen', key, '＋ 开口')
+  ].concat((e.open || []).map(function(op, i){
     return action('delOpen', key + ':' + i, '删除开口 ' + (i + 1), 'danger');
   }));
 }
@@ -340,7 +378,8 @@ function wallSegFields(cfg, i){
     number('wallSegs.' + i + '.at', '位置', ws.at, { unit:'m', min:0, max:200, step:0.1 }),
     number('wallSegs.' + i + '.from', '从', ws.from, { unit:'m', min:0, max:200, step:0.1 }),
     number('wallSegs.' + i + '.to', '到', ws.to, { unit:'m', min:0, max:200, step:0.1 }),
-    number('wallSegs.' + i + '.thick', '厚度', ws.thick, { unit:'m', min:0.1, max:2, step:0.05 })
+    number('wallSegs.' + i + '.thick', '厚度', ws.thick, { unit:'m', min:0.1, max:2, step:0.05 }),
+    number('wallSegs.' + i + '.rot', '旋转角度', (isFinite(+ws.rot) ? ((((+ws.rot % 360) + 360) % 360)) : 0), { unit:'°', min:0, max:345, step:5 })
   ];
 }
 
@@ -372,7 +411,8 @@ function settingsGroups(cfg){
         number('wallSegs.' + i + '.at', '位置', ws.at, { unit:'m', min:0, max:200, step:0.1 }),
         number('wallSegs.' + i + '.from', '从', ws.from, { unit:'m', min:0, max:200, step:0.1 }),
         number('wallSegs.' + i + '.to', '到', ws.to, { unit:'m', min:0, max:200, step:0.1 }),
-        number('wallSegs.' + i + '.thick', '厚度', ws.thick, { unit:'m', min:0.1, max:2, step:0.05 })
+        number('wallSegs.' + i + '.thick', '厚度', ws.thick, { unit:'m', min:0.1, max:2, step:0.05 }),
+        number('wallSegs.' + i + '.rot', '旋转角度', (isFinite(+ws.rot) ? ((((+ws.rot % 360) + 360) % 360)) : 0), { unit:'°', min:0, max:345, step:5 })
       ], actions:[action('delSeg', ws.id, '删除', 'danger')] };
   }).concat([{ id:'seg-add', title:'新增内隔墙', badge:'', fields:[], actions:[action('addSeg', null, '+ 添加内隔墙')] }]) });
   return groups;

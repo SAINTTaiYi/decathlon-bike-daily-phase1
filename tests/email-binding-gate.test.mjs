@@ -66,3 +66,30 @@ test('App 门卡挂接：绑定门卡优先于改密门卡，业务钩子在锁�
   assert.match(app, /enabled: authenticated && !introLocked && opsDataNeeded/u)
   assert.match(app, /deferUpdatePrompt = auth\.source === 'login' && !introLocked/u)
 })
+
+// ── 2026-09-17：邮箱不再强制迪卡侬域名 ────────────────────────────────────
+
+test('邮箱不再限定公司域名（文案与校验都不许再要求 @decathlon.com）', async () => {
+  const [contracts, gate, stepFields, bootDesktop, bootMobile, useAuthPanel, middleware, authRoute, accountRoute] = await Promise.all([
+    read('../packages/contracts/src/index.ts'),
+    read('../apps/web/src/components/EmailBindingGate.jsx'),
+    read('../apps/web/src/components/boot/BootAuthStepFields.jsx'),
+    read('../apps/web/src/components/boot/BootLoaderDesktop.jsx'),
+    read('../apps/web/src/components/boot/BootLoaderMobile.jsx'),
+    read('../apps/web/src/hooks/useBootAuthPanel.js'),
+    read('../apps/worker/src/auth/middleware.ts'),
+    read('../apps/worker/src/routes/auth.ts'),
+    read('../apps/worker/src/routes/account.ts')
+  ])
+  assert.ok(contracts.includes('const accountEmailSchema = z.string().trim().toLowerCase().email().max(320)'),
+    '契约层必须是「任意有效邮箱」')
+  assert.ok(!contracts.includes('corporateEmailSchema'), '旧的域名限定 schema 必须删除（删旧不覆盖）')
+  assert.ok(!/endsWith\('@decathlon\.com'\)/u.test(contracts), '不得再按域名后缀校验')
+  for (const [name, text] of [['绑定门卡', gate], ['注册字段', stepFields], ['桌面登录卡', bootDesktop], ['移动登录卡', bootMobile], ['登录卡逻辑', useAuthPanel]]) {
+    assert.ok(!text.includes('公司邮箱'), `${name}不得再写「公司邮箱」`)
+    assert.ok(!text.includes('decathlon.com'), `${name}不得再出现 decathlon.com 占位符`)
+  }
+  assert.ok(!middleware.includes('公司邮箱') && !authRoute.includes('公司邮箱') && !accountRoute.includes('公司邮箱'),
+    'worker 侧提示语不得再写「公司邮箱」')
+  assert.ok(accountRoute.includes('summary: `绑定邮箱并重设密码：${context.displayName}`'), '审计摘要用中性文案')
+})

@@ -284,6 +284,13 @@ function accRows(o){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
   return (a && a.rows) ? a.rows : [];
 }
+/* 角度归一化（墙体 / 货架同一口径；界面层不依赖 cfg） */
+function rotOn(o){
+  var r = +((o || {}).rot);
+  if (!isFinite(r) || Math.abs(r) < 1e-6) return 0;
+  r = r % 360; if (r < 0) r += 360;
+  return (Math.abs(r) < 1e-6) ? 0 : r;
+}
 function selBarHTML(ctx){
   var k = ctx.kind, o = ctx.item, h = '';
   var close = '<button class="sd-m-x" data-bact="close" aria-label="取消选中">✕</button>';
@@ -352,9 +359,13 @@ function selBarHTML(ctx){
       + '<span class="sd-m-tag">x</span>' + stepper('x', o.x, '') + '<span class="sd-m-tag">y</span>' + stepper('y', o.y, '') + del + '</div>';
   } else if (k === 'iw'){
     h += '<div class="sd-m-selrow">' + close + '<span class="sd-m-tag">内隔墙</span>'
-      + '<button data-bact="rot">改朝向</button>' + del + '</div>';
+      + '<button data-bact="rot">改朝向</button><button data-bact="rotIW">旋转 +45°</button>'
+      + (rotOn(o) ? '<button data-bact="resetRotIW">转正 0°</button>' : '')
+      + del + '</div>';
   } else if (k === 'wl'){
     h += '<div class="sd-m-selrow">' + close + '<span class="sd-m-tag">外墙</span>'
+      + '<button data-bact="rotWall">旋转 +45°</button>'
+      + (rotOn(o) ? '<button data-bact="resetWallRot">转正 0°</button>' : '')
       + '<button data-bact="addOpen">＋ 开口</button></div>';
   } else if (k === 'bk'){
     var top = (o.pose === 'top');
