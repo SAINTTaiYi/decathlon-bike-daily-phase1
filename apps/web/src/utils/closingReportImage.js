@@ -5,6 +5,9 @@ const WIDTH = 1242
 const PAD = 64
 const INK = '#0b0b0d'
 const INK_SOFT = '#3a3a3c'
+// Ops 主题黄（与 --ops-yellow 同值）：日报图的实心色块统一用它，黑色只留作文字/描边。
+const BRAND = '#ffde59'
+const BRAND_INK = '#14161a'
 const PAPER = '#f7f6f2'
 const PAPER_SOFT = '#f0efeb'
 const LINE = '#e4e2db'
@@ -33,6 +36,15 @@ function formatDateSlash(value) {
   const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/)
   if (m) return `${m[1]} / ${m[2]} / ${m[3]}`
   return raw.replaceAll('-', ' / ')
+}
+
+// 记录生成日期（卡片左上角业务编号旁）：闭店日报要能看出每条挂账是哪天生成的。
+function formatCreatedStamp(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const at = new Date(raw)
+  if (Number.isNaN(at.getTime())) return ''
+  return `${pad2(at.getMonth() + 1)}.${pad2(at.getDate())}`
 }
 
 function formatClock(iso) {
@@ -108,7 +120,8 @@ export function shiphubReportRecord(category, order, vehicleLookup) {
     contactType: 'phone',
     contactValue: order.customerPhone || '',
     ticketNo: order.orderNumber,
-    pickupDate: order.scheduledAt ? String(order.scheduledAt).slice(0, 10) : ''
+    pickupDate: order.scheduledAt ? String(order.scheduledAt).slice(0, 10) : '',
+    createdAt: order.firstSeenAt || ''
   }
 }
 
@@ -223,7 +236,7 @@ function drawBarcode(ctx, x, y) {
 
 function drawSparkline(ctx, x, y, w, h) {
   // dotted grid
-  ctx.fillStyle = 'rgba(255,255,255,0.12)'
+  ctx.fillStyle = 'rgba(20,22,26,0.14)'
   for (let i = 0; i < 18; i += 1) {
     for (let j = 0; j < 8; j += 1) {
       ctx.beginPath()
@@ -241,13 +254,13 @@ function drawSparkline(ctx, x, y, w, h) {
     const py = y + h - 36 - (t * t * 0.72 + wave) * (h - 70)
     pts.push([px, py])
   }
-  ctx.strokeStyle = 'rgba(255,255,255,0.55)'
+  ctx.strokeStyle = 'rgba(20,22,26,0.55)'
   ctx.lineWidth = 2
   ctx.beginPath()
   pts.forEach(([px, py], i) => (i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)))
   ctx.stroke()
   const [ex, ey] = pts[pts.length - 1]
-  ctx.fillStyle = '#ffffff'
+  ctx.fillStyle = BRAND_INK
   ctx.beginPath()
   ctx.arc(ex, ey, 5, 0, Math.PI * 2)
   ctx.fill()
@@ -346,7 +359,7 @@ function drawLeftAccentBar(ctx, x, y, h) {
   ctx.save()
   roundRect(ctx, x, y, BAR_W + R, h, R)
   ctx.clip()
-  ctx.fillStyle = INK
+  ctx.fillStyle = BRAND
   ctx.fillRect(x, y, BAR_W, h)
   ctx.restore()
 }
@@ -389,7 +402,11 @@ function drawCard(ctx, item, x, y, width, index) {
   ctx.textBaseline = 'top'
   ctx.fillStyle = MUTED
   ctx.font = `700 20px ${FONT_MONO}`
-  ctx.fillText(formatTicketNumber(item.ticketNo, item.id), leftX + CARD_PAD_X, cy)
+  const createdStamp = formatCreatedStamp(item.createdAt)
+  const ticketLine = createdStamp
+    ? `${formatTicketNumber(item.ticketNo, item.id)}  ·  生成 ${createdStamp}`
+    : formatTicketNumber(item.ticketNo, item.id)
+  ctx.fillText(ticketLine, leftX + CARD_PAD_X, cy)
   cy += 34
 
   ctx.textBaseline = 'alphabetic'
@@ -471,7 +488,7 @@ function drawCard(ctx, item, x, y, width, index) {
   const sourceIdentity = shiphubLabel || selfPickupLabel || usedCarLabel
   const dateLabel = shiphubLabel ? 'Shiphub' : selfPickupLabel ? '自提标识' : usedCarLabel ? '二手车标识' : '取车时间'
   const dateValue = sourceIdentity || formatDateSlash(item.pickupDate)
-  if (sourceIdentity) fillRound(ctx, panelX, panelY, panelW, panelH, 16, INK)
+  if (sourceIdentity) fillRound(ctx, panelX, panelY, panelW, panelH, 16, BRAND)
   ctx.font = `600 18px ${FONT_MONO}`
   const rightStackH = 22 + 16 + 34
   let ry = panelY + Math.round((panelH - rightStackH) / 2)
@@ -479,11 +496,11 @@ function drawCard(ctx, item, x, y, width, index) {
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
-  ctx.fillStyle = sourceIdentity ? 'rgba(255,255,255,0.68)' : MUTED
+  ctx.fillStyle = sourceIdentity ? 'rgba(20,22,26,0.62)' : MUTED
   ctx.font = `600 18px ${FONT_MONO}`
   ctx.fillText(dateLabel, rightCenterX, ry)
   ry += 30
-  ctx.fillStyle = sourceIdentity ? '#ffffff' : INK
+  ctx.fillStyle = sourceIdentity ? BRAND_INK : INK
   ctx.font = `800 ${sourceIdentity ? 30 : 24}px ${FONT_DISPLAY}`
   ctx.fillText(dateValue, rightCenterX, ry)
 
@@ -562,8 +579,8 @@ export async function renderClosingReportCanvas(model) {
   const ver = `V${model.appVersion || '—'}`
   ctx.font = `800 26px ${FONT_DISPLAY}`
   const vw = ctx.measureText(ver).width + 36
-  fillRound(ctx, WIDTH - PAD - vw, 58, vw, 48, 8, INK)
-  ctx.fillStyle = '#fff'
+  fillRound(ctx, WIDTH - PAD - vw, 58, vw, 48, 8, BRAND)
+  ctx.fillStyle = BRAND_INK
   ctx.fillText(ver, WIDTH - PAD - vw + 18, 90)
 
   // store meta + barcode
@@ -615,22 +632,22 @@ export async function renderClosingReportCanvas(model) {
   drawSoftShadow(ctx, heroX, blockY, heroW, blockH, 20)
   fillRound(ctx, heroX, blockY, heroW, blockH, 20, SURFACE)
 
-  // black hero top
+  // brand hero top
   ctx.save()
   roundRect(ctx, heroX, blockY, heroW, heroH + 20, 20)
   ctx.clip()
-  ctx.fillStyle = INK
+  ctx.fillStyle = BRAND
   ctx.fillRect(heroX, blockY, heroW, heroH)
   ctx.restore()
-  // ensure bottom of black is square against white strip
-  ctx.fillStyle = INK
+  // ensure bottom of the brand block is square against the white strip
+  ctx.fillStyle = BRAND
   ctx.fillRect(heroX, blockY + heroH - 20, heroW, 20)
 
-  ctx.fillStyle = 'rgba(255,255,255,0.55)'
+  ctx.fillStyle = 'rgba(20,22,26,0.6)'
   ctx.font = `700 18px ${FONT_MONO}`
   ctx.fillText('VEHICLES SOLD  ·  车辆销售', heroX + 36, blockY + 42)
 
-  ctx.fillStyle = '#ffffff'
+  ctx.fillStyle = BRAND_INK
   ctx.font = `900 148px ${FONT_DISPLAY}`
   ctx.fillText(String(model.kpi.salesVehicles), heroX + 36, blockY + 186)
 

@@ -296,11 +296,14 @@ function selBarHTML(ctx){
       + '<button class="sd-d-act" data-bact="kind" data-bk="double"' + (o.kind === 'double' ? ' data-on="true"' : '') + '>双面</button>'
       + '<button class="sd-d-act" data-bact="kind" data-bk="single"' + (o.kind === 'single' ? ' data-on="true"' : '') + '>单面</button>'
       + '<button class="sd-d-act" data-bact="kind" data-bk="low"' + (o.kind === 'low' ? ' data-on="true"' : '') + '>矮货架</button>'
-      + '<button class="sd-d-act" data-bact="rot">旋转</button>'
-      + '<button class="sd-d-act" data-bact="flush" data-side="n">贴北</button>'
-      + '<button class="sd-d-act" data-bact="flush" data-side="s">贴南</button>'
-      + '<button class="sd-d-act" data-bact="flush" data-side="w">贴西</button>'
-      + '<button class="sd-d-act" data-bact="flush" data-side="e">贴东</button>'
+      + '<button class="sd-d-act" data-bact="rot">旋转 +45°</button>'
+      /* 斜放货架不提供「贴墙」：正交流程按未旋转的矩形算贴边，斜放会切进墙体 */
+      + (window.Engine && window.Engine.shelfRot(o)
+          ? '<button class="sd-d-act" data-bact="resetRot">转正 0°</button>'
+          : '<button class="sd-d-act" data-bact="flush" data-side="n">贴北</button>'
+            + '<button class="sd-d-act" data-bact="flush" data-side="s">贴南</button>'
+            + '<button class="sd-d-act" data-bact="flush" data-side="w">贴西</button>'
+            + '<button class="sd-d-act" data-bact="flush" data-side="e">贴东</button>')
       + '<button class="sd-d-act" data-bact="dup">复制</button>'
       + '<button class="sd-d-act" data-bact="fillb" data-bt="adult">排成人车</button>'
       + '<button class="sd-d-act" data-bact="fillb" data-bt="kids">排童车</button>'
@@ -324,6 +327,10 @@ function selBarHTML(ctx){
     h += '<b class="sd-d-selflag">网面墙</b><button class="sd-d-act" data-bact="rot">改朝向</button>' + del + close;
   } else if (k === 'en'){
     h += '<b class="sd-d-selflag">出入口净空</b>' + del + close;
+  } else if (k === 'iw'){
+    h += '<b class="sd-d-selflag">内隔墙</b><button class="sd-d-act" data-bact="rot">改朝向</button>' + del + close;
+  } else if (k === 'wl'){
+    h += '<b class="sd-d-selflag">外墙</b><button class="sd-d-act" data-bact="addOpen">＋ 开口</button>' + close;
   } else if (k === 'ct'){
     h += '<b class="sd-d-selflag">门帘</b><button class="sd-d-act" data-bact="rot">改朝向</button>' + del + close;
   } else if (k === 'bk'){

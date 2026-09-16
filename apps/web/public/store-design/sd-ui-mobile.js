@@ -300,12 +300,15 @@ function selBarHTML(ctx){
       + '<button data-bact="kind" data-bk="single"' + (o.kind === 'single' ? ' data-on="true"' : '') + '>单面</button>'
       + '<button data-bact="kind" data-bk="low"' + (o.kind === 'low' ? ' data-on="true"' : '') + '>矮</button>'
       + '</span>长' + stepper('len', o.len, 'm')
-      + '<button data-bact="rot">旋转</button></div>';
+      + '<button data-bact="rot">旋转+45°</button></div>';
     h += '<div class="sd-m-selrow"><span class="sd-m-tag">x</span>' + stepper('x', o.x, '')
       + '<span class="sd-m-tag">y</span>' + stepper('y', o.y, '')
-      + '<span class="sd-m-tag">贴墙</span>'
-      + '<button data-bact="flush" data-side="n">北</button><button data-bact="flush" data-side="s">南</button>'
-      + '<button data-bact="flush" data-side="w">西</button><button data-bact="flush" data-side="e">东</button>'
+      /* 斜放货架不提供「贴墙」（按未旋转矩形算贴边会切进墙体），改为一键转正 */
+      + (window.Engine && window.Engine.shelfRot(o)
+          ? '<button data-bact="resetRot">转正 0°</button>'
+          : '<span class="sd-m-tag">贴墙</span>'
+            + '<button data-bact="flush" data-side="n">北</button><button data-bact="flush" data-side="s">南</button>'
+            + '<button data-bact="flush" data-side="w">西</button><button data-bact="flush" data-side="e">东</button>')
       + '<button data-bact="dup">复制</button>' + del + '</div>';
     h += '<div class="sd-m-selrow"><span class="sd-m-tag">🚲</span><button data-bact="fillb" data-bt="adult">排成人车</button>'
       + '<button data-bact="fillb" data-bt="kids">排童车</button><button data-bact="clearb">清空本架</button></div>';
@@ -347,6 +350,12 @@ function selBarHTML(ctx){
     h += '<div class="sd-m-selrow">' + close + '<span class="sd-m-tag">门帘</span>长' + stepper('len', o.len, 'm')
       + '<button data-bact="rot">' + (o.orient === 'h' ? '东西向' : '南北向') + '</button>'
       + '<span class="sd-m-tag">x</span>' + stepper('x', o.x, '') + '<span class="sd-m-tag">y</span>' + stepper('y', o.y, '') + del + '</div>';
+  } else if (k === 'iw'){
+    h += '<div class="sd-m-selrow">' + close + '<span class="sd-m-tag">内隔墙</span>'
+      + '<button data-bact="rot">改朝向</button>' + del + '</div>';
+  } else if (k === 'wl'){
+    h += '<div class="sd-m-selrow">' + close + '<span class="sd-m-tag">外墙</span>'
+      + '<button data-bact="addOpen">＋ 开口</button></div>';
   } else if (k === 'bk'){
     var top = (o.pose === 'top');
     h += '<div class="sd-m-selrow">' + close

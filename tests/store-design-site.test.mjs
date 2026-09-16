@@ -363,7 +363,7 @@ test('数据模型：只有「选中的那一个」带字段，底部不再全�
   const shelfId = 'sh:' + cfg.shelves[0].id
   const picked = schema.buildVM(cfg, { sel: shelfId })
   assert.ok(picked.selection, '选中货架后必须有选中卡片')
-  assert.equal(picked.selection.fields.length, 9, '货架字段数（名称/类型/朝向/长度/高度 + 地架/挂钩 + x/y）')
+  assert.equal(picked.selection.fields.length, 10, '货架字段数（名称/类型/朝向/长度/高度/旋转角度 + 地架/挂钩 + x/y）')
   assert.ok(picked.selection.fields.every((f) => f.path.startsWith('shelves.')), '字段路径必须指向该货架')
   const stillBare = picked.elements.flatMap((g) => g.items).filter((it) => (it.fields || []).length > 0)
   assert.equal(stillBare.length, 1, '只有选中的那一个元素携带字段')
@@ -866,8 +866,8 @@ test('地架自行车：车头朝外（背对货架、朝着通道）', async ()
   assert.equal(south.rot, 90, '东西向货架南侧的地架车 rot 必须是 90（车头朝 +y）')
   const eng = stripComments(toolEngine)
   assert.ok(toolEngine.includes('车头朝外（2026-09-15 用户指正）'), '引擎注释必须写明地架车头朝外的口径')
-  assert.ok(eng.includes("var rot2 = (s.orient === 'h') ? ((face === 'pos') ? 90 : 270) : ((face === 'pos') ? 0 : 180);"),
-    '地架车朝向必须是「车头朝外」（此前装反 = 车头扎进货架）')
+  assert.ok(eng.includes("var rot2 = (((s.orient === 'h') ? ((face === 'pos') ? 90 : 270) : ((face === 'pos') ? 0 : 180)) + shelfRot(s)) % 360;"),
+    '地架车朝向必须是「车头朝外」（此前装反 = 车头扎进货架），斜放时叠加货架旋转角')
 })
 
 test('双面货架：托臂排 / 地架 / 挂钩可分别指定挂载面（两面都能加）', async () => {
@@ -1049,4 +1049,191 @@ test('实心遮挡：柱子 / 货架按射线决定前后（实心体不会被�
   assert.ok(eng.includes('var lo = (w.loBox <= w.hi - 0.02) ? w.loBox : w.loRay;'),
     '保守界与该点「被挡住」的界打架时，必须退到射线精确界（不同实心体的深度区间会重叠）')
   assert.ok(eng.includes("        occl(fBox, 'fence');"), '库区围栏也要登记为实心遮挡体')
+})
+
+// ── 2026-09-17 门店设计三项需求（穿模根治 / 货架斜放 / 墙体可编辑）──────────
+
+test('穿模根治：尺寸链进入结构深度排序，货架旁的刻度线与数字不再透过货架显示', async () => {
+  const engine = await loadToolEngine()
+  const eng = stripComments(toolEngine)
+  assert.ok(eng.includes('function dimLine(a, b, sw){'), '尺寸链必须有专用的分段线构建器')
+  assert.ok(eng.includes('add1((dot(p0,d3)+dot(p1,d3))/2, lineStr(p0, p1, col, sw));'),
+    '标尺线必须用线段平均深度键进入 L1 排序（旧写法走 L2 标注层 = 永远盖在结构之上）')
+  assert.ok(eng.includes("add1(dot(p,d3)+0.02, '<text"), '标尺数字必须用所在点的深度键进入 L1')
+  assert.ok(eng.includes('var n = Math.max(1, Math.ceil(len / TILE));'),
+    '长标尺线必须按 TILE 分段（整根线只有一个深度键仍会穿过货架）')
+  const dimsStart = eng.indexOf('if (cfg.opt.dims){')
+  const dimsEnd = eng.indexOf('if (cfg.opt.labels){')
+  assert.ok(dimsStart > 0 && dimsEnd > dimsStart, '必须能定位尺寸链代码块')
+  assert.doesNotMatch(eng.slice(dimsStart, dimsEnd), /addLine2\(|addText\(/u,
+    '尺寸链不得再走 L2 标注层（addLine2 / addText）')
+
+  const parse = (svg) => {
+    const out = []
+    const re = /<(polygon|text)\b([^>]*?)(?:\/>|>([^<]*))/gu
+    let m
+    while ((m = re.exec(svg))) {
+      const attrs = {}
+      m[2].replace(/([\w-]+)="([^"]*)"/gu, (_, k, v) => { attrs[k] = v; return _ })
+      out.push({ tag: m[1], attrs, text: m[3] || '', idx: out.length })
+    }
+    return out
+  }
+  const inPoly = (pt, poly) => {
+    let inside = false
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i][0]; const yi = poly[i][1]; const xj = poly[j][0]; const yj = poly[j][1]
+      if (((yi > pt[1]) !== (yj > pt[1])) && (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi)) inside = !inside
+    }
+    return inside
+  }
+  let covered = 0
+  for (const az of [45, 90, 135]) {
+    const config = engine.defaultConfig()
+    const svg = engine.render3D(config, { az, el: 33, zoom: 1, vw: 900, vh: 620, debugPaint: true })
+    const shapes = parse(svg)
+    const shelves = shapes.filter((s) => s.tag === 'polygon'
+      && String(s.attrs['data-struct'] || '').startsWith('shelf:') && s.attrs['data-k'])
+    const marks = shapes.filter((s) => s.tag === 'text' && s.attrs['font-size'] === '8'
+      && s.attrs.fill === '#8b8b8b' && s.attrs['data-k'])
+    assert.ok(shelves.length > 0 && marks.length > 0, `az=${az}：货架面与刻度数字都必须带深度键`)
+    for (const t of marks) {
+      const pt = [parseFloat(t.attrs.x), parseFloat(t.attrs.y)]
+      let maxK = -Infinity
+      let cover = null
+      for (const sh of shelves) {
+        const poly = sh.attrs.points.split(' ').map((p) => p.split(',').map(Number))
+        if (inPoly(pt, poly) && +sh.attrs['data-k'] > maxK) { maxK = +sh.attrs['data-k']; cover = sh }
+      }
+      if (!cover) continue
+      covered += 1
+      assert.ok((t.idx < cover.idx) === (+t.attrs['data-k'] < maxK),
+        `az=${az} 刻度「${t.text}」的画序与深度序相反 → 会穿透货架显示`)
+    }
+  }
+  assert.ok(covered > 10, `样本必须覆盖「刻度被货架遮挡」的真实场景（实测 ${covered} 处）`)
+})
+
+test('货架斜放：自由角度 + 六档预设，3D / 平面 / 附件 / 挂车同步跟随', async () => {
+  const engine = await loadToolEngine()
+  const base = { id: 's1', kind: 'double', orient: 'h', x: 6, y: 6, len: 4, h: 3.3 }
+  assert.equal(engine.shelfRot(base), 0, '未设置 rot 的货架必须保持旧行为（0°）')
+  assert.equal(engine.shelfRot(Object.assign({}, base, { rot: 45 })), 45)
+  assert.equal(engine.shelfRot(Object.assign({}, base, { rot: -45 })), 315, '负角度必须归一化到 0..359')
+  assert.equal(engine.shelfRot(Object.assign({}, base, { rot: 405 })), 45)
+  assert.equal(engine.shelfRot(Object.assign({}, base, { rot: 360 })), 0)
+  assert.equal(engine.shelfRot(Object.assign({}, base, { rot: 'x' })), 0, '非法角度不得产生 NaN')
+
+  const rot = Object.assign({}, base, { rot: 45 })
+  const side = (4 + 0.5) / Math.SQRT2
+  const bounds = engine.shelfBounds(rot)
+  assert.ok(Math.abs(bounds.w - side) < 1e-6 && Math.abs(bounds.h - side) < 1e-6,
+    `45° 斜放的包围盒必须是 (长+深)/√2（实测 ${bounds.w.toFixed(3)}×${bounds.h.toFixed(3)}）`)
+  const dist = (p) => Math.hypot(p.x - (6 + 2), p.y - (6 + 0.25))
+  assert.ok(Math.abs(dist(engine.shelfLocalPt(base, 0, 0)) - dist(engine.shelfLocalPt(rot, 0, 0))) < 1e-9,
+    '旋转必须绕底面中心（角点到中心距离不变）')
+
+  const config = engine.defaultConfig()
+  config.shelves = [Object.assign({}, config.shelves[0], {
+    id: 'srot', orient: 'h', x: 8, y: 6, len: 6, h: 3.3, rot: 45,
+    acc: { armRows: [{ id: 'a1', z: 0.9, len: 'short', size: 'adult', u0: 0, u1: 6 }], rack: 'adult', hook: 'on' }
+  })]
+  const svg = engine.render3D(config, { az: 90, el: 33, zoom: 1, vw: 1000, vh: 700 })
+  assert.doesNotMatch(svg, /NaN|undefined/u, '斜放渲染不得出现 NaN/undefined')
+  const faces = [...svg.matchAll(/<polygon points="([^"]+)"[^>]*data-struct="shelf:srot"/gu)]
+  assert.ok(faces.length > 0, '斜放货架必须按四边形面渲染（带结构标记）')
+  const slanted = faces.some((f) => {
+    const pts = f[1].split(' ').map((p) => p.split(',').map(Number))
+    return pts.some((p, i) => {
+      const q = pts[(i + 1) % pts.length]
+      return Math.abs(p[0] - q[0]) > 0.5 && Math.abs(p[1] - q[1]) > 0.5
+    })
+  })
+  assert.ok(slanted, '斜放货架的可见面必须有斜边（仍按正交盒渲染 = 没有真的转）')
+
+  const plan = engine.renderPlan(config, { sel: 'sh:srot', z: 30 })
+  assert.match(plan, /data-id="sh:srot"><polygon/u, '平面视图必须用多边形画斜放货架的底面')
+  assert.doesNotMatch(plan, /NaN|undefined/u, '平面视图不得出现 NaN/undefined')
+
+  const bikes = engine.accBikesOf(config)
+  assert.ok(bikes.length > 0, '斜放货架必须仍然生成挂车')
+  const racks = bikes.filter((b) => b.acc === 'rack')
+  assert.equal(racks[0].rot, 135, '地架车朝向必须在货架朝向之上叠加 45°（90+45）')
+  assert.equal(bikes.filter((b) => b.acc === 'arm')[0].rot, 45, '托臂挂车朝向必须跟随货架旋转角')
+  const centers = engine.shelfCorners(config.shelves[0]).reduce((acc, p) => ({ x: acc.x + p.x / 4, y: acc.y + p.y / 4 }), { x: 0, y: 0 })
+  bikes.forEach((b) => {
+    const outward = [Math.cos((b.rot || 0) * Math.PI / 180), Math.sin((b.rot || 0) * Math.PI / 180)]
+    const dx = b.x - centers.x; const dy = b.y - centers.y
+    const along = dx * outward[0] + dy * outward[1]
+    assert.ok(Math.hypot(b.x - centers.x, b.y - centers.y) < 6 && Math.abs(along) < 6,
+      `${b.id} 必须在斜放货架附近（附件没有跟随旋转就会出现巨大偏移）`)
+  })
+
+  // UI / 数据接线
+  const app = stripComments(toolApp)
+  assert.ok(app.includes('function rotateShelfTo(s, orient, deg){'), 'app.js 必须按「包围盒中心不动」旋转')
+  assert.ok(app.includes('function rotateShelfBy(s, deg){'), '快捷条 +45° 需要 rotateShelfBy')
+  assert.ok(app.includes("else if (it.k === 'sh'){ rotateShelfBy(it.o, 45); }"), '快捷条「旋转 +45°」必须走旋转而不是翻朝向')
+  assert.ok(app.includes("if (it.k === 'sh') renderSelBar(true);"), '货架旋转后必须强制重建快捷条（贴墙 ↔ 转正 随角度切换）')
+  assert.ok(app.includes("} else if (act === 'resetRot'){"), '斜放货架必须有「转正 0°」')
+  assert.ok(app.includes("var p = String(ds.id).split(':'), s = shelfGet(p[0]);"), '姿态预设必须解析「货架id:朝向:角度」')
+  assert.ok(app.includes("var fn = acts[b.getAttribute('data-act')];"), '面板动作（含姿态预设）必须走文档级 data-act 委托')
+  const schema = stripComments(toolSchema)
+  assert.ok(schema.includes("number('shelves.' + i + '.rot', '旋转角度'"), '货架必须有旋转角度字段')
+  for (const label of ['横放', '竖放', '斜45°', '斜135°', '斜225°', '斜315°']) {
+    assert.ok(schema.includes("'" + label + "'"), `货架姿态预设缺少「${label}」`)
+  }
+  const desktop = stripComments(toolUiDesktop)
+  const mobile = stripComments(toolUiMobile)
+  for (const [name, ui] of [['桌面', desktop], ['移动', mobile]]) {
+    assert.match(ui, /data-bact="rot">旋转\s?\+45°/u, `${name}端快捷条必须是「旋转 +45°」`)
+    assert.ok(ui.includes('resetRot'), `${name}端快捷条必须有「转正 0°」`)
+  }
+})
+
+test('墙体可编辑：外墙四边与内隔墙都能选中 / 改参数 / 拖动（平面与面板同一套 id）', async () => {
+  const engine = await loadToolEngine()
+  const config = engine.defaultConfig()
+  for (const key of ['top', 'bottom', 'left', 'right']) {
+    const rect = engine.itemRect(config, 'wl:' + key)
+    assert.ok(rect && rect.w > 0 && rect.h > 0, `外墙 ${key} 必须有可选 / 可拖矩形`)
+  }
+  const inner = engine.itemRect(config, 'iw:' + config.wallSegs[0].id)
+  assert.ok(inner && inner.w > 0 && inner.h > 0, '内隔墙必须有可选 / 可拖矩形')
+  assert.ok(engine.itemRect(config, 'sh:' + config.shelves[0].id), '货架矩形不得回归')
+
+  const plan = engine.renderPlan(config, { sel: 'wl:top' })
+  assert.match(plan, /<g class="it" data-id="wl:top">/u, '平面视图必须给外墙四边各自的可点选分组')
+  assert.match(plan, /<g class="it" data-id="wl:left">/u, '外墙四边都要能点选')
+  assert.match(plan, /<g class="it" data-id="iw:w1">/u, '平面视图必须给内隔墙可点选分组')
+
+  const app = stripComments(toolApp)
+  assert.ok(app.includes("iw:'wallSegs', wl:'walls' }"), 'SEC_OF 必须把外墙 / 内隔墙映射到各自的配置数组')
+  assert.ok(app.includes('function moveInnerWall(id, nx, ny){'), '内隔墙必须能整体拖动')
+  assert.ok(app.includes("else if (k === 'iw'){ moveInnerWall(key, nx, ny); }"), '拖动必须按类型分流到 moveInnerWall')
+  assert.ok(app.includes("} else if (act === 'addOpen'){"), '外墙快捷条必须有「＋开口」')
+  assert.ok(app.includes("else if (it.k === 'iw') acts.delSeg({ id:id });"), '内隔墙快捷条删除必须走 delSeg')
+
+  const vm = await import('node:vm')
+  const sandbox = vm.createContext({ module: { exports: {} }, exports: {}, console, window: {} })
+  vm.runInContext(toolEngine, sandbox, { filename: 'engine.js' })
+  sandbox.window.Engine = sandbox.module.exports
+  sandbox.module = { exports: {} }
+  vm.runInContext(toolSchema, sandbox, { filename: 'sd-schema.js' })
+  const schema = sandbox.window.SD_SCHEMA
+  const built = schema.buildVM(config, { sel: 'wl:top' })
+  const groups = built.elements.map((g) => g.key)
+  assert.ok(groups.includes('wl'), '元素清单必须有「外墙」分组')
+  assert.ok(groups.includes('iw'), '元素清单必须有「内隔墙」分组')
+  assert.equal(built.elements.find((g) => g.key === 'wl').items.length, 4, '外墙分组必须列出四边')
+  assert.ok(built.elements.find((g) => g.key === 'iw').items.length >= 1, '内隔墙分组必须列出每一段')
+  assert.ok((built.selection.fields || []).length >= 5, '选中外墙后必须有可编辑字段（开关 / 位置 / 尺寸 / 开口）')
+  const wallPaths = (built.selection.fields || []).filter((f) => f.path)
+  assert.ok(wallPaths.length >= 5 && wallPaths.every((f) => f.path.startsWith('walls.')),
+    '外墙字段路径必须指向 walls.<边>（提示行不带 path，是允许的）')
+  const segSel = schema.buildVM(config, { sel: 'iw:' + config.wallSegs[0].id })
+  assert.ok(segSel.selection, '选中内隔墙后必须有选中卡片')
+  const segPaths = (segSel.selection.fields || []).filter((f) => f.path)
+  assert.ok(segPaths.length >= 5 && segPaths.every((f) => f.path.startsWith('wallSegs.')),
+    '内隔墙字段必须指向 wallSegs')
 })

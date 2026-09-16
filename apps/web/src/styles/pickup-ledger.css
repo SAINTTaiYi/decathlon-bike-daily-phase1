@@ -495,6 +495,8 @@
   line-height: 1.5;
   white-space: nowrap;
 }
+/* 维修 / 交接卡片：记录生成日期（2026-09-17 需求）——待取车卡片不加。 */
+.pickup-card-created { padding: 1px 7px; border-radius: 999px; background: rgb(12 14 12 / .05); color: var(--ops-text-muted); font-size: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pickup-assignee-control { border-top: 1px dashed var(--ops-line); padding-top: 8px; }
 .pickup-assignee-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .pickup-assignee-current { min-width: 0; overflow: hidden; color: var(--ops-black); font-size: 12px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
