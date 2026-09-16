@@ -53,7 +53,8 @@ function stepBoxHTML(){
     + '</span>';
 }
 function nudgeField(btn){
-  var wrap = btn.parentNode;
+  /* 按钮在 .sd-d-stepbox 里，再上一层才是输入框容器 —— 必须用 closest 往上找。 */
+  var wrap = btn.closest ? btn.closest('.sd-d-inputwrap') : null;
   var inp = (wrap && wrap.querySelector) ? wrap.querySelector('input[data-path]') : null;
   if (!inp) return;
   var v = parseFloat(inp.value); if (!isFinite(v)) v = 0;

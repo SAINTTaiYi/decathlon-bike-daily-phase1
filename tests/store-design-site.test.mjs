@@ -158,6 +158,7 @@ test('数值步进：墙体 / 货架参数可点上下箭头微调（双端各�
     assert.ok(ui.includes(cls + '-hasstep'), `${name}端数值字段必须标记步进容器`)
     assert.ok(ui.includes('function nudgeField(btn){'), `${name}端必须有步进处理函数`)
     assert.ok(ui.includes("inp.dispatchEvent(new Event('input', { bubbles: true }))"), `${name}端步进必须派发 input 事件（复用 onEditInput，不另开写入路径）`)
+    assert.ok(ui.includes(`btn.closest('.${cls}-inputwrap')`), `${name}端必须用 closest 找输入框容器（按钮 parentNode 是 stepbox，直接 querySelector 会落空）`)
     assert.ok(ui.includes("inp.getAttribute('step')"), `${name}端步进必须按字段自身 step 增减`)
     assert.ok(ui.includes('isFinite(mn) && nv < mn') && ui.includes('isFinite(mx) && nv > mx'), `${name}端步进必须夹到 min/max`)
     assert.ok(ui.includes("e.target.closest ? e.target.closest('[data-sd-step]')"), `${name}端必须有步进点击委托`)
