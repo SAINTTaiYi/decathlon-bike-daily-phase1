@@ -1160,13 +1160,22 @@ test('货架斜放：自由角度 + 六档预设，3D / 平面 / 附件 / 挂车
   const racks = bikes.filter((b) => b.acc === 'rack')
   assert.equal(racks[0].rot, 135, '地架车朝向必须在货架朝向之上叠加 45°（90+45）')
   assert.equal(bikes.filter((b) => b.acc === 'arm')[0].rot, 45, '托臂挂车朝向必须跟随货架旋转角')
-  const centers = engine.shelfCorners(config.shelves[0]).reduce((acc, p) => ({ x: acc.x + p.x / 4, y: acc.y + p.y / 4 }), { x: 0, y: 0 })
+  /* 附件必须真的跟着货架转：把每台车反向旋转 -45° 后，它必须落回「未旋转货架的旁边」。
+     附件坐标若没跟着转（旧写法），反向旋转会把它们推离货架 1.5m 以上 → 断言失败。 */
+  const shelf = config.shelves[0]
+  const baseRect = engine.shelfRect(shelf)
+  const center = { x: baseRect.x + baseRect.w / 2, y: baseRect.y + baseRect.h / 2 }
+  const backRotate = (b) => {
+    const a = -shelf.rot * Math.PI / 180
+    const dx = b.x - center.x; const dy = b.y - center.y
+    return { x: center.x + dx * Math.cos(a) - dy * Math.sin(a), y: center.y + dx * Math.sin(a) + dy * Math.cos(a) }
+  }
+  const pad = 1.6
   bikes.forEach((b) => {
-    const outward = [Math.cos((b.rot || 0) * Math.PI / 180), Math.sin((b.rot || 0) * Math.PI / 180)]
-    const dx = b.x - centers.x; const dy = b.y - centers.y
-    const along = dx * outward[0] + dy * outward[1]
-    assert.ok(Math.hypot(b.x - centers.x, b.y - centers.y) < 6 && Math.abs(along) < 6,
-      `${b.id} 必须在斜放货架附近（附件没有跟随旋转就会出现巨大偏移）`)
+    const q = backRotate(b)
+    assert.ok(q.x > baseRect.x - pad && q.x < baseRect.x + baseRect.w + pad
+      && q.y > baseRect.y - pad && q.y < baseRect.y + baseRect.h + pad,
+      `${b.id} 反向旋转后没有落回货架旁（附件坐标没有跟随货架旋转）实际 (${q.x.toFixed(2)},${q.y.toFixed(2)}) 货架 ${JSON.stringify(baseRect)}`)
   })
 
   // UI / 数据接线
