@@ -20,7 +20,7 @@
 (function(){
 'use strict';
 
-var KIND = { sh:'货架', st:'工作室', zn:'区域', pl:'柱子', mk:'标记', ms:'网面墙', en:'出入口净空', ct:'门帘', bk:'自行车' };
+var KIND = { sh:'货架', st:'工作室', zn:'区域', pl:'柱子', mk:'标记', ms:'网面墙', en:'出入口净空', ct:'门帘', bk:'自行车', iw:'内隔墙', wl:'外墙' };
 var SHELF_KINDS = [['double','双面'],['single','单面'],['low','矮货架']];
 var ORIENT_HV = [['h','东西向'],['v','南北向']];
 var FENCE = [['none','无'],['wall','矮墙'],['mesh','网面']];
@@ -85,7 +85,10 @@ function shelfFields(s, i){
     select('shelves.' + i + '.kind', '类型', s.kind, SHELF_KINDS),
     select('shelves.' + i + '.orient', '朝向', s.orient, ORIENT_HV),
     number('shelves.' + i + '.len', '长度', s.len, { unit:'m', min:0.3, max:100, step:0.1 }),
-    number('shelves.' + i + '.h', '高度', hS, { unit:'m', min:0.5, max:4, step:0.1 })
+    number('shelves.' + i + '.h', '高度', hS, { unit:'m', min:0.5, max:4, step:0.1 }),
+    /* 斜放（2026-09-17）：任意角度；快捷条「旋转」键每次 +45°，属性栏下方还有
+       横/竖/四个斜 45° 的一键预设（见 shelfActions）。 */
+    number('shelves.' + i + '.rot', '旋转角度', E().shelfRot(s), { unit:'°', min:0, max:345, step:5 })
   ];
   /* 自行车托臂：按「排」放置（短托臂 0.5m / 长托臂 1m 可分别放、每排高度可调）；
      每排可用「起始 / 结束位置」限定只占货架的一段（左右混排）。 */
@@ -115,7 +118,15 @@ function shelfFields(s, i){
   return f;
 }
 function shelfActions(s){
+  var rotNow = E().shelfRot(s);
+  function pose(orient, deg, label){
+    var on = (orient === (s.orient === 'v' ? 'v' : 'h')) && (rotNow === deg);
+    return action('setPose', s.id + ':' + orient + ':' + deg, (on ? '● ' : '') + label);
+  }
   return [
+    /* 摆放姿态预设：横 / 竖 / 四个方位的斜 45°（用户 2026-09-17 要求） */
+    pose('h', 0, '横放'), pose('v', 0, '竖放'),
+    pose('h', 45, '斜45°'), pose('h', 135, '斜135°'), pose('h', 225, '斜225°'), pose('h', 315, '斜315°'),
     action('openFront', s.id, '🧍 正面视角'),
     action('flushWall', s.id + ':n', '贴北墙'), action('flushWall', s.id + ':s', '贴南墙'),
     action('flushWall', s.id + ':w', '贴西墙'), action('flushWall', s.id + ':e', '贴东墙'),
@@ -220,6 +231,27 @@ function bikeFields(bk, i){
    这就是用户说的「底下杂七杂八看得眼花」，所以这里是结构性约束，不要再改回去。 */
 function elementGroups(cfg){
   var g = [];
+  /* 墙体（2026-09-17 用户要求「灰色墙体要可编辑」）：外墙每侧一条、内隔墙每段一条，
+     都能在平面里点选 / 在元素清单里选中后改参数；内隔墙还能拖动整段平移。 */
+  g.push({ key:'wl', title:'外墙', items: WALL_SIDE_KEYS.map(function(key, i){
+    var e = cfg.walls[key];
+    var openCount = (e.open || []).length;
+    var wLen = wallCurLen(cfg, key), wFrom = wallCurFrom(cfg, key);
+    var wAt = isFinite(+e.at) ? +e.at : 0;
+    var wRot = isFinite(+e.rot) ? (((+e.rot % 360) + 360) % 360) : 0;
+    return { id:'wl:' + key, type:'wl', index:i, title: WALL_SIDE_TITLES[i],
+      badge: (e.on === false ? '已关闭' : '长 ' + num(wLen) + 'm')
+        + (wFrom ? ' · 起点 ' + num(wFrom) : '') + (wRot ? ' · ' + Math.round(wRot) + '°' : '')
+        + (wAt ? ' · 偏移 ' + num(wAt) : '') + (openCount ? ' · 开口 ' + openCount : ''),
+      actions: wallEdgeActions(cfg, key) };
+  }) });
+  if ((cfg.wallSegs || []).length) g.push({ key:'iw', title:'内隔墙', items: cfg.wallSegs.map(function(ws, i){
+    var a = Math.min(+ws.from || 0, +ws.to || 0), b = Math.max(+ws.from || 0, +ws.to || 0);
+    return { id:'iw:' + ws.id, type:'iw', index:i, title:'内隔墙 #' + (i + 1),
+      badge: (ws.orient === 'v' ? '竖直' : '水平') + ' ' + num(b - a) + 'm'
+        + (isFinite(+ws.rot) && Math.abs(+ws.rot % 360) > 1e-6 ? ' · ' + Math.round(((+ws.rot % 360) + 360) % 360) + '°' : ''),
+      actions: [action('delSeg', ws.id, '删除', 'danger')] };
+  }) });
   if (cfg.shelves.length){
     g.push({ key:'sh', title:'货架', items: cfg.shelves.map(function(s, i){
       var nA = E().bikesForShelf(s, 'adult').length, nK = E().bikesForShelf(s, 'kids').length;
@@ -235,6 +267,7 @@ function elementGroups(cfg){
       if (acc.hook === 'on') accBit += ' · 挂钩×' + E().hookCount(s);
       return { id:'sh:' + s.id, type:'sh', index:i, title: s.name ? s.name : ('货架 #' + (i + 1)),
         badge: (s.kind === 'double' ? '双面' : s.kind === 'single' ? '单面' : '矮货架') + ' ' + num(s.len) + 'm'
+          + (E().shelfRot(s) ? ' · ' + num(E().shelfRot(s)) + '°' : '')
           + (nA + nK ? ' · 🚲' + (nA + nK) : '') + accBit,
         actions: shelfActions(s),
         extra: [
@@ -284,6 +317,72 @@ function elementGroups(cfg){
   return g;
 }
 
+/* ---------- 墙体字段（元素清单与设置页共用同一份，2026-09-17） ---------- */
+var WALL_SIDE_KEYS = ['top', 'bottom', 'left', 'right'];
+var WALL_SIDE_TITLES = ['上边（商场方向）', '下边', '左边', '右边'];
+function wallEdgeLength(cfg, key){ return (key === 'top' || key === 'bottom') ? cfg.space.w : cfg.space.d; }
+/* 外墙 = 一段可直接编辑的墙（2026-09-17 用户定案）：
+   起点 / 墙长 / 横向偏移 / 旋转角度，开口相对「墙起点」计 —— 不再靠打缺口间接缩短。 */
+function wallCurFrom(cfg, key){
+  var e = cfg.walls[key], L = wallEdgeLength(cfg, key), f = +e.from;
+  if (!isFinite(f)) f = 0;
+  return Math.max(0, Math.min(f, Math.max(0, L - 0.2)));
+}
+function wallCurLen(cfg, key){
+  var e = cfg.walls[key], L = wallEdgeLength(cfg, key), ln = +e.len;
+  if (!isFinite(ln) || ln <= 0) ln = L;
+  return Math.max(0.2, Math.min(ln, L - wallCurFrom(cfg, key)));
+}
+function wallEdgeFields(cfg, key){
+  var e = cfg.walls[key], L = wallEdgeLength(cfg, key);
+  var from = wallCurFrom(cfg, key), len = wallCurLen(cfg, key);
+  var at = isFinite(+e.at) ? +e.at : 0;
+  var rot = isFinite(+e.rot) ? (((+e.rot % 360) + 360) % 360) : 0;
+  var across = (key === 'top' || key === 'bottom') ? '横放' : '竖放';
+  var fields = [
+    toggle('walls.' + key + '.on', '有墙', e.on),
+    note('该边全长 ' + num(L) + ' m · 当前墙段 ' + across + ' ' + num(len) + ' m'),
+    number('walls.' + key + '.from', '起点（沿该边）', from, { unit:'m', min:0, max:Math.max(0, L - 0.2), step:0.5 }),
+    number('walls.' + key + '.len', '墙长', len, { unit:'m', min:0.2, max:Math.max(0.2, L - from), step:0.5 }),
+    number('walls.' + key + '.at', '横向偏移（朝室内为正）', at, { unit:'m', min:-6, max:6, step:0.5 }),
+    number('walls.' + key + '.rot', '旋转角度', rot, { unit:'°', min:0, max:345, step:5 })
+  ];
+  (e.open || []).forEach(function(op, i){
+    fields.push(note('开口 ' + (i + 1) + ' · 起点相对墙起点，墙长 ' + num(len) + ' m'));
+    /* 墙缩短后，落在墙外的开口不渲染 —— 面板里的起点也夹到墙长内（改回长墙时原值仍在数据里） */
+    var opAt = Math.min(+op.at || 0, Math.max(0, len - 0.1));
+    fields.push(number('walls.' + key + '.open.' + i + '.at', '开口起点', opAt, { unit:'m', min:0, max:len, step:0.1 }));
+    fields.push(number('walls.' + key + '.open.' + i + '.w', '开口宽', op.w, { unit:'m', min:0, max:len, step:0.1 }));
+    fields.push(select('walls.' + key + '.open.' + i + '.type', '开口类型', op.type, [['main','主入口'],['pass','通道'],['other','其他']]));
+    fields.push(text('walls.' + key + '.open.' + i + '.label', '开口名称', op.label, '如 商场出入口'));
+  });
+  return fields;
+}
+function wallEdgeActions(cfg, key){
+  var e = cfg.walls[key];
+  var rotNow = isFinite(+e.rot) ? (((+e.rot % 360) + 360) % 360) : 0;
+  var along = (key === 'top' || key === 'bottom') ? '横放（沿边）' : '竖放（沿边）';
+  var turn = (key === 'top' || key === 'bottom') ? '竖放（转 90°）' : '横放（转 90°）';
+  function pose(deg, label){ return action('setWallRot', key + ':' + deg, (rotNow === deg ? '● ' : '') + label); }
+  return [
+    pose(0, along), pose(90, turn), pose(45, '斜 45°'), pose(135, '斜 135°'), pose(225, '斜 225°'), pose(315, '斜 315°'),
+    action('addOpen', key, '＋ 开口')
+  ].concat((e.open || []).map(function(op, i){
+    return action('delOpen', key + ':' + i, '删除开口 ' + (i + 1), 'danger');
+  }));
+}
+function wallSegFields(cfg, i){
+  var ws = cfg.wallSegs[i];
+  return [
+    select('wallSegs.' + i + '.orient', '朝向', ws.orient, [['v','竖直'],['h','水平']]),
+    number('wallSegs.' + i + '.at', '位置', ws.at, { unit:'m', min:0, max:200, step:0.1 }),
+    number('wallSegs.' + i + '.from', '从', ws.from, { unit:'m', min:0, max:200, step:0.1 }),
+    number('wallSegs.' + i + '.to', '到', ws.to, { unit:'m', min:0, max:200, step:0.1 }),
+    number('wallSegs.' + i + '.thick', '厚度', ws.thick, { unit:'m', min:0.1, max:2, step:0.05 }),
+    number('wallSegs.' + i + '.rot', '旋转角度', (isFinite(+ws.rot) ? ((((+ws.rot % 360) + 360) % 360)) : 0), { unit:'°', min:0, max:345, step:5 })
+  ];
+}
+
 /* ---------- 设置（结构级参数） ---------- */
 function settingsGroups(cfg){
   var o = cfg.opt || {};
@@ -299,22 +398,10 @@ function settingsGroups(cfg){
       toggle('opt.labels', '显示标签', o.labels)
     ], actions: [] }]
   }];
-  var sideNames = [['top','上边（商场方向）'],['bottom','下边'],['left','左边'],['right','右边']];
-  var wallItems = sideNames.map(function(pair){
-    var key = pair[0], e = cfg.walls[key];
-    var L = (key === 'top' || key === 'bottom') ? cfg.space.w : cfg.space.d;
-    var fields = [toggle('walls.' + key + '.on', '有墙', e.on)];
-    (e.open || []).forEach(function(op, i){
-      fields.push(note('开口 ' + (i + 1) + ' · 该边全长 ' + num(L) + ' m'));
-      fields.push(number('walls.' + key + '.open.' + i + '.at', '开口起点', op.at, { unit:'m', min:0, max:L, step:0.1 }));
-      fields.push(number('walls.' + key + '.open.' + i + '.w', '开口宽', op.w, { unit:'m', min:0, max:L, step:0.1 }));
-      fields.push(select('walls.' + key + '.open.' + i + '.type', '开口类型', op.type, [['main','主入口'],['pass','通道'],['other','其他']]));
-      fields.push(text('walls.' + key + '.open.' + i + '.label', '开口名称', op.label, '如 商场出入口'));
-    });
-    return { id:'wall-' + key, title: pair[1], badge:'长 ' + num(L) + 'm',
-      fields: fields, actions: [action('addOpen', key, '+ 开口')].concat((e.open || []).map(function(op, i){
-        return action('delOpen', key + ':' + i, '删除开口 ' + (i + 1), 'danger');
-      })) };
+  var wallItems = WALL_SIDE_KEYS.map(function(key, i){
+    var L = wallEdgeLength(cfg, key);
+    return { id:'wall-' + key, title: WALL_SIDE_TITLES[i], badge:'长 ' + num(L) + 'm',
+      fields: wallEdgeFields(cfg, key), actions: wallEdgeActions(cfg, key) };
   });
   groups.push({ key:'walls', title:'外墙与开口', hint:'每侧一条边，可加开口并命名', items: wallItems });
   groups.push({ key:'segs', title:'内隔墙', hint:'仓库围栏等', items: cfg.wallSegs.map(function(ws, i){
@@ -324,7 +411,8 @@ function settingsGroups(cfg){
         number('wallSegs.' + i + '.at', '位置', ws.at, { unit:'m', min:0, max:200, step:0.1 }),
         number('wallSegs.' + i + '.from', '从', ws.from, { unit:'m', min:0, max:200, step:0.1 }),
         number('wallSegs.' + i + '.to', '到', ws.to, { unit:'m', min:0, max:200, step:0.1 }),
-        number('wallSegs.' + i + '.thick', '厚度', ws.thick, { unit:'m', min:0.1, max:2, step:0.05 })
+        number('wallSegs.' + i + '.thick', '厚度', ws.thick, { unit:'m', min:0.1, max:2, step:0.05 }),
+        number('wallSegs.' + i + '.rot', '旋转角度', (isFinite(+ws.rot) ? ((((+ws.rot % 360) + 360) % 360)) : 0), { unit:'°', min:0, max:345, step:5 })
       ], actions:[action('delSeg', ws.id, '删除', 'danger')] };
   }).concat([{ id:'seg-add', title:'新增内隔墙', badge:'', fields:[], actions:[action('addSeg', null, '+ 添加内隔墙')] }]) });
   return groups;
@@ -333,6 +421,8 @@ function settingsGroups(cfg){
 /* 选中项的字段（只有它需要，其余条目只显示标题与摘要）。 */
 function fieldsForItem(type, cfg, index){
   if (type === 'sh') return shelfFields(cfg.shelves[index], index);
+  if (type === 'wl') return wallEdgeFields(cfg, WALL_SIDE_KEYS[index]);
+  if (type === 'iw') return wallSegFields(cfg, index);
   if (type === 'st') return studioFields(cfg.studio);
   if (type === 'zn') return zoneFields(cfg.zones[index], index);
   if (type === 'en') return entranceFields((cfg.entrances || [])[index], index);

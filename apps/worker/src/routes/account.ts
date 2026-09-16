@@ -6,7 +6,7 @@ import type { AuthContext } from '../auth/types.js'
 import { createAuthMiddleware } from '../auth/middleware.js'
 import { first, nowIso, uuid } from '../db.js'
 import { hashPassword, keyedHash, safeEqualHex } from '../lib/crypto.js'
-import { normalizeCorporateEmail, randomOtp, requestClientHash, sendEmailBindingOtp } from '../services/registration.js'
+import { normalizeAccountEmail, randomOtp, requestClientHash, sendEmailBindingOtp } from '../services/registration.js'
 import { ApiProblem } from '../services/problems.js'
 import { prepareAudit } from '../services/business.js'
 import { requireJsonBody } from '../lib/json.js'
@@ -58,13 +58,13 @@ export function accountRoutes() {
     requireBindingConfig(config)
     const context = c.get('auth')!
     const input = emailBindingOtpSchema.parse(await c.req.json())
-    const emailKey = normalizeCorporateEmail(input.email)
+    const emailKey = normalizeAccountEmail(input.email)
     const clientHash = await requestClientHash(c.req.raw, config.REGISTRATION_SECRET)
     const now = Date.now()
     const stamp = nowIso()
     const windowStart = new Date(now - HOUR_MS).toISOString()
 
-    // 邮箱必须未被其它账号占用：绑定目标是自己的公司邮箱，
+    // 邮箱必须未被其它账号占用：绑定目标是自己的邮箱（不限域名，2026-09-17），
     // 被占用时明确告知，避免验证码发往他人已占用的邮箱后产生困惑。
     const occupied = await first<{ id: string }>(c.env.DB.prepare(`
       SELECT id FROM users WHERE email_key = ? AND id <> ? LIMIT 1
@@ -89,7 +89,7 @@ export function accountRoutes() {
         ok: true as const,
         challengeId: recent.id,
         retryAfterSeconds: Math.ceil((RESEND_COOLDOWN_MS - (now - Date.parse(recent.created_at))) / 1000),
-        message: '验证码刚发送过，请查收公司邮箱；若未收到，请稍候再重新发送。'
+        message: '验证码刚发送过，请查收邮箱；若未收到，请稍候再重新发送。'
       })
     }
     // 跨挑战预算：错误验证码达到上限后不再发新码，爆破面收敛。
@@ -116,7 +116,7 @@ export function accountRoutes() {
       console.error('email binding delivery failed', error instanceof Error ? error.message : 'unknown')
       throw new ApiProblem(503, 'EMAIL_BINDING_DELIVERY_FAILED', '验证码暂时无法发送，请稍后重试。')
     }
-    return c.json({ ok: true as const, challengeId: id, retryAfterSeconds: 60, message: '验证码已发送，请查收公司邮箱。' })
+    return c.json({ ok: true as const, challengeId: id, retryAfterSeconds: 60, message: '验证码已发送，请查收邮箱。' })
   })
 
   app.post('/api/v1/account/binding/verify', auth.loadSession, auth.requireCsrf, requireJsonBody, async (c) => {
@@ -162,14 +162,14 @@ export function accountRoutes() {
     }
 
     // OTP 验证通过：绑定邮箱 + 重设密码（允许与旧密码一致）一步完成。
-    // 绑定完成后可使用公司邮箱自助找回密码，这是本次引导的直接目的。
+    // 绑定完成后可使用邮箱自助找回密码，这是本次引导的直接目的。
     const passwordHash = await hashPassword(input.password, config.PASSWORD_PEPPER)
     const stamp = nowIso()
     const audit = prepareAudit(c.env.DB, {
       context,
       action: 'email-binding', entityType: 'account', entityId: context.userId,
       businessDate: localBusinessDate(context.storeTimezone),
-      summary: `绑定公司邮箱并重设密码：${context.displayName}`,
+      summary: `绑定邮箱并重设密码：${context.displayName}`,
       after: { email: redactEmail(challenge.email_key), method: 'email-otp' },
       reversible: false,
       module: 'account'

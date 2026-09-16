@@ -336,7 +336,7 @@ export function authRoutes() {
   })
 
   app.post('/api/v1/users', auth.loadSession, auth.requirePasswordChanged, auth.requireCsrf, async () => {
-    throw new ApiProblem(410, 'SELF_SERVICE_REGISTRATION_REQUIRED', '账号必须通过公司邮箱验证码自助注册。')
+    throw new ApiProblem(410, 'SELF_SERVICE_REGISTRATION_REQUIRED', '账号必须通过邮箱验证码自助注册。')
   })
 
   app.post('/api/v1/auth/change-password', auth.loadSession, auth.requireCsrf, async (c) => {

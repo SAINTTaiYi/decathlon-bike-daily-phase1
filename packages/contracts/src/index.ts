@@ -74,16 +74,15 @@ export const adminStoreDecisionSchema = z.object({
 })
 
 
-const corporateEmailSchema = z.string().trim().toLowerCase().email().max(320).refine(
-  (value) => value.endsWith('@decathlon.com'),
-  '仅支持 @decathlon.com 邮箱。'
-)
+// 绑定 / 注册 / 找回 邮箱（2026-09-17 用户定案）：不再限制公司域名，任何有效邮箱都可使用。
+// 保持 trim + 小写归一化：email_key 是绑定与找回的查找键，必须稳定且唯一。
+const accountEmailSchema = z.string().trim().toLowerCase().email().max(320)
 export const directoryStatusSchema = z.enum(['active', 'disabled'])
 export const otpCodeSchema = z.string().trim().regex(/^\d{6}$/u)
 export const registrationOtpSchema = z.object({
   username: usernameSchema,
   displayName: usernameSchema.optional(),
-  email: corporateEmailSchema,
+  email: accountEmailSchema,
   storeCode: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/u),
   storeName: z.string().trim().min(1).max(120),
   // join = 从门店下拉选择已有门店（加入申请，店长审批）；create = 注册新门店
@@ -104,7 +103,7 @@ export const registrationCompleteSchema = z.object({
 // 别人的用户名轰炸其邮箱。邮箱是否匹配一律不在响应里体现（防枚举）。
 export const passwordResetOtpSchema = z.object({
   username: usernameSchema,
-  email: corporateEmailSchema
+  email: accountEmailSchema
 }).strict()
 export const passwordResetVerifyOtpSchema = z.object({
   challengeId: uuidSchema,
@@ -119,7 +118,7 @@ export const passwordResetCompleteSchema = z.object({
 // 登录态强制邮箱绑定（存量无邮箱账号引导）：OTP 验证 + 绑定 + 重设密码一步完成。
 // 密码允许与旧密码一致（validatePasswordChangeForm 的 temporary 语义），仅要求满足现行强度。
 export const emailBindingOtpSchema = z.object({
-  email: corporateEmailSchema
+  email: accountEmailSchema
 }).strict()
 export const emailBindingVerifySchema = z.object({
   challengeId: uuidSchema,
@@ -294,6 +293,27 @@ export const foodShelfLifeUpsertSchema = z.object({
   category: z.string().trim().max(24).default(''),
   packSize: z.number().positive().max(10000).nullable().optional()
 }).strict()
+
+// ---- 门店设计云端图纸（2026-09-17）----
+// payload 是门店设计工具导出的整份配置。服务端只校验形状与体积，不逐字段建模：
+// 工具后续加字段不需要同时改服务端（向前兼容），只锁最外层必需结构。
+// 门店标识刻意不在请求体里 —— 服务端一律用会话所属门店，杜绝跨店写入。
+export const designPayloadSchema = z.object({
+  space: z.object({ w: z.number(), d: z.number() }).passthrough(),
+  shelves: z.array(z.unknown())
+}).passthrough()
+
+export const designSaveSchema = z.object({
+  // 乐观锁：0 = 云端还没有图纸（首次上传），>0 = 期望覆盖的版本号。
+  expectedRevision: z.number().int().min(0).max(1_000_000),
+  payload: designPayloadSchema
+}).strict()
+
+/** 图纸体积上限（字符数）。工具实测默认布置约 30KB，512K 足够留出余量，
+ *  同时远低于 /api/* 的 1MB 请求体限制，避免大请求走一半才被拒。 */
+export const DESIGN_MAX_PAYLOAD_CHARS = 512_000
+
+export type DesignSaveInput = z.infer<typeof designSaveSchema>
 
 export type FoodBatchCreateInput = z.infer<typeof foodBatchCreateSchema>
 export type FoodBatchActionInput = z.infer<typeof foodBatchActionSchema>

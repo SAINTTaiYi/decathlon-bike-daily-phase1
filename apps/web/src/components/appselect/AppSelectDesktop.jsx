@@ -4,7 +4,7 @@
  */
 function statusLine(app, { closeState, flagged }) {
   if (app === 'ops') return closeState === 'closed' ? '今日已闭店' : '今日营业中'
-  if (app === 'mass') return '本机图纸 · 自动保存'
+  if (app === 'mass') return '云端图纸 · 门店共享'
   if (flagged === null) return '保质期登记 · 红标清查'
   return flagged > 0 ? `${flagged} 条红标待处理` : '暂无红标待处理'
 }
@@ -60,7 +60,7 @@ export default function AppSelectDesktop({ rootRef, userName, storeName, closeSt
             disabled={Boolean(leaving)}
           >
             <span className="appselect-d-card-eyebrow">03</span>
-            <strong className="appselect-d-card-name">门店设计</strong>
+            <strong className="appselect-d-card-name">Super Mass</strong>
             <span className="appselect-d-card-desc">平面布局 · 3D 渲染 · 方案校验</span>
             <span className="appselect-d-card-status" data-state="open">
               {statusLine('mass', { closeState, flagged })}

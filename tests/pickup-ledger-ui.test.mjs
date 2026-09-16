@@ -67,3 +67,19 @@ test('Preview 反馈视觉取消容器描边并采用局部橙黄弥散柔光和
   assert.match(styles, /\.pickup-card\[data-expanded='true'\] \.pickup-card-summary \{ min-height: 88px/u)
   assert.match(styles, /\.pickup-card-detail \{[\s\S]*grid-template-columns: repeat\(2/u)
 })
+
+// ── 2026-09-17：维修 / 交接卡片显示记录生成日期 ──────────────────────────
+
+test('维修 / 交接卡片显示记录生成日期（待取车卡片不加），样式必须落地', () => {
+  assert.match(component, /import IconClock from '@iconoir\/Clock\.mjs'/u, '生成日期图标必须引入')
+  assert.match(component, /\{repairMode \|\| handoverMode \? <span className="pickup-card-created">/u,
+    '生成日期只出现在维修 / 交接卡片（待取车卡片保持原样）')
+  assert.match(component, /<IconClock width=\{14\} height=\{14\} aria-hidden="true" \/><span>生成<\/span>/u, '生成日期必须有图标与「生成」标签')
+  assert.match(component, /\{record\.createdAt \? <time dateTime=\{record\.createdAt\}>\{formatScanDate\(record\.createdAt\)\}<\/time>/u,
+    '生成日期必须取 record.createdAt 并套用既有日期格式')
+  assert.match(component, /<span aria-hidden="true">—<\/span>\}<\/span> : null\}/u, '缺少 createdAt 的记录要有占位符')
+  // 新增类名必须有样式（memory 26 教训：结构断言不查 CSS 会让「没样式的空壳」全绿通过）
+  assert.match(styles, /\.pickup-card-created \{[^}]*background:/u, '.pickup-card-created 必须有填充样式')
+  assert.match(styles, /\.pickup-card-created \{[^}]*border-radius:/u, '.pickup-card-created 必须是圆角标签形态')
+  assert.match(styles, /\.pickup-card-created \{[^}]*white-space: nowrap/u, '生成日期不得折行')
+})

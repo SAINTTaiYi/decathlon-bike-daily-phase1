@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { normalizeCorporateEmail, randomOtp } from '../src/services/registration.js'
+import { normalizeAccountEmail, randomOtp } from '../src/services/registration.js'
 
 test('注册邮箱规范化保持地址语义并让 OTP 固定为六位数字', () => {
-  assert.equal(normalizeCorporateEmail('  TEAM.Member@DECATHLON.COM  '), 'team.member@decathlon.com')
+  assert.equal(normalizeAccountEmail('  TEAM.Member@DECATHLON.COM  '), 'team.member@decathlon.com')
   for (let index = 0; index < 100; index += 1) assert.match(randomOtp(), /^\d{6}$/u)
 })
 

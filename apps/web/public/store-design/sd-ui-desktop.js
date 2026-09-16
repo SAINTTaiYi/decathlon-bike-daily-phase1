@@ -43,15 +43,40 @@ function savePrefs(){
 }
 
 /* ---------- 字段 / 动作（桌面端自己的 DOM 结构：标签在左、控件在右） ---------- */
+/* 数值步进按钮（2026-09-17 用户要求：墙体参数要像货架那样能点上下箭头改）。
+   点按后按输入框自身的 step / min / max 加减，再派发一个 input 事件 ——
+   数据写入仍走 app.js 的 onEditInput，与手动输入完全同一条路径。 */
+function stepBoxHTML(){
+  return '<span class="sd-d-stepbox">'
+    + '<button type="button" class="sd-d-step" data-sd-step="1" aria-label="增加">▴</button>'
+    + '<button type="button" class="sd-d-step" data-sd-step="-1" aria-label="减少">▾</button>'
+    + '</span>';
+}
+function nudgeField(btn){
+  /* 按钮在 .sd-d-stepbox 里，再上一层才是输入框容器 —— 必须用 closest 往上找。 */
+  var wrap = btn.closest ? btn.closest('.sd-d-inputwrap') : null;
+  var inp = (wrap && wrap.querySelector) ? wrap.querySelector('input[data-path]') : null;
+  if (!inp) return;
+  var v = parseFloat(inp.value); if (!isFinite(v)) v = 0;
+  var step = parseFloat(inp.getAttribute('step')); if (!isFinite(step) || step <= 0) step = 1;
+  var nv = v + (btn.getAttribute('data-sd-step') === '-1' ? -step : step);
+  var mn = parseFloat(inp.getAttribute('min')), mx = parseFloat(inp.getAttribute('max'));
+  if (isFinite(mn) && nv < mn) nv = mn;
+  if (isFinite(mx) && nv > mx) nv = mx;
+  nv = Math.round(nv * 1000) / 1000;
+  if (nv === v) return;
+  inp.value = nv;
+  inp.dispatchEvent(new Event('input', { bubbles: true }));
+}
 function fieldHTML(f){
   if (f.kind === 'note') return '<p class="sd-d-note">' + esc(f.text) + '</p>';
   var id = 'd' + Math.random().toString(36).slice(2, 8);
   if (f.kind === 'number'){
     return '<div class="sd-d-field"><label for="' + id + '">' + esc(f.label) + '</label>'
-      + '<span class="sd-d-inputwrap"><input id="' + id + '" type="number" inputmode="decimal" data-path="' + f.path + '" value="' + esc(fnum(f.value)) + '"'
+      + '<span class="sd-d-inputwrap sd-d-hasstep"><input id="' + id + '" type="number" inputmode="decimal" data-path="' + f.path + '" value="' + esc(fnum(f.value)) + '"'
       + (f.min != null ? ' min="' + f.min + '"' : '') + (f.max != null ? ' max="' + f.max + '"' : '')
       + (f.step != null ? ' step="' + f.step + '"' : '') + '>'
-      + (f.unit ? '<i>' + esc(f.unit) + '</i>' : '') + '</span></div>';
+      + (f.unit ? '<i>' + esc(f.unit) + '</i>' : '') + stepBoxHTML() + '</span></div>';
   }
   if (f.kind === 'select'){
     return '<div class="sd-d-field"><label for="' + id + '">' + esc(f.label) + '</label>'
@@ -94,7 +119,7 @@ function toolRail(vm){
 function skeleton(){
   return ''
   + '<header class="sd-d-topbar">'
-  +   '<div class="sd-d-brand"><span class="sd-d-kicker">STORE DESIGN</span><h1>门店设计</h1>'
+  +   '<div class="sd-d-brand"><span class="sd-d-kicker">STORE DESIGN</span><h1>Super Mass</h1>'
   +     '<span class="sd-d-sub">平面布局 · 3D 渲染 · 方案校验</span></div>'
   +   '<div class="sd-d-topactions">'
   +     '<button id="btnRandom" class="sd-d-btn sd-d-btn-primary">🎲 随机方案</button>'
@@ -102,6 +127,9 @@ function skeleton(){
   +     '<button id="btnExportJson" class="sd-d-btn">导出配置</button>'
   +     '<button id="btnImportJson" class="sd-d-btn">导入配置</button>'
   +     '<button id="btnReset" class="sd-d-btn">重置</button>'
+  +     '<button class="sd-d-btn sd-d-btn-cloud" data-cloud="save">☁ 保存到云端</button>'
+  +     '<button class="sd-d-btn sd-d-btn-ghost" data-cloud="load">载入云端</button>'
+  +     '<span class="sd-d-cloudstatus" data-cloud="status" data-tone="busy">正在读取云端…</span>'
   +     '<button id="btnExit" class="sd-d-btn sd-d-btn-ghost" hidden>返回应用选择</button>'
   +   '</div>'
   + '</header>'
@@ -270,6 +298,13 @@ function renderStatus(items){
 
 /* ---------- 选中动作条（右栏顶部，完整参数在下面） ---------- */
 function accLab(v){ return v === 'adult' ? '成人' : (v === 'kids' ? '童车' : '无'); }
+/* 角度归一化（墙体 / 货架同一口径；界面层不依赖 cfg） */
+function rotOn(o){
+  var r = +((o || {}).rot);
+  if (!isFinite(r) || Math.abs(r) < 1e-6) return 0;
+  r = r % 360; if (r < 0) r += 360;
+  return (Math.abs(r) < 1e-6) ? 0 : r;
+}
 function accNow(o, key){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
   return (a && a[key]) ? a[key] : 'none';
@@ -296,11 +331,14 @@ function selBarHTML(ctx){
       + '<button class="sd-d-act" data-bact="kind" data-bk="double"' + (o.kind === 'double' ? ' data-on="true"' : '') + '>双面</button>'
       + '<button class="sd-d-act" data-bact="kind" data-bk="single"' + (o.kind === 'single' ? ' data-on="true"' : '') + '>单面</button>'
       + '<button class="sd-d-act" data-bact="kind" data-bk="low"' + (o.kind === 'low' ? ' data-on="true"' : '') + '>矮货架</button>'
-      + '<button class="sd-d-act" data-bact="rot">旋转</button>'
-      + '<button class="sd-d-act" data-bact="flush" data-side="n">贴北</button>'
-      + '<button class="sd-d-act" data-bact="flush" data-side="s">贴南</button>'
-      + '<button class="sd-d-act" data-bact="flush" data-side="w">贴西</button>'
-      + '<button class="sd-d-act" data-bact="flush" data-side="e">贴东</button>'
+      + '<button class="sd-d-act" data-bact="rot">旋转 +45°</button>'
+      /* 斜放货架不提供「贴墙」：正交流程按未旋转的矩形算贴边，斜放会切进墙体 */
+      + (window.Engine && window.Engine.shelfRot(o)
+          ? '<button class="sd-d-act" data-bact="resetRot">转正 0°</button>'
+          : '<button class="sd-d-act" data-bact="flush" data-side="n">贴北</button>'
+            + '<button class="sd-d-act" data-bact="flush" data-side="s">贴南</button>'
+            + '<button class="sd-d-act" data-bact="flush" data-side="w">贴西</button>'
+            + '<button class="sd-d-act" data-bact="flush" data-side="e">贴东</button>')
       + '<button class="sd-d-act" data-bact="dup">复制</button>'
       + '<button class="sd-d-act" data-bact="fillb" data-bt="adult">排成人车</button>'
       + '<button class="sd-d-act" data-bact="fillb" data-bt="kids">排童车</button>'
@@ -324,6 +362,17 @@ function selBarHTML(ctx){
     h += '<b class="sd-d-selflag">网面墙</b><button class="sd-d-act" data-bact="rot">改朝向</button>' + del + close;
   } else if (k === 'en'){
     h += '<b class="sd-d-selflag">出入口净空</b>' + del + close;
+  } else if (k === 'iw'){
+    h += '<b class="sd-d-selflag">内隔墙</b><button class="sd-d-act" data-bact="rot">改朝向</button>'
+      + '<button class="sd-d-act" data-bact="rotIW">旋转 +45°</button>'
+      + (rotOn(o) ? '<button class="sd-d-act" data-bact="resetRotIW">转正 0°</button>' : '')
+      + del + close;
+  } else if (k === 'wl'){
+    /* 外墙（2026-09-17）：可拖动、可改长度、可横放/竖放/旋转 */
+    h += '<b class="sd-d-selflag">外墙</b>'
+      + '<button class="sd-d-act" data-bact="rotWall">旋转 +45°</button>'
+      + (rotOn(o) ? '<button class="sd-d-act" data-bact="resetWallRot">转正 0°</button>' : '')
+      + '<button class="sd-d-act" data-bact="addOpen">＋ 开口</button>' + close;
   } else if (k === 'ct'){
     h += '<b class="sd-d-selflag">门帘</b><button class="sd-d-act" data-bact="rot">改朝向</button>' + del + close;
   } else if (k === 'bk'){
@@ -390,6 +439,17 @@ function mount(root){
   slots.frontScroll = document.getElementById('frontScroll');
   slots.frontBar = document.getElementById('frontBar');
   document.body.setAttribute('data-sd-ui', 'desktop');
+
+  /* 步进按钮：在 #editors 上以捕获阶段截住点击（先于 app.js 的动作委托），
+     按钮自身不带 data-act，不会与既有动作分发冲突。 */
+  if (slots.editors){
+    slots.editors.addEventListener('click', function(e){
+      var b = e.target && e.target.closest ? e.target.closest('[data-sd-step]') : null;
+      if (!b) return;
+      e.preventDefault();
+      nudgeField(b);
+    }, true);
+  }
 
   // 工具栏随后由 renderPanel(vm) 填充（工具清单来自数据层，与移动端同一份）
   root.addEventListener('click', function(e){

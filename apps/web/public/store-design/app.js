@@ -113,6 +113,8 @@ function saveSoon(){
       if (prev && prev !== rawNew){ localStorage.setItem(LS_BAK + 'prev', prev); }
       localStorage.setItem(LS_CFG, rawNew);
       localStorage.setItem(LS_VIEW, JSON.stringify({ az: view.az, el: view.el, zoom: view.zoom }));
+      /* 云端图纸：本机存档落盘后同步一次「有没有未保存的改动」 */
+      if (window.SDCloud) window.SDCloud.markDirty();
     } catch(e2){}
   }, 250);
 }
@@ -433,8 +435,34 @@ function clearArms(id){
   toast('已清空该货架的托臂');
 }
 
+/* 旋转货架（快捷条 +1 步 / 预设按钮共用）：保持「包围盒中心」不动，
+   否则斜放或换向后货架会从原地跳走。 */
+function shelfBoundsCenter(s){
+  var b = E.shelfBounds(s);
+  return { x: b.x + b.w/2, y: b.y + b.h/2, w: b.w, h: b.h };
+}
+function rotateShelfTo(s, orient, deg){
+  var before = shelfBoundsCenter(s);
+  s.orient = (orient === 'v') ? 'v' : 'h';
+  s.rot = (((+deg || 0) % 360) + 360) % 360;
+  var after = shelfBoundsCenter(s);
+  s.x = E.clamp(s.x + (before.x - after.x), 0, Math.max(0, cfg.space.w - after.w));
+  s.y = E.clamp(s.y + (before.y - after.y), 0, Math.max(0, cfg.space.d - after.h));
+}
+function rotateShelfBy(s, deg){
+  rotateShelfTo(s, s.orient, (s.rot || 0) + deg);
+}
+
 var acts = {
   rand: function(){ doRandom(); },
+  /* 货架摆放姿态预设：横（东西向）/ 竖（南北向）/ 四个斜 45°。id 形如 "<货架id>:h:45" */
+  setPose: function(ds){
+    var p = String(ds.id).split(':'), s = shelfGet(p[0]); if (!s) return;
+    rotateShelfTo(s, p[1], +p[2]);
+    afterStruct(); renderSelBar(true);
+    var deg = ((+p[2] || 0) % 360 + 360) % 360;
+    toast('货架已切换到「' + (p[1] === 'v' ? '竖放' : '横放') + (deg ? ' · 斜 ' + deg + '°' : '') + '」');
+  },
   /* 左侧工具栏：点工具即就地添加并进入摆放模式（拖动屏幕定位）。 */
   add: function(ds){
     if (!ds || !ds.kind) return;
@@ -500,11 +528,28 @@ var acts = {
       toast('已恢复备份 ' + ds.id + ' ✓');
     } catch(e2){ toast('恢复失败：' + (e2 && e2.message ? e2.message : e2)); }
   },
+  /* 外墙姿态（用户 2026-09-17：墙体也可以横放、竖放、旋转）。
+     id 形如 "left:90" —— 绕墙段中心转到指定角度；0 = 沿边（竖放，左右边）/（横放，上下边）。 */
+  setWallRot: function(ds){
+    var p = String(ds.id).split(':'), side = p[0], e = cfg.walls[side];
+    if (!e) return;
+    var deg = ((+p[1] || 0) % 360 + 360) % 360;
+    e.rot = deg;
+    afterStruct(); renderSelBar(true);
+    toast('外墙已切换到 ' + (deg === 0 ? '沿边（0°）' : deg + '°'));
+  },
+  rotWall: function(ds){
+    var side = ds.id, e = cfg.walls[side]; if (!e) return;
+    e.rot = ((E.wallRot(cfg, side) + 45) % 360);
+    afterStruct(); renderSelBar(true);
+    toast('外墙旋转 ' + e.rot + '°');
+  },
   addOpen: function(ds){
     var key = ds.id, e = cfg.walls[key];
-    var L = (key === 'top' || key === 'bottom') ? cfg.space.w : cfg.space.d;
+    /* 新开口落在「当前墙段」中间（墙缩短后不再把开口加在墙外） */
+    var L = E.wallLength(cfg, key), w = Math.min(2.0, Math.max(0.5, L - 0.2));
     e.open = e.open || [];
-    e.open.push({ at: Math.max(0, Math.round((L/2 - 1)*10)/10), w: 2.0, type: 'pass', label: '' });
+    e.open.push({ at: Math.max(0, Math.round((L/2 - w/2)*10)/10), w: w, type: 'pass', label: '' });
     afterStruct();
   },
   delOpen: function(ds){
@@ -588,6 +633,10 @@ function anchorOf(id){
   if (k === 'en'){ var en = findBy(cfg.entrances || [], key); return en ? { x: en.x, y: en.y } : null; }
   if (k === 'ct'){ var ct = findBy(cfg.curtains || [], key); return ct ? { x: ct.x, y: ct.y } : null; }
   if (k === 'bk'){ var bkk = findBy(cfg.bikes || [], key); return bkk ? { x: bkk.x, y: bkk.y } : null; }
+  if (k === 'wl'){ if (!cfg.walls[key]) return null; return E.wallPt(cfg, key, 0, 0); }
+  if (k === 'iw'){ var wsA = findBy(cfg.wallSegs || [], key); if (!wsA) return null;
+    var thA = wsA.thick || 0.3, aA = Math.min(wsA.from, wsA.to);
+    return (wsA.orient === 'v') ? { x: wsA.at - thA/2, y: aA } : { x: aA, y: wsA.at - thA/2 }; }
   return null;
 }
 function sizeOf(id){
@@ -601,6 +650,12 @@ function sizeOf(id){
   if (k === 'en'){ var en = findBy(cfg.entrances || [], key); return en ? { w: en.w, h: en.h } : null; }
   if (k === 'ct'){ var ctt = findBy(cfg.curtains || [], key); return ctt ? ((ctt.orient === 'v') ? { w: 0.3, h: ctt.len } : { w: ctt.len, h: 0.3 }) : null; }
   if (k === 'bk'){ return { w: 1.0, h: 1.0 }; }
+  if (k === 'iw'){ var wsS = findBy(cfg.wallSegs || [], key); if (!wsS) return null;
+    var thS = wsS.thick || 0.3, lenS = Math.abs((+wsS.to || 0) - (+wsS.from || 0));
+    if (E.wallSegRot(wsS)){ var bS = E.boundsOfPts(E.wallSegCorners(wsS)); return { w: bS.w, h: bS.h }; }
+    return (wsS.orient === 'v') ? { w: thS, h: lenS } : { w: lenS, h: thS }; }
+  if (k === 'wl'){ var eS = cfg.walls[key]; if (!eS) return null;
+    var bW = E.wallBounds(cfg, key); return { w: bW.w, h: bW.h }; }
   return null;
 }
 function moveItem(id, nx, ny){
@@ -627,6 +682,40 @@ function moveItem(id, nx, ny){
     var bkk = findBy(cfg.bikes || [], key);
     if (bkk){ bkk.x = E.clamp(nx, 0.2, cfg.space.w - 0.2); bkk.y = E.clamp(ny, 0.2, cfg.space.d - 0.2); }
   }
+  else if (k === 'iw'){ moveInnerWall(key, nx, ny); }
+  else if (k === 'wl'){ moveOuterWall(key, nx, ny); }
+}
+/* 外墙整段平移（2026-09-17）：拖动的锚点 = 墙段起点。沿边方向改 from，
+   垂直方向改 at（朝室内为正）。墙长不变，所以不再靠「打缺口」缩短墙。 */
+function moveOuterWall(side, nx, ny){
+  var e = cfg.walls[side]; if (!e) return;
+  var g = E.wallGeom(cfg, side), L = E.wallLength(cfg, side);
+  var ax = E.wallPt(cfg, side, 0, 0).x, ay = E.wallPt(cfg, side, 0, 0).y;
+  var dx = nx - ax, dy = ny - ay;
+  var du = dx * g.dx + dy * g.dy;
+  var dv = dx * g.ix + dy * g.iy;
+  var from0 = E.wallStart(cfg, side), at0 = E.wallOffset(cfg, side);
+  var nFrom = E.clamp(Math.round((from0 + du) / 0.5) * 0.5, 0, Math.max(0, g.edgeLen - L));
+  var nAt = E.clamp(Math.round((at0 + dv) / 0.5) * 0.5, -6, 6);
+  if (nFrom === from0 && nAt === at0) return;
+  e.from = nFrom; e.at = nAt;
+  postSelUpdate();
+}
+/* 内隔墙整体平移：v 向 → at 跟 x 走、起止跟 y 走；h 向相反。起止一起平移，长度不变。 */
+function moveInnerWall(id, nx, ny){
+  var ws = findBy(cfg.wallSegs || [], id); if (!ws) return;
+  var th = ws.thick || 0.3;
+  var lo = Math.min(+ws.from || 0, +ws.to || 0), hi = Math.max(+ws.from || 0, +ws.to || 0);
+  var span = hi - lo;
+  if (ws.orient === 'v'){
+    var nAt = E.clamp(nx + th/2, th/2, cfg.space.w - th/2);
+    var nLo = E.clamp(ny, 0, Math.max(0, cfg.space.d - span));
+    ws.at = nAt; ws.from = nLo; ws.to = nLo + span;
+  } else {
+    var nAt2 = E.clamp(ny + th/2, th/2, cfg.space.d - th/2);
+    var nLo2 = E.clamp(nx, 0, Math.max(0, cfg.space.w - span));
+    ws.at = nAt2; ws.from = nLo2; ws.to = nLo2 + span;
+  }
 }
 function updateSelFrame(){
   var sc = els.planScroll;
@@ -649,11 +738,15 @@ function clampRaw(id, nx, ny){
   var k = String(id).split(':')[0];
   if (k === 'pl') return { x: E.clamp(nx, sz.w/2, W - sz.w/2), y: E.clamp(ny, sz.h/2, D - sz.h/2) };
   if (k === 'bk') return { x: E.clamp(nx, 0.2, W - 0.2), y: E.clamp(ny, 0.2, D - 0.2) };
+  if (k === 'iw') return { x: E.clamp(nx, 0, Math.max(0, W - sz.w)), y: E.clamp(ny, 0, Math.max(0, D - sz.h)) };
+  /* 外墙可以往室内外自由移动（横向偏移），不按包围盒夹在空间里 */
+  if (k === 'wl') return { x: nx, y: ny };
   return { x: E.clamp(nx, 0, Math.max(0, W - sz.w)), y: E.clamp(ny, 0, Math.max(0, D - sz.h)) };
 }
 function isCenterAnchored(id){
   var k = String(id).split(':')[0];
-  return k === 'pl' || k === 'bk';
+  /* 外墙的锚点 = 墙段起点（角点），按中心锚定拖动才不会跳 */
+  return k === 'pl' || k === 'bk' || k === 'wl';
 }
 /* ---------- 摆放模式（添加组件后拖拽放置） ---------- */
 function startPlacing(selId, label){
@@ -828,10 +921,12 @@ function selGet(){
   else if (k === 'en') o = findBy(cfg.entrances || [], id);
   else if (k === 'ct') o = findBy(cfg.curtains || [], id);
   else if (k === 'bk') o = findBy(cfg.bikes || [], id);
+  else if (k === 'iw') o = findBy(cfg.wallSegs || [], id);
+  else if (k === 'wl') o = cfg.walls[id] || null;
   if (!o) return null;
   return { k:k, id:ui.sel, o:o };
 }
-var SEC_OF = { sh:'shelves', st:'studio', zn:'zones', pl:'pillars', mk:'markers', ms:'meshes', en:'entrances', ct:'curtains', bk:'bikes' };
+var SEC_OF = { sh:'shelves', st:'studio', zn:'zones', pl:'pillars', mk:'markers', ms:'meshes', en:'entrances', ct:'curtains', bk:'bikes', iw:'wallSegs', wl:'walls' };
 /* 面板里的「全部参数」跳到当前选中项：具体跳到哪儿由界面实现决定
    （移动端切到「元素」页并滚动到选中卡片；桌面端切到右栏「元素」页）。 */
 function scrollToSection(){ if (window.SDUI && SDUI.revealSelection) SDUI.revealSelection(ui.sel); }
@@ -913,12 +1008,32 @@ function bindSelBar(){
       else if (it.k === 'en') acts.delEntrance({ id:id });
       else if (it.k === 'ct') acts.delCurtain({ id:id });
       else if (it.k === 'bk') acts.delBike({ id:id });
+      else if (it.k === 'iw') acts.delSeg({ id:id });
       ui.sel = null;
       afterSelect();
     } else if (act === 'rot'){
       if (it.k === 'bk'){ it.o.rot = ((it.o.rot == null ? 0 : it.o.rot) + 90) % 360; }
+      else if (it.k === 'sh'){ rotateShelfBy(it.o, 45); }
       else { it.o.orient = it.o.orient === 'h' ? 'v' : 'h'; }
       postSelUpdate();
+      /* 货架快捷条的「贴墙 / 转正」按钮随角度切换，必须强制重建（refreshSelVals 只刷数值） */
+      if (it.k === 'sh') renderSelBar(true);
+    } else if (act === 'rotWall'){
+      acts.rotWall({ id: id });
+    } else if (act === 'resetWallRot'){
+      acts.setWallRot({ id: id + ':0' });
+    } else if (act === 'rotIW'){
+      /* 内隔墙旋转 +45°（用户 2026-09-17：墙体也可以横放 / 竖放 / 旋转） */
+      var wsR = findBy(cfg.wallSegs || [], id);
+      if (wsR){ wsR.rot = ((+wsR.rot || 0) + 45) % 360; postSelUpdate(); renderSelBar(true); }
+    } else if (act === 'resetRotIW'){
+      var wsR0 = findBy(cfg.wallSegs || [], id);
+      if (wsR0){ wsR0.rot = 0; postSelUpdate(); renderSelBar(true); }
+    } else if (act === 'resetRot'){
+      /* 斜放货架的一键转正（快捷条「转正 0°」） */
+      rotateShelfTo(it.o, it.o.orient, 0);
+      postSelUpdate();
+      renderSelBar(true);
     } else if (act === 'btype'){
       it.o.type = b.getAttribute('data-t');
       postSelUpdate();
@@ -936,6 +1051,9 @@ function bindSelBar(){
       renderSelBar();
     } else if (act === 'openFront'){
       acts.openFront({ id: id });
+    } else if (act === 'addOpen'){
+      /* 外墙快捷条：给该边加一个开口（外墙 id 就是边名 top/bottom/left/right） */
+      acts.addOpen({ id: id });
     } else if (act === 'accRack' || act === 'accHook'){
       cycleAcc(id, act === 'accRack' ? 'rack' : 'hook');
     } else if (act === 'addArm'){
@@ -1652,6 +1770,18 @@ function boot(){
   try {
     init();
     document.documentElement.setAttribute('data-sd-ready', 'true');
+    /* 云端图纸（2026-09-17）：界面就绪后接上保存 / 载入。 */
+    if (window.SDCloud) window.SDCloud.attach({
+      getCfg: function(){ return cfg; },
+      setCfg: function(obj){
+        cfg = E.deepMerge(E.defaultConfig(), obj);
+        ui.sel = null;
+        ui.frontRow = null;
+        afterStruct();
+        syncInputs();
+      },
+      toast: toast
+    });
   } catch(e9){
     err('初始化失败：' + (e9 && e9.message ? e9.message : e9) + '\n' + (e9 && e9.stack ? e9.stack : ''));
     document.documentElement.setAttribute('data-sd-ready', 'true');

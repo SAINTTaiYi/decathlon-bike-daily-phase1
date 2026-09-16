@@ -8,7 +8,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
 'use strict';
 
-var VERSION = 'store3d-1.13';
+var VERSION = 'store3d-1.15';
 var WALL_T  = 0.3;     // 外墙厚（米）
 var BIKE_LEN = { adult: 2.0, kids: 1.5 };   // 自行车长度（米）
 var BIKE_SLOT = { adult: 2.0, kids: 1.6 };  // 每个自行车位 2m（童车 1.6m）
@@ -60,6 +60,150 @@ function shelfRect(s){
   var d = shelfDepth(s);
   return (s.orient === 'v') ? { x:s.x, y:s.y, w:d, h:s.len } : { x:s.x, y:s.y, w:s.len, h:d };
 }
+
+/* --------------------------- 货架旋转（2026-09-17） ---------------------------
+   货架可以斜放：s.rot = 旋转角度（度，平面视图里顺时针为正；缺省 0 = 原有行为）。
+   底面矩形先按 orient 摆好，再绕自身中心旋转 rot —— 所有派生几何（托臂 / 地架 /
+   挂钩 / 挂车 / 平面符号 / 标注）都必须走同一套变换，否则斜放后附件会脱离货架。 */
+function shelfRot(s){
+  var r = +(s && s.rot);
+  if (!isFinite(r) || Math.abs(r) < 1e-6) return 0;
+  r = r % 360; if (r < 0) r += 360;
+  return (Math.abs(r) < 1e-6) ? 0 : r;
+}
+function shelfBaseRect(s){
+  var d = shelfDepth(s);
+  return (s.orient === 'v') ? { x:s.x, y:s.y, w:d, h:s.len } : { x:s.x, y:s.y, w:s.len, h:d };
+}
+function shelfCenter(s){ var r = shelfBaseRect(s); return { x: r.x + r.w/2, y: r.y + r.h/2 }; }
+/* 世界坐标点绕货架中心旋转（附件派生几何统一走这里） */
+function shelfRotPt(s, x, y){
+  var deg = shelfRot(s);
+  if (!deg) return { x: x, y: y };
+  var a = deg * Math.PI / 180, c = shelfCenter(s), ca = Math.cos(a), sa = Math.sin(a);
+  var dx = x - c.x, dy = y - c.y;
+  return { x: c.x + dx*ca - dy*sa, y: c.y + dx*sa + dy*ca };
+}
+/* 货架局部坐标（u 沿架长 0..len，t 离底面「负法线侧」0..depth）→ 世界坐标（含旋转） */
+function shelfLocalPt(s, u, t){
+  var p = (s.orient === 'v') ? { x: s.x + t, y: s.y + u } : { x: s.x + u, y: s.y + t };
+  return shelfRotPt(s, p.x, p.y);
+}
+/* 底面四角（含旋转） */
+function shelfCorners(s){
+  var d = shelfDepth(s), L = +s.len || 0;
+  return [[0,0],[L,0],[L,d],[0,d]].map(function(pt){ return shelfLocalPt(s, pt[0], pt[1]); });
+}
+/* 货架局部盒（u 沿架长 / t 离基准面，符号由调用方决定）→ 世界四角 */
+function shelfLocalBoxCorners(s, u1, u2, t1, t2){
+  return [shelfLocalPt(s,u1,t1), shelfLocalPt(s,u2,t1), shelfLocalPt(s,u2,t2), shelfLocalPt(s,u1,t2)];
+}
+/* 旋转后的轴对齐包围盒（选中框 / 遮挡登记用） */
+function shelfBounds(s){
+  var cs = shelfCorners(s);
+  var x1 = Math.min(cs[0].x, cs[1].x, cs[2].x, cs[3].x), x2 = Math.max(cs[0].x, cs[1].x, cs[2].x, cs[3].x);
+  var y1 = Math.min(cs[0].y, cs[1].y, cs[2].y, cs[3].y), y2 = Math.max(cs[0].y, cs[1].y, cs[2].y, cs[3].y);
+  return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+}
+/* --------------------- 通用角度 / 旋转（墙、货架共用口径） --------------------- */
+function rotDeg(v){
+  var r = +v;
+  if (!isFinite(r) || Math.abs(r) < 1e-6) return 0;
+  r = r % 360; if (r < 0) r += 360;
+  return (Math.abs(r) < 1e-6) ? 0 : r;
+}
+function rotPt(x, y, cx, cy, deg){
+  if (!deg) return { x: x, y: y };
+  var a = deg * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+  var dx = x - cx, dy = y - cy;
+  return { x: cx + dx*ca - dy*sa, y: cy + dx*sa + dy*ca };
+}
+function boundsOfPts(pts){
+  var x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  pts.forEach(function(p){ x1 = Math.min(x1, p.x); y1 = Math.min(y1, p.y); x2 = Math.max(x2, p.x); y2 = Math.max(y2, p.y); });
+  return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+}
+
+/* --------------------------- 外墙几何（2026-09-17） ---------------------------
+   每一边的墙都是一段「可编辑的墙段」（用户 2026-09-17 定案）：
+     from  起点：沿该边从边的原点起算（缺省 0）
+     len   长度：墙段自身长度（缺省 = 整边）——不再靠「打缺口」间接缩短
+     at    横向偏移：朝室内为正（缺省 0）
+     rot   旋转：绕墙段中心的角度（缺省 0 = 沿边）
+   开口 open[].at 相对「墙段起点」计，与「整边长度」脱钩。
+   四项缺省时几何与旧版逐字节一致。 */
+var WALL_SIDES = ['top', 'bottom', 'left', 'right'];
+function wallGeom(cfg, side){
+  var W = cfg.space.w, D = cfg.space.d;
+  if (side === 'top')    return { edgeLen: W, ox: 0, oy: 0, dx: 1, dy: 0, ix: 0,  iy: 1  };  /* u 沿 +x，室内在 +y */
+  if (side === 'bottom') return { edgeLen: W, ox: 0, oy: D, dx: 1, dy: 0, ix: 0,  iy: -1 };
+  if (side === 'left')   return { edgeLen: D, ox: 0, oy: 0, dx: 0, dy: 1, ix: 1,  iy: 0  };
+  return                        { edgeLen: D, ox: W, oy: 0, dx: 0, dy: 1, ix: -1, iy: 0  };
+}
+function wallEdge(cfg, side){ return (cfg.walls || {})[side] || {}; }
+function wallStart(cfg, side){
+  var g = wallGeom(cfg, side), f = +wallEdge(cfg, side).from;
+  if (!isFinite(f)) f = 0;
+  return Math.max(0, Math.min(f, Math.max(0, g.edgeLen - 0.2)));
+}
+function wallLength(cfg, side){
+  var g = wallGeom(cfg, side), L = +wallEdge(cfg, side).len;
+  if (!isFinite(L) || L <= 0) L = g.edgeLen;
+  return Math.max(0.2, Math.min(L, g.edgeLen - wallStart(cfg, side)));
+}
+function wallOffset(cfg, side){ var a = +wallEdge(cfg, side).at; return isFinite(a) ? a : 0; }
+function wallRot(cfg, side){ return rotDeg(wallEdge(cfg, side).rot); }
+/* 墙段局部坐标（u 从墙起点沿边，v 从该边往室内）→ 世界坐标（含 at 偏移与 rot） */
+function wallPt(cfg, side, u, v){
+  var g = wallGeom(cfg, side);
+  var U = wallStart(cfg, side) + u, V = wallOffset(cfg, side) + v;
+  var x = g.ox + g.dx*U + g.ix*V, y = g.oy + g.dy*U + g.iy*V;
+  var rot = wallRot(cfg, side);
+  if (!rot) return { x: x, y: y };
+  var c = wallCenterPt(cfg, side);
+  return rotPt(x, y, c.x, c.y, rot);
+}
+function wallCenterPt(cfg, side){
+  var g = wallGeom(cfg, side);
+  var uc = wallStart(cfg, side) + wallLength(cfg, side)/2, vc = wallOffset(cfg, side) + WALL_T/2;
+  return { x: g.ox + g.dx*uc + g.ix*vc, y: g.oy + g.dy*uc + g.iy*vc };
+}
+/* 墙段的四角（u1..u2 为墙段自身坐标） */
+function wallBandCorners(cfg, side, u1, u2){
+  return [wallPt(cfg, side, u1, 0), wallPt(cfg, side, u2, 0), wallPt(cfg, side, u2, WALL_T), wallPt(cfg, side, u1, WALL_T)];
+}
+function wallBounds(cfg, side){
+  return boundsOfPts(wallBandCorners(cfg, side, 0, wallLength(cfg, side)));
+}
+/* 墙段被开口切开后的实心段（返回墙段自身坐标下的 [u1,u2]） */
+function wallSegSpans(cfg, side){
+  return segsOf(wallLength(cfg, side), wallEdge(cfg, side).open);
+}
+function wallIsDefault(cfg, side){
+  var g = wallGeom(cfg, side);
+  return wallRot(cfg, side) === 0 && wallStart(cfg, side) === 0
+    && Math.abs(wallOffset(cfg, side)) < 1e-9 && Math.abs(wallLength(cfg, side) - g.edgeLen) < 1e-9;
+}
+
+/* --------------------------- 内隔墙几何（含旋转） --------------------------- */
+function wallSegRot(ws){ return rotDeg(ws.rot); }
+function wallSegSpan(ws){
+  var a = Math.min(+ws.from || 0, +ws.to || 0), b = Math.max(+ws.from || 0, +ws.to || 0);
+  return [a, b];
+}
+function wallSegCenter(ws){
+  var sp = wallSegSpan(ws);
+  return (ws.orient === 'v') ? { x: +ws.at, y: (sp[0]+sp[1])/2 } : { x: (sp[0]+sp[1])/2, y: +ws.at };
+}
+function wallSegCorners(ws){
+  var th = ws.thick || 0.3, sp = wallSegSpan(ws);
+  var pts = (ws.orient === 'v')
+    ? [[+ws.at - th/2, sp[0]], [+ws.at + th/2, sp[0]], [+ws.at + th/2, sp[1]], [+ws.at - th/2, sp[1]]]
+    : [[sp[0], +ws.at - th/2], [sp[1], +ws.at - th/2], [sp[1], +ws.at + th/2], [sp[0], +ws.at + th/2]];
+  var rot = wallSegRot(ws), c = wallSegCenter(ws);
+  return pts.map(function(p){ return rotPt(p[0], p[1], c.x, c.y, rot); });
+}
+
 function pillarRect(p){ var s = p.s || 1.0; return { x:p.x-s/2, y:p.y-s/2, w:s, h:s }; }
 function overlapArea(a,b){
   var ox = Math.min(a.x+a.w, b.x+b.w) - Math.max(a.x, b.x);
@@ -278,14 +422,18 @@ function accFace(s, cfg){
   if (s.orient === 'h') return (sp.d - (s.y + d)) >= s.y ? 'pos' : 'neg';
   return (sp.w - (s.x + d)) >= s.x ? 'pos' : 'neg';
 }
-/* 货架局部坐标 → 世界坐标：u 沿货架（0..len），t 离货架面（正 = 面外） */
+/* 货架局部坐标 → 世界坐标：u 沿货架（0..len），t 离货架面（正 = 面外）。
+   斜放货架（s.rot）的所有附件几何都从这里派生，所以旋转在最后一并施加。 */
 function accPos(s, u, t, face){
   var d = shelfDepth(s), sgn = (face === 'neg') ? -1 : 1;
-  if (s.orient === 'h'){
-    return { x: s.x + u, y: sgn > 0 ? (s.y + d + t) : (s.y - t) };
-  }
-  return { x: sgn > 0 ? (s.x + d + t) : (s.x - t), y: s.y + u };
+  var p = (s.orient === 'h')
+    ? { x: s.x + u, y: sgn > 0 ? (s.y + d + t) : (s.y - t) }
+    : { x: sgn > 0 ? (s.x + d + t) : (s.x - t), y: s.y + u };
+  return shelfRotPt(s, p.x, p.y);
 }
+/* 附件距离带有符号：「面外」在局部 t 坐标里的正负由挂载面决定（负 = 底面另一侧），
+   斜放路径用它把 AABB 换成「货架局部盒」。 */
+function accLocalT(s, t, face){ return (face === 'neg') ? -t : t; }
 /* 托臂硬件（派生，供 3D / 平面渲染）：每台车两根托臂（前 / 后轮各一根），
    臂从货架面伸出 armLen（短 0.5m / 长 1m），外端有挡钩；车轮落在托臂上。 */
 function armHardwareOf(cfg, s){
@@ -303,6 +451,8 @@ function armHardwareOf(cfg, s){
         if (uu < 0.04 || uu > s.len - 0.04) return;   /* 托臂不得伸出货架端头 */
         out.push({
           rowId: r.id, face: face, z: r.z, len: r.len, size: r.size, armLen: armLen, u: r2(uu),
+          /* local：货架局部坐标（斜放时渲染用；t0/t1/cradleT 带挂载面符号） */
+          local: { u: uu, t0: accLocalT(s, 0.02, face), t1: accLocalT(s, armLen, face), cradleT: accLocalT(s, armLen - 0.07, face) },
           inner: accPos(s, uu, 0.02, face),
           tip: accPos(s, uu, armLen, face),
           cradle: accPos(s, uu, armLen - 0.07, face)
@@ -329,7 +479,7 @@ function accBikesOf(cfg){
         out.push({
           id: 'acc:' + s.id + ':arm:' + r.id + ':' + i,
           acc: 'arm', row: r.id, face: face, type: r.size, pose: 'arm', lift: r.z,
-          x: r2(p.x), y: r2(p.y), rot: (s.orient === 'h') ? 0 : 90, steer: 0
+          x: r2(p.x), y: r2(p.y), rot: (((s.orient === 'h') ? 0 : 90) + shelfRot(s)) % 360, steer: 0
         });
       }
     });
@@ -339,7 +489,7 @@ function accBikesOf(cfg){
       resolveFaces(s, cfg, a.rackSide).forEach(function(face){
         /* 车头朝外（2026-09-15 用户指正）：车头（车把一端）背对货架、朝着通道 ——
            与货架自带车位（bikesForShelf 的 dir='s'/'n'）方向一致。 */
-        var rot2 = (s.orient === 'h') ? ((face === 'pos') ? 90 : 270) : ((face === 'pos') ? 0 : 180);
+        var rot2 = (((s.orient === 'h') ? ((face === 'pos') ? 90 : 270) : ((face === 'pos') ? 0 : 180)) + shelfRot(s)) % 360;
         for (var j = 0; j < n2; j++){
           var u2 = (j + 0.5) * s.len / n2;
           var p2 = accPos(s, u2, t2, face);
@@ -662,10 +812,16 @@ function render3D(cfg, view){
 
   var L0=[], L1=[], L2=[], L3=[];
   function p0(s){ L0.push(s); }
+  /* view.debugPaint（仅测试用）：把深度键写进元素属性，供回归测试核对
+     「画序 = 深度序」的断言，不开启时输出完全不变。 */
+  var DBG = !!(view && view.debugPaint);
+  function tagK(s, k){
+    return s.replace(/^<(\w+)/, function(_, tagName){ return '<' + tagName + ' data-k="' + r2(k) + '"'; });
+  }
   /* add1：如果在「摆件」收集区间内（objBegin..objEnd），先攒起来 —— 摆件要等
      所有实心体画完、拿到完整遮挡体清单后再统一决定前后（顺序无关：最后才排序）。 */
-  function add1(k, s){ if (curObj) curObj.parts.push({ k:k, s:s }); else L1.push({ k:k, s:s }); }
-  function add2(k, s){ L2.push({ k:k, s:s }); }
+  function add1(k, s){ if (DBG) s = tagK(s, k); if (curObj) curObj.parts.push({ k:k, s:s }); else L1.push({ k:k, s:s }); }
+  function add2(k, s){ if (DBG) s = tagK(s, k); L2.push({ k:k, s:s }); }
   var trans = !!cfg.opt.translucent;
 
   /* ================= 实心遮挡（2026-09-15 用户要求「货架做成实心的」）=================
@@ -824,48 +980,132 @@ function render3D(cfg, view){
      自行车、站在货架端头的散车都会被误判前后。这里把大于 TILE 的面切成小片，
      每片的深度误差 ≤ 半片长，画序才真正可靠；描边单独描一遍保持原来的外观。 */
   var TILE = 1.1;
-  function boxAdd(bx, pal, op, keyOf, tag, noTile){
+  /* 单个面的细分绘制（boxAdd / quadBoxAdd 共用）：大面按 TILE 切片，每片一个深度键；
+     同色 1px 描边防止相邻小片间出现发丝缝；最后整面再描一次边保持轮廓。 */
+  function faceTiled(pts, fill, pal, op, keyOf, attr, noTile, solid){
+    var isPattern = String(fill).indexOf('url(') === 0;
+    var e1 = Math.sqrt(Math.pow(pts[1][0]-pts[0][0],2)+Math.pow(pts[1][1]-pts[0][1],2)+Math.pow(pts[1][2]-pts[0][2],2));
+    var e2 = Math.sqrt(Math.pow(pts[2][0]-pts[1][0],2)+Math.pow(pts[2][1]-pts[1][1],2)+Math.pow(pts[2][2]-pts[1][2],2));
+    /* 半透明面不细分：小片各自带 1px 同色描边，重叠处会叠加出网格缝 */
+    var tiling = !noTile && op == null;
+    var nu = tiling ? Math.max(1, Math.min(40, Math.ceil(e1 / TILE))) : 1;
+    var nv = tiling ? Math.max(1, Math.min(40, Math.ceil(e2 / TILE))) : 1;
+    if (nu === 1 && nv === 1){
+      var k1 = avgDepth(pts); if (keyOf) k1 = keyOf(k1);
+      /* solid：实心块的面不描外轮廓（轮廓由 hullPath 单独画一次），只留填充 */
+      add1(k1, polyStr(pts, fill, solid ? null : pal.s, solid ? null : 0.9, op, attr));
+      return;
+    }
+    for (var iu = 0; iu < nu; iu++){
+      for (var iv = 0; iv < nv; iv++){
+        var u0 = iu/nu, u1 = (iu+1)/nu, v0 = iv/nv, v1 = (iv+1)/nv;
+        var a0 = [pts[0][0]+(pts[1][0]-pts[0][0])*u0, pts[0][1]+(pts[1][1]-pts[0][1])*u0, pts[0][2]+(pts[1][2]-pts[0][2])*u0];
+        var b0 = [pts[3][0]+(pts[2][0]-pts[3][0])*u0, pts[3][1]+(pts[2][1]-pts[3][1])*u0, pts[3][2]+(pts[2][2]-pts[3][2])*u0];
+        var a1 = [pts[0][0]+(pts[1][0]-pts[0][0])*u1, pts[0][1]+(pts[1][1]-pts[0][1])*u1, pts[0][2]+(pts[1][2]-pts[0][2])*u1];
+        var b1 = [pts[3][0]+(pts[2][0]-pts[3][0])*u1, pts[3][1]+(pts[2][1]-pts[3][1])*u1, pts[3][2]+(pts[2][2]-pts[3][2])*u1];
+        function lp(a, b, t){ return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
+        var q = [lp(a0,b0,v0), lp(a1,b1,v0), lp(a1,b1,v1), lp(a0,b0,v1)];
+        var k2 = avgDepth(q); if (keyOf) k2 = keyOf(k2);
+        /* 同色描边 1px：相邻小片之间不留发丝缝（图案填充不描，避免纹理走样） */
+        add1(k2, polyStr(q, fill, (isPattern || solid) ? null : fill, (isPattern || solid) ? null : 1, op, attr));
+      }
+    }
+    if (solid) return;
+    var k3 = avgDepth(pts) + 0.0004; if (keyOf) k3 = keyOf(k3);
+    add1(k3, polyStr(pts, 'none', pal.s, 0.9, null, attr));
+  }
+  function avgDepth(pts){
+    var k = 0;
+    for (var i=0;i<pts.length;i++) k += dot(pts[i], d3);
+    return k / pts.length;
+  }
+  function boxAdd(bx, pal, op, keyOf, tag, noTile, solid){
     var attr = tag ? ' data-struct="' + tag + '"' : '';
-    function avgK(pts){
-      var k = 0;
-      for (var i=0;i<pts.length;i++) k += dot(pts[i], d3);
-      return k / pts.length;
-    }
-    function face(pts, fill){
-      var isPattern = String(fill).indexOf('url(') === 0;
-      var e1 = Math.sqrt(Math.pow(pts[1][0]-pts[0][0],2)+Math.pow(pts[1][1]-pts[0][1],2)+Math.pow(pts[1][2]-pts[0][2],2));
-      var e2 = Math.sqrt(Math.pow(pts[2][0]-pts[1][0],2)+Math.pow(pts[2][1]-pts[1][1],2)+Math.pow(pts[2][2]-pts[1][2],2));
-      /* 半透明面不细分：小片各自带 1px 同色描边，重叠处会叠加出网格缝 */
-      var tiling = !noTile && op == null;
-      var nu = tiling ? Math.max(1, Math.min(40, Math.ceil(e1 / TILE))) : 1;
-      var nv = tiling ? Math.max(1, Math.min(40, Math.ceil(e2 / TILE))) : 1;
-      if (nu === 1 && nv === 1){
-        var k1 = avgK(pts); if (keyOf) k1 = keyOf(k1);
-        add1(k1, polyStr(pts, fill, pal.s, 0.9, op, attr));
-        return;
-      }
-      for (var iu = 0; iu < nu; iu++){
-        for (var iv = 0; iv < nv; iv++){
-          var u0 = iu/nu, u1 = (iu+1)/nu, v0 = iv/nv, v1 = (iv+1)/nv;
-          var a0 = [pts[0][0]+(pts[1][0]-pts[0][0])*u0, pts[0][1]+(pts[1][1]-pts[0][1])*u0, pts[0][2]+(pts[1][2]-pts[0][2])*u0];
-          var b0 = [pts[3][0]+(pts[2][0]-pts[3][0])*u0, pts[3][1]+(pts[2][1]-pts[3][1])*u0, pts[3][2]+(pts[2][2]-pts[3][2])*u0];
-          var a1 = [pts[0][0]+(pts[1][0]-pts[0][0])*u1, pts[0][1]+(pts[1][1]-pts[0][1])*u1, pts[0][2]+(pts[1][2]-pts[0][2])*u1];
-          var b1 = [pts[3][0]+(pts[2][0]-pts[3][0])*u1, pts[3][1]+(pts[2][1]-pts[3][1])*u1, pts[3][2]+(pts[2][2]-pts[3][2])*u1];
-          function lp(a, b, t){ return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
-          var q = [lp(a0,b0,v0), lp(a1,b1,v0), lp(a1,b1,v1), lp(a0,b0,v1)];
-          var k2 = avgK(q); if (keyOf) k2 = keyOf(k2);
-          /* 同色描边 1px：相邻小片之间不留发丝缝（图案填充不描，避免纹理走样） */
-          add1(k2, polyStr(q, fill, isPattern ? null : fill, 1, op, attr));
-        }
-      }
-      var k3 = avgK(pts) + 0.0004; if (keyOf) k3 = keyOf(k3);
-      add1(k3, polyStr(pts, 'none', pal.s, 0.9, null, attr));
-    }
+    function face(pts, fill){ faceTiled(pts, fill, pal, op, keyOf, attr, noTile, solid); }
     if (d3[2] >  1e-4) face([[bx.x1,bx.y1,bx.z2],[bx.x2,bx.y1,bx.z2],[bx.x2,bx.y2,bx.z2],[bx.x1,bx.y2,bx.z2]], pal.t);
     if (d3[0] >  1e-4) face([[bx.x2,bx.y1,bx.z1],[bx.x2,bx.y2,bx.z1],[bx.x2,bx.y2,bx.z2],[bx.x2,bx.y1,bx.z2]], pal.xp);
     if (d3[0] < -1e-4) face([[bx.x1,bx.y1,bx.z1],[bx.x1,bx.y2,bx.z1],[bx.x1,bx.y2,bx.z2],[bx.x1,bx.y1,bx.z2]], pal.xm);
     if (d3[1] >  1e-4) face([[bx.x1,bx.y2,bx.z1],[bx.x2,bx.y2,bx.z1],[bx.x2,bx.y2,bx.z2],[bx.x1,bx.y2,bx.z2]], pal.yp);
     if (d3[1] < -1e-4) face([[bx.x1,bx.y1,bx.z1],[bx.x2,bx.y1,bx.z1],[bx.x2,bx.y1,bx.z2],[bx.x1,bx.y1,bx.z2]], pal.ym);
+  }
+  /* 任意四边形底面的盒体（货架斜放，2026-09-17）：与 boxAdd 同一套细分 / 同色描边 /
+     深度键规则，只是底面是旋转后的四边形。侧面可见性用「外法线 · 视线」判定，
+     配色按外法线最接近的坐标轴取 —— 正交视角（rot=0）下与 boxAdd 完全一致。 */
+  function quadBoxAdd(cs, z1, z2, pal, op, keyOf, tag, solid){
+    var attr = tag ? ' data-struct="' + tag + '"' : '';
+    function face(pts, fill){ faceTiled(pts, fill, pal, op, keyOf, attr, null, solid); }
+    if (d3[2] > 1e-4){
+      var top = [];
+      for (var i2 = 0; i2 < 4; i2++) top.push([cs[i2].x, cs[i2].y, z2]);
+      face(top, pal.t);
+    }
+    var cx = (cs[0].x + cs[1].x + cs[2].x + cs[3].x) / 4, cy = (cs[0].y + cs[1].y + cs[2].y + cs[3].y) / 4;
+    for (var j = 0; j < 4; j++){
+      var pa = cs[j], pb = cs[(j+1) % 4];
+      var dx = pb.x - pa.x, dy = pb.y - pa.y;
+      var nx = dy, ny = -dx;
+      if (nx * ((pa.x+pb.x)/2 - cx) + ny * ((pa.y+pb.y)/2 - cy) < 0){ nx = -nx; ny = -ny; }
+      if (nx * d3[0] + ny * d3[1] <= 1e-6) continue;
+      var shade = (Math.abs(nx) >= Math.abs(ny)) ? (nx > 0 ? pal.xp : pal.xm) : (ny > 0 ? pal.yp : pal.ym);
+      face([[pa.x,pa.y,z1],[pb.x,pb.y,z1],[pb.x,pb.y,z2],[pa.x,pa.y,z2]], shade);
+    }
+  }
+  /* 实心块的可见外轮廓：8 个角投影后的凸包（正交投影下 = 立方体的剪影）。
+     面的细分小片不描边之后由它一次性画外轮廓；轮廓再按 TILE 分段，每段带自己的
+     深度键 —— 挡在货架前面的挂车 / 散车能正确压住轮廓，而不是被一条长线穿过。 */
+  function hullPath(cs, z1, z2, stroke, sw){
+    var entries = [];
+    for (var hi = 0; hi < cs.length; hi++){
+      entries.push({ w: [cs[hi].x, cs[hi].y, z1], s: T([cs[hi].x, cs[hi].y, z1]) });
+      entries.push({ w: [cs[hi].x, cs[hi].y, z2], s: T([cs[hi].x, cs[hi].y, z2]) });
+    }
+    var uniq = [];
+    entries.forEach(function(e){
+      for (var ui = 0; ui < uniq.length; ui++){
+        if (Math.abs(uniq[ui].s[0]-e.s[0]) < 1e-6 && Math.abs(uniq[ui].s[1]-e.s[1]) < 1e-6) return;
+      }
+      uniq.push(e);
+    });
+    if (uniq.length < 3) return;
+    var cx0 = 0, cy0 = 0;
+    uniq.forEach(function(e){ cx0 += e.s[0]; cy0 += e.s[1]; });
+    cx0 /= uniq.length; cy0 /= uniq.length;
+    uniq.sort(function(a, b){ return Math.atan2(a.s[1]-cy0, a.s[0]-cx0) - Math.atan2(b.s[1]-cy0, b.s[0]-cx0); });
+    var startI = 0;
+    for (var si = 1; si < uniq.length; si++){
+      if (uniq[si].s[0] < uniq[startI].s[0] || (Math.abs(uniq[si].s[0]-uniq[startI].s[0]) < 1e-9 && uniq[si].s[1] < uniq[startI].s[1])) startI = si;
+    }
+    var loop = [], cur = startI, guard = 0;
+    do {
+      loop.push(uniq[cur]);
+      var next = (cur + 1) % uniq.length;
+      for (var ti = 0; ti < uniq.length; ti++){
+        var turn = (uniq[cur].s[0]-uniq[ti].s[0])*(uniq[next].s[1]-uniq[ti].s[1]) - (uniq[cur].s[1]-uniq[ti].s[1])*(uniq[next].s[0]-uniq[ti].s[0]);
+        if (turn < 0) next = ti;
+      }
+      cur = next; guard++;
+    } while (cur !== startI && guard <= uniq.length);
+    if (loop.length < 3) return;
+    for (var ei = 0; ei < loop.length; ei++){
+      var a = loop[ei], b = loop[(ei + 1) % loop.length];
+      var dx = b.w[0]-a.w[0], dy = b.w[1]-a.w[1], dz = b.w[2]-a.w[2];
+      var len = Math.sqrt(dx*dx + dy*dy + dz*dz);
+      var n = Math.max(1, Math.min(40, Math.ceil(len / TILE)));
+      for (var k = 0; k < n; k++){
+        var p0 = [a.w[0]+dx*k/n, a.w[1]+dy*k/n, a.w[2]+dz*k/n];
+        var p1 = [a.w[0]+dx*(k+1)/n, a.w[1]+dy*(k+1)/n, a.w[2]+dz*(k+1)/n];
+        add1((dot(p0,d3)+dot(p1,d3))/2 + 0.0008, lineStr(p0, p1, stroke, sw));
+      }
+    }
+  }
+
+  function cornersBounds(cs){
+    var x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+    for (var i3 = 0; i3 < 4; i3++){
+      if (cs[i3].x < x1) x1 = cs[i3].x; if (cs[i3].x > x2) x2 = cs[i3].x;
+      if (cs[i3].y < y1) y1 = cs[i3].y; if (cs[i3].y > y2) y2 = cs[i3].y;
+    }
+    return { x1:x1, y1:y1, x2:x2, y2:y2 };
   }
   function prismAddN(corners, z1, z2, pal, op){
     var out2 = [], N2 = corners.length;
@@ -993,10 +1233,20 @@ function render3D(cfg, view){
       p0(polyStr([[tip[0],tip[1],0.012],[l[0],l[1],0.012],[r[0],r[1],0.012]], col, null, 0, 0.85));
     }
   }
-  cfg.walls.top.open.forEach(function(o){ arrowDecal(o.at+o.w/2, 0.75, [0,1], 2, o.type==='main' ? '#e05252' : '#45a7b3'); });
-  cfg.walls.bottom.open.forEach(function(o){ arrowDecal(o.at+o.w/2, D-0.75, [0,-1], 2, o.type==='main' ? '#e05252' : '#45a7b3'); });
-  cfg.walls.left.open.forEach(function(o){ arrowDecal(0.75, o.at+o.w/2, [1,0], 2, '#45a7b3'); });
-  cfg.walls.right.open.forEach(function(o){ arrowDecal(W-0.75, o.at+o.w/2, [-1,0], 2, '#45a7b3'); });
+  /* 开口箭头：位置走墙段变换；箭头朝向 = 该边「朝室内」的方向，随墙一起转 */
+  var WALL_INWARD = { top:[0,1], bottom:[0,-1], left:[1,0], right:[-1,0] };
+  WALL_SIDES.forEach(function(side){
+    var we = cfg.walls[side];
+    if (!we || !we.on) return;
+    var wR = wallRot(cfg, side) * Math.PI / 180, wCa = Math.cos(wR), wSa = Math.sin(wR);
+    var base = WALL_INWARD[side];
+    var dir = [base[0]*wCa - base[1]*wSa, base[0]*wSa + base[1]*wCa];
+    (we.open || []).forEach(function(o){
+      var at = Math.min(+o.at || 0, Math.max(0, wallLength(cfg, side) - (+o.w || 0)));
+      var wp = wallPt(cfg, side, at + (+o.w || 0)/2, 0.75);
+      arrowDecal(wp.x, wp.y, dir, 2, (side === 'top' || side === 'bottom') && o.type === 'main' ? '#e05252' : '#45a7b3');
+    });
+  });
   cfg.wallSegs.forEach(function(ws){
     if (ws.orient==='v' && ws.to < D-WALL_T-0.6){
       p0(polyStr([[ws.at-0.5,ws.to,0.010],[ws.at,ws.to,0.010],[ws.at,D-WALL_T,0.010],[ws.at-0.5,D-WALL_T,0.010]], '#dceef0', null, 0, 0.85));
@@ -1010,15 +1260,28 @@ function render3D(cfg, view){
   function wallBox(x1,y1,x2,y2){ return { x1:x1, y1:y1, x2:x2, y2:y2, z1:0, z2:H }; }
   /* 外墙不做细分：外墙是房间边界，不会有东西在它「后面」需要被它挡住，
      细分只增加体积（单面 23m × 2.6m 会切成 60+ 片）。 */
-  if (cfg.walls.top.on)    segsOf(W, cfg.walls.top.open).forEach(function(sg){ boxAdd(wallBox(sg[0], 0, sg[1], WALL_T), PAL.wall, wallOp, null, 'wall:top', true); });
-  if (cfg.walls.bottom.on) segsOf(W, cfg.walls.bottom.open).forEach(function(sg){ boxAdd(wallBox(sg[0], D-WALL_T, sg[1], D), PAL.wall, wallOp, null, 'wall:bottom', true); });
-  if (cfg.walls.left.on)   segsOf(D, cfg.walls.left.open).forEach(function(sg){ boxAdd(wallBox(0, sg[0], WALL_T, sg[1]), PAL.wall, wallOp, null, 'wall:left', true); });
-  if (cfg.walls.right.on)  segsOf(D, cfg.walls.right.open).forEach(function(sg){ boxAdd(wallBox(W-WALL_T, sg[0], W, sg[1]), PAL.wall, wallOp, null, 'wall:right', true); });
+  WALL_SIDES.forEach(function(side){
+    var we = cfg.walls[side];
+    if (!we || !we.on) return;
+    var wRot = wallRot(cfg, side);
+    wallSegSpans(cfg, side).forEach(function(sg){
+      if (!wRot){
+        var w1 = wallPt(cfg, side, sg[0], 0), w2 = wallPt(cfg, side, sg[1], WALL_T);
+        boxAdd(wallBox(Math.min(w1.x,w2.x), Math.min(w1.y,w2.y), Math.max(w1.x,w2.x), Math.max(w1.y,w2.y)),
+               PAL.wall, wallOp, null, 'wall:' + side, true);
+      } else {
+        quadBoxAdd(wallBandCorners(cfg, side, sg[0], sg[1]), 0, H, PAL.wall, wallOp, null, 'wall:' + side);
+      }
+    });
+  });
 
   /* ---------- 内隔墙 ---------- */
   cfg.wallSegs.forEach(function(ws){
     var a = Math.min(ws.from, ws.to), b = Math.max(ws.from, ws.to);
-    if (ws.orient==='v') boxAdd(wallBox(ws.at-ws.thick/2, a, ws.at+ws.thick/2, b), PAL.wall, wallOp);
+    if (wallSegRot(ws)){
+      /* 斜的内隔墙（2026-09-17 用户要求：墙体也可以横放 / 竖放 / 旋转） */
+      quadBoxAdd(wallSegCorners(ws), 0, H, PAL.wall, wallOp, null, 'wallseg:' + ws.id);
+    } else if (ws.orient==='v') boxAdd(wallBox(ws.at-ws.thick/2, a, ws.at+ws.thick/2, b), PAL.wall, wallOp);
     else boxAdd(wallBox(a, ws.at-ws.thick/2, b, ws.at+ws.thick/2), PAL.wall, wallOp);
   });
 
@@ -1133,29 +1396,25 @@ function render3D(cfg, view){
   cfg.shelves.forEach(function(s){
     var d = shelfDepth(s), pal = s.kind==='double' ? PAL.shelfD : (s.kind==='single' ? PAL.shelfS : PAL.shelfLow);
     var hS = s.h || SHELF_H_DEFAULT;
+    if (shelfRot(s)){
+      /* 斜放货架（2026-09-17）：底面是旋转后的四边形，不能再走 AABB 的 boxAdd。 */
+      var cs = shelfCorners(s), bb = cornersBounds(cs);
+      occl({ x1:bb.x1, y1:bb.y1, x2:bb.x2, y2:bb.y2, z1:0, z2:hS }, 'shelf:' + s.id);
+      /* 实心块（用户 2026-09-17：整个货架改成实心的）：面只有填充，外轮廓一次画成 */
+      quadBoxAdd(cs, 0, hS, pal, null, null, 'shelf:' + s.id, true);
+      hullPath(cs, 0, hS, pal.s, 0.9);
+      return;
+    }
     var rx1, ry1, rx2, ry2;
     if (s.orient === 'v'){ rx1=s.x; ry1=s.y; rx2=s.x+d; ry2=s.y+s.len; }
     else { rx1=s.x; ry1=s.y; rx2=s.x+s.len; ry2=s.y+d; }
     var sBox = { x1:rx1, y1:ry1, x2:rx2, y2:ry2, z1:0, z2:hS };
     occl(sBox, 'shelf:' + s.id);
-    boxAdd(sBox, pal, null, null, 'shelf:' + s.id);
-    var levels = [0.3, 0.6, 0.9, 1.2, 1.5, 1.8, 2.1, 2.4, 2.7, 3.0].filter(function(z){ return z < hS-0.05; });
-    var topZ = hS + 0.0015;
-    if (s.orient === 'h'){
-      addLine1([rx1, ry1+d/2, topZ], [rx2, ry1+d/2, topZ], pal.ln, 0.9);
-      for (var xd=rx1+2; xd<rx2-0.3; xd+=2){ addLine1([xd, ry1, topZ], [xd, ry2, topZ], pal.ln, 0.8); }
-      levels.forEach(function(z){
-        if (d3[1] > 0) addLine1([rx1, ry2+0.015, z], [rx2, ry2+0.015, z], pal.ln, 0.8);
-        if (d3[1] < 0) addLine1([rx1, ry1-0.015, z], [rx2, ry1-0.015, z], pal.ln, 0.8);
-      });
-    } else {
-      addLine1([rx1+d/2, ry1, topZ], [rx1+d/2, ry2, topZ], pal.ln, 0.9);
-      for (var yd=ry1+2; yd<ry2-0.3; yd+=2){ addLine1([rx1, yd, topZ], [rx2, yd, topZ], pal.ln, 0.8); }
-      levels.forEach(function(z){
-        if (d3[0] > 0) addLine1([rx2+0.015, ry1, z], [rx2+0.015, ry2, z], pal.ln, 0.8);
-        if (d3[0] < 0) addLine1([rx1-0.015, ry1, z], [rx1-0.015, ry2, z], pal.ln, 0.8);
-      });
-    }
+    /* 实心块（用户 2026-09-17）：旧的木纹线 / 层板线都在面之外（面平面 ±0.015m）
+       逐条拖长 7.5m 画，单条线只有一个深度键 → 两端与切缝处会穿出面外，
+       看起来就是「裸露的线条」。现在面只填充，外轮廓由 hullPath 一次画成。 */
+    boxAdd(sBox, pal, null, null, 'shelf:' + s.id, null, true);
+    hullPath([{ x:rx1, y:ry1 }, { x:rx2, y:ry1 }, { x:rx2, y:ry2 }, { x:rx1, y:ry2 }], 0, hS, pal.s, 0.9);
   });
 
   /* ---------- 货架陈列附件（托臂 / 地架 / 挂钩） ---------- */
@@ -1166,6 +1425,20 @@ function render3D(cfg, view){
     var hS2 = s.h || 1.5;
     /* 托臂（短 0.5m / 长 1m，可多排、每排高度可调）：臂从架面伸出，外端挡钩托住车轮 */
     armHardwareOf(cfg, s).forEach(function(hw){
+      if (shelfRot(s)){
+        /* 斜放：托臂 / 挡钩按货架局部盒旋转（45° 时包 AABB 会变成肥方块） */
+        var tLo = Math.min(hw.local.t0, hw.local.t1) - 0.026, tHi = Math.max(hw.local.t0, hw.local.t1) + 0.026;
+        var sgnT = (hw.local.t1 >= hw.local.t0) ? 1 : -1;
+        var aCorners = shelfLocalBoxCorners(s, hw.local.u - 0.026, hw.local.u + 0.026, tLo, tHi);
+        var cd0 = hw.local.cradleT - 0.026, cd1 = hw.local.cradleT + 0.026;
+        var cCorners = shelfLocalBoxCorners(s, hw.local.u - 0.026, hw.local.u + 0.026, cd0, cd1);
+        var aMid = shelfLocalPt(s, hw.local.u, (hw.local.t0 + hw.local.t1) / 2);
+        var cMid = shelfLocalPt(s, hw.local.u, hw.local.cradleT);
+        objBegin([[aMid.x, aMid.y, hw.z - 0.028], [cMid.x, cMid.y, hw.z + 0.045]], 0.06);
+        quadBoxAdd(aCorners, hw.z - 0.05, hw.z - 0.006, PAL_ACC);
+        quadBoxAdd(cCorners, hw.z - 0.01, hw.z + 0.10, PAL_ACC);
+        return;
+      }
       var aBox = { x1: Math.min(hw.inner.x, hw.tip.x) - 0.026, y1: Math.min(hw.inner.y, hw.tip.y) - 0.026,
                    x2: Math.max(hw.inner.x, hw.tip.x) + 0.026, y2: Math.max(hw.inner.y, hw.tip.y) + 0.026,
                    z1: hw.z - 0.05, z2: hw.z - 0.006 };
@@ -1174,7 +1447,6 @@ function render3D(cfg, view){
       objBegin([boxMid(aBox), boxMid(cBox)], 0.06);
       boxAdd(aBox, PAL_ACC);
       boxAdd(cBox, PAL_ACC);
-      objEnd();
     });
     /* 地架：地面托条 + 前端挡块（可指定面，或两面都装） */
     if (a2.rack !== 'none'){
@@ -1182,6 +1454,17 @@ function render3D(cfg, view){
       resolveFaces(s, cfg, a2.rackSide).forEach(function(faceR){
         for (var jR = 0; jR < nR; jR++){
           var uR = (jR + 0.5) * s.len / nR;
+          if (shelfRot(s)){
+            var t0R = accLocalT(s, 0, faceR), t1R = accLocalT(s, 0.41, faceR);
+            var t0S = accLocalT(s, 0.265, faceR), t1S = accLocalT(s, 0.375, faceR);
+            var rCorners = shelfLocalBoxCorners(s, uR - 0.05, uR + 0.05, Math.min(t0R, t1R), Math.max(t0R, t1R));
+            var sCorners = shelfLocalBoxCorners(s, uR - 0.055, uR + 0.055, Math.min(t0S, t1S), Math.max(t0S, t1S));
+            var rMid = shelfLocalPt(s, uR, (t0R + t1R) / 2), sMid = shelfLocalPt(s, uR, (t0S + t1S) / 2);
+            objBegin([[rMid.x, rMid.y, 0.035], [sMid.x, sMid.y, 0.145]], 0.12);
+            quadBoxAdd(rCorners, 0, 0.07, PAL_ACC);
+            quadBoxAdd(sCorners, 0.07, 0.22, PAL_ACC);
+            continue;
+          }
           var paR = accPos(s, uR, 0.05, faceR), pbR = accPos(s, uR, 0.36, faceR);
           var pcR = accPos(s, uR, 0.32, faceR);
           var rBox = { x1: Math.min(paR.x,pbR.x)-0.05, y1: Math.min(paR.y,pbR.y)-0.05,
@@ -1190,7 +1473,6 @@ function render3D(cfg, view){
           objBegin([boxMid(rBox), boxMid(rStub)], 0.12);
           boxAdd(rBox, PAL_ACC);
           boxAdd(rStub, PAL_ACC);
-          objEnd();
         }
       });
     }
@@ -1198,13 +1480,21 @@ function render3D(cfg, view){
     if (a2.hook === 'on'){
       var nH = hookCount(s), ztH = hS2 + 0.03;
       resolveFaces(s, cfg, a2.hookSide).forEach(function(faceH){
-        var pAH = accPos(s, 0.05, 0.08, faceH), pBH = accPos(s, s.len - 0.05, 0.08, faceH);
-        var hRail = { x1: Math.min(pAH.x,pBH.x)-0.026, y1: Math.min(pAH.y,pBH.y)-0.026,
-                      x2: Math.max(pAH.x,pBH.x)+0.026, y2: Math.max(pAH.y,pBH.y)+0.026,
-                      z1: ztH-0.026, z2: ztH+0.026 };
         var hTip = accPos(s, s.len / 2, 0.15, faceH);
-        objBegin([boxMid(hRail), [hTip.x, hTip.y, ztH - 0.12]], 0.10);
-        boxAdd(hRail, PAL_ACC);
+        if (shelfRot(s)){
+          var t0H = accLocalT(s, 0.08 - 0.026, faceH), t1H = accLocalT(s, 0.08 + 0.026, faceH);
+          var hCorners = shelfLocalBoxCorners(s, 0.05 - 0.026, s.len - 0.05 + 0.026, Math.min(t0H, t1H), Math.max(t0H, t1H));
+          var hMid = shelfLocalPt(s, s.len / 2, (t0H + t1H) / 2);
+          objBegin([[hMid.x, hMid.y, ztH], [hTip.x, hTip.y, ztH - 0.12]], 0.10);
+          quadBoxAdd(hCorners, ztH - 0.026, ztH + 0.026, PAL_ACC);
+        } else {
+          var pAH = accPos(s, 0.05, 0.08, faceH), pBH = accPos(s, s.len - 0.05, 0.08, faceH);
+          var hRail = { x1: Math.min(pAH.x,pBH.x)-0.026, y1: Math.min(pAH.y,pBH.y)-0.026,
+                        x2: Math.max(pAH.x,pBH.x)+0.026, y2: Math.max(pAH.y,pBH.y)+0.026,
+                        z1: ztH-0.026, z2: ztH+0.026 };
+          objBegin([boxMid(hRail), [hTip.x, hTip.y, ztH - 0.12]], 0.10);
+          boxAdd(hRail, PAL_ACC);
+        }
         for (var kH = 0; kH < nH; kH++){
           var uH = (kH + 0.5) * s.len / nH;
           var phH = accPos(s, uH, 0.08, faceH), peH = accPos(s, uH, 0.15, faceH);
@@ -1374,22 +1664,41 @@ function render3D(cfg, view){
   });
 
   /* ---------- 尺寸链 ---------- */
+  /* 2026-09-17 修「货架穿模 / 细线露出」：标尺此前走 L2（标注层，永远画在结构之后
+     = 盖在货架之上），货架旁的刻度线和小数字会透过货架显示。现在整条尺寸链改走
+     L1 深度排序 —— 长线按 TILE 分段（与 boxAdd 的大面细分同一口径，否则一根 23m
+     的线只有一个深度键，还是会穿过货架），数字用所在点的深度键。 */
   if (cfg.opt.dims){
     var off = 0.55, tick = 0.13, col = '#a3a3a3', colT = '#8b8b8b';
-    addLine2([0,-off,0],[W,-off,0], col, 1);
-    for (var xc=0; xc<=W+1e-6; xc+=0.5){ addLine2([xc,-off-tick/2,0],[xc,-off+tick/2,0], col, 0.8); }
-    for (var k1=1; k1<=Math.round(W); k1++){ addText([k1-0.5,-off-0.02,0], fnum(k1), { size:8, fill:colT, halo:2.4 }); }
-    addLine2([0,D+off,0],[W,D+off,0], col, 1);
-    for (var xc2=0; xc2<=W+1e-6; xc2+=0.5){ addLine2([xc2,D+off-tick/2,0],[xc2,D+off+tick/2,0], col, 0.8); }
-    for (var k2=1; k2<=Math.round(W); k2++){ addText([k2-0.5,D+off+0.02,0], fnum(k2), { size:8, fill:colT, halo:2.4 }); }
-    addLine2([-off,0,0],[-off,D,0], col, 1);
-    for (var yc=0; yc<=D+1e-6; yc+=0.5){ addLine2([-off-tick/2,yc,0],[-off+tick/2,yc,0], col, 0.8); }
-    for (var k3=1; k3<=Math.round(D); k3++){ addText([-off-0.02,k3-0.5,0], fnum(k3), { size:8, fill:colT, halo:2.4 }); }
-    addLine2([W+off,0,0],[W+off,D,0], col, 1);
-    for (var yc2=0; yc2<=D+1e-6; yc2+=0.5){ addLine2([W+off-tick/2,yc2,0],[W+off+tick/2,yc2,0], col, 0.8); }
-    for (var k4=1; k4<=Math.round(D); k4++){ addText([W+off+0.02,k4-0.5,0], fnum(k4), { size:8, fill:colT, halo:2.4 }); }
-    addText([W/2, -off-0.38, 0], '总宽 '+fnum(W)+' m', { size:9, fill:colT, halo:2.6 });
-    addText([-off-0.45, D/2, 0], '总深 '+fnum(D)+' m', { size:9, fill:colT, halo:2.6 });
+    function dimLine(a, b, sw){
+      var dx = b[0]-a[0], dy = b[1]-a[1];
+      var len = Math.sqrt(dx*dx + dy*dy);
+      var n = Math.max(1, Math.ceil(len / TILE));
+      for (var i=0;i<n;i++){
+        var p0 = [a[0]+dx*i/n, a[1]+dy*i/n, a[2]];
+        var p1 = [a[0]+dx*(i+1)/n, a[1]+dy*(i+1)/n, b[2]];
+        add1((dot(p0,d3)+dot(p1,d3))/2, lineStr(p0, p1, col, sw));
+      }
+    }
+    function dimText(p, t, o){
+      var q = T(p);
+      add1(dot(p,d3)+0.02, '<text x="'+r2(q[0])+'" y="'+r2(q[1])+'" font-size="'+(o.size||11)+'" fill="'+o.fill+'" text-anchor="middle"'
+        + ' dominant-baseline="central" stroke="#ffffff" stroke-width="'+(o.halo != null ? o.halo : 3)+'" paint-order="stroke" stroke-linejoin="round">'+esc(t)+'</text>');
+    }
+    dimLine([0,-off,0],[W,-off,0], 1);
+    for (var xc=0; xc<=W+1e-6; xc+=0.5){ dimLine([xc,-off-tick/2,0],[xc,-off+tick/2,0], 0.8); }
+    for (var k1=1; k1<=Math.round(W); k1++){ dimText([k1-0.5,-off-0.02,0], fnum(k1), { size:8, fill:colT, halo:2.4 }); }
+    dimLine([0,D+off,0],[W,D+off,0], 1);
+    for (var xc2=0; xc2<=W+1e-6; xc2+=0.5){ dimLine([xc2,D+off-tick/2,0],[xc2,D+off+tick/2,0], 0.8); }
+    for (var k2=1; k2<=Math.round(W); k2++){ dimText([k2-0.5,D+off+0.02,0], fnum(k2), { size:8, fill:colT, halo:2.4 }); }
+    dimLine([-off,0,0],[-off,D,0], 1);
+    for (var yc=0; yc<=D+1e-6; yc+=0.5){ dimLine([-off-tick/2,yc,0],[-off+tick/2,yc,0], 0.8); }
+    for (var k3=1; k3<=Math.round(D); k3++){ dimText([-off-0.02,k3-0.5,0], fnum(k3), { size:8, fill:colT, halo:2.4 }); }
+    dimLine([W+off,0,0],[W+off,D,0], 1);
+    for (var yc2=0; yc2<=D+1e-6; yc2+=0.5){ dimLine([W+off-tick/2,yc2,0],[W+off+tick/2,yc2,0], 0.8); }
+    for (var k4=1; k4<=Math.round(D); k4++){ dimText([W+off+0.02,k4-0.5,0], fnum(k4), { size:8, fill:colT, halo:2.4 }); }
+    dimText([W/2, -off-0.38, 0], '总宽 '+fnum(W)+' m', { size:9, fill:colT, halo:2.6 });
+    dimText([-off-0.45, D/2, 0], '总深 '+fnum(D)+' m', { size:9, fill:colT, halo:2.6 });
   }
 
   /* ---------- 标签 ---------- */
@@ -1416,8 +1725,16 @@ function render3D(cfg, view){
     }
     if (st0.peg && st0.peg.on) addText([st0.x+st0.w-0.32, st0.y+0.55, 2.35], '洞洞板', { size:10, fill:'#8a6d3b' });
     cfg.pillars.forEach(function(p){ addBadge([p.x, p.y, 2.6], '柱子', { size:10, fill:'#3a3a3a', tfill:'#ffffff', dy:-8 }); });
-    cfg.walls.top.open.forEach(function(o){ if (o.label) addBadge([o.at+o.w/2, 0.2, 0.9], o.label, { size:10.5, fill:'#e05252', tfill:'#ffffff', dy:-16 }); });
-    cfg.walls.bottom.open.forEach(function(o){ if (o.label) addBadge([o.at+o.w/2, D-0.2, 0.9], o.label, { size:10.5, fill:'#45a7b3', tfill:'#ffffff', dy:16 }); });
+    /* 开口名称：位置跟着墙段（缩短 / 偏移 / 旋转后仍贴在该开口上方） */
+    function wallBadge(side, o, dy, fill){
+      if (!o.label) return;
+      var wp = wallPt(cfg, side, Math.min(+o.at || 0, Math.max(0, wallLength(cfg, side) - (+o.w || 0))) + (+o.w || 0)/2, 0.2);
+      addBadge([wp.x, wp.y, 0.9], o.label, { size:10.5, fill:fill, tfill:'#ffffff', dy:dy });
+    }
+    cfg.walls.top.open.forEach(function(o){ wallBadge('top', o, -16, '#e05252'); });
+    cfg.walls.bottom.open.forEach(function(o){ wallBadge('bottom', o, 16, '#45a7b3'); });
+    cfg.walls.left.open.forEach(function(o){ wallBadge('left', o, -16, '#45a7b3'); });
+    cfg.walls.right.open.forEach(function(o){ wallBadge('right', o, -16, '#45a7b3'); });
     cfg.wallSegs.forEach(function(ws){
       if (ws.orient==='v' && ws.label) addVText([ws.at-0.85, (ws.to+D-WALL_T)/2, 0.9], ws.label.split(''), { size:9, fill:'#2b7f8a' });
     });
@@ -1476,7 +1793,27 @@ function itemRect(cfg2, selId){
   var parts = String(selId).split(':'), kind = parts[0], key = parts[1];
   function byId(arr, id){ for (var i=0;i<arr.length;i++){ if (String(arr[i].id) === String(id)) return arr[i]; } return null; }
   var st = cfg2.studio;
-  if (kind==='sh'){ var s = byId(cfg2.shelves, key); return s ? shelfRect(s) : null; }
+  if (kind==='sh'){ var s = byId(cfg2.shelves, key); return s ? (shelfRot(s) ? shelfBounds(s) : shelfRect(s)) : null; }
+  if (kind==='iw'){
+    var ws2 = byId(cfg2.wallSegs || [], key); if (!ws2) return null;
+    if (wallSegRot(ws2)) return boundsOfPts(wallSegCorners(ws2));
+    var a2i = Math.min(ws2.from, ws2.to), b2i = Math.max(ws2.from, ws2.to), th2 = ws2.thick || 0.3;
+    return (ws2.orient === 'v')
+      ? { x: ws2.at - th2/2, y: a2i, w: th2, h: b2i - a2i }
+      : { x: a2i, y: ws2.at - th2/2, w: b2i - a2i, h: th2 };
+  }
+  if (kind==='wl'){
+    var e2 = cfg2.walls[key]; if (!e2) return null;
+    /* 外墙现在是一段可编辑的墙（长度 / 横向偏移 / 旋转），选中框 = 墙段实际范围 */
+    if (wallIsDefault(cfg2, key)){
+      var WW2 = cfg2.space.w, DD2 = cfg2.space.d;
+      if (key === 'top')    return { x:0, y:0, w:WW2, h:WALL_T };
+      if (key === 'bottom') return { x:0, y:DD2-WALL_T, w:WW2, h:WALL_T };
+      if (key === 'left')   return { x:0, y:0, w:WALL_T, h:DD2 };
+      if (key === 'right')  return { x:WW2-WALL_T, y:0, w:WALL_T, h:DD2 };
+    }
+    return wallBounds(cfg2, key);
+  }
   if (kind==='st') return st ? { x:st.x, y:st.y, w:st.w, h:st.h } : null;
   if (kind==='zn'){ var z2 = byId(cfg2.zones, key); return z2 ? { x:z2.x, y:z2.y, w:z2.w, h:z2.h } : null; }
   if (kind==='pl'){ var p2 = byId(cfg2.pillars, key); return p2 ? pillarRect(p2) : null; }
@@ -1575,38 +1912,65 @@ function renderPlan(cfg, ui){
     o.push('</g>');
   });
 
-  /* 内隔墙 */
+  /* 内隔墙（可点选 / 可拖动：data-id=iw:<id>） */
   cfg.wallSegs.forEach(function(ws){
-    var a = Math.min(ws.from, ws.to), b = Math.max(ws.from, ws.to);
-    if (ws.orient==='v') o.push(rectStr(ws.at-ws.thick/2, a, ws.thick, b-a, '#c6c4bf', '#8f8b86', 0.03));
-    else o.push(rectStr(a, ws.at-ws.thick/2, b-a, ws.thick, '#c6c4bf', '#8f8b86', 0.03));
+    o.push('<g class="it" data-id="iw:'+ws.id+'">');
+    var csI = wallSegCorners(ws);
+    if (wallSegRot(ws)){
+      o.push('<polygon points="' + csI.map(function(pp){ return r2(pp.x)+','+r2(pp.y); }).join(' ')
+        + '" fill="#c6c4bf" stroke="#8f8b86" stroke-width="0.03"/>');
+    } else {
+      o.push(rectStr(csI[0].x, csI[0].y, csI[1].x - csI[0].x, csI[3].y - csI[0].y, '#c6c4bf', '#8f8b86', 0.03));
+    }
+    o.push('</g>');
   });
 
-  /* 外墙 */
+  /* 外墙（每侧一个可选中的分组：data-id=wl:<上/下/左/右>） */
   var wallFill = '#c6c4bf', wallStroke = '#8f8b86';
-  function edgeSegs(edgeName, L){
-    var e = cfg.walls[edgeName];
-    if (!e.on) return [];
-    return segsOf(L, e.open);
-  }
-  edgeSegs('top', W).forEach(function(sg){ o.push(rectStr(sg[0], 0, sg[1]-sg[0], WALL_T, wallFill, wallStroke, 0.03)); });
-  edgeSegs('bottom', W).forEach(function(sg){ o.push(rectStr(sg[0], D-WALL_T, sg[1]-sg[0], WALL_T, wallFill, wallStroke, 0.03)); });
-  edgeSegs('left', D).forEach(function(sg){ o.push(rectStr(0, sg[0], WALL_T, sg[1]-sg[0], wallFill, wallStroke, 0.03)); });
-  edgeSegs('right', D).forEach(function(sg){ o.push(rectStr(W-WALL_T, sg[0], WALL_T, sg[1]-sg[0], wallFill, wallStroke, 0.03)); });
+  WALL_SIDES.forEach(function(edgeName){
+    var eW = cfg.walls[edgeName];
+    if (!eW || !eW.on) return;
+    var segs = wallSegSpans(cfg, edgeName);
+    if (!segs.length) return;
+    var wRotP = wallRot(cfg, edgeName);
+    o.push('<g class="it" data-id="wl:'+edgeName+'">');
+    segs.forEach(function(sg){
+      if (!wRotP){
+        var q1 = wallPt(cfg, edgeName, sg[0], 0), q2 = wallPt(cfg, edgeName, sg[1], WALL_T);
+        o.push(rectStr(Math.min(q1.x,q2.x), Math.min(q1.y,q2.y), Math.abs(q2.x-q1.x), Math.abs(q2.y-q1.y), wallFill, wallStroke, 0.03));
+      } else {
+        var csW = wallBandCorners(cfg, edgeName, sg[0], sg[1]);
+        o.push('<polygon points="' + csW.map(function(pp){ return r2(pp.x)+','+r2(pp.y); }).join(' ')
+          + '" fill="'+wallFill+'" stroke="'+wallStroke+'" stroke-width="0.03"/>');
+      }
+    });
+    o.push('</g>');
+  });
 
   /* 开口标注 */
-  cfg.walls.top.open.forEach(function(op){
-    o.push(chev(op.at+op.w/2-0.5, 0.5, [0,1], 0.22));
-    o.push(chev(op.at+op.w/2+0.5, 0.5, [0,1], 0.22));
-    if (op.label) o.push(labelStr(op.at+op.w/2, -0.65, op.label, 0.55, '#d04545'));
+  /* 开口标注（位置与朝向都跟着墙段：缩短 / 偏移 / 旋转后仍然对得上） */
+  var PLAN_INWARD = { top:[0,1], bottom:[0,-1], left:[1,0], right:[-1,0] };
+  WALL_SIDES.forEach(function(side){
+    var eW = cfg.walls[side];
+    if (!eW || !eW.on) return;
+    var wRp = wallRot(cfg, side) * Math.PI / 180, cp2 = Math.cos(wRp), sp3 = Math.sin(wRp);
+    var bIn = PLAN_INWARD[side];
+    var dirP = [bIn[0]*cp2 - bIn[1]*sp3, bIn[0]*sp3 + bIn[1]*cp2];
+    (eW.open || []).forEach(function(op){
+      var wOp = +op.w || 0;
+      var mid = Math.min(+op.at || 0, Math.max(0, wallLength(cfg, side) - wOp)) + wOp/2;
+      /* 上/下边画两只箭头（跨过开口），左/右边画一只（与旧版一致） */
+      var spots = (side === 'top' || side === 'bottom') ? [mid-0.5, mid+0.5] : [mid];
+      spots.forEach(function(uu){
+        var q = wallPt(cfg, side, uu, 0.5);
+        o.push(chev(q.x, q.y, dirP, 0.22));
+      });
+      if (op.label){
+        var lq = wallPt(cfg, side, mid, -0.65);
+        o.push(labelStr(lq.x, lq.y, op.label, 0.55, side === 'top' ? '#d04545' : '#2b7f8a'));
+      }
+    });
   });
-  cfg.walls.bottom.open.forEach(function(op){
-    o.push(chev(op.at+op.w/2-0.5, D-0.5, [0,-1], 0.22));
-    o.push(chev(op.at+op.w/2+0.5, D-0.5, [0,-1], 0.22));
-    if (op.label) o.push(labelStr(op.at+op.w/2, D+0.65, op.label, 0.55, '#2b7f8a'));
-  });
-  cfg.walls.left.open.forEach(function(op){ o.push(chev(0.5, op.at+op.w/2, [1,0], 0.22)); });
-  cfg.walls.right.open.forEach(function(op){ o.push(chev(W-0.5, op.at+op.w/2, [-1,0], 0.22)); });
   cfg.wallSegs.forEach(function(ws){
     if (ws.orient==='v' && ws.label){
       var cxs = ws.at-0.85, cys = (ws.to + D - WALL_T)/2, chars = ws.label.split('');
@@ -1631,6 +1995,21 @@ function renderPlan(cfg, ui){
     var fill = s.kind==='double' ? '#f5e6ca' : (s.kind==='single' ? '#e6eff8' : '#e8e2f2');
     var stroke = s.kind==='double' ? '#b79f79' : (s.kind==='single' ? '#96afc7' : '#a89bc4');
     o.push('<g class="it" data-id="sh:'+s.id+'">');
+    if (shelfRot(s)){
+      /* 斜放货架：底面画成旋转后的四边形（矩形 rectStr 表达不了角度） */
+      var csP = shelfCorners(s);
+      o.push('<polygon points="' + csP.map(function(p){ return r2(p.x)+','+r2(p.y); }).join(' ')
+        + '" fill="'+fill+'" stroke="'+stroke+'" stroke-width="0.045"/>');
+      if (s.kind==='double'){
+        var dP = shelfDepth(s);
+        var mP0 = shelfLocalPt(s, 0, dP/2), mP1 = shelfLocalPt(s, s.len, dP/2);
+        o.push(lineP(mP0.x, mP0.y, mP1.x, mP1.y, '#cbb083', 0.05, '0.3 0.18'));
+      }
+      var lp0 = shelfLocalPt(s, s.len/2, (s.orient === 'h') ? -0.42 : -0.55);
+      o.push(labelStr(lp0.x, lp0.y, (s.name ? s.name+' ' : '') + fnum(s.len)+'m', 0.5, '#7a6a50'));
+      o.push('</g>');
+      return;
+    }
     o.push(rectStr(rc.x, rc.y, rc.w, rc.h, fill, stroke, 0.045));
     if (s.kind==='double'){
       if (s.orient==='h') o.push(lineP(rc.x, rc.y+rc.h/2, rc.x+rc.w, rc.y+rc.h/2, '#cbb083', 0.05, '0.3 0.18'));
@@ -1646,12 +2025,31 @@ function renderPlan(cfg, ui){
   cfg.shelves.forEach(function(s){
     if (!accOn(s)) return;
     var a2 = accOf(s), face2 = accFace(s, cfg);
-    function boxRS(u0, u1, t0, t1, fill, stroke, sw){
-      var p1 = accPos(s, u0, t0, face2), p2 = accPos(s, u1, t1, face2);
+    /* 正交（rot=0）时保持 rectStr（输出与旧版逐字节一致）；斜放时改用旋转四边形。
+       t 传「面相关」的正值，符号在 accLocalT 里按挂载面翻转。 */
+    function boxRS(u0, u1, t0, t1, fill, stroke, sw, face){
+      var f = face || face2;
+      if (shelfRot(s)){
+        var tA = accLocalT(s, t0, f), tB = accLocalT(s, t1, f);
+        var csR = shelfLocalBoxCorners(s, Math.min(u0,u1), Math.max(u0,u1), Math.min(tA,tB), Math.max(tA,tB));
+        o.push('<polygon points="' + csR.map(function(p){ return r2(p.x)+','+r2(p.y); }).join(' ')
+          + '" fill="'+fill+'"' + (stroke ? ' stroke="'+stroke+'" stroke-width="'+sw+'"' : '') + '/>');
+        return;
+      }
+      var p1 = accPos(s, u0, t0, f), p2 = accPos(s, u1, t1, f);
       o.push(rectStr(Math.min(p1.x,p2.x), Math.min(p1.y,p2.y), Math.abs(p2.x-p1.x), Math.abs(p2.y-p1.y), fill, stroke, sw));
     }
     /* 托臂：每台车两根（前 / 后轮），长度按排（短 0.5m / 长 1m） */
     armHardwareOf(cfg, s).forEach(function(hw){
+      if (shelfRot(s)){
+        var tLo = Math.min(hw.local.t0, hw.local.t1) - 0.024, tHi = Math.max(hw.local.t0, hw.local.t1) + 0.024;
+        var csA = shelfLocalBoxCorners(s, hw.local.u - 0.024, hw.local.u + 0.024, tLo, tHi);
+        o.push('<polygon points="' + csA.map(function(p){ return r2(p.x)+','+r2(p.y); }).join(' ')
+          + '" fill="#c9ced3" stroke="#9aa0a6" stroke-width="0.02"/>');
+        var csT = shelfLocalBoxCorners(s, hw.local.u - 0.05, hw.local.u + 0.05, hw.local.cradleT - 0.05, hw.local.cradleT + 0.05);
+        o.push('<polygon points="' + csT.map(function(p){ return r2(p.x)+','+r2(p.y); }).join(' ') + '" fill="#8f959b"/>');
+        return;
+      }
       o.push(rectStr(Math.min(hw.inner.x, hw.tip.x) - 0.024, Math.min(hw.inner.y, hw.tip.y) - 0.024,
                      Math.abs(hw.tip.x - hw.inner.x) + 0.048, Math.abs(hw.tip.y - hw.inner.y) + 0.048,
                      '#c9ced3', '#9aa0a6', 0.02));
@@ -1995,15 +2393,25 @@ function asciiDump(cfg, cols){
     if (b<a) b=a; if (c1<c0) c1=c0;
     for (var rr=c0; rr<=c1; rr++){ for (var cc2=a; cc2<=b; cc2++){ grid[rr][cc2]=c; } }
   }
-  if (cfg.walls.top.on)    put(0, -0.3, W, 0.3, '#');
-  if (cfg.walls.bottom.on) put(0, D-0.3, W, D+0.3, '#');
-  if (cfg.walls.left.on)   put(-0.3, 0, 0.3, D, '#');
-  if (cfg.walls.right.on)  put(W-0.3, 0, W+0.3, D, '#');
+  /* 墙段只登记它自己占的那一段（缩短 / 偏移 / 旋转后不再整边封死） */
+  [['top', [0, -0.3, W, 0.3]], ['bottom', [0, D-0.3, W, D+0.3]],
+   ['left', [-0.3, 0, 0.3, D]], ['right', [W-0.3, 0, W+0.3, D]]].forEach(function(pair){
+    var side = pair[0], e = cfg.walls[side], d2 = pair[1];
+    if (!e || !e.on) return;
+    if (wallIsDefault(cfg, side)){ put(d2[0], d2[1], d2[2], d2[3], '#'); return; }
+    var b = wallBounds(cfg, side);
+    put(b.x, b.y, b.x + b.w, b.y + b.h, '#');
+  });
   cfg.zones.forEach(function(zn){ put(zn.x, zn.y, zn.x+zn.w, zn.y+zn.h, zn.kind==='storage' ? 'G' : (zn.kind==='test' ? 'r' : (zn.kind==='passage' ? 't' : 'o'))); });
   (cfg.entrances||[]).forEach(function(en){ put(en.x, en.y, en.x+en.w, en.y+en.h, 'e'); });
   (cfg.curtains||[]).forEach(function(ct){ if (ct.orient==='v') put(ct.x-0.1, ct.y, ct.x+0.1, ct.y+ct.len, 'C'); else put(ct.x, ct.y-0.1, ct.x+ct.len, ct.y+0.1, 'C'); });
   (cfg.bikes||[]).forEach(function(bk){ put(bk.x-0.7, bk.y-0.7, bk.x+0.7, bk.y+0.7, 'b'); });
   cfg.wallSegs.forEach(function(ws){
+    if (wallSegRot(ws)){
+      var bI = boundsOfPts(wallSegCorners(ws));
+      put(bI.x, bI.y, bI.x + bI.w, bI.y + bI.h, 'H');
+      return;
+    }
     if (ws.orient==='v') put(ws.at-ws.thick/2, ws.from, ws.at+ws.thick/2, ws.to, 'H');
     else put(ws.from, ws.at-ws.thick/2, ws.to, ws.at+ws.thick/2, 'H');
   });
@@ -2244,6 +2652,31 @@ return {
   clamp: clamp,
   shelfDepth: shelfDepth,
   shelfRect: shelfRect,
+  shelfRot: shelfRot,
+  shelfCorners: shelfCorners,
+  shelfBounds: shelfBounds,
+  shelfLocalPt: shelfLocalPt,
+  shelfRotPt: shelfRotPt,
+  /* 墙体几何（2026-09-17）：外墙可编辑长度 / 横竖 / 旋转，内外墙同一套口径 */
+  WALL_SIDES: WALL_SIDES,
+  rotDeg: rotDeg,
+  rotPt: rotPt,
+  boundsOfPts: boundsOfPts,
+  wallGeom: wallGeom,
+  wallStart: wallStart,
+  wallLength: wallLength,
+  wallOffset: wallOffset,
+  wallRot: wallRot,
+  wallPt: wallPt,
+  wallCenterPt: wallCenterPt,
+  wallBandCorners: wallBandCorners,
+  wallBounds: wallBounds,
+  wallSegSpans: wallSegSpans,
+  wallIsDefault: wallIsDefault,
+  wallSegRot: wallSegRot,
+  wallSegSpan: wallSegSpan,
+  wallSegCenter: wallSegCenter,
+  wallSegCorners: wallSegCorners,
   pillarRect: pillarRect,
   segsOf: segsOf,
   heightByMode: heightByMode

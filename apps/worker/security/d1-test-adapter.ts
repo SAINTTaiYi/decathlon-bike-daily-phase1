@@ -192,7 +192,8 @@ export async function migratedTestDatabase(): Promise<TestD1Database> {
     '0033_d1_usage_alerts.sql',
     '0034_shiphub_sync_runs_started_index.sql',
     '0035_food_ledger.sql',
-    '0036_food_ledger_read_amplification.sql'
+    '0036_food_ledger_read_amplification.sql',
+    '0037_store_designs.sql'
   ]) {
     const sql = await readFile(new URL(`../../../migrations/d1/${name}`, import.meta.url), 'utf8')
     db.exec(sql)

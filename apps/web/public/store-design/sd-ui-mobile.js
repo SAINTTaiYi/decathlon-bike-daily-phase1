@@ -23,15 +23,40 @@ function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace
 function fnum(v){ return window.Engine ? window.Engine.fnum(v) : String(v); }
 
 /* ---------- 字段 / 动作（移动端布局：标签在上、控件在下） ---------- */
+/* 数值步进按钮（2026-09-17 用户要求：墙体参数要像货架那样能点上下箭头改）。
+   与桌面端同一套行为：按字段自身 step / min / max 加减后派发 input 事件，
+   数据写入走 app.js 的 onEditInput。 */
+function stepBoxHTML(){
+  return '<span class="sd-m-stepbox">'
+    + '<button type="button" class="sd-m-nudge" data-sd-step="1" aria-label="增加">▴</button>'
+    + '<button type="button" class="sd-m-nudge" data-sd-step="-1" aria-label="减少">▾</button>'
+    + '</span>';
+}
+function nudgeField(btn){
+  /* 按钮在 .sd-m-stepbox 里，再上一层才是输入框容器 —— 必须用 closest 往上找。 */
+  var wrap = btn.closest ? btn.closest('.sd-m-inputwrap') : null;
+  var inp = (wrap && wrap.querySelector) ? wrap.querySelector('input[data-path]') : null;
+  if (!inp) return;
+  var v = parseFloat(inp.value); if (!isFinite(v)) v = 0;
+  var step = parseFloat(inp.getAttribute('step')); if (!isFinite(step) || step <= 0) step = 1;
+  var nv = v + (btn.getAttribute('data-sd-step') === '-1' ? -step : step);
+  var mn = parseFloat(inp.getAttribute('min')), mx = parseFloat(inp.getAttribute('max'));
+  if (isFinite(mn) && nv < mn) nv = mn;
+  if (isFinite(mx) && nv > mx) nv = mx;
+  nv = Math.round(nv * 1000) / 1000;
+  if (nv === v) return;
+  inp.value = nv;
+  inp.dispatchEvent(new Event('input', { bubbles: true }));
+}
 function fieldHTML(f){
   if (f.kind === 'note') return '<p class="sd-m-note">' + esc(f.text) + '</p>';
   var id = 'f' + Math.random().toString(36).slice(2, 8);
   if (f.kind === 'number'){
     return '<label class="sd-m-field" for="' + id + '"><span class="sd-m-field-label">' + esc(f.label) + '</span>'
-      + '<span class="sd-m-inputwrap"><input id="' + id + '" type="number" inputmode="decimal" data-path="' + f.path + '" value="' + esc(fnum(f.value)) + '"'
+      + '<span class="sd-m-inputwrap sd-m-hasstep"><input id="' + id + '" type="number" inputmode="decimal" data-path="' + f.path + '" value="' + esc(fnum(f.value)) + '"'
       + (f.min != null ? ' min="' + f.min + '"' : '') + (f.max != null ? ' max="' + f.max + '"' : '')
       + (f.step != null ? ' step="' + f.step + '"' : '') + '>'
-      + (f.unit ? '<i class="sd-m-unit">' + esc(f.unit) + '</i>' : '') + '</span></label>';
+      + (f.unit ? '<i class="sd-m-unit">' + esc(f.unit) + '</i>' : '') + stepBoxHTML() + '</span></label>';
   }
   if (f.kind === 'select'){
     return '<label class="sd-m-field" for="' + id + '"><span class="sd-m-field-label">' + esc(f.label) + '</span>'
@@ -73,9 +98,10 @@ function toolDrawer(vm){
 function skeleton(){
   return ''
   + '<header class="sd-m-top">'
-  +   '<div class="sd-m-brand"><span class="sd-m-kicker">STORE DESIGN</span><h1 class="sd-m-title">门店设计</h1></div>'
+  +   '<div class="sd-m-brand"><span class="sd-m-kicker">STORE DESIGN</span><h1 class="sd-m-title">Super Mass</h1></div>'
   +   '<div class="sd-m-topbtns">'
   +     '<button class="sd-m-icon" data-sd-tools="1" aria-label="工具栏">☰</button>'
+  +     '<button class="sd-m-icon sd-m-cloud" data-cloud="save" aria-label="保存到云端">☁</button>'
   +     '<button class="sd-m-icon" data-sd-menu="1" aria-label="更多">⋯</button>'
   +     '<button id="btnExit" class="sd-m-icon sd-m-exit" hidden aria-label="退出">↗</button>'
   +   '</div>'
@@ -126,6 +152,12 @@ function skeleton(){
   + '</aside>'
   + '<aside class="sd-m-menu" id="sdMenu" data-open="false" aria-label="更多">'
   +   '<div class="sd-m-drawerhead"><b>方案与导出</b><button class="sd-m-icon" data-sd-close="1" aria-label="关闭">✕</button></div>'
+  +   '<div class="sd-m-cloudbox">'
+  +     '<b>云端图纸</b>'
+  +     '<span class="sd-m-cloudstatus" data-cloud="status" data-tone="busy">正在读取云端…</span>'
+  +     '<button data-cloud="save">保存到云端</button>'
+  +     '<button data-cloud="load">载入云端最新版本</button>'
+  +   '</div>'
   +   '<div class="sd-m-menulist">'
   +     '<button id="btnRandom">🎲 随机方案</button>'
   +     '<button id="btnExportSvg">导出 SVG 视角</button>'
@@ -284,6 +316,13 @@ function accRows(o){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
   return (a && a.rows) ? a.rows : [];
 }
+/* 角度归一化（墙体 / 货架同一口径；界面层不依赖 cfg） */
+function rotOn(o){
+  var r = +((o || {}).rot);
+  if (!isFinite(r) || Math.abs(r) < 1e-6) return 0;
+  r = r % 360; if (r < 0) r += 360;
+  return (Math.abs(r) < 1e-6) ? 0 : r;
+}
 function selBarHTML(ctx){
   var k = ctx.kind, o = ctx.item, h = '';
   var close = '<button class="sd-m-x" data-bact="close" aria-label="取消选中">✕</button>';
@@ -300,12 +339,15 @@ function selBarHTML(ctx){
       + '<button data-bact="kind" data-bk="single"' + (o.kind === 'single' ? ' data-on="true"' : '') + '>单面</button>'
       + '<button data-bact="kind" data-bk="low"' + (o.kind === 'low' ? ' data-on="true"' : '') + '>矮</button>'
       + '</span>长' + stepper('len', o.len, 'm')
-      + '<button data-bact="rot">旋转</button></div>';
+      + '<button data-bact="rot">旋转+45°</button></div>';
     h += '<div class="sd-m-selrow"><span class="sd-m-tag">x</span>' + stepper('x', o.x, '')
       + '<span class="sd-m-tag">y</span>' + stepper('y', o.y, '')
-      + '<span class="sd-m-tag">贴墙</span>'
-      + '<button data-bact="flush" data-side="n">北</button><button data-bact="flush" data-side="s">南</button>'
-      + '<button data-bact="flush" data-side="w">西</button><button data-bact="flush" data-side="e">东</button>'
+      /* 斜放货架不提供「贴墙」（按未旋转矩形算贴边会切进墙体），改为一键转正 */
+      + (window.Engine && window.Engine.shelfRot(o)
+          ? '<button data-bact="resetRot">转正 0°</button>'
+          : '<span class="sd-m-tag">贴墙</span>'
+            + '<button data-bact="flush" data-side="n">北</button><button data-bact="flush" data-side="s">南</button>'
+            + '<button data-bact="flush" data-side="w">西</button><button data-bact="flush" data-side="e">东</button>')
       + '<button data-bact="dup">复制</button>' + del + '</div>';
     h += '<div class="sd-m-selrow"><span class="sd-m-tag">🚲</span><button data-bact="fillb" data-bt="adult">排成人车</button>'
       + '<button data-bact="fillb" data-bt="kids">排童车</button><button data-bact="clearb">清空本架</button></div>';
@@ -347,6 +389,16 @@ function selBarHTML(ctx){
     h += '<div class="sd-m-selrow">' + close + '<span class="sd-m-tag">门帘</span>长' + stepper('len', o.len, 'm')
       + '<button data-bact="rot">' + (o.orient === 'h' ? '东西向' : '南北向') + '</button>'
       + '<span class="sd-m-tag">x</span>' + stepper('x', o.x, '') + '<span class="sd-m-tag">y</span>' + stepper('y', o.y, '') + del + '</div>';
+  } else if (k === 'iw'){
+    h += '<div class="sd-m-selrow">' + close + '<span class="sd-m-tag">内隔墙</span>'
+      + '<button data-bact="rot">改朝向</button><button data-bact="rotIW">旋转 +45°</button>'
+      + (rotOn(o) ? '<button data-bact="resetRotIW">转正 0°</button>' : '')
+      + del + '</div>';
+  } else if (k === 'wl'){
+    h += '<div class="sd-m-selrow">' + close + '<span class="sd-m-tag">外墙</span>'
+      + '<button data-bact="rotWall">旋转 +45°</button>'
+      + (rotOn(o) ? '<button data-bact="resetWallRot">转正 0°</button>' : '')
+      + '<button data-bact="addOpen">＋ 开口</button></div>';
   } else if (k === 'bk'){
     var top = (o.pose === 'top');
     h += '<div class="sd-m-selrow">' + close
@@ -388,6 +440,16 @@ function mount(root){
   slots.frontScroll = document.getElementById('frontScroll');
   slots.frontBar = document.getElementById('frontBar');
   document.body.setAttribute('data-sd-ui', 'mobile');
+
+  /* 步进按钮：同桌面端，捕获阶段截住点击后按字段 step 微调。 */
+  if (slots.editors){
+    slots.editors.addEventListener('click', function(e){
+      var b = e.target && e.target.closest ? e.target.closest('[data-sd-step]') : null;
+      if (!b) return;
+      e.preventDefault();
+      nudgeField(b);
+    }, true);
+  }
 
   root.addEventListener('click', function(e){
     var t = e.target;

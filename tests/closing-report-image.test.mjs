@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildClosingReportModel, reportContact, reportItemDetail, selfPickupReportLabel, shiphubReportLabel, usedCarReportLabel } from '../apps/web/src/utils/closingReportImage.js'
+import { buildClosingReportModel, reportContact, reportItemDetail, selfPickupReportLabel, shiphubReportLabel, shiphubReportRecord, usedCarReportLabel } from '../apps/web/src/utils/closingReportImage.js'
 import { readFile } from 'node:fs/promises'
 
 test('闭店日报图模型只收录未完成的待取/维修/交接，并保留完整销售数据', () => {
@@ -163,4 +163,55 @@ test('闭店导出注入 Shiphub 订单且失败不阻塞闭店流程', async ()
   assert.match(app, /catch \{ return \[\] \}/u)
   assert.match(app, /shiphubOrders,/u)
   assert.match(app, /const categories = \['hand', 'pick', 'receive'\]/u)
+})
+
+// ── 2026-09-17：日报图加记录生成日期 + 实心色块改 Ops 主题黄（去掉黑色）────────
+
+test('闭店日报图为每条记录带上生成日期（手工记录用 createdAt，Shiphub 用首次同步时间）', () => {
+  const rows = [
+    { id: 'p1', scene: 'pickup', title: '待取A', status: '等待取车', lifecycle: 'active', createdAt: '2026-09-12T03:20:00.000Z' },
+    { id: 'r1', scene: 'repair', title: '维修A', status: '维修中', lifecycle: 'active', createdAt: '2026-09-14T06:00:00.000Z' },
+    { id: 'h1', scene: 'poster', title: '交接A', status: '继续跟进', lifecycle: 'active', createdAt: '2026-09-15T06:00:00.000Z' }
+  ]
+  const model = buildClosingReportModel({ records: rows, closedAt: '2026-09-16T13:00:00.000Z' })
+  assert.equal(model.pickups[0].createdAt, '2026-09-12T03:20:00.000Z')
+  assert.equal(model.repairs[0].createdAt, '2026-09-14T06:00:00.000Z')
+  assert.equal(model.handovers[0].createdAt, '2026-09-15T06:00:00.000Z')
+  // Shiphub 同步车辆没有「建单时间」，用首次同步时间（first_seen_at）当生成日期
+  const ship = shiphubReportRecord('hand', {
+    id: 'H1', orderNumber: '5127371642958017643', vehicleInfo: '城市通勤车', items: [{ sku: '4810987' }],
+    firstSeenAt: '2026-09-13T02:00:00.000Z', scheduledAt: '2026-09-14T02:00:00.000Z'
+  }, null)
+  assert.equal(ship.createdAt, '2026-09-13T02:00:00.000Z')
+  assert.equal(shiphubReportRecord('hand', { id: 'H2', items: [] }, null).createdAt, '')
+})
+
+test('闭店日报图的实心色块统一改为 Ops 主题黄，黑色只留在文字与细线上', async () => {
+  const source = await readFile(new URL('../apps/web/src/utils/closingReportImage.js', import.meta.url), 'utf8')
+  assert.match(source, /const BRAND = '#ffde59'/u, '必须显式声明 Ops 主题黄（与 --ops-yellow 同值）')
+  // 销售 hero 大块
+  assert.match(source, /ctx\.fillStyle = BRAND\n\s*ctx\.fillRect\(heroX, blockY, heroW, heroH\)/u, '销售 hero 必须用主题黄填充')
+  assert.match(source, /ctx\.fillStyle = BRAND\n\s*ctx\.fillRect\(heroX, blockY \+ heroH - 20, heroW, 20\)/u, 'hero 底边接缝也必须用主题黄')
+  // 卡片左侧色条 / 右侧来源标识面板 / 顶部版本徽章
+  assert.match(source, /ctx\.fillStyle = BRAND\n\s*ctx\.fillRect\(x, y, BAR_W, h\)/u, '卡片左侧色条必须改主题黄')
+  assert.match(source, /if \(sourceIdentity\) fillRound\(ctx, panelX, panelY, panelW, panelH, 16, BRAND\)/u, '来源标识面板必须改主题黄')
+  assert.match(source, /fillRound\(ctx, WIDTH - PAD - vw, 58, vw, 48, 8, BRAND\)/u, '版本徽章必须改主题黄')
+  // 黄底上的文字与图形改深色（白字白线在黄底上会看不见）
+  assert.match(source, /ctx\.fillStyle = BRAND_INK/u, '黄底上的数字必须用深色')
+  // 白卡纸面（SURFACE / CHIP_BG 两个 token）保留；黄底上的白色文字 / 图形必须清零。
+  assert.doesNotMatch(source, /fillStyle = '#ffffff'/u, '黄底上不得再写白字（黄底白字不可读）')
+  assert.doesNotMatch(source, /rgba\(255,\s*255,\s*255/u, '不得再保留白色半透明网格 / 曲线 / 标签')
+  assert.doesNotMatch(source, /ctx\.fillStyle = '#fff'/u, '不得再保留裸白填充')
+  // 黑色实心块必须清零（只允许作为文字色与细线）
+  assert.doesNotMatch(source, /fillRound\(ctx, panelX, panelY, panelW, panelH, 16, INK\)/u, '来源标识面板不得再是黑底')
+  assert.doesNotMatch(source, /fillRound\(ctx, WIDTH - PAD - vw, 58, vw, 48, 8, INK\)/u, '版本徽章不得再是黑底')
+  assert.doesNotMatch(source, /ctx\.fillStyle = INK\n\s*ctx\.fillRect\(heroX/u, '销售 hero 不得再是黑底')
+})
+
+test('闭店日报图卡片在业务编号旁打印生成日期（三类卡片共用同一处）', async () => {
+  const source = await readFile(new URL('../apps/web/src/utils/closingReportImage.js', import.meta.url), 'utf8')
+  assert.match(source, /function formatCreatedStamp\(value\)/u, '必须有生成日期格式化器')
+  assert.match(source, /at\.getMonth\(\)/u, '生成日期必须按门店本地日历取值（createdAt 是 UTC 瞬时）')
+  assert.match(source, /生成 \$\{createdStamp\}/u, '卡片必须打印「生成 MM.DD」')
+  assert.match(source, /const createdStamp = formatCreatedStamp\(item\.createdAt\)/u, '生成日期必须取 item.createdAt')
 })

@@ -138,7 +138,7 @@ test('未配置邮件时改密整体降级为 503，不伪装成功', () => {
 })
 
 test('改密契约复用既有密码强度与 OTP 校验，不放宽规则', () => {
-  assert.match(contractSource, /export const passwordResetOtpSchema = z\.object\(\{[\s\S]{0,300}username: usernameSchema[\s\S]{0,200}email: corporateEmailSchema/u)
+  assert.match(contractSource, /export const passwordResetOtpSchema = z\.object\(\{[\s\S]{0,300}username: usernameSchema[\s\S]{0,200}email: accountEmailSchema/u)
   assert.match(contractSource, /export const passwordResetVerifyOtpSchema = z\.object\(\{[\s\S]{0,200}otp: otpCodeSchema/u)
   assert.match(contractSource, /export const passwordResetCompleteSchema = z\.object\(\{[\s\S]{0,300}password: passwordSchema/u)
 })

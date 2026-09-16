@@ -6,7 +6,7 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const read = (rel) => readFile(new URL(rel, import.meta.url), 'utf8')
 
-const [app, storeApp, siteMode, appSelectMobile, appSelectDesktop, menuDialog, appSelectCss, shellCss, styleIndex, sw, toolHtml, toolEmbed, toolApp, toolEngine, borderlessCss, stagingWorkflow, productionWorkflow, workerSession, workerMiddleware, workerAuthRoute, webClient, toolSchema, toolBaseCss, toolMobileCss, toolDesktopCss, toolBoot, toolUiMobile, toolUiDesktop] = await Promise.all([
+const [app, storeApp, siteMode, appSelectMobile, appSelectDesktop, menuDialog, appSelectCss, shellCss, styleIndex, sw, toolHtml, toolEmbed, toolApp, toolEngine, borderlessCss, stagingWorkflow, productionWorkflow, workerSession, workerMiddleware, workerAuthRoute, webClient, toolSchema, toolBaseCss, toolMobileCss, toolDesktopCss, toolBoot, toolUiMobile, toolUiDesktop, toolCloud] = await Promise.all([
   read('../apps/web/src/App.jsx'),
   read('../apps/web/src/components/storedesign/StoreDesignApp.jsx'),
   read('../apps/web/src/utils/siteMode.js'),
@@ -34,7 +34,8 @@ const [app, storeApp, siteMode, appSelectMobile, appSelectDesktop, menuDialog, a
   read('../apps/web/public/store-design/sd-desktop.css'),
   read('../apps/web/public/store-design/sd-boot.js'),
   read('../apps/web/public/store-design/sd-ui-mobile.js'),
-  read('../apps/web/public/store-design/sd-ui-desktop.js')
+  read('../apps/web/public/store-design/sd-ui-desktop.js'),
+  read('../apps/web/public/store-design/sd-cloud.js')
 ])
 
 // 断言一律基于剥掉注释后的源码：命中的可能是注释里的字样（2026-09-13 假绿事故）。
@@ -129,14 +130,18 @@ test('宿主外壳：iframe 尺寸/退出消息/同源校验/清理齐全', () =
 })
 
 test('工具页：本地工具原样发布 + 嵌入钩子（标题/退出按钮/postMessage）', () => {
-  assert.match(toolHtml, /<title>门店设计 · 布局与 3D 渲染<\/title>/u, '标题必须是生产文案，不得留「本地预览」')
+  assert.match(toolHtml, /<title>Super Mass · 布局与 3D 渲染<\/title>/u, '模块名必须是 Super Mass（标题不得留旧名「门店设计」）')
   assert.doesNotMatch(toolHtml, /本地预览/u, '工具页不得再出现「本地预览」字样')
   assert.match(toolHtml, /<script src="engine\.js\?v=[\d.]+"><\/script>/u, '必须按版本引用引擎')
   assert.match(toolHtml, /<script src="app\.js\?v=[\d.]+"><\/script>/u, '必须按版本引用应用脚本')
   assert.match(toolHtml, /<script src="embed\.js\?v=\d+"><\/script>/u, '必须加载嵌入钩子')
-  // 退出按钮默认隐藏在宿主钩子侧（两个界面实现各自渲染），见下方「双端实现」用例
-  // 钩子：只在 embed=1 显示；两种文案；同源 postMessage
-  assert.ok(toolEmbed.includes("params.get('embed') !== '1'"), '未嵌入时必须直接返回')
+  // 退出按钮（2026-09-17 用户要求：独立打开也要能返回模块选择屏）——按钮始终显示：
+  //   嵌入（有父窗口）→ 同源 postMessage，去向由宿主决定；
+  //   独立打开       → 整页回站点根（= 应用选择屏）。
+  assert.ok(toolEmbed.includes('button.hidden = false'), '退出按钮必须始终显示（不得只在 embed=1 时出现）')
+  assert.ok(toolEmbed.includes('window.parent !== window'), '嵌入时走 postMessage，独立打开不得只通知父窗口')
+  assert.ok(toolEmbed.includes("window.location.assign('/')"), '独立打开时退出按钮必须回站点根（应用选择屏）')
+  assert.doesNotMatch(toolEmbed, /params\.get\('embed'\) !== '1'\)\s*return/u, '不得再因未嵌入而直接返回（否则独立打开没有返回入口）')
   assert.ok(toolEmbed.includes("'去 Workshop Ops ↗'") && toolEmbed.includes("'返回应用选择'"), '两种退出文案都要有')
   assert.ok(toolEmbed.includes('window.parent.postMessage'), '退出必须通知父页面')
   assert.ok(toolEmbed.includes('window.location.origin'), 'postMessage 目标必须限定同源')
@@ -146,6 +151,26 @@ test('工具页：本地工具原样发布 + 嵌入钩子（标题/退出按钮/
   // 页面错误钩子因此抽成 boot.js（2026-09-15）。
   assert.match(toolHtml, /<script src="boot\.js\?v=\d+"><\/script>/u, '必须加载页面错误钩子')
   assert.equal(toolHtml.match(/<script(?![^>]*src=)[^>]*>/gu), null, '工具页不得再有内联脚本（CSP script-src \'self\'）')
+})
+
+test('数值步进：墙体 / 货架参数可点上下箭头微调（双端各自实现，复用 input 路径）', () => {
+  for (const [name, ui, cls] of [['桌面', toolUiDesktop, 'sd-d'], ['移动', toolUiMobile, 'sd-m']]) {
+    assert.ok(ui.includes('data-sd-step="1"') && ui.includes('data-sd-step="-1"'), `${name}端数值字段必须渲染上下箭头按钮`)
+    assert.ok(ui.includes(cls + '-hasstep'), `${name}端数值字段必须标记步进容器`)
+    assert.ok(ui.includes('function nudgeField(btn){'), `${name}端必须有步进处理函数`)
+    assert.ok(ui.includes("inp.dispatchEvent(new Event('input', { bubbles: true }))"), `${name}端步进必须派发 input 事件（复用 onEditInput，不另开写入路径）`)
+    assert.ok(ui.includes(`btn.closest('.${cls}-inputwrap')`), `${name}端必须用 closest 找输入框容器（按钮 parentNode 是 stepbox，直接 querySelector 会落空）`)
+    assert.ok(ui.includes("inp.getAttribute('step')"), `${name}端步进必须按字段自身 step 增减`)
+    assert.ok(ui.includes('isFinite(mn) && nv < mn') && ui.includes('isFinite(mx) && nv > mx'), `${name}端步进必须夹到 min/max`)
+    assert.ok(ui.includes("e.target.closest ? e.target.closest('[data-sd-step]')"), `${name}端必须有步进点击委托`)
+  }
+  const desktopCss = stripComments(toolDesktopCss)
+  const mobileCss = stripComments(toolMobileCss)
+  assert.ok(desktopCss.includes('.sd-d-stepbox') && desktopCss.includes('.sd-d-step {'), '桌面端必须有步进按钮样式')
+  assert.ok(mobileCss.includes('.sd-m-stepbox') && mobileCss.includes('.sd-m-nudge'), '移动端必须有步进按钮样式')
+  assert.ok(desktopCss.includes('::-webkit-inner-spin-button') && mobileCss.includes('::-webkit-inner-spin-button'), '自绘箭头后必须隐藏原生 spinner（避免双份箭头）')
+  assert.ok(desktopCss.includes('.sd-d-hasstep input { padding-right: 52px; }'), '桌面端要为箭头留出输入内边距')
+  assert.ok(mobileCss.includes('.sd-m-hasstep input { padding-right: 52px; }'), '移动端要为箭头留出输入内边距')
 })
 
 test('工具引擎：副本可 require，默认方案校验与渲染全部通过（真功能断言）', async () => {
@@ -201,11 +226,12 @@ test('应用选择屏：第三张卡（门店设计）双端齐备，桌面三�
   for (const [label, source] of [['移动端', mobile], ['桌面端', desktop]]) {
     assert.ok(source.includes('data-app-card="mass"'), `${label}必须有门店设计卡`)
     assert.ok(source.includes('data-tone="mass"'), `${label}必须有门店设计色调`)
-    assert.ok(source.includes('门店设计'), `${label}卡名`)
+    assert.ok(source.includes('Super Mass'), `${label}卡名必须叫 Super Mass`)
+    assert.ok(!source.includes('>门店设计<'), `${label}卡名不得再渲染旧名「门店设计」`)
     assert.ok(source.includes("statusLine('mass'"), `${label}必须走统一状态行`)
   }
-  assert.ok(mobile.includes("if (app === 'mass') return '本机图纸 · 自动保存'"), '移动端状态行必须说明图纸存在本机')
-  assert.ok(desktop.includes("if (app === 'mass') return '本机图纸 · 自动保存'"), '桌面端状态行必须说明图纸存在本机')
+  assert.ok(mobile.includes("if (app === 'mass') return '云端图纸 · 门店共享'"), '移动端状态行必须说明图纸存在云端')
+  assert.ok(desktop.includes("if (app === 'mass') return '云端图纸 · 门店共享'"), '桌面端状态行必须说明图纸存在云端')
   // 三列布局：全仓库只能有一处声明，且必须是 repeat(3, minmax(0, 1fr))（memory 27 同族规则）
   const declarations = appSelectCss.match(/\.appselect-d-cards\s*\{[^}]*\}/gu) ?? []
   assert.equal(declarations.length, 1, '桌面卡片容器只允许声明一次')
@@ -216,7 +242,8 @@ test('应用选择屏：第三张卡（门店设计）双端齐备，桌面三�
 
 test('日报菜单：门店设计入口接线完整（组件入口 + 父级透传）', () => {
   assert.ok(stripComments(menuDialog).includes('onOpenMassDesign'), '菜单组件必须提供门店设计入口')
-  assert.ok(menuDialog.includes('门店设计'), '入口文案')
+  assert.ok(menuDialog.includes('Super Mass'), '入口文案（模块名 Super Mass）')
+  assert.ok(menuDialog.includes('云端'), '入口说明必须写明图纸存云端、同事可共同修改')
   assert.ok(app.includes("onOpenMassDesign={() => chooseApp('mass')}"), 'App 必须把入口接到应用选择逻辑上')
 })
 
@@ -363,7 +390,7 @@ test('数据模型：只有「选中的那一个」带字段，底部不再全�
   const shelfId = 'sh:' + cfg.shelves[0].id
   const picked = schema.buildVM(cfg, { sel: shelfId })
   assert.ok(picked.selection, '选中货架后必须有选中卡片')
-  assert.equal(picked.selection.fields.length, 9, '货架字段数（名称/类型/朝向/长度/高度 + 地架/挂钩 + x/y）')
+  assert.equal(picked.selection.fields.length, 10, '货架字段数（名称/类型/朝向/长度/高度/旋转角度 + 地架/挂钩 + x/y）')
   assert.ok(picked.selection.fields.every((f) => f.path.startsWith('shelves.')), '字段路径必须指向该货架')
   const stillBare = picked.elements.flatMap((g) => g.items).filter((it) => (it.fields || []).length > 0)
   assert.equal(stillBare.length, 1, '只有选中的那一个元素携带字段')
@@ -459,6 +486,16 @@ test('工具栏接线：点工具即添加并进入摆放模式（旧悬浮面�
 // 用户口径：货架高 3.3m；托臂分短托臂（伸出 0.5m）与长托臂（伸出 1m），两者可分别
 // 放置、每排高度可在货架上调整；1m 货架放 3 个地架；挂钩 1m 4 个；
 // 每排位宽：成人车 2m、16″ 童车 4/3m（2m 货架 1 台/排；4m 货架 3 台童车/排）。
+
+async function loadToolSchema() {
+  const vm = await import('node:vm')
+  const sandbox = vm.createContext({ module: { exports: {} }, exports: {}, console, window: {} })
+  vm.runInContext(toolEngine, sandbox, { filename: 'engine.js' })
+  sandbox.window.Engine = sandbox.module.exports
+  sandbox.module = { exports: {} }
+  vm.runInContext(toolSchema, sandbox, { filename: 'sd-schema.js' })
+  return sandbox.window.SD_SCHEMA
+}
 
 async function loadToolEngine() {
   const vm = await import('node:vm')
@@ -673,8 +710,8 @@ test('穿模：挂车 / 附件在货架面之后绘制（按所属货架的深�
   assert.ok(!eng.includes('function attachFacesCam('), '旧的附件朝向近似必须删除')
   assert.ok(!eng.includes('function attachKeyFor('), '旧的排序键必须删除（删旧不覆盖）')
   assert.ok(!eng.includes('function objectSideOf('), '旧的「就近货架」近似必须删除（散车同样走射线）')
-  assert.ok(!eng.includes('var bikeOwner = {};'), '旧的挂车排序表必须删除')
-  assert.ok(eng.includes('function boxAdd(bx, pal, op, keyOf, tag, noTile){'), 'boxAdd 必须支持自定义深度键 / 结构标记 / 免细分')
+  assert.ok(eng.includes('function boxAdd(bx, pal, op, keyOf, tag, noTile, solid){'),
+    'boxAdd 必须支持自定义深度键 / 结构标记 / 免细分 / 实心块')
   // 行为断言：货架越长、车越靠近货架端头，画家算法的平均深度误差越大
   //（结构断言挡不住「分支被写死成 if (false)」，必须用真实渲染的绘制顺序验证）
   const c2 = engine.defaultConfig()
@@ -866,8 +903,8 @@ test('地架自行车：车头朝外（背对货架、朝着通道）', async ()
   assert.equal(south.rot, 90, '东西向货架南侧的地架车 rot 必须是 90（车头朝 +y）')
   const eng = stripComments(toolEngine)
   assert.ok(toolEngine.includes('车头朝外（2026-09-15 用户指正）'), '引擎注释必须写明地架车头朝外的口径')
-  assert.ok(eng.includes("var rot2 = (s.orient === 'h') ? ((face === 'pos') ? 90 : 270) : ((face === 'pos') ? 0 : 180);"),
-    '地架车朝向必须是「车头朝外」（此前装反 = 车头扎进货架）')
+  assert.ok(eng.includes("var rot2 = (((s.orient === 'h') ? ((face === 'pos') ? 90 : 270) : ((face === 'pos') ? 0 : 180)) + shelfRot(s)) % 360;"),
+    '地架车朝向必须是「车头朝外」（此前装反 = 车头扎进货架），斜放时叠加货架旋转角')
 })
 
 test('双面货架：托臂排 / 地架 / 挂钩可分别指定挂载面（两面都能加）', async () => {
@@ -953,12 +990,13 @@ test('穿模深度修复：大面细分 + 逐部件排序 + 每货架每面排�
   assert.ok(eng.includes('var tiling = !noTile && op == null;'), '面必须按边长切成小片再排序（半透明面除外）')
   assert.ok(eng.includes('var nu = tiling ? Math.max(1, Math.min(40, Math.ceil(e1 / TILE))) : 1;'),
     '小片数量必须由边长与片长决定')
-  assert.ok(eng.includes('add1(k2, polyStr(q, fill, isPattern ? null : fill, 1, op, attr));'),
-    '小片之间必须同色描边（否则出现发丝缝）')
+  assert.ok(eng.includes('add1(k2, polyStr(q, fill, (isPattern || solid) ? null : fill, (isPattern || solid) ? null : 1, op, attr));'),
+    '小片之间必须同色描边（实心块除外：轮廓由 hullPath 一次画成）')
   assert.ok(eng.includes("add1(k3, polyStr(pts, 'none', pal.s, 0.9, null, attr));"),
     '整面外轮廓必须单独描边（保持原外观）')
-  /* 外墙不做细分（房间边界，细分只增加体积） */
-  assert.ok(eng.includes("null, 'wall:top', true)"), '外墙必须免细分')
+  assert.ok(eng.includes('if (solid) return;'), '实心块的面不得再单独描外轮廓（轮廓被切缝切断看起来就是露线）')
+  assert.ok(eng.includes("PAL.wall, wallOp, null, 'wall:' + side, true)"),
+    '外墙必须免细分（房间边界；细分只增加体积）')
   /* ② 逐部件排序：整台车一个深度键时，与货架相交的部分会被整体误判 */
   assert.ok(eng.includes('for (var ip = 0; ip < bikeParts.length; ip++){'), '自行车必须逐部件参与排序')
   assert.ok(eng.includes(`add1(pI.k, '<g data-bike="' + bId + '"' + extra + '>' + pI.s + '</g>');`),
@@ -1049,4 +1087,406 @@ test('实心遮挡：柱子 / 货架按射线决定前后（实心体不会被�
   assert.ok(eng.includes('var lo = (w.loBox <= w.hi - 0.02) ? w.loBox : w.loRay;'),
     '保守界与该点「被挡住」的界打架时，必须退到射线精确界（不同实心体的深度区间会重叠）')
   assert.ok(eng.includes("        occl(fBox, 'fence');"), '库区围栏也要登记为实心遮挡体')
+})
+
+// ── 2026-09-17 门店设计三项需求（穿模根治 / 货架斜放 / 墙体可编辑）──────────
+
+test('穿模根治：尺寸链进入结构深度排序，货架旁的刻度线与数字不再透过货架显示', async () => {
+  const engine = await loadToolEngine()
+  const eng = stripComments(toolEngine)
+  assert.ok(eng.includes('function dimLine(a, b, sw){'), '尺寸链必须有专用的分段线构建器')
+  assert.ok(eng.includes('add1((dot(p0,d3)+dot(p1,d3))/2, lineStr(p0, p1, col, sw));'),
+    '标尺线必须用线段平均深度键进入 L1 排序（旧写法走 L2 标注层 = 永远盖在结构之上）')
+  assert.ok(eng.includes("add1(dot(p,d3)+0.02, '<text"), '标尺数字必须用所在点的深度键进入 L1')
+  assert.ok(eng.includes('var n = Math.max(1, Math.ceil(len / TILE));'),
+    '长标尺线必须按 TILE 分段（整根线只有一个深度键仍会穿过货架）')
+  const dimsStart = eng.indexOf('if (cfg.opt.dims){')
+  const dimsEnd = eng.indexOf('if (cfg.opt.labels){')
+  assert.ok(dimsStart > 0 && dimsEnd > dimsStart, '必须能定位尺寸链代码块')
+  assert.doesNotMatch(eng.slice(dimsStart, dimsEnd), /addLine2\(|addText\(/u,
+    '尺寸链不得再走 L2 标注层（addLine2 / addText）')
+
+  const parse = (svg) => {
+    const out = []
+    const re = /<(polygon|text)\b([^>]*?)(?:\/>|>([^<]*))/gu
+    let m
+    while ((m = re.exec(svg))) {
+      const attrs = {}
+      m[2].replace(/([\w-]+)="([^"]*)"/gu, (_, k, v) => { attrs[k] = v; return _ })
+      out.push({ tag: m[1], attrs, text: m[3] || '', idx: out.length })
+    }
+    return out
+  }
+  const inPoly = (pt, poly) => {
+    let inside = false
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i][0]; const yi = poly[i][1]; const xj = poly[j][0]; const yj = poly[j][1]
+      if (((yi > pt[1]) !== (yj > pt[1])) && (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi)) inside = !inside
+    }
+    return inside
+  }
+  let covered = 0
+  for (const az of [45, 90, 135]) {
+    const config = engine.defaultConfig()
+    const svg = engine.render3D(config, { az, el: 33, zoom: 1, vw: 900, vh: 620, debugPaint: true })
+    const shapes = parse(svg)
+    const shelves = shapes.filter((s) => s.tag === 'polygon'
+      && String(s.attrs['data-struct'] || '').startsWith('shelf:') && s.attrs['data-k'])
+    const marks = shapes.filter((s) => s.tag === 'text' && s.attrs['font-size'] === '8'
+      && s.attrs.fill === '#8b8b8b' && s.attrs['data-k'])
+    assert.ok(shelves.length > 0 && marks.length > 0, `az=${az}：货架面与刻度数字都必须带深度键`)
+    for (const t of marks) {
+      const pt = [parseFloat(t.attrs.x), parseFloat(t.attrs.y)]
+      let maxK = -Infinity
+      let cover = null
+      for (const sh of shelves) {
+        const poly = sh.attrs.points.split(' ').map((p) => p.split(',').map(Number))
+        if (inPoly(pt, poly) && +sh.attrs['data-k'] > maxK) { maxK = +sh.attrs['data-k']; cover = sh }
+      }
+      if (!cover) continue
+      covered += 1
+      assert.ok((t.idx < cover.idx) === (+t.attrs['data-k'] < maxK),
+        `az=${az} 刻度「${t.text}」的画序与深度序相反 → 会穿透货架显示`)
+    }
+  }
+  assert.ok(covered > 10, `样本必须覆盖「刻度被货架遮挡」的真实场景（实测 ${covered} 处）`)
+})
+
+test('货架斜放：自由角度 + 六档预设，3D / 平面 / 附件 / 挂车同步跟随', async () => {
+  const engine = await loadToolEngine()
+  const base = { id: 's1', kind: 'double', orient: 'h', x: 6, y: 6, len: 4, h: 3.3 }
+  assert.equal(engine.shelfRot(base), 0, '未设置 rot 的货架必须保持旧行为（0°）')
+  assert.equal(engine.shelfRot(Object.assign({}, base, { rot: 45 })), 45)
+  assert.equal(engine.shelfRot(Object.assign({}, base, { rot: -45 })), 315, '负角度必须归一化到 0..359')
+  assert.equal(engine.shelfRot(Object.assign({}, base, { rot: 405 })), 45)
+  assert.equal(engine.shelfRot(Object.assign({}, base, { rot: 360 })), 0)
+  assert.equal(engine.shelfRot(Object.assign({}, base, { rot: 'x' })), 0, '非法角度不得产生 NaN')
+
+  const rot = Object.assign({}, base, { rot: 45 })
+  const side = (4 + 0.5) / Math.SQRT2
+  const bounds = engine.shelfBounds(rot)
+  assert.ok(Math.abs(bounds.w - side) < 1e-6 && Math.abs(bounds.h - side) < 1e-6,
+    `45° 斜放的包围盒必须是 (长+深)/√2（实测 ${bounds.w.toFixed(3)}×${bounds.h.toFixed(3)}）`)
+  const dist = (p) => Math.hypot(p.x - (6 + 2), p.y - (6 + 0.25))
+  assert.ok(Math.abs(dist(engine.shelfLocalPt(base, 0, 0)) - dist(engine.shelfLocalPt(rot, 0, 0))) < 1e-9,
+    '旋转必须绕底面中心（角点到中心距离不变）')
+
+  const config = engine.defaultConfig()
+  config.shelves = [Object.assign({}, config.shelves[0], {
+    id: 'srot', orient: 'h', x: 8, y: 6, len: 6, h: 3.3, rot: 45,
+    acc: { armRows: [{ id: 'a1', z: 0.9, len: 'short', size: 'adult', u0: 0, u1: 6 }], rack: 'adult', hook: 'on' }
+  })]
+  const svg = engine.render3D(config, { az: 90, el: 33, zoom: 1, vw: 1000, vh: 700 })
+  assert.doesNotMatch(svg, /NaN|undefined/u, '斜放渲染不得出现 NaN/undefined')
+  const faces = [...svg.matchAll(/<polygon points="([^"]+)"[^>]*data-struct="shelf:srot"/gu)]
+  assert.ok(faces.length > 0, '斜放货架必须按四边形面渲染（带结构标记）')
+  const slanted = faces.some((f) => {
+    const pts = f[1].split(' ').map((p) => p.split(',').map(Number))
+    return pts.some((p, i) => {
+      const q = pts[(i + 1) % pts.length]
+      return Math.abs(p[0] - q[0]) > 0.5 && Math.abs(p[1] - q[1]) > 0.5
+    })
+  })
+  assert.ok(slanted, '斜放货架的可见面必须有斜边（仍按正交盒渲染 = 没有真的转）')
+
+  const plan = engine.renderPlan(config, { sel: 'sh:srot', z: 30 })
+  assert.match(plan, /data-id="sh:srot"><polygon/u, '平面视图必须用多边形画斜放货架的底面')
+  assert.doesNotMatch(plan, /NaN|undefined/u, '平面视图不得出现 NaN/undefined')
+
+  const bikes = engine.accBikesOf(config)
+  assert.ok(bikes.length > 0, '斜放货架必须仍然生成挂车')
+  const racks = bikes.filter((b) => b.acc === 'rack')
+  assert.equal(racks[0].rot, 135, '地架车朝向必须在货架朝向之上叠加 45°（90+45）')
+  assert.equal(bikes.filter((b) => b.acc === 'arm')[0].rot, 45, '托臂挂车朝向必须跟随货架旋转角')
+  /* 附件必须真的跟着货架转：把每台车反向旋转 -45° 后，它必须落回「未旋转货架的旁边」。
+     附件坐标若没跟着转（旧写法），反向旋转会把它们推离货架 1.5m 以上 → 断言失败。 */
+  const shelf = config.shelves[0]
+  const baseRect = engine.shelfRect(shelf)
+  const center = { x: baseRect.x + baseRect.w / 2, y: baseRect.y + baseRect.h / 2 }
+  const backRotate = (b) => {
+    const a = -shelf.rot * Math.PI / 180
+    const dx = b.x - center.x; const dy = b.y - center.y
+    return { x: center.x + dx * Math.cos(a) - dy * Math.sin(a), y: center.y + dx * Math.sin(a) + dy * Math.cos(a) }
+  }
+  const pad = 1.6
+  bikes.forEach((b) => {
+    const q = backRotate(b)
+    assert.ok(q.x > baseRect.x - pad && q.x < baseRect.x + baseRect.w + pad
+      && q.y > baseRect.y - pad && q.y < baseRect.y + baseRect.h + pad,
+      `${b.id} 反向旋转后没有落回货架旁（附件坐标没有跟随货架旋转）实际 (${q.x.toFixed(2)},${q.y.toFixed(2)}) 货架 ${JSON.stringify(baseRect)}`)
+  })
+
+  // UI / 数据接线
+  const app = stripComments(toolApp)
+  assert.ok(app.includes('function rotateShelfTo(s, orient, deg){'), 'app.js 必须按「包围盒中心不动」旋转')
+  assert.ok(app.includes('function rotateShelfBy(s, deg){'), '快捷条 +45° 需要 rotateShelfBy')
+  assert.ok(app.includes("else if (it.k === 'sh'){ rotateShelfBy(it.o, 45); }"), '快捷条「旋转 +45°」必须走旋转而不是翻朝向')
+  assert.ok(app.includes("if (it.k === 'sh') renderSelBar(true);"), '货架旋转后必须强制重建快捷条（贴墙 ↔ 转正 随角度切换）')
+  assert.ok(app.includes("} else if (act === 'resetRot'){"), '斜放货架必须有「转正 0°」')
+  assert.ok(app.includes("var p = String(ds.id).split(':'), s = shelfGet(p[0]);"), '姿态预设必须解析「货架id:朝向:角度」')
+  assert.ok(app.includes("var fn = acts[b.getAttribute('data-act')];"), '面板动作（含姿态预设）必须走文档级 data-act 委托')
+  const schema = stripComments(toolSchema)
+  assert.ok(schema.includes("number('shelves.' + i + '.rot', '旋转角度'"), '货架必须有旋转角度字段')
+  for (const label of ['横放', '竖放', '斜45°', '斜135°', '斜225°', '斜315°']) {
+    assert.ok(schema.includes("'" + label + "'"), `货架姿态预设缺少「${label}」`)
+  }
+  const desktop = stripComments(toolUiDesktop)
+  const mobile = stripComments(toolUiMobile)
+  for (const [name, ui] of [['桌面', desktop], ['移动', mobile]]) {
+    assert.match(ui, /data-bact="rot">旋转\s?\+45°/u, `${name}端快捷条必须是「旋转 +45°」`)
+    assert.ok(ui.includes('resetRot'), `${name}端快捷条必须有「转正 0°」`)
+  }
+})
+
+test('外墙是一段可编辑的墙：起点 / 墙长 / 横向偏移 / 旋转角度都可改，开口相对墙起点', async () => {
+  const engine = await loadToolEngine()
+  const schema = await loadToolSchema()
+  const base = engine.defaultConfig()
+  assert.ok(engine.wallIsDefault(base, 'left'), '缺省外墙必须仍是「整边、无偏移、不旋转」（旧图纸逐字节不变）')
+  assert.equal(engine.wallStart(base, 'left'), 0)
+  assert.equal(engine.wallLength(base, 'left'), 17, '左边墙缺省 = 整边 17m')
+  assert.equal(engine.wallRot(base, 'left'), 0)
+  const baseBox = engine.wallBounds(base, 'left')
+  // 跨 realm 的值对象 deepEqual 会因原型不同误判（memory 21 老坑）→ 逐字段比
+  assert.ok(baseBox.x === 0 && baseBox.y === 0 && Math.abs(baseBox.w - 0.3) < 1e-9 && baseBox.h === 17,
+    '缺省左边墙 = 整边 0..17m、厚 0.3m')
+
+  /* 缩短：0..6m —— 不再靠「打缺口」间接缩短 */
+  const short = engine.defaultConfig()
+  short.walls.left.len = 6
+  assert.equal(engine.wallLength(short, 'left'), 6)
+  assert.ok(Math.abs(engine.wallBounds(short, 'left').h - 6) < 1e-9, '平面/3D 只画 6m 那一段')
+  assert.ok(!engine.wallIsDefault(short, 'left'))
+  const planShort = engine.renderPlan(short, { sel: 'wl:left' })
+  const gShort = (planShort.match(/data-id="wl:left">[\s\S]*?<\/g>/) || [''])[0]
+  assert.ok(!/y="1[0-9]/.test(gShort), '≥10m 的位置不得再出现墙段（墙确实只到 6m）')
+
+  /* 起点 */
+  const mid = engine.defaultConfig()
+  mid.walls.right.from = 5
+  mid.walls.right.len = 4
+  assert.ok(Math.abs(engine.wallBounds(mid, 'right').y - 5) < 1e-9, '起点 5m：墙从 y=5 开始')
+  assert.ok(Math.abs(engine.wallBounds(mid, 'right').h - 4) < 1e-9)
+
+  /* 横向偏移（朝室内为正） */
+  const off = engine.defaultConfig()
+  off.walls.left.at = 1
+  assert.ok(Math.abs(engine.wallBounds(off, 'left').x - 1) < 1e-9, '偏移 1m：整段墙往室内挪 1m')
+
+  /* 旋转（横放 / 竖放 / 任意角度） */
+  const rot = engine.defaultConfig()
+  rot.walls.left.rot = 90
+  rot.walls.left.from = 3
+  rot.walls.left.len = 5
+  const rotB = engine.wallBounds(rot, 'left'), rotC = engine.wallCenterPt(rot, 'left')
+  assert.ok(rotB.w > 4.5 && rotB.h < 1.0, '转 90° 后左边墙变成一段横墙（包围盒变宽变矮）')
+  assert.ok(Math.abs(rotC.x - 0.15) < 1e-9 && Math.abs(rotC.y - 5.5) < 1e-9, '旋转绕墙段中心，中心不动')
+  const planRot = engine.renderPlan(rot, { sel: 'wl:left' })
+  assert.match(planRot, /data-id="wl:left"><polygon/u, '旋转后的外墙在平面里用多边形画')
+  const svgRot = engine.render3D(rot, { az: 90, el: 33, zoom: 1, vw: 1000, vh: 700 })
+  assert.match(svgRot, /data-struct="wall:left"/u, '旋转后的外墙在 3D 里按四边形面渲染')
+  assert.doesNotMatch(svgRot, /NaN|undefined/u)
+
+  /* 开口相对「墙起点」计：墙缩短后落在墙外的开口不再渲染，也不改数据 */
+  const seg = engine.defaultConfig()
+  seg.walls.left.len = 6
+  seg.walls.left.open = [{ at: 2, w: 1.5, type: 'pass', label: '' }]
+  const spans = engine.wallSegSpans(seg, 'left').map((sp) => sp.join('-')).join(' ')
+  assert.equal(spans, '0-2 3.5-6', '开口把 6m 墙切成两段（跨 realm 数组只比内容）')
+
+  /* 面板：字段与姿态预设 */
+  const builtShort = schema.buildVM(short, { sel: 'wl:left' })
+  const labels = builtShort.selection.fields.map((f) => f.label)
+  for (const label of ['起点（沿该边）', '墙长', '横向偏移（朝室内为正）', '旋转角度']) {
+    assert.ok(labels.includes(label), `外墙面板缺少「${label}」字段`)
+  }
+  const acts = builtShort.selection.actions.map((a) => a.label + '→' + a.id)
+  assert.ok(acts.some((a) => a.includes('竖放（沿边）') || a.includes('横放（沿边）')), '必须有「沿边」姿态预设')
+  assert.ok(acts.some((a) => a.includes(':90')), '必须有转 90° 的姿态预设')
+  assert.ok(acts.some((a) => a.includes(':45')), '必须有斜 45° 预设')
+  assert.ok(acts.some((a) => a.includes('斜 315°')), '必须有斜 315° 预设')
+  assert.match(builtShort.selection.badge, /长 6m/u, '徽章显示墙段自身长度而不是整边长')
+  const wallGroup = builtShort.elements.find((g) => g.key === 'wl')
+  assert.match(wallGroup.items[2].badge, /长 6m/u)
+
+  /* 交互接线：拖动 / 旋转 / 转正 */
+  const app = stripComments(toolApp)
+  assert.ok(app.includes('function moveOuterWall(side, nx, ny){'), '外墙必须能拖动（沿边改起点、横向改偏移）')
+  assert.ok(app.includes("else if (k === 'wl'){ moveOuterWall(key, nx, ny); }"), '拖动必须分流到 moveOuterWall')
+  assert.ok(app.includes("setWallRot: function(ds){"), '姿态预设动作 setWallRot 必须存在')
+  assert.ok(app.includes("rotWall: function(ds){"), '快捷条 +45° 需要 rotWall')
+  const desktop = stripComments(toolUiDesktop)
+  const mobile = stripComments(toolUiMobile)
+  for (const [name, ui] of [['桌面', desktop], ['移动', mobile]]) {
+    assert.match(ui, /data-bact="rotWall">旋转 \+45°/u, `${name}端快捷条必须有「旋转 +45°」`)
+    assert.ok(ui.includes('resetWallRot'), `${name}端快捷条必须有「转正 0°」`)
+    assert.ok(ui.includes('rotIW'), `${name}端必须能给内隔墙 +45°`)
+  }
+})
+
+test('货架是实心块：不再有露出体外的木纹线 / 层板线，外轮廓一次画成', async () => {
+  const engine = await loadToolEngine()
+  const eng = stripComments(toolEngine)
+  assert.ok(eng.includes('function hullPath(cs, z1, z2, stroke, sw){'), '必须有实心块的外轮廓绘制')
+  assert.ok(eng.includes("boxAdd(sBox, pal, null, null, 'shelf:' + s.id, null, true);"), '货架必须走「实心」模式')
+  assert.ok(eng.includes('hullPath(cs, 0, hS, pal.s, 0.9);'), '斜放货架也要画外轮廓')
+  assert.ok(!/levels\.forEach/.test(eng), '旧的层板线循环必须删除（不许留旧写法）')
+  assert.ok(!eng.includes('pal.ln'), '旧的木纹线 / 层板线颜色不得再被引用')
+
+  const inPoly = (pt, poly) => {
+    let ins = false
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i][0]; const yi = poly[i][1]; const xj = poly[j][0]; const yj = poly[j][1]
+      if (((yi > pt[1]) !== (yj > pt[1])) && (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi)) ins = !ins
+    }
+    return ins
+  }
+  for (const az of [45, 90, 135]) {
+    const config = engine.defaultConfig()
+    const svg = engine.render3D(config, { az, el: 33, zoom: 1, vw: 1000, vh: 700 })
+    assert.doesNotMatch(svg, /#cbb083/u, `az=${az}：货架上不得再出现木纹线 / 层板线（旧写法会露出体外）`)
+    assert.doesNotMatch(svg, /NaN|undefined/u)
+    const faces = [...svg.matchAll(/<polygon points="([^"]+)"[^>]*data-struct="shelf:([^"]+)"/gu)]
+    assert.ok(faces.length > 0, '货架面必须仍然渲染（实心块不是空壳）')
+    const hulls = [...svg.matchAll(/<line x1="([\d.-]+)" y1="([\d.-]+)" x2="([\d.-]+)" y2="([\d.-]+)" stroke="#b79f79" stroke-width="0.9"\/>/gu)]
+      .map((m) => ({ x1: +m[1], y1: +m[2], x2: +m[3], y2: +m[4] }))
+    const byShelf = {}
+    faces.forEach((f) => {
+      const key = f[2]
+      byShelf[key] = byShelf[key] || []
+      byShelf[key].push(...f[1].split(' ').map((p) => p.split(',').map(Number)))
+    })
+    const boxes = Object.keys(byShelf).map((key) => {
+      const pts = byShelf[key]
+      const x1 = Math.min(...pts.map((p) => p[0])); const x2 = Math.max(...pts.map((p) => p[0]))
+      const y1 = Math.min(...pts.map((p) => p[1])); const y2 = Math.max(...pts.map((p) => p[1]))
+      return { key, x1, y1, x2, y2 }
+    })
+    assert.ok(hulls.length > 0, '实心轮廓必须渲染（分段线段）')
+    /* 轮廓必须贴合货架剪影：整组轮廓线段的范围要与剪影一致（±2px）
+       —— 旧写法（木纹线 / 层板线）恰恰是在这里越界，用户看到的就是「裸露的线条」 */
+    const hx1 = Math.min(...hulls.flatMap((h) => [h.x1, h.x2]))
+    const hx2 = Math.max(...hulls.flatMap((h) => [h.x1, h.x2]))
+    const hy1 = Math.min(...hulls.flatMap((h) => [h.y1, h.y2]))
+    const hy2 = Math.max(...hulls.flatMap((h) => [h.y1, h.y2]))
+    const sx1 = Math.min(...boxes.map((b) => b.x1)); const sx2 = Math.max(...boxes.map((b) => b.x2))
+    const sy1 = Math.min(...boxes.map((b) => b.y1)); const sy2 = Math.max(...boxes.map((b) => b.y2))
+    assert.ok(Math.abs(hx1 - sx1) < 2 && Math.abs(hx2 - sx2) < 2 && Math.abs(hy1 - sy1) < 2 && Math.abs(hy2 - sy2) < 2,
+      `az=${az} 实心轮廓必须贴合货架剪影（轮廓 ${[hx1, hy1, hx2, hy2].map(Math.round)} vs 剪影 ${[sx1, sy1, sx2, sy2].map(Math.round)}）`)
+    for (const h of hulls) {
+      assert.ok(h.x1 >= hx1 - 1 && h.x1 <= hx2 + 1 && h.y1 >= hy1 - 1 && h.y1 <= hy2 + 1, '轮廓线段不得越出剪影')
+    }
+    /* 剪影内的每一处都必须是「面内」（没有线跑到体外） */
+    const allFaces = boxes.map((b) => b)
+    for (const box of allFaces) {
+      const cx = (box.x1 + box.x2) / 2, cy = (box.y1 + box.y2) / 2
+      const inside = faces.some((f) => inPoly([cx, cy], f[1].split(' ').map((p) => p.split(',').map(Number))))
+      assert.ok(inside, '货架剪影中心必须落在实心面内')
+    }
+  }
+})
+
+test('墙体可编辑：外墙四边与内隔墙都能选中 / 改参数 / 拖动（平面与面板同一套 id）', async () => {
+  const engine = await loadToolEngine()
+  const config = engine.defaultConfig()
+  for (const key of ['top', 'bottom', 'left', 'right']) {
+    const rect = engine.itemRect(config, 'wl:' + key)
+    assert.ok(rect && rect.w > 0 && rect.h > 0, `外墙 ${key} 必须有可选 / 可拖矩形`)
+  }
+  const inner = engine.itemRect(config, 'iw:' + config.wallSegs[0].id)
+  assert.ok(inner && inner.w > 0 && inner.h > 0, '内隔墙必须有可选 / 可拖矩形')
+  assert.ok(engine.itemRect(config, 'sh:' + config.shelves[0].id), '货架矩形不得回归')
+
+  const plan = engine.renderPlan(config, { sel: 'wl:top' })
+  assert.match(plan, /<g class="it" data-id="wl:top">/u, '平面视图必须给外墙四边各自的可点选分组')
+  assert.match(plan, /<g class="it" data-id="wl:left">/u, '外墙四边都要能点选')
+  assert.match(plan, /<g class="it" data-id="iw:w1">/u, '平面视图必须给内隔墙可点选分组')
+
+  const app = stripComments(toolApp)
+  assert.ok(app.includes("iw:'wallSegs', wl:'walls' }"), 'SEC_OF 必须把外墙 / 内隔墙映射到各自的配置数组')
+  assert.ok(app.includes('function moveInnerWall(id, nx, ny){'), '内隔墙必须能整体拖动')
+  assert.ok(app.includes("else if (k === 'iw'){ moveInnerWall(key, nx, ny); }"), '拖动必须按类型分流到 moveInnerWall')
+  assert.ok(app.includes("} else if (act === 'addOpen'){"), '外墙快捷条必须有「＋开口」')
+  assert.ok(app.includes("else if (it.k === 'iw') acts.delSeg({ id:id });"), '内隔墙快捷条删除必须走 delSeg')
+
+  const vm = await import('node:vm')
+  const sandbox = vm.createContext({ module: { exports: {} }, exports: {}, console, window: {} })
+  vm.runInContext(toolEngine, sandbox, { filename: 'engine.js' })
+  sandbox.window.Engine = sandbox.module.exports
+  sandbox.module = { exports: {} }
+  vm.runInContext(toolSchema, sandbox, { filename: 'sd-schema.js' })
+  const schema = sandbox.window.SD_SCHEMA
+  const built = schema.buildVM(config, { sel: 'wl:top' })
+  const groups = built.elements.map((g) => g.key)
+  assert.ok(groups.includes('wl'), '元素清单必须有「外墙」分组')
+  assert.ok(groups.includes('iw'), '元素清单必须有「内隔墙」分组')
+  assert.equal(built.elements.find((g) => g.key === 'wl').items.length, 4, '外墙分组必须列出四边')
+  assert.ok(built.elements.find((g) => g.key === 'iw').items.length >= 1, '内隔墙分组必须列出每一段')
+  assert.ok((built.selection.fields || []).length >= 5, '选中外墙后必须有可编辑字段（开关 / 位置 / 尺寸 / 开口）')
+  const wallPaths = (built.selection.fields || []).filter((f) => f.path)
+  assert.ok(wallPaths.length >= 5 && wallPaths.every((f) => f.path.startsWith('walls.')),
+    '外墙字段路径必须指向 walls.<边>（提示行不带 path，是允许的）')
+  const segSel = schema.buildVM(config, { sel: 'iw:' + config.wallSegs[0].id })
+  assert.ok(segSel.selection, '选中内隔墙后必须有选中卡片')
+  const segPaths = (segSel.selection.fields || []).filter((f) => f.path)
+  assert.ok(segPaths.length >= 5 && segPaths.every((f) => f.path.startsWith('wallSegs.')),
+    '内隔墙字段必须指向 wallSegs')
+})
+
+// ── 2026-09-17 Super Mass 品牌 + 云端图纸 ───────────────────────────────
+
+test('Super Mass：模块名在工具页双端与三处入口一致（旧名不再出现在标题/卡名上）', () => {
+  // 工具页页头（两套独立实现各自渲染品牌）
+  assert.match(stripComments(toolUiDesktop), /<h1>Super Mass<\/h1>/u, '桌面端页头必须显示 Super Mass')
+  assert.match(stripComments(toolUiMobile), /class="sd-m-title">Super Mass<\/h1>/u, '移动端页头必须显示 Super Mass')
+  assert.doesNotMatch(stripComments(toolUiDesktop), /<h1>门店设计<\/h1>/u, '桌面端不得再显示旧名')
+  assert.doesNotMatch(stripComments(toolUiMobile), /sd-m-title">门店设计<\/h1>/u, '移动端不得再显示旧名')
+  // 选择屏与菜单入口
+  for (const [label, source] of [['选择屏桌面端', appSelectDesktop], ['选择屏移动端', appSelectMobile]]) {
+    assert.ok(source.includes('>Super Mass</strong>'), `${label}卡名必须是 Super Mass`)
+  }
+  assert.ok(menuDialog.includes('<strong>Super Mass</strong>'), 'Ops 菜单入口必须用 Super Mass')
+  // 状态行改为云端口径
+  assert.ok(appSelectDesktop.includes('云端图纸 · 门店共享') && appSelectMobile.includes('云端图纸 · 门店共享'), '选择屏必须写明图纸存在云端')
+})
+
+test('云端图纸：工具侧保存 / 载入接线（同源接口、CSRF、冲突与未登录降级）', () => {
+  const cloud = stripComments(toolCloud)
+  assert.ok(cloud.includes("var API = '/api/v1/design'"), '必须调用同源 /api/v1/design（不得硬编码站点地址）')
+  assert.doesNotMatch(cloud, /https?:\/\//u, '不得硬编码任何外部地址')
+  // 写操作必须带 CSRF 令牌；令牌失效要能自愈（同 web 端策略）
+  assert.ok(cloud.includes("headers['x-csrf-token'] = state.csrf"), '写操作必须带 x-csrf-token')
+  assert.ok(cloud.includes("payload.error === 'INVALID_CSRF'"), '令牌失效必须识别并补票')
+  assert.ok(cloud.includes("var ME = '/api/v1/auth/me'"), '令牌来自 /api/v1/auth/me')
+  // 乐观锁：提交带 expectedRevision，409 提示先载入
+  assert.ok(cloud.includes('expectedRevision: state.revision'), '保存必须带 expectedRevision（乐观锁）')
+  assert.ok(cloud.includes('result.response.status === 409'), '必须处理 409 冲突')
+  // 未登录 / 只读：不得假装保存成功
+  assert.ok(cloud.includes('refreshIdentity().then('), '启动时必须先取身份（拿到 CSRF 令牌并判定登录态）再读图纸')
+  assert.ok(cloud.includes('state.offline = true'), '未登录必须进入「仅存本机」模式')
+  assert.ok(cloud.includes("if (state.offline) return '未登录 · 图纸仅存本机'"), '状态必须写明未登录')
+  // 载入覆盖前必须确认，且不覆盖未保存改动
+  assert.ok(cloud.includes('载入云端图纸会覆盖当前未保存的改动'), '载入前必须确认')
+  assert.ok(cloud.includes('beforeunload'), '有未保存改动时离开页面必须提醒')
+  // 工具页要加载这个文件
+  assert.match(toolHtml, /<script src="sd-cloud\.js\?v=\d+"><\/script>/u, '工具页必须加载云端脚本')
+  // 双端都要有保存入口与状态位
+  for (const [label, source, save, status] of [
+    ['桌面端', toolUiDesktop, 'data-cloud="save"', 'data-cloud="status"'],
+    ['移动端', toolUiMobile, 'data-cloud="save"', 'data-cloud="status"']
+  ]) {
+    assert.ok(source.includes(save), `${label}必须有保存按钮`)
+    assert.ok(source.includes(status), `${label}必须有云端状态位`)
+    assert.ok(source.includes('data-cloud="load"'), `${label}必须有载入按钮`)
+  }
+  // app.js 接线：落盘后同步脏标记；启动后接入云端
+  const app = stripComments(toolApp)
+  assert.ok(app.includes('window.SDCloud.markDirty()'), '本机存档后必须同步「未保存」状态')
+  assert.ok(app.includes('window.SDCloud.attach({'), '启动后必须接入云端（保存 / 载入 / 读写配置）')
+  assert.ok(app.includes('getCfg: function(){ return cfg; }') && app.includes('setCfg: function(obj){'), '接入时必须提供配置读写钩子')
+  // 双端样式落地（类名必须有样式，2026-09-15 教训）
+  const desktopCss = stripComments(toolDesktopCss)
+  const mobileCss = stripComments(toolMobileCss)
+  assert.ok(desktopCss.includes('.sd-d-btn-cloud') && desktopCss.includes('.sd-d-cloudstatus'), '桌面端云端样式必须落地')
+  assert.ok(mobileCss.includes('.sd-m-cloudbox') && mobileCss.includes('.sd-m-cloudstatus') && mobileCss.includes('.sd-m-cloud'), '移动端云端样式必须落地')
 })

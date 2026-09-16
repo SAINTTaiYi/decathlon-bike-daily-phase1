@@ -148,7 +148,7 @@ export function createAuthMiddleware(): {
     if (!auth) throw new ApiProblem(401, 'UNAUTHENTICATED', '请重新登录。')
     if (auth.mustChangePassword) throw new ApiProblem(428, 'PASSWORD_CHANGE_REQUIRED', '首次登录必须先修改临时密码。')
     if (isEmailBindingRequired(auth)) {
-      throw new ApiProblem(428, 'EMAIL_BINDING_REQUIRED', '首次进入前必须绑定公司邮箱并重设密码。')
+      throw new ApiProblem(428, 'EMAIL_BINDING_REQUIRED', '首次进入前必须绑定邮箱并重设密码。')
     }
     return next()
   }
