@@ -963,7 +963,7 @@ test('穿模深度修复：大面细分 + 逐部件排序 + 每货架每面排�
   assert.ok(eng.includes('var tiling = !noTile && op == null;'), '面必须按边长切成小片再排序（半透明面除外）')
   assert.ok(eng.includes('var nu = tiling ? Math.max(1, Math.min(40, Math.ceil(e1 / TILE))) : 1;'),
     '小片数量必须由边长与片长决定')
-  assert.ok(eng.includes('add1(k2, polyStr(q, fill, (isPattern || solid) ? null : fill, isPattern || solid ? null : 1, op, attr));'),
+  assert.ok(eng.includes('add1(k2, polyStr(q, fill, (isPattern || solid) ? null : fill, (isPattern || solid) ? null : 1, op, attr));'),
     '小片之间必须同色描边（实心块除外：轮廓由 hullPath 一次画成）')
   assert.ok(eng.includes("add1(k3, polyStr(pts, 'none', pal.s, 0.9, null, attr));"),
     '整面外轮廓必须单独描边（保持原外观）')
