@@ -4,20 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f4f5f7">
-<title>门店设计 · 布局与 3D 渲染</title>
+<title>Super Mass · 布局与 3D 渲染</title>
 <link rel="icon" href="favicon.png">
 <!-- 页面错误收集：必须最先加载（CSP script-src 'self'，因此不能内联） -->
 <script src="boot.js?v=2"></script>
 <link rel="stylesheet" href="sd-base.css?v=3">
 <!-- 界面实现按视口二选一：窄屏 → sd-mobile.css + sd-ui-mobile.js；宽屏 → sd-desktop.css + sd-ui-desktop.js。
      两套布局/样式完全独立，不存在「一套 DOM + 媒体查询适配两端」。 -->
-<script src="sd-boot.js?v=9"></script>
+<script src="sd-boot.js?v=10"></script>
 </head>
 <body>
 <div id="sdApp"></div>
 <script src="engine.js?v=3.2"></script>
 <script src="sd-schema.js?v=10"></script>
-<script src="app.js?v=5.8"></script>
+<script src="app.js?v=5.9"></script>
+<!-- 云端图纸（保存 / 载入）：同源 /api/v1/design，按会话门店读写 -->
+<script src="sd-cloud.js?v=1"></script>
 <!-- 宿主嵌入钩子（Ops 集成用，非工具本体）：?embed=1&exit=ops|back 时显示退出按钮并 postMessage -->
 <script src="embed.js?v=2"></script>
 </body>

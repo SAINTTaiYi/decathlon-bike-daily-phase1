@@ -119,7 +119,7 @@ function toolRail(vm){
 function skeleton(){
   return ''
   + '<header class="sd-d-topbar">'
-  +   '<div class="sd-d-brand"><span class="sd-d-kicker">STORE DESIGN</span><h1>门店设计</h1>'
+  +   '<div class="sd-d-brand"><span class="sd-d-kicker">STORE DESIGN</span><h1>Super Mass</h1>'
   +     '<span class="sd-d-sub">平面布局 · 3D 渲染 · 方案校验</span></div>'
   +   '<div class="sd-d-topactions">'
   +     '<button id="btnRandom" class="sd-d-btn sd-d-btn-primary">🎲 随机方案</button>'
@@ -127,6 +127,9 @@ function skeleton(){
   +     '<button id="btnExportJson" class="sd-d-btn">导出配置</button>'
   +     '<button id="btnImportJson" class="sd-d-btn">导入配置</button>'
   +     '<button id="btnReset" class="sd-d-btn">重置</button>'
+  +     '<button class="sd-d-btn sd-d-btn-cloud" data-cloud="save">☁ 保存到云端</button>'
+  +     '<button class="sd-d-btn sd-d-btn-ghost" data-cloud="load">载入云端</button>'
+  +     '<span class="sd-d-cloudstatus" data-cloud="status" data-tone="busy">正在读取云端…</span>'
   +     '<button id="btnExit" class="sd-d-btn sd-d-btn-ghost" hidden>返回应用选择</button>'
   +   '</div>'
   + '</header>'

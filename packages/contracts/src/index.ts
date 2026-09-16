@@ -294,6 +294,27 @@ export const foodShelfLifeUpsertSchema = z.object({
   packSize: z.number().positive().max(10000).nullable().optional()
 }).strict()
 
+// ---- 门店设计云端图纸（2026-09-17）----
+// payload 是门店设计工具导出的整份配置。服务端只校验形状与体积，不逐字段建模：
+// 工具后续加字段不需要同时改服务端（向前兼容），只锁最外层必需结构。
+// 门店标识刻意不在请求体里 —— 服务端一律用会话所属门店，杜绝跨店写入。
+export const designPayloadSchema = z.object({
+  space: z.object({ w: z.number(), d: z.number() }).passthrough(),
+  shelves: z.array(z.unknown())
+}).passthrough()
+
+export const designSaveSchema = z.object({
+  // 乐观锁：0 = 云端还没有图纸（首次上传），>0 = 期望覆盖的版本号。
+  expectedRevision: z.number().int().min(0).max(1_000_000),
+  payload: designPayloadSchema
+}).strict()
+
+/** 图纸体积上限（字符数）。工具实测默认布置约 30KB，512K 足够留出余量，
+ *  同时远低于 /api/* 的 1MB 请求体限制，避免大请求走一半才被拒。 */
+export const DESIGN_MAX_PAYLOAD_CHARS = 512_000
+
+export type DesignSaveInput = z.infer<typeof designSaveSchema>
+
 export type FoodBatchCreateInput = z.infer<typeof foodBatchCreateSchema>
 export type FoodBatchActionInput = z.infer<typeof foodBatchActionSchema>
 export type FoodShelfLifeUpsertInput = z.infer<typeof foodShelfLifeUpsertSchema>

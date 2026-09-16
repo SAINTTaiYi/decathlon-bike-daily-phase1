@@ -6,7 +6,7 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const read = (rel) => readFile(new URL(rel, import.meta.url), 'utf8')
 
-const [app, storeApp, siteMode, appSelectMobile, appSelectDesktop, menuDialog, appSelectCss, shellCss, styleIndex, sw, toolHtml, toolEmbed, toolApp, toolEngine, borderlessCss, stagingWorkflow, productionWorkflow, workerSession, workerMiddleware, workerAuthRoute, webClient, toolSchema, toolBaseCss, toolMobileCss, toolDesktopCss, toolBoot, toolUiMobile, toolUiDesktop] = await Promise.all([
+const [app, storeApp, siteMode, appSelectMobile, appSelectDesktop, menuDialog, appSelectCss, shellCss, styleIndex, sw, toolHtml, toolEmbed, toolApp, toolEngine, borderlessCss, stagingWorkflow, productionWorkflow, workerSession, workerMiddleware, workerAuthRoute, webClient, toolSchema, toolBaseCss, toolMobileCss, toolDesktopCss, toolBoot, toolUiMobile, toolUiDesktop, toolCloud] = await Promise.all([
   read('../apps/web/src/App.jsx'),
   read('../apps/web/src/components/storedesign/StoreDesignApp.jsx'),
   read('../apps/web/src/utils/siteMode.js'),
@@ -34,7 +34,8 @@ const [app, storeApp, siteMode, appSelectMobile, appSelectDesktop, menuDialog, a
   read('../apps/web/public/store-design/sd-desktop.css'),
   read('../apps/web/public/store-design/sd-boot.js'),
   read('../apps/web/public/store-design/sd-ui-mobile.js'),
-  read('../apps/web/public/store-design/sd-ui-desktop.js')
+  read('../apps/web/public/store-design/sd-ui-desktop.js'),
+  read('../apps/web/public/store-design/sd-cloud.js')
 ])
 
 // 断言一律基于剥掉注释后的源码：命中的可能是注释里的字样（2026-09-13 假绿事故）。
@@ -129,7 +130,7 @@ test('宿主外壳：iframe 尺寸/退出消息/同源校验/清理齐全', () =
 })
 
 test('工具页：本地工具原样发布 + 嵌入钩子（标题/退出按钮/postMessage）', () => {
-  assert.match(toolHtml, /<title>门店设计 · 布局与 3D 渲染<\/title>/u, '标题必须是生产文案，不得留「本地预览」')
+  assert.match(toolHtml, /<title>Super Mass · 布局与 3D 渲染<\/title>/u, '模块名必须是 Super Mass（标题不得留旧名「门店设计」）')
   assert.doesNotMatch(toolHtml, /本地预览/u, '工具页不得再出现「本地预览」字样')
   assert.match(toolHtml, /<script src="engine\.js\?v=[\d.]+"><\/script>/u, '必须按版本引用引擎')
   assert.match(toolHtml, /<script src="app\.js\?v=[\d.]+"><\/script>/u, '必须按版本引用应用脚本')
@@ -225,11 +226,12 @@ test('应用选择屏：第三张卡（门店设计）双端齐备，桌面三�
   for (const [label, source] of [['移动端', mobile], ['桌面端', desktop]]) {
     assert.ok(source.includes('data-app-card="mass"'), `${label}必须有门店设计卡`)
     assert.ok(source.includes('data-tone="mass"'), `${label}必须有门店设计色调`)
-    assert.ok(source.includes('门店设计'), `${label}卡名`)
+    assert.ok(source.includes('Super Mass'), `${label}卡名必须叫 Super Mass`)
+    assert.ok(!source.includes('>门店设计<'), `${label}卡名不得再渲染旧名「门店设计」`)
     assert.ok(source.includes("statusLine('mass'"), `${label}必须走统一状态行`)
   }
-  assert.ok(mobile.includes("if (app === 'mass') return '本机图纸 · 自动保存'"), '移动端状态行必须说明图纸存在本机')
-  assert.ok(desktop.includes("if (app === 'mass') return '本机图纸 · 自动保存'"), '桌面端状态行必须说明图纸存在本机')
+  assert.ok(mobile.includes("if (app === 'mass') return '云端图纸 · 门店共享'"), '移动端状态行必须说明图纸存在云端')
+  assert.ok(desktop.includes("if (app === 'mass') return '云端图纸 · 门店共享'"), '桌面端状态行必须说明图纸存在云端')
   // 三列布局：全仓库只能有一处声明，且必须是 repeat(3, minmax(0, 1fr))（memory 27 同族规则）
   const declarations = appSelectCss.match(/\.appselect-d-cards\s*\{[^}]*\}/gu) ?? []
   assert.equal(declarations.length, 1, '桌面卡片容器只允许声明一次')
@@ -240,7 +242,8 @@ test('应用选择屏：第三张卡（门店设计）双端齐备，桌面三�
 
 test('日报菜单：门店设计入口接线完整（组件入口 + 父级透传）', () => {
   assert.ok(stripComments(menuDialog).includes('onOpenMassDesign'), '菜单组件必须提供门店设计入口')
-  assert.ok(menuDialog.includes('门店设计'), '入口文案')
+  assert.ok(menuDialog.includes('Super Mass'), '入口文案（模块名 Super Mass）')
+  assert.ok(menuDialog.includes('云端'), '入口说明必须写明图纸存云端、同事可共同修改')
   assert.ok(app.includes("onOpenMassDesign={() => chooseApp('mass')}"), 'App 必须把入口接到应用选择逻辑上')
 })
 
@@ -1428,4 +1431,61 @@ test('墙体可编辑：外墙四边与内隔墙都能选中 / 改参数 / 拖�
   const segPaths = (segSel.selection.fields || []).filter((f) => f.path)
   assert.ok(segPaths.length >= 5 && segPaths.every((f) => f.path.startsWith('wallSegs.')),
     '内隔墙字段必须指向 wallSegs')
+})
+
+// ── 2026-09-17 Super Mass 品牌 + 云端图纸 ───────────────────────────────
+
+test('Super Mass：模块名在工具页双端与三处入口一致（旧名不再出现在标题/卡名上）', () => {
+  // 工具页页头（两套独立实现各自渲染品牌）
+  assert.match(stripComments(toolUiDesktop), /<h1>Super Mass<\/h1>/u, '桌面端页头必须显示 Super Mass')
+  assert.match(stripComments(toolUiMobile), /class="sd-m-title">Super Mass<\/h1>/u, '移动端页头必须显示 Super Mass')
+  assert.doesNotMatch(stripComments(toolUiDesktop), /<h1>门店设计<\/h1>/u, '桌面端不得再显示旧名')
+  assert.doesNotMatch(stripComments(toolUiMobile), /sd-m-title">门店设计<\/h1>/u, '移动端不得再显示旧名')
+  // 选择屏与菜单入口
+  for (const [label, source] of [['选择屏桌面端', appSelectDesktop], ['选择屏移动端', appSelectMobile]]) {
+    assert.ok(source.includes('>Super Mass</strong>'), `${label}卡名必须是 Super Mass`)
+  }
+  assert.ok(menuDialog.includes('<strong>Super Mass</strong>'), 'Ops 菜单入口必须用 Super Mass')
+  // 状态行改为云端口径
+  assert.ok(appSelectDesktop.includes('云端图纸 · 门店共享') && appSelectMobile.includes('云端图纸 · 门店共享'), '选择屏必须写明图纸存在云端')
+})
+
+test('云端图纸：工具侧保存 / 载入接线（同源接口、CSRF、冲突与未登录降级）', () => {
+  const cloud = stripComments(toolCloud)
+  assert.ok(cloud.includes("var API = '/api/v1/design'"), '必须调用同源 /api/v1/design（不得硬编码站点地址）')
+  assert.doesNotMatch(cloud, /https?:\/\//u, '不得硬编码任何外部地址')
+  // 写操作必须带 CSRF 令牌；令牌失效要能自愈（同 web 端策略）
+  assert.ok(cloud.includes("headers['x-csrf-token'] = state.csrf"), '写操作必须带 x-csrf-token')
+  assert.ok(cloud.includes("payload.error === 'INVALID_CSRF'"), '令牌失效必须识别并补票')
+  assert.ok(cloud.includes("var ME = '/api/v1/auth/me'"), '令牌来自 /api/v1/auth/me')
+  // 乐观锁：提交带 expectedRevision，409 提示先载入
+  assert.ok(cloud.includes('expectedRevision: state.revision'), '保存必须带 expectedRevision（乐观锁）')
+  assert.ok(cloud.includes('result.response.status === 409'), '必须处理 409 冲突')
+  // 未登录 / 只读：不得假装保存成功
+  assert.ok(cloud.includes('state.offline = true'), '未登录必须进入「仅存本机」模式')
+  assert.ok(cloud.includes("if (state.offline) return '未登录 · 图纸仅存本机'"), '状态必须写明未登录')
+  // 载入覆盖前必须确认，且不覆盖未保存改动
+  assert.ok(cloud.includes('载入云端图纸会覆盖当前未保存的改动'), '载入前必须确认')
+  assert.ok(cloud.includes('beforeunload'), '有未保存改动时离开页面必须提醒')
+  // 工具页要加载这个文件
+  assert.match(toolHtml, /<script src="sd-cloud\.js\?v=\d+"><\/script>/u, '工具页必须加载云端脚本')
+  // 双端都要有保存入口与状态位
+  for (const [label, source, save, status] of [
+    ['桌面端', toolUiDesktop, 'data-cloud="save"', 'data-cloud="status"'],
+    ['移动端', toolUiMobile, 'data-cloud="save"', 'data-cloud="status"']
+  ]) {
+    assert.ok(source.includes(save), `${label}必须有保存按钮`)
+    assert.ok(source.includes(status), `${label}必须有云端状态位`)
+    assert.ok(source.includes('data-cloud="load"'), `${label}必须有载入按钮`)
+  }
+  // app.js 接线：落盘后同步脏标记；启动后接入云端
+  const app = stripComments(toolApp)
+  assert.ok(app.includes('window.SDCloud.markDirty()'), '本机存档后必须同步「未保存」状态')
+  assert.ok(app.includes('window.SDCloud.attach({'), '启动后必须接入云端（保存 / 载入 / 读写配置）')
+  assert.ok(app.includes('getCfg: function(){ return cfg; }') && app.includes('setCfg: function(obj){'), '接入时必须提供配置读写钩子')
+  // 双端样式落地（类名必须有样式，2026-09-15 教训）
+  const desktopCss = stripComments(toolDesktopCss)
+  const mobileCss = stripComments(toolMobileCss)
+  assert.ok(desktopCss.includes('.sd-d-btn-cloud') && desktopCss.includes('.sd-d-cloudstatus'), '桌面端云端样式必须落地')
+  assert.ok(mobileCss.includes('.sd-m-cloudbox') && mobileCss.includes('.sd-m-cloudstatus') && mobileCss.includes('.sd-m-cloud'), '移动端云端样式必须落地')
 })

@@ -8,7 +8,7 @@ import AppSelectMobile from './AppSelectMobile.jsx'
 /**
  * 应用选择屏（2026-09-13）：登录之后、进入具体应用之前的一次选择。
  *
- * 「Ops 六模块」「食品台账」「门店设计」是三套独立的应用壳，用户在登录后选择
+ * 「Ops 六模块」「食品台账」「Super Mass（门店设计）」是三套独立的应用壳，用户在登录后选择
  * 进入哪一个，选择结果记进 sessionStorage（每个会话一次；刷新沿用，新开标签重新选择）。
  *
  * 双端按项目规则拆成两套独立实现（AppSelectMobile / AppSelectDesktop），

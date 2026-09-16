@@ -22,6 +22,7 @@ import { shipHubRoutes } from './routes/shiphub.js'
 import { biRoutes } from './routes/bi.js'
 import { d1MetricsRoutes } from './routes/d1-metrics.js'
 import { foodRoutes } from './routes/food.js'
+import { designRoutes } from './routes/design.js'
 import { runScheduledShipHubSync } from './services/shiphub-sync.js'
 import { BI_SCHEDULED_CRON, runScheduledBiSync } from './services/bi-weekly.js'
 import { runD1UsageAlert } from './services/d1-usage-alert.js'
@@ -119,6 +120,7 @@ app.route('/', shipHubRoutes())
 app.route('/', biRoutes())
 app.route('/', d1MetricsRoutes())
 app.route('/', foodRoutes())
+app.route('/', designRoutes())
 
 app.all('/api/v1/attachments/*', (c) => c.json({
   error: 'MEDIA_DISABLED',

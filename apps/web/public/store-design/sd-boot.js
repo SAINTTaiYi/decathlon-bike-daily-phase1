@@ -16,12 +16,12 @@
 
   var link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = 'sd-' + impl + '.css?v=5';
+  link.href = 'sd-' + impl + '.css?v=6';
   link.setAttribute('data-sd-css', impl);
   document.head.appendChild(link);
 
   var script = document.createElement('script');
-  script.src = 'sd-ui-' + impl + '.js?v=10';
+  script.src = 'sd-ui-' + impl + '.js?v=11';
   script.setAttribute('data-sd-js', impl);
   script.async = false;
   script.onload = function(){ window.dispatchEvent(new Event('sd-ui-ready')); };

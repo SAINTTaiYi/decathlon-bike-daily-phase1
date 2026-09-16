@@ -113,6 +113,8 @@ function saveSoon(){
       if (prev && prev !== rawNew){ localStorage.setItem(LS_BAK + 'prev', prev); }
       localStorage.setItem(LS_CFG, rawNew);
       localStorage.setItem(LS_VIEW, JSON.stringify({ az: view.az, el: view.el, zoom: view.zoom }));
+      /* 云端图纸：本机存档落盘后同步一次「有没有未保存的改动」 */
+      if (window.SDCloud) window.SDCloud.markDirty();
     } catch(e2){}
   }, 250);
 }
@@ -1768,6 +1770,18 @@ function boot(){
   try {
     init();
     document.documentElement.setAttribute('data-sd-ready', 'true');
+    /* 云端图纸（2026-09-17）：界面就绪后接上保存 / 载入。 */
+    if (window.SDCloud) window.SDCloud.attach({
+      getCfg: function(){ return cfg; },
+      setCfg: function(obj){
+        cfg = E.deepMerge(E.defaultConfig(), obj);
+        ui.sel = null;
+        ui.frontRow = null;
+        afterStruct();
+        syncInputs();
+      },
+      toast: toast
+    });
   } catch(e9){
     err('初始化失败：' + (e9 && e9.message ? e9.message : e9) + '\n' + (e9 && e9.stack ? e9.stack : ''));
     document.documentElement.setAttribute('data-sd-ready', 'true');
