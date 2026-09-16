@@ -8,7 +8,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
 'use strict';
 
-var VERSION = 'store3d-1.14';
+var VERSION = 'store3d-1.15';
 var WALL_T  = 0.3;     // 外墙厚（米）
 var BIKE_LEN = { adult: 2.0, kids: 1.5 };   // 自行车长度（米）
 var BIKE_SLOT = { adult: 2.0, kids: 1.6 };  // 每个自行车位 2m（童车 1.6m）
