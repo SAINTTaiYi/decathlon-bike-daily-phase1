@@ -6,6 +6,12 @@
  */
 
 @media (min-width: 768px) {
+  /* 桌面端不要背景黄色弥散光源（2026-09-18 用户定案）。
+     Crextio 风格的环境光斑是给窄屏做的：桌面视口把它们铺成一大片黄雾，
+     页头磨砂又把这层暖色吸进来，于是「页头暖、页面冷」的横向色带把
+     页头/次页头/左栏切成了几块阶梯。移动端保持原样。 */
+  .workshop-runtime .env-blob { display: none; }
+
   :root {
     --ops-global-header-height: 90px;
     --ops-module-header-height: 66px;

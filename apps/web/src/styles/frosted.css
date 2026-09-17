@@ -476,18 +476,30 @@
 
 
 /* ==================================================================
- * 9. Desktop header paint stays out of the rail column (2026-09-05)
+ * 9. Desktop header: one continuous frosted band (2026-09-18 rework)
  *
- * The rail lives inside the content layer (z-index 1), so it can never
- * stack above this navigation layer (z-index 80) -- raising the dock's
- * z-index changes nothing. When the rail moved up to top:100px its first
- * destination slid under the layer's frosted backdrop and got veiled
- * ("the header overflows into the nav"). The header's real footprint is
- * the 90px global band plus the module band starting at x=262px; below
- * 90px the left column belongs to the rail. Move fill+blur to a
- * ::before and mask it to that footprint so the layer paints nothing
- * over the rail column. Legacy browsers without backdrop-filter/mask
- * keep the old full-width band via the section 1 fallbacks.
+ * History. 2026-09-05 the rail moved up to top:100px and its first
+ * destination appeared veiled, so the desktop paint was masked into the
+ * header's literal footprint: a 90px full-width arm plus a second arm
+ * for the module band starting at x=262px.
+ *
+ * User feedback 2026-09-18: "导航栏、次页头、页头之间的间隔太割裂，
+ * 有阶梯感" — that L-shaped footprint IS the staircase. Its three hard
+ * mask edges (horizontal at y=90 for x<262, vertical at x=262 between
+ * 90 and 156, horizontal at y=156 for x>262) turned one header into
+ * three offset plates, and the frosted fill simply stopped dead in the
+ * rail column while continuing next to it.
+ *
+ * Why the L was never actually necessary: the rail sits on the dock
+ * layer at z-index 90, the navigation layer is z-index 80, and the
+ * layer's paint lives on a ::before at z-index -1 — so rail content
+ * always paints ABOVE the frosted fill. Nothing gets veiled; the L only
+ * ever bought an invisible paint saving.
+ *
+ * Now: a single full-width band with a long feathered bottom edge. The
+ * global header and the module header read as one surface, there is no
+ * seam at x=262 and no step at y=90 anywhere. Legacy browsers without
+ * backdrop-filter/mask keep the section 1 fallbacks.
  * ================================================================== */
 @media (min-width: 768px) {
   @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) and ((mask-image: linear-gradient(#000, transparent)) or (-webkit-mask-image: linear-gradient(#000, transparent))) {
@@ -512,14 +524,28 @@
       );
       -webkit-backdrop-filter: blur(28px) saturate(180%);
       backdrop-filter: blur(28px) saturate(180%);
-      -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
-      -webkit-mask-position: 0 0, 262px 90px;
-      -webkit-mask-size: 100% 90px, calc(100% - 262px) 66px;
-      -webkit-mask-repeat: no-repeat, no-repeat;
-      mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
-      mask-position: 0 0, 262px 90px;
-      mask-size: 100% 90px, calc(100% - 262px) 66px;
-      mask-repeat: no-repeat, no-repeat;
+      /* 单块全宽：0..156 一整条。下方 115px 起羽化到全透明——硬的 mask
+         边缘就是用户看到的「阶梯」，羽化后页头与页面的交界是一条渐变带
+         而不是一条线。
+         羽化起点必须压在模块页头标题行（90-156）中线以下：标题行里
+         永远可能有内容滚过（导航层是 fixed，内容从 180px 下方滚上来），
+         它的背板不能太薄，否则标题会被下面的卡片糊掉。 */
+      -webkit-mask-image: linear-gradient(
+        to bottom,
+        #000 0%, #000 74%,
+        rgb(0 0 0 / .92) 82%,
+        rgb(0 0 0 / .66) 90%,
+        rgb(0 0 0 / .34) 96%,
+        transparent 100%
+      );
+      mask-image: linear-gradient(
+        to bottom,
+        #000 0%, #000 74%,
+        rgb(0 0 0 / .92) 82%,
+        rgb(0 0 0 / .66) 90%,
+        rgb(0 0 0 / .34) 96%,
+        transparent 100%
+      );
     }
   }
 }
