@@ -476,20 +476,48 @@
 
 
 /* ==================================================================
- * 9. Desktop header paint stays out of the rail column (2026-09-05)
+ * 9. Desktop header: one continuous frosted band (2026-09-18 rework)
  *
- * The rail lives inside the content layer (z-index 1), so it can never
- * stack above this navigation layer (z-index 80) -- raising the dock's
- * z-index changes nothing. When the rail moved up to top:100px its first
- * destination slid under the layer's frosted backdrop and got veiled
- * ("the header overflows into the nav"). The header's real footprint is
- * the 90px global band plus the module band starting at x=262px; below
- * 90px the left column belongs to the rail. Move fill+blur to a
- * ::before and mask it to that footprint so the layer paints nothing
- * over the rail column. Legacy browsers without backdrop-filter/mask
- * keep the old full-width band via the section 1 fallbacks.
+ * History. 2026-09-05 the rail moved up to top:100px and its first
+ * destination appeared veiled, so the desktop paint was masked into the
+ * header's literal footprint: a 90px full-width arm plus a second arm
+ * for the module band starting at x=262px.
+ *
+ * User feedback 2026-09-18: "导航栏、次页头、页头之间的间隔太割裂，
+ * 有阶梯感" — that L-shaped footprint IS the staircase. Its three hard
+ * mask edges (horizontal at y=90 for x<262, vertical at x=262 between
+ * 90 and 156, horizontal at y=156 for x>262) turned one header into
+ * three offset plates, and the frosted fill simply stopped dead in the
+ * rail column while continuing next to it.
+ *
+ * The L was really a workaround for stacking, not for geometry: the
+ * rail (.look-dock, z-index 90 inside its own layer) sits in the dock
+ * layer, which was z-index 1, while this navigation layer is 80 — an
+ * inner z-index never escapes its layer's stacking context, so the rail
+ * really was painted UNDER the frost. Cutting a hole in the mask was
+ * how 2026-09-05 kept the first destination legible; the user's
+ * 2026-09-18 screenshot ("总览按钮被遮住了") is that same collision
+ * seen again the moment the hole was closed.
+ *
+ * Fixed at the source instead: the dock LAYER is now lifted above this
+ * navigation layer (desktop-workbench.css), so the rail paints on top
+ * and the mask needs no hole at all — which is what lets it be one
+ * seamless band.
+ *
+ * Now: a single full-width band with a long feathered bottom edge. The
+ * global header and the module header read as one surface, there is no
+ * seam at x=262 and no step at y=90 anywhere. Legacy browsers without
+ * backdrop-filter/mask keep the section 1 fallbacks.
  * ================================================================== */
 @media (min-width: 768px) {
+  /* 桌面端玻璃改成页面底色（2026-09-18 用户问「导航栏为什么感觉有一层淡淡
+     的黄色背景」）。--glass-tint 的暖白 250 248 241 是 2026-08-29 为移动端
+     调的：那里有黄色环境光斑，冷灰玻璃会把黄洗掉。桌面端的光斑已隐藏
+     （desktop-workbench.css），暖白就只剩下「在冷灰页面上糊一层米黄」这一个
+     效果。改成与 --ops-page (#f4f5f7) 同色，页头/次页头/左栏融为一整块，
+     磨砂只在内容滚过时由 backdrop-filter 显形。移动端保持暖白不动。 */
+  :root { --glass-tint: 244 245 247; }
+
   @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) and ((mask-image: linear-gradient(#000, transparent)) or (-webkit-mask-image: linear-gradient(#000, transparent))) {
     .workshop-runtime > [data-workspace-layer='navigation'] {
       background: none !important;
@@ -512,14 +540,28 @@
       );
       -webkit-backdrop-filter: blur(28px) saturate(180%);
       backdrop-filter: blur(28px) saturate(180%);
-      -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
-      -webkit-mask-position: 0 0, 262px 90px;
-      -webkit-mask-size: 100% 90px, calc(100% - 262px) 66px;
-      -webkit-mask-repeat: no-repeat, no-repeat;
-      mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
-      mask-position: 0 0, 262px 90px;
-      mask-size: 100% 90px, calc(100% - 262px) 66px;
-      mask-repeat: no-repeat, no-repeat;
+      /* 单块全宽：0..186 一整条（模块条内嵌队列工具后由 156 长高）。下方
+         80% 起羽化到全透明——硬的 mask 边缘就是用户看到的「阶梯」，羽化后
+         页头与页面的交界是一条渐变带而不是一条线。
+         羽化起点必须压在模块页头标题行中线以下：导航层是 fixed，标题行里
+         永远可能有内容滚过（内容从 186px 下方滚上来），它的背板不能太薄，
+         否则标题会被下面的卡片糊掉。 */
+      -webkit-mask-image: linear-gradient(
+        to bottom,
+        #000 0%, #000 80%,
+        rgb(0 0 0 / .92) 86%,
+        rgb(0 0 0 / .66) 92%,
+        rgb(0 0 0 / .34) 97%,
+        transparent 100%
+      );
+      mask-image: linear-gradient(
+        to bottom,
+        #000 0%, #000 80%,
+        rgb(0 0 0 / .92) 86%,
+        rgb(0 0 0 / .66) 92%,
+        rgb(0 0 0 / .34) 97%,
+        transparent 100%
+      );
     }
   }
 }

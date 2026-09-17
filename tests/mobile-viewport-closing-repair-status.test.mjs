@@ -30,12 +30,14 @@ test('添加车辆对话框和固定底栏会使用动态可视视口避开浏�
   assert.match(hook, /window\.visualViewport/u)
   assert.match(dialog, /data-dialog-panel/u)
   assert.match(refinement, /--visual-viewport-top/u)
-  assert.match(refinement, /--visual-viewport-bottom/u)
+  // 底部内缩改名 --keyboard-inset-bottom（2026-09-18）：原值把地址栏动画也算进去，
+  // 滚动时会瞬间等于一条工具栏高度，把底栏顶到半空。断言跟着实现搬家。
+  assert.match(refinement, /--keyboard-inset-bottom/u)
   assert.match(refinement, /touch-action: pan-y/u)
   assert.match(refinement, /overscroll-behavior: contain/u)
-  assert.match(refinement, /inset:[\s\S]*var\(--visual-viewport-top\)[\s\S]*env\(safe-area-inset-right\)[\s\S]*var\(--visual-viewport-bottom\)[\s\S]*env\(safe-area-inset-left\)/u)
-  assert.match(refinement, /bottom: calc\(max\(8px,env\(safe-area-inset-bottom\)\) \+ var\(--visual-viewport-bottom\)\)/u)
-  assert.match(refinement, /padding-bottom: calc\(var\(--dock-space\) \+ var\(--visual-viewport-bottom\)\)/u)
+  assert.match(refinement, /inset:[\s\S]*var\(--visual-viewport-top\)[\s\S]*env\(safe-area-inset-right\)[\s\S]*var\(--keyboard-inset-bottom\)[\s\S]*env\(safe-area-inset-left\)/u)
+  assert.match(refinement, /bottom: calc\(max\(8px,env\(safe-area-inset-bottom\)\) \+ var\(--keyboard-inset-bottom\)\)/u)
+  assert.match(refinement, /padding-bottom: calc\(var\(--dock-space\) \+ var\(--keyboard-inset-bottom\)\)/u)
 })
 
 test('维修完成写入主记录和维修详情的精确完成状态，完成后编辑不再使用 D1 兼容绕路', async () => {

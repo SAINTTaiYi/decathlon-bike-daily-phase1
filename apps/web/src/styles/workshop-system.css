@@ -964,15 +964,15 @@ button:disabled { opacity: .48; }
 .record-row[data-repair-pixel-dissolving='true'] > :not(.repair-pixel-dissolve) { visibility: hidden; }
 
 /* Dynamic browser chrome: dialogs, dock and content use the actual visual viewport. */
-.workshop-shell { padding-bottom: calc(var(--dock-space) + var(--visual-viewport-bottom)); }
-.look-dock { bottom: calc(max(8px,env(safe-area-inset-bottom)) + var(--visual-viewport-bottom)) !important; }
-.status-toast { bottom: calc(var(--ops-dock-height) + 20px + env(safe-area-inset-bottom) + var(--visual-viewport-bottom)); }
+.workshop-shell { padding-bottom: calc(var(--dock-space) + var(--keyboard-inset-bottom)); }
+.look-dock { bottom: calc(max(8px,env(safe-area-inset-bottom)) + var(--keyboard-inset-bottom)) !important; }
+.status-toast { bottom: calc(var(--ops-dock-height) + 20px + env(safe-area-inset-bottom) + var(--keyboard-inset-bottom)); }
 .app-dialog {
   position: fixed;
   inset:
     max(6px,var(--visual-viewport-top))
     max(8px,env(safe-area-inset-right))
-    max(6px,calc(var(--visual-viewport-bottom) + 6px))
+    max(6px,calc(var(--keyboard-inset-bottom) + 6px))
     max(8px,env(safe-area-inset-left));
   max-height: min(calc(var(--visual-viewport-height) - 16px),760px);
 }

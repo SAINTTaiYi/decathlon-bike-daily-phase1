@@ -39,7 +39,9 @@ export default function ShipHubPipelineBoard({
   onOpenConnection,
   simulationAvailable = false,
   simulatedStatus = '',
-  onSimulateStatus
+  onSimulateStatus,
+  simulatedStoreLogin = '',
+  onSimulateStoreLogin
 }) {
   const viewport = useViewportKind()
   const [activeCategory, setActiveCategory] = useState('hand')
@@ -93,7 +95,7 @@ export default function ShipHubPipelineBoard({
   const locatorVisible = viewport === 'mobile' ? activeCategory === 'hand' : true
   const chrome = (
     <>
-      <ShipHubConnectionSimulator available={simulationAvailable} active={simulatedStatus} onSimulate={onSimulateStatus} />
+      <ShipHubConnectionSimulator available={simulationAvailable} active={simulatedStatus} onSimulate={onSimulateStatus} activeLogin={simulatedStoreLogin} onSimulateLogin={onSimulateStoreLogin} />
       {connectionStatus !== 'connected' && connectionStatus !== 'fixture' ? (
         <div className="shiphub-connection-notice" role="status" data-status={connectionStatus}>
           <strong>{connectionStatus === 'degraded' ? 'Shiphub 同步异常' : 'Shiphub 当前未连接'}</strong>

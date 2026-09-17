@@ -79,6 +79,17 @@ class TestPreparedStatement {
       }
     }
   }
+
+  // batch 里的单条执行（2026-09-18）：生产 D1 的 batch 对 SELECT 也会返回行
+  // （D1Result.results），旧适配器一律走 run()，读语句会静默返回空结果，测不出
+  // 「把读并入 batch」的路径。这里按语句类型分派，向生产语义对齐。
+  executeBatchItem(): { success: true; results: unknown[]; meta: Record<string, unknown> } {
+    if (/^\s*(?:SELECT|PRAGMA|WITH)\b/iu.test(this.sql)) {
+      const rows = this.owner.sqlite.prepare(this.sql).all(...this.params as any[])
+      return { success: true, results: rows, meta: { changes: 0, rows_read: rows.length, rows_written: 0 } }
+    }
+    return this.executeRun()
+  }
 }
 
 export class TestD1Database {
@@ -98,7 +109,7 @@ export class TestD1Database {
   async batch(statements: D1PreparedStatement[]): Promise<D1Result[]> {
     this.sqlite.exec('BEGIN IMMEDIATE')
     try {
-      const results = statements.map((statement) => (statement as unknown as TestPreparedStatement).executeRun())
+      const results = statements.map((statement) => (statement as unknown as TestPreparedStatement).executeBatchItem())
       this.sqlite.exec('COMMIT')
       return results as unknown as D1Result[]
     } catch (error) {

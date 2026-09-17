@@ -54,7 +54,7 @@ test('scene transition CSS leaves no wipe surface while the right business regio
   assert.ok(!css.includes('.desktop-scene-transition-wipe'))
   assert.match(css, /\.workshop-runtime\[data-desktop-scene-transitioning='true'\] :is\(\.workshop-module-header, \.workshop-module-panel\) \{[\s\S]*?will-change: transform, opacity;/u)
   assert.match(css, /\.workshop-module-header \{[\s\S]*?margin-left: 262px;/u)
-  assert.match(css, /\.look-dock::after \{[^}]*top: 156px;[^}]*left: 261px;/u)
+  assert.match(css, /\.look-dock::after \{[^}]*top: 186px;[^}]*left: 261px;/u)
 })
 
 

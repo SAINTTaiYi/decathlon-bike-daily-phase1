@@ -24,7 +24,33 @@ test('未确认当前版本时弹出，已确认同版本不弹，并提供立�
 
 test('App 根树挂载 UpdateRefreshDialog，覆盖登录后主路径', () => {
   assert.match(appSource, /import UpdateRefreshDialog from '\.\/components\/dialogs\/UpdateRefreshDialog\.jsx'/)
-  assert.match(appSource, /<UpdateRefreshDialog \/>/)
+  // 挂载方式是「单实例外壳」：契约见下一条。
+  assert.match(appSource, /<UpdateRefreshDialog enabled=\{updatePromptEnabled\} \/>/)
+})
+
+test('更新弹窗全 App 只有一处挂载点，且位于跨分支稳定的外壳内（2026-09-18 抽搐修复）', () => {
+  const src = appSource.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/^\s*\/\/.*$/gmu, '')
+
+  // 根因：App 有 9 个早期 return 分支（引导页 / 验证会话 / 邮箱绑定 / 改密 / 平台后台 /
+  // 读取台账 / 同步失败 / 主工作台…），每个分支各挂一份弹窗 —— 分支切换时 React 按位置
+  // 对账，弹窗被卸载重建，useState(open) 与 GSAP 入场时间线一并重来，表现为「抽搐」。
+  // 真实浏览器帧级实测（修复前，桌面与移动端均复现）：一次启动里弹窗节点被替换两次、
+  // 入场补间播两次、body.dialog-open 闪断一次。
+  const mounts = src.match(/<UpdateRefreshDialog\b/gu) || []
+  assert.equal(mounts.length, 1, `App 只允许一处挂载更新弹窗，实际 ${mounts.length} 处（多份挂载 = 分支切换重建 = 抽搐回归）`)
+
+  const shellStart = src.indexOf('function AppScreen(')
+  assert.ok(shellStart > 0, '必须存在单实例挂载壳 AppScreen')
+  const shellBody = src.slice(shellStart, src.indexOf('\n}\n', shellStart))
+  assert.ok(
+    shellBody.includes('<UpdateRefreshDialog enabled={updatePromptEnabled} />'),
+    '更新弹窗必须挂在 AppScreen 外壳内部（外壳根元素类型恒定，弹窗位置才稳定）'
+  )
+
+  const branches = src.match(/return <AppScreen\b|return \(\s*\n\s*<AppScreen\b/gu) || []
+  assert.ok(branches.length >= 9, `全部渲染分支都应经由 AppScreen，实际 ${branches.length}`)
+  assert.doesNotMatch(src, /\?\s*<UpdateRefreshDialog/u, '弹窗不得被条件表达式包裹（条件挂载同样会重建）')
+  assert.doesNotMatch(src, /&&\s*<UpdateRefreshDialog/u, '弹窗不得被 && 条件挂载（同上）')
 })
 
 test('已打开页面通过前台聚焦、定时轮询与交互节流检查服务端版本', () => {
@@ -49,7 +75,7 @@ test('工作台入场期间可延迟版本弹窗，避免抢占跳过动画的�
   assert.match(source, /function UpdateRefreshDialog\(\{[^}]*\benabled = true\b[^}]*\}\)/)
   assert.match(source, /if \(!enabled \|\| typeof window === 'undefined'\) return undefined/)
   assert.match(appSource, /deferUpdatePrompt = auth\.source === 'login'/)
-  assert.match(appSource, /<UpdateRefreshDialog enabled=\{!deferUpdatePrompt && !workspaceLaunching\}/)
+  assert.match(appSource, /updatePromptEnabled=\{!deferUpdatePrompt && !workspaceLaunching\}/)
 })
 
 test('登录界面不得卸载版本公告：主渲染树的挂载点不能被 introDone 条件门包裹', () => {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { auditEventBelongsToScene, currentBusinessDayEvents } from '../data/auditEvents.js'
 import { emptyKpi } from '../data/operationsData.js'
 import {
-  clearSales, closeDay, createWorkItem, getBootstrap, planLocalV5Import, previewLocalV5,
+  clearSales, closeDay, createWorkItem, getBootstrap, takePrefetchedBootstrap, planLocalV5Import, previewLocalV5,
   assignWorkItem, removeWorkItem, reopenDay, saveSales, undoAuditEvent, updateWorkItem, workItemAction, getPermanentAuditHistory
 } from '../api/workflow.js'
 import { buildPickupNotificationUpdate } from '../data/pickupRecord.js'
@@ -16,6 +16,9 @@ export default function useRemoteClosingWorkflow(enabled) {
   const [syncing, setSyncing] = useState(false)
   const [storageError, setError] = useState('')
   const [lastSyncedAt, setLastSyncedAt] = useState('')
+  // 长轮询版本号种子（2026-09-18）：bootstrap 随响应下发的门店变更版本号，
+  // 首轮数据到达后交给 useStoreRealtime 作为起点，避免 since=0 触发重复刷新。
+  const [changeVersion, setChangeVersion] = useState(0)
   const hasSnapshotRef = useRef(false)
   const inFlightRef = useRef(null)
   const lastSyncRef = useRef(0)
@@ -31,9 +34,19 @@ export default function useRemoteClosingWorkflow(enabled) {
     setSyncing(true)
     const task = (async () => {
       try {
-        const payload = await getBootstrap(signal)
+        // 冷启动预取（2026-09-18）：会话恢复期间并行发出的 bootstrap 若已取回，
+        // 直接复用，省掉一次完整往返；未登录/失败（null）时回落到正常拉取。
+        const prefetched = takePrefetchedBootstrap()
+        let payload = prefetched ? await prefetched : null
+        if (!payload) {
+          if (signal?.aborted) return null
+          payload = await getBootstrap(signal)
+        }
+        if (signal?.aborted) return null
         const normalizedPayload = { ...payload, records: (payload.records || []).map(normalizeRepairRecord) }
         setState(normalizedPayload)
+        // 与本次数据同源的门店版本号：长轮询从这里起步（2026-09-18）。
+        if (Number.isFinite(payload.changeVersion)) setChangeVersion(Math.max(0, Math.floor(Number(payload.changeVersion))))
         hasSnapshotRef.current = true
         setLastSyncedAt(new Date().toISOString())
         lastSyncRef.current = Date.now()
@@ -289,6 +302,7 @@ export default function useRemoteClosingWorkflow(enabled) {
     reopenClosing: () => run(reopenDay, { sync: 'full' }),
     resetDay: () => run(() => clearSales(state.day.revision), { sync: 'background' }),
     refresh,
+    changeVersion,
     previewLocalV5,
     planLocalV5Import
   }

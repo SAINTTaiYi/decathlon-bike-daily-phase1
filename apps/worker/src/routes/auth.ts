@@ -239,17 +239,28 @@ export function authRoutes() {
     const config = c.get('config')
     const context = c.get('auth')!
     const csrfToken = randomToken()
-    // 只读降级会话没有数据库行，也不允许写：跳过 CSRF 轮换。
-    if (!context.readOnly) {
-      const nextHash = await csrfTokenHash(csrfToken, config)
-      await c.env.DB.prepare('UPDATE auth_sessions SET csrf_hash = ?, last_seen_at = ? WHERE token_hash = ?').bind(nextHash, nowIso(), context.sessionTokenHash).run()
-    }
-    const stores = await all<MembershipRow>(c.env.DB.prepare(`
+    const membershipStatement = c.env.DB.prepare(`
       SELECT st.id AS store_id, st.code AS store_code, st.name AS store_name, st.timezone, sm.role
       FROM store_members sm JOIN stores st ON st.id = sm.store_id
       WHERE sm.user_id = ? AND sm.status = 'active' AND st.status = 'active'
       ORDER BY sm.effective_from ASC, sm.created_at ASC
-    `).bind(context.userId))
+    `).bind(context.userId)
+    // 只读降级会话没有数据库行，也不允许写：跳过 CSRF 轮换。
+    //
+    // 启动延迟优化（2026-09-18）：CSRF 轮换（写）与成员门店读取（读）互不依赖，
+    // 合并成一次 batch 往返。本端点在每次页面加载的关键路径上（/auth/me 完成后
+    // 才轮到 bootstrap），少一次跨区域 RTT 就是首屏少一次完整等待。
+    let stores: MembershipRow[]
+    if (!context.readOnly) {
+      const nextHash = await csrfTokenHash(csrfToken, config)
+      const [, membershipResult] = await c.env.DB.batch([
+        c.env.DB.prepare('UPDATE auth_sessions SET csrf_hash = ?, last_seen_at = ? WHERE token_hash = ?').bind(nextHash, nowIso(), context.sessionTokenHash),
+        membershipStatement
+      ])
+      stores = (membershipResult?.results ?? []) as MembershipRow[]
+    } else {
+      stores = await all<MembershipRow>(membershipStatement)
+    }
     return c.json({
       user: { id: context.userId, displayName: context.displayName, mustChangePassword: context.mustChangePassword, isPlatformAdmin: context.isPlatformAdmin, emailBindingRequired: isEmailBindingRequired(context) },
       stores: mapMemberships(stores),

@@ -49,7 +49,7 @@
   .lookbook-shell {
     width: min(100%, 426px);
     margin-inline: auto;
-    padding: calc(14px + env(safe-area-inset-top)) 12px calc(78px + env(safe-area-inset-bottom) + var(--visual-viewport-bottom));
+    padding: calc(14px + env(safe-area-inset-top)) 12px calc(78px + env(safe-area-inset-bottom) + var(--keyboard-inset-bottom));
     /* Transparent: this is the content container that sits ON TOP of the
        environment glow. An opaque fill here hid the wash on mobile. */
     background: transparent;
@@ -230,7 +230,7 @@
   .workshop-runtime[data-mobile-scene] .look-dock {
     left: 0 !important;
     right: 0 !important;
-    bottom: var(--visual-viewport-bottom) !important;
+    bottom: var(--keyboard-inset-bottom) !important;
     display: block !important;
     width: 100% !important;
     min-height: calc(58px + env(safe-area-inset-bottom));
@@ -547,7 +547,7 @@
 @media (min-width: 600px) {
   .app-runtime[data-ready='true'].endfield-runtime .lookbook-shell {
     width: min(100%, 720px);
-    padding: calc(24px + env(safe-area-inset-top)) 24px calc(92px + env(safe-area-inset-bottom) + var(--visual-viewport-bottom));
+    padding: calc(24px + env(safe-area-inset-top)) 24px calc(92px + env(safe-area-inset-bottom) + var(--keyboard-inset-bottom));
   }
   .ops-mobile-overview { max-width: none; }
   .ops-store-context { margin-top: 24px; }
@@ -555,7 +555,7 @@
   .ops-sales-primary { min-height: 128px; }
   .ops-blueprint { right: 32px; width: 210px; }
   .look-dock {
-    bottom: calc(16px + var(--visual-viewport-bottom)) !important;
+    bottom: calc(16px + var(--keyboard-inset-bottom)) !important;
     width: min(calc(100% - 32px), 728px) !important;
     border-radius: var(--ops-radius) !important;
   }

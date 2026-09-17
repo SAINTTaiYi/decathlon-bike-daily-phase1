@@ -20,6 +20,9 @@ export default function useEnvironmentMotion({ enabled, rootRef }) {
     if (!env) return undefined
     const blobs = [...env.querySelectorAll('.env-blob')]
     if (!blobs.length) return undefined
+    // 桌面端光斑被样式隐藏（2026-09-18）：不再建立漂移/视差/压暗这些
+    // 没有视觉产出的补间与监听——pointermove 上跑六个 quickTo 纯属空转。
+    if (getComputedStyle(blobs[0]).display === 'none') return undefined
     const reduced = reducedMotion()
     const drifts = []
 

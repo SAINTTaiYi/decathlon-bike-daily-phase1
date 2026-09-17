@@ -6,15 +6,32 @@
  */
 
 @media (min-width: 768px) {
+  /* 左栏(层内 z-index 90 的 .look-dock)住在 dock 层里，而 dock 层只有 z-index 1，
+     导航层是 80 —— 层内 z-index 出不了层的堆叠上下文，所以 rail 上移到
+     top:100px 后，第一项正好落进 156px 页头磨砂的覆盖范围，被背板糊成灰字
+     （2026-09-18 用户截图：「总览按钮被遮住了」；实测第一项黄色选中态最暗蓝通道
+     139、色散 84 = 被洗，其余项 24~26 / 7 = 清晰）。
+     修法是把 dock 层整体提到导航层之上：rail 只占左栏 x 19..238，与页头任何
+     可交互元素（汉堡 0..79、模块页头 x>=246、右上工具栏）都不相交。
+     2026-09-05 那版用「在页头 mask 里挖掉左栏」绕开同一问题，代价是三条硬
+     边缘（阶梯感，见 frosted.css 第 9 节）——现在那条 mask 不需要挖洞了。 */
+  .workshop-runtime > [data-workspace-layer='dock'] { z-index: 90; }
+
+  /* 桌面端不要背景黄色弥散光源（2026-09-18 用户定案）。
+     Crextio 风格的环境光斑是给窄屏做的：桌面视口把它们铺成一大片黄雾，
+     页头磨砂又把这层暖色吸进来，于是「页头暖、页面冷」的横向色带把
+     页头/次页头/左栏切成了几块阶梯。移动端保持原样。 */
+  .workshop-runtime .env-blob { display: none; }
+
   :root {
     --ops-global-header-height: 90px;
     --ops-module-header-height: 66px;
-    --ops-header-height: 156px;
+    --ops-header-height: 186px;
     --ops-dock-height: 0px;
     --dock-space: 0px;
   }
 
-  html { overflow-x: hidden; scroll-padding-top: 174px; }
+  html { overflow-x: hidden; scroll-padding-top: calc(var(--ops-header-height) + 18px); }
   body { min-width: 0; overflow-x: hidden; }
   .workshop-runtime {
     width: 1536px;
@@ -26,7 +43,7 @@
     width: 1536px;
     box-shadow: none;
   }
-  .workshop-shell-header { width: 1536px; height: 156px; margin: 0; }
+  .workshop-shell-header { width: 1536px; height: 186px; margin: 0; }
   .workshop-global-header-desktop {
     grid-template-columns: 84px 230px minmax(0, 1fr);
     min-height: 90px;
@@ -65,16 +82,41 @@
   .workshop-user-context strong, .workshop-user-context small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .workshop-user-context strong { font-size: 13px; line-height: 18px; }
   .workshop-user-context small { color: var(--ops-text-muted); font-size: 11px; line-height: 15px; }
+  /* 第五列 = 搜索槽：桌面端把「QUEUE STATUS 计数 + 搜索框 + 工具按钮」整条嵌进来
+     （2026-09-18 用户定案），所以模块条从 66 长到 96，整层 156 → 186。 */
   .workshop-module-header {
-    grid-template-columns: 32px auto minmax(0, 1fr) auto;
+    grid-template-columns: 32px auto auto auto minmax(0, 1fr);
     gap: 12px;
-    min-height: 66px;
+    min-height: 96px;
     margin-left: 262px;
     padding: 0 28px 0 38px;
     border-top: 1px solid rgb(12 14 12 / .09);
     border-bottom: 1px solid rgb(12 14 12 / .08);
     background: var(--ops-page);
   }
+  /* 搜索槽：桌面只有当前场景那一格可见（移动端见 mobile-overview.css） */
+  .workshop-shell-header[data-active-module='pickup'] .workshop-module-search[data-scene='pickup'],
+  .workshop-shell-header[data-active-module='poster'] .workshop-module-search[data-scene='poster'],
+  .workshop-shell-header[data-active-module='repair'] .workshop-module-search[data-scene='repair'] {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 1;
+    min-width: 0;
+  }
+  /* 嵌进页头后的队列工具：比正文里矮一档，给 96px 的模块条留出上下呼吸 */
+  .workshop-module-header .pickup-queue-controls {
+    width: 100%;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 16px;
+    background: transparent;
+  }
+  .workshop-module-header .pickup-queue-summary { min-height: 64px; padding: 8px 16px; }
+  .workshop-module-header .pickup-module-count span { grid-template-rows: 28px 14px; font-size: 11px; line-height: 14px; }
+  .workshop-module-header .pickup-module-count b { font-size: 28px; line-height: 28px; }
+  .workshop-module-header .pickup-tool-row { min-height: 64px; padding: 4px; grid-template-columns: minmax(0, 1fr) repeat(4, 58px); gap: 4px; }
+  .workshop-module-header .pickup-tool-row .pickup-search-field { min-height: 54px; padding: 0 16px; }
+  .workshop-module-header .pickup-tool-row > button { height: 54px; min-width: 54px; }
   .workshop-module-header > svg { width: 26px; height: 26px; color: var(--ops-yellow-pressed); }
   .workshop-module-header > span { font-size: 15px; }
   .workshop-module-header > strong { font-size: 24px; line-height: 1; }
@@ -84,7 +126,9 @@
     width: 1274px;
     min-height: 868px;
     margin: 0 0 0 262px;
-    padding: 180px 32px 40px;
+    /* 不能写死像素：页头一封进队列工具栏就长高，写死的偏移会立刻错位
+       （2026-09-18 实测 180px 被晾在 186 层高之下）。+12 = 内容首行的呼吸。 */
+    padding: calc(var(--ops-header-height) + 12px) 32px 40px;
     background: transparent;
   }
   .workshop-module-stack { gap: 0; }
@@ -117,8 +161,9 @@
     box-shadow: none !important;
     transform: none !important;
   }
-  /* Divider starts below the 156px fixed navigation layer, matching the rail. */
-  .look-dock::after { content: ''; position: fixed; top: 156px; bottom: 0; left: 261px; width: 1px; background: rgb(12 14 12 / .07); pointer-events: none; }
+  /* Divider starts below the fixed navigation layer, matching the rail.
+     层高 186 = 90 全局页头 + 96 模块条（2026-09-18 模块条内嵌队列工具后变高）。 */
+  .look-dock::after { content: ''; position: fixed; top: 186px; bottom: 0; left: 261px; width: 1px; background: rgb(12 14 12 / .07); pointer-events: none; }
   .look-dock ul { display: grid !important; grid-template-columns: 1fr !important; gap: 12px; }
   /* 桌面 rail 的选中态由图标变黄承载，没有滑块。特异性与作用域必须与
      mobile-overview.css 的移动端显示声明对称（同 0,2,0 + !important），

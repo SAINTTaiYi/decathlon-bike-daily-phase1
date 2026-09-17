@@ -45,13 +45,15 @@ export default function WorkshopShellHeader({ activeScene, storeName, roleLabel,
           <span>{scene.no} / 06</span>
           <strong>{scene.cn}</strong>
           <small className="workshop-module-en">{scene.title}</small>
-          {mobileLayout ? (
-            <div className="workshop-module-search-slot">
-              <div className="workshop-module-search" data-scene="pickup" />
-              <div className="workshop-module-search" data-scene="poster" />
-              <div className="workshop-module-search" data-scene="repair" />
-            </div>
-          ) : null}
+          {/* 搜索槽双端常驻（2026-09-18）：桌面端由 PickupLedger 把整条
+              「QUEUE STATUS + 搜索框 + 工具按钮」Portal 进来，移动端只 Portal
+              搜索框+图标按钮。显示哪一格由 CSS 按 data-mobile-scene /
+              data-active-module 决定，默认三格都是 display:none。 */}
+          <div className="workshop-module-search-slot">
+            <div className="workshop-module-search" data-scene="pickup" />
+            <div className="workshop-module-search" data-scene="poster" />
+            <div className="workshop-module-search" data-scene="repair" />
+          </div>
         </div>
       </header>
       {mobileLayout ? (

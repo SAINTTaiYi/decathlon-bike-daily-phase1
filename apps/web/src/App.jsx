@@ -11,6 +11,7 @@ import PromptLab from './components/PromptLab.jsx'
 import { APP_VERSION } from './data/releaseNotes.js'
 import { buildClosingReportModel, exportClosingReportImage } from './utils/closingReportImage.js'
 import { getBiVehicles } from './api/bi.js'
+import { prefetchBootstrap } from './api/workflow.js'
 import ActionDock from './components/lookbook/ActionDock.jsx'
 import WorkshopShellHeader from './components/workshop/WorkshopShellHeader.jsx'
 import WorkshopOverviewPage from './components/overview/WorkshopOverviewPage.jsx'
@@ -98,6 +99,25 @@ const PlatformAdminConsole = lazy(() => import('./components/admin/PlatformAdmin
 
 const roleLabels = { operator: '操作员', manager: '经理', admin: '管理员' }
 
+// 单实例挂载壳（2026-09-18「更新弹窗抽搐」修复）。
+//
+// App 有 8 个早期 return 分支（引导页 / 验证会话 / 邮箱绑定 / 改密 / 后台 / 读取台账 /
+// 同步失败 / 主工作台），此前每个分支各自渲染一份 <UpdateRefreshDialog>。分支切换时
+// React 按位置对账，弹窗组件被**卸载再重建**：内部 useState(open) 连同 GSAP 入场
+// 动画一起重来一遍 —— 视觉上就是「弹窗抽搐」（向下 18px 淡出又在原位淡入）。
+// 帧级实测（2026-09-18）：一次启动里同一弹窗被重建两次，入场补间完整重播两次。
+//
+// 外壳的作用：App 的根元素类型恒定，弹窗永远待在它内部的同一位置 ——
+// 跨分支只更新（保留 open 状态与动画进度），绝不重建。
+function AppScreen({ children, updatePromptEnabled = true }) {
+  return (
+    <>
+      {children}
+      <UpdateRefreshDialog enabled={updatePromptEnabled} />
+    </>
+  )
+}
+
 function WorkshopModuleSection({ children, className = '', sceneId }) {
   return (
     <section
@@ -162,8 +182,17 @@ export default function App() {
       void workflow.refresh()
       void shiphub.ensureFresh()
     }, [workflow.refresh, shiphub.ensureFresh]),
-    { enabled: authenticated && !introLocked && opsDataNeeded }
+    // hydrated 之后才订阅（2026-09-18）：bootstrap 未返回时版本号种子未知，从 0 起步的
+    // 长轮询会立刻收到「变了」并触发一轮重复刷新（bootstrap + ensure-fresh 各白做一遍）。
+    { enabled: authenticated && !introLocked && opsDataNeeded && workflow.hydrated, initialVersion: workflow.changeVersion }
   )
+  // 冷启动并行预取（2026-09-18）：bootstrap 只依赖会话 cookie，可以在 /auth/me
+  // 还在验证时就发出（未登录时 401 被静默丢弃，且不产生任何 D1 读）。首屏的
+  // /auth/me → /bootstrap 串行由此变成并行，省掉一个完整往返的等待。
+  useEffect(() => {
+    if (auth.status !== 'restoring' || !opsDataNeeded || introLocked) return
+    prefetchBootstrap()
+  }, [auth.status, opsDataNeeded, introLocked])
   const [menuOpen, setMenuOpen] = useState(false)
   const [passwordChangeOpen, setPasswordChangeOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
@@ -774,43 +803,43 @@ export default function App() {
   })
 
   if (setupToken && !authenticated) {
-    return <><InitialSetup token={setupToken} onComplete={() => { setSetupToken(''); setToast('首位管理员已创建，请使用新账号登录。') }} /><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
+    return <AppScreen updatePromptEnabled={!deferUpdatePrompt}><InitialSetup token={setupToken} onComplete={() => { setSetupToken(''); setToast('首位管理员已创建，请使用新账号登录。') }} /></AppScreen>
   }
 
   if (platformAdminToken && !authenticated) {
-    return <><PlatformAdminSetup token={platformAdminToken} onComplete={() => { setPlatformAdminToken(''); setToast('CHU13 已创建，请使用 CHU13 登录。') }} /><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
+    return <AppScreen updatePromptEnabled={!deferUpdatePrompt}><PlatformAdminSetup token={platformAdminToken} onComplete={() => { setPlatformAdminToken(''); setToast('CHU13 已创建，请使用 CHU13 登录。') }} /></AppScreen>
   }
 
 
   if (auth.status === 'restoring') {
-    return <><main className="hydration-state" role="status" aria-live="polite"><strong>VERIFYING SESSION</strong><span>正在验证数据库账号…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
+    return <AppScreen updatePromptEnabled={!deferUpdatePrompt}><main className="hydration-state" role="status" aria-live="polite"><strong>VERIFYING SESSION</strong><span>正在验证数据库账号…</span></main></AppScreen>
   }
 
   if (authenticated && emailBindingRequired && introDone) {
-    return <><EmailBindingGate userName={currentUser} onVerify={auth.bindEmail} onLogout={auth.logout} onComplete={() => setToast('邮箱绑定完成，业务工作台已解锁。')} /><ReportImageDialog
+    return <AppScreen updatePromptEnabled={!deferUpdatePrompt}><EmailBindingGate userName={currentUser} onVerify={auth.bindEmail} onLogout={auth.logout} onComplete={() => setToast('邮箱绑定完成，业务工作台已解锁。')} /><ReportImageDialog
         open={Boolean(reportImage?.objectUrl)}
         onClose={closeReportImage}
         imageUrl={reportImage?.objectUrl || ''}
         filename={reportImage?.filename || ''}
         onDownload={redownloadReportImage}
       />
-      <UpdateRefreshDialog /><StatusToast notice={toast} /></>
+      <StatusToast notice={toast} /></AppScreen>
   }
 
   if (authenticated && mustChangePassword && introDone) {
-    return <><PasswordChangeGate userName={currentUser} onChangePassword={auth.changePassword} onLogout={auth.logout} onComplete={() => setToast('密码已更新，业务工作台已解锁。')} /><ReportImageDialog
+    return <AppScreen updatePromptEnabled={!deferUpdatePrompt}><PasswordChangeGate userName={currentUser} onChangePassword={auth.changePassword} onLogout={auth.logout} onComplete={() => setToast('密码已更新，业务工作台已解锁。')} /><ReportImageDialog
         open={Boolean(reportImage?.objectUrl)}
         onClose={closeReportImage}
         imageUrl={reportImage?.objectUrl || ''}
         filename={reportImage?.filename || ''}
         onDownload={redownloadReportImage}
       />
-      <UpdateRefreshDialog /><StatusToast notice={toast} /></>
+      <StatusToast notice={toast} /></AppScreen>
   }
 
   if (authenticated && adminMode && auth.user?.isPlatformAdmin) {
     return (
-      <>
+      <AppScreen updatePromptEnabled={!deferUpdatePrompt}>
         <Suspense fallback={<p className="admin-console-loading" role="status">正在载入平台管理后台…</p>}>
           <PlatformAdminConsole
             user={currentUser}
@@ -822,7 +851,7 @@ export default function App() {
         </Suspense>
         <PasswordChangeDialog open={passwordChangeOpen} userName={currentUser} onClose={() => setPasswordChangeOpen(false)} onChangePassword={auth.changePassword} onComplete={completePasswordChange} />
         <StatusToast notice={toast} />
-      </>
+      </AppScreen>
     )
   }
 
@@ -831,12 +860,12 @@ export default function App() {
   // 判断，这两站（以及预览站的就地打开）会永久停在 SYNCING DATABASE —— 2026-09-15
   // 无头冒烟实测踩到（选择门店设计后就卡在这一屏）。
   if (authenticated && opsDataNeeded && !workflow.hydrated && (auth.source === 'restore' || loginAnimationDone)) {
-    return <><main className="hydration-state" role="status" aria-live="polite"><strong>SYNCING DATABASE</strong><span>正在读取门店业务台账…</span></main><UpdateRefreshDialog enabled={!deferUpdatePrompt} /></>
+    return <AppScreen updatePromptEnabled={!deferUpdatePrompt}><main className="hydration-state" role="status" aria-live="polite"><strong>SYNCING DATABASE</strong><span>正在读取门店业务台账…</span></main></AppScreen>
   }
 
   if (authenticated && introDone && workflow.hydrated && !workflow.hasSnapshot && effectiveApp === 'ops') {
     return (
-      <>
+      <AppScreen updatePromptEnabled={!deferUpdatePrompt}>
         <main className="hydration-state sync-failure" role="alert" aria-live="assertive">
           <strong>DATABASE UNAVAILABLE</strong>
           <span>{workflow.storageError || '暂时无法读取门店业务台账。'}</span>
@@ -846,8 +875,7 @@ export default function App() {
             <button type="button" className="secondary-action" onClick={() => void logout()}>退出登录</button>
           </div>
         </main>
-        <UpdateRefreshDialog enabled={!deferUpdatePrompt} />
-      </>
+      </AppScreen>
     )
   }
 
@@ -872,7 +900,7 @@ export default function App() {
 
 
   return (
-    <>
+    <AppScreen updatePromptEnabled={!deferUpdatePrompt && !workspaceLaunching}>
       {showBoot ? <BootLoader
           initialError={auth.error}
           onLogin={auth.login}
@@ -975,10 +1003,9 @@ export default function App() {
         filename={reportImage?.filename || ''}
         onDownload={redownloadReportImage}
       />
-      <UpdateRefreshDialog enabled={!deferUpdatePrompt && !workspaceLaunching} />
       <StatusToast notice={toast} />
       <PaletteLab />
       <PromptLab onResetReconnect={shiphubReconnectPrompt.reset} />
-    </>
+    </AppScreen>
   )
 }
