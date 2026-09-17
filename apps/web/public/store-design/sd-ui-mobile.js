@@ -317,6 +317,11 @@ function accNow(o, key){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
   return (a && a[key]) ? a[key] : 'none';
 }
+/* 挂钩数量（2026-09-17：挂钩改成逐个可移动的对象） */
+function accHooks(o){
+  var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
+  return (a && a.hooks) ? a.hooks.length : 0;
+}
 function accRows(o){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
   return (a && a.rows) ? a.rows : [];
@@ -363,7 +368,8 @@ function selBarHTML(ctx){
       + '<button data-bact="addArm" data-arm="long">＋长托臂</button>'
       + (accRows(o).length ? '<button data-bact="clearArms">清空托臂(' + accRows(o).length + '排)</button>' : '')
       + '<button data-bact="accRack"' + (accNow(o, 'rack') !== 'none' ? ' data-on="true"' : '') + '>地架：' + accLab(accNow(o, 'rack')) + '</button>'
-      + '<button data-bact="accHook"' + (accNow(o, 'hook') === 'on' ? ' data-on="true"' : '') + '>挂钩：' + (accNow(o, 'hook') === 'on' ? '开' : '无') + '</button></div>';
+      + '<button data-bact="accHook"' + (accHooks(o) ? ' data-on="true"' : '') + '>'
+      + (accHooks(o) ? '挂钩：' + accHooks(o) + ' 个' : '＋挂钩成排') + '</button></div>';
   } else if (k === 'si'){
     /* 工作室组件（2026-09-17）：转 90° / 转正 / 长度 / 位置 / 删除 */
     h += '<div class="sd-m-selrow">' + close + '<span class="sd-m-tag">' + esc(itemLabel(o)) + '</span>'

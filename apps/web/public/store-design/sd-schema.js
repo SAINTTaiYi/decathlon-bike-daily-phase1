@@ -116,8 +116,17 @@ function shelfFields(s, i){
   var SIDE_OPTS = [['auto', '自动（朝空侧）'], ['pos', fn.pos], ['neg', fn.neg], ['both', '两面都装']];
   f.push(select('shelves.' + i + '.acc.rack', '地架排车', acc.rack, [['none','不装'],['adult','成人车'],['kids','童车']]));
   if (isDouble && acc.rack !== 'none') f.push(select('shelves.' + i + '.acc.rackSide', '　地架挂载面', acc.rackSide, SIDE_OPTS));
-  f.push(select('shelves.' + i + '.acc.hook', '自行车挂钩', acc.hook, [['none','不装'],['on','装（4 个/米）']]));
-  if (isDouble && acc.hook === 'on') f.push(select('shelves.' + i + '.acc.hookSide', '　挂钩挂载面', acc.hookSide, SIDE_OPTS));
+  /* 挂钩（2026-09-17 用户要求「不要固定在顶端」）：每个挂钩有独立的沿架位置与离地高度，
+     属性栏改数值，或在「正面视角」里直接拖着走（拖的是同一个 u / z）。 */
+  acc.hooks.forEach(function(hk, hi){
+    f.push(note('挂钩 ' + (hi + 1) + '：沿架 ' + num(hk.u) + 'm · 离地 ' + num(hk.z) + 'm'));
+    f.push(number('shelves.' + i + '.acc.hooks.' + hi + '.u', '　沿架位置', hk.u,
+      { unit:'m', min:0, max:s.len, step:0.05 }));
+    f.push(number('shelves.' + i + '.acc.hooks.' + hi + '.z', '　离地高度', hk.z,
+      { unit:'m', min:0.15, max:Math.round((hS + 0.3) * 100) / 100, step:0.05 }));
+    if (isDouble) f.push(select('shelves.' + i + '.acc.hooks.' + hi + '.face', '　挂载面', hk.face, FACE_OPTS));
+  });
+  if (acc.hooks.length) f.push(note('挂钩可拖动：正面视角里直接拖（左右 + 上下）。'));
   f.push(number('shelves.' + i + '.x', 'x 坐标', s.x, { unit:'m', min:0, max:200, step:0.1 }));
   f.push(number('shelves.' + i + '.y', 'y 坐标', s.y, { unit:'m', min:0, max:200, step:0.1 }));
   return f;
@@ -281,7 +290,7 @@ function elementGroups(cfg){
         }
       }
       if (acc.rack !== 'none') accBit += ' · 地架×' + E().rackCount(s);
-      if (acc.hook === 'on') accBit += ' · 挂钩×' + E().hookCount(s);
+      if (acc.hooks.length) accBit += ' · 挂钩×' + E().hookCount(s);
       return { id:'sh:' + s.id, type:'sh', index:i, title: s.name ? s.name : ('货架 #' + (i + 1)),
         badge: (s.kind === 'double' ? '双面' : s.kind === 'single' ? '单面' : '矮货架') + ' ' + num(s.len) + 'm'
           + (E().shelfRot(s) ? ' · ' + num(E().shelfRot(s)) + '°' : '')
@@ -293,10 +302,14 @@ function elementGroups(cfg){
           action('fillb', s.id + ':adult:top', '⤓ 上架成人'),
           action('fillb', s.id + ':kids:top', '⤓ 上架童车'),
           action('addArm', s.id + ':short', '＋短托臂 0.5m'),
-          action('addArm', s.id + ':long', '＋长托臂 1m')
+          action('addArm', s.id + ':long', '＋长托臂 1m'),
+          action('addHook', s.id, '＋挂钩')
         ].concat(acc.rows.map(function(r, ri){
           return action('delArmRow', s.id + ':' + ri, '删托臂排 ' + (ri + 1), 'danger');
-        })).concat(acc.rows.length ? [action('clearArms', s.id, '清空托臂', 'danger')] : []) };
+        })).concat(acc.rows.length ? [action('clearArms', s.id, '清空托臂', 'danger')] : [])
+          .concat(acc.hooks.map(function(hk, hi){
+            return action('delHook', s.id + ':' + hk.id, '删挂钩 ' + (hi + 1), 'danger');
+          })).concat(acc.hooks.length ? [action('clearHooks', s.id, '清空挂钩', 'danger')] : []) };
     }) });
   }
   /* 工作室的 id 必须与平面图里的 data-id 完全一致（都是 'st'）：

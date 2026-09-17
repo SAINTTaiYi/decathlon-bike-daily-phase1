@@ -164,6 +164,57 @@ async function main(){
       fail('A 页无法选中工作室，跨端内容验证未执行')
     }
 
+    /* 挂钩（2026-09-17 用户要求「可自由移动，而不是固定在顶端」）：
+       正面视角里新增一个挂钩 → 出现在可拖动命中区 → 再把它删掉（净零，不留痕）。 */
+    const pickedShelf = await pageA.evaluate(() => {
+      const g = document.querySelector('#tabplan [data-id^="sh:"]')
+      if (!g) return null
+      const r = g.getBoundingClientRect()
+      const o = { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2, pointerId: 9, button: 0, isPrimary: true }
+      g.dispatchEvent(new PointerEvent('pointerdown', o))
+      window.dispatchEvent(new PointerEvent('pointerup', o))
+      return g.getAttribute('data-id')
+    })
+    await sleep(400)
+    const frontOpened = await pageA.evaluate(() => {
+      const b = document.querySelector('[data-bact="openFront"]')
+      if (b) { b.click(); return true }
+      return false
+    })
+    await sleep(900)
+    if (!pickedShelf || !frontOpened){
+      fail('挂钩验证前置失败：货架选择或「正面视角」入口回归（shelf=' + String(pickedShelf) + '）')
+    } else {
+      const hooksBefore = await pageA.evaluate(() =>
+        Array.prototype.slice.call(document.querySelectorAll('#viewfront [data-hook]')).map((g) => g.getAttribute('data-hook'))
+      )
+      const hookAdded = await pageA.evaluate(() => {
+        const b = document.querySelector('[data-act="addHook"]')
+        if (b) { b.click(); return true }
+        return false
+      })
+      await sleep(800)
+      const hooksAfter = await pageA.evaluate(() =>
+        Array.prototype.slice.call(document.querySelectorAll('#viewfront [data-hook]')).map((g) => g.getAttribute('data-hook'))
+      )
+      const fresh = hooksAfter.filter((id) => hooksBefore.indexOf(id) < 0)
+      if (hookAdded && hooksAfter.length === hooksBefore.length + 1 && fresh.length === 1){
+        pass('挂钩：正面视角可新增可拖动挂钩（' + hooksBefore.length + ' → ' + hooksAfter.length + '）')
+        const removed = await pageA.evaluate((hookId) => {
+          const b = document.querySelector('[data-act="delHook"][data-id$=":' + hookId + '"]')
+          if (b) { b.click(); return true }
+          return false
+        }, fresh[0])
+        await sleep(600)
+        const restored = await pageA.evaluate((hookId) =>
+          !document.querySelector('#viewfront [data-hook="' + hookId + '"]'), fresh[0])
+        if (removed && restored) pass('挂钩：验证用挂钩已删除（房间净零）')
+        else fail('挂钩还原失败（delHook 或渲染回归）')
+      } else {
+        fail('挂钩新增异常：' + hooksBefore.length + ' → ' + hooksAfter.length)
+      }
+    }
+
     if (pageErrors.length){
       fail('页面 JS 异常：' + pageErrors.slice(0, 3).join(' | '))
     } else {

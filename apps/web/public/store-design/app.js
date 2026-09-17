@@ -61,7 +61,7 @@ try {
   }
 } catch(e1){}
 var ui = { tab: 't3d', sel: null, planZ: null, grid: true, snap: 0.5,
-           frontShelf: null, frontRow: null, frontScale: null, frontFace: {} };
+           frontShelf: null, frontRow: null, frontHook: null, frontScale: null, frontFace: {} };
 
 function $(q, root){ return (root || document).querySelector(q); }
 function $all(q, root){ return Array.prototype.slice.call((root || document).querySelectorAll(q)); }
@@ -279,7 +279,7 @@ var HELP_LINES = [
   '矮货架默认高 0.9m，颜色淡紫以便区分；长/高/单双面照常可调。',
   '门帘默认放在「商场出入口」与「进出口」，半透明条纹；可增删、拖动、改尺寸朝向。',
   '自行车：成人车 2.0m / 童车 1.5m。两种摆放：立地（90° 直放、车头 45° 倾斜）与上架平放（架顶，2m/位）。单台可调朝向与车头角度。',
-  '货架陈列：默认高 3.3m。托臂按排放置（短托臂 0.5m / 长托臂 1m，可分别放），每排高度、车型、起止范围都能单独调；地架每米 3 个、挂钩每米 4 个。',
+  '货架陈列：默认高 3.3m。托臂按排放置（短托臂 0.5m / 长托臂 1m，可分别放），每排高度、车型、起止范围都能单独调；地架每米 3 个；挂钩每个都能单独摆位置（正面视角里直接拖，左右 + 上下）。',
   '货架正面视角：选中货架后点「🧍 正面视角」（或切顶部「货架正面」页签）——在里面直接拖动托臂排调高度与位置，两端圆点调范围。',
   '出入口净空区：三个出入口各一块橙色虚线框，货架/试用区/区域/工作室/柱子/网面墙都不得占用；随机方案会自动避开。',
   '🎲 随机方案：随机货架排布、工作室位置、试用区大小位置，自动重试直到满足全部要求。',
@@ -372,11 +372,15 @@ function fillShelfBikes(ids){
 /* 货架陈列附件（托臂 / 地架 / 挂钩）。
    托臂按「排」放置：短托臂（伸出 0.5m）与长托臂（伸出 1m）可分别放置，
    每排高度（z，车轮底离地）可调，也可用起止位置只占货架的一段（左右混排）。
-   地架 / 挂钩仍是单值开关（点击循环「无 → 成人 → 童车 → 无」）。
+   地架仍是单值开关（点击循环「无 → 成人 → 童车 → 无」）。
+   挂钩（2026-09-17 用户要求「不要固定在顶端」）：每个挂钩有独立的沿架位置与离地高度，
+   快捷条这里是「一键成排 / 一键清空」入口，之后在正面视角里逐个拖动。
    附件不落盘成独立元素：全部由货架配置（shelves[].acc）派生渲染，随货架自动跟随。 */
-var ACC_CYCLE = { rack: ['none', 'adult', 'kids'], hook: ['none', 'on'] };
-var ACC_LABEL = { none: '无', adult: '成人', kids: '童车', on: '开' };
+var ACC_CYCLE = { rack: ['none', 'adult', 'kids'] };
+var ACC_LABEL = { none: '无', adult: '成人', kids: '童车' };
 function accLabel(v){ return ACC_LABEL[v] || '无'; }
+/* 地架：单值开关（点击循环「无 → 成人 → 童车 → 无」）。
+   挂钩不走这里（2026-09-17 起是逐个个体的位置数组，见 addHooksRow / clearHooks）。 */
 function cycleAcc(id, key){
   var s = shelfGet(id); if (!s) return;
   s.acc = s.acc || {};
@@ -385,10 +389,8 @@ function cycleAcc(id, key){
   var idx = seq.indexOf(cur); if (idx < 0) idx = 0;
   s.acc[key] = seq[(idx + 1) % seq.length];
   afterStruct(); renderSelBar(true);
-  var a = E.accOf(s), msg;
-  if (key === 'rack') msg = '地架：' + (a.rack === 'none' ? '已拆除' : ((a.rack === 'kids' ? '童车' : '成人车') + ' ×' + E.rackCount(s) + '（每米 3 个）'));
-  else msg = '挂钩：' + (a.hook === 'on' ? (E.hookCount(s) + ' 个（每米 4 个）') : '已拆除');
-  toast(msg);
+  var a = E.accOf(s);
+  toast('地架：' + (a.rack === 'none' ? '已拆除' : ((a.rack === 'kids' ? '童车' : '成人车') + ' ×' + E.rackCount(s) + '（每米 3 个）')));
 }
 /* 托臂排：新增 / 删除 / 清空。排 id 依次 a1、a2…（用于稳定的派生元素 id） */
 function nextArmRowId(rows){
@@ -437,6 +439,72 @@ function delArmRow(id, idx){
   var n = rows.splice(idx, 1).length;
   afterStruct(); renderSelBar(true);
   toast('已删除托臂排 ' + (idx + 1) + (n ? '' : ''));
+}
+/* 挂钩（2026-09-17 用户要求「不要固定在顶端」）：每个挂钩是一个独立对象
+   （沿架位置 u + 离地高度 z，都可自由取值）。这里只管增删；
+   位置在正面视角里直接拖动（bindFront），也可以在属性栏里改数值。 */
+function hookArr(s){
+  s.acc = s.acc || {};
+  if (!Array.isArray(s.acc.hooks)) s.acc.hooks = [];
+  return s.acc.hooks;
+}
+function nextHookId(hooks){
+  var max = 0;
+  (hooks || []).forEach(function(h){
+    var m = /^h(\d+)$/.exec(h && h.id ? h.id : '');
+    if (m) max = Math.max(max, +m[1]);
+  });
+  return 'h' + Math.max(1, max + 1);
+}
+/* 一键成排：按每米 4 个均匀铺开（旧版行为保留为入口），之后逐个拖动微调 */
+function addHooksRow(s){
+  var arr = hookArr(s);
+  var faceWanted = (ui.tab === 'tfront') ? frontFaceOf(s) : null;
+  var specs = E.hookRowSpecs(s);
+  specs.forEach(function(sp){
+    var hk = { id: nextHookId(arr), u: sp.u, z: sp.z };
+    if (faceWanted) hk.face = faceWanted;
+    arr.push(hk);
+  });
+  afterStruct(); renderSelBar(true); renderFrontNow();
+  toast('已加 ' + specs.length + ' 个挂钩（每米 4 个）' + (faceWanted ? '（' + frontFaceName(s, faceWanted) + '）' : '')
+    + '：在正面视角里可以直接拖着调位置与高度');
+}
+/* 单个新增：位置排在已有挂钩的中缝，高度沿用已有挂钩（没有就 1.5m） */
+function addHookAt(s){
+  if (!s){ toast('先选中一个货架'); return; }
+  var arr = hookArr(s);
+  var faceWanted = (ui.tab === 'tfront') ? frontFaceOf(s) : null;
+  var hk = { id: nextHookId(arr), u: E.nextHookU(s, arr), z: E.nextHookZ(s, arr) };
+  if (faceWanted) hk.face = faceWanted;
+  arr.push(hk);
+  ui.sel = 'sh:' + s.id; ui.frontHook = hk.id;
+  afterStruct(); renderSelBar(true); renderFrontNow();
+  var norm = E.accOf(s).hooks[arr.length - 1];
+  toast('已加挂钩：沿架 ' + norm.u + 'm · 离地 ' + norm.z + 'm（正面视角里可拖动）');
+}
+function delHookById(spec){
+  var parts = String(spec == null ? '' : spec).split(':');
+  var s = shelfGet(parts[0]); if (!s) return;
+  var arr = (s.acc && Array.isArray(s.acc.hooks)) ? s.acc.hooks : null;
+  if (!arr) return;
+  var idx = -1;
+  for (var i = 0; i < arr.length; i++){ if (String(arr[i].id) === String(parts[1])){ idx = i; break; } }
+  if (idx < 0) return;
+  arr.splice(idx, 1);
+  if (String(ui.frontHook) === String(parts[1])) ui.frontHook = null;
+  afterStruct(); renderSelBar(true); renderFrontNow();
+  toast('已删除挂钩');
+}
+function clearHooks(s, msg){
+  if (!s) return;
+  var arr = (s.acc && Array.isArray(s.acc.hooks)) ? s.acc.hooks : null;
+  if (!arr || !arr.length) return;
+  var n = arr.length;
+  s.acc.hooks = [];
+  ui.frontHook = null;
+  afterStruct(); renderSelBar(true); renderFrontNow();
+  toast(msg || ('已清空 ' + n + ' 个挂钩'));
 }
 function clearArms(id){
   var s = shelfGet(id); if (!s || !s.acc) return;
@@ -506,14 +574,23 @@ var acts = {
     var s = id ? shelfGet(id) : null;
     if (!s){ toast('先选中一个货架'); return; }
     if (ui.placing) endPlacing(true);
-    ui.frontShelf = s.id; ui.frontRow = null;
+    ui.frontShelf = s.id; ui.frontRow = null; ui.frontHook = null;
     ui.sel = 'sh:' + s.id;
     if (ui.tab !== 'tfront') setTab('tfront'); else renderFrontNow();
     buildEditors();
     toast('正面视角：拖托臂排调高度 / 左右平移，两端圆点调范围');
   },
   accRack: function(ds){ cycleAcc(ds.id, 'rack'); },
-  accHook: function(ds){ cycleAcc(ds.id, 'hook'); },
+  /* 挂钩：一点成排（每米 4 个，之后再逐个拖动微调），已有则一键清空 */
+  accHook: function(ds){
+    var s = shelfGet(ds.id); if (!s) return;
+    if (E.hookCount(s)) clearHooks(s, '已拆除 ' + E.hookCount(s) + ' 个挂钩');
+    else addHooksRow(s);
+    afterStruct(); renderSelBar(true); renderFrontNow();
+  },
+  addHook: function(ds){ addHookAt(shelfGet(ds.id), null); },
+  delHook: function(ds){ delHookById(ds.id); },
+  clearHooks: function(ds){ var s = shelfGet(ds.id); if (s) clearHooks(s, null), afterStruct(), renderSelBar(true), renderFrontNow(); },
   addArm: function(ds){ var p = String(ds.id).split(':'); addArmRow(p[0], p[1]); },
   delArmRow: function(ds){ var p = String(ds.id).split(':'); delArmRow(p[0], +p[1]); },
   clearArms: function(ds){ clearArms(ds.id); },
@@ -1015,7 +1092,11 @@ function afterSelect(){
   updateSelFrame();
   renderSelBar();
   /* 选中货架时把「货架正面」视图也跟随过去（在平面/大纲里换货架，正面视图同步换） */
-  if (/^sh:/.test(String(ui.sel || ''))) ui.frontShelf = String(ui.sel).slice(3);
+  if (/^sh:/.test(String(ui.sel || ''))){
+    var fsNext = String(ui.sel).slice(3);
+    if (String(ui.frontShelf) !== fsNext) ui.frontHook = null;   /* 换货架：旧的挂钩选中作废 */
+    ui.frontShelf = fsNext;
+  }
   renderFrontNow();
   if (window.SDUI && SDUI.onSelectionChange) SDUI.onSelectionChange();
   buildEditors();
@@ -1107,8 +1188,10 @@ function bindSelBar(){
     } else if (act === 'addOpen'){
       /* 外墙快捷条：给该边加一个开口（外墙 id 就是边名 top/bottom/left/right） */
       acts.addOpen({ id: id });
-    } else if (act === 'accRack' || act === 'accHook'){
-      cycleAcc(id, act === 'accRack' ? 'rack' : 'hook');
+    } else if (act === 'accRack'){
+      cycleAcc(id, 'rack');
+    } else if (act === 'accHook'){
+      acts.accHook({ id: id });
     } else if (act === 'addArm'){
       addArmRow(id, b.getAttribute('data-arm'));
     } else if (act === 'clearArms'){
@@ -1341,6 +1424,13 @@ function frontRowGet(s, rowId){
   }
   return null;
 }
+function frontHookGet(s, hookId){
+  if (!s || !s.acc || !Array.isArray(s.acc.hooks)) return null;
+  for (var i = 0; i < s.acc.hooks.length; i++){
+    if (String(s.acc.hooks[i].id) === String(hookId)) return s.acc.hooks[i];
+  }
+  return null;
+}
 /* 行内数值可能在未显式设置时走默认值：拖动前先落成显式值，避免「看不见的默认」被改坏 */
 function materializeRow(s, r){
   var norm = E.accOf(s).rows.filter(function(x){ return String(x.id) === String(r.id); })[0];
@@ -1362,6 +1452,7 @@ function frontFaceOf(s){
 function frontFaceSet(id, face){
   if (face !== 'pos' && face !== 'neg') delete ui.frontFace[id];
   else ui.frontFace[id] = face;
+  ui.frontHook = null;          /* 换面后原来的挂钩不在这一面，清掉选中 */
   renderFrontNow();
 }
 /* 把当前面的托臂排镜像到另一面（用户：「另一面没有办法添加组件」） */
@@ -1411,6 +1502,8 @@ function renderFrontBar(){
     + '<button data-act="addArm" data-id="' + esc2(s.id) + ':long">＋长托臂 1m</button>'
     + (dbl && nHere ? '<button data-frontmirror="1">镜像到' + names[there] + '（' + nHere + ' 排）</button>' : '')
     + (rows ? '<button data-act="clearArms" data-id="' + esc2(s.id) + '" data-tone="danger">清空托臂（' + rows + ' 排）</button>' : '')
+    + '<button data-act="addHook" data-id="' + esc2(s.id) + '">＋挂钩</button>'
+    + (acc.hooks.length ? '<button data-act="clearHooks" data-id="' + esc2(s.id) + '" data-tone="danger">清空挂钩（' + acc.hooks.length + '）</button>' : '')
     + '<button data-frontzoom="out">－</button><button data-frontzoom="in">＋</button><button data-frontzoom="fit">适应</button>';
 }
 function renderFrontNow(){
@@ -1426,13 +1519,14 @@ function renderFrontNow(){
   var vw = (els.frontScroll ? els.frontScroll.clientWidth : 900) - 18;
   var vh = els.frontScroll ? els.frontScroll.clientHeight - 12 : 0;
   var r = E.renderShelfFront(cfg, s.id, { vw: vw, vh: vh, scale: ui.frontScale || 0, selRow: ui.frontRow,
-                                          face: frontFaceOf(s) });
+                                          selHook: ui.frontHook, face: frontFaceOf(s) });
   els.viewfront.innerHTML = r.svg;
   var fsvgEl = els.viewfront.querySelector('svg');
   if (fsvgEl){
     fsvgEl.setAttribute('data-face', r.meta.face || '');
     fsvgEl.setAttribute('data-rows', String(r.meta.rows || 0));
     fsvgEl.setAttribute('data-other-rows', String(r.meta.otherRows || 0));
+    fsvgEl.setAttribute('data-hooks', String(r.meta.hooks || 0));
   }
   if (r.meta && !ui.frontScale) ui.frontScale = r.meta.scale;
 }
@@ -1445,6 +1539,48 @@ function frontZoom(kind){
   else ui.frontScale = Math.max(10, Math.round(cur / 1.25));
   renderFrontNow();
 }
+/* 正面视角 · 拖动挂钩（2026-09-17 用户要求「在货架上自由移动，而不是固定在顶端」）：
+   一次拖动同时改沿架位置 u 与离地高度 z（0.05m 栅格）；松手落盘，点一下 = 选中。 */
+function dragFrontHook(e, sc, svgEl, m, s, el){
+  var hkId = el.getAttribute('data-hook');
+  var hk = frontHookGet(s, hkId); if (!hk) return;
+  var start = { u: (+hk.u >= 0) ? +hk.u : s.len / 2, z: (+hk.z > 0) ? +hk.z : E.HOOK_Z_DEFAULT };
+  hk.u = Math.round(start.u * 100) / 100; hk.z = Math.round(start.z * 100) / 100;
+  var pt = toFrontUZ(svgEl, e.clientX, e.clientY); if (!pt) return;
+  var s0 = { u: pt.u, z: pt.z }, moved = false;
+  e.preventDefault();
+  try { sc.setPointerCapture(e.pointerId); } catch(e1){}
+  function blockTM(ev){ ev.preventDefault(); }
+  sc.addEventListener('touchmove', blockTM, { passive:false });
+  function move(ev){
+    var p = toFrontUZ(frontSvgLive(), ev.clientX, ev.clientY); if (!p) return;
+    var du = p.u - s0.u, dz = p.z - s0.z;
+    if (!moved && Math.hypot(du, dz) * m.scale < 4) return;   /* 4px 死区：点选 vs 拖动 */
+    moved = true;
+    var uMax = Math.max(E.HOOK_U_EDGE, m.len - E.HOOK_U_EDGE);
+    hk.u = Math.round(E.clamp(Math.round((start.u + du) / 0.05) * 0.05, E.HOOK_U_EDGE, uMax) * 100) / 100;
+    hk.z = Math.round(E.clamp(Math.round((start.z + dz) / 0.05) * 0.05, E.HOOK_Z_MIN, m.h + E.HOOK_Z_ABOVE) * 100) / 100;
+    renderFrontNow();
+    if (window.SDUI && SDUI.refreshSelVals) renderSelBar(true);
+  }
+  function up(){
+    sc.removeEventListener('touchmove', blockTM);
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    try { sc.releasePointerCapture(e.pointerId); } catch(e2){}
+    ui.frontHook = hkId;
+    ui.sel = 'sh:' + s.id;
+    if (moved){
+      saveSoon(); renderChips(); schedule3D(); renderPlanNow(); buildEditors();
+      renderSelBar(); renderFrontNow();
+      toast('挂钩：沿架 ' + hk.u.toFixed(2) + 'm · 离地 ' + hk.z.toFixed(2) + 'm');
+    } else {
+      afterSelect();
+    }
+  }
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+}
 function bindFront(){
   var sc = els.frontScroll;
   if (!sc || sc.getAttribute('data-bound') === '1') return;
@@ -1452,7 +1588,7 @@ function bindFront(){
   /* 触摸：按在托臂排上时不滚动页面，交给拖拽 */
   sc.addEventListener('touchstart', function(ev){
     if (!ev.cancelable) return;
-    if (ev.target && ev.target.closest && (ev.target.closest('[data-row]') || ev.target.closest('[data-rowhandle]'))) ev.preventDefault();
+    if (ev.target && ev.target.closest && (ev.target.closest('[data-row]') || ev.target.closest('[data-rowhandle]') || ev.target.closest('[data-hook]'))) ev.preventDefault();
   }, { passive:false, capture:true });
   sc.addEventListener('pointerdown', function(e){
     if (e.button != null && e.button > 0) return;
@@ -1461,6 +1597,8 @@ function bindFront(){
     var s = shelfGet(m.shelf); if (!s) return;
     var hEl = e.target && e.target.closest ? e.target.closest('[data-rowhandle]') : null;
     var rEl = e.target && e.target.closest ? e.target.closest('[data-row]') : null;
+    var kEl = e.target && e.target.closest ? e.target.closest('[data-hook]') : null;
+    if (kEl && !hEl && !rEl){ dragFrontHook(e, sc, svgEl, m, s, kEl); return; }
     if (!hEl && !rEl) return;
     var rowId, mode;
     if (hEl){

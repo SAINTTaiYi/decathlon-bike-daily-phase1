@@ -374,13 +374,19 @@ function bikesForShelf(s, type, opts){
        每排位宽：成人车 2.0m、16″ 童车 4/3m → 2m 货架 1 台/排；4m 货架 3 台童车/排。
        每排还可用「起始 / 结束位置」限定只占货架的一段（短长混排、成人童车混排）。
      · 地架：地面停车架，每米 3 个（1m 货架放 3 个）。
-     · 挂钩：货架前缘横杆挂点，每米 4 个。
+     · 挂钩：**每个挂钩有独立位置**（沿架位置 u + 离地高度 z），可在正面视角里
+       直接拖着走（2026-09-17 用户要求「不要固定在顶端」）；「＋挂钩」按
+       每米 4 个一键成排，之后逐个拖动微调。
    附件不落盘成独立元素：由货架配置派生（cfg.shelves[].acc），随货架移动 / 转向 /
    伸缩自动跟随，也不参与「越界 / 出入口净空」等独立元素检查。 */
 var ARM_SLOT = { adult: 2.0, kids: 4 / 3 };   /* 每台车占位宽度（m）：成人 / 16 寸童车 */
 var ARM_LEN = { short: 0.5, long: 1.0 };      /* 托臂伸出长度（m）：短 / 长 */
 var RACK_PER_M = 3;                           /* 地架密度（个 / m） */
-var HOOK_PER_M = 4;                           /* 挂钩密度（个 / m） */
+var HOOK_ROW_PER_M = 4;                       /* 「一键成排」的挂钩密度（个 / m，之后可逐个拖动） */
+var HOOK_Z_DEFAULT = 1.5;                     /* 新增挂钩的默认离地高度（m） */
+var HOOK_Z_MIN = 0.15;                        /* 挂钩最低离地高度（m） */
+var HOOK_Z_ABOVE = 0.30;                      /* 允许高出货架顶的高度（m） */
+var HOOK_U_EDGE = 0.06;                       /* 挂钩距货架两端的最小留边（m） */
 var SHELF_H_DEFAULT = 3.3;                    /* 门店货架实际高度（m） */
 
 /* ---------------- 挂载面（双面货架的两面） ----------------
@@ -418,20 +424,34 @@ function normArmRow(r, i, s){
   return { id: r.id || ('a' + (i + 1)), z: r2(z), len: len, size: size, u0: r2(u0), u1: r2(u1),
            face: normFace(r.face) };
 }
-/* 附件配置（归一化后的只读视图；rows = 托臂排数组，可 0..n 排） */
+/* 单个挂钩规格归一化：沿架位置 u（0..len）与离地高度 z（0.15 .. 架高+0.30）自由取值。
+   旧版「每米 4 个、固定在顶端」的开关由 migrateLegacy 换算成本数组（位置沿用旧渲染点）。 */
+function normHook(h, i, s){
+  h = h || {};
+  var SL = (+s.len > 0) ? +s.len : 4;
+  var hS = (s.h == null) ? SHELF_H_DEFAULT : +s.h;
+  var zMax = hS + HOOK_Z_ABOVE;
+  var u = (+h.u >= 0) ? +h.u : SL / 2;
+  u = clamp(u, HOOK_U_EDGE, Math.max(HOOK_U_EDGE, SL - HOOK_U_EDGE));
+  var z = (+h.z > 0) ? +h.z : Math.min(HOOK_Z_DEFAULT, zMax);
+  z = clamp(z, HOOK_Z_MIN, zMax);
+  return { id: h.id || ('h' + (i + 1)), u: r2(u), z: r2(z), face: normFace(h.face) };
+}
+/* 附件配置（归一化后的只读视图；rows = 托臂排数组，hooks = 挂钩数组） */
 function accOf(s){
   var a = (s && s.acc) || {};
   var rows = [];
   if (Array.isArray(a.armRows)){ a.armRows.forEach(function(r, i){ rows.push(normArmRow(r, i, s)); }); }
+  var hooks = [];
+  if (Array.isArray(a.hooks)){ a.hooks.forEach(function(hk, i){ hooks.push(normHook(hk, i, s)); }); }
   return {
     rows: rows,
+    hooks: hooks,
     rack: (a.rack === 'adult' || a.rack === 'kids') ? a.rack : 'none',
-    hook: a.hook === 'on' ? 'on' : 'none',
-    rackSide: normSide(a.rackSide),
-    hookSide: normSide(a.hookSide)
+    rackSide: normSide(a.rackSide)
   };
 }
-function accOn(s){ var a = accOf(s); return a.rows.length > 0 || a.rack !== 'none' || a.hook === 'on'; }
+function accOn(s){ var a = accOf(s); return a.rows.length > 0 || a.rack !== 'none' || a.hooks.length > 0; }
 /* 一排托臂挂几台车（范围不足一台时按一台算） */
 function rowFace(s, r, cfg){ return (r.face === 'pos' || r.face === 'neg') ? r.face : accFace(s, cfg); }
 /* 某一面有几排托臂 / 几台车（正面视角的页签计数用） */
@@ -460,7 +480,34 @@ function nextArmZ(s, rawRows){
   return r2(Math.min(Math.max(0.4, h - 0.85), top + 1.2));
 }
 function rackCount(s){ var a = accOf(s); return a.rack === 'none' ? 0 : Math.max(1, Math.round(s.len * RACK_PER_M)); }
-function hookCount(s){ var a = accOf(s); return a.hook === 'on' ? Math.max(1, Math.round(s.len * HOOK_PER_M)) : 0; }
+function hookCount(s){ return accOf(s).hooks.length; }
+/* 挂钩的挂载面（'auto' 走货架自动面，与托臂 / 地架同一套规则） */
+function hookFace(s, hk, cfg){ return (hk.face === 'pos' || hk.face === 'neg') ? hk.face : accFace(s, cfg); }
+function hooksOnFace(s, cfg, face){ return accOf(s).hooks.filter(function(hk){ return hookFace(s, hk, cfg) === face; }); }
+/* 新增挂钩的默认位置：沿架均匀铺开（第 n+1 个落在中缝上），高度沿用已有挂钩或 1.5m */
+function nextHookU(s, rawHooks){
+  var SL = (+s.len > 0) ? +s.len : 4;
+  var n = (rawHooks || []).length;
+  var u = SL * (n + 0.5) / (n + 1);
+  return r2(clamp(u, HOOK_U_EDGE, Math.max(HOOK_U_EDGE, SL - HOOK_U_EDGE)));
+}
+function nextHookZ(s, rawHooks){
+  var last = (rawHooks || []).filter(function(h){ return +h.z > 0; }).pop();
+  if (last) return r2(+last.z);
+  var hS = (s.h == null) ? SHELF_H_DEFAULT : +s.h;
+  return r2(Math.min(HOOK_Z_DEFAULT, hS + HOOK_Z_ABOVE));
+}
+/* 「一键成排」：把挂钩按每米 4 个均匀铺开（旧版行为，作为新增入口保留） */
+function hookRowSpecs(s){
+  var SL = (+s.len > 0) ? +s.len : 4;
+  var n = Math.max(1, Math.round(SL * HOOK_ROW_PER_M));
+  var arr = [];
+  for (var i = 0; i < n; i++){
+    arr.push({ u: r2(clamp((i + 0.5) * SL / n, HOOK_U_EDGE, Math.max(HOOK_U_EDGE, SL - HOOK_U_EDGE))),
+               z: Math.min(HOOK_Z_DEFAULT, ((s.h == null) ? SHELF_H_DEFAULT : +s.h) + HOOK_Z_ABOVE) });
+  }
+  return arr;
+}
 
 /* 附件展示面：默认朝空间里更空的一侧（贴墙货架自动朝外，不用手动翻面）。 */
 function accFace(s, cfg){
@@ -1603,35 +1650,23 @@ function render3D(cfg, view){
         }
       });
     }
-    /* 挂钩：前缘横杆 + 每米 4 个 J 形小钩（可指定面，或两面都装） */
-    if (a2.hook === 'on'){
-      var nH = hookCount(s), ztH = hS2 + 0.03;
-      resolveFaces(s, cfg, a2.hookSide).forEach(function(faceH){
-        var hTip = accPos(s, s.len / 2, 0.15, faceH);
-        if (shelfRot(s)){
-          var t0H = accLocalT(s, 0.08 - 0.026, faceH), t1H = accLocalT(s, 0.08 + 0.026, faceH);
-          var hCorners = shelfLocalBoxCorners(s, 0.05 - 0.026, s.len - 0.05 + 0.026, Math.min(t0H, t1H), Math.max(t0H, t1H));
-          var hMid = shelfLocalPt(s, s.len / 2, (t0H + t1H) / 2);
-          objBegin([[hMid.x, hMid.y, ztH], [hTip.x, hTip.y, ztH - 0.12]], 0.10);
-          quadBoxAdd(hCorners, ztH - 0.026, ztH + 0.026, PAL_ACC);
-        } else {
-          var pAH = accPos(s, 0.05, 0.08, faceH), pBH = accPos(s, s.len - 0.05, 0.08, faceH);
-          var hRail = { x1: Math.min(pAH.x,pBH.x)-0.026, y1: Math.min(pAH.y,pBH.y)-0.026,
-                        x2: Math.max(pAH.x,pBH.x)+0.026, y2: Math.max(pAH.y,pBH.y)+0.026,
-                        z1: ztH-0.026, z2: ztH+0.026 };
-          objBegin([boxMid(hRail), [hTip.x, hTip.y, ztH - 0.12]], 0.10);
-          boxAdd(hRail, PAL_ACC);
-        }
-        for (var kH = 0; kH < nH; kH++){
-          var uH = (kH + 0.5) * s.len / nH;
-          var phH = accPos(s, uH, 0.08, faceH), peH = accPos(s, uH, 0.15, faceH);
-          var kHook = phH.x * d3[0] + phH.y * d3[1] + (ztH - 0.11) * d3[2];
-          add1(kHook, lineStr([phH.x, phH.y, ztH-0.03], [phH.x, phH.y, ztH-0.12], '#7c8288', 0.7));
-          add1(kHook, lineStr([phH.x, phH.y, ztH-0.12], [peH.x, peH.y, ztH-0.19], '#7c8288', 0.7));
-        }
+    /* 挂钩（2026-09-17）：每个挂钩自带沿架位置 u 与离地高度 z，不再固定在前缘顶端。
+       形状 = 贴架面的短立柱（挂点底座）+ J 形小钩；斜放货架也正确（端点走 accPos 变换）。 */
+    a2.hooks.forEach(function(hk){
+      var zH = hk.z;
+      resolveFaces(s, cfg, hk.face).forEach(function(faceH){
+        var pBack = accPos(s, hk.u, 0.055, faceH);
+        var pMid  = accPos(s, hk.u, 0.09, faceH);
+        var pTip  = accPos(s, hk.u, 0.16, faceH);
+        var kHook = pMid.x * d3[0] + pMid.y * d3[1] + (zH - 0.10) * d3[2];
+        objBegin([[pBack.x, pBack.y, zH + 0.05], [pTip.x, pTip.y, zH - 0.12]], 0.06);
+        /* 挂点底座（贴架面的小立柱）：避免挂钩看起来悬空 */
+        add1(kHook - 0.01, lineStr([pBack.x, pBack.y, zH + 0.05], [pBack.x, pBack.y, zH - 0.16], '#9aa0a6', 1.3));
+        add1(kHook, lineStr([pMid.x, pMid.y, zH - 0.02], [pMid.x, pMid.y, zH - 0.12], '#7c8288', 0.7));
+        add1(kHook, lineStr([pMid.x, pMid.y, zH - 0.12], [pTip.x, pTip.y, zH - 0.19], '#7c8288', 0.7));
         objEnd();
       });
-    }
+    });
   });
 
   /* ---------- 独立网面墙 ---------- */
@@ -2193,14 +2228,11 @@ function renderPlan(cfg, ui){
         boxRS(uR-0.05, uR+0.05, 0.05, 0.36, '#d7dadd', '#9aa0a6', 0.02);
       }
     }
-    if (a2.hook === 'on'){
-      var nH = hookCount(s);
-      for (var kH = 0; kH < nH; kH++){
-        var uH = (kH + 0.5) * s.len / nH;
-        var phH = accPos(s, uH, 0.10, face2);
-        o.push('<circle cx="' + r2(phH.x) + '" cy="' + r2(phH.y) + '" r="0.055" fill="#7c8288"/>');
-      }
-    }
+    /* 挂钩：每个挂钩一个独立符号（位置 u 自由，平面只反映沿架位置） */
+    a2.hooks.forEach(function(hk){
+      var phH = accPos(s, hk.u, 0.10, hookFace(s, hk, cfg));
+      o.push('<circle cx="' + r2(phH.x) + '" cy="' + r2(phH.y) + '" r="0.055" fill="#7c8288"/>');
+    });
   });
 
   /* 工作室 */
@@ -2531,29 +2563,57 @@ function renderShelfFront(cfg, shelfId, opt){
       + names[viewFace] + '还没有托臂排：点上方「＋短托臂 / ＋长托臂」添加'
       + (otherRows ? '（' + names[otherFace] + '已有 ' + otherRows + ' 排）' : '') + '</text>');
   }
-  /* 地架 / 挂钩在正面上看不到（贴在货架前缘 / 地面），给一行说明避免误以为丢了 */
+  /* 挂钩（2026-09-17）：每个挂钩有独立的沿架位置与离地高度，在这里直接拖动 ——
+     这是「不要固定在顶端」的编辑入口；选中态给虚线环与数值。 */
+  var hooksHere = acc.hooks.filter(function(hk){ return hookFace(s, hk, cfg) === viewFace; });
+  hooksHere.forEach(function(hk){
+    var on = String(opt.selHook || '') === String(hk.id);
+    var xh = X(hk.u), yh = Y(hk.z);
+    var glyph = [];
+    /* 挂点底座（贴架面的小立柱）*/
+    glyph.push('<line x1="' + xh + '" y1="' + r2(yh - 0.05 * sc) + '" x2="' + xh + '" y2="' + r2(yh + 0.19 * sc)
+      + '" stroke="#9aa0a6" stroke-width="' + r2(Math.max(1, 0.018 * sc)) + '" stroke-linecap="round"/>');
+    /* J 形钩体：向下 0.12m 后向外下方 0.07m（与 3D 同形） */
+    glyph.push('<path d="M' + xh + ' ' + yh + ' L' + xh + ' ' + r2(yh + 0.12 * sc)
+      + ' L' + r2(+xh + 0.09 * sc) + ' ' + r2(yh + 0.19 * sc) + '" fill="none" stroke="#7c8288"'
+      + ' stroke-width="' + r2(Math.max(1.2, 0.022 * sc)) + '" stroke-linecap="round"/>');
+    if (on){
+      glyph.push('<circle cx="' + xh + '" cy="' + r2(yh + 0.07 * sc) + '" r="' + r2(Math.max(10, 0.16 * sc))
+        + '" fill="' + ACC + '" fill-opacity="0.16" stroke="' + ACC + '" stroke-width="1.4" stroke-dasharray="3 3"/>');
+    }
+    o.push('<g data-hook="' + esc(hk.id) + '" data-id="sh:' + esc(s.id) + '" data-hookz="' + fnum(hk.z) + '" data-hooku="' + fnum(hk.u) + '">'
+      + '<circle cx="' + xh + '" cy="' + r2(yh + 0.07 * sc) + '" r="' + r2(Math.max(10, 0.15 * sc))
+      + '" fill="transparent" style="cursor:grab"/>'
+      + glyph.join('') + '</g>');
+    if (on){
+      o.push('<text x="' + xh + '" y="' + r2(yh + 0.32 * sc) + '" text-anchor="middle" font-size="11.5" fill="#7a5b06">'
+        + '挂钩 · 离地 ' + fnum(hk.z) + 'm</text>');
+    }
+  });
+  /* 地架贴在货架前缘 / 地面，正面上本来就看不清，给一行说明避免误以为丢了 */
   var extra = [];
   if (acc.rack !== 'none'){
     var rf = resolveFaces(s, cfg, acc.rackSide);
     extra.push('地架 ' + (rackCount(s) * rf.length) + ' 个' + (rf.length > 1 ? '（两面）' : '·' + names[rf[0]]));
   }
-  if (acc.hook === 'on'){
-    var hf = resolveFaces(s, cfg, acc.hookSide);
-    extra.push('挂钩 ' + (hookCount(s) * hf.length) + ' 个' + (hf.length > 1 ? '（两面）' : '·' + names[hf[0]]));
+  if (acc.hooks.length){
+    var hf = acc.hooks.filter(function(hk){ return hookFace(s, hk, cfg) === viewFace; }).length;
+    extra.push('挂钩 ' + hf + ' 个（本面，可拖动）' + (acc.hooks.length > hf ? ' · ' + names[otherFace] + '另有 ' + (acc.hooks.length - hf) + ' 个' : ''));
   }
   if (extra.length){
     o.push('<text x="' + mx + '" y="' + r2(my + 44) + '" font-size="11.5" fill="' + MUT + '">'
-      + esc(extra.join(' · ')) + '（在 3D / 平面视图查看）</text>');
+      + esc(extra.join(' · ')) + (acc.rack !== 'none' ? '（地架在 3D / 平面视图查看）' : '') + '</text>');
   }
   var rowBikes = 0;
   rows.forEach(function(r){ rowBikes += rowBikeCount(s, r); });
   o.push('<text x="' + mx + '" y="' + 22 + '" font-size="12.5" fill="' + INK + '">'
     + esc(s.name || '货架') + ' · 长 ' + fnum(L) + 'm · 高 ' + fnum(H) + 'm · ' + (s.kind === 'double' ? '双面' : (s.kind === 'single' ? '单面' : '矮货架'))
     + ' · 正在看「' + names[viewFace] + '」' + (rows.length ? ' · 托臂 ' + rows.length + ' 排 / ' + rowBikes + ' 台' : '')
+    + (hooksHere.length ? ' · 挂钩 ' + hooksHere.length + ' 个（可拖动）' : '')
     + (otherRows ? ' · ' + names[otherFace] + '另有 ' + otherRows + ' 排' : '') + '</text>');
   o.push('</svg>');
   return { svg: o.join(''), meta: { scale: sc, mx: mx, my: my, len: r2(L), h: r2(H), shelfId: s.id,
-    face: viewFace, faceName: names[viewFace], rows: rows.length, otherRows: otherRows } };
+    face: viewFace, faceName: names[viewFace], rows: rows.length, otherRows: otherRows, hooks: hooksHere.length } };
 }
 
 /* ======================== ASCII 布局转储（调试用） ======================== */
@@ -2784,6 +2844,32 @@ function migrateLegacy(cfgIn){
     delete c2.studio.peg;
     c2.studio.itemsMigrated = true;
   }
+  /* 挂钩（2026-09-17 用户要求「不要固定在顶端」）：旧的单值开关（每米 4 个、
+     固定在前缘顶端）换算成逐个个体的位置数组 —— 位置 / 高度沿用旧渲染点
+     （顶端 +0.03m），挂载面沿用旧 hookSide（'both' 展开成两面各一组）。
+     幂等：只在没有 hooks 数组时生成；生成后旧键一律删除（单一真值）。 */
+  (c2.shelves || []).forEach(function(s){
+    var a = s.acc;
+    if (!a || typeof a !== 'object') return;
+    if (!Array.isArray(a.hooks)){
+      a.hooks = [];
+      if (a.hook === 'on'){
+        var hmS = (s.h == null) ? SHELF_H_DEFAULT : +s.h;
+        var hmLen = (+s.len > 0) ? +s.len : 4;
+        var hmN = Math.max(1, Math.round(hmLen * HOOK_ROW_PER_M));
+        var hmFaces = (a.hookSide === 'both') ? ['pos', 'neg'] : [normFace(a.hookSide)];
+        hmFaces.forEach(function(faceM){
+          for (var hi = 0; hi < hmN; hi++){
+            a.hooks.push({ id: 'h' + (a.hooks.length + 1),
+              u: r2(clamp((hi + 0.5) * hmLen / hmN, HOOK_U_EDGE, Math.max(HOOK_U_EDGE, hmLen - HOOK_U_EDGE))),
+              z: r2(hmS + 0.03), face: faceM });
+          }
+        });
+      }
+    }
+    delete a.hook;
+    delete a.hookSide;
+  });
   c2.v = 2;
   return c2;
 }
@@ -2844,7 +2930,17 @@ return {
   defaultArmZ: defaultArmZ,
   rackCount: rackCount,
   hookCount: hookCount,
+  hookFace: hookFace,
+  hooksOnFace: hooksOnFace,
+  nextHookU: nextHookU,
+  nextHookZ: nextHookZ,
+  hookRowSpecs: hookRowSpecs,
   ARM_SLOT: ARM_SLOT,
+  HOOK_ROW_PER_M: HOOK_ROW_PER_M,
+  HOOK_Z_DEFAULT: HOOK_Z_DEFAULT,
+  HOOK_Z_MIN: HOOK_Z_MIN,
+  HOOK_Z_ABOVE: HOOK_Z_ABOVE,
+  HOOK_U_EDGE: HOOK_U_EDGE,
   ARM_LEN: ARM_LEN,
   SHELF_H_DEFAULT: SHELF_H_DEFAULT,
   BIKE_LEN: BIKE_LEN,

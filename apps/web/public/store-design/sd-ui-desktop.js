@@ -323,6 +323,11 @@ function accBtnDesktop(act, name, val){
   var lab = (val === 'on') ? '开' : accLab(val);
   return '<button class="sd-d-act" data-bact="' + act + '"' + (on ? ' data-on="true"' : '') + '>' + name + '：' + lab + '</button>';
 }
+/* 挂钩数量（2026-09-17：挂钩改成逐个可移动的对象，快捷条按键 = 一键成排 / 一键清空） */
+function accHooks(o){
+  var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
+  return (a && a.hooks) ? a.hooks.length : 0;
+}
 function selBarHTML(ctx){
   var k = ctx.kind, o = ctx.item, h = '';
   var close = '<button class="sd-d-act sd-d-act-ghost" data-bact="close">取消选中</button>';
@@ -354,7 +359,9 @@ function selBarHTML(ctx){
       + (accRows(o).length ? '<b class="sd-d-selflag">托臂 ' + accRows(o).length + ' 排</b>' : '')
       + (accRows(o).length ? '<button class="sd-d-act" data-bact="clearArms">清空托臂</button>' : '')
       + accBtnDesktop('accRack', '地架', accNow(o, 'rack'))
-      + accBtnDesktop('accHook', '挂钩', accNow(o, 'hook')) + del + close;
+      + '<button class="sd-d-act" data-bact="accHook"' + (accHooks(o) ? ' data-on="true"' : '') + '>'
+      + (accHooks(o) ? '挂钩 ' + accHooks(o) + ' 个（清空）' : '＋挂钩成排') + '</button>'
+      + del + close;
   } else if (k === 'si'){
     /* 工作室组件（2026-09-17）：改朝向 / 转正 / 删除 */
     h += '<b class="sd-d-selflag">' + esc(itemLabel(o)) + '</b>'
