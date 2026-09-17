@@ -76,19 +76,14 @@ async function main(){
     } else {
       fail('双端在线名单未同步：A=' + JSON.stringify(stateA.peers) + ' / B=' + JSON.stringify(stateB.peers))
     }
-    // 工作室选中 → 属性栏可编辑（2026-09-17 用户报障的回归；只读检查，不改动房间数据）
-    await pageA.setViewport({ width: 1280, height: 800 })
-    await pageA.goto(base + '/store-design/', { waitUntil: 'domcontentloaded', timeout: 60000 })
-    await pageA.waitForFunction(
-      'window.SDCollab && window.SDCollab.state().status === "online"',
-      { timeout: 45000 }
-    )
-    await pageA.evaluate(() => {
-      const tab = document.querySelector('nav.tabs button[data-tab="tplan"]')
+    // 工作室选中 → 属性栏可编辑（2026-09-17 用户报障的回归；只读检查，不改动房间数据）。
+    // 用已在线的 B 页做（重新导航后再等连接在 CI 里会超时，2026-09-17 实测）。
+    await pageB.evaluate(() => {
+      const tab = document.querySelector('button[data-tab="tplan"]')
       if (tab) tab.click()
     })
     await new Promise((resolve) => setTimeout(resolve, 400))
-    const clicked = await pageA.evaluate(() => {
+    const clicked = await pageB.evaluate(() => {
       const g = document.querySelector('#tabplan [data-id="st"]')
       if (!g) return false
       const r = g.getBoundingClientRect()
@@ -100,10 +95,13 @@ async function main(){
     if (!clicked){
       fail('平面视图里缺少工作室元素（data-id=st）')
     } else {
-      await new Promise((resolve) => setTimeout(resolve, 400))
-      const hasField = await pageA.evaluate(() => !!document.querySelector('input[data-path="studio.w"]'))
-      if (hasField) pass('选中工作室后属性栏可编辑（studio.w 字段在位）')
-      else fail('选中工作室后属性栏没有尺寸字段（平面 / 大纲 id 匹配回归？）')
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      const probe = await pageB.evaluate(() => ({
+        field: !!document.querySelector('input[data-path="studio.w"]'),
+        sel: (window.SDCollab && window.SDCollab.state) ? window.SDCollab.state().status : 'n/a'
+      }))
+      if (probe.field) pass('选中工作室后属性栏可编辑（studio.w 字段在位）')
+      else fail('选中工作室后属性栏没有尺寸字段（平面 / 大纲 id 匹配回归？status=' + probe.sel + '）')
     }
     if (pageErrors.length){
       fail('页面 JS 异常：' + pageErrors.slice(0, 3).join(' | '))
