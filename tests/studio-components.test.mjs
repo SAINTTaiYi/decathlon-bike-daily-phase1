@@ -185,3 +185,25 @@ test('云快照迟到不得覆盖实时工作区（等 loaded + 首次载入让�
   assert.ok(branch.includes('return'), '让位分支必须提前返回（不覆盖 cfg，否则 diff 会把房间新内容当本地删除广播）')
   assert.match(cloud, /load\(\{ silent: true, announce: false, first: true \}\)/u, '重连补载必须标记 first（走同一条让位规则）')
 })
+
+test('首载是「替换」不是「编辑」：必须对齐协作基线（否则删除会被广播）', async () => {
+  /* 2026-09-17 实测数据丢失：云端首载抢在协作连接之前完成时，
+     「云端快照 vs 房间」的差异会被 flushLocalChanges 当成用户删除推给全房间
+     （本地端到端复现：房间里的工作台被删掉）。修复两条腿：
+       ① 首载（first）后调用 SDCollab.afterExternalReplace 对齐基线；
+       ② 该钩子只重置基线，不向房间写任何东西。 */
+  const collab = await read('sd-collab.js')
+  assert.match(collab, /function afterExternalReplace\(\)\{/u, '必须有「外部整体替换」钩子')
+  const hookIdx = collab.indexOf('function afterExternalReplace(){')
+  const hookBody = collab.slice(hookIdx, hookIdx + 260)
+  assert.ok(hookBody.includes('updateBaselineFromCfg()'), '钩子必须把基线对齐到当前 cfg')
+  assert.ok(!hookBody.includes('applyOpsToYdoc'), '钩子绝不能向房间写删除（只对齐基线）')
+  assert.match(collab, /afterExternalReplace: afterExternalReplace/u, '钩子必须导出给宿主调用')
+
+  const cloud = await read('sd-cloud.js')
+  const applyIdx = cloud.indexOf('applyCloud(design.payload, design)')
+  const hookCallIdx = cloud.indexOf('window.SDCollab.afterExternalReplace')
+  assert.ok(hookCallIdx > applyIdx, '首载替换 cfg 之后必须立刻对齐协作基线')
+  const seg = cloud.slice(applyIdx, hookCallIdx)
+  assert.ok(seg.includes('options && options.first'), '只有首载（first）才对齐基线；手动载入保持广播语义')
+})

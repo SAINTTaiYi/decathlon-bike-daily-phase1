@@ -170,6 +170,14 @@
     }
     applyCloud(design.payload, design)
     state.loaded = true
+    /* 首载（启动时的自动载入）不是用户编辑：把实时协作的基线对齐过去，
+       否则「云端快照 vs 房间」的差异会被当成用户删除广播（实测丢过组件）。
+       手动「载入云端」（无 first）保持原语义：用户的这次载入会同步给在线同事。 */
+    if (options && options.first) {
+      try {
+        if (window.SDCollab && window.SDCollab.afterExternalReplace) window.SDCollab.afterExternalReplace()
+      } catch (e1) {}
+    }
     paint()
     if (options && options.silent) return
     if (options && options.announce) {

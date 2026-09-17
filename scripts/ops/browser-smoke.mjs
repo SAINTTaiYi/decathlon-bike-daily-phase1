@@ -103,6 +103,67 @@ async function main(){
       if (probe.field) pass('选中工作室后属性栏可编辑（studio.w 字段在位）')
       else fail('选中工作室后属性栏没有尺寸字段（平面 / 大纲 id 匹配回归？status=' + probe.sel + '）')
     }
+    /* 跨端实时内容（2026-09-17 数据丢失事故的回归）：A 在房间里新增一个组件，
+       B 必须看到；新设备连上后房间内容也不得被「云端首载」竞态清掉。
+       用一次性组件验证并在最后还原，保证共享房间不留痕。 */
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+    const countItems = (page) => page.evaluate(() => document.querySelectorAll('#tabplan [data-id^="si:"]').length)
+    async function selectStudio(page){
+      await page.evaluate(() => {
+        const tab = document.querySelector('button[data-tab="tplan"]')
+        if (tab) tab.click()
+      })
+      await sleep(300)
+      const hit = await page.evaluate(() => {
+        const g = document.querySelector('#tabplan [data-id="st"]')
+        if (!g) return false
+        const r = g.getBoundingClientRect()
+        const o = { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2, pointerId: 9, button: 0, isPrimary: true }
+        g.dispatchEvent(new PointerEvent('pointerdown', o))
+        window.dispatchEvent(new PointerEvent('pointerup', o))
+        return true
+      })
+      await sleep(300)
+      return hit
+    }
+    if (await selectStudio(pageA)){
+      const before = await countItems(pageA)
+      const idsBefore = await pageA.evaluate(() =>
+        Array.prototype.slice.call(document.querySelectorAll('[data-act="delStudioItem"]')).map((b) => b.getAttribute('data-id'))
+      )
+      const added = await pageA.evaluate(() => {
+        const button = document.querySelector('[data-act="addStudioItem"][data-id="stuBench"]')
+        if (!button) return false
+        button.click()
+        return true
+      })
+      if (!added){
+        fail('属性栏缺少「＋工作台」入口（工作室内组件编辑回归？）')
+      } else {
+        await pageB.waitForFunction(
+          (target) => document.querySelectorAll('#tabplan [data-id^="si:"]').length >= target,
+          { timeout: 8000 },
+          before + 1
+        ).catch(() => {})
+        const seen = await countItems(pageB)
+        if (seen >= before + 1) pass('跨端内容：A 新增组件，B 实时看到（' + before + ' → ' + seen + '）')
+        else fail('跨端内容未同步：A=' + before + ' / B=' + seen)
+        /* 还原：删掉刚加的组件（避免污染共享房间的后续验证）。
+           按「新增前不存在的 data-id」定位，避免误删别人的组件。 */
+        const removed = await pageA.evaluate((known) => {
+          const buttons = Array.prototype.slice.call(document.querySelectorAll('[data-act="delStudioItem"]'))
+          const fresh = buttons.filter((b) => known.indexOf(b.getAttribute('data-id')) < 0)
+          if (!fresh.length) return false
+          fresh[0].click()
+          return true
+        }, idsBefore)
+        await sleep(600)
+        if (removed) pass('房间已还原（临时组件已删除）')
+      }
+    } else {
+      fail('A 页无法选中工作室，跨端内容验证未执行')
+    }
+
     if (pageErrors.length){
       fail('页面 JS 异常：' + pageErrors.slice(0, 3).join(' | '))
     } else {

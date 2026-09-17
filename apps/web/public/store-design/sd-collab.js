@@ -289,6 +289,16 @@ function updateBaselineFromCfg(){
   try { lastSerialized = JSON.stringify(cfgNow) } catch(e){ lastSerialized = '' }
 }
 
+/* 外部整体替换（云端图纸首载等**非编辑来源**）：把基线对齐到当前 cfg。
+   此时 cfg 与基线的差异不是用户编辑，绝不能作为删除/修改广播给房间 ——
+   房间（常驻工作区）优先，云端快照只作为本机起点。
+   2026-09-17 实测事故：首载若抢在协作连接之前完成，随后一次 flush 就把
+   「云端快照里没有、房间里刚加的工作台」当成用户删除广播了出去。 */
+function afterExternalReplace(){
+  if (!api || !ydoc) return
+  updateBaselineFromCfg()
+}
+
 function materializeNow(){
   if (!api || !ydoc) return
   /* 1) 把本地未同步改动先写进 Y.Doc（保证远端更新不吞掉正在进行的本地编辑） */
@@ -746,6 +756,7 @@ function attach(hooks){
 window.SDCollab = {
   attach: attach,
   afterLocalChange: flushLocalChanges,
+  afterExternalReplace: afterExternalReplace,
   dragPreview: dragPreview,
   dragEnd: dragEnd,
   state: function(){ return { status: status, peers: peers.slice(), retries: retries } }
