@@ -45,7 +45,8 @@ const sampler = `
     if (!value) { value = 'N' + (++state.seq); ids.set(node, value) }
     return value
   }
-  const sample = () => {
+  const take = () => {
+    if (state.frames.length >= 1500) return
     const dialog = document.querySelector('dialog.update-refresh-dialog')
     const panel = dialog ? dialog.querySelector('[data-dialog-panel]') : null
     state.frames.push({
@@ -55,9 +56,12 @@ const sampler = `
       op: panel ? Number(getComputedStyle(panel).opacity) : null,
       dim: document.body.classList.contains('dialog-open')
     })
-    if (state.frames.length < 1200) requestAnimationFrame(sample)
   }
-  requestAnimationFrame(sample)
+  // 双通道采样：rAF 覆盖渲染帧，16ms 定时器补上「首帧被长任务推迟」的窗口 ——
+  // 单靠 rAF 时，公告补间（0.34s）可能整段落在首帧之前，采不到 0 → 1 的过程。
+  const loop = () => { take(); if (state.frames.length < 1500) requestAnimationFrame(loop) }
+  requestAnimationFrame(loop)
+  const timer = setInterval(() => { take(); if (state.frames.length >= 1500) clearInterval(timer) }, 16)
 })()
 `
 
@@ -111,8 +115,12 @@ async function main() {
       const nodes = []
       const dimTimeline = []
       let prevOpacity = null
+      let maxOpacity = 0
+      let openedFrames = 0
       for (const frame of state.frames) {
         if (frame.node && (nodes.length === 0 || nodes[nodes.length - 1] !== frame.node)) nodes.push(frame.node)
+        if (frame.open) openedFrames += 1
+        if (typeof frame.op === 'number' && frame.op > maxOpacity) maxOpacity = frame.op
         if (frame.op === null) { prevOpacity = null } else {
           if (prevOpacity !== null && prevOpacity <= 0.05 && frame.op >= 0.5) ramps.push(frame.t)
           prevOpacity = frame.op
@@ -128,7 +136,7 @@ async function main() {
         if (document.querySelector('.appselect, [data-app-card]')) return 'APPSELECT'
         return 'UNKNOWN'
       })()
-      return { ramps, nodes, dimTimeline, frames: state.frames.length, screen }
+      return { ramps, nodes, dimTimeline, maxOpacity, openedFrames, frames: state.frames.length, screen }
     })
 
     if (!result || result.frames < 30) {
@@ -137,20 +145,28 @@ async function main() {
     }
     log('采样帧数=' + result.frames + ' · 到达界面=' + result.screen)
     log('入场时刻(ms)=' + JSON.stringify(result.ramps) + ' · 弹窗节点=' + JSON.stringify(result.nodes))
+    log('面板最大不透明度=' + result.maxOpacity + ' · 弹窗开启帧数=' + result.openedFrames)
     log('dialog-open 时间线=' + JSON.stringify(result.dimTimeline.slice(0, 6)))
 
-    if (result.ramps.length === 0) {
-      fail('启动过程中公告没有弹出：无法验证（检查 APP_VERSION 与 localStorage 初始化）')
-    } else if (result.ramps.length === 1) {
-      pass('公告入场动画只播一次（无重建重播）')
+    if (result.openedFrames === 0 || result.maxOpacity < 0.9) {
+      fail('启动过程中公告没有完整显示（open 帧=' + result.openedFrames + '，最大不透明度=' + result.maxOpacity + '）：采样无效，无法判定')
     } else {
-      fail('公告入场动画播了 ' + result.ramps.length + ' 次：组件在启动过程中被重建（抽搐回归）')
+      pass('公告在启动链路中完整显示（不透明度 ' + result.maxOpacity.toFixed(2) + '）')
     }
 
+    // 主判据：节点身份。React 只在组件被卸载重建时换节点 —— 这正是抽搐的机制，
+    // 且不依赖采样密度（CI 快机器上首帧可能落在补间中段）。
     if (result.nodes.length <= 1) {
       pass('公告弹窗全程为同一个 DOM 节点（挂载点稳定）')
     } else {
       fail('公告弹窗节点被替换 ' + result.nodes.length + ' 次（' + JSON.stringify(result.nodes) + '）：App 分支各挂一份的回归')
+    }
+
+    // 次判据：入场补间重播次数（采样到才判定；采不到不判失败，节点判据已覆盖）。
+    if (result.ramps.length > 1) {
+      fail('公告入场动画播了 ' + result.ramps.length + ' 次：组件在启动过程中被重建（抽搐回归）')
+    } else {
+      pass('公告入场动画未重播（采样到 ' + result.ramps.length + ' 次完整入场）')
     }
 
     if (pageErrors.length) fail('页面 JS 异常：' + pageErrors.slice(0, 3).join(' | '))
