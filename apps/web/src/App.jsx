@@ -11,6 +11,7 @@ import PromptLab from './components/PromptLab.jsx'
 import { APP_VERSION } from './data/releaseNotes.js'
 import { buildClosingReportModel, exportClosingReportImage } from './utils/closingReportImage.js'
 import { getBiVehicles } from './api/bi.js'
+import { prefetchBootstrap } from './api/workflow.js'
 import ActionDock from './components/lookbook/ActionDock.jsx'
 import WorkshopShellHeader from './components/workshop/WorkshopShellHeader.jsx'
 import WorkshopOverviewPage from './components/overview/WorkshopOverviewPage.jsx'
@@ -162,8 +163,17 @@ export default function App() {
       void workflow.refresh()
       void shiphub.ensureFresh()
     }, [workflow.refresh, shiphub.ensureFresh]),
-    { enabled: authenticated && !introLocked && opsDataNeeded }
+    // hydrated 之后才订阅（2026-09-18）：bootstrap 未返回时版本号种子未知，从 0 起步的
+    // 长轮询会立刻收到「变了」并触发一轮重复刷新（bootstrap + ensure-fresh 各白做一遍）。
+    { enabled: authenticated && !introLocked && opsDataNeeded && workflow.hydrated, initialVersion: workflow.changeVersion }
   )
+  // 冷启动并行预取（2026-09-18）：bootstrap 只依赖会话 cookie，可以在 /auth/me
+  // 还在验证时就发出（未登录时 401 被静默丢弃，且不产生任何 D1 读）。首屏的
+  // /auth/me → /bootstrap 串行由此变成并行，省掉一个完整往返的等待。
+  useEffect(() => {
+    if (auth.status !== 'restoring' || !opsDataNeeded || introLocked) return
+    prefetchBootstrap()
+  }, [auth.status, opsDataNeeded, introLocked])
   const [menuOpen, setMenuOpen] = useState(false)
   const [passwordChangeOpen, setPasswordChangeOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(false)

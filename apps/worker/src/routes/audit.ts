@@ -144,7 +144,11 @@ export async function listBootstrapAuditFeed(db: D1Database, storeId: string, bu
   const fromJoins = `FROM audit_events e
         LEFT JOIN audit_events rev ON rev.reverted_event_id = e.id
         LEFT JOIN work_items current_item ON current_item.id = e.entity_id AND current_item.store_id = e.store_id`
-  const todayRows = await all(db.prepare(`
+  // 启动延迟优化（2026-09-18）：两条查询互不依赖（历史查询只用在册记录 id，与当天
+  // 结果无关），合并进一次 batch 往返——原先串行两次 await，就是两次跨区域 RTT。
+  // bootstrap 是首屏最重的端点，每次打开页面都在等它。
+  const ids = openRecordIds.slice(0, 200)
+  const statements: D1PreparedStatement[] = [db.prepare(`
         SELECT ${feedColumns},
                CASE WHEN
                  (e.entity_id IS NOT NULL AND EXISTS (
@@ -164,8 +168,7 @@ export async function listBootstrapAuditFeed(db: D1Database, storeId: string, bu
         WHERE e.store_id = ? AND e.business_date = ?
         ORDER BY e.created_at DESC
         LIMIT 500
-      `).bind(storeId, businessDate))
-  const ids = openRecordIds.slice(0, 200)
+      `).bind(storeId, businessDate)]
   // INDEXED BY 是必须的（2026-09-09 D1 预算修复，实测 779 → 102 行）：
   // 查询同时约束 store_id 与 entity_id，而 audit_events_entity_idx 不含 store_id，
   // 优化器会改选 audit_events_store_created_idx (store_id=?)——先扫全店审计事件
@@ -175,7 +178,8 @@ export async function listBootstrapAuditFeed(db: D1Database, storeId: string, bu
   // 因此即使新建 (store_id, entity_type, entity_id, created_at) 复合索引也不会被自动选中，
   // 必须显式指定。走 entity 索引后按 entity_id 点查，代价是排序需临时 B-tree，
   // 但读行数从 O(全店) 降到 O(在册记录事件数)。
-  const historyRows = ids.length ? await all(db.prepare(`
+  if (ids.length) {
+    statements.push(db.prepare(`
         SELECT ${feedColumns}, 0 AS has_later_event
         FROM audit_events e INDEXED BY audit_events_entity_idx
         LEFT JOIN audit_events rev ON rev.reverted_event_id = e.id
@@ -184,7 +188,11 @@ export async function listBootstrapAuditFeed(db: D1Database, storeId: string, bu
           AND e.store_id = ? AND e.business_date != ?
         ORDER BY e.created_at DESC
         LIMIT 500
-      `).bind(...ids, storeId, businessDate)) : []
+      `).bind(...ids, storeId, businessDate))
+  }
+  const [todayResult, historyResult] = await db.batch(statements)
+  const todayRows = (todayResult?.results ?? []) as any[]
+  const historyRows = (ids.length ? historyResult?.results ?? [] : []) as any[]
   const merged = [...todayRows, ...historyRows]
   merged.sort((a: any, b: any) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0))
   return merged.slice(0, 500).map((row: any) => mapAuditEvent(row, businessDate))

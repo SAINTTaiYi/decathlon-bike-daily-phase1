@@ -76,14 +76,19 @@ function baseEnv(db: D1Database): WorkerEnv {
   }
 }
 
-// 写全部被平台拒绝、读照常：只有 batch 与写语句抛额度错误。
+// 写全部被平台拒绝、读照常：写语句与含写语句的 batch 抛额度错误（2026-09-18 对齐
+// 生产语义：D1 的写额度按「写入行数」计——只读 batch 不写行，不会被拒绝）。
 function quotaBlockedEnvironment(db: TestD1Database): WorkerEnv {
   const target = db as unknown as D1Database
   const isWriteStatement = (sql: string) => /^\s*(?:INSERT|UPDATE|DELETE)/iu.test(sql)
   const proxy = new Proxy(target, {
     get(object, property, receiver) {
       if (property === 'batch') {
-        return async () => { throw new Error(QUOTA_MESSAGE) }
+        return async (statements: D1PreparedStatement[]) => {
+          const writes = statements.some((statement) => isWriteStatement(String((statement as unknown as { sql?: string }).sql ?? '')))
+          if (writes) throw new Error(QUOTA_MESSAGE)
+          return object.batch(statements)
+        }
       }
       if (property === 'prepare') {
         return (sql: string) => {

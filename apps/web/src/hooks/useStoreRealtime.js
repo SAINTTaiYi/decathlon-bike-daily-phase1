@@ -13,14 +13,20 @@ import { useEffect, useRef } from 'react'
 const RETRY_BASE_MS = 3_000
 const RETRY_MAX_MS = 60_000
 
-export default function useStoreRealtime(onChange, { enabled = true } = {}) {
+export default function useStoreRealtime(onChange, { enabled = true, initialVersion = 0 } = {}) {
   const onChangeRef = useRef(onChange)
   useEffect(() => { onChangeRef.current = onChange }, [onChange])
+  // 版本号种子（2026-09-18）：只在轮询启动时读一次，之后由服务端响应单调推进。
+  // 种子来自 bootstrap 的同源版本号——否则第一次 /changes 会因为 since=0 必然
+  // 返回「变了」，每次打开页面都白做一轮 bootstrap + ensure-fresh。
+  const initialVersionRef = useRef(initialVersion)
+  useEffect(() => { initialVersionRef.current = initialVersion }, [initialVersion])
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return undefined
     let cancelled = false
-    let version = 0
+    const seed = Number(initialVersionRef.current)
+    let version = Number.isFinite(seed) && seed > 0 ? Math.floor(seed) : 0
     let retryDelay = RETRY_BASE_MS
     let timer = null
     let controller = null

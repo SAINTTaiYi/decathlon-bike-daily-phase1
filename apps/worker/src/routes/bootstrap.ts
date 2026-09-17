@@ -6,6 +6,7 @@ import { listAssignedToMe, listStoreMembers, listWorkItems } from '../repositori
 import { listBootstrapAuditFeed } from './audit.js'
 import { getOrCreateDay, mapDay } from '../services/closing.js'
 import { businessDateFor, cleanupPreviousCompleted } from '../services/business.js'
+import { readStoreVersion } from '../services/store-changes.js'
 import { buildBusinessTrends } from '../services/trends.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
@@ -20,7 +21,14 @@ export function bootstrapRoutes() {
     const businessDate = await businessDateFor(context)
     // Cleanup 是跨日边界任务：只在当日首次 bootstrap（创建当日行）时执行，后续刷新
     // 不再重复扫描（2026-09-03 限额预算：该扫描每次读约一百行）。
-    const [{ day, created: dayCreated }, records, trends, members, assignedToMe] = await Promise.all([
+    //
+    // 启动延迟优化（2026-09-18）：门店变更版本号随本次 bootstrap 一起下发，前端长轮询
+    // 从 since=changeVersion 起步。此前前端版本号从 0 开始，第一次 /changes 必然收到
+    // 「变了」→ 原地再拉一轮 bootstrap + ensure-fresh——每次打开页面都白做一遍全站最重
+    // 的两个请求。版本号读排在数组第一位（先于数据读发起）：并发下「版本 ≤ 数据所见」，
+    // 最坏只是多推一次变更，绝不会漏推。
+    const [changeVersion, dayResult, records, trends, members, assignedToMe] = await Promise.all([
+      readStoreVersion(c.env.DB, context.storeId),
       // 只读降级会话（2026-09-14）：写额度耗尽时不再尝试建当日行，直接用默认值渲染。
       getOrCreateDay(c.env.DB, context.storeId, businessDate, { allowWrite: !context.readOnly }),
       listWorkItems(c.env.DB, context.storeId, businessDate, config),
@@ -28,6 +36,7 @@ export function bootstrapRoutes() {
       listStoreMembers(c.env.DB, context.storeId),
       listAssignedToMe(c.env.DB, context.storeId, context.userId, businessDate, config)
     ])
+    const { day, created: dayCreated } = dayResult
     const waitUntil = c.executionCtx?.waitUntil?.bind(c.executionCtx)
     if (dayCreated) {
       // Cleanup must not delay the interactive bootstrap that created the day.
@@ -39,6 +48,7 @@ export function bootstrapRoutes() {
     const events = await listBootstrapAuditFeed(c.env.DB, context.storeId, businessDate, records.map((record) => record.id))
     return c.json({
       businessDate,
+      changeVersion,
       store: {
         id: context.storeId,
         code: context.storeCode,
