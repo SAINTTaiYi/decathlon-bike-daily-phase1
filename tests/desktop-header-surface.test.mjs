@@ -136,4 +136,13 @@ test('桌面：队列工具整条嵌进次页头（搜索栏 + 计数 + 按钮�
   }
   assert.match(css, /\.workshop-module-header \.pickup-queue-controls \{[\s\S]*?grid-template-columns: 240px minmax\(0, 1fr\);/u,
     '嵌进页头的队列工具必须比正文里窄一档')
+  // 正文让位必须跟 token 走：页头一长高，写死的像素偏移就会把内容晾在层的下面
+  // （2026-09-18 实测 180px 硬编码在 186 层高下露馅）。scroll-padding-top 同理。
+  assert.match(css, /\.workshop-shell \{[\s\S]*?padding: calc\(var\(--ops-header-height\) \+ 12px\) 32px 40px;/u,
+    '正文让位必须跟 --ops-header-height 走')
+  assert.doesNotMatch(css, /\.workshop-shell \{[\s\S]*?padding: \d+px 32px 40px;/u,
+    '正文让位不得写死像素（页头一变高就错位）')
+  assert.match(css, /scroll-padding-top: calc\(var\(--ops-header-height\)/u,
+    '锚点滚动偏移必须跟 --ops-header-height 走')
+  assert.doesNotMatch(css, /scroll-padding-top: \d+px/u, '锚点滚动偏移不得写死像素')
 })
