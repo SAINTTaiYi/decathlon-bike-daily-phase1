@@ -19,7 +19,10 @@
 <script src="sd-schema.js?v=10"></script>
 <script src="app.js?v=5.9"></script>
 <!-- 云端图纸（保存 / 载入）：同源 /api/v1/design，按会话门店读写 -->
-<script src="sd-cloud.js?v=1"></script>
+<script src="sd-cloud.js?v=2"></script>
+<!-- 实时协作（多人同时编辑）：本地 vendor 的 Yjs + 客户端模块（CSP script-src 'self'，不能用 CDN） -->
+<script src="vendor/yjs.min.js"></script>
+<script src="sd-collab.js?v=1"></script>
 <!-- 宿主嵌入钩子（Ops 集成用，非工具本体）：?embed=1&exit=ops|back 时显示退出按钮并 postMessage -->
 <script src="embed.js?v=2"></script>
 </body>

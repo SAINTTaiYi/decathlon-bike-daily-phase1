@@ -226,6 +226,46 @@ function segsOf(L, opens){
   return list;
 }
 
+/* ------------------- 工作室组件（2026-09-17） -------------------
+   洞洞板 / 工作台 / 维修架 / 工具柜。组件自由摆放：
+     x / y    中心点坐标（世界坐标，米）
+     rot      朝向，只支持 0 / 90 / 180 / 270（占地 = 旋转后的外接矩形）
+     w        组件长度（沿本地 x 轴）；深度与高度由组件类型固定
+   旧版 studio.peg（洞洞板开关）已并入本数组，见 migrateLegacy 的迁移块。 */
+var STUDIO_ITEM_DEFS = {
+  pegboard: { label:'洞洞板', w:1.4, d:0.06, h:1.8,  wMin:0.6, wMax:2.4 },
+  bench:    { label:'工作台', w:1.6, d:0.7,  h:0.9,  wMin:1.0, wMax:2.4 },
+  stand:    { label:'维修架', w:0.6, d:0.6,  h:1.5,  wMin:0.5, wMax:0.9 },
+  cabinet:  { label:'工具柜', w:0.8, d:0.45, h:0.85, wMin:0.6, wMax:1.2 }
+};
+function studioItemDef(kind){ return STUDIO_ITEM_DEFS[kind] || STUDIO_ITEM_DEFS.bench; }
+function studioItemLabel(kind){ return studioItemDef(kind).label; }
+function studioItemCorners(it){
+  var def = studioItemDef(it && it.kind);
+  var w = +((it && it.w) || def.w), d = def.d;
+  var rad = ((((+((it && it.rot) || 0)) % 360) + 360) % 360) * Math.PI / 180;
+  var cs = Math.cos(rad), sn = Math.sin(rad);
+  var x = (+it.x || 0), y = (+it.y || 0);
+  return [[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2]].map(function(pt){
+    return { x: x + pt[0]*cs - pt[1]*sn, y: y + pt[0]*sn + pt[1]*cs };
+  });
+}
+function studioItemBounds(it){ return boundsOfPts(studioItemCorners(it)); }
+/* 把组件摆在指定侧墙的居中处（alongOffset 沿墙平移）：迁移与随机方案共用。
+   outward=true 表示贴在墙外侧（旧版洞洞板有「朝外」选项）。 */
+function studioItemOnSide(st, kind, side, w, outward, alongOffset){
+  var def = studioItemDef(kind);
+  var width = +w || def.w;
+  var dirMap = { n:1, s:-1, w:1, e:-1 };
+  var sgn = (dirMap[side] || 1) * (outward ? -1 : 1);
+  var vertical = (side === 'w' || side === 'e');
+  var cAlong = (vertical ? (st.y + st.h/2) : (st.x + st.w/2)) + (+alongOffset || 0);
+  var cFixed = vertical ? (side === 'e' ? st.x + st.w : st.x) : (side === 's' ? st.y + st.h : st.y);
+  var cx = vertical ? (cFixed + sgn * 0.14) : cAlong;
+  var cy = vertical ? cAlong : (cFixed + sgn * 0.14);
+  return { x: Math.round(cx * 100) / 100, y: Math.round(cy * 100) / 100, rot: vertical ? 90 : 0, w: width };
+}
+
 /* --------------------------- 默认配置 --------------------------- */
 function defaultConfig(){
   var out = {
@@ -263,8 +303,14 @@ function defaultConfig(){
       name:'工作室',
       x:15.9, y:9.05, w:4.0, h:4.0, wallH:2.2,
       sides: { n:'wall', e:'none', s:'door', w:'window' }, doorW:1.2,
-      peg: { on:true, side:'e', face:'in', panels:2 }
+      /* 2026-09-17：原 studio.peg（洞洞板设置）升级为独立组件（见 studioItems）。
+         itemsMigrated 保证「旧配置 → 组件」的迁移只做一次。 */
+      itemsMigrated: true
     },
+    /* 工作室组件（自由摆放）：默认在工作室东墙内侧放一块洞洞板（沿用旧默认观感） */
+    studioItems: [
+      { id:'peg-1', kind:'pegboard', x:19.76, y:11.05, rot:90, w:1.4 }
+    ],
     meshes: [],
     markers: [
       { id:'m1', color:'red',    x:7.1,  y:15.55, w:1.0, h:0.5,  label:'消防' },
@@ -328,13 +374,24 @@ function bikesForShelf(s, type, opts){
        每排位宽：成人车 2.0m、16″ 童车 4/3m → 2m 货架 1 台/排；4m 货架 3 台童车/排。
        每排还可用「起始 / 结束位置」限定只占货架的一段（短长混排、成人童车混排）。
      · 地架：地面停车架，每米 3 个（1m 货架放 3 个）。
-     · 挂钩：货架前缘横杆挂点，每米 4 个。
+     · 挂钩（2026-09-17 用户口径）：**成组摆放，每米 4 个钩子**。一组 = 一段挂杆，
+       在货架上的位置（沿架起点 / 终点）与离地高度自由；正面视角里整组拖动
+       （左右 + 上下）、两端圆点调范围。「＋挂钩」默认加一整段（货架全长，每米 4 个）。
    附件不落盘成独立元素：由货架配置派生（cfg.shelves[].acc），随货架移动 / 转向 /
    伸缩自动跟随，也不参与「越界 / 出入口净空」等独立元素检查。 */
 var ARM_SLOT = { adult: 2.0, kids: 4 / 3 };   /* 每台车占位宽度（m）：成人 / 16 寸童车 */
 var ARM_LEN = { short: 0.5, long: 1.0 };      /* 托臂伸出长度（m）：短 / 长 */
 var RACK_PER_M = 3;                           /* 地架密度（个 / m） */
-var HOOK_PER_M = 4;                           /* 挂钩密度（个 / m） */
+var HOOK_PER_M = 4;                           /* 挂钩密度（个 / m）：成组摆放，一组多少钩看跨度 */
+var HOOK_Z_DEFAULT = 1.5;                     /* 新增挂钩组的默认离地高度（m） */
+var HOOK_Z_MIN = 0.15;                        /* 挂钩最低离地高度（m） */
+var HOOK_Z_ABOVE = 0.30;                      /* 允许高出货架顶的高度（m） */
+var HOOK_MIN_SPAN = 0.25;                     /* 一组挂钩的最小跨度（m，= 1 个钩子） */
+/* 挂钩上可以挂 16″ 童车（2026-09-17 用户口径）：车长 1.1m，每台占 1.1m 沿架位；
+   挂上去时整车贴架面、离地挂在挂钩高度上（车轮落在钩上）。 */
+var HOOK_BIKE_SLOT = 1.1;                     /* 每台挂车占的沿架位（m） */
+var HOOK_BIKE_DEPTH = 0.30;                   /* 挂车离架面的外偏移（m，避免和货架前缘穿模） */
+var HOOK_BIKE_SCL = 0.61;                     /* 挂车模型缩放：1.8 × 0.61 ≈ 1.1m（与车长一致） */
 var SHELF_H_DEFAULT = 3.3;                    /* 门店货架实际高度（m） */
 
 /* ---------------- 挂载面（双面货架的两面） ----------------
@@ -372,20 +429,62 @@ function normArmRow(r, i, s){
   return { id: r.id || ('a' + (i + 1)), z: r2(z), len: len, size: size, u0: r2(u0), u1: r2(u1),
            face: normFace(r.face) };
 }
-/* 附件配置（归一化后的只读视图；rows = 托臂排数组，可 0..n 排） */
+/* 挂钩组规格归一化：一段挂杆 = 沿架起点 / 终点 + 离地高度，组内钩子按每米 4 个均布。
+   （旧版「每米 4 个、固定在顶端」的单值开关、以及中途版本的「逐个挂钩数组」，
+     都由 migrateLegacy 换算成本结构，见文件末尾。） */
+function normHookGroup(g, i, s){
+  g = g || {};
+  var SL = (+s.len > 0) ? +s.len : 4;
+  var hS = (s.h == null) ? SHELF_H_DEFAULT : +s.h;
+  var zMax = hS + HOOK_Z_ABOVE;
+  var spanMin = Math.min(HOOK_MIN_SPAN, SL);
+  var u0 = isFinite(+g.u0) ? +g.u0 : 0;
+  var u1 = isFinite(+g.u1) ? +g.u1 : SL;
+  if (u1 < u0){ var t = u0; u0 = u1; u1 = t; }
+  u0 = clamp(u0, 0, SL);
+  u1 = clamp(u1, 0, SL);
+  if (u1 - u0 < spanMin) u1 = Math.min(SL, u0 + spanMin);
+  if (u1 - u0 < spanMin) u0 = Math.max(0, u1 - spanMin);
+  var z = (+g.z > 0) ? +g.z : Math.min(HOOK_Z_DEFAULT, zMax);
+  z = clamp(z, HOOK_Z_MIN, zMax);
+  var bike = (g.bike === 'kids16') ? 'kids16' : 'none';
+  return { id: g.id || ('g' + (i + 1)), u0: r2(u0), u1: r2(u1), z: r2(z), face: normFace(g.face), bike: bike };
+}
+/* 一组挂钩里有多少个钩子：每米 4 个（至少 1 个） */
+function hookGroupCount(s, g){ return Math.max(1, Math.round((g.u1 - g.u0) * HOOK_PER_M)); }
+/* 这组挂钩上挂几台 16″ 童车：每台占 HOOK_BIKE_SLOT = 1.1m（跨度不够 1.1m 时，
+   只要还够 0.9m 就允许挂 1 台；再窄就不挂）。 */
+function hookBikeCount(s, g){
+  if (!g || g.bike !== 'kids16') return 0;
+  var span = g.u1 - g.u0;
+  var n = Math.floor(span / HOOK_BIKE_SLOT + 1e-6);
+  if (n < 1 && span >= HOOK_BIKE_SLOT - 0.2) n = 1;
+  return Math.max(0, n);
+}
+/* 第 i 台挂车在这组里的沿架位置（组内居中均布） */
+function hookBikeU(s, g, i){
+  var n = hookBikeCount(s, g);
+  if (n <= 0) return (g.u0 + g.u1) / 2;
+  var span = g.u1 - g.u0;
+  return g.u0 + (span - n * HOOK_BIKE_SLOT) / 2 + HOOK_BIKE_SLOT / 2 + i * HOOK_BIKE_SLOT;
+}
+/* 挂钩上挂了什么（界面文案用） */
+function hookBikeLabel(bike){ return (bike === 'kids16') ? '16″ 童车（1.1m/台）' : ''; }
+/* 附件配置（归一化后的只读视图；rows = 托臂排数组，hooks = 挂钩数组） */
 function accOf(s){
   var a = (s && s.acc) || {};
   var rows = [];
   if (Array.isArray(a.armRows)){ a.armRows.forEach(function(r, i){ rows.push(normArmRow(r, i, s)); }); }
+  var hookGroups = [];
+  if (Array.isArray(a.hookGroups)){ a.hookGroups.forEach(function(g, i){ hookGroups.push(normHookGroup(g, i, s)); }); }
   return {
     rows: rows,
+    hookGroups: hookGroups,
     rack: (a.rack === 'adult' || a.rack === 'kids') ? a.rack : 'none',
-    hook: a.hook === 'on' ? 'on' : 'none',
-    rackSide: normSide(a.rackSide),
-    hookSide: normSide(a.hookSide)
+    rackSide: normSide(a.rackSide)
   };
 }
-function accOn(s){ var a = accOf(s); return a.rows.length > 0 || a.rack !== 'none' || a.hook === 'on'; }
+function accOn(s){ var a = accOf(s); return a.rows.length > 0 || a.rack !== 'none' || a.hookGroups.length > 0; }
 /* 一排托臂挂几台车（范围不足一台时按一台算） */
 function rowFace(s, r, cfg){ return (r.face === 'pos' || r.face === 'neg') ? r.face : accFace(s, cfg); }
 /* 某一面有几排托臂 / 几台车（正面视角的页签计数用） */
@@ -414,7 +513,21 @@ function nextArmZ(s, rawRows){
   return r2(Math.min(Math.max(0.4, h - 0.85), top + 1.2));
 }
 function rackCount(s){ var a = accOf(s); return a.rack === 'none' ? 0 : Math.max(1, Math.round(s.len * RACK_PER_M)); }
-function hookCount(s){ var a = accOf(s); return a.hook === 'on' ? Math.max(1, Math.round(s.len * HOOK_PER_M)) : 0; }
+function hookCount(s){ var n = 0; accOf(s).hookGroups.forEach(function(g){ n += hookGroupCount(s, g); }); return n; }
+/* 挂钩组的挂载面（'auto' 走货架自动面，与托臂排 / 地架同一套规则） */
+function hookGroupFace(s, g, cfg){ return (g.face === 'pos' || g.face === 'neg') ? g.face : accFace(s, cfg); }
+function hookGroupsOnFace(s, cfg, face){ return accOf(s).hookGroups.filter(function(g){ return hookGroupFace(s, g, cfg) === face; }); }
+/* 新增挂钩组的默认高度：与已有组错开 0.6m（先往下、再往上），没有组时用 1.5m */
+function nextHookZ(s, rawGroups){
+  var hS = (s.h == null) ? SHELF_H_DEFAULT : +s.h;
+  var zMax = hS + HOOK_Z_ABOVE;
+  var zs = (rawGroups || []).map(function(g){ return +g.z || 0; }).filter(function(z){ return z > 0; });
+  if (!zs.length) return r2(Math.min(HOOK_Z_DEFAULT, zMax));
+  var lo = Math.min.apply(null, zs), hi = Math.max.apply(null, zs);
+  var cand = lo - 0.6;
+  if (cand < HOOK_Z_MIN) cand = hi + 0.6;
+  return r2(clamp(cand, HOOK_Z_MIN, zMax));
+}
 
 /* 附件展示面：默认朝空间里更空的一侧（贴墙货架自动朝外，不用手动翻面）。 */
 function accFace(s, cfg){
@@ -422,6 +535,23 @@ function accFace(s, cfg){
   if (s.orient === 'h') return (sp.d - (s.y + d)) >= s.y ? 'pos' : 'neg';
   return (sp.w - (s.x + d)) >= s.x ? 'pos' : 'neg';
 }
+/* 各面的「组件数」（托臂排 + 挂钩组 + 地架）：用于新增组件的默认落面与界面提示。
+   用户 2026-09-17 要求：在货架上添加组件时默认落到「组件多的那一面」。 */
+function faceCounts(s, cfg){
+  var a = accOf(s), out = { pos: 0, neg: 0 };
+  a.rows.forEach(function(r){ var f = rowFace(s, r, cfg); out[f] = (out[f] || 0) + 1; });
+  a.hookGroups.forEach(function(g){ var f = hookGroupFace(s, g, cfg); out[f] = (out[f] || 0) + 1; });
+  if (a.rack !== 'none'){ resolveFaces(s, cfg, a.rackSide).forEach(function(f){ out[f] = (out[f] || 0) + 1; }); }
+  return out;
+}
+/* 组件多的那一面；两面一样多返回 null（交给调用方回退到老行为） */
+function busyFace(s, cfg){
+  var c = faceCounts(s, cfg);
+  if (c.pos === c.neg) return null;
+  return (c.pos > c.neg) ? 'pos' : 'neg';
+}
+/* 新增组件的默认面：优先「组件多的那一面」，两面都没有组件时沿用「朝空间更空的一侧」 */
+function defaultAddFace(s, cfg){ return busyFace(s, cfg) || accFace(s, cfg); }
 /* 货架局部坐标 → 世界坐标：u 沿货架（0..len），t 离货架面（正 = 面外）。
    斜放货架（s.rot）的所有附件几何都从这里派生，所以旋转在最后一并施加。 */
 function accPos(s, u, t, face){
@@ -480,6 +610,24 @@ function accBikesOf(cfg){
           id: 'acc:' + s.id + ':arm:' + r.id + ':' + i,
           acc: 'arm', row: r.id, face: face, type: r.size, pose: 'arm', lift: r.z,
           x: r2(p.x), y: r2(p.y), rot: (((s.orient === 'h') ? 0 : 90) + shelfRot(s)) % 360, steer: 0
+        });
+      }
+    });
+    /* 挂钩上的挂车（2026-09-17）：16″ 童车，每台占 1.1m 沿架位；
+       整车贴架面挂在挂钩高度上（pose='hang'，scl 按 1.1m 车长换算）。 */
+    a.hookGroups.forEach(function(g){
+      var nb = hookBikeCount(s, g);
+      if (!nb) return;
+      var faceB = hookGroupFace(s, g, cfg);
+      for (var ib = 0; ib < nb; ib++){
+        var uB = hookBikeU(s, g, ib);
+        var pB = accPos(s, uB, HOOK_BIKE_DEPTH, faceB);
+        out.push({
+          id: 'acc:' + s.id + ':hook:' + g.id + ':' + ib,
+          acc: 'hook', group: g.id, face: faceB, type: 'kids', pose: 'hang', lift: g.z,
+          scl: HOOK_BIKE_SCL,
+          x: r2(pB.x), y: r2(pB.y),
+          rot: (((s.orient === 'h') ? 0 : 90) + shelfRot(s)) % 360, steer: 45
         });
       }
     });
@@ -546,16 +694,18 @@ function computeChecks(cfg){
   (cfg.bikes || []).forEach(function(b){ if (b.type === 'kids') bK++; else bA++; });
   out.bikeAdult = bA; out.bikeKid = bK;
 
-  /* 货架陈列附件：托臂（上下两层合计）/ 地架 / 挂钩 计数 */
-  var accArm = 0, accArmRows = 0, accRack = 0, accHook = 0;
+  /* 货架陈列附件：托臂（上下两层合计）/ 地架 / 挂钩 / 挂钩上的挂车 计数 */
+  var accArm = 0, accArmRows = 0, accRack = 0, accHook = 0, accHookBike = 0;
   cfg.shelves.forEach(function(s){
     var a3 = accOf(s);
     accArmRows += a3.rows.length;
     a3.rows.forEach(function(r){ accArm += rowBikeCount(s, r); });
     accRack += rackCount(s);
     accHook += hookCount(s);
+    a3.hookGroups.forEach(function(g){ accHookBike += hookBikeCount(s, g); });
   });
-  out.accArm = accArm; out.accArmRows = accArmRows; out.accRack = accRack; out.accHook = accHook;
+  out.accArm = accArm; out.accArmRows = accArmRows; out.accRack = accRack;
+  out.accHook = accHook; out.accHookBike = accHookBike;
 
   var tz0 = null;
   cfg.zones.forEach(function(z){ if (z.kind === 'test') tz0 = z; });
@@ -760,7 +910,12 @@ var PAL = {
   shelfLow: { t:'#e8e2f2', xp:'#dcd4ea', xm:'#d4cce4', yp:'#d8d0e7', ym:'#d0c8e0', s:'#a89bc4', ln:'#c3b8d9' },
   curt:   { t:'url(#cur)', xp:'url(#cur)', xm:'url(#cur)', yp:'url(#cur)', ym:'url(#cur)', s:'#8fb6c9' },
   bikeA:  { t:'#6d747c', xp:'#5e656d', xm:'#575e66', yp:'#616870', ym:'#5a616a', s:'#454b52' },
-  bikeK:  { t:'#e0a35e', xp:'#d2954f', xm:'#c98e4a', yp:'#d89a54', ym:'#cf924d', s:'#a97838' }
+  bikeK:  { t:'#e0a35e', xp:'#d2954f', xm:'#c98e4a', yp:'#d89a54', ym:'#cf924d', s:'#a97838' },
+  worktop:{ t:'#dcc9a4', xp:'#d3bf98', xm:'#cbb690', yp:'#d7c39d', ym:'#cfbb94', s:'#a08a63' },
+  frame:  { t:'#c3c8cd', xp:'#b8bdc2', xm:'#b0b5ba', yp:'#b5bac0', ym:'#adb2b8', s:'#8b9096' },
+  base:   { t:'#9aa0a6', xp:'#8f959b', xm:'#878d93', yp:'#8c9298', ym:'#848a90', s:'#6f757b' },
+  cab:    { t:'#e6e8ea', xp:'#dcdee1', xm:'#d4d6d9', yp:'#d8dadd', ym:'#d0d2d5', s:'#a9adb2' },
+  rail:   { t:'#b9bcc0', xp:'#aeb1b5', xm:'#a6a9ad', yp:'#abb0b4', ym:'#a3a8ac', s:'#8b8e92' }
 };
 var PAT_CURT = '<pattern id="cur" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="#dcebf2" fill-opacity="0.35"/><rect width="4.6" height="10" fill="#bcd7e4" fill-opacity="0.55"/></pattern>';
 
@@ -1364,30 +1519,106 @@ function render3D(cfg, view){
     } else if (t === 'mesh'){
       if (horiz) addMeshWall({ x:sW, y:yy, len:sE-sW, orient:'h' }, stH, 0.08);
       else addMeshWall({ x:xx, y:sN, len:sS-sN, orient:'v' }, stH, 0.08);
-    }
-  });
-  /* 洞洞板 */
-  if (st0.peg && st0.peg.on){
-    var psd = st0.peg.side || 'e', PW = 1.4, PG = 0.1, PN = Math.max(1, Math.round(st0.peg.panels || 2));
-    var totalP = PN*PW + (PN-1)*PG;
-    var zA = 0.9, zB = Math.min(2.1, stH-0.05);
-    var dirMap = { n:1, s:-1, w:1, e:-1 };
-    var sgn = (st0.peg.face === 'out' ? -1 : 1) * dirMap[psd];
-    var vertical = (psd==='w' || psd==='e');
-    var cAlong = vertical ? (sN+sS)/2 : (sW+sE)/2;
-    var cFixed = vertical ? (psd==='e' ? sE : sW) : (psd==='s' ? sS : sN);
-    var startA = cAlong - totalP/2;
-    for (var pi=0; pi<PN; pi++){
-      var a0 = startA + pi*(PW+PG), a1 = a0 + PW;
-      if (vertical){
-        var xxp = cFixed + sgn*0.14;
-        boxAdd({ x1:xxp-0.025, y1:a0, x2:xxp+0.025, y2:a1, z1:zA, z2:zB }, PAL.peg);
+    } else if (t === 'glass'){
+      /* 玻璃（全高透明隔断，2026-09-17）：只透光，不进遮挡体 */
+      if (horiz) stGlassBox(sW, yy-0.02, sE, yy+0.02, 0, stH);
+      else stGlassBox(xx-0.02, sN, xx+0.02, sS, 0, stH);
+    } else if (t === 'curtain'){
+      /* 玻璃幕墙：整面玻璃 + 上下横梁 + 竖梃分格（与「玻璃」区分：有框架分格） */
+      var cLen = horiz ? (sE-sW) : (sS-sN);
+      if (horiz) stGlassBox(sW, yy-0.02, sE, yy+0.02, 0.09, stH-0.09);
+      else stGlassBox(xx-0.02, sN, xx+0.02, sS, 0.09, stH-0.09);
+      if (horiz){
+        boxAdd({ x1:sW, y1:yy-0.045, x2:sE, y2:yy+0.045, z1:0, z2:0.09 }, PAL.frame);
+        boxAdd({ x1:sW, y1:yy-0.045, x2:sE, y2:yy+0.045, z1:stH-0.09, z2:stH }, PAL.frame);
       } else {
-        var yyp = cFixed + sgn*0.14;
-        boxAdd({ x1:a0, y1:yyp-0.025, x2:a1, y2:yyp+0.025, z1:zA, z2:zB }, PAL.peg);
+        boxAdd({ x1:xx-0.045, y1:sN, x2:xx+0.045, y2:sS, z1:0, z2:0.09 }, PAL.frame);
+        boxAdd({ x1:xx-0.045, y1:sN, x2:xx+0.045, y2:sS, z1:stH-0.09, z2:stH }, PAL.frame);
+      }
+      var nMu = Math.max(1, Math.round(cLen / 0.9));
+      for (var mi = 0; mi <= nMu; mi++){
+        var tM2 = mi / nMu;
+        if (horiz){
+          var mx2 = sW + (sE-sW)*tM2;
+          boxAdd({ x1:mx2-0.03, y1:yy-0.055, x2:mx2+0.03, y2:yy+0.055, z1:0, z2:stH }, PAL.frame);
+        } else {
+          var my2 = sN + (sS-sN)*tM2;
+          boxAdd({ x1:xx-0.055, y1:my2-0.03, x2:xx+0.055, y2:my2+0.03, z1:0, z2:stH }, PAL.frame);
+        }
+      }
+    } else if (t === 'fence'){
+      /* 围栏：立柱 + 双横杆，高 1.05m（只做视觉分隔，不进遮挡体） */
+      var fLen = horiz ? (sE-sW) : (sS-sN);
+      var fH = 1.05;
+      var nPost = Math.max(2, Math.round(fLen / 1.2) + 1);
+      for (var fi = 0; fi < nPost; fi++){
+        var tF = fi / (nPost - 1);
+        if (horiz){
+          var fx2 = sW + (sE-sW)*tF;
+          boxAdd({ x1:fx2-0.03, y1:yy-0.03, x2:fx2+0.03, y2:yy+0.03, z1:0, z2:fH }, PAL.rail);
+        } else {
+          var fy2 = sN + (sS-sN)*tF;
+          boxAdd({ x1:xx-0.03, y1:fy2-0.03, x2:xx+0.03, y2:fy2+0.03, z1:0, z2:fH }, PAL.rail);
+        }
+      }
+      if (horiz){
+        boxAdd({ x1:sW, y1:yy-0.025, x2:sE, y2:yy+0.025, z1:fH-0.06, z2:fH }, PAL.rail);
+        boxAdd({ x1:sW, y1:yy-0.02, x2:sE, y2:yy+0.02, z1:0.52, z2:0.58 }, PAL.rail);
+      } else {
+        boxAdd({ x1:xx-0.025, y1:sN, x2:xx+0.025, y2:sS, z1:fH-0.06, z2:fH }, PAL.rail);
+        boxAdd({ x1:xx-0.02, y1:sN, x2:xx+0.02, y2:sS, z1:0.52, z2:0.58 }, PAL.rail);
       }
     }
-  }
+  });
+  /* 工作室组件（洞洞板 / 工作台 / 维修架 / 工具柜，2026-09-17）。
+     占地取旋转后的外接矩形：90° 倍数旋转下恰好是轴对齐盒，直接走 boxAdd；
+     实心组件登记 occl，让挂车 / 摆件的射线遮挡排序把它们也算进去。 */
+  (cfg.studioItems || []).forEach(function(si){
+    var defI = studioItemDef(si.kind);
+    var wI = +si.w || defI.w, dI = defI.d, hI = defI.h;
+    var rotI = (((+si.rot || 0) % 360) + 360) % 360;
+    var swap = (rotI === 90 || rotI === 270);
+    var ew = swap ? dI : wI, ed = swap ? wI : dI;
+    var ix1 = si.x - ew/2, ix2 = si.x + ew/2, iy1 = si.y - ed/2, iy2 = si.y + ed/2;
+    var radI = rotI * Math.PI/180;
+    function siPt(lx, ly){
+      return { x: si.x + lx*Math.cos(radI) - ly*Math.sin(radI), y: si.y + lx*Math.sin(radI) + ly*Math.cos(radI) };
+    }
+    if (si.kind === 'pegboard'){
+      var pb = { x1:ix1, y1:iy1, x2:ix2, y2:iy2, z1:0, z2:hI };
+      occl(pb, 'si:' + si.id);
+      boxAdd(pb, PAL.peg, null, null, 'si:' + si.id, null, true);
+    } else if (si.kind === 'bench'){
+      /* 台面 + 两端立板 + 下层搁板 */
+      boxAdd({ x1:ix1, y1:iy1, x2:ix2, y2:iy2, z1:0.84, z2:0.9 }, PAL.worktop, null, null, 'si:' + si.id);
+      var tpI = 0.06;
+      if (swap){
+        boxAdd({ x1:ix1, y1:iy1+0.03, x2:ix1+tpI, y2:iy2-0.03, z1:0, z2:0.84 }, PAL.frame);
+        boxAdd({ x1:ix2-tpI, y1:iy1+0.03, x2:ix2, y2:iy2-0.03, z1:0, z2:0.84 }, PAL.frame);
+        boxAdd({ x1:ix1+0.05, y1:iy1+0.08, x2:ix2-0.05, y2:iy2-0.08, z1:0.2, z2:0.24 }, PAL.frame);
+      } else {
+        boxAdd({ x1:ix1+0.03, y1:iy1, x2:ix2-0.03, y2:iy1+tpI, z1:0, z2:0.84 }, PAL.frame);
+        boxAdd({ x1:ix1+0.03, y1:iy2-tpI, x2:ix2-0.03, y2:iy2, z1:0, z2:0.84 }, PAL.frame);
+        boxAdd({ x1:ix1+0.08, y1:iy1+0.05, x2:ix2-0.08, y2:iy2-0.05, z1:0.2, z2:0.24 }, PAL.frame);
+      }
+      occl({ x1:ix1, y1:iy1, x2:ix2, y2:iy2, z1:0, z2:0.9 }, 'si:' + si.id);
+    } else if (si.kind === 'stand'){
+      boxAdd({ x1:ix1, y1:iy1, x2:ix2, y2:iy2, z1:0, z2:0.06 }, PAL.base, null, null, 'si:' + si.id);
+      boxAdd({ x1:si.x-0.035, y1:si.y-0.035, x2:si.x+0.035, y2:si.y+0.035, z1:0.06, z2:1.35 }, PAL.frame);
+      /* 挂臂朝本地 +y（前方）伸出 0.5m，臂端一个夹头 */
+      var a0p = siPt(0, 0), a1p = siPt(0, 0.5);
+      var ax1 = Math.min(a0p.x, a1p.x)-0.04, ax2 = Math.max(a0p.x, a1p.x)+0.04;
+      var ay1 = Math.min(a0p.y, a1p.y)-0.04, ay2 = Math.max(a0p.y, a1p.y)+0.04;
+      boxAdd({ x1:ax1, y1:ay1, x2:ax2, y2:ay2, z1:1.15, z2:1.21 }, PAL.frame);
+      boxAdd({ x1:a1p.x-0.07, y1:a1p.y-0.07, x2:a1p.x+0.07, y2:a1p.y+0.07, z1:1.08, z2:1.3 }, PAL.base);
+      occl({ x1:ix1, y1:iy1, x2:ix2, y2:iy2, z1:0, z2:1.35 }, 'si:' + si.id);
+    } else {
+      /* 工具柜：柜体 + 顶板 */
+      boxAdd({ x1:ix1, y1:iy1, x2:ix2, y2:iy2, z1:0, z2:0.82 }, PAL.cab, null, null, 'si:' + si.id);
+      boxAdd({ x1:ix1-0.01, y1:iy1-0.01, x2:ix2+0.01, y2:iy2+0.01, z1:0.82, z2:0.85 }, PAL.frame);
+      occl({ x1:ix1, y1:iy1, x2:ix2, y2:iy2, z1:0, z2:0.85 }, 'si:' + si.id);
+    }
+  });
 
   /* ---------- 货架 ---------- */
   /* 货架是「实心体」：登记成遮挡体后，托臂 / 挂车 / 地架 / 挂钩 / 散车都用射线
@@ -1476,35 +1707,36 @@ function render3D(cfg, view){
         }
       });
     }
-    /* 挂钩：前缘横杆 + 每米 4 个 J 形小钩（可指定面，或两面都装） */
-    if (a2.hook === 'on'){
-      var nH = hookCount(s), ztH = hS2 + 0.03;
-      resolveFaces(s, cfg, a2.hookSide).forEach(function(faceH){
-        var hTip = accPos(s, s.len / 2, 0.15, faceH);
+    /* 挂钩（2026-09-17 第二轮：成组，每米 4 个）：一组 = 一段挂杆（沿架 u0~u1、离地 z），
+       钩子按每米 4 个均布挂在杆下；斜放货架端点走 accPos 变换，整组走射线遮挡登记。 */
+    a2.hookGroups.forEach(function(hg){
+      var zH = hg.z, nH = hookGroupCount(s, hg);
+      resolveFaces(s, cfg, hg.face).forEach(function(faceH){
         if (shelfRot(s)){
-          var t0H = accLocalT(s, 0.08 - 0.026, faceH), t1H = accLocalT(s, 0.08 + 0.026, faceH);
-          var hCorners = shelfLocalBoxCorners(s, 0.05 - 0.026, s.len - 0.05 + 0.026, Math.min(t0H, t1H), Math.max(t0H, t1H));
-          var hMid = shelfLocalPt(s, s.len / 2, (t0H + t1H) / 2);
-          objBegin([[hMid.x, hMid.y, ztH], [hTip.x, hTip.y, ztH - 0.12]], 0.10);
-          quadBoxAdd(hCorners, ztH - 0.026, ztH + 0.026, PAL_ACC);
+          var t0H = accLocalT(s, 0.08 - 0.014, faceH), t1H = accLocalT(s, 0.08 + 0.014, faceH);
+          var hCorners = shelfLocalBoxCorners(s, hg.u0, hg.u1, Math.min(t0H, t1H), Math.max(t0H, t1H));
+          var hMid = shelfLocalPt(s, (hg.u0 + hg.u1) / 2, (t0H + t1H) / 2);
+          var hTipR = accPos(s, (hg.u0 + hg.u1) / 2, 0.15, faceH);
+          objBegin([[hMid.x, hMid.y, zH], [hTipR.x, hTipR.y, zH - 0.12]], 0.10);
+          quadBoxAdd(hCorners, zH - 0.026, zH + 0.026, PAL_ACC);
         } else {
-          var pAH = accPos(s, 0.05, 0.08, faceH), pBH = accPos(s, s.len - 0.05, 0.08, faceH);
-          var hRail = { x1: Math.min(pAH.x,pBH.x)-0.026, y1: Math.min(pAH.y,pBH.y)-0.026,
-                        x2: Math.max(pAH.x,pBH.x)+0.026, y2: Math.max(pAH.y,pBH.y)+0.026,
-                        z1: ztH-0.026, z2: ztH+0.026 };
-          objBegin([boxMid(hRail), [hTip.x, hTip.y, ztH - 0.12]], 0.10);
+          var pAH = accPos(s, hg.u0, 0.08, faceH), pBH = accPos(s, hg.u1, 0.08, faceH);
+          var hRail = { x1: Math.min(pAH.x,pBH.x)-0.014, y1: Math.min(pAH.y,pBH.y)-0.014,
+                        x2: Math.max(pAH.x,pBH.x)+0.014, y2: Math.max(pAH.y,pBH.y)+0.014,
+                        z1: zH-0.026, z2: zH+0.026 };
+          objBegin([boxMid(hRail), [pAH.x, pAH.y, zH - 0.12]], 0.10);
           boxAdd(hRail, PAL_ACC);
         }
         for (var kH = 0; kH < nH; kH++){
-          var uH = (kH + 0.5) * s.len / nH;
-          var phH = accPos(s, uH, 0.08, faceH), peH = accPos(s, uH, 0.15, faceH);
-          var kHook = phH.x * d3[0] + phH.y * d3[1] + (ztH - 0.11) * d3[2];
-          add1(kHook, lineStr([phH.x, phH.y, ztH-0.03], [phH.x, phH.y, ztH-0.12], '#7c8288', 0.7));
-          add1(kHook, lineStr([phH.x, phH.y, ztH-0.12], [peH.x, peH.y, ztH-0.19], '#7c8288', 0.7));
+          var uH = hg.u0 + (kH + 0.5) * (hg.u1 - hg.u0) / nH;
+          var phH = accPos(s, uH, 0.075, faceH), peH = accPos(s, uH, 0.145, faceH);
+          var kHook = phH.x * d3[0] + phH.y * d3[1] + (zH - 0.11) * d3[2];
+          add1(kHook, lineStr([phH.x, phH.y, zH - 0.026], [phH.x, phH.y, zH - 0.115], '#7c8288', 0.7));
+          add1(kHook, lineStr([phH.x, phH.y, zH - 0.115], [peH.x, peH.y, zH - 0.185], '#7c8288', 0.7));
         }
         objEnd();
       });
-    }
+    });
   });
 
   /* ---------- 独立网面墙 ---------- */
@@ -1537,7 +1769,8 @@ function render3D(cfg, view){
   (cfg.bikes || []).concat(accBikesOf(cfg)).forEach(function(bk){
     if (skipBike && String(bk.id) === skipBike) return;   /* 审计 / 测试用：消融渲染（不画这一台） */
     var btype = (bk.type === 'kids') ? 'kids' : 'adult';
-    var scl = (btype === 'kids') ? 0.78 : 1.0;
+    /* 挂车（挂钩上的 16″ 童车）按车长换算缩放：1.8 × HOOK_BIKE_SCL ≈ 1.1m */
+    var scl = (bk.scl != null) ? +bk.scl : ((btype === 'kids') ? 0.78 : 1.0);
     var pose = (bk.pose === 'top') ? 'top' : 'stand';
     var rotD = (bk.rot != null) ? bk.rot : (bk.angle != null ? bk.angle : 0);
     var steerD = (bk.steer != null) ? bk.steer : 45;
@@ -1723,7 +1956,10 @@ function render3D(cfg, view){
       else { tx = st0.x+st0.w/2; ty = st0.y+st0.h+0.22; }
       addText([tx, ty, stH+0.06], '网面', { size:10, fill:'#4c6b80' });
     }
-    if (st0.peg && st0.peg.on) addText([st0.x+st0.w-0.32, st0.y+0.55, 2.35], '洞洞板', { size:10, fill:'#8a6d3b' });
+    (cfg.studioItems || []).forEach(function(siT){
+      var defT = studioItemDef(siT.kind);
+      addText([siT.x, siT.y, defT.h + 0.14], defT.label, { size:10, fill:'#6b6357' });
+    });
     cfg.pillars.forEach(function(p){ addBadge([p.x, p.y, 2.6], '柱子', { size:10, fill:'#3a3a3a', tfill:'#ffffff', dy:-8 }); });
     /* 开口名称：位置跟着墙段（缩短 / 偏移 / 旋转后仍贴在该开口上方） */
     function wallBadge(side, o, dy, fill){
@@ -1823,6 +2059,7 @@ function itemRect(cfg2, selId){
   if (kind==='en'){ var en2 = byId(cfg2.entrances || [], key); return en2 ? { x:en2.x, y:en2.y, w:en2.w, h:en2.h } : null; }
   if (kind==='ct'){ var ct2 = byId(cfg2.curtains || [], key); if (!ct2) return null;
     return (ct2.orient==='v') ? { x:ct2.x-0.15, y:ct2.y, w:0.3, h:ct2.len } : { x:ct2.x, y:ct2.y-0.15, w:ct2.len, h:0.3 }; }
+  if (kind==='si'){ var si2 = byId(cfg2.studioItems || [], key); return si2 ? studioItemBounds(si2) : null; }
   if (kind==='bk'){ var bk2 = byId(cfg2.bikes || [], key); if (!bk2) return null;
     var bl = (bk2.type==='kids') ? 1.5 : 2.0;
     var ra2 = ((bk2.rot != null) ? bk2.rot : (bk2.angle||0)) * Math.PI/180;
@@ -2062,14 +2299,17 @@ function renderPlan(cfg, ui){
         boxRS(uR-0.05, uR+0.05, 0.05, 0.36, '#d7dadd', '#9aa0a6', 0.02);
       }
     }
-    if (a2.hook === 'on'){
-      var nH = hookCount(s);
-      for (var kH = 0; kH < nH; kH++){
-        var uH = (kH + 0.5) * s.len / nH;
-        var phH = accPos(s, uH, 0.10, face2);
-        o.push('<circle cx="' + r2(phH.x) + '" cy="' + r2(phH.y) + '" r="0.055" fill="#7c8288"/>');
+    /* 挂钩（成组）：一组一段挂杆 + 每米 4 个的均布符号（平面只反映沿架位置） */
+    a2.hookGroups.forEach(function(hg){
+      var faceP = hookGroupFace(s, hg, cfg);
+      var nP = hookGroupCount(s, hg);
+      boxRS(hg.u0, hg.u1, 0.08 - 0.016, 0.08 + 0.016, '#9aa0a6', null, null, faceP);
+      for (var kP = 0; kP < nP; kP++){
+        var uP = hg.u0 + (kP + 0.5) * (hg.u1 - hg.u0) / nP;
+        var phP = accPos(s, uP, 0.105, faceP);
+        o.push('<circle cx="' + r2(phP.x) + '" cy="' + r2(phP.y) + '" r="0.05" fill="#7c8288"/>');
       }
-    }
+    });
   });
 
   /* 工作室 */
@@ -2114,27 +2354,75 @@ function renderPlan(cfg, ui){
         var xx = sd==='w' ? sW2 : sE2, mid2 = (sN2+sS2)/2;
         stub(xx, sN2, xx, mid2-dW/2); stub(xx, mid2+dW/2, xx, sS2);
       }
+    } else if (t === 'glass'){
+      /* 玻璃（全高透明隔断）：双色细线，不打断墙面 */
+      var glFn = function(x1,y1,x2,y2){
+        o.push(lineP(x1,y1,x2,y2,'#cfe4f0',0.15));
+        o.push(lineP(x1,y1,x2,y2,'#6fa7c8',0.05));
+      };
+      if (sd==='n') glFn(sW2, sN2, sE2, sN2);
+      if (sd==='s') glFn(sW2, sS2, sE2, sS2);
+      if (sd==='w') glFn(sW2, sN2, sW2, sS2);
+      if (sd==='e') glFn(sE2, sN2, sE2, sS2);
+    } else if (t === 'curtain'){
+      /* 玻璃幕墙：玻璃线 + 竖梃刻度（与「玻璃」的区分点） */
+      var cuFn = function(x1,y1,x2,y2,horizontal,segLen){
+        o.push(lineP(x1,y1,x2,y2,'#cfe4f0',0.16));
+        o.push(lineP(x1,y1,x2,y2,'#5f8ba8',0.045));
+        var nCu = Math.max(1, Math.round(segLen / 0.9));
+        for (var ci2 = 1; ci2 < nCu; ci2++){
+          var tc = ci2 / nCu;
+          if (horizontal){ var pxc = x1 + (x2-x1)*tc; o.push(lineP(pxc, y1-0.1, pxc, y1+0.1, '#5f8ba8', 0.04)); }
+          else { var pyc = y1 + (y2-y1)*tc; o.push(lineP(x1-0.1, pyc, x1+0.1, pyc, '#5f8ba8', 0.04)); }
+        }
+      };
+      if (sd==='n') cuFn(sW2, sN2, sE2, sN2, true, st.w);
+      if (sd==='s') cuFn(sW2, sS2, sE2, sS2, true, st.w);
+      if (sd==='w') cuFn(sW2, sN2, sW2, sS2, false, st.h);
+      if (sd==='e') cuFn(sE2, sN2, sE2, sS2, false, st.h);
+    } else if (t === 'fence'){
+      /* 围栏：虚线 + 端部柱点 */
+      var feFn = function(x1,y1,x2,y2){
+        o.push(lineP(x1,y1,x2,y2,'#9aa0a6',0.075,'0.28 0.16'));
+        o.push(rectStr(x1-0.06, y1-0.06, 0.12, 0.12, '#8b8e92', null));
+        o.push(rectStr(x2-0.06, y2-0.06, 0.12, 0.12, '#8b8e92', null));
+      };
+      if (sd==='n') feFn(sW2, sN2, sE2, sN2);
+      if (sd==='s') feFn(sW2, sS2, sE2, sS2);
+      if (sd==='w') feFn(sW2, sN2, sW2, sS2);
+      if (sd==='e') feFn(sE2, sN2, sE2, sS2);
     }
   });
-  if (st.peg && st.peg.on){
-    var psd = st.peg.side, PW=1.4, PG=0.1, PN=Math.max(1, Math.round(st.peg.panels||2));
-    var totalP = PN*PW + (PN-1)*PG;
-    var vertical = (psd==='w'||psd==='e');
-    var cAlong = vertical ? (st.y+st.h/2) : (st.x+st.w/2);
-    var startA = cAlong - totalP/2;
-    for (var pi2=0; pi2<PN; pi2++){
-      var a0 = startA + pi2*(PW+PG), a1 = a0 + PW;
-      if (vertical){
-        var xx2 = (psd==='e' ? st.x+st.w : st.x) + (psd==='e' ? -0.17 : 0.17);
-        o.push(rectStr(xx2-0.06, a0, 0.12, a1-a0, '#e9d4a6', '#b59b6d', 0.03));
-      } else {
-        var yy2 = (psd==='s' ? st.y+st.h : st.y) + (psd==='s' ? -0.17 : 0.17);
-        o.push(rectStr(a0, yy2-0.06, a1-a0, 0.12, '#e9d4a6', '#b59b6d', 0.03));
-      }
-    }
-  }
   o.push(labelStr(st.x+st.w/2, st.y+st.h/2, (st.name||'工作室')+' '+fnum(st.w)+'×'+fnum(st.h), 0.55, '#5a5347'));
   o.push('</g>');
+
+  /* 工作室组件（2026-09-17）：独立可点选 / 可拖动（data-id=si:<id>）；
+     旋转用分组 transform 表达（平面坐标里 90° 倍数旋转 = 本地矩形旋转）。 */
+  (cfg.studioItems || []).forEach(function(si){
+    var defP = studioItemDef(si.kind);
+    var wP = +si.w || defP.w, dP = defP.d;
+    var rotP = (((+si.rot || 0) % 360) + 360) % 360;
+    o.push('<g class="it" data-id="si:' + si.id + '"'
+      + (rotP ? ' transform="rotate(' + rotP + ' ' + r2(si.x) + ' ' + r2(si.y) + ')"' : '') + '>');
+    var x0p = si.x - wP/2, y0p = si.y - dP/2;
+    if (si.kind === 'pegboard'){
+      o.push(rectStr(x0p, y0p, wP, dP, '#f0ddb6', '#b59b6d', 0.03));
+      var nDot = Math.max(2, Math.round(wP / 0.35));
+      for (var di = 1; di < nDot; di++){
+        o.push('<circle cx="' + r2(x0p + wP*di/nDot) + '" cy="' + r2(si.y) + '" r="0.045" fill="#c7ab74"/>');
+      }
+    } else if (si.kind === 'bench'){
+      o.push(rectStr(x0p, y0p, wP, dP, '#e6d9bd', '#a08a63', 0.035));
+      o.push(rectStr(x0p+0.06, y0p+0.05, wP-0.12, 0.08, '#c9ab74', null));
+    } else if (si.kind === 'stand'){
+      o.push(rectStr(x0p, y0p, wP, dP, '#d3d7dc', '#8a9096', 0.03));
+      o.push('<circle cx="' + r2(si.x) + '" cy="' + r2(y0p + dP - 0.12) + '" r="0.1" fill="#7c828a"/>');
+    } else {
+      o.push(rectStr(x0p, y0p, wP, dP, '#e2e4e7', '#9aa0a8', 0.03));
+      o.push(lineP(x0p+0.07, y0p+dP-0.07, x0p+wP-0.07, y0p+dP-0.07, '#9aa0a8', 0.03));
+    }
+    o.push('</g>');
+  });
 
   /* 独立网面墙 */
   cfg.meshes.forEach(function(ms){
@@ -2174,7 +2462,9 @@ function renderPlan(cfg, ui){
     var rotD = (bk.rot != null) ? bk.rot : (bk.angle != null ? bk.angle : 0);
     var steerD = (bk.steer != null) ? bk.steer : 45;
     var pose = (bk.pose === 'top') ? 'top' : 'stand';
-    var g = '<g class="it" data-id="' + (bk.acc ? esc(bk.id) : ('bk:' + bk.id)) + '"' + (bk.acc ? ' data-acc="' + esc(bk.acc) + '"' : '') + ' transform="translate(' + r2(bk.x) + ' ' + r2(bk.y) + ') rotate(' + r2(rotD) + ')">';
+    /* 挂车按车长缩放（1.8 × scl ≈ 1.1m），其余车保持原尺寸 */
+    var sclP = (bk.scl != null) ? (' scale(' + r2(+bk.scl) + ')') : '';
+    var g = '<g class="it" data-id="' + (bk.acc ? esc(bk.id) : ('bk:' + bk.id)) + '"' + (bk.acc ? ' data-acc="' + esc(bk.acc) + '"' : '') + ' transform="translate(' + r2(bk.x) + ' ' + r2(bk.y) + ') rotate(' + r2(rotD) + ')' + sclP + '">';
     g += '<rect x="-0.95" y="-0.55" width="1.9" height="1.1" fill="transparent"/>';
     if (pose !== 'top'){
       g += '<rect x="-0.9" y="-0.035" width="0.7" height="0.07" rx="0.03" fill="' + tcol + '" fill-opacity="0.9"/>';
@@ -2281,6 +2571,33 @@ function renderShelfFront(cfg, shelfId, opt){
   }
   o.push('</g>');
 
+  /* 侧视车剪影（x 沿车长、z 高度）：托臂上的车与挂钩上的挂车共用同一套画法。
+     zBase = 车轮落地高度（托臂排 = 排高；挂车 = 挂钩组高度，即车挂在钩上）。 */
+  function sideBike(g, uc, zBase, scl, isKids){
+    var col = isKids ? '#e0a35e' : '#6d747c';
+    var colS = isKids ? '#a97838' : '#454b52';
+    var tire = isKids ? '#a86f28' : '#3a3f45';
+    function P(px, pz){ return [r2(X(uc + px * scl)), r2(Y(zBase + pz * scl))]; }
+    function bar(A, B, w2){
+      var a = P(A[0], A[1]), b = P(B[0], B[1]);
+      g.push('<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '" stroke="' + col + '" stroke-width="' + r2(Math.max(1.2, w2 * scl * sc)) + '" stroke-linecap="round"/>');
+    }
+    [-0.55, 0.55].forEach(function(wx){
+      var c = P(wx, 0.35), rr = r2(0.35 * scl * sc);
+      g.push('<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + rr + '" fill="none" stroke="' + tire + '" stroke-width="' + r2(Math.max(1.6, 0.05 * scl * sc)) + '"/>');
+      g.push('<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + r2(Math.max(0.7, 0.03 * scl * sc)) + '" fill="' + colS + '"/>');
+    });
+    bar([-0.26, 0.90], [0.40, 0.86], 0.07);
+    bar([-0.10, 0.33], [0.40, 0.84], 0.08);
+    bar([-0.10, 0.33], [-0.26, 0.90], 0.07);
+    bar([-0.10, 0.33], [-0.55, 0.35], 0.05);
+    bar([-0.26, 0.90], [-0.55, 0.35], 0.05);
+    bar([0.42, 0.86], [0.55, 0.35], 0.06);
+    bar([0.42, 0.86], [0.50, 0.99], 0.06);
+    bar([0.38, 0.99], [0.62, 0.99], 0.07);          /* 车把 */
+    bar([-0.36, 0.93], [-0.20, 0.93], 0.09);        /* 车座 */
+  }
+
   /* 托臂排（从下到上绘制，保证选中排最后画） */
   rows = rows.slice().sort(function(a, b){ return a.z - b.z; });
   rows.forEach(function(r, ri){
@@ -2306,29 +2623,7 @@ function renderShelfFront(cfg, shelfId, opt){
         g.push('<line x1="' + xa + '" y1="' + r2(yr + 0.02 * sc) + '" x2="' + xa + '" y2="' + r2(yr + 0.16 * sc) + '" stroke="#9aa0a6" stroke-width="1.6"/>');
         g.push('<path d="M' + r2(xa - 0.07 * sc) + ' ' + r2(yr + 0.16 * sc) + ' L' + xa + ' ' + r2(yr + 0.05 * sc) + ' L' + r2(xa + 0.07 * sc) + ' ' + r2(yr + 0.16 * sc) + '" fill="none" stroke="#8f959b" stroke-width="1.6"/>');
       });
-      /* 车（侧视剪影）：与 3D 同一套坐标（x 沿车长、z 高度） */
-      var col = (r.size === 'kids') ? '#e0a35e' : '#6d747c';
-      var colS = (r.size === 'kids') ? '#a97838' : '#454b52';
-      var tire = (r.size === 'kids') ? '#a86f28' : '#3a3f45';
-      function P(px, pz){ return [r2(X(uc + px * scl)), r2(Y(r.z + pz * scl))]; }
-      function bar(A, B, w2){
-        var a = P(A[0], A[1]), b = P(B[0], B[1]);
-        g.push('<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '" stroke="' + col + '" stroke-width="' + r2(Math.max(1.2, w2 * scl * sc)) + '" stroke-linecap="round"/>');
-      }
-      [-0.55, 0.55].forEach(function(wx){
-        var c = P(wx, 0.35), rr = r2(0.35 * scl * sc);
-        g.push('<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + rr + '" fill="none" stroke="' + tire + '" stroke-width="' + r2(Math.max(1.6, 0.05 * scl * sc)) + '"/>');
-        g.push('<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + r2(Math.max(0.7, 0.03 * scl * sc)) + '" fill="' + colS + '"/>');
-      });
-      bar([-0.26, 0.90], [0.40, 0.86], 0.07);
-      bar([-0.10, 0.33], [0.40, 0.84], 0.08);
-      bar([-0.10, 0.33], [-0.26, 0.90], 0.07);
-      bar([-0.10, 0.33], [-0.55, 0.35], 0.05);
-      bar([-0.26, 0.90], [-0.55, 0.35], 0.05);
-      bar([0.42, 0.86], [0.55, 0.35], 0.06);
-      bar([0.42, 0.86], [0.50, 0.99], 0.06);
-      bar([0.38, 0.99], [0.62, 0.99], 0.07);          /* 车把 */
-      bar([-0.36, 0.93], [-0.20, 0.93], 0.09);        /* 车座 */
+      sideBike(g, uc, r.z, scl, r.size === 'kids');
     }
     /* 排标号 + 命中区（点它 = 选中该排；拖动 = 移动/改高度） */
     g.push('<g data-row="' + esc(r.id) + '" data-id="sh:' + esc(s.id) + '" data-rowi="' + ri + '">'
@@ -2352,29 +2647,72 @@ function renderShelfFront(cfg, shelfId, opt){
       + names[viewFace] + '还没有托臂排：点上方「＋短托臂 / ＋长托臂」添加'
       + (otherRows ? '（' + names[otherFace] + '已有 ' + otherRows + ' 排）' : '') + '</text>');
   }
-  /* 地架 / 挂钩在正面上看不到（贴在货架前缘 / 地面），给一行说明避免误以为丢了 */
+  /* 挂钩（2026-09-17 第二轮：成组，每米 4 个）：一组 = 一段挂杆 + 均布钩子。
+     整组可拖（左右 + 上下），选中后两端圆点调范围（与托臂排同一套手势）。 */
+  var hookGroupsHere = acc.hookGroups.filter(function(g){ return hookGroupFace(s, g, cfg) === viewFace; });
+  var hookTotalHere = 0, hookBikesHere = 0;
+  hookGroupsHere.forEach(function(g){ hookTotalHere += hookGroupCount(s, g); hookBikesHere += hookBikeCount(s, g); });
+  hookGroupsHere.forEach(function(hg){
+    var on = String(opt.selHookGroup || '') === String(hg.id);
+    var nH = hookGroupCount(s, hg);
+    var hx0 = X(hg.u0), hx1 = X(hg.u1), hy = Y(hg.z);
+    var gh = [];
+    if (on){
+      gh.push('<rect x="' + hx0 + '" y="' + r2(hy - 0.10 * sc) + '" width="' + r2(+hx1 - +hx0) + '" height="' + r2(0.34 * sc)
+        + '" rx="' + r2(0.08 * sc) + '" fill="' + ACC + '" fill-opacity="0.14" stroke="' + ACC + '" stroke-width="1.2"/>');
+    }
+    /* 挂杆（这一组的范围） */
+    gh.push('<rect x="' + hx0 + '" y="' + r2(hy - 0.03 * sc) + '" width="' + r2(+hx1 - +hx0) + '" height="' + r2(0.06 * sc)
+      + '" fill="#c2c8cd" stroke="#9aa0a6" stroke-width="1"/>');
+    /* 钩子：每米 4 个均布（J 形，与 3D 同形） */
+    for (var kH = 0; kH < nH; kH++){
+      var ucH = hg.u0 + (kH + 0.5) * (hg.u1 - hg.u0) / nH;
+      var xhH = X(ucH);
+      gh.push('<path d="M' + xhH + ' ' + r2(hy - 0.01 * sc) + ' L' + xhH + ' ' + r2(hy + 0.115 * sc)
+        + ' L' + r2(+xhH + 0.085 * sc) + ' ' + r2(hy + 0.185 * sc) + '" fill="none" stroke="#7c8288"'
+        + ' stroke-width="' + r2(Math.max(1.1, 0.02 * sc)) + '" stroke-linecap="round"/>');
+    }
+    /* 命中区（整组）：按住拖动 = 移动（左右 + 上下） */
+    gh.push('<g data-hookgroup="' + esc(hg.id) + '" data-id="sh:' + esc(s.id) + '" data-hookg="' + nH + '"'
+      + ' data-hookz="' + fnum(hg.z) + '" data-hooku0="' + fnum(hg.u0) + '" data-hooku1="' + fnum(hg.u1) + '">'
+      + '<rect x="' + hx0 + '" y="' + r2(hy - 0.06 * sc) + '" width="' + r2(Math.max(6, +hx1 - +hx0)) + '" height="' + r2(0.30 * sc)
+      + '" fill="transparent" style="cursor:grab"/></g>');
+    /* 挂车（2026-09-17）：挂钩上的 16″ 童车，正面视角直接看到整车侧影（车挂在钩高上） */
+    var nBikeH = hookBikeCount(s, hg);
+    for (var kB = 0; kB < nBikeH; kB++){
+      sideBike(gh, hookBikeU(s, hg, kB), hg.z, HOOK_BIKE_SCL, true);
+    }
+    if (on){
+      gh.push('<g data-hookhandle="' + esc(hg.id) + ':0"><circle cx="' + hx0 + '" cy="' + hy + '" r="7" fill="#fff" stroke="' + ACC + '" stroke-width="2" style="cursor:ew-resize"/></g>');
+      gh.push('<g data-hookhandle="' + esc(hg.id) + ':1"><circle cx="' + hx1 + '" cy="' + hy + '" r="7" fill="#fff" stroke="' + ACC + '" stroke-width="2" style="cursor:ew-resize"/></g>');
+      gh.push('<text x="' + r2((+hx0 + +hx1) / 2) + '" y="' + r2(hy - 0.14 * sc) + '" text-anchor="middle" font-size="11.5" fill="#7a5b06">'
+        + '挂钩组 · ' + nH + ' 个（每米 4 个）· 离地 ' + fnum(hg.z) + 'm'
+        + (nBikeH ? ' · 挂 16″ 童车 ' + nBikeH + ' 台' : '') + '</text>');
+    }
+    o.push('<g data-hookgroupg="' + esc(hg.id) + '">' + gh.join('') + '</g>');
+  });
+  /* 地架贴在货架前缘 / 地面，正面上本来就看不清，给一行说明避免误以为丢了 */
   var extra = [];
   if (acc.rack !== 'none'){
     var rf = resolveFaces(s, cfg, acc.rackSide);
     extra.push('地架 ' + (rackCount(s) * rf.length) + ' 个' + (rf.length > 1 ? '（两面）' : '·' + names[rf[0]]));
   }
-  if (acc.hook === 'on'){
-    var hf = resolveFaces(s, cfg, acc.hookSide);
-    extra.push('挂钩 ' + (hookCount(s) * hf.length) + ' 个' + (hf.length > 1 ? '（两面）' : '·' + names[hf[0]]));
-  }
   if (extra.length){
     o.push('<text x="' + mx + '" y="' + r2(my + 44) + '" font-size="11.5" fill="' + MUT + '">'
-      + esc(extra.join(' · ')) + '（在 3D / 平面视图查看）</text>');
+      + esc(extra.join(' · ')) + (acc.rack !== 'none' ? '（地架在 3D / 平面视图查看）' : '') + '</text>');
   }
   var rowBikes = 0;
   rows.forEach(function(r){ rowBikes += rowBikeCount(s, r); });
   o.push('<text x="' + mx + '" y="' + 22 + '" font-size="12.5" fill="' + INK + '">'
     + esc(s.name || '货架') + ' · 长 ' + fnum(L) + 'm · 高 ' + fnum(H) + 'm · ' + (s.kind === 'double' ? '双面' : (s.kind === 'single' ? '单面' : '矮货架'))
     + ' · 正在看「' + names[viewFace] + '」' + (rows.length ? ' · 托臂 ' + rows.length + ' 排 / ' + rowBikes + ' 台' : '')
+    + (hookGroupsHere.length ? ' · 挂钩 ' + hookTotalHere + ' 个（' + hookGroupsHere.length + ' 组，可拖动）'
+        + (hookBikesHere ? ' · 挂 16″ 童车 ' + hookBikesHere + ' 台' : '') : '')
     + (otherRows ? ' · ' + names[otherFace] + '另有 ' + otherRows + ' 排' : '') + '</text>');
   o.push('</svg>');
   return { svg: o.join(''), meta: { scale: sc, mx: mx, my: my, len: r2(L), h: r2(H), shelfId: s.id,
-    face: viewFace, faceName: names[viewFace], rows: rows.length, otherRows: otherRows } };
+    face: viewFace, faceName: names[viewFace], rows: rows.length, otherRows: otherRows,
+    hookGroups: hookGroupsHere.length, hooks: hookTotalHere, hookBikes: hookBikesHere } };
 }
 
 /* ======================== ASCII 布局转储（调试用） ======================== */
@@ -2471,12 +2809,15 @@ function buildRandomCandidate(baseCfg){
 
   var studio = { x:15.9, y:9.05, w:4, h:4, wallH:2.2,
                  sides:{ n:'wall', e:'none', s:'door', w:'window' }, doorW:1.2,
-                 peg:{ on:true, side:'e', face:'in', panels:2 } };
+                 itemsMigrated: true };
+  var pegSide = 'e';
   studio.y = _rs(_rb(8.95, 9.15), 0.05);
   if (Math.random() < 0.6){
     studio.x = _rs(_rb(15.86, 15.94), 0.01);
     studio.sides = { n:'wall', e:'none', s:'door', w:'window' };
-    studio.peg.side = 'e';
+    /* 玻璃 / 玻璃幕墙交替出现（2026-09-17 新增侧墙类型） */
+    studio.sides.w = _pick(['window','glass','curtain']);
+    pegSide = 'e';
   } else {
     var sxMax = 15.4;
     if (fam === 'v') sxMax = Math.min(15.4, x3 - 4.2);
@@ -2486,10 +2827,14 @@ function buildRandomCandidate(baseCfg){
     var ds = _pick(rest);
     var ws = _pick(rest.filter(function(sd){ return sd !== ds; }));
     studio.sides = { n:'wall', e:'wall', s:'wall', w:'wall' };
-    studio.sides[ms] = 'mesh'; studio.sides[ds] = 'door'; studio.sides[ws] = 'window';
-    studio.peg.side = ms;
+    studio.sides[ms] = 'mesh'; studio.sides[ds] = 'door';
+    studio.sides[ws] = _pick(['window','glass','curtain']);
+    pegSide = ms;
   }
   c2.studio = studio;
+  /* 工作室组件（2026-09-17）：随机方案在墙边放一块洞洞板（替代旧的 peg 设置） */
+  var ptPeg = studioItemOnSide(studio, 'pegboard', pegSide, 1.4, false, 0);
+  c2.studioItems = [{ id:'peg-1', kind:'pegboard', x: ptPeg.x, y: ptPeg.y, rot: ptPeg.rot, w: ptPeg.w }];
 
   c2.zones = (c2.zones || []).filter(function(z){ return z.kind !== 'test'; });
   var tw = _rs(_rb(7.5, 9.0), 0.5);
@@ -2578,6 +2923,81 @@ function migrateLegacy(cfgIn){
     }
     delete a2.arm;
   });
+  /* 工作室组件迁移（2026-09-17）：旧版 studio.peg 单例设置 → studioItems 组件数组。
+     幂等：只对「没有迁移标记的输入配置」执行一次；位置换算与原渲染一致
+     （沿墙居中、朝内偏移 0.14m、每块 1.4m 宽、块间距 0.1m）。 */
+  if (cfgIn && !(cfgIn.studio && cfgIn.studio.itemsMigrated)){
+    c2.studioItems = Array.isArray(cfgIn.studioItems) ? cfgIn.studioItems : [];
+    var pegOld = (cfgIn.studio && cfgIn.studio.peg) || null;
+    if (pegOld && pegOld.on){
+      var stM = c2.studio;
+      var psdM = pegOld.side || 'e';
+      var PNM = Math.max(1, Math.round(pegOld.panels || 2));
+      for (var piM = 0; piM < PNM; piM++){
+        var ptM = studioItemOnSide(stM, 'pegboard', psdM, 1.4, pegOld.face === 'out',
+                                   (piM - (PNM - 1) / 2) * 1.5);
+        c2.studioItems.push({ id: 'peg-migrated-' + piM, kind: 'pegboard',
+          x: ptM.x, y: ptM.y, rot: ptM.rot, w: ptM.w });
+      }
+    }
+    delete c2.studio.peg;
+    c2.studio.itemsMigrated = true;
+  }
+  /* 挂钩（2026-09-17 两轮迭代，用户口径：成组摆放、每米 4 个钩子）：
+     ① 更早版本的单值开关（每米 4 个、固定在前缘顶端）→ 每面一整段挂杆
+        （位置沿用旧渲染点：整长、顶端 +0.03m；hookSide='both' 展开成两面各一组）；
+     ② 中途版本的「逐个挂钩数组」→ 按面 / 高度聚合成组，钩子数量保持不变。
+     幂等：已有 hookGroups 数组时什么都不做；换算后旧键一律删除（单一真值）。 */
+  (c2.shelves || []).forEach(function(s){
+    var a = s.acc;
+    if (!a || typeof a !== 'object') return;
+    if (!Array.isArray(a.hookGroups)){
+      var hLen = (+s.len > 0) ? +s.len : 4;
+      var hH = (s.h == null) ? SHELF_H_DEFAULT : +s.h;
+      var zTop = r2(Math.min(hH + 0.03, hH + HOOK_Z_ABOVE));
+      var found = [];
+      var loose = Array.isArray(a.hooks) ? a.hooks : null;
+      if (loose && loose.length){
+        /* ② 逐个挂钩：同面、间距 ≤0.6m、高度接近的归为一簇（保持钩子数量不变） */
+        var byFace = {};
+        loose.forEach(function(hk){
+          var f = normFace(hk.face);
+          (byFace[f] = byFace[f] || []).push(hk);
+        });
+        Object.keys(byFace).forEach(function(f){
+          var list = byFace[f].slice().sort(function(x, y){ return (+x.u || 0) - (+y.u || 0); });
+          var cur = null;
+          list.forEach(function(hk){
+            var u = +hk.u || 0;
+            var z = (+hk.z > 0) ? +hk.z : Math.min(HOOK_Z_DEFAULT, hH + HOOK_Z_ABOVE);
+            if (cur && (u - cur.lastU) <= 0.6 && Math.abs(z - cur.z) <= 0.06){
+              cur.n += 1; cur.lastU = u; cur.z = (cur.z * (cur.n - 1) + z) / cur.n;
+            } else {
+              if (cur) found.push(cur);
+              cur = { face: f, n: 1, firstU: u, lastU: u, z: z };
+            }
+          });
+          if (cur) found.push(cur);
+        });
+        found = found.map(function(cl){
+          var span = Math.max(Math.min(HOOK_MIN_SPAN, hLen), cl.n / HOOK_PER_M);
+          var u0 = cl.firstU - (span - (cl.lastU - cl.firstU)) / 2;
+          if (u0 < 0) u0 = 0;
+          if (u0 + span > hLen) u0 = Math.max(0, hLen - span);
+          return { u0: r2(u0), u1: r2(Math.min(hLen, u0 + span)), z: r2(cl.z), face: cl.face };
+        });
+      } else if (a.hook === 'on'){
+        /* ① 旧开关：每面一整段（沿用旧钩子数：整长 × 每米 4 个） */
+        var faces = (a.hookSide === 'both') ? ['pos', 'neg'] : [normFace(a.hookSide)];
+        faces.forEach(function(f){ found.push({ u0: 0, u1: r2(hLen), z: zTop, face: f }); });
+      }
+      found.forEach(function(g, gi){ g.id = 'g' + (gi + 1); });
+      a.hookGroups = found;
+    }
+    delete a.hook;
+    delete a.hookSide;
+    delete a.hooks;
+  });
   c2.v = 2;
   return c2;
 }
@@ -2607,6 +3027,10 @@ function configDiff(base, other){
 }
 
 return {
+  studioItemDef: studioItemDef,
+  studioItemLabel: studioItemLabel,
+  studioItemCorners: studioItemCorners,
+  studioItemBounds: studioItemBounds,
   randomLayout: randomLayout,
   itemRect: itemRect,
   migrateLegacy: migrateLegacy,
@@ -2634,7 +3058,25 @@ return {
   defaultArmZ: defaultArmZ,
   rackCount: rackCount,
   hookCount: hookCount,
+  hookGroupCount: hookGroupCount,
+  hookBikeCount: hookBikeCount,
+  hookBikeU: hookBikeU,
+  hookBikeLabel: hookBikeLabel,
+  hookGroupFace: hookGroupFace,
+  hookGroupsOnFace: hookGroupsOnFace,
+  nextHookZ: nextHookZ,
+  faceCounts: faceCounts,
+  busyFace: busyFace,
+  defaultAddFace: defaultAddFace,
   ARM_SLOT: ARM_SLOT,
+  HOOK_PER_M: HOOK_PER_M,
+  HOOK_BIKE_SLOT: HOOK_BIKE_SLOT,
+  HOOK_BIKE_DEPTH: HOOK_BIKE_DEPTH,
+  HOOK_BIKE_SCL: HOOK_BIKE_SCL,
+  HOOK_Z_DEFAULT: HOOK_Z_DEFAULT,
+  HOOK_Z_MIN: HOOK_Z_MIN,
+  HOOK_Z_ABOVE: HOOK_Z_ABOVE,
+  HOOK_MIN_SPAN: HOOK_MIN_SPAN,
   ARM_LEN: ARM_LEN,
   SHELF_H_DEFAULT: SHELF_H_DEFAULT,
   BIKE_LEN: BIKE_LEN,

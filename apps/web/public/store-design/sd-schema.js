@@ -20,11 +20,16 @@
 (function(){
 'use strict';
 
-var KIND = { sh:'货架', st:'工作室', zn:'区域', pl:'柱子', mk:'标记', ms:'网面墙', en:'出入口净空', ct:'门帘', bk:'自行车', iw:'内隔墙', wl:'外墙' };
+var KIND = { sh:'货架', st:'工作室', si:'工作室组件', zn:'区域', pl:'柱子', mk:'标记', ms:'网面墙', en:'出入口净空', ct:'门帘', bk:'自行车', iw:'内隔墙', wl:'外墙' };
 var SHELF_KINDS = [['double','双面'],['single','单面'],['low','矮货架']];
 var ORIENT_HV = [['h','东西向'],['v','南北向']];
 var FENCE = [['none','无'],['wall','矮墙'],['mesh','网面']];
-var SIDES = [['wall','实墙'],['window','玻璃窗'],['mesh','网面'],['door','门洞'],['none','无']];
+/* 侧墙类型（2026-09-17 扩充）：玻璃 / 玻璃幕墙 / 围栏 三种新做法 */
+var SIDES = [['wall','实墙'],['window','玻璃窗'],['glass','玻璃'],['curtain','玻璃幕墙'],['fence','围栏'],['mesh','网面'],['door','门洞'],['none','无']];
+/* 工作室组件（自由摆放）：类型 / 朝向枚举 */
+var STUDIO_ITEM_KINDS = [['pegboard','洞洞板'],['bench','工作台'],['stand','维修架'],['cabinet','工具柜']];
+var ROT4 = [['0','0°'],['90','90°'],['180','180°'],['270','270°']];
+function normRot(r){ var v = ((+r || 0) % 360 + 360) % 360; return (v === 90 || v === 180 || v === 270) ? v : 0; }
 
 function E(){ return window.Engine; }
 function num(v){ return E().fnum(v); }
@@ -67,18 +72,22 @@ function statusItems(ck){
   if (ck.bikeAdult || ck.bikeKid) items.push({ tone:'info', text:'🚲 成人 ' + ck.bikeAdult + ' · 童车 ' + ck.bikeKid });
   if (ck.accArm || ck.accRack || ck.accHook){
     items.push({ tone:'info', text:'托臂 ' + ck.accArm + ' 台' + (ck.accArmRows ? '（' + ck.accArmRows + ' 排）' : '')
-      + (ck.accRack ? ' · 地架 ' + ck.accRack : '') + (ck.accHook ? ' · 挂钩 ' + ck.accHook : '') });
+      + (ck.accRack ? ' · 地架 ' + ck.accRack : '') + (ck.accHook ? ' · 挂钩 ' + ck.accHook : '')
+      + (ck.accHookBike ? ' · 挂童车 ' + ck.accHookBike + ' 台' : '') });
   }
   if (ck.warnings && ck.warnings.length) items.push({ tone:'warn', text:'⚠ ' + ck.warnings.length + ' 条提示' });
   return items;
 }
 
 /* ---------- 各类型元素的字段 ---------- */
-function shelfFields(s, i){
+function shelfFields(s, i, cfg){
   var acc = E().accOf(s);
   var hS = (s.h == null) ? E().SHELF_H_DEFAULT : s.h;
   var fn = E().faceNames(s);
-  var FACE_OPTS = [['auto', '自动（朝空侧）'], ['pos', fn.pos], ['neg', fn.neg]];
+  /* 挂载面选项带「该面已有多少组件」（2026-09-17 用户反馈：选哪一面很难用）。
+     新增组件默认落到组件多的那一面（见 app.js faceForNewComponent / E.defaultAddFace）。 */
+  var fc = cfg ? E().faceCounts(s, cfg) : { pos: 0, neg: 0 };
+  var FACE_OPTS = [['auto', '自动（朝空侧）'], ['pos', fn.pos + '（' + fc.pos + '）'], ['neg', fn.neg + '（' + fc.neg + '）']];
   var isDouble = (s.kind === 'double');
   var f = [
     text('shelves.' + i + '.name', '名称', s.name, '如 A区热销'),
@@ -108,11 +117,27 @@ function shelfFields(s, i){
       { unit:'m', min:0, max:s.len, step:0.1 }));
     if (isDouble) f.push(select('shelves.' + i + '.acc.armRows.' + ri + '.face', '　挂载面', r.face, FACE_OPTS));
   });
-  var SIDE_OPTS = [['auto', '自动（朝空侧）'], ['pos', fn.pos], ['neg', fn.neg], ['both', '两面都装']];
+  var SIDE_OPTS = [['auto', '自动（朝空侧）'], ['pos', fn.pos + '（' + fc.pos + '）'], ['neg', fn.neg + '（' + fc.neg + '）'], ['both', '两面都装']];
   f.push(select('shelves.' + i + '.acc.rack', '地架排车', acc.rack, [['none','不装'],['adult','成人车'],['kids','童车']]));
   if (isDouble && acc.rack !== 'none') f.push(select('shelves.' + i + '.acc.rackSide', '　地架挂载面', acc.rackSide, SIDE_OPTS));
-  f.push(select('shelves.' + i + '.acc.hook', '自行车挂钩', acc.hook, [['none','不装'],['on','装（4 个/米）']]));
-  if (isDouble && acc.hook === 'on') f.push(select('shelves.' + i + '.acc.hookSide', '　挂钩挂载面', acc.hookSide, SIDE_OPTS));
+  /* 挂钩（2026-09-17 第二轮：成组，每米 4 个）：一组 = 一段挂杆（沿架起点/终点 + 离地高度），
+     组内钩子按每米 4 个均布；属性栏改数值，或在「正面视角」里拖杆移动、两端圆点调范围。 */
+  acc.hookGroups.forEach(function(hg, gi){
+    var nBk = E().hookBikeCount(s, hg);
+    f.push(note('挂钩组 ' + (gi + 1) + '：' + E().hookGroupCount(s, hg) + ' 个（每米 4 个）· 离地 ' + num(hg.z) + 'm'
+      + (nBk ? ' · 挂 16″ 童车 ' + nBk + ' 台' : '')));
+    /* 挂钩上挂车（2026-09-17 用户口径）：16″ 童车长 1.1m，每台占 1.1m 沿架位 */
+    f.push(select('shelves.' + i + '.acc.hookGroups.' + gi + '.bike', '　挂钩上挂', hg.bike || 'none',
+      [['none', '不挂'], ['kids16', '16″ 童车（1.1m/台）']]));
+    f.push(number('shelves.' + i + '.acc.hookGroups.' + gi + '.u0', '　沿架起点', hg.u0,
+      { unit:'m', min:0, max:s.len, step:0.05 }));
+    f.push(number('shelves.' + i + '.acc.hookGroups.' + gi + '.u1', '　沿架终点', hg.u1,
+      { unit:'m', min:0, max:s.len, step:0.05 }));
+    f.push(number('shelves.' + i + '.acc.hookGroups.' + gi + '.z', '　离地高度', hg.z,
+      { unit:'m', min:0.15, max:Math.round((hS + 0.3) * 100) / 100, step:0.05 }));
+    if (isDouble) f.push(select('shelves.' + i + '.acc.hookGroups.' + gi + '.face', '　挂载面', hg.face, FACE_OPTS));
+  });
+  if (acc.hookGroups.length) f.push(note('挂钩组可拖动：正面视角里拖杆移动、两端圆点调范围。'));
   f.push(number('shelves.' + i + '.x', 'x 坐标', s.x, { unit:'m', min:0, max:200, step:0.1 }));
   f.push(number('shelves.' + i + '.y', 'y 坐标', s.y, { unit:'m', min:0, max:200, step:0.1 }));
   return f;
@@ -146,10 +171,22 @@ function studioFields(st){
     select('studio.sides.s', '南侧', st.sides.s, SIDES),
     select('studio.sides.w', '西侧', st.sides.w, SIDES),
     number('studio.doorW', '门洞宽', st.doorW, { unit:'m', min:0.6, max:3, step:0.1 }),
-    toggle('studio.peg.on', '洞洞板', st.peg && st.peg.on),
-    number('studio.peg.panels', '洞洞板数量', (st.peg && st.peg.panels) || 2, { min:1, max:4, step:1 }),
-    select('studio.peg.side', '洞洞板面', (st.peg && st.peg.side) || 'e', [['n','北'],['e','东'],['s','南'],['w','西']]),
-    select('studio.peg.face', '洞洞板朝向', (st.peg && st.peg.face) || 'in', [['in','内侧'],['out','外侧']])
+    note('组件（洞洞板 / 工作台 / 维修架 / 工具柜）：点上方「＋」添加，或从左侧工具栏拖放；添加后可直接拖动摆放，选中组件可改类型 / 朝向 / 长度。')
+  ];
+}
+/* 工作室组件的字段（2026-09-17）：类型 / 朝向 / 长度 / 位置（中心点坐标）。
+   删除动作在 elementGroups 的 actions 里（两个界面实现都会渲染）。 */
+function studioItemFields(cfg, index){
+  var it = (cfg.studioItems || [])[index];
+  if (!it) return [];
+  var def = E().studioItemDef(it.kind);
+  var p = 'studioItems.' + index + '.';
+  return [
+    select(p + 'kind', '类型', it.kind, STUDIO_ITEM_KINDS),
+    select(p + 'rot', '朝向', normRot(it.rot), ROT4),
+    number(p + 'w', '长', (+it.w || def.w), { unit:'m', min:def.wMin, max:def.wMax, step:0.1 }),
+    number(p + 'x', 'x 坐标', it.x, { unit:'m', min:0, max:200, step:0.1 }),
+    number(p + 'y', 'y 坐标', it.y, { unit:'m', min:0, max:200, step:0.1 })
   ];
 }
 function zoneFields(z, i){
@@ -264,7 +301,12 @@ function elementGroups(cfg){
         }
       }
       if (acc.rack !== 'none') accBit += ' · 地架×' + E().rackCount(s);
-      if (acc.hook === 'on') accBit += ' · 挂钩×' + E().hookCount(s);
+      if (acc.hookGroups.length){
+        accBit += ' · 挂钩×' + E().hookCount(s);
+        var hbN = 0;
+        acc.hookGroups.forEach(function(hg){ hbN += E().hookBikeCount(s, hg); });
+        if (hbN) accBit += '（挂车×' + hbN + '）';
+      }
       return { id:'sh:' + s.id, type:'sh', index:i, title: s.name ? s.name : ('货架 #' + (i + 1)),
         badge: (s.kind === 'double' ? '双面' : s.kind === 'single' ? '单面' : '矮货架') + ' ' + num(s.len) + 'm'
           + (E().shelfRot(s) ? ' · ' + num(E().shelfRot(s)) + '°' : '')
@@ -276,15 +318,36 @@ function elementGroups(cfg){
           action('fillb', s.id + ':adult:top', '⤓ 上架成人'),
           action('fillb', s.id + ':kids:top', '⤓ 上架童车'),
           action('addArm', s.id + ':short', '＋短托臂 0.5m'),
-          action('addArm', s.id + ':long', '＋长托臂 1m')
+          action('addArm', s.id + ':long', '＋长托臂 1m'),
+          action('addHook', s.id, '＋挂钩（4 个/米）')
         ].concat(acc.rows.map(function(r, ri){
           return action('delArmRow', s.id + ':' + ri, '删托臂排 ' + (ri + 1), 'danger');
-        })).concat(acc.rows.length ? [action('clearArms', s.id, '清空托臂', 'danger')] : []) };
+        })).concat(acc.rows.length ? [action('clearArms', s.id, '清空托臂', 'danger')] : [])
+          .concat(acc.hookGroups.map(function(hg, gi){
+            return action('delHookGroup', s.id + ':' + hg.id, '删挂钩组 ' + (gi + 1) + '（' + E().hookGroupCount(s, hg) + ' 个）', 'danger');
+          })).concat(acc.hookGroups.map(function(hg, gi){
+            var onB = (hg.bike === 'kids16');
+            return action('hookBikes', s.id + ':' + hg.id, (onB ? '● ' : '') + '组 ' + (gi + 1)
+              + (onB ? ' 挂童车 ' + E().hookBikeCount(s, hg) + ' 台' : ' 挂 16″ 童车'));
+          })).concat(acc.hookGroups.length ? [action('clearHooks', s.id, '清空挂钩', 'danger')] : []) };
     }) });
   }
+  /* 工作室的 id 必须与平面图里的 data-id 完全一致（都是 'st'）：
+     否则选中后属性栏匹配不到（2026-09-17 用户报障「选中工作室显示未选中元素」）。 */
   g.push({ key:'st', title:'工作室', items: [{
-    id:'st:studio', type:'st', index:0, title: cfg.studio.name || '工作室', badge: num(cfg.studio.w) + '×' + num(cfg.studio.h) + 'm',
-    actions: [] }] });
+    id:'st', type:'st', index:0, title: cfg.studio.name || '工作室', badge: num(cfg.studio.w) + '×' + num(cfg.studio.h) + 'm',
+    actions: [
+      action('addStudioItem', 'stuPeg', '＋洞洞板'),
+      action('addStudioItem', 'stuBench', '＋工作台'),
+      action('addStudioItem', 'stuStand', '＋维修架'),
+      action('addStudioItem', 'stuCab', '＋工具柜')
+    ] }] });
+  /* 工作室组件：每个组件是独立可选中元素（类型 / 朝向 / 长度 / 位置在它自己的字段里） */
+  if ((cfg.studioItems || []).length) g.push({ key:'si', title:'工作室组件', items: cfg.studioItems.map(function(it, i){
+    var def = E().studioItemDef(it.kind);
+    return { id:'si:' + it.id, type:'si', index:i, title: def.label, badge: num(+it.w || def.w) + 'm',
+      actions: [action('delStudioItem', it.id, '删除', 'danger')] };
+  }) });
   if (cfg.zones.length) g.push({ key:'zn', title:'区域', items: cfg.zones.map(function(z, i){
     return { id:'zn:' + z.id, type:'zn', index:i, title: z.label || ('区域 #' + (i + 1)), badge: num(z.w) + '×' + num(z.h) + 'm',
       actions: [action('delZone', z.id, '删除', 'danger')] };
@@ -420,10 +483,11 @@ function settingsGroups(cfg){
 
 /* 选中项的字段（只有它需要，其余条目只显示标题与摘要）。 */
 function fieldsForItem(type, cfg, index){
-  if (type === 'sh') return shelfFields(cfg.shelves[index], index);
+  if (type === 'sh') return shelfFields(cfg.shelves[index], index, cfg);
   if (type === 'wl') return wallEdgeFields(cfg, WALL_SIDE_KEYS[index]);
   if (type === 'iw') return wallSegFields(cfg, index);
   if (type === 'st') return studioFields(cfg.studio);
+  if (type === 'si') return studioItemFields(cfg, index);
   if (type === 'zn') return zoneFields(cfg.zones[index], index);
   if (type === 'en') return entranceFields((cfg.entrances || [])[index], index);
   if (type === 'ct') return curtainFields((cfg.curtains || [])[index], index);
@@ -455,6 +519,13 @@ var TOOL_GROUPS = [
     { kind:'entrance', label:'出入口净空', icon:'⬚' },
     { kind:'mesh', label:'网面墙', icon:'▦' },
     { kind:'pillar', label:'柱子', icon:'■' }
+  ] },
+  /* 工作室组件（2026-09-17）：选中工作室后也能从属性栏「＋」添加 */
+  { title:'工作室组件', items:[
+    { kind:'stuPeg', label:'洞洞板', icon:'⊞' },
+    { kind:'stuBench', label:'工作台', icon:'🛠' },
+    { kind:'stuStand', label:'维修架', icon:'🔧' },
+    { kind:'stuCab', label:'工具柜', icon:'▣' }
   ] }
 ];
 

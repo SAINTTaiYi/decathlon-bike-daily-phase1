@@ -298,6 +298,11 @@ function renderStatus(items){
 
 /* ---------- 选中动作条（右栏顶部，完整参数在下面） ---------- */
 function accLab(v){ return v === 'adult' ? '成人' : (v === 'kids' ? '童车' : '无'); }
+/* 工作室组件的显示名（洞洞板 / 工作台 / 维修架 / 工具柜） */
+function itemLabel(o){
+  var e = window.Engine;
+  return (e && e.studioItemDef) ? e.studioItemDef(o && o.kind).label : '组件';
+}
 /* 角度归一化（墙体 / 货架同一口径；界面层不依赖 cfg） */
 function rotOn(o){
   var r = +((o || {}).rot);
@@ -317,6 +322,24 @@ function accBtnDesktop(act, name, val){
   var on = (val === 'adult' || val === 'kids' || val === 'on');
   var lab = (val === 'on') ? '开' : accLab(val);
   return '<button class="sd-d-act" data-bact="' + act + '"' + (on ? ' data-on="true"' : '') + '>' + name + '：' + lab + '</button>';
+}
+/* 挂钩组数量（2026-09-17：挂钩成组摆放、每米 4 个；快捷条按键 = 加一整组） */
+/* 挂钩（2026-09-17 第二轮：成组，每米 4 个）：快捷条按键 = 加一整组（默认落到组件多的那一面） */
+function accHookGroups(o){
+  var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
+  return (a && a.hookGroups) ? a.hookGroups.length : 0;
+}
+function accHookTotal(o){
+  var e = window.Engine;
+  return (e && e.hookCount && o) ? e.hookCount(o) : 0;
+}
+/* 挂钩上挂了几台 16″ 童车（2026-09-17） */
+function accHookBikes(o){
+  var e = window.Engine, a = (e && e.accOf) ? e.accOf(o) : null;
+  if (!a || !e.hookBikeCount) return 0;
+  var n = 0;
+  a.hookGroups.forEach(function(g){ n += e.hookBikeCount(o, g); });
+  return n;
 }
 function selBarHTML(ctx){
   var k = ctx.kind, o = ctx.item, h = '';
@@ -349,7 +372,16 @@ function selBarHTML(ctx){
       + (accRows(o).length ? '<b class="sd-d-selflag">托臂 ' + accRows(o).length + ' 排</b>' : '')
       + (accRows(o).length ? '<button class="sd-d-act" data-bact="clearArms">清空托臂</button>' : '')
       + accBtnDesktop('accRack', '地架', accNow(o, 'rack'))
-      + accBtnDesktop('accHook', '挂钩', accNow(o, 'hook')) + del + close;
+      + '<button class="sd-d-act" data-bact="accHook"' + (accHookGroups(o) ? ' data-on="true"' : '') + '>'
+      + '＋挂钩' + (accHookGroups(o) ? '（' + accHookGroups(o) + ' 组 / ' + accHookTotal(o) + ' 个）' : '（4 个/米）') + '</button>'
+      + (accHookBikes(o) ? '<b class="sd-d-selflag">挂车 ' + accHookBikes(o) + ' 台</b>' : '')
+      + del + close;
+  } else if (k === 'si'){
+    /* 工作室组件（2026-09-17）：改朝向 / 转正 / 删除 */
+    h += '<b class="sd-d-selflag">' + esc(itemLabel(o)) + '</b>'
+      + '<button class="sd-d-act" data-bact="rot">旋转 90°</button>'
+      + (rotOn(o) ? '<button class="sd-d-act" data-bact="resetRotItem">转正 0°</button>' : '')
+      + del + close;
   } else if (k === 'st'){
     h += '<b class="sd-d-selflag">工作室</b>' + close;
   } else if (k === 'zn'){

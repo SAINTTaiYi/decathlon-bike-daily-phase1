@@ -308,9 +308,32 @@ function stepper(field, val, unit){
     + '<button data-bstep="' + field + '" data-bsign="1">＋</button></span>';
 }
 function accLab(v){ return v === 'adult' ? '成人' : (v === 'kids' ? '童车' : '无'); }
+/* 工作室组件的显示名（洞洞板 / 工作台 / 维修架 / 工具柜） */
+function itemLabel(o){
+  var e = window.Engine;
+  return (e && e.studioItemDef) ? e.studioItemDef(o && o.kind).label : '组件';
+}
 function accNow(o, key){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
   return (a && a[key]) ? a[key] : 'none';
+}
+/* 挂钩组数量（2026-09-17：挂钩成组摆放、每米 4 个） */
+/* 挂钩（2026-09-17 第二轮：成组，每米 4 个）：快捷条按键 = 加一整组 */
+function accHookGroups(o){
+  var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
+  return (a && a.hookGroups) ? a.hookGroups.length : 0;
+}
+function accHookTotal(o){
+  var e = window.Engine;
+  return (e && e.hookCount && o) ? e.hookCount(o) : 0;
+}
+/* 挂钩上挂了几台 16″ 童车（2026-09-17） */
+function accHookBikes(o){
+  var e = window.Engine, a = (e && e.accOf) ? e.accOf(o) : null;
+  if (!a || !e.hookBikeCount) return 0;
+  var n = 0;
+  a.hookGroups.forEach(function(g){ n += e.hookBikeCount(o, g); });
+  return n;
 }
 function accRows(o){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
@@ -358,7 +381,16 @@ function selBarHTML(ctx){
       + '<button data-bact="addArm" data-arm="long">＋长托臂</button>'
       + (accRows(o).length ? '<button data-bact="clearArms">清空托臂(' + accRows(o).length + '排)</button>' : '')
       + '<button data-bact="accRack"' + (accNow(o, 'rack') !== 'none' ? ' data-on="true"' : '') + '>地架：' + accLab(accNow(o, 'rack')) + '</button>'
-      + '<button data-bact="accHook"' + (accNow(o, 'hook') === 'on' ? ' data-on="true"' : '') + '>挂钩：' + (accNow(o, 'hook') === 'on' ? '开' : '无') + '</button></div>';
+      + '<button data-bact="accHook"' + (accHookGroups(o) ? ' data-on="true"' : '') + '>'
+      + '＋挂钩' + (accHookGroups(o) ? '（' + accHookGroups(o) + ' 组/' + accHookTotal(o) + ' 个）' : '（4 个/米）') + '</button>'
+      + (accHookBikes(o) ? '<span class="sd-m-tag">挂车 ' + accHookBikes(o) + '</span>' : '') + '</div>';
+  } else if (k === 'si'){
+    /* 工作室组件（2026-09-17）：转 90° / 转正 / 长度 / 位置 / 删除 */
+    h += '<div class="sd-m-selrow">' + close + '<span class="sd-m-tag">' + esc(itemLabel(o)) + '</span>'
+      + '<button data-bact="rot">转90°</button>'
+      + (rotOn(o) ? '<button data-bact="resetRotItem">转正</button>' : '')
+      + '长' + stepper('w', o.w, 'm') + del + '</div>';
+    h += '<div class="sd-m-selrow"><span class="sd-m-tag">x</span>' + stepper('x', o.x, '') + '<span class="sd-m-tag">y</span>' + stepper('y', o.y, '') + '</div>';
   } else if (k === 'st'){
     h += '<div class="sd-m-selrow">' + close
       + '<input class="sd-m-name" type="text" placeholder="工作室名称" value="' + esc(o.name || '') + '">'
