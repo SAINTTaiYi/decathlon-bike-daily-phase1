@@ -268,6 +268,21 @@ jobs:
           fi
           node scripts/ops/network-guard.mjs npm/registry npm install --prefix /tmp/ws-smoke puppeteer-core@23 --silent --no-fund --no-audit
           SMOKE_BASE_URL="$PREVIEW_BASE_URL" SMOKE_USERNAME="$PREVIEW_SMOKE_USERNAME" SMOKE_PASSWORD="$PREVIEW_SMOKE_PASSWORD" node scripts/ops/browser-smoke.mjs
+      - name: Smoke the update announcement dialog in a real browser (no remount twitch)
+        # 2026-09-18「弹窗抽搐」修复的门禁：公告弹窗在登录后启动链路里必须是同一个 DOM
+        # 节点、入场动画只播一次。修复前 App 的每个早期 return 分支各挂一份弹窗，
+        # 分支切换（验证会话 → 引导页 → 工作台）会卸载重建，补间重播 = 用户看到的抽搐。
+        env:
+          PREVIEW_SMOKE_USERNAME: ${{ secrets.PREVIEW_SMOKE_USERNAME }}
+          PREVIEW_SMOKE_PASSWORD: ${{ secrets.PREVIEW_SMOKE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PREVIEW_SMOKE_USERNAME:-}" ] || [ -z "${PREVIEW_SMOKE_PASSWORD:-}" ]; then
+            echo "::warning::PREVIEW_SMOKE_USERNAME/PASSWORD 未配置，跳过公告弹窗冒烟"
+            exit 0
+          fi
+          node scripts/ops/network-guard.mjs npm/registry npm install --prefix /tmp/ws-smoke puppeteer-core@23 --silent --no-fund --no-audit
+          SMOKE_BASE_URL="$PREVIEW_BASE_URL" SMOKE_USERNAME="$PREVIEW_SMOKE_USERNAME" SMOKE_PASSWORD="$PREVIEW_SMOKE_PASSWORD" node scripts/ops/announcement-smoke.mjs
       - name: Seed admin-console acceptance data (opt-in, Preview D1 only)
         if: ${{ inputs.seed_preview_data }}
         run: |
