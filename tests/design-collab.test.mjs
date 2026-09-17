@@ -64,8 +64,10 @@ test('app.js：实时协作接入点全部到位', async () => {
   // 拖动预览与结束（平面拖动）
   assert.match(src, /window\.SDCollab\) window\.SDCollab\.dragPreview\(id, cur\.x, cur\.y\)/u)
   assert.match(src, /window\.SDCollab\) window\.SDCollab\.dragEnd\(id\)/u)
-  // attach 四个钩子
-  assert.match(src, /window\.SDCollab\) window\.SDCollab\.attach\(\{/u)
+  // attach（2026-09-17 起经 wireServices 短重试接线：sd-boot 动态加载的界面脚本
+  //   可能先于 body 里的 sd-collab.js 就绪，一次性判断会静默丢掉实时协作）
+  assert.match(src, /window\.SDCollab && !wireServices\.collab/u)
+  assert.match(src, /window\.SDCollab\.attach\(\{/u)
   assert.match(src, /applyRemoteConfig: function\(obj\)\{/u)
   assert.match(src, /previewMove: function\(id, x, y\)\{/u)
   assert.match(src, /isEditing: function\(\)\{/u)

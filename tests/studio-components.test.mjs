@@ -139,10 +139,49 @@ test('双端快捷条：组件可旋转 / 转正 / 删除', async () => {
   }
 })
 
+test('云端 / 协作两条载入路径同样走版本迁移（旧快照的 peg 要升级为组件）', async () => {
+  const app = await read('app.js')
+  /* 取实现片段（到定界注释或下一段为止），避免被缩进差异干扰 */
+  const sliceAfter = (marker, len) => {
+    const i = app.indexOf(marker)
+    assert.ok(i >= 0, `找不到 ${marker}`)
+    return app.slice(i, i + len)
+  }
+  assert.match(sliceAfter('setCfg: function(obj){', 400), /cfg = E\.migrateLegacy\(obj\)/u, '云端图纸载入必须走 migrateLegacy')
+  assert.match(sliceAfter('applyRemoteConfig: function(obj){', 400), /cfg = E\.migrateLegacy\(obj\)/u, '协作物化必须走 migrateLegacy')
+})
+
+test('app.js：云端 / 协作接线必须是短重试（依赖脚本可能晚于 boot 就绪）', async () => {
+  const app = await read('app.js')
+  assert.match(app, /function wireServices\(\)/u, '接线必须收进可重试的 wireServices')
+  assert.match(app, /setTimeout\(wireServices, 25\)/u, '未就绪时必须重试（否则实时协作静默失效）')
+  assert.ok(app.includes('wireServices.cloud') && app.includes('wireServices.collab'), '两条接线各自幂等')
+  /* 旧的「一次性 if (window.SDCollab) …attach」写法必须消失（它是静默失效的根因） */
+  assert.ok(!/\n    if \(window\.SDCollab\) window\.SDCollab\.attach\(\{/u.test(app), '不要退回一次性接线')
+})
+
 test('app.js 接线：拖动 / 跟随工作室 / 增删 / 类型切换夹长度', async () => {
   const app = await read('app.js')
   assert.ok(app.includes("si:'studioItems'"), 'SEC_OF 必须映射组件桶')
   assert.ok(app.includes('delStudioItem: function') && app.includes('addStudioItem: function'), '组件增删动作必须在')
   assert.match(app, /\(cfg\.studioItems \|\| \[\]\)\.forEach\(function\(siF\)/u, '拖动工作室时组件必须跟随')
   assert.match(app, /studioItems\\\.\\d\+\\\.kind/u, '切换组件类型必须把长度夹回新类型范围')
+})
+
+test('云快照迟到不得覆盖实时工作区（等 loaded + 首次载入让位）', async () => {
+  const collab = await read('sd-collab.js')
+  assert.match(collab, /else if \(s\.loaded\) ok = true/u, 'waitCloudReady 必须等「首次载入完成」')
+  assert.ok(!collab.includes('s.attached && !s.loading'), '旧的「没在加载」判据必须消失（它在载入发出前就为真）')
+
+  const cloud = await read('sd-cloud.js')
+  assert.match(cloud, /loaded: false/u, '云端状态必须有首次载入标记')
+  const marker = 'if (options && options.first && collabLive) {'
+  const i = cloud.indexOf(marker)
+  assert.ok(i >= 0, '迟到的首次载入必须有让位分支')
+  const j = cloud.indexOf('applyCloud(', i)
+  assert.ok(j > i, '让位分支之后必须紧跟正常载入路径')
+  const branch = cloud.slice(i, j)
+  assert.ok(branch.includes('state.loaded = true'), '让位分支要标记载入完成（否则协作永远等下去）')
+  assert.ok(branch.includes('return'), '让位分支必须提前返回（不覆盖 cfg，否则 diff 会把房间新内容当本地删除广播）')
+  assert.match(cloud, /load\(\{ silent: true, announce: false, first: true \}\)/u, '重连补载必须标记 first（走同一条让位规则）')
 })

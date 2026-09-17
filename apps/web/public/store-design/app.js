@@ -1837,49 +1837,70 @@ function boot(){
     init();
     document.documentElement.setAttribute('data-sd-ready', 'true');
     /* 云端图纸（2026-09-17）：界面就绪后接上保存 / 载入。 */
-    if (window.SDCloud) window.SDCloud.attach({
-      getCfg: function(){ return cfg; },
-      setCfg: function(obj){
-        cfg = E.deepMerge(E.defaultConfig(), obj);
-        ui.sel = null;
-        ui.frontRow = null;
-        afterStruct();
-        syncInputs();
-      },
-      toast: toast
-    });
-    /* 实时协作（2026-09-17）：与云端图纸共用 cfg 读写钩子；
-       applyRemoteConfig 与 setCfg 的区别是保留当前选中（物化高频发生，
-       清选中会打断正在进行的编辑）。 */
-    if (window.SDCollab) window.SDCollab.attach({
-      getCfg: function(){ return cfg; },
-      applyRemoteConfig: function(obj){
-        var keepSel = ui.sel, keepRow = ui.frontRow;
-        cfg = E.deepMerge(E.defaultConfig(), obj);
-        ui.sel = selStillExists(keepSel) ? keepSel : null;
-        ui.frontRow = keepRow;
-        saveSoon();
-        buildEditors();
-        renderChips(); render3DNow(); renderPlanNow(); renderFrontNow();
-        if (ui.sel && window.SDUI && SDUI.refreshSelVals) renderSelBar(true);
-        syncInputs();
-      },
-      previewMove: function(id, x, y){
-        try {
-          var k = String(id).split(':')[0];
-          if (!(k === 'sh' || k === 'pl' || k === 'bk' || k === 'zn' || k === 'en' || k === 'ms' || k === 'mk' || k === 'ct' || k === 'si')) return;
-          moveItem(id, snapV(x), snapV(y));
-          render3DNow(); renderPlanNow();
-        } catch(e7){}
-      },
-      isEditing: function(){
-        var el = document.activeElement;
-        if (!el) return false;
-        var tag = el.tagName;
-        return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
-      },
-      toast: toast
-    });
+    /* 依赖脚本（sd-cloud.js / sd-collab.js）在 body 里位于 app.js 之后：
+       sd-boot 动态加载的界面脚本可能先于它们完成并派发 sd-ui-ready，
+       此时 boot() 里 window.SDCloud / window.SDCollab 还不存在 —— 直接判断会
+       静默丢掉「保存到云端」或「实时协作」。这里改成短重试接线（最多 2 秒）。
+       （2026-09-17 实测：桌面端在缓存命中时必现，表现为实时协作永远不连接） */
+    var wireTries = 0;
+    function wireServices(){
+      if (window.SDCloud && !wireServices.cloud){
+        wireServices.cloud = true;
+        window.SDCloud.attach({
+          getCfg: function(){ return cfg; },
+          setCfg: function(obj){
+            /* 云端图纸同样是「历史配置」：必须走 migrateLegacy（否则旧快照里的
+               studio.peg 等旧结构不会升级，例如洞洞板数量会退回新默认的那一块）。 */
+            cfg = E.migrateLegacy(obj);
+            ui.sel = null;
+            ui.frontRow = null;
+            afterStruct();
+            syncInputs();
+          },
+          toast: toast
+        });
+      }
+      /* 实时协作（2026-09-17）：与云端图纸共用 cfg 读写钩子；
+         applyRemoteConfig 与 setCfg 的区别是保留当前选中（物化高频发生，
+         清选中会打断正在进行的编辑）。 */
+      if (window.SDCollab && !wireServices.collab){
+        wireServices.collab = true;
+        window.SDCollab.attach({
+          getCfg: function(){ return cfg; },
+          applyRemoteConfig: function(obj){
+            var keepSel = ui.sel, keepRow = ui.frontRow;
+            /* 房间文档可能是旧版本写入的（例如早于组件系统的结构）：物化时同样迁移。 */
+            cfg = E.migrateLegacy(obj);
+            ui.sel = selStillExists(keepSel) ? keepSel : null;
+            ui.frontRow = keepRow;
+            saveSoon();
+            buildEditors();
+            renderChips(); render3DNow(); renderPlanNow(); renderFrontNow();
+            if (ui.sel && window.SDUI && SDUI.refreshSelVals) renderSelBar(true);
+            syncInputs();
+          },
+          previewMove: function(id, x, y){
+            try {
+              var k = String(id).split(':')[0];
+              if (!(k === 'sh' || k === 'pl' || k === 'bk' || k === 'zn' || k === 'en' || k === 'ms' || k === 'mk' || k === 'ct' || k === 'si')) return;
+              moveItem(id, snapV(x), snapV(y));
+              render3DNow(); renderPlanNow();
+            } catch(e7){}
+          },
+          isEditing: function(){
+            var el = document.activeElement;
+            if (!el) return false;
+            var tag = el.tagName;
+            return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+          },
+          toast: toast
+        });
+      }
+      if ((!wireServices.cloud || !wireServices.collab) && ++wireTries < 80){
+        setTimeout(wireServices, 25);
+      }
+    }
+    wireServices();
   } catch(e9){
     err('初始化失败：' + (e9 && e9.message ? e9.message : e9) + '\n' + (e9 && e9.stack ? e9.stack : ''));
     document.documentElement.setAttribute('data-sd-ready', 'true');

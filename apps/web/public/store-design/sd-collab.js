@@ -683,6 +683,9 @@ function checkSession(cb){
 }
 
 function waitCloudReady(cb){
+  /* 等「首次载入完成」（state.loaded），而不是「当前没在加载」——
+     后者在载入请求还没发出时就为真，会让协作先连上、云快照后到，
+     触发 2026-09-17 的全房间误删事故。上限 8 秒兜底。 */
   var t0 = Date.now()
   function tick(){
     var s = null
@@ -690,9 +693,9 @@ function waitCloudReady(cb){
     var ok = false
     if (!s) ok = true
     else if (s.offline) ok = true
-    else if (s.attached && !s.loading && !s.busy) ok = true
-    if (ok || Date.now() - t0 > 6000) cb()
-    else setTimeout(tick, 150)
+    else if (s.loaded) ok = true
+    if (ok || Date.now() - t0 > 8000) cb()
+    else setTimeout(tick, 120)
   }
   tick()
 }

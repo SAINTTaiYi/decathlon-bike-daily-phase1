@@ -22,6 +22,9 @@
   var state = {
     attached: false, offline: false, loading: true, busy: false,
     dirty: false, conflict: false, conflictName: '', revision: 0,
+    /* 首次载入是否已完成（2026-09-17）：实时协作要等它，避免「协作先连上、
+       云快照后到」把刚合并进房间的内容当成本地删除推给全房间。 */
+    loaded: false,
     savedAt: '', savedBy: '', message: '', savedJson: null,
     csrf: '', userName: ''
   }
@@ -123,7 +126,7 @@
   }
 
   async function load(options) {
-    if (!state.attached || state.offline) return
+    if (!state.attached || state.offline){ state.loaded = true; return }
     if (state.dirty && !(options && options.force)) {
       if (!window.confirm('载入云端图纸会覆盖当前未保存的改动（在线同事会同步看到这次载入），继续？')) return
     }
@@ -134,6 +137,7 @@
     if (!result.response.ok) {
       if (result.response.status === 401) { state.offline = true }
       else state.message = problem(result.response, result.payload)
+      state.loaded = true
       paint()
       return
     }
@@ -144,10 +148,28 @@
       state.savedBy = ''
       state.dirty = false
       state.savedJson = JSON.stringify(api.getCfg())
+      state.loaded = true
+      paint()
+      return
+    }
+    /* 迟到的「首次载入」不允许覆盖实时工作区（2026-09-17 事故）：
+       协作连上后房间内容会先合并进来，此时再用旧快照整体替换 cfg，
+       diff 会把「快照里没有的新内容」当成本地删除推给全房间（实测丢过组件）。
+       只登记云端信息供显示，改动内容走用户手动「载入云端」。 */
+    var collabLive = false
+    try { collabLive = !!(window.SDCollab && window.SDCollab.state && window.SDCollab.state().status === 'online') } catch (e0) {}
+    if (options && options.first && collabLive) {
+      state.revision = design.revision
+      state.savedAt = design.updatedAt || ''
+      state.savedBy = design.updatedByName || ''
+      state.savedJson = JSON.stringify((api && api.getCfg && api.getCfg()) || {})
+      state.loaded = true
+      state.dirty = false
       paint()
       return
     }
     applyCloud(design.payload, design)
+    state.loaded = true
     paint()
     if (options && options.silent) return
     if (options && options.announce) {
@@ -219,7 +241,7 @@
           paint()
           return null
         }
-        return load({ silent: true, announce: false })
+        return load({ silent: true, announce: false, first: true })
       })
     },
     markDirty: markDirty,
