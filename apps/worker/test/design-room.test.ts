@@ -94,5 +94,7 @@ test('design 路由：WS 端点有只读拦截与 Origin 白名单（结构断�
   assert.match(source, /REALTIME_UNAVAILABLE/u)
   assert.match(source, /isAllowedOrigin\(c\.req\.header\('origin'\), c\.get\('config'\)\.allowedOrigins\)/u)
   assert.match(source, /idFromName\(`store:\$\{context\.storeId\}`\)/u)
-  assert.match(source, /headers\.set\('x-design-user-name', context\.displayName\)/u)
+  assert.match(source, /forwardUrl\.searchParams\.set\('x-design-user', context\.displayName\)/u)
+  // 转发必须用「原始 Request 作模板」构造（保留 WebSocket 升级语义）
+  assert.match(source, /new Request\(forwardUrl, c\.req\.raw\)/u)
 })

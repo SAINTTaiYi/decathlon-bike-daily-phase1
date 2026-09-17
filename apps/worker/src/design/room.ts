@@ -49,21 +49,37 @@ export class DesignRoom {
   constructor(state: DurableObjectState, env: WorkerEnv) {
     this.state = state
     this.env = env
-    this.state.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'))
   }
 
   async fetch(request: Request): Promise<Response> {
-    if ((request.headers.get('Upgrade') ?? '').toLowerCase() !== 'websocket') {
-      return new Response('Expected WebSocket', { status: 426 })
+    try {
+      if ((request.headers.get('Upgrade') ?? '').toLowerCase() !== 'websocket') {
+        return new Response('Expected WebSocket', { status: 426 })
+      }
+      // 心跳自动应答：'ping' → 'pong'，连接休眠时也能回、不唤醒不计费。
+      // 放在 fetch 里设置（而非构造函数）：个别环境未实现该 API 时只降级心跳，
+      // 不让整个房间不可用。
+      try {
+        this.state.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'))
+      } catch (error) {
+        console.error('[design-room] auto-response unavailable', error)
+      }
+      const pair = new WebSocketPair()
+      const client = pair[0]
+      const server = pair[1]
+      this.state.acceptWebSocket(server)
+      // 展示名来自 Worker 转发（会话派生）：query 首选、header 兜底，外部无法直连本对象。
+      const name = sanitizeName(
+        new URL(request.url).searchParams.get('x-design-user') ?? request.headers.get('x-design-user-name') ?? ''
+      )
+      server.serializeAttachment({ name } satisfies PeerAttachment)
+      return new Response(null, { status: 101, webSocket: client })
+    } catch (error) {
+      // 握手失败时把原因放进响应体（冒烟脚本/日志可直接看到），便于定位。
+      console.error('[design-room] handshake failed', error)
+      const message = error instanceof Error ? error.message : String(error)
+      return new Response('design-room handshake failed: ' + message, { status: 500 })
     }
-    const pair = new WebSocketPair()
-    const client = pair[0]
-    const server = pair[1]
-    this.state.acceptWebSocket(server)
-    // 展示名只信任 Worker 转发时写入的会话头（外部无法直连本对象）。
-    const name = sanitizeName(request.headers.get('x-design-user-name') ?? '')
-    server.serializeAttachment({ name } satisfies PeerAttachment)
-    return new Response(null, { status: 101, webSocket: client })
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {

@@ -88,10 +88,25 @@ export function designRoutes() {
       throw new ApiProblem(403, 'ORIGIN_NOT_ALLOWED', '来源不在允许列表中。')
     }
     const stub = namespace.get(namespace.idFromName(`store:${context.storeId}`))
-    const headers = new Headers(c.req.raw.headers)
-    // 展示名只信任服务端会话（客户端不可伪造；DO 侧直接读这个头）。
-    headers.set('x-design-user-name', context.displayName)
-    return stub.fetch(new Request(c.req.url, { method: 'GET', headers }))
+    // 转发给房间 DO：必须以「原始 Request 为模板」构造（new Request(url, request)），
+    // Workerd 只在这种构造下保留 WebSocket 升级语义；手工 new Request(url, {headers})
+    // 会丢失升级标志、握手直接失败（2026-09-17 冒烟实测 500）。
+    // 展示名走 URL query 传递：Request headers 不可变（immutable），拿不到第二条通道；
+    // 名字来自服务端会话，客户端无法伪造。
+    const forwardUrl = new URL(c.req.url)
+    forwardUrl.searchParams.set('x-design-user', context.displayName)
+    try {
+      const response = await stub.fetch(new Request(forwardUrl, c.req.raw))
+      if (response.status >= 500) {
+        const detail = await response.text().catch(() => '')
+        console.error('[design-ws] DO responded', response.status, detail.slice(0, 500))
+        return c.json({ error: 'REALTIME_UNAVAILABLE', message: '实时协作暂时不可用，请稍后重试。' }, 502)
+      }
+      return response
+    } catch (error) {
+      console.error('[design-ws] forward failed', error)
+      throw new ApiProblem(502, 'REALTIME_UNAVAILABLE', '实时协作暂时不可用，请稍后重试。')
+    }
   })
 
   return app

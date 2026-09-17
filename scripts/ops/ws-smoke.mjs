@@ -89,7 +89,24 @@ async function main(){
 
   // 3) 双连接 + hello 对账 + 增量广播
   const headers = { cookie: cookies, origin: base }
-  const wsA = await openSocket(headers)
+  let wsA
+  try {
+    wsA = await openSocket(headers)
+  } catch (error) {
+    const message = String(error && error.message ? error.message : error)
+    // 诊断：握手失败时用普通请求探测响应体（服务端 5xx 会返回 JSON 说明）。
+    try {
+      const probe = await fetch(wsUrl().replace(/^ws/u, 'http'), {
+        headers: { ...headers, upgrade: 'websocket', connection: 'Upgrade' }
+      })
+      const text = await probe.text().catch(() => '')
+      log('诊断 · 握手响应 HTTP ' + probe.status + ' · ' + text.slice(0, 300))
+    } catch (probeError) {
+      log('诊断 · 探测请求失败：' + String(probeError && probeError.message ? probeError.message : probeError))
+    }
+    fail('带会话的连接失败：' + message)
+    return
+  }
   wsA.send(JSON.stringify({ t: 'hello', sv: '' }))
   const sync = await waitMessage(wsA, (m) => m.t === 'sync', 10000)
   if (sync && typeof sync.u === 'string' && typeof sync.sv === 'string') pass('hello → sync 对账应答（含状态向量）')
