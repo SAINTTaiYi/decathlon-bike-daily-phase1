@@ -317,7 +317,7 @@ function accNow(o, key){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
   return (a && a[key]) ? a[key] : 'none';
 }
-/* 挂钩数量（2026-09-17：挂钩改成逐个可移动的对象） */
+/* 挂钩组数量（2026-09-17：挂钩成组摆放、每米 4 个） */
 /* 挂钩（2026-09-17 第二轮：成组，每米 4 个）：快捷条按键 = 加一整组 */
 function accHookGroups(o){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;

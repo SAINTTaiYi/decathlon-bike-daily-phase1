@@ -323,7 +323,7 @@ function accBtnDesktop(act, name, val){
   var lab = (val === 'on') ? '开' : accLab(val);
   return '<button class="sd-d-act" data-bact="' + act + '"' + (on ? ' data-on="true"' : '') + '>' + name + '：' + lab + '</button>';
 }
-/* 挂钩数量（2026-09-17：挂钩改成逐个可移动的对象，快捷条按键 = 一键成排 / 一键清空） */
+/* 挂钩组数量（2026-09-17：挂钩成组摆放、每米 4 个；快捷条按键 = 加一整组） */
 /* 挂钩（2026-09-17 第二轮：成组，每米 4 个）：快捷条按键 = 加一整组（默认落到组件多的那一面） */
 function accHookGroups(o){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
