@@ -86,7 +86,7 @@ export function OrderCard({ order, category, closedAt, onAction, variant = 'hand
   )
 }
 
-export default function ShipHubOrderBoard({ category, orders = [], loading = false, syncing = false, reconnecting = false, connectionStatus = 'connected', stale = false, error = '', closedAt, onLoad, onAction, onSync, onOpenConnection, variant = 'handover', simulationAvailable = false, simulatedStatus = '', onSimulateStatus }) {
+export default function ShipHubOrderBoard({ category, orders = [], loading = false, syncing = false, reconnecting = false, connectionStatus = 'connected', stale = false, error = '', closedAt, onLoad, onAction, onSync, onOpenConnection, variant = 'handover', simulationAvailable = false, simulatedStatus = '', onSimulateStatus, simulatedStoreLogin = '', onSimulateStoreLogin }) {
   const meta = labels[category]
   const variantTitle = variant === 'pickup' ? PICKUP_VARIANT_TITLES[category] : null
   const boardTitle = variantTitle || meta
@@ -138,7 +138,7 @@ export default function ShipHubOrderBoard({ category, orders = [], loading = fal
   return (
     <section className="shiphub-order-board" data-category={category} aria-labelledby={`shiphub-${category}-title`}>
       <header data-variant={variant}><div><span>{boardTitle.en}</span><strong id={`shiphub-${category}-title`}>{boardTitle.cn}</strong></div><div className="shiphub-order-board-meta">{stale ? <em>数据可能已过期</em> : <small>读取本站缓存</small>}<button type="button" className="shiphub-sync-button" onClick={() => void sync()} disabled={syncing || reconnecting || loading} aria-busy={syncing || reconnecting ? 'true' : 'false'}><span ref={syncIconRef} className="shiphub-sync-icon" aria-hidden="true"><IconRefresh width={15} height={15} /></span>{reconnecting ? '重连中…' : syncing ? '同步中…' : '同步'}</button></div></header>
-      <ShipHubConnectionSimulator available={simulationAvailable} active={simulatedStatus} onSimulate={onSimulateStatus} />
+      <ShipHubConnectionSimulator available={simulationAvailable} active={simulatedStatus} onSimulate={onSimulateStatus} activeLogin={simulatedStoreLogin} onSimulateLogin={onSimulateStoreLogin} />
       {connectionStatus !== 'connected' && connectionStatus !== 'fixture' ? (
         <div className="shiphub-connection-notice" role="status" data-status={connectionStatus}>
           <strong>{connectionStatus === 'degraded' ? 'Shiphub 同步异常' : 'Shiphub 当前未连接'}</strong>

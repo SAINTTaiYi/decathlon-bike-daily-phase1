@@ -180,7 +180,12 @@ export async function getShipHubSummary(db: D1Database, config: AppConfig, store
       enabled: connection.enabled,
       mode: connection.mode,
       authorizationStatus: connection.authorizationStatus,
-      lastAuthErrorCode: connection.lastAuthErrorCode
+      lastAuthErrorCode: connection.lastAuthErrorCode,
+      // 本店账号是否已配置（2026-09-18）：连接对话框据此把账号表单折叠成
+      // 「更改账号密码」按钮——已配置的门店每次打开都被三个空输入框挡住主要动作，
+      // 还容易被误读成「要重填一遍」。只下发布尔值，凭据本身永不出库（连接行是
+      // 加密列，公共视图一贯只暴露 hasPerStoreLogin）。
+      hasPerStoreLogin: connection.hasPerStoreLogin
     } : null,
     // cubeAuth：本店账密派生的 Cube 身份（BI/perfeco 链路）公开状态。
     cubeAuth: await getCubeIdentityInfo(db, storeId),

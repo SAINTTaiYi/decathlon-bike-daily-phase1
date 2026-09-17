@@ -381,7 +381,7 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
     </> : null}
     {showShipHub ? (handoverMode ? shiphubCategories.map((category) => {
       const categoryState = shiphub?.summary?.categories?.find((item) => item.category === category)
-      return <ShipHubOrderBoard key={category} category={category} orders={shiphub?.orders?.[category] || []} loading={Boolean(shiphub?.ordersLoading?.[category])} syncing={Boolean(shiphub?.syncing)} reconnecting={Boolean(shiphub?.reconnecting)} connectionStatus={shiphub?.connectionStatus || 'connected'} stale={Boolean(categoryState?.stale)} error={shiphub?.error || ''} closedAt={closedAt} onLoad={shiphub.loadOrders} onAction={shiphub.action} onSync={shiphub.sync} onOpenConnection={onOpenShipHubSettings} variant="handover" simulationAvailable={Boolean(shiphub?.simulationAvailable)} simulatedStatus={shiphub?.simulatedStatus || ''} onSimulateStatus={shiphub?.simulateStatus} />
+      return <ShipHubOrderBoard key={category} category={category} orders={shiphub?.orders?.[category] || []} loading={Boolean(shiphub?.ordersLoading?.[category])} syncing={Boolean(shiphub?.syncing)} reconnecting={Boolean(shiphub?.reconnecting)} connectionStatus={shiphub?.connectionStatus || 'connected'} stale={Boolean(categoryState?.stale)} error={shiphub?.error || ''} closedAt={closedAt} onLoad={shiphub.loadOrders} onAction={shiphub.action} onSync={shiphub.sync} onOpenConnection={onOpenShipHubSettings} variant="handover" simulationAvailable={Boolean(shiphub?.simulationAvailable)} simulatedStatus={shiphub?.simulatedStatus || ''} onSimulateStatus={shiphub?.simulateStatus} simulatedStoreLogin={shiphub?.simulatedStoreLogin || ''} onSimulateStoreLogin={shiphub?.simulateStoreLogin} />
     }) : (
       /* 待取车视角：自提 / 待拣货 / 在途三类合并为一块整合看板（原先三块竖排把移动端页面拉得很长）。
          其它交接（handoverMode）仍是单类一块，沿用原看板。 */
@@ -403,6 +403,8 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
         simulationAvailable={Boolean(shiphub?.simulationAvailable)}
         simulatedStatus={shiphub?.simulatedStatus || ''}
         onSimulateStatus={shiphub?.simulateStatus}
+        simulatedStoreLogin={shiphub?.simulatedStoreLogin || ''}
+        onSimulateStoreLogin={shiphub?.simulateStoreLogin}
       />
     )) : null}
     <PickupFilterSheet open={Boolean(sheet)} initialTab={sheet || 'filter'} appliedSources={sources} appliedSort={sort} repairMode={repairMode || handoverMode} onClose={closeSheet} onApply={applySheet} />

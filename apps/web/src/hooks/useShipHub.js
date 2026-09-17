@@ -19,6 +19,15 @@ const EMPTY = { hand: [], pick: [], receive: [], ship: [] }
 const SIMULATION_KEY = 'workshop.shiphub-connection-sim.v1'
 export const SIMULATED_STATUSES = ['fixture', 'connected', 'degraded', 'reauth_required', 'disconnected']
 
+// 第二个模拟维度：本店账号是否已配置（2026-09-18）。
+//
+// 为什么需要它：连接对话框现在按「本店账号是否已配置」分成两种形态（紧凑态只有
+// 「更改账号密码」按钮，展开态才是账号表单）。Preview 的门店没有本店账号
+// （fixture 下 connect/start 直接拒绝），所以紧凑态在预览里永远不会自然出现，
+// 光靠单测无法做视觉验收。这里沿用状态模拟的既有纪律：只覆盖展示值。
+const LOGIN_SIMULATION_KEY = 'workshop.shiphub-login-sim.v1'
+export const SIMULATED_STORE_LOGIN = ['configured', 'none']
+
 export function readSimulatedStatus() {
   if (!isPreviewHost()) return ''
   try {
@@ -49,6 +58,24 @@ export function deriveConnectionStatus(connection) {
 
 const CATEGORIES = ['hand', 'pick', 'receive', 'ship']
 
+export function readSimulatedStoreLogin() {
+  if (!isPreviewHost()) return ''
+  try {
+    const raw = window.localStorage.getItem(LOGIN_SIMULATION_KEY) || ''
+    return SIMULATED_STORE_LOGIN.includes(raw) ? raw : ''
+  } catch { return '' }
+}
+
+export function writeSimulatedStoreLogin(value) {
+  if (!isPreviewHost()) return ''
+  const next = SIMULATED_STORE_LOGIN.includes(value) ? value : ''
+  try {
+    if (next) window.localStorage.setItem(LOGIN_SIMULATION_KEY, next)
+    else window.localStorage.removeItem(LOGIN_SIMULATION_KEY)
+  } catch { /* storage blocked; simulation just does not persist */ }
+  return next
+}
+
 export default function useShipHub(enabled) {
   const [summary, setSummary] = useState(null)
   const [orders, setOrders] = useState(EMPTY)
@@ -58,6 +85,7 @@ export default function useShipHub(enabled) {
   const [syncing, setSyncing] = useState(false)
   const [reconnecting, setReconnecting] = useState(false)
   const [simulatedStatus, setSimulatedStatus] = useState(() => readSimulatedStatus())
+  const [simulatedStoreLogin, setSimulatedStoreLogin] = useState(() => readSimulatedStoreLogin())
   const requestRef = useRef(null)
   const syncingRef = useRef(false)
   // 上一次 summary 的镜像，用于判断哪些分类的计数真的变了（只在变化时重拉列表）。
@@ -244,9 +272,17 @@ export default function useShipHub(enabled) {
     reconnecting,
     // 真实判定；preview 模拟开关只覆盖这一个展示值，后端与动作路径不受影响
     connectionStatus: simulatedStatus || (summary?.mode === 'fixture' ? 'fixture' : deriveConnectionStatus(summary?.connection)),
+    // 本店账号是否已配置（2026-09-18）：连接对话框据此折叠账号表单。
+    // 与 connectionStatus 同一纪律——preview 模拟开关只覆盖这一个展示值；
+    // connect() 提交的账号密码永远来自表单输入，与模拟无关。
+    storeLoginConfigured: simulatedStoreLogin
+      ? simulatedStoreLogin === 'configured'
+      : Boolean(summary?.connection?.hasPerStoreLogin),
     simulatedStatus,
+    simulatedStoreLogin,
     simulationAvailable: isPreviewHost(),
     simulateStatus: (status) => setSimulatedStatus(writeSimulatedStatus(status)),
+    simulateStoreLogin: (value) => setSimulatedStoreLogin(writeSimulatedStoreLogin(value)),
     error,
     loadOrders,
     action,
