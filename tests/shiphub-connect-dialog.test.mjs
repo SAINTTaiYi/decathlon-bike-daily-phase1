@@ -93,8 +93,15 @@ test('连接按钮样式住在被加载的样式表里（不得再依赖未引�
   // 事故（2026-09-18）：.shiphub-connect-btn 的规则一直住在 endfield.css ——
   // 一个没有被 index.css 引入的独立主题文件，于是生产里按钮零样式，
   // 渲染成一行裸文字（用户截图里的「Preview 下不可用」）。
-  assert.match(css, /\.shiphub-connect-btn \{/u, '规则必须住在 pickup-ledger.css（被 index.css 引入）')
-  assert.match(css, /\.shiphub-connect-btn--ghost \{/u, 'ghost 变体同样要搬过来')
+  // 断言要落在「真的是一条声明块」上：`.shiphub-connect-btn + .shiphub-connect-btn`
+  // 这种相邻兄弟选择器也会让 `\.shiphub-connect-btn {` 命中（类名之后还有第二个类名
+  // 加空格加花括号），据此判绿会漏掉主规则被删的情况——注入实验实测过一次假绿。
+  assert.match(
+    css,
+    /\.shiphub-connect-btn \{[^}]*border-radius: 999px[^}]*background: var\(--ink\)/u,
+    '主按钮规则必须住在 pickup-ledger.css（被 index.css 引入）且是完整的胶囊声明块'
+  )
+  assert.match(css, /\.shiphub-connect-btn--ghost \{[^}]*background: var\(--surface\)/u, 'ghost 变体同样要搬过来')
   assert.match(css, /\.shiphub-store-login \{/u, '紧凑态容器必须有样式落地')
   assert.doesNotMatch(endfieldCss, /\.shiphub-connect-btn/u, '旧位置不得保留第二份声明')
   assert.doesNotMatch(styleIndex, /endfield\.css/u, 'endfield.css 依然不得被引入（独立主题，非本仓库当前主题）')
