@@ -256,8 +256,7 @@ jobs:
           SMOKE_BASE_URL="$PREVIEW_BASE_URL" SMOKE_USERNAME="$PREVIEW_SMOKE_USERNAME" SMOKE_PASSWORD="$PREVIEW_SMOKE_PASSWORD" node scripts/ops/ws-smoke.mjs
       - name: Smoke the design tool in a real browser (client load + live connection)
         # 客户端侧冒烟：真实 Chrome 加载工具页 → SDCollab online → 在线胶囊 → 双端名单。
-        # 首轮以观测模式运行（continue-on-error），确认稳定后再收紧为硬失败。
-        continue-on-error: true
+        # 2026-09-17 起为硬失败门禁（首轮观测已通过：加载/连接/胶囊/双端名单全绿）。
         env:
           PREVIEW_SMOKE_USERNAME: ${{ secrets.PREVIEW_SMOKE_USERNAME }}
           PREVIEW_SMOKE_PASSWORD: ${{ secrets.PREVIEW_SMOKE_PASSWORD }}
