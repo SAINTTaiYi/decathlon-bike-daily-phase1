@@ -16,7 +16,8 @@
   --dock-space: 6.1rem;
   --visual-viewport-height: 100dvh;
   --visual-viewport-top: 0px;
-  --visual-viewport-bottom: 0px;
+  /* 软键盘内缩（无焦点恒为 0）。地址栏动画不得再影响底部定位——见 useVisualViewportMetrics.js。 */
+  --keyboard-inset-bottom: 0px;
 }
 
 html { background: var(--paper-cool); }
