@@ -490,11 +490,19 @@
  * three offset plates, and the frosted fill simply stopped dead in the
  * rail column while continuing next to it.
  *
- * Why the L was never actually necessary: the rail sits on the dock
- * layer at z-index 90, the navigation layer is z-index 80, and the
- * layer's paint lives on a ::before at z-index -1 — so rail content
- * always paints ABOVE the frosted fill. Nothing gets veiled; the L only
- * ever bought an invisible paint saving.
+ * The L was really a workaround for stacking, not for geometry: the
+ * rail (.look-dock, z-index 90 inside its own layer) sits in the dock
+ * layer, which was z-index 1, while this navigation layer is 80 — an
+ * inner z-index never escapes its layer's stacking context, so the rail
+ * really was painted UNDER the frost. Cutting a hole in the mask was
+ * how 2026-09-05 kept the first destination legible; the user's
+ * 2026-09-18 screenshot ("总览按钮被遮住了") is that same collision
+ * seen again the moment the hole was closed.
+ *
+ * Fixed at the source instead: the dock LAYER is now lifted above this
+ * navigation layer (desktop-workbench.css), so the rail paints on top
+ * and the mask needs no hole at all — which is what lets it be one
+ * seamless band.
  *
  * Now: a single full-width band with a long feathered bottom edge. The
  * global header and the module header read as one surface, there is no
@@ -502,6 +510,14 @@
  * backdrop-filter/mask keep the section 1 fallbacks.
  * ================================================================== */
 @media (min-width: 768px) {
+  /* 桌面端玻璃改成页面底色（2026-09-18 用户问「导航栏为什么感觉有一层淡淡
+     的黄色背景」）。--glass-tint 的暖白 250 248 241 是 2026-08-29 为移动端
+     调的：那里有黄色环境光斑，冷灰玻璃会把黄洗掉。桌面端的光斑已隐藏
+     （desktop-workbench.css），暖白就只剩下「在冷灰页面上糊一层米黄」这一个
+     效果。改成与 --ops-page (#f4f5f7) 同色，页头/次页头/左栏融为一整块，
+     磨砂只在内容滚过时由 backdrop-filter 显形。移动端保持暖白不动。 */
+  :root { --glass-tint: 244 245 247; }
+
   @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) and ((mask-image: linear-gradient(#000, transparent)) or (-webkit-mask-image: linear-gradient(#000, transparent))) {
     .workshop-runtime > [data-workspace-layer='navigation'] {
       background: none !important;

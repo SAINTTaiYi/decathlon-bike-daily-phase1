@@ -56,6 +56,38 @@ test('光斑不渲染时不再挂漂移/视差补间（桌面空转）', async (
   )
 })
 
+test('桌面：dock 层必须高于导航层（否则 rail 第一项被磨砂糊住）', async () => {
+  // 2026-09-18 用户截图「总览按钮被遮住了」：rail 的 .look-dock 层内 z-index 是 90，
+  // 但它住在 dock 层里（原 z-index 1），而导航层是 80 —— 层内 z-index 出不了层的
+  // 堆叠上下文，所以 rail 上移到 top:100px 后落进 156px 页头磨砂范围内被糊掉。
+  // 实测：第一项（黄色选中态）最暗蓝通道 139、色散 84（被洗），修好后 89 / 148.7。
+  const desktop = desktopBlock(stripComments(await read('desktop-workbench.css')))
+  const raise = desktop.match(/\.workshop-runtime > \[data-workspace-layer='dock'\] \{ z-index: (\d+); \}/u)
+  assert.ok(raise, '桌面断点内必须把 dock 层提到导航层之上')
+  const navZ = Number((await read('workshop-system.css')).match(/\[data-workspace-layer='navigation'\] \{[^}]*z-index: (\d+)/u)[1])
+  assert.ok(Number(raise[1]) > navZ, `dock 层 ${raise[1]} 必须高于导航层 ${navZ}`)
+  // 层内 z-index 不算数：这条规则不能退化成只改 .look-dock 自己的 z-index
+  assert.doesNotMatch(desktop, /\.look-dock \{[\s\S]{0,200}?z-index: 9\d/u, '提到层上，不是给 .look-dock 换 z-index')
+})
+
+test('桌面玻璃用页面底色（导航栏不得再有淡黄色），移动端保持暖白', async () => {
+  // 用户 2026-09-18：「导航栏为什么感觉有一层淡淡的黄色背景」。
+  // --glass-tint 的暖白是给移动端黄色环境光斑调的；桌面端光斑已隐藏，
+  // 暖白就只剩下「冷灰页面上糊一层米黄」。
+  const css = stripComments(await read('frosted.css'))
+  const base = css.match(/:root \{\s*--glass-tint: ([\d ]+);\s*\}/u)
+  assert.ok(base, '找不到 --glass-tint 的基础定义')
+  assert.equal(base[1].trim(), '250 248 241', '移动端（暖色环境光斑之上）必须保持暖白玻璃')
+  const desktop = desktopBlock(css)
+  const override = desktop.match(/:root \{ --glass-tint: ([\d ]+); \}/u)
+  assert.ok(override, '桌面断点内必须覆盖 --glass-tint')
+  assert.equal(override[1].trim(), '244 245 247', '桌面玻璃必须用页面底色 #f4f5f7，否则又是一条淡黄色带')
+  // 页面底色与玻璃底色必须同源，改一个忘一个就会露馅。
+  // 桌面端 --ops-page 住在 flat-tokens.css（workshop-system 的 #f7f5ef 是移动端/基座值）。
+  const flat = stripComments(await read('flat-tokens.css'))
+  assert.match(flat, /--ops-page: #f4f5f7;/u, '--ops-page 变了就要同步 --glass-tint')
+})
+
 test('页头磨砂是单块全宽：无 L 形分臂、底部羽化、且不抢模块标题背板', async () => {
   const css = stripComments(await read('frosted.css'))
   // 只找桌面断点内那一份：frosted.css 前几节还有移动端同名的 ::before 背板
