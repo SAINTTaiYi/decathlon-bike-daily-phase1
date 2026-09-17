@@ -486,6 +486,30 @@ function addHookGroup(s){
   toast('已加挂钩组：' + E.hookGroupCount(s, norm) + ' 个（每米 4 个）· 离地 ' + norm.z + 'm · '
     + frontFaceName(s, faceWanted) + '（正面视角里可整组拖动）');
 }
+/* 挂钩上挂车（2026-09-17 用户口径）：16″ 童车长 1.1m，每台占 1.1m 沿架位；
+   挂在挂钩高度上（车轮落在钩上），整车贴架面。逐组切换「不挂 ↔ 挂」。 */
+function toggleHookBikes(spec){
+  var parts = String(spec == null ? '' : spec).split(':');
+  var s = shelfGet(parts[0]); if (!s) return;
+  var arr = (s.acc && Array.isArray(s.acc.hookGroups)) ? s.acc.hookGroups : null;
+  if (!arr) return;
+  var g = null;
+  for (var i = 0; i < arr.length; i++){ if (String(arr[i].id) === String(parts[1])){ g = arr[i]; break; } }
+  if (!g) return;
+  var on = (g.bike === 'kids16');
+  if (on){
+    delete g.bike;
+    afterStruct(); renderSelBar(true); renderFrontNow();
+    toast('已取下挂钩组 ' + (parts[1]) + ' 上的童车');
+    return;
+  }
+  g.bike = 'kids16';
+  afterStruct(); renderSelBar(true); renderFrontNow();
+  var norm = E.accOf(s).hookGroups.filter(function(x){ return String(x.id) === String(parts[1]); })[0];
+  var n = norm ? E.hookBikeCount(s, norm) : 0;
+  toast(n ? ('挂钩组已挂 16″ 童车 ' + n + ' 台（每台 1.1m，车挂在钩上）')
+          : '这组跨度不足 1.1m，挂不下一台童车：先把范围拉长或把钩子挂得更宽');
+}
 function delHookGroupById(spec){
   var parts = String(spec == null ? '' : spec).split(':');
   var s = shelfGet(parts[0]); if (!s) return;
@@ -589,6 +613,8 @@ var acts = {
      默认落到组件多的那一面；位置在正面视角里整组拖动。 */
   accHook: function(ds){ addHookGroup(shelfGet(ds.id)); },
   addHook: function(ds){ addHookGroup(shelfGet(ds.id)); },
+  /* 挂钩上挂 16″ 童车（1.1m/台）：逐组切换「不挂 ↔ 挂」 */
+  hookBikes: function(ds){ toggleHookBikes(ds.id); },
   delHookGroup: function(ds){ delHookGroupById(ds.id); },
   clearHooks: function(ds){ var s = shelfGet(ds.id); if (s) clearHooks(s, null); },
   addArm: function(ds){ var p = String(ds.id).split(':'); addArmRow(p[0], p[1]); },

@@ -333,6 +333,14 @@ function accHookTotal(o){
   var e = window.Engine;
   return (e && e.hookCount && o) ? e.hookCount(o) : 0;
 }
+/* 挂钩上挂了几台 16″ 童车（2026-09-17） */
+function accHookBikes(o){
+  var e = window.Engine, a = (e && e.accOf) ? e.accOf(o) : null;
+  if (!a || !e.hookBikeCount) return 0;
+  var n = 0;
+  a.hookGroups.forEach(function(g){ n += e.hookBikeCount(o, g); });
+  return n;
+}
 function selBarHTML(ctx){
   var k = ctx.kind, o = ctx.item, h = '';
   var close = '<button class="sd-d-act sd-d-act-ghost" data-bact="close">取消选中</button>';
@@ -366,6 +374,7 @@ function selBarHTML(ctx){
       + accBtnDesktop('accRack', '地架', accNow(o, 'rack'))
       + '<button class="sd-d-act" data-bact="accHook"' + (accHookGroups(o) ? ' data-on="true"' : '') + '>'
       + '＋挂钩' + (accHookGroups(o) ? '（' + accHookGroups(o) + ' 组 / ' + accHookTotal(o) + ' 个）' : '（4 个/米）') + '</button>'
+      + (accHookBikes(o) ? '<b class="sd-d-selflag">挂车 ' + accHookBikes(o) + ' 台</b>' : '')
       + del + close;
   } else if (k === 'si'){
     /* 工作室组件（2026-09-17）：改朝向 / 转正 / 删除 */

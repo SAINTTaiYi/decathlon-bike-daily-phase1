@@ -327,6 +327,14 @@ function accHookTotal(o){
   var e = window.Engine;
   return (e && e.hookCount && o) ? e.hookCount(o) : 0;
 }
+/* 挂钩上挂了几台 16″ 童车（2026-09-17） */
+function accHookBikes(o){
+  var e = window.Engine, a = (e && e.accOf) ? e.accOf(o) : null;
+  if (!a || !e.hookBikeCount) return 0;
+  var n = 0;
+  a.hookGroups.forEach(function(g){ n += e.hookBikeCount(o, g); });
+  return n;
+}
 function accRows(o){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
   return (a && a.rows) ? a.rows : [];
@@ -374,7 +382,8 @@ function selBarHTML(ctx){
       + (accRows(o).length ? '<button data-bact="clearArms">清空托臂(' + accRows(o).length + '排)</button>' : '')
       + '<button data-bact="accRack"' + (accNow(o, 'rack') !== 'none' ? ' data-on="true"' : '') + '>地架：' + accLab(accNow(o, 'rack')) + '</button>'
       + '<button data-bact="accHook"' + (accHookGroups(o) ? ' data-on="true"' : '') + '>'
-      + '＋挂钩' + (accHookGroups(o) ? '（' + accHookGroups(o) + ' 组/' + accHookTotal(o) + ' 个）' : '（4 个/米）') + '</button></div>';
+      + '＋挂钩' + (accHookGroups(o) ? '（' + accHookGroups(o) + ' 组/' + accHookTotal(o) + ' 个）' : '（4 个/米）') + '</button>'
+      + (accHookBikes(o) ? '<span class="sd-m-tag">挂车 ' + accHookBikes(o) + '</span>' : '') + '</div>';
   } else if (k === 'si'){
     /* 工作室组件（2026-09-17）：转 90° / 转正 / 长度 / 位置 / 删除 */
     h += '<div class="sd-m-selrow">' + close + '<span class="sd-m-tag">' + esc(itemLabel(o)) + '</span>'

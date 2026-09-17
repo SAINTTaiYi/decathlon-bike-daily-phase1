@@ -72,7 +72,8 @@ function statusItems(ck){
   if (ck.bikeAdult || ck.bikeKid) items.push({ tone:'info', text:'🚲 成人 ' + ck.bikeAdult + ' · 童车 ' + ck.bikeKid });
   if (ck.accArm || ck.accRack || ck.accHook){
     items.push({ tone:'info', text:'托臂 ' + ck.accArm + ' 台' + (ck.accArmRows ? '（' + ck.accArmRows + ' 排）' : '')
-      + (ck.accRack ? ' · 地架 ' + ck.accRack : '') + (ck.accHook ? ' · 挂钩 ' + ck.accHook : '') });
+      + (ck.accRack ? ' · 地架 ' + ck.accRack : '') + (ck.accHook ? ' · 挂钩 ' + ck.accHook : '')
+      + (ck.accHookBike ? ' · 挂童车 ' + ck.accHookBike + ' 台' : '') });
   }
   if (ck.warnings && ck.warnings.length) items.push({ tone:'warn', text:'⚠ ' + ck.warnings.length + ' 条提示' });
   return items;
@@ -122,7 +123,12 @@ function shelfFields(s, i, cfg){
   /* 挂钩（2026-09-17 第二轮：成组，每米 4 个）：一组 = 一段挂杆（沿架起点/终点 + 离地高度），
      组内钩子按每米 4 个均布；属性栏改数值，或在「正面视角」里拖杆移动、两端圆点调范围。 */
   acc.hookGroups.forEach(function(hg, gi){
-    f.push(note('挂钩组 ' + (gi + 1) + '：' + E().hookGroupCount(s, hg) + ' 个（每米 4 个）· 离地 ' + num(hg.z) + 'm'));
+    var nBk = E().hookBikeCount(s, hg);
+    f.push(note('挂钩组 ' + (gi + 1) + '：' + E().hookGroupCount(s, hg) + ' 个（每米 4 个）· 离地 ' + num(hg.z) + 'm'
+      + (nBk ? ' · 挂 16″ 童车 ' + nBk + ' 台' : '')));
+    /* 挂钩上挂车（2026-09-17 用户口径）：16″ 童车长 1.1m，每台占 1.1m 沿架位 */
+    f.push(select('shelves.' + i + '.acc.hookGroups.' + gi + '.bike', '　挂钩上挂', hg.bike || 'none',
+      [['none', '不挂'], ['kids16', '16″ 童车（1.1m/台）']]));
     f.push(number('shelves.' + i + '.acc.hookGroups.' + gi + '.u0', '　沿架起点', hg.u0,
       { unit:'m', min:0, max:s.len, step:0.05 }));
     f.push(number('shelves.' + i + '.acc.hookGroups.' + gi + '.u1', '　沿架终点', hg.u1,
@@ -295,7 +301,12 @@ function elementGroups(cfg){
         }
       }
       if (acc.rack !== 'none') accBit += ' · 地架×' + E().rackCount(s);
-      if (acc.hookGroups.length) accBit += ' · 挂钩×' + E().hookCount(s);
+      if (acc.hookGroups.length){
+        accBit += ' · 挂钩×' + E().hookCount(s);
+        var hbN = 0;
+        acc.hookGroups.forEach(function(hg){ hbN += E().hookBikeCount(s, hg); });
+        if (hbN) accBit += '（挂车×' + hbN + '）';
+      }
       return { id:'sh:' + s.id, type:'sh', index:i, title: s.name ? s.name : ('货架 #' + (i + 1)),
         badge: (s.kind === 'double' ? '双面' : s.kind === 'single' ? '单面' : '矮货架') + ' ' + num(s.len) + 'm'
           + (E().shelfRot(s) ? ' · ' + num(E().shelfRot(s)) + '°' : '')
@@ -314,6 +325,10 @@ function elementGroups(cfg){
         })).concat(acc.rows.length ? [action('clearArms', s.id, '清空托臂', 'danger')] : [])
           .concat(acc.hookGroups.map(function(hg, gi){
             return action('delHookGroup', s.id + ':' + hg.id, '删挂钩组 ' + (gi + 1) + '（' + E().hookGroupCount(s, hg) + ' 个）', 'danger');
+          })).concat(acc.hookGroups.map(function(hg, gi){
+            var onB = (hg.bike === 'kids16');
+            return action('hookBikes', s.id + ':' + hg.id, (onB ? '● ' : '') + '组 ' + (gi + 1)
+              + (onB ? ' 挂童车 ' + E().hookBikeCount(s, hg) + ' 台' : ' 挂 16″ 童车'));
           })).concat(acc.hookGroups.length ? [action('clearHooks', s.id, '清空挂钩', 'danger')] : []) };
     }) });
   }

@@ -220,6 +220,50 @@ async function main(){
           !document.querySelector('#viewfront [data-hookgroup="' + groupId + '"]'), fresh[0])
         if (removed && restored) pass('挂钩：验证用挂钩组已删除（房间净零）')
         else fail('挂钩还原失败（delHookGroup 或渲染回归）')
+        /* 挂钩挂车（2026-09-17 用户口径：16″ 童车长 1.1m，每台占 1.1m 沿架位）：
+           加一组挂钩 → 挂童车 → 台数按跨度算（floor(跨度/1.1)）→ 全部还原（净零）。 */
+        const bikeGroupId = await pageA.evaluate(() => {
+          const b = document.querySelector('[data-act="addHook"]')
+          if (!b) return null
+          b.click()
+          return true
+        })
+        if (!bikeGroupId){
+          fail('挂钩挂车验证前置失败：＋挂钩入口缺失')
+        } else {
+          await sleep(800)
+          const freshGroup = await pageA.evaluate((known) => {
+            const els = Array.prototype.slice.call(document.querySelectorAll('#viewfront [data-hookgroup]'))
+            const el = els.filter((g) => known.indexOf(g.getAttribute('data-hookgroup')) < 0)[0]
+            return el ? { id: el.getAttribute('data-hookgroup'), hooks: Number(el.getAttribute('data-hookg')) } : null
+          }, hooksAfter)
+          const toggled = await pageA.evaluate((groupId) => {
+            const b = document.querySelector('[data-act="hookBikes"][data-id$=":' + groupId + '"]')
+            if (b) { b.click(); return true }
+            return false
+          }, freshGroup ? freshGroup.id : '')
+          await sleep(800)
+          const bikeState = await pageA.evaluate((groupId) => {
+            const g = document.querySelector('#viewfront [data-hookgroup="' + groupId + '"]')
+            const label = (document.querySelector('#viewfront svg') || {}).textContent || ''
+            return { stillThere: !!g, hangLabel: /挂 16″ 童车 (\d+) 台/u.exec(label) ? Number(RegExp.$1) : 0 }
+          }, freshGroup ? freshGroup.id : '')
+          if (toggled && bikeState.hangLabel >= 1){
+            pass('挂钩挂车：可挂 16″ 童车（' + bikeState.hangLabel + ' 台，每台 1.1m）')
+          } else {
+            fail('挂钩挂车未生效：' + JSON.stringify(bikeState))
+          }
+          const cleaned = await pageA.evaluate((groupId) => {
+            const b = document.querySelector('[data-act="delHookGroup"][data-id$=":' + groupId + '"]')
+            if (b) { b.click(); return true }
+            return false
+          }, freshGroup ? freshGroup.id : '')
+          await sleep(600)
+          const gone = await pageA.evaluate((groupId) =>
+            !document.querySelector('#viewfront [data-hookgroup="' + groupId + '"]'), freshGroup ? freshGroup.id : '')
+          if (cleaned && gone) pass('挂钩挂车：验证用挂钩组已删除（房间净零）')
+          else fail('挂钩挂车还原失败')
+        }
       } else {
         fail('挂钩新增异常：' + hooksBefore.length + ' → ' + hooksAfter.length)
       }

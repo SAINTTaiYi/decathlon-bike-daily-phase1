@@ -387,6 +387,11 @@ var HOOK_Z_DEFAULT = 1.5;                     /* 新增挂钩组的默认离地�
 var HOOK_Z_MIN = 0.15;                        /* 挂钩最低离地高度（m） */
 var HOOK_Z_ABOVE = 0.30;                      /* 允许高出货架顶的高度（m） */
 var HOOK_MIN_SPAN = 0.25;                     /* 一组挂钩的最小跨度（m，= 1 个钩子） */
+/* 挂钩上可以挂 16″ 童车（2026-09-17 用户口径）：车长 1.1m，每台占 1.1m 沿架位；
+   挂上去时整车贴架面、离地挂在挂钩高度上（车轮落在钩上）。 */
+var HOOK_BIKE_SLOT = 1.1;                     /* 每台挂车占的沿架位（m） */
+var HOOK_BIKE_DEPTH = 0.30;                   /* 挂车离架面的外偏移（m，避免和货架前缘穿模） */
+var HOOK_BIKE_SCL = 0.61;                     /* 挂车模型缩放：1.8 × 0.61 ≈ 1.1m（与车长一致） */
 var SHELF_H_DEFAULT = 3.3;                    /* 门店货架实际高度（m） */
 
 /* ---------------- 挂载面（双面货架的两面） ----------------
@@ -442,10 +447,29 @@ function normHookGroup(g, i, s){
   if (u1 - u0 < spanMin) u0 = Math.max(0, u1 - spanMin);
   var z = (+g.z > 0) ? +g.z : Math.min(HOOK_Z_DEFAULT, zMax);
   z = clamp(z, HOOK_Z_MIN, zMax);
-  return { id: g.id || ('g' + (i + 1)), u0: r2(u0), u1: r2(u1), z: r2(z), face: normFace(g.face) };
+  var bike = (g.bike === 'kids16') ? 'kids16' : 'none';
+  return { id: g.id || ('g' + (i + 1)), u0: r2(u0), u1: r2(u1), z: r2(z), face: normFace(g.face), bike: bike };
 }
 /* 一组挂钩里有多少个钩子：每米 4 个（至少 1 个） */
 function hookGroupCount(s, g){ return Math.max(1, Math.round((g.u1 - g.u0) * HOOK_PER_M)); }
+/* 这组挂钩上挂几台 16″ 童车：每台占 HOOK_BIKE_SLOT = 1.1m（跨度不够 1.1m 时，
+   只要还够 0.9m 就允许挂 1 台；再窄就不挂）。 */
+function hookBikeCount(s, g){
+  if (!g || g.bike !== 'kids16') return 0;
+  var span = g.u1 - g.u0;
+  var n = Math.floor(span / HOOK_BIKE_SLOT + 1e-6);
+  if (n < 1 && span >= HOOK_BIKE_SLOT - 0.2) n = 1;
+  return Math.max(0, n);
+}
+/* 第 i 台挂车在这组里的沿架位置（组内居中均布） */
+function hookBikeU(s, g, i){
+  var n = hookBikeCount(s, g);
+  if (n <= 0) return (g.u0 + g.u1) / 2;
+  var span = g.u1 - g.u0;
+  return g.u0 + (span - n * HOOK_BIKE_SLOT) / 2 + HOOK_BIKE_SLOT / 2 + i * HOOK_BIKE_SLOT;
+}
+/* 挂钩上挂了什么（界面文案用） */
+function hookBikeLabel(bike){ return (bike === 'kids16') ? '16″ 童车（1.1m/台）' : ''; }
 /* 附件配置（归一化后的只读视图；rows = 托臂排数组，hooks = 挂钩数组） */
 function accOf(s){
   var a = (s && s.acc) || {};
@@ -589,6 +613,24 @@ function accBikesOf(cfg){
         });
       }
     });
+    /* 挂钩上的挂车（2026-09-17）：16″ 童车，每台占 1.1m 沿架位；
+       整车贴架面挂在挂钩高度上（pose='hang'，scl 按 1.1m 车长换算）。 */
+    a.hookGroups.forEach(function(g){
+      var nb = hookBikeCount(s, g);
+      if (!nb) return;
+      var faceB = hookGroupFace(s, g, cfg);
+      for (var ib = 0; ib < nb; ib++){
+        var uB = hookBikeU(s, g, ib);
+        var pB = accPos(s, uB, HOOK_BIKE_DEPTH, faceB);
+        out.push({
+          id: 'acc:' + s.id + ':hook:' + g.id + ':' + ib,
+          acc: 'hook', group: g.id, face: faceB, type: 'kids', pose: 'hang', lift: g.z,
+          scl: HOOK_BIKE_SCL,
+          x: r2(pB.x), y: r2(pB.y),
+          rot: (((s.orient === 'h') ? 0 : 90) + shelfRot(s)) % 360, steer: 45
+        });
+      }
+    });
     if (a.rack !== 'none'){
       var n2 = rackCount(s), sc3 = (a.rack === 'kids') ? 0.78 : 1.0;
       var t2 = 0.20 + 0.9 * sc3;
@@ -652,16 +694,18 @@ function computeChecks(cfg){
   (cfg.bikes || []).forEach(function(b){ if (b.type === 'kids') bK++; else bA++; });
   out.bikeAdult = bA; out.bikeKid = bK;
 
-  /* 货架陈列附件：托臂（上下两层合计）/ 地架 / 挂钩 计数 */
-  var accArm = 0, accArmRows = 0, accRack = 0, accHook = 0;
+  /* 货架陈列附件：托臂（上下两层合计）/ 地架 / 挂钩 / 挂钩上的挂车 计数 */
+  var accArm = 0, accArmRows = 0, accRack = 0, accHook = 0, accHookBike = 0;
   cfg.shelves.forEach(function(s){
     var a3 = accOf(s);
     accArmRows += a3.rows.length;
     a3.rows.forEach(function(r){ accArm += rowBikeCount(s, r); });
     accRack += rackCount(s);
     accHook += hookCount(s);
+    a3.hookGroups.forEach(function(g){ accHookBike += hookBikeCount(s, g); });
   });
-  out.accArm = accArm; out.accArmRows = accArmRows; out.accRack = accRack; out.accHook = accHook;
+  out.accArm = accArm; out.accArmRows = accArmRows; out.accRack = accRack;
+  out.accHook = accHook; out.accHookBike = accHookBike;
 
   var tz0 = null;
   cfg.zones.forEach(function(z){ if (z.kind === 'test') tz0 = z; });
@@ -1725,7 +1769,8 @@ function render3D(cfg, view){
   (cfg.bikes || []).concat(accBikesOf(cfg)).forEach(function(bk){
     if (skipBike && String(bk.id) === skipBike) return;   /* 审计 / 测试用：消融渲染（不画这一台） */
     var btype = (bk.type === 'kids') ? 'kids' : 'adult';
-    var scl = (btype === 'kids') ? 0.78 : 1.0;
+    /* 挂车（挂钩上的 16″ 童车）按车长换算缩放：1.8 × HOOK_BIKE_SCL ≈ 1.1m */
+    var scl = (bk.scl != null) ? +bk.scl : ((btype === 'kids') ? 0.78 : 1.0);
     var pose = (bk.pose === 'top') ? 'top' : 'stand';
     var rotD = (bk.rot != null) ? bk.rot : (bk.angle != null ? bk.angle : 0);
     var steerD = (bk.steer != null) ? bk.steer : 45;
@@ -2417,7 +2462,9 @@ function renderPlan(cfg, ui){
     var rotD = (bk.rot != null) ? bk.rot : (bk.angle != null ? bk.angle : 0);
     var steerD = (bk.steer != null) ? bk.steer : 45;
     var pose = (bk.pose === 'top') ? 'top' : 'stand';
-    var g = '<g class="it" data-id="' + (bk.acc ? esc(bk.id) : ('bk:' + bk.id)) + '"' + (bk.acc ? ' data-acc="' + esc(bk.acc) + '"' : '') + ' transform="translate(' + r2(bk.x) + ' ' + r2(bk.y) + ') rotate(' + r2(rotD) + ')">';
+    /* 挂车按车长缩放（1.8 × scl ≈ 1.1m），其余车保持原尺寸 */
+    var sclP = (bk.scl != null) ? (' scale(' + r2(+bk.scl) + ')') : '';
+    var g = '<g class="it" data-id="' + (bk.acc ? esc(bk.id) : ('bk:' + bk.id)) + '"' + (bk.acc ? ' data-acc="' + esc(bk.acc) + '"' : '') + ' transform="translate(' + r2(bk.x) + ' ' + r2(bk.y) + ') rotate(' + r2(rotD) + ')' + sclP + '">';
     g += '<rect x="-0.95" y="-0.55" width="1.9" height="1.1" fill="transparent"/>';
     if (pose !== 'top'){
       g += '<rect x="-0.9" y="-0.035" width="0.7" height="0.07" rx="0.03" fill="' + tcol + '" fill-opacity="0.9"/>';
@@ -2524,6 +2571,33 @@ function renderShelfFront(cfg, shelfId, opt){
   }
   o.push('</g>');
 
+  /* 侧视车剪影（x 沿车长、z 高度）：托臂上的车与挂钩上的挂车共用同一套画法。
+     zBase = 车轮落地高度（托臂排 = 排高；挂车 = 挂钩组高度，即车挂在钩上）。 */
+  function sideBike(g, uc, zBase, scl, isKids){
+    var col = isKids ? '#e0a35e' : '#6d747c';
+    var colS = isKids ? '#a97838' : '#454b52';
+    var tire = isKids ? '#a86f28' : '#3a3f45';
+    function P(px, pz){ return [r2(X(uc + px * scl)), r2(Y(zBase + pz * scl))]; }
+    function bar(A, B, w2){
+      var a = P(A[0], A[1]), b = P(B[0], B[1]);
+      g.push('<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '" stroke="' + col + '" stroke-width="' + r2(Math.max(1.2, w2 * scl * sc)) + '" stroke-linecap="round"/>');
+    }
+    [-0.55, 0.55].forEach(function(wx){
+      var c = P(wx, 0.35), rr = r2(0.35 * scl * sc);
+      g.push('<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + rr + '" fill="none" stroke="' + tire + '" stroke-width="' + r2(Math.max(1.6, 0.05 * scl * sc)) + '"/>');
+      g.push('<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + r2(Math.max(0.7, 0.03 * scl * sc)) + '" fill="' + colS + '"/>');
+    });
+    bar([-0.26, 0.90], [0.40, 0.86], 0.07);
+    bar([-0.10, 0.33], [0.40, 0.84], 0.08);
+    bar([-0.10, 0.33], [-0.26, 0.90], 0.07);
+    bar([-0.10, 0.33], [-0.55, 0.35], 0.05);
+    bar([-0.26, 0.90], [-0.55, 0.35], 0.05);
+    bar([0.42, 0.86], [0.55, 0.35], 0.06);
+    bar([0.42, 0.86], [0.50, 0.99], 0.06);
+    bar([0.38, 0.99], [0.62, 0.99], 0.07);          /* 车把 */
+    bar([-0.36, 0.93], [-0.20, 0.93], 0.09);        /* 车座 */
+  }
+
   /* 托臂排（从下到上绘制，保证选中排最后画） */
   rows = rows.slice().sort(function(a, b){ return a.z - b.z; });
   rows.forEach(function(r, ri){
@@ -2549,29 +2623,7 @@ function renderShelfFront(cfg, shelfId, opt){
         g.push('<line x1="' + xa + '" y1="' + r2(yr + 0.02 * sc) + '" x2="' + xa + '" y2="' + r2(yr + 0.16 * sc) + '" stroke="#9aa0a6" stroke-width="1.6"/>');
         g.push('<path d="M' + r2(xa - 0.07 * sc) + ' ' + r2(yr + 0.16 * sc) + ' L' + xa + ' ' + r2(yr + 0.05 * sc) + ' L' + r2(xa + 0.07 * sc) + ' ' + r2(yr + 0.16 * sc) + '" fill="none" stroke="#8f959b" stroke-width="1.6"/>');
       });
-      /* 车（侧视剪影）：与 3D 同一套坐标（x 沿车长、z 高度） */
-      var col = (r.size === 'kids') ? '#e0a35e' : '#6d747c';
-      var colS = (r.size === 'kids') ? '#a97838' : '#454b52';
-      var tire = (r.size === 'kids') ? '#a86f28' : '#3a3f45';
-      function P(px, pz){ return [r2(X(uc + px * scl)), r2(Y(r.z + pz * scl))]; }
-      function bar(A, B, w2){
-        var a = P(A[0], A[1]), b = P(B[0], B[1]);
-        g.push('<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '" stroke="' + col + '" stroke-width="' + r2(Math.max(1.2, w2 * scl * sc)) + '" stroke-linecap="round"/>');
-      }
-      [-0.55, 0.55].forEach(function(wx){
-        var c = P(wx, 0.35), rr = r2(0.35 * scl * sc);
-        g.push('<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + rr + '" fill="none" stroke="' + tire + '" stroke-width="' + r2(Math.max(1.6, 0.05 * scl * sc)) + '"/>');
-        g.push('<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + r2(Math.max(0.7, 0.03 * scl * sc)) + '" fill="' + colS + '"/>');
-      });
-      bar([-0.26, 0.90], [0.40, 0.86], 0.07);
-      bar([-0.10, 0.33], [0.40, 0.84], 0.08);
-      bar([-0.10, 0.33], [-0.26, 0.90], 0.07);
-      bar([-0.10, 0.33], [-0.55, 0.35], 0.05);
-      bar([-0.26, 0.90], [-0.55, 0.35], 0.05);
-      bar([0.42, 0.86], [0.55, 0.35], 0.06);
-      bar([0.42, 0.86], [0.50, 0.99], 0.06);
-      bar([0.38, 0.99], [0.62, 0.99], 0.07);          /* 车把 */
-      bar([-0.36, 0.93], [-0.20, 0.93], 0.09);        /* 车座 */
+      sideBike(g, uc, r.z, scl, r.size === 'kids');
     }
     /* 排标号 + 命中区（点它 = 选中该排；拖动 = 移动/改高度） */
     g.push('<g data-row="' + esc(r.id) + '" data-id="sh:' + esc(s.id) + '" data-rowi="' + ri + '">'
@@ -2598,8 +2650,8 @@ function renderShelfFront(cfg, shelfId, opt){
   /* 挂钩（2026-09-17 第二轮：成组，每米 4 个）：一组 = 一段挂杆 + 均布钩子。
      整组可拖（左右 + 上下），选中后两端圆点调范围（与托臂排同一套手势）。 */
   var hookGroupsHere = acc.hookGroups.filter(function(g){ return hookGroupFace(s, g, cfg) === viewFace; });
-  var hookTotalHere = 0;
-  hookGroupsHere.forEach(function(g){ hookTotalHere += hookGroupCount(s, g); });
+  var hookTotalHere = 0, hookBikesHere = 0;
+  hookGroupsHere.forEach(function(g){ hookTotalHere += hookGroupCount(s, g); hookBikesHere += hookBikeCount(s, g); });
   hookGroupsHere.forEach(function(hg){
     var on = String(opt.selHookGroup || '') === String(hg.id);
     var nH = hookGroupCount(s, hg);
@@ -2625,11 +2677,17 @@ function renderShelfFront(cfg, shelfId, opt){
       + ' data-hookz="' + fnum(hg.z) + '" data-hooku0="' + fnum(hg.u0) + '" data-hooku1="' + fnum(hg.u1) + '">'
       + '<rect x="' + hx0 + '" y="' + r2(hy - 0.06 * sc) + '" width="' + r2(Math.max(6, +hx1 - +hx0)) + '" height="' + r2(0.30 * sc)
       + '" fill="transparent" style="cursor:grab"/></g>');
+    /* 挂车（2026-09-17）：挂钩上的 16″ 童车，正面视角直接看到整车侧影（车挂在钩高上） */
+    var nBikeH = hookBikeCount(s, hg);
+    for (var kB = 0; kB < nBikeH; kB++){
+      sideBike(gh, hookBikeU(s, hg, kB), hg.z, HOOK_BIKE_SCL, true);
+    }
     if (on){
       gh.push('<g data-hookhandle="' + esc(hg.id) + ':0"><circle cx="' + hx0 + '" cy="' + hy + '" r="7" fill="#fff" stroke="' + ACC + '" stroke-width="2" style="cursor:ew-resize"/></g>');
       gh.push('<g data-hookhandle="' + esc(hg.id) + ':1"><circle cx="' + hx1 + '" cy="' + hy + '" r="7" fill="#fff" stroke="' + ACC + '" stroke-width="2" style="cursor:ew-resize"/></g>');
       gh.push('<text x="' + r2((+hx0 + +hx1) / 2) + '" y="' + r2(hy - 0.14 * sc) + '" text-anchor="middle" font-size="11.5" fill="#7a5b06">'
-        + '挂钩组 · ' + nH + ' 个（每米 4 个）· 离地 ' + fnum(hg.z) + 'm</text>');
+        + '挂钩组 · ' + nH + ' 个（每米 4 个）· 离地 ' + fnum(hg.z) + 'm'
+        + (nBikeH ? ' · 挂 16″ 童车 ' + nBikeH + ' 台' : '') + '</text>');
     }
     o.push('<g data-hookgroupg="' + esc(hg.id) + '">' + gh.join('') + '</g>');
   });
@@ -2648,12 +2706,13 @@ function renderShelfFront(cfg, shelfId, opt){
   o.push('<text x="' + mx + '" y="' + 22 + '" font-size="12.5" fill="' + INK + '">'
     + esc(s.name || '货架') + ' · 长 ' + fnum(L) + 'm · 高 ' + fnum(H) + 'm · ' + (s.kind === 'double' ? '双面' : (s.kind === 'single' ? '单面' : '矮货架'))
     + ' · 正在看「' + names[viewFace] + '」' + (rows.length ? ' · 托臂 ' + rows.length + ' 排 / ' + rowBikes + ' 台' : '')
-    + (hookGroupsHere.length ? ' · 挂钩 ' + hookTotalHere + ' 个（' + hookGroupsHere.length + ' 组，可拖动）' : '')
+    + (hookGroupsHere.length ? ' · 挂钩 ' + hookTotalHere + ' 个（' + hookGroupsHere.length + ' 组，可拖动）'
+        + (hookBikesHere ? ' · 挂 16″ 童车 ' + hookBikesHere + ' 台' : '') : '')
     + (otherRows ? ' · ' + names[otherFace] + '另有 ' + otherRows + ' 排' : '') + '</text>');
   o.push('</svg>');
   return { svg: o.join(''), meta: { scale: sc, mx: mx, my: my, len: r2(L), h: r2(H), shelfId: s.id,
     face: viewFace, faceName: names[viewFace], rows: rows.length, otherRows: otherRows,
-    hookGroups: hookGroupsHere.length, hooks: hookTotalHere } };
+    hookGroups: hookGroupsHere.length, hooks: hookTotalHere, hookBikes: hookBikesHere } };
 }
 
 /* ======================== ASCII 布局转储（调试用） ======================== */
@@ -3000,6 +3059,9 @@ return {
   rackCount: rackCount,
   hookCount: hookCount,
   hookGroupCount: hookGroupCount,
+  hookBikeCount: hookBikeCount,
+  hookBikeU: hookBikeU,
+  hookBikeLabel: hookBikeLabel,
   hookGroupFace: hookGroupFace,
   hookGroupsOnFace: hookGroupsOnFace,
   nextHookZ: nextHookZ,
@@ -3008,6 +3070,9 @@ return {
   defaultAddFace: defaultAddFace,
   ARM_SLOT: ARM_SLOT,
   HOOK_PER_M: HOOK_PER_M,
+  HOOK_BIKE_SLOT: HOOK_BIKE_SLOT,
+  HOOK_BIKE_DEPTH: HOOK_BIKE_DEPTH,
+  HOOK_BIKE_SCL: HOOK_BIKE_SCL,
   HOOK_Z_DEFAULT: HOOK_Z_DEFAULT,
   HOOK_Z_MIN: HOOK_Z_MIN,
   HOOK_Z_ABOVE: HOOK_Z_ABOVE,

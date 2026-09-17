@@ -1630,3 +1630,67 @@ test('挂载面：新增组件默认落到「组件多的那一面」（两面�
   assert.ok(appSrc.includes('s.acc.rackSide = faceForNewComponent(s);'),
     '地架首次装上时必须落到组件多的那一面')
 })
+
+test('挂钩挂车：16″ 童车长 1.1m（每台占 1.1m 沿架位，挂在挂钩高度上）', async () => {
+  const engine = await loadToolEngine()
+  const mk = (u0, u1, bike) => {
+    const c = engine.defaultConfig()
+    c.bikes = []
+    c.shelves = [Object.assign({}, c.shelves[0], {
+      id: 's1', kind: 'single', orient: 'h', x: 4, y: 6, len: 4, h: 3.3,
+      acc: { armRows: [], rack: 'none', hookGroups: [{ id: 'g1', u0, u1, z: 1.6, bike }] }
+    })]
+    return c
+  }
+  const groupOf = (c) => engine.accOf(c.shelves[0]).hookGroups[0]
+  /* ① 每台占 1.1m：4m 组 3 台、2.2m 组 2 台、1.0m 组 1 台、0.5m 组 0 台 */
+  const c4 = mk(0, 4, 'kids16')
+  assert.equal(engine.hookBikeCount(c4.shelves[0], groupOf(c4)), 3, '4m 挂钩组挂 3 台（1.1m/台）')
+  const c22 = mk(0, 2.2, 'kids16')
+  assert.equal(engine.hookBikeCount(c22.shelves[0], groupOf(c22)), 2, '2.2m 挂 2 台')
+  const c10 = mk(0, 1.0, 'kids16')
+  assert.equal(engine.hookBikeCount(c10.shelves[0], groupOf(c10)), 1, '1.0m 还能挂 1 台（略挤）')
+  const c05 = mk(0, 0.5, 'kids16')
+  assert.equal(engine.hookBikeCount(c05.shelves[0], groupOf(c05)), 0, '0.5m 挂不下')
+  assert.equal(engine.hookBikeCount(c4.shelves[0], Object.assign({}, groupOf(c4), { bike: 'none' })), 0,
+    '没开「挂钩上挂」时不挂车')
+  assert.equal(engine.HOOK_BIKE_SLOT, 1.1, '规格常量 = 1.1m（用户口径）')
+  /* ② 位置：组内居中均布，间距 1.1m */
+  const g4 = groupOf(c4)
+  const us = [0, 1, 2].map((i) => Number(engine.hookBikeU(c4.shelves[0], g4, i)))
+  assert.deepEqual(us.map((u) => Math.round(u * 100) / 100), [0.9, 2, 3.1], '3 台车沿架居中均布（间距 1.1m）')
+  /* ③ 渲染：3D / 平面 / 正面视角都画出来，且按 1.1m 车长缩放 */
+  const acc = engine.accBikesOf(c4).filter((b) => b.acc === 'hook')
+  assert.equal(acc.length, 3, '3 台挂车都是派生车（可被遮挡算法与计数看到）')
+  assert.ok(acc.every((b) => b.pose === 'hang' && Number(b.lift) === 1.6), '挂车挂在挂钩高度上（pose=hang）')
+  assert.ok(acc.every((b) => Math.abs(Number(b.scl) - engine.HOOK_BIKE_SCL) < 1e-9), '挂车按 1.1m 车长缩放')
+  assert.ok(Math.abs(engine.HOOK_BIKE_SCL * 1.8 - 1.1) < 0.01, '模型缩放 × 车模长 1.8 ≈ 1.1m')
+  const svg = engine.render3D(c4, { az: 90, el: 33, zoom: 1, vw: 1000, vh: 700 })
+  assert.ok((svg.match(/data-bike="acc:s1:hook:g1:/gu) || []).length > 3, '3D 必须画出挂车（多部件）')
+  assert.ok(!/NaN|undefined/u.test(svg), '3D 不得出现 NaN/undefined')
+  const plan = engine.renderPlan(c4, {})
+  assert.equal((plan.match(/data-id="acc:s1:hook:g1:/gu) || []).length, 3, '平面按挂车台数画符号')
+  assert.ok(plan.includes('scale(' + engine.HOOK_BIKE_SCL + ')'), '平面挂车按 1.1m 车长缩放')
+  /* ④ 正面视角：直接看到整车侧影 + 标注台数 */
+  const fr = engine.renderShelfFront(c4, 's1', { vw: 1000, vh: 640, face: 'pos', selHookGroup: 'g1' })
+  assert.equal(fr.meta.hookBikes, 3, '正面视角要知道本面挂了几台车')
+  assert.ok(fr.svg.includes('挂 16″ 童车 3 台'), '选中态要标出挂车辆数')
+  assert.equal((fr.svg.match(/stroke="#a86f28"/gu) || []).length, 6, '3 台 × 2 个轮圈')
+  assert.ok(!/NaN|undefined/u.test(fr.svg), '正面视角不得出现 NaN/undefined')
+  /* ⑤ 计数与接线：统计 / 属性栏字段 / 大纲动作 / 快捷条 */
+  const ck = engine.computeChecks(c4)
+  assert.equal(ck.accHookBike, 3, '检查统计里要有挂车台数')
+  assert.equal(ck.accHook, 16, '挂钩数不受影响（每米 4 个）')
+  const schemaSrc = stripComments(toolSchema)
+  assert.ok(schemaSrc.includes("select('shelves.' + i + '.acc.hookGroups.' + gi + '.bike', '　挂钩上挂'"),
+    '属性栏每组要能选「挂钩上挂什么」')
+  assert.ok(schemaSrc.includes("['kids16', '16″ 童车（1.1m/台）']"), '选项文案必须写明 1.1m/台（用户口径）')
+  assert.ok(schemaSrc.includes("action('hookBikes'"), '大纲要有「挂 16″ 童车」开关')
+  assert.ok(schemaSrc.includes('挂童车 '), '状态条要显示挂车台数')
+  const appSrc = stripComments(toolApp)
+  assert.ok(appSrc.includes('function toggleHookBikes(spec){'), 'app.js 必须实现挂车开关')
+  assert.ok(appSrc.includes("g.bike = 'kids16';"), '开关打开时写入 kids16')
+  for (const [label, source] of [['桌面端', stripComments(toolUiDesktop)], ['移动端', stripComments(toolUiMobile)]]) {
+    assert.ok(source.includes('function accHookBikes(o){'), label + ' 必须有挂车台数（快捷条显示）')
+  }
+})
