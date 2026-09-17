@@ -1,95 +1,77 @@
 {
   "kind": "formal-production-release",
-  "version": "6.8.5",
+  "version": "6.8.6",
   "previewRange": {
-    "fromExclusive": "f3a6e957a0427db699afcd687930175c6e10b8a5",
-    "toInclusive": "9892c740ab5c11d88ed2ea65774f223944f03388",
+    "fromExclusive": "479e3c4351c0fe2e04370e4b8828ef8e7db3113b",
+    "toInclusive": "fe7d2ae3958bc332c581c05e95f118ae45012e80",
     "commits": [
       {
-        "sha": "df01cf33a21d47c1fbff19376b5081eb41daa1f9",
-        "subject": "chore(release): stamp V6.8.4 build metadata"
+        "sha": "1b3ac75d6e7bd5601b315ddfe32fa42d80996495",
+        "subject": "chore(release): stamp V6.8.5 build metadata"
       },
       {
-        "sha": "ef1649eff7f147c9a28c6d1923f711a8cd5437c5",
-        "subject": "feat(design): 门店设计实时协作 · 多人同时编辑（DO + Yjs）"
+        "sha": "c91e1e9ac35bdfd825055233b55cc49b452aa676",
+        "subject": "perf(startup): 首屏载入延迟优化——bootstrap 下发 changeVersion 消除重复刷新、冷启动并行预取、审计 feed 与 /auth/me 合并 batch 往返"
       },
       {
-        "sha": "854c51fb7352ce94bffd8c7c95e537b301483d51",
-        "subject": "test(preview): WS 冒烟步骤 —— 部署后验证实时协作全链路（未登录拒绝/对账/广播/名单）"
+        "sha": "e6c5b6d47fefd138c6bdaf35d179b06604719521",
+        "subject": "test(startup): 回归断言跟版——长轮询门控追加 hydrated（store-design 站契约同步）"
       },
       {
-        "sha": "d766760af568e7b872939d743355bf2679007c8d",
-        "subject": "fix(design): WS 转发改用原始 Request 模板（保留升级语义）+ 握手错误诊断"
+        "sha": "9992bfb86c1c5b6ce40a02d6ee5eb4d6aa061d21",
+        "subject": "fix(update-dialog): 更新弹窗抽搐——App 全部分支改经单实例外壳 AppScreen，弹窗不再随分支切换卸载重建；新增真实浏览器公告稳定性冒烟门禁"
       },
       {
-        "sha": "53902562b7c001c5d67ab6b25959f2227e6c7631",
-        "subject": "fix(design): WS 握手 500 三处根因 —— 升级请求与 101 响应绕过一切响应头处理"
+        "sha": "72815d1daf35c701090244022b4f215642c15614",
+        "subject": "test(announcement-smoke): 冒烟脚本直接进 Ops 工作台并等待完整启动链路；支持本机依赖/浏览器覆盖（本地回归已验证：预修复构建报 2 次入场、修复后 1 次）"
       },
       {
-        "sha": "adcac84b3d6b9c5b8757034be83510ed9eaa54f2",
-        "subject": "test(preview): WS 冒烟增强 —— 常驻房间持久化（新连接读到既有状态）验证"
+        "sha": "9deb018aa8186bb28a1783f2ee2813e31cba5fb8",
+        "subject": "test(announcement-smoke): 双通道采样 + 节点身份为主判据；本机实测预修复构建必红、修复构建必绿"
       },
       {
-        "sha": "cda4b904074671044dde522fed848484a0780943",
-        "subject": "test(preview): 真实浏览器客户端冒烟（工具页加载 / online / 在线胶囊 / 双端名单）"
+        "sha": "7a3f6ffb9808aa62730323c00df15fe9d6990615",
+        "subject": "feat(shiphub): 已配置本店账号时折叠账号表单——只显示「更改账号密码」按钮，点开才展开；补回连接按钮样式（原先住在未引入的 endfield.css，生产里零样式）；preview 增加「本店账号」模拟维度"
       },
       {
-        "sha": "c30c870d4e8e6f7328ad21cfe3b4f430f82231e6",
-        "subject": "ci(preview): 浏览器冒烟收紧为硬失败门禁（首轮观测全绿）"
+        "sha": "c36b9c07a9d78eeea060966695f2f7bdf7b8878e",
+        "subject": "test(shiphub): 收紧样式断言——相邻兄弟选择器会让 \".shiphub-connect-btn {\" 假命中，改为断言完整胶囊声明块（注入实测）"
       },
       {
-        "sha": "4982bd49064e5eb373c235cc5836fb4f9745331a",
-        "subject": "feat(design): 工作室组件系统 —— 洞洞板 / 工作台 / 维修架 / 工具柜 + 玻璃 / 幕墙 / 围栏"
+        "sha": "0c3c31fc24ecc3309fd9156393a4efa614ddd363",
+        "subject": "fix(dock): 底栏滚动悬空——底部内缩改为键盘专用（--keyboard-inset-bottom），不再把地址栏动画的视口差值当成内缩"
       },
       {
-        "sha": "a3e1be6cce1806e0c9ad85064088888c9979b3bf",
-        "subject": "test(preview): 工作室检查改用已在线页面（CI 里重导航会超时）"
+        "sha": "33f0bfc37d1f726a6e8604871d12a10a05d7fff0",
+        "subject": "fix(desktop): 顶面融合——桌面端去掉黄弥散光源，页头磨砂改单块全宽带"
       },
       {
-        "sha": "21c753bcefe75a68c4ac48aadaf23f1ef5e71ec2",
-        "subject": "fix(design): 云快照迟到不再覆盖实时工作区 + 接线竞态 + 去调试插桩"
+        "sha": "451489926ec7fce4442f69ddbceb5db0e7055a86",
+        "subject": "fix(desktop): rail 不再被页头磨砂糊住 + 磨砂玻璃去黄"
       },
       {
-        "sha": "de1d6eed61b0c2a138f64f7de697dfb4d4b8402e",
-        "subject": "fix(design): 首载竞态删房间内容（数据丢失）—— 云端首载不再是「编辑」"
+        "sha": "dfe22de0931f391176ac0982b490f801a4ea0159",
+        "subject": "feat(desktop): 队列工具整条嵌进次页头（搜索栏 + QUEUE STATUS + 工具按钮）"
       },
       {
-        "sha": "997f6a5a7eaf3f60ac16987388362d05ee0e211d",
-        "subject": "feat(design): 挂钩可自由移动（逐个位置 + 正面视角直接拖动），不再固定在顶端"
-      },
-      {
-        "sha": "84e03bfa0f0039aa51ccab612a43ed61e3df7c2c",
-        "subject": "feat(design): 挂钩改成成组摆放（每米 4 个）+ 新增组件默认落到「组件多的那一面」"
-      },
-      {
-        "sha": "7c275d095fcb9ed76e6f348f815ecc89c629d641",
-        "subject": "docs(design): 挂钩注释口径同步为「成组」"
-      },
-      {
-        "sha": "d0cfa1660611670e07be2f4c87887c54f56486e6",
-        "subject": "feat(design): 挂钩可挂 16″ 童车（车长 1.1m，每台占 1.1m 沿架位）"
-      },
-      {
-        "sha": "9892c740ab5c11d88ed2ea65774f223944f03388",
-        "subject": "test(preview): 挂钩挂车门禁改用「最后新增的组」，并去掉不必要的大纲页签切换"
+        "sha": "fe7d2ae3958bc332c581c05e95f118ae45012e80",
+        "subject": "test(desktop): 补「正文让位必须跟 --ops-header-height 走」断言——注入 180px 硬编码实测变红"
       }
     ]
   },
   "announcement": {
-    "title": "门店设计实时协作 · 多设备同时编辑与工作室组件",
-    "summary": "门店设计（Super Mass）进入实时协作阶段：多人多设备同时编辑同一门店图纸、互见改动；工作室可自由搭建内部组件与外围墙体；挂钩按组布置并可挂 16 英寸童车。",
+    "title": "首屏提速 · 更新弹窗不再抽搐 · Shiphub 连接框折叠账密 · 移动底栏不再悬空 · 桌面顶面去黄雾去阶梯 · 队列工具嵌进次页头",
+    "summary": "本次集中修复载入耗时与多处桌面/移动视觉问题：打开 Ops 不再白做一轮重复刷新，更新公告弹窗不再闪断重播，Shiphub 已配置账号时不再暴露账密输入框，安卓 Edge 滚动时底栏不再悬空；桌面端去掉背景黄雾、消除页头与左栏之间的阶梯感、总览按钮不再被遮住，并把待取/其它/维修三个模块的搜索栏与筛选工具整条嵌进次页头。",
     "changes": [
-      "实时协作（新增）：多人/多设备同时编辑同一门店图纸，改动实时互见（毫秒级）；每门店一间常驻工作区，关掉页面再打开仍是最新状态（含未保存草稿）；断线自动重连并补发期间的改动",
-      "实时协作：状态胶囊显示「● N 人在线」与「某同事正在移动」；云端图纸首载不再覆盖在线同事的工作区（修复两处会造成内容被误删的竞态）",
-      "工作室组件（新增）：洞洞板 / 工作台 / 维修架 / 工具柜，可添加、拖动、旋转 90 度、调长度，选中工作室后在属性栏或左侧工具栏一键添加",
-      "工作室外围：四边侧墙可选 实墙 / 玻璃窗 / 玻璃幕墙 / 门帘 / 围栏 / 网面 / 门洞 / 无（玻璃幕墙带竖梃、围栏双横杆），平面与 3D 同步",
-      "修复：点选工作室后属性栏正确显示尺寸与侧墙字段（此前偶发显示未选中元素）",
-      "挂钩：按组布置，每米 4 个钩子；正面视角里整组拖动（左右与上下）、两端圆点调范围，钩子数量随范围自动变化",
-      "挂钩可挂 16 英寸童车（车长 1.1 米）：每台占 1.1 米沿架位，整车挂在钩上、贴架面；正面视角、平面与 3D 都会画出挂车并按台数标注",
-      "货架挂载面：新增托臂排 / 挂钩组 / 地架默认落到组件多的那一面；挂载面页签与选项标注各面组件数（如「南面（3）」）；打开正面视角默认显示组件多的那一面",
-      "多设备一致性：新增跨端内容同步与挂钩挂车的部署后自动冒烟检查（真实浏览器双客户端），每次上线自动验证",
-      "旧图纸自动升级：历史上的挂钩开关与逐钩记录会自动换算成成组的挂钩，钩子数量与位置保持一致"
+      "载入提速：/api/v1/bootstrap 下发 changeVersion，长轮询从它起步而不是从 0 —— 打开页面不再必然收到一次「变了」后白拉一轮 bootstrap 与 Shiphub 刷新",
+      "载入提速：冷启动并行预取 bootstrap、审计 feed 两条查询合并为一次 batch、/auth/me 的 CSRF 轮换与成员读取合并为一次 batch，减少数据库往返",
+      "更新公告弹窗不再抽搐：App 的九个分支此前各挂一份弹窗，切换分支时被卸载重建导致入场动画重播；改为单一稳定外壳承载",
+      "Shiphub 连接窗口：门店已配置本店账号密码时只显示「更改账号密码」按钮，点开才展开表单；未配置时保持默认展开",
+      "移动端底栏不再悬空：底部内缩改为只在软键盘弹出时生效，不再把浏览器地址栏/工具栏的显隐误判为内缩",
+      "桌面端去掉背景黄色弥散光源（移动端保留），页头不再泛起一层淡黄色",
+      "桌面端页头、次页头、左栏之间的阶梯感消除：磨砂背板改为整块全宽带并向下羽化，左栏第一项不再被背板遮住",
+      "桌面端待取车辆 / 其它交接 / 维修交接：搜索框、队列计数与筛选排序工具整条嵌入次页头，正文不再单独占一行"
     ]
   },
-  "preparedAt": "2026-09-17T15:19:50.040Z"
+  "preparedAt": "2026-09-17T19:23:39.816Z"
 }
