@@ -115,6 +115,8 @@ function saveSoon(){
       localStorage.setItem(LS_VIEW, JSON.stringify({ az: view.az, el: view.el, zoom: view.zoom }));
       /* 云端图纸：本机存档落盘后同步一次「有没有未保存的改动」 */
       if (window.SDCloud) window.SDCloud.markDirty();
+      /* 实时协作：把本地改动同步进协作房间（断线时只写本地 Y.Doc，重连后补发） */
+      if (window.SDCollab) window.SDCollab.afterLocalChange();
     } catch(e2){}
   }, 250);
 }
@@ -296,6 +298,14 @@ function nid(){ return 'x' + Math.random().toString(36).slice(2, 7); }
 function shelfGet(id){ for (var i=0;i<cfg.shelves.length;i++){ if (String(cfg.shelves[i].id) === String(id)) return cfg.shelves[i]; } return null; }
 function findBy(arr, id){ for (var i=0;i<arr.length;i++){ if (String(arr[i].id) === String(id)) return arr[i]; } return null; }
 function afterStruct(){ saveSoon(); buildEditors(); renderChips(); render3DNow(); renderPlanNow(); renderFrontNow(); }
+/* 实时协作物化时用来保留当前选中：id 对应的对象还在才保留。 */
+function selStillExists(id){
+  if (!id) return false;
+  try {
+    if (String(id).slice(0, 3) === 'wl:') return true;
+    return !!anchorOf(id);
+  } catch(e){ return false; }
+}
 function addShelf(kind){
   var h = (kind === 'low') ? 0.9 : E.SHELF_H_DEFAULT;
   cfg.shelves.push({ id: nid(), name: '', kind: kind, orient: 'h', x: 2, y: 2, len: 4, h: h });
@@ -834,6 +844,8 @@ function bindPlan(){
           fEl.setAttribute('y', E.r2(fBase.y - 0.08 + ddy));
         }
       }
+      /* 实时协作：拖动中节流广播位置预览（对方能实时看到元素在动） */
+      if (window.SDCollab) window.SDCollab.dragPreview(id, cur.x, cur.y);
     }
     function cleanup(){
       window.removeEventListener('pointermove', move);
@@ -845,6 +857,8 @@ function bindPlan(){
     function done1(){
       cleanup();
       if (moved){
+        /* 实时协作：先告诉房间拖动结束，随后 saveSoon 的 diff 即正式提交 */
+        if (window.SDCollab) window.SDCollab.dragEnd(id);
         moveItem(id, snapV(cur.x), snapV(cur.y));
         postSelUpdate(); saveSoon();
       } else if (placingMode){
@@ -1779,6 +1793,38 @@ function boot(){
         ui.frontRow = null;
         afterStruct();
         syncInputs();
+      },
+      toast: toast
+    });
+    /* 实时协作（2026-09-17）：与云端图纸共用 cfg 读写钩子；
+       applyRemoteConfig 与 setCfg 的区别是保留当前选中（物化高频发生，
+       清选中会打断正在进行的编辑）。 */
+    if (window.SDCollab) window.SDCollab.attach({
+      getCfg: function(){ return cfg; },
+      applyRemoteConfig: function(obj){
+        var keepSel = ui.sel, keepRow = ui.frontRow;
+        cfg = E.deepMerge(E.defaultConfig(), obj);
+        ui.sel = selStillExists(keepSel) ? keepSel : null;
+        ui.frontRow = keepRow;
+        saveSoon();
+        buildEditors();
+        renderChips(); render3DNow(); renderPlanNow(); renderFrontNow();
+        if (ui.sel && window.SDUI && SDUI.refreshSelVals) renderSelBar(true);
+        syncInputs();
+      },
+      previewMove: function(id, x, y){
+        try {
+          var k = String(id).split(':')[0];
+          if (!(k === 'sh' || k === 'pl' || k === 'bk' || k === 'zn' || k === 'en' || k === 'ms' || k === 'mk' || k === 'ct')) return;
+          moveItem(id, snapV(x), snapV(y));
+          render3DNow(); renderPlanNow();
+        } catch(e7){}
+      },
+      isEditing: function(){
+        var el = document.activeElement;
+        if (!el) return false;
+        var tag = el.tagName;
+        return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
       },
       toast: toast
     });

@@ -50,6 +50,9 @@ export interface WorkerEnv {
   D1_METRICS_TOKEN?: string
   /** D1 用量预警收件邮箱（达到免费额度 80% 时发信） */
   D1_ALERT_EMAIL?: string
+  /** 门店设计实时协作房间（每门店一个 Durable Object，2026-09-17 起）。
+      可选绑定：未配置时实时协作端点返回结构化 503，工具退回手动保存模式。 */
+  DESIGN_ROOM?: DurableObjectNamespace
 }
 
 export interface ShipHubConfig {

@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { DESIGN_MAX_PAYLOAD_CHARS, designSaveSchema } from '@bike-ops/contracts'
+import { isAllowedOrigin } from '../env.js'
 import type { AppConfig, WorkerEnv } from '../env.js'
 import type { AuthContext } from '../auth/types.js'
 import { createAuthMiddleware } from '../auth/middleware.js'
@@ -63,6 +64,34 @@ export function designRoutes() {
       }, 409)
     }
     return c.json({ design: { revision: result.revision, updatedAt: result.updatedAt, updatedByName: result.updatedByName } })
+  })
+
+  // 门店设计实时协作（WebSocket，2026-09-17）。
+  // 认证与会话复用同一套中间件；房间名由会话里的 storeId 决定（门店边界）。
+  // 只读降级会话不允许连接 —— 实时协作本质是持续写操作。
+  // Origin 显式白名单：浏览器 WebSocket 不受同源策略约束（跨站页面也能发起
+  // 连接、并自动携带 cookie），必须像写接口一样校验来源，防跨站劫持写通道。
+  app.get('/api/v1/design/ws', ...read, async (c) => {
+    if ((c.req.header('upgrade') ?? '').toLowerCase() !== 'websocket') {
+      throw new ApiProblem(426, 'EXPECTED_WEBSOCKET', '该端点仅接受 WebSocket 升级请求。')
+    }
+    const context = c.get('auth')!
+    if (context.readOnly) {
+      throw new ApiProblem(403, 'READONLY_SESSION', '只读模式下无法使用实时协作，恢复写入后可重试。')
+    }
+    const namespace = c.env.DESIGN_ROOM
+    if (!namespace) {
+      // 未配置 Durable Object 绑定时向前端报「不可用」，工具自动退回手动保存模式。
+      throw new ApiProblem(503, 'REALTIME_UNAVAILABLE', '实时协作暂未启用。')
+    }
+    if (!isAllowedOrigin(c.req.header('origin'), c.get('config').allowedOrigins)) {
+      throw new ApiProblem(403, 'ORIGIN_NOT_ALLOWED', '来源不在允许列表中。')
+    }
+    const stub = namespace.get(namespace.idFromName(`store:${context.storeId}`))
+    const headers = new Headers(c.req.raw.headers)
+    // 展示名只信任服务端会话（客户端不可伪造；DO 侧直接读这个头）。
+    headers.set('x-design-user-name', context.displayName)
+    return stub.fetch(new Request(c.req.url, { method: 'GET', headers }))
   })
 
   return app

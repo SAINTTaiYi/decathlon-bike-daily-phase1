@@ -30,6 +30,10 @@ import { detectD1LimitError, d1LimitProblemBody, errorChainText } from './lib/d1
 import { ApiProblem } from './services/problems.js'
 import { routeIncomingRequest } from './request-routing.js'
 
+// 门店设计实时协作房间（Durable Object，2026-09-17）：
+// Workers 运行时要求类以顶层 named export 暴露（wrangler migrations 里声明 class_name）。
+export { DesignRoom } from './design/room.js'
+
 type Vars = {
   config: AppConfig
   auth: AuthContext | null

@@ -121,6 +121,10 @@ jobs:
               "database_id": "91e78387-9b24-4126-a5a1-27f9c1792975",
               "migrations_dir": "migrations/d1"
             }],
+            "durable_objects": {
+              "bindings": [{ "name": "DESIGN_ROOM", "class_name": "DesignRoom" }]
+            },
+            "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DesignRoom"] }],
             "triggers": {
               "crons": ["* * * * *", "7,37 * * * *"]
             },

@@ -125,7 +125,7 @@
   async function load(options) {
     if (!state.attached || state.offline) return
     if (state.dirty && !(options && options.force)) {
-      if (!window.confirm('载入云端图纸会覆盖当前未保存的改动，继续？')) return
+      if (!window.confirm('载入云端图纸会覆盖当前未保存的改动（在线同事会同步看到这次载入），继续？')) return
     }
     state.loading = true
     paint()

@@ -134,6 +134,10 @@ jobs:
                 "migrations_dir": "migrations/d1"
               }
             ],
+            "durable_objects": {
+              "bindings": [{ "name": "DESIGN_ROOM", "class_name": "DesignRoom" }]
+            },
+            "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DesignRoom"] }],
             "vars": {
               "APP_ENV": "preview",
               "APP_VERSION": "__APP_VERSION__",

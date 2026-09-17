@@ -12,6 +12,14 @@
   "placement": { "mode": "smart" },
   "workers_dev": true,
   "preview_urls": true,
+  // 门店设计实时协作（2026-09-17）：每门店一个 Durable Object「房间」。
+  // 免费层仅支持 SQLite-backed DO；心跳走 setWebSocketAutoResponse，
+  // 空闲连接休眠不计 duration（免费额度 10 万请求/天 + 13000 GB-s/天）。
+  // migration tag 单调递增，后续修改 DO 类结构时必须追加新 tag。
+  "durable_objects": {
+    "bindings": [{ "name": "DESIGN_ROOM", "class_name": "DesignRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DesignRoom"] }],
   "triggers": { "crons": ["* * * * *", "7,37 * * * *"] },
   "assets": {
     "directory": "apps/web/dist",
