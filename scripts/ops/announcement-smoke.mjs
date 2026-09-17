@@ -14,7 +14,10 @@
 // 依赖：puppeteer-core（与 browser-smoke 共用 /tmp/ws-smoke 安装目录）。
 import { createRequire } from 'node:module'
 
-const requireWs = createRequire('/tmp/ws-smoke/')
+// 依赖目录与浏览器可执行文件都可覆盖：
+//   CI（部署 workflow）用 /tmp/ws-smoke + runner 预装 Chrome；
+//   本地回归用 SMOKE_REQUIRE_BASE / PUPPETEER_EXECUTABLE_PATH 指向本机安装。
+const requireWs = createRequire(process.env.SMOKE_REQUIRE_BASE || '/tmp/ws-smoke/')
 const puppeteer = requireWs('puppeteer-core')
 
 const base = (process.env.SMOKE_BASE_URL || '').replace(/\/$/u, '')
@@ -30,6 +33,10 @@ function fail(message) { failures.push(message); log('FAIL ·', message) }
 // 节点身份用 WeakMap 编号——同一个 DOM 节点永远同一个编号，重建则换号。
 const sampler = `
 (() => {
+  // 直接进 Ops 工作台（默认会停在应用选择屏），并确保公告未被标记为已读 ——
+  // 这样每次冒烟测量的都是完整链路：验证会话 → 引导页 → 读取台账 → 工作台。
+  try { sessionStorage.setItem('bike-ops-active-app', 'ops') } catch (error) {}
+  try { localStorage.removeItem('workshop.ledger.seen-app-version') } catch (error) {}
   const state = { frames: [], seq: 0 }
   window.__announcementProbe = state
   const ids = new WeakMap()
@@ -60,7 +67,8 @@ async function main() {
     return
   }
   const browser = await puppeteer.launch({
-    channel: 'chrome',
+    channel: process.env.PUPPETEER_EXECUTABLE_PATH ? undefined : 'chrome',
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     headless: true,
     args: ['--no-sandbox', '--disable-dev-shm-usage']
   })
@@ -88,11 +96,13 @@ async function main() {
     // 带会话重新加载：这里测量的是登录后的启动链路（验证会话 → 读取台账 → 工作台）。
     // 每次导航都会重新注入采样器，计数器从零开始。
     await page.goto(base + '/', { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {})
+    // 等真正进入工作台：抽搐发生在「验证会话 → 引导页 → 工作台」这些界面切换上，
+    // 停在中间态测不到完整链路。
     await page.waitForFunction(
-      () => document.querySelector('.ops-index') || document.querySelector('.hydration-state'),
-      { timeout: 30000 }
+      () => Boolean(document.querySelector('.ops-index')),
+      { timeout: 40000, polling: 250 }
     ).catch(() => {})
-    await new Promise((resolve) => setTimeout(resolve, 6000))
+    await new Promise((resolve) => setTimeout(resolve, 4000))
 
     const result = await page.evaluate(() => {
       const state = window.__announcementProbe
@@ -115,6 +125,7 @@ async function main() {
         if (document.querySelector('.ops-index')) return 'WORKSPACE'
         const hydration = document.querySelector('.hydration-state strong')
         if (hydration) return hydration.textContent
+        if (document.querySelector('.appselect, [data-app-card]')) return 'APPSELECT'
         return 'UNKNOWN'
       })()
       return { ramps, nodes, dimTimeline, frames: state.frames.length, screen }
