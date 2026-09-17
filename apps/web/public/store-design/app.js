@@ -589,7 +589,10 @@ var acts = {
   addMesh: function(){ cfg.meshes.push({ id: nid(), orient:'v', x: Math.round(cfg.space.w/2), y: 3, len: 3, h: 2.0 }); afterStruct(); },
   delMesh: function(ds){ cfg.meshes = cfg.meshes.filter(function(x){ return String(x.id) !== String(ds.id); }); afterStruct(); },
   addMarker: function(){ cfg.markers.push({ id: nid(), color:'red', x: Math.round(cfg.space.w/2), y: 2, w: 0.5, h: 0.5, label:'' }); afterStruct(); },
-  delMarker: function(ds){ cfg.markers = cfg.markers.filter(function(x){ return String(x.id) !== String(ds.id); }); afterStruct(); }
+  delMarker: function(ds){ cfg.markers = cfg.markers.filter(function(x){ return String(x.id) !== String(ds.id); }); afterStruct(); },
+  /* 工作室组件（2026-09-17）：属性栏「＋洞洞板 / ＋工作台 …」与大纲删除共用 */
+  addStudioItem: function(ds){ if (ds && ds.id) addComponent(ds.id); },
+  delStudioItem: function(ds){ cfg.studioItems = (cfg.studioItems || []).filter(function(x){ return String(x.id) !== String(ds.id); }); afterStruct(); }
 };
 
 /* ---------------- 编辑面板事件 ---------------- */
@@ -607,6 +610,15 @@ function onEditInput(e){
     if (sx){
       if (v === 'low' && (sx.h == null || sx.h > 1.2)) sx.h = 0.9;
       if (v !== 'low' && (sx.h == null || sx.h < 1.0)) sx.h = E.SHELF_H_DEFAULT;
+    }
+  }
+  if (/^studioItems\.\d+\.kind$/.test(p)){
+    /* 切换组件类型：长度按新类型的范围夹回（洞洞板 0.6~2.4 / 工作台 1.0~2.4 …） */
+    var siK = cfg.studioItems[+p.split('.')[1]];
+    if (siK){
+      var defK = E.studioItemDef(siK.kind);
+      var wK = +siK.w || defK.w;
+      siK.w = Math.min(defK.wMax, Math.max(defK.wMin, wK));
     }
   }
   ensureStructures(p);
@@ -640,6 +652,7 @@ function anchorOf(id){
   if (k === 'pl'){ var pp = findBy(cfg.pillars, key); return pp ? { x: pp.x, y: pp.y } : null; }
   if (k === 'mk'){ var m = findBy(cfg.markers, key); return m ? { x: m.x, y: m.y } : null; }
   if (k === 'ms'){ var ms = findBy(cfg.meshes, key); return ms ? { x: ms.x, y: ms.y } : null; }
+  if (k === 'si'){ var siA = findBy(cfg.studioItems || [], key); return siA ? { x: siA.x, y: siA.y } : null; }
   if (k === 'en'){ var en = findBy(cfg.entrances || [], key); return en ? { x: en.x, y: en.y } : null; }
   if (k === 'ct'){ var ct = findBy(cfg.curtains || [], key); return ct ? { x: ct.x, y: ct.y } : null; }
   if (k === 'bk'){ var bkk = findBy(cfg.bikes || [], key); return bkk ? { x: bkk.x, y: bkk.y } : null; }
@@ -657,6 +670,8 @@ function sizeOf(id){
   if (k === 'pl'){ var pp = findBy(cfg.pillars, key); var sz = pp ? (pp.s || 1) : 1; return { w: sz, h: sz }; }
   if (k === 'mk'){ var m = findBy(cfg.markers, key); return m ? { w: m.w, h: m.h } : null; }
   if (k === 'ms'){ var ms = findBy(cfg.meshes, key); return ms ? ((ms.orient === 'v') ? { w: 0.2, h: ms.len } : { w: ms.len, h: 0.2 }) : null; }
+  if (k === 'si'){ var siS = findBy(cfg.studioItems || [], key); if (!siS) return null;
+    var bSi = E.studioItemBounds(siS); return { w: bSi.w, h: bSi.h }; }
   if (k === 'en'){ var en = findBy(cfg.entrances || [], key); return en ? { w: en.w, h: en.h } : null; }
   if (k === 'ct'){ var ctt = findBy(cfg.curtains || [], key); return ctt ? ((ctt.orient === 'v') ? { w: 0.3, h: ctt.len } : { w: ctt.len, h: 0.3 }) : null; }
   if (k === 'bk'){ return { w: 1.0, h: 1.0 }; }
@@ -679,10 +694,27 @@ function moveItem(id, nx, ny){
     pp.y = E.clamp(ny, sz.h/2, D - sz.h/2);
     return;
   }
+  if (k === 'si'){
+    /* 工作室组件同样是中心锚定（与柱子一致） */
+    var siM = findBy(cfg.studioItems || [], key); if (!siM) return;
+    siM.x = E.clamp(nx, sz.w/2, W - sz.w/2);
+    siM.y = E.clamp(ny, sz.h/2, D - sz.h/2);
+    return;
+  }
   var cx = E.clamp(nx, 0, Math.max(0, W - sz.w));
   var cy = E.clamp(ny, 0, Math.max(0, D - sz.h));
   if (k === 'sh'){ var s = shelfGet(key); if (s){ s.x = cx; s.y = cy; } }
-  else if (k === 'st'){ cfg.studio.x = cx; cfg.studio.y = cy; }
+  else if (k === 'st'){
+    /* 拖动工作室时组件跟随（否则工作室挪走后家具全留在原地） */
+    var dxS = cx - cfg.studio.x, dyS = cy - cfg.studio.y;
+    cfg.studio.x = cx; cfg.studio.y = cy;
+    if (dxS || dyS){
+      (cfg.studioItems || []).forEach(function(siF){
+        siF.x = Math.round((siF.x + dxS) * 100) / 100;
+        siF.y = Math.round((siF.y + dyS) * 100) / 100;
+      });
+    }
+  }
   else if (k === 'zn'){ var z = findBy(cfg.zones, key); if (z){ z.x = cx; z.y = cy; } }
   else if (k === 'mk'){ var m = findBy(cfg.markers, key); if (m){ m.x = cx; m.y = cy; } }
   else if (k === 'ms'){ var ms = findBy(cfg.meshes, key); if (ms){ ms.x = cx; ms.y = cy; } }
@@ -748,6 +780,7 @@ function clampRaw(id, nx, ny){
   var k = String(id).split(':')[0];
   if (k === 'pl') return { x: E.clamp(nx, sz.w/2, W - sz.w/2), y: E.clamp(ny, sz.h/2, D - sz.h/2) };
   if (k === 'bk') return { x: E.clamp(nx, 0.2, W - 0.2), y: E.clamp(ny, 0.2, D - 0.2) };
+  if (k === 'si') return { x: E.clamp(nx, sz.w/2, W - sz.w/2), y: E.clamp(ny, sz.h/2, D - sz.h/2) };
   if (k === 'iw') return { x: E.clamp(nx, 0, Math.max(0, W - sz.w)), y: E.clamp(ny, 0, Math.max(0, D - sz.h)) };
   /* 外墙可以往室内外自由移动（横向偏移），不按包围盒夹在空间里 */
   if (k === 'wl') return { x: nx, y: ny };
@@ -756,7 +789,7 @@ function clampRaw(id, nx, ny){
 function isCenterAnchored(id){
   var k = String(id).split(':')[0];
   /* 外墙的锚点 = 墙段起点（角点），按中心锚定拖动才不会跳 */
-  return k === 'pl' || k === 'bk' || k === 'wl';
+  return k === 'pl' || k === 'bk' || k === 'wl' || k === 'si';
 }
 /* ---------- 摆放模式（添加组件后拖拽放置） ---------- */
 function startPlacing(selId, label){
@@ -936,11 +969,12 @@ function selGet(){
   else if (k === 'ct') o = findBy(cfg.curtains || [], id);
   else if (k === 'bk') o = findBy(cfg.bikes || [], id);
   else if (k === 'iw') o = findBy(cfg.wallSegs || [], id);
+  else if (k === 'si') o = findBy(cfg.studioItems || [], id);
   else if (k === 'wl') o = cfg.walls[id] || null;
   if (!o) return null;
   return { k:k, id:ui.sel, o:o };
 }
-var SEC_OF = { sh:'shelves', st:'studio', zn:'zones', pl:'pillars', mk:'markers', ms:'meshes', en:'entrances', ct:'curtains', bk:'bikes', iw:'wallSegs', wl:'walls' };
+var SEC_OF = { sh:'shelves', st:'studio', si:'studioItems', zn:'zones', pl:'pillars', mk:'markers', ms:'meshes', en:'entrances', ct:'curtains', bk:'bikes', iw:'wallSegs', wl:'walls' };
 /* 面板里的「全部参数」跳到当前选中项：具体跳到哪儿由界面实现决定
    （移动端切到「元素」页并滚动到选中卡片；桌面端切到右栏「元素」页）。 */
 function scrollToSection(){ if (window.SDUI && SDUI.revealSelection) SDUI.revealSelection(ui.sel); }
@@ -1023,11 +1057,13 @@ function bindSelBar(){
       else if (it.k === 'ct') acts.delCurtain({ id:id });
       else if (it.k === 'bk') acts.delBike({ id:id });
       else if (it.k === 'iw') acts.delSeg({ id:id });
+      else if (it.k === 'si') acts.delStudioItem({ id:id });
       ui.sel = null;
       afterSelect();
     } else if (act === 'rot'){
       if (it.k === 'bk'){ it.o.rot = ((it.o.rot == null ? 0 : it.o.rot) + 90) % 360; }
       else if (it.k === 'sh'){ rotateShelfBy(it.o, 45); }
+      else if (it.k === 'si'){ it.o.rot = (((+it.o.rot || 0) + 90) % 360); renderSelBar(true); }
       else { it.o.orient = it.o.orient === 'h' ? 'v' : 'h'; }
       postSelUpdate();
       /* 货架快捷条的「贴墙 / 转正」按钮随角度切换，必须强制重建（refreshSelVals 只刷数值） */
@@ -1048,6 +1084,9 @@ function bindSelBar(){
       rotateShelfTo(it.o, it.o.orient, 0);
       postSelUpdate();
       renderSelBar(true);
+    } else if (act === 'resetRotItem'){
+      /* 工作室组件转正（快捷条「转正 0°」） */
+      if (it.k === 'si'){ it.o.rot = 0; postSelUpdate(); renderSelBar(true); }
     } else if (act === 'btype'){
       it.o.type = b.getAttribute('data-t');
       postSelUpdate();
@@ -1128,7 +1167,8 @@ function bindSelBar(){
 var TOOL_LABELS = {
   shelfD:'双面货架', shelfS:'单面货架', shelfL:'矮货架',
   bikeA:'成人车', bikeK:'童车', marker:'标记点', curtain:'门帘',
-  zone:'区域', entrance:'出入口净空', mesh:'网面墙', pillar:'柱子'
+  zone:'区域', entrance:'出入口净空', mesh:'网面墙', pillar:'柱子',
+  stuPeg:'洞洞板', stuBench:'工作台', stuStand:'维修架', stuCab:'工具柜'
 };
 function addLabel(kind){ return TOOL_LABELS[kind] || '组件'; }
 function occupiedRects(){
@@ -1208,6 +1248,18 @@ function addComponent(kind){
     sp = findFreeSpot(2, 2, pref);
     cfg.entrances = cfg.entrances || [];
     cfg.entrances.push({ id:id, name:'新出入口', x: sp.x, y: sp.y, w:2, h:2 }); selId = 'en:' + id;
+  } else if (kind === 'stuPeg' || kind === 'stuBench' || kind === 'stuStand' || kind === 'stuCab'){
+    /* 工作室组件（2026-09-17）：默认摆进工作室正中，随后拖动摆放 */
+    var mapS = { stuPeg:'pegboard', stuBench:'bench', stuStand:'stand', stuCab:'cabinet' };
+    var ik = mapS[kind];
+    var defS = E.studioItemDef(ik);
+    var stS = cfg.studio;
+    cfg.studioItems = cfg.studioItems || [];
+    cfg.studioItems.push({ id:id, kind:ik,
+      x: Math.round((stS.x + stS.w/2) * 100) / 100,
+      y: Math.round((stS.y + stS.h/2) * 100) / 100,
+      rot:0, w:defS.w });
+    selId = 'si:' + id;
   }
   if (!selId){ toast('未知组件'); return; }
   ui.sel = selId;
@@ -1815,7 +1867,7 @@ function boot(){
       previewMove: function(id, x, y){
         try {
           var k = String(id).split(':')[0];
-          if (!(k === 'sh' || k === 'pl' || k === 'bk' || k === 'zn' || k === 'en' || k === 'ms' || k === 'mk' || k === 'ct')) return;
+          if (!(k === 'sh' || k === 'pl' || k === 'bk' || k === 'zn' || k === 'en' || k === 'ms' || k === 'mk' || k === 'ct' || k === 'si')) return;
           moveItem(id, snapV(x), snapV(y));
           render3DNow(); renderPlanNow();
         } catch(e7){}

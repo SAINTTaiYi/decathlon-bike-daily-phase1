@@ -48,7 +48,7 @@ test('sd-collab：同步键清单与引擎 defaultConfig 对齐', async () => {
   for (const key of ['space', 'opt', 'studio', 'walls']) {
     assert.ok(src.includes(`'${key}'`), `OBJECTS 必须包含 ${key}`)
   }
-  for (const key of ['wallSegs', 'pillars', 'zones', 'shelves', 'meshes', 'markers', 'bikes', 'entrances', 'curtains']) {
+  for (const key of ['wallSegs', 'pillars', 'zones', 'shelves', 'meshes', 'markers', 'bikes', 'entrances', 'curtains', 'studioItems']) {
     assert.ok(src.includes(`'${key}'`), `COLLECTIONS 必须包含 ${key}`)
   }
   const engine = await read('engine.js')

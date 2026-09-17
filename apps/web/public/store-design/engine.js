@@ -226,6 +226,46 @@ function segsOf(L, opens){
   return list;
 }
 
+/* ------------------- 工作室组件（2026-09-17） -------------------
+   洞洞板 / 工作台 / 维修架 / 工具柜。组件自由摆放：
+     x / y    中心点坐标（世界坐标，米）
+     rot      朝向，只支持 0 / 90 / 180 / 270（占地 = 旋转后的外接矩形）
+     w        组件长度（沿本地 x 轴）；深度与高度由组件类型固定
+   旧版 studio.peg（洞洞板开关）已并入本数组，见 migrateLegacy 的迁移块。 */
+var STUDIO_ITEM_DEFS = {
+  pegboard: { label:'洞洞板', w:1.4, d:0.06, h:1.8,  wMin:0.6, wMax:2.4 },
+  bench:    { label:'工作台', w:1.6, d:0.7,  h:0.9,  wMin:1.0, wMax:2.4 },
+  stand:    { label:'维修架', w:0.6, d:0.6,  h:1.5,  wMin:0.5, wMax:0.9 },
+  cabinet:  { label:'工具柜', w:0.8, d:0.45, h:0.85, wMin:0.6, wMax:1.2 }
+};
+function studioItemDef(kind){ return STUDIO_ITEM_DEFS[kind] || STUDIO_ITEM_DEFS.bench; }
+function studioItemLabel(kind){ return studioItemDef(kind).label; }
+function studioItemCorners(it){
+  var def = studioItemDef(it && it.kind);
+  var w = +((it && it.w) || def.w), d = def.d;
+  var rad = ((((+((it && it.rot) || 0)) % 360) + 360) % 360) * Math.PI / 180;
+  var cs = Math.cos(rad), sn = Math.sin(rad);
+  var x = (+it.x || 0), y = (+it.y || 0);
+  return [[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2]].map(function(pt){
+    return { x: x + pt[0]*cs - pt[1]*sn, y: y + pt[0]*sn + pt[1]*cs };
+  });
+}
+function studioItemBounds(it){ return boundsOfPts(studioItemCorners(it)); }
+/* 把组件摆在指定侧墙的居中处（alongOffset 沿墙平移）：迁移与随机方案共用。
+   outward=true 表示贴在墙外侧（旧版洞洞板有「朝外」选项）。 */
+function studioItemOnSide(st, kind, side, w, outward, alongOffset){
+  var def = studioItemDef(kind);
+  var width = +w || def.w;
+  var dirMap = { n:1, s:-1, w:1, e:-1 };
+  var sgn = (dirMap[side] || 1) * (outward ? -1 : 1);
+  var vertical = (side === 'w' || side === 'e');
+  var cAlong = (vertical ? (st.y + st.h/2) : (st.x + st.w/2)) + (+alongOffset || 0);
+  var cFixed = vertical ? (side === 'e' ? st.x + st.w : st.x) : (side === 's' ? st.y + st.h : st.y);
+  var cx = vertical ? (cFixed + sgn * 0.14) : cAlong;
+  var cy = vertical ? cAlong : (cFixed + sgn * 0.14);
+  return { x: Math.round(cx * 100) / 100, y: Math.round(cy * 100) / 100, rot: vertical ? 90 : 0, w: width };
+}
+
 /* --------------------------- 默认配置 --------------------------- */
 function defaultConfig(){
   var out = {
@@ -263,8 +303,14 @@ function defaultConfig(){
       name:'工作室',
       x:15.9, y:9.05, w:4.0, h:4.0, wallH:2.2,
       sides: { n:'wall', e:'none', s:'door', w:'window' }, doorW:1.2,
-      peg: { on:true, side:'e', face:'in', panels:2 }
+      /* 2026-09-17：原 studio.peg（洞洞板设置）升级为独立组件（见 studioItems）。
+         itemsMigrated 保证「旧配置 → 组件」的迁移只做一次。 */
+      itemsMigrated: true
     },
+    /* 工作室组件（自由摆放）：默认在工作室东墙内侧放一块洞洞板（沿用旧默认观感） */
+    studioItems: [
+      { id:'peg-1', kind:'pegboard', x:19.76, y:11.05, rot:90, w:1.4 }
+    ],
     meshes: [],
     markers: [
       { id:'m1', color:'red',    x:7.1,  y:15.55, w:1.0, h:0.5,  label:'消防' },
@@ -760,7 +806,12 @@ var PAL = {
   shelfLow: { t:'#e8e2f2', xp:'#dcd4ea', xm:'#d4cce4', yp:'#d8d0e7', ym:'#d0c8e0', s:'#a89bc4', ln:'#c3b8d9' },
   curt:   { t:'url(#cur)', xp:'url(#cur)', xm:'url(#cur)', yp:'url(#cur)', ym:'url(#cur)', s:'#8fb6c9' },
   bikeA:  { t:'#6d747c', xp:'#5e656d', xm:'#575e66', yp:'#616870', ym:'#5a616a', s:'#454b52' },
-  bikeK:  { t:'#e0a35e', xp:'#d2954f', xm:'#c98e4a', yp:'#d89a54', ym:'#cf924d', s:'#a97838' }
+  bikeK:  { t:'#e0a35e', xp:'#d2954f', xm:'#c98e4a', yp:'#d89a54', ym:'#cf924d', s:'#a97838' },
+  worktop:{ t:'#dcc9a4', xp:'#d3bf98', xm:'#cbb690', yp:'#d7c39d', ym:'#cfbb94', s:'#a08a63' },
+  frame:  { t:'#c3c8cd', xp:'#b8bdc2', xm:'#b0b5ba', yp:'#b5bac0', ym:'#adb2b8', s:'#8b9096' },
+  base:   { t:'#9aa0a6', xp:'#8f959b', xm:'#878d93', yp:'#8c9298', ym:'#848a90', s:'#6f757b' },
+  cab:    { t:'#e6e8ea', xp:'#dcdee1', xm:'#d4d6d9', yp:'#d8dadd', ym:'#d0d2d5', s:'#a9adb2' },
+  rail:   { t:'#b9bcc0', xp:'#aeb1b5', xm:'#a6a9ad', yp:'#abb0b4', ym:'#a3a8ac', s:'#8b8e92' }
 };
 var PAT_CURT = '<pattern id="cur" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="#dcebf2" fill-opacity="0.35"/><rect width="4.6" height="10" fill="#bcd7e4" fill-opacity="0.55"/></pattern>';
 
@@ -1364,30 +1415,106 @@ function render3D(cfg, view){
     } else if (t === 'mesh'){
       if (horiz) addMeshWall({ x:sW, y:yy, len:sE-sW, orient:'h' }, stH, 0.08);
       else addMeshWall({ x:xx, y:sN, len:sS-sN, orient:'v' }, stH, 0.08);
-    }
-  });
-  /* 洞洞板 */
-  if (st0.peg && st0.peg.on){
-    var psd = st0.peg.side || 'e', PW = 1.4, PG = 0.1, PN = Math.max(1, Math.round(st0.peg.panels || 2));
-    var totalP = PN*PW + (PN-1)*PG;
-    var zA = 0.9, zB = Math.min(2.1, stH-0.05);
-    var dirMap = { n:1, s:-1, w:1, e:-1 };
-    var sgn = (st0.peg.face === 'out' ? -1 : 1) * dirMap[psd];
-    var vertical = (psd==='w' || psd==='e');
-    var cAlong = vertical ? (sN+sS)/2 : (sW+sE)/2;
-    var cFixed = vertical ? (psd==='e' ? sE : sW) : (psd==='s' ? sS : sN);
-    var startA = cAlong - totalP/2;
-    for (var pi=0; pi<PN; pi++){
-      var a0 = startA + pi*(PW+PG), a1 = a0 + PW;
-      if (vertical){
-        var xxp = cFixed + sgn*0.14;
-        boxAdd({ x1:xxp-0.025, y1:a0, x2:xxp+0.025, y2:a1, z1:zA, z2:zB }, PAL.peg);
+    } else if (t === 'glass'){
+      /* 玻璃（全高透明隔断，2026-09-17）：只透光，不进遮挡体 */
+      if (horiz) stGlassBox(sW, yy-0.02, sE, yy+0.02, 0, stH);
+      else stGlassBox(xx-0.02, sN, xx+0.02, sS, 0, stH);
+    } else if (t === 'curtain'){
+      /* 玻璃幕墙：整面玻璃 + 上下横梁 + 竖梃分格（与「玻璃」区分：有框架分格） */
+      var cLen = horiz ? (sE-sW) : (sS-sN);
+      if (horiz) stGlassBox(sW, yy-0.02, sE, yy+0.02, 0.09, stH-0.09);
+      else stGlassBox(xx-0.02, sN, xx+0.02, sS, 0.09, stH-0.09);
+      if (horiz){
+        boxAdd({ x1:sW, y1:yy-0.045, x2:sE, y2:yy+0.045, z1:0, z2:0.09 }, PAL.frame);
+        boxAdd({ x1:sW, y1:yy-0.045, x2:sE, y2:yy+0.045, z1:stH-0.09, z2:stH }, PAL.frame);
       } else {
-        var yyp = cFixed + sgn*0.14;
-        boxAdd({ x1:a0, y1:yyp-0.025, x2:a1, y2:yyp+0.025, z1:zA, z2:zB }, PAL.peg);
+        boxAdd({ x1:xx-0.045, y1:sN, x2:xx+0.045, y2:sS, z1:0, z2:0.09 }, PAL.frame);
+        boxAdd({ x1:xx-0.045, y1:sN, x2:xx+0.045, y2:sS, z1:stH-0.09, z2:stH }, PAL.frame);
+      }
+      var nMu = Math.max(1, Math.round(cLen / 0.9));
+      for (var mi = 0; mi <= nMu; mi++){
+        var tM2 = mi / nMu;
+        if (horiz){
+          var mx2 = sW + (sE-sW)*tM2;
+          boxAdd({ x1:mx2-0.03, y1:yy-0.055, x2:mx2+0.03, y2:yy+0.055, z1:0, z2:stH }, PAL.frame);
+        } else {
+          var my2 = sN + (sS-sN)*tM2;
+          boxAdd({ x1:xx-0.055, y1:my2-0.03, x2:xx+0.055, y2:my2+0.03, z1:0, z2:stH }, PAL.frame);
+        }
+      }
+    } else if (t === 'fence'){
+      /* 围栏：立柱 + 双横杆，高 1.05m（只做视觉分隔，不进遮挡体） */
+      var fLen = horiz ? (sE-sW) : (sS-sN);
+      var fH = 1.05;
+      var nPost = Math.max(2, Math.round(fLen / 1.2) + 1);
+      for (var fi = 0; fi < nPost; fi++){
+        var tF = fi / (nPost - 1);
+        if (horiz){
+          var fx2 = sW + (sE-sW)*tF;
+          boxAdd({ x1:fx2-0.03, y1:yy-0.03, x2:fx2+0.03, y2:yy+0.03, z1:0, z2:fH }, PAL.rail);
+        } else {
+          var fy2 = sN + (sS-sN)*tF;
+          boxAdd({ x1:xx-0.03, y1:fy2-0.03, x2:xx+0.03, y2:fy2+0.03, z1:0, z2:fH }, PAL.rail);
+        }
+      }
+      if (horiz){
+        boxAdd({ x1:sW, y1:yy-0.025, x2:sE, y2:yy+0.025, z1:fH-0.06, z2:fH }, PAL.rail);
+        boxAdd({ x1:sW, y1:yy-0.02, x2:sE, y2:yy+0.02, z1:0.52, z2:0.58 }, PAL.rail);
+      } else {
+        boxAdd({ x1:xx-0.025, y1:sN, x2:xx+0.025, y2:sS, z1:fH-0.06, z2:fH }, PAL.rail);
+        boxAdd({ x1:xx-0.02, y1:sN, x2:xx+0.02, y2:sS, z1:0.52, z2:0.58 }, PAL.rail);
       }
     }
-  }
+  });
+  /* 工作室组件（洞洞板 / 工作台 / 维修架 / 工具柜，2026-09-17）。
+     占地取旋转后的外接矩形：90° 倍数旋转下恰好是轴对齐盒，直接走 boxAdd；
+     实心组件登记 occl，让挂车 / 摆件的射线遮挡排序把它们也算进去。 */
+  (cfg.studioItems || []).forEach(function(si){
+    var defI = studioItemDef(si.kind);
+    var wI = +si.w || defI.w, dI = defI.d, hI = defI.h;
+    var rotI = (((+si.rot || 0) % 360) + 360) % 360;
+    var swap = (rotI === 90 || rotI === 270);
+    var ew = swap ? dI : wI, ed = swap ? wI : dI;
+    var ix1 = si.x - ew/2, ix2 = si.x + ew/2, iy1 = si.y - ed/2, iy2 = si.y + ed/2;
+    var radI = rotI * Math.PI/180;
+    function siPt(lx, ly){
+      return { x: si.x + lx*Math.cos(radI) - ly*Math.sin(radI), y: si.y + lx*Math.sin(radI) + ly*Math.cos(radI) };
+    }
+    if (si.kind === 'pegboard'){
+      var pb = { x1:ix1, y1:iy1, x2:ix2, y2:iy2, z1:0, z2:hI };
+      occl(pb, 'si:' + si.id);
+      boxAdd(pb, PAL.peg, null, null, 'si:' + si.id, null, true);
+    } else if (si.kind === 'bench'){
+      /* 台面 + 两端立板 + 下层搁板 */
+      boxAdd({ x1:ix1, y1:iy1, x2:ix2, y2:iy2, z1:0.84, z2:0.9 }, PAL.worktop, null, null, 'si:' + si.id);
+      var tpI = 0.06;
+      if (swap){
+        boxAdd({ x1:ix1, y1:iy1+0.03, x2:ix1+tpI, y2:iy2-0.03, z1:0, z2:0.84 }, PAL.frame);
+        boxAdd({ x1:ix2-tpI, y1:iy1+0.03, x2:ix2, y2:iy2-0.03, z1:0, z2:0.84 }, PAL.frame);
+        boxAdd({ x1:ix1+0.05, y1:iy1+0.08, x2:ix2-0.05, y2:iy2-0.08, z1:0.2, z2:0.24 }, PAL.frame);
+      } else {
+        boxAdd({ x1:ix1+0.03, y1:iy1, x2:ix2-0.03, y2:iy1+tpI, z1:0, z2:0.84 }, PAL.frame);
+        boxAdd({ x1:ix1+0.03, y1:iy2-tpI, x2:ix2-0.03, y2:iy2, z1:0, z2:0.84 }, PAL.frame);
+        boxAdd({ x1:ix1+0.08, y1:iy1+0.05, x2:ix2-0.08, y2:iy2-0.05, z1:0.2, z2:0.24 }, PAL.frame);
+      }
+      occl({ x1:ix1, y1:iy1, x2:ix2, y2:iy2, z1:0, z2:0.9 }, 'si:' + si.id);
+    } else if (si.kind === 'stand'){
+      boxAdd({ x1:ix1, y1:iy1, x2:ix2, y2:iy2, z1:0, z2:0.06 }, PAL.base, null, null, 'si:' + si.id);
+      boxAdd({ x1:si.x-0.035, y1:si.y-0.035, x2:si.x+0.035, y2:si.y+0.035, z1:0.06, z2:1.35 }, PAL.frame);
+      /* 挂臂朝本地 +y（前方）伸出 0.5m，臂端一个夹头 */
+      var a0p = siPt(0, 0), a1p = siPt(0, 0.5);
+      var ax1 = Math.min(a0p.x, a1p.x)-0.04, ax2 = Math.max(a0p.x, a1p.x)+0.04;
+      var ay1 = Math.min(a0p.y, a1p.y)-0.04, ay2 = Math.max(a0p.y, a1p.y)+0.04;
+      boxAdd({ x1:ax1, y1:ay1, x2:ax2, y2:ay2, z1:1.15, z2:1.21 }, PAL.frame);
+      boxAdd({ x1:a1p.x-0.07, y1:a1p.y-0.07, x2:a1p.x+0.07, y2:a1p.y+0.07, z1:1.08, z2:1.3 }, PAL.base);
+      occl({ x1:ix1, y1:iy1, x2:ix2, y2:iy2, z1:0, z2:1.35 }, 'si:' + si.id);
+    } else {
+      /* 工具柜：柜体 + 顶板 */
+      boxAdd({ x1:ix1, y1:iy1, x2:ix2, y2:iy2, z1:0, z2:0.82 }, PAL.cab, null, null, 'si:' + si.id);
+      boxAdd({ x1:ix1-0.01, y1:iy1-0.01, x2:ix2+0.01, y2:iy2+0.01, z1:0.82, z2:0.85 }, PAL.frame);
+      occl({ x1:ix1, y1:iy1, x2:ix2, y2:iy2, z1:0, z2:0.85 }, 'si:' + si.id);
+    }
+  });
 
   /* ---------- 货架 ---------- */
   /* 货架是「实心体」：登记成遮挡体后，托臂 / 挂车 / 地架 / 挂钩 / 散车都用射线
@@ -1723,7 +1850,10 @@ function render3D(cfg, view){
       else { tx = st0.x+st0.w/2; ty = st0.y+st0.h+0.22; }
       addText([tx, ty, stH+0.06], '网面', { size:10, fill:'#4c6b80' });
     }
-    if (st0.peg && st0.peg.on) addText([st0.x+st0.w-0.32, st0.y+0.55, 2.35], '洞洞板', { size:10, fill:'#8a6d3b' });
+    (cfg.studioItems || []).forEach(function(siT){
+      var defT = studioItemDef(siT.kind);
+      addText([siT.x, siT.y, defT.h + 0.14], defT.label, { size:10, fill:'#6b6357' });
+    });
     cfg.pillars.forEach(function(p){ addBadge([p.x, p.y, 2.6], '柱子', { size:10, fill:'#3a3a3a', tfill:'#ffffff', dy:-8 }); });
     /* 开口名称：位置跟着墙段（缩短 / 偏移 / 旋转后仍贴在该开口上方） */
     function wallBadge(side, o, dy, fill){
@@ -1823,6 +1953,7 @@ function itemRect(cfg2, selId){
   if (kind==='en'){ var en2 = byId(cfg2.entrances || [], key); return en2 ? { x:en2.x, y:en2.y, w:en2.w, h:en2.h } : null; }
   if (kind==='ct'){ var ct2 = byId(cfg2.curtains || [], key); if (!ct2) return null;
     return (ct2.orient==='v') ? { x:ct2.x-0.15, y:ct2.y, w:0.3, h:ct2.len } : { x:ct2.x, y:ct2.y-0.15, w:ct2.len, h:0.3 }; }
+  if (kind==='si'){ var si2 = byId(cfg2.studioItems || [], key); return si2 ? studioItemBounds(si2) : null; }
   if (kind==='bk'){ var bk2 = byId(cfg2.bikes || [], key); if (!bk2) return null;
     var bl = (bk2.type==='kids') ? 1.5 : 2.0;
     var ra2 = ((bk2.rot != null) ? bk2.rot : (bk2.angle||0)) * Math.PI/180;
@@ -2114,27 +2245,75 @@ function renderPlan(cfg, ui){
         var xx = sd==='w' ? sW2 : sE2, mid2 = (sN2+sS2)/2;
         stub(xx, sN2, xx, mid2-dW/2); stub(xx, mid2+dW/2, xx, sS2);
       }
+    } else if (t === 'glass'){
+      /* 玻璃（全高透明隔断）：双色细线，不打断墙面 */
+      var glFn = function(x1,y1,x2,y2){
+        o.push(lineP(x1,y1,x2,y2,'#cfe4f0',0.15));
+        o.push(lineP(x1,y1,x2,y2,'#6fa7c8',0.05));
+      };
+      if (sd==='n') glFn(sW2, sN2, sE2, sN2);
+      if (sd==='s') glFn(sW2, sS2, sE2, sS2);
+      if (sd==='w') glFn(sW2, sN2, sW2, sS2);
+      if (sd==='e') glFn(sE2, sN2, sE2, sS2);
+    } else if (t === 'curtain'){
+      /* 玻璃幕墙：玻璃线 + 竖梃刻度（与「玻璃」的区分点） */
+      var cuFn = function(x1,y1,x2,y2,horizontal,segLen){
+        o.push(lineP(x1,y1,x2,y2,'#cfe4f0',0.16));
+        o.push(lineP(x1,y1,x2,y2,'#5f8ba8',0.045));
+        var nCu = Math.max(1, Math.round(segLen / 0.9));
+        for (var ci2 = 1; ci2 < nCu; ci2++){
+          var tc = ci2 / nCu;
+          if (horizontal){ var pxc = x1 + (x2-x1)*tc; o.push(lineP(pxc, y1-0.1, pxc, y1+0.1, '#5f8ba8', 0.04)); }
+          else { var pyc = y1 + (y2-y1)*tc; o.push(lineP(x1-0.1, pyc, x1+0.1, pyc, '#5f8ba8', 0.04)); }
+        }
+      };
+      if (sd==='n') cuFn(sW2, sN2, sE2, sN2, true, st.w);
+      if (sd==='s') cuFn(sW2, sS2, sE2, sS2, true, st.w);
+      if (sd==='w') cuFn(sW2, sN2, sW2, sS2, false, st.h);
+      if (sd==='e') cuFn(sE2, sN2, sE2, sS2, false, st.h);
+    } else if (t === 'fence'){
+      /* 围栏：虚线 + 端部柱点 */
+      var feFn = function(x1,y1,x2,y2){
+        o.push(lineP(x1,y1,x2,y2,'#9aa0a6',0.075,'0.28 0.16'));
+        o.push(rectStr(x1-0.06, y1-0.06, 0.12, 0.12, '#8b8e92', null));
+        o.push(rectStr(x2-0.06, y2-0.06, 0.12, 0.12, '#8b8e92', null));
+      };
+      if (sd==='n') feFn(sW2, sN2, sE2, sN2);
+      if (sd==='s') feFn(sW2, sS2, sE2, sS2);
+      if (sd==='w') feFn(sW2, sN2, sW2, sS2);
+      if (sd==='e') feFn(sE2, sN2, sE2, sS2);
     }
   });
-  if (st.peg && st.peg.on){
-    var psd = st.peg.side, PW=1.4, PG=0.1, PN=Math.max(1, Math.round(st.peg.panels||2));
-    var totalP = PN*PW + (PN-1)*PG;
-    var vertical = (psd==='w'||psd==='e');
-    var cAlong = vertical ? (st.y+st.h/2) : (st.x+st.w/2);
-    var startA = cAlong - totalP/2;
-    for (var pi2=0; pi2<PN; pi2++){
-      var a0 = startA + pi2*(PW+PG), a1 = a0 + PW;
-      if (vertical){
-        var xx2 = (psd==='e' ? st.x+st.w : st.x) + (psd==='e' ? -0.17 : 0.17);
-        o.push(rectStr(xx2-0.06, a0, 0.12, a1-a0, '#e9d4a6', '#b59b6d', 0.03));
-      } else {
-        var yy2 = (psd==='s' ? st.y+st.h : st.y) + (psd==='s' ? -0.17 : 0.17);
-        o.push(rectStr(a0, yy2-0.06, a1-a0, 0.12, '#e9d4a6', '#b59b6d', 0.03));
-      }
-    }
-  }
   o.push(labelStr(st.x+st.w/2, st.y+st.h/2, (st.name||'工作室')+' '+fnum(st.w)+'×'+fnum(st.h), 0.55, '#5a5347'));
   o.push('</g>');
+
+  /* 工作室组件（2026-09-17）：独立可点选 / 可拖动（data-id=si:<id>）；
+     旋转用分组 transform 表达（平面坐标里 90° 倍数旋转 = 本地矩形旋转）。 */
+  (cfg.studioItems || []).forEach(function(si){
+    var defP = studioItemDef(si.kind);
+    var wP = +si.w || defP.w, dP = defP.d;
+    var rotP = (((+si.rot || 0) % 360) + 360) % 360;
+    o.push('<g class="it" data-id="si:' + si.id + '"'
+      + (rotP ? ' transform="rotate(' + rotP + ' ' + r2(si.x) + ' ' + r2(si.y) + ')"' : '') + '>');
+    var x0p = si.x - wP/2, y0p = si.y - dP/2;
+    if (si.kind === 'pegboard'){
+      o.push(rectStr(x0p, y0p, wP, dP, '#f0ddb6', '#b59b6d', 0.03));
+      var nDot = Math.max(2, Math.round(wP / 0.35));
+      for (var di = 1; di < nDot; di++){
+        o.push('<circle cx="' + r2(x0p + wP*di/nDot) + '" cy="' + r2(si.y) + '" r="0.045" fill="#c7ab74"/>');
+      }
+    } else if (si.kind === 'bench'){
+      o.push(rectStr(x0p, y0p, wP, dP, '#e6d9bd', '#a08a63', 0.035));
+      o.push(rectStr(x0p+0.06, y0p+0.05, wP-0.12, 0.08, '#c9ab74', null));
+    } else if (si.kind === 'stand'){
+      o.push(rectStr(x0p, y0p, wP, dP, '#d3d7dc', '#8a9096', 0.03));
+      o.push('<circle cx="' + r2(si.x) + '" cy="' + r2(y0p + dP - 0.12) + '" r="0.1" fill="#7c828a"/>');
+    } else {
+      o.push(rectStr(x0p, y0p, wP, dP, '#e2e4e7', '#9aa0a8', 0.03));
+      o.push(lineP(x0p+0.07, y0p+dP-0.07, x0p+wP-0.07, y0p+dP-0.07, '#9aa0a8', 0.03));
+    }
+    o.push('</g>');
+  });
 
   /* 独立网面墙 */
   cfg.meshes.forEach(function(ms){
@@ -2471,12 +2650,15 @@ function buildRandomCandidate(baseCfg){
 
   var studio = { x:15.9, y:9.05, w:4, h:4, wallH:2.2,
                  sides:{ n:'wall', e:'none', s:'door', w:'window' }, doorW:1.2,
-                 peg:{ on:true, side:'e', face:'in', panels:2 } };
+                 itemsMigrated: true };
+  var pegSide = 'e';
   studio.y = _rs(_rb(8.95, 9.15), 0.05);
   if (Math.random() < 0.6){
     studio.x = _rs(_rb(15.86, 15.94), 0.01);
     studio.sides = { n:'wall', e:'none', s:'door', w:'window' };
-    studio.peg.side = 'e';
+    /* 玻璃 / 玻璃幕墙交替出现（2026-09-17 新增侧墙类型） */
+    studio.sides.w = _pick(['window','glass','curtain']);
+    pegSide = 'e';
   } else {
     var sxMax = 15.4;
     if (fam === 'v') sxMax = Math.min(15.4, x3 - 4.2);
@@ -2486,10 +2668,14 @@ function buildRandomCandidate(baseCfg){
     var ds = _pick(rest);
     var ws = _pick(rest.filter(function(sd){ return sd !== ds; }));
     studio.sides = { n:'wall', e:'wall', s:'wall', w:'wall' };
-    studio.sides[ms] = 'mesh'; studio.sides[ds] = 'door'; studio.sides[ws] = 'window';
-    studio.peg.side = ms;
+    studio.sides[ms] = 'mesh'; studio.sides[ds] = 'door';
+    studio.sides[ws] = _pick(['window','glass','curtain']);
+    pegSide = ms;
   }
   c2.studio = studio;
+  /* 工作室组件（2026-09-17）：随机方案在墙边放一块洞洞板（替代旧的 peg 设置） */
+  var ptPeg = studioItemOnSide(studio, 'pegboard', pegSide, 1.4, false, 0);
+  c2.studioItems = [{ id:'peg-1', kind:'pegboard', x: ptPeg.x, y: ptPeg.y, rot: ptPeg.rot, w: ptPeg.w }];
 
   c2.zones = (c2.zones || []).filter(function(z){ return z.kind !== 'test'; });
   var tw = _rs(_rb(7.5, 9.0), 0.5);
@@ -2578,6 +2764,26 @@ function migrateLegacy(cfgIn){
     }
     delete a2.arm;
   });
+  /* 工作室组件迁移（2026-09-17）：旧版 studio.peg 单例设置 → studioItems 组件数组。
+     幂等：只对「没有迁移标记的输入配置」执行一次；位置换算与原渲染一致
+     （沿墙居中、朝内偏移 0.14m、每块 1.4m 宽、块间距 0.1m）。 */
+  if (cfgIn && !(cfgIn.studio && cfgIn.studio.itemsMigrated)){
+    c2.studioItems = Array.isArray(cfgIn.studioItems) ? cfgIn.studioItems : [];
+    var pegOld = (cfgIn.studio && cfgIn.studio.peg) || null;
+    if (pegOld && pegOld.on){
+      var stM = c2.studio;
+      var psdM = pegOld.side || 'e';
+      var PNM = Math.max(1, Math.round(pegOld.panels || 2));
+      for (var piM = 0; piM < PNM; piM++){
+        var ptM = studioItemOnSide(stM, 'pegboard', psdM, 1.4, pegOld.face === 'out',
+                                   (piM - (PNM - 1) / 2) * 1.5);
+        c2.studioItems.push({ id: 'peg-migrated-' + piM, kind: 'pegboard',
+          x: ptM.x, y: ptM.y, rot: ptM.rot, w: ptM.w });
+      }
+    }
+    delete c2.studio.peg;
+    c2.studio.itemsMigrated = true;
+  }
   c2.v = 2;
   return c2;
 }
@@ -2607,6 +2813,10 @@ function configDiff(base, other){
 }
 
 return {
+  studioItemDef: studioItemDef,
+  studioItemLabel: studioItemLabel,
+  studioItemCorners: studioItemCorners,
+  studioItemBounds: studioItemBounds,
   randomLayout: randomLayout,
   itemRect: itemRect,
   migrateLegacy: migrateLegacy,

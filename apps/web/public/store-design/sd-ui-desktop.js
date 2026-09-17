@@ -298,6 +298,11 @@ function renderStatus(items){
 
 /* ---------- 选中动作条（右栏顶部，完整参数在下面） ---------- */
 function accLab(v){ return v === 'adult' ? '成人' : (v === 'kids' ? '童车' : '无'); }
+/* 工作室组件的显示名（洞洞板 / 工作台 / 维修架 / 工具柜） */
+function itemLabel(o){
+  var e = window.Engine;
+  return (e && e.studioItemDef) ? e.studioItemDef(o && o.kind).label : '组件';
+}
 /* 角度归一化（墙体 / 货架同一口径；界面层不依赖 cfg） */
 function rotOn(o){
   var r = +((o || {}).rot);
@@ -350,6 +355,12 @@ function selBarHTML(ctx){
       + (accRows(o).length ? '<button class="sd-d-act" data-bact="clearArms">清空托臂</button>' : '')
       + accBtnDesktop('accRack', '地架', accNow(o, 'rack'))
       + accBtnDesktop('accHook', '挂钩', accNow(o, 'hook')) + del + close;
+  } else if (k === 'si'){
+    /* 工作室组件（2026-09-17）：改朝向 / 转正 / 删除 */
+    h += '<b class="sd-d-selflag">' + esc(itemLabel(o)) + '</b>'
+      + '<button class="sd-d-act" data-bact="rot">旋转 90°</button>'
+      + (rotOn(o) ? '<button class="sd-d-act" data-bact="resetRotItem">转正 0°</button>' : '')
+      + del + close;
   } else if (k === 'st'){
     h += '<b class="sd-d-selflag">工作室</b>' + close;
   } else if (k === 'zn'){

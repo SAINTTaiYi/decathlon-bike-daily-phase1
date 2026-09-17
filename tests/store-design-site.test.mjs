@@ -1038,7 +1038,7 @@ test('实心遮挡：柱子 / 货架按射线决定前后（实心体不会被�
     const c = engine.defaultConfig()
     c.opt = Object.assign({}, c.opt, { labels: false, dims: false })
     c.shelves = []
-    c.studio = Object.assign({}, c.studio, { peg: { on: false } })
+    c.studioItems = []
     c.pillars = [{ id: 'p1', x: 8, y: 8, s: 1.2 }]
     c.bikes = [{ id: 'T1', type: 'adult', pose: 'stand', x: bx, y: by, rot: 0, steer: 45 }]
     return Object.assign(c, opts || {})

@@ -76,6 +76,35 @@ async function main(){
     } else {
       fail('双端在线名单未同步：A=' + JSON.stringify(stateA.peers) + ' / B=' + JSON.stringify(stateB.peers))
     }
+    // 工作室选中 → 属性栏可编辑（2026-09-17 用户报障的回归；只读检查，不改动房间数据）
+    await pageA.setViewport({ width: 1280, height: 800 })
+    await pageA.goto(base + '/store-design/', { waitUntil: 'domcontentloaded', timeout: 60000 })
+    await pageA.waitForFunction(
+      'window.SDCollab && window.SDCollab.state().status === "online"',
+      { timeout: 45000 }
+    )
+    await pageA.evaluate(() => {
+      const tab = document.querySelector('nav.tabs button[data-tab="tplan"]')
+      if (tab) tab.click()
+    })
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    const clicked = await pageA.evaluate(() => {
+      const g = document.querySelector('#tabplan [data-id="st"]')
+      if (!g) return false
+      const r = g.getBoundingClientRect()
+      const o = { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2, pointerId: 9, button: 0, isPrimary: true }
+      g.dispatchEvent(new PointerEvent('pointerdown', o))
+      window.dispatchEvent(new PointerEvent('pointerup', o))
+      return true
+    })
+    if (!clicked){
+      fail('平面视图里缺少工作室元素（data-id=st）')
+    } else {
+      await new Promise((resolve) => setTimeout(resolve, 400))
+      const hasField = await pageA.evaluate(() => !!document.querySelector('input[data-path="studio.w"]'))
+      if (hasField) pass('选中工作室后属性栏可编辑（studio.w 字段在位）')
+      else fail('选中工作室后属性栏没有尺寸字段（平面 / 大纲 id 匹配回归？）')
+    }
     if (pageErrors.length){
       fail('页面 JS 异常：' + pageErrors.slice(0, 3).join(' | '))
     } else {

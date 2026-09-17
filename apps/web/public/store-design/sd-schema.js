@@ -20,11 +20,16 @@
 (function(){
 'use strict';
 
-var KIND = { sh:'货架', st:'工作室', zn:'区域', pl:'柱子', mk:'标记', ms:'网面墙', en:'出入口净空', ct:'门帘', bk:'自行车', iw:'内隔墙', wl:'外墙' };
+var KIND = { sh:'货架', st:'工作室', si:'工作室组件', zn:'区域', pl:'柱子', mk:'标记', ms:'网面墙', en:'出入口净空', ct:'门帘', bk:'自行车', iw:'内隔墙', wl:'外墙' };
 var SHELF_KINDS = [['double','双面'],['single','单面'],['low','矮货架']];
 var ORIENT_HV = [['h','东西向'],['v','南北向']];
 var FENCE = [['none','无'],['wall','矮墙'],['mesh','网面']];
-var SIDES = [['wall','实墙'],['window','玻璃窗'],['mesh','网面'],['door','门洞'],['none','无']];
+/* 侧墙类型（2026-09-17 扩充）：玻璃 / 玻璃幕墙 / 围栏 三种新做法 */
+var SIDES = [['wall','实墙'],['window','玻璃窗'],['glass','玻璃'],['curtain','玻璃幕墙'],['fence','围栏'],['mesh','网面'],['door','门洞'],['none','无']];
+/* 工作室组件（自由摆放）：类型 / 朝向枚举 */
+var STUDIO_ITEM_KINDS = [['pegboard','洞洞板'],['bench','工作台'],['stand','维修架'],['cabinet','工具柜']];
+var ROT4 = [['0','0°'],['90','90°'],['180','180°'],['270','270°']];
+function normRot(r){ var v = ((+r || 0) % 360 + 360) % 360; return (v === 90 || v === 180 || v === 270) ? v : 0; }
 
 function E(){ return window.Engine; }
 function num(v){ return E().fnum(v); }
@@ -146,10 +151,22 @@ function studioFields(st){
     select('studio.sides.s', '南侧', st.sides.s, SIDES),
     select('studio.sides.w', '西侧', st.sides.w, SIDES),
     number('studio.doorW', '门洞宽', st.doorW, { unit:'m', min:0.6, max:3, step:0.1 }),
-    toggle('studio.peg.on', '洞洞板', st.peg && st.peg.on),
-    number('studio.peg.panels', '洞洞板数量', (st.peg && st.peg.panels) || 2, { min:1, max:4, step:1 }),
-    select('studio.peg.side', '洞洞板面', (st.peg && st.peg.side) || 'e', [['n','北'],['e','东'],['s','南'],['w','西']]),
-    select('studio.peg.face', '洞洞板朝向', (st.peg && st.peg.face) || 'in', [['in','内侧'],['out','外侧']])
+    note('组件（洞洞板 / 工作台 / 维修架 / 工具柜）：点上方「＋」添加，或从左侧工具栏拖放；添加后可直接拖动摆放，选中组件可改类型 / 朝向 / 长度。')
+  ];
+}
+/* 工作室组件的字段（2026-09-17）：类型 / 朝向 / 长度 / 位置（中心点坐标）。
+   删除动作在 elementGroups 的 actions 里（两个界面实现都会渲染）。 */
+function studioItemFields(cfg, index){
+  var it = (cfg.studioItems || [])[index];
+  if (!it) return [];
+  var def = E().studioItemDef(it.kind);
+  var p = 'studioItems.' + index + '.';
+  return [
+    select(p + 'kind', '类型', it.kind, STUDIO_ITEM_KINDS),
+    select(p + 'rot', '朝向', normRot(it.rot), ROT4),
+    number(p + 'w', '长', (+it.w || def.w), { unit:'m', min:def.wMin, max:def.wMax, step:0.1 }),
+    number(p + 'x', 'x 坐标', it.x, { unit:'m', min:0, max:200, step:0.1 }),
+    number(p + 'y', 'y 坐标', it.y, { unit:'m', min:0, max:200, step:0.1 })
   ];
 }
 function zoneFields(z, i){
@@ -282,9 +299,22 @@ function elementGroups(cfg){
         })).concat(acc.rows.length ? [action('clearArms', s.id, '清空托臂', 'danger')] : []) };
     }) });
   }
+  /* 工作室的 id 必须与平面图里的 data-id 完全一致（都是 'st'）：
+     否则选中后属性栏匹配不到（2026-09-17 用户报障「选中工作室显示未选中元素」）。 */
   g.push({ key:'st', title:'工作室', items: [{
-    id:'st:studio', type:'st', index:0, title: cfg.studio.name || '工作室', badge: num(cfg.studio.w) + '×' + num(cfg.studio.h) + 'm',
-    actions: [] }] });
+    id:'st', type:'st', index:0, title: cfg.studio.name || '工作室', badge: num(cfg.studio.w) + '×' + num(cfg.studio.h) + 'm',
+    actions: [
+      action('addStudioItem', 'stuPeg', '＋洞洞板'),
+      action('addStudioItem', 'stuBench', '＋工作台'),
+      action('addStudioItem', 'stuStand', '＋维修架'),
+      action('addStudioItem', 'stuCab', '＋工具柜')
+    ] }] });
+  /* 工作室组件：每个组件是独立可选中元素（类型 / 朝向 / 长度 / 位置在它自己的字段里） */
+  if ((cfg.studioItems || []).length) g.push({ key:'si', title:'工作室组件', items: cfg.studioItems.map(function(it, i){
+    var def = E().studioItemDef(it.kind);
+    return { id:'si:' + it.id, type:'si', index:i, title: def.label, badge: num(+it.w || def.w) + 'm',
+      actions: [action('delStudioItem', it.id, '删除', 'danger')] };
+  }) });
   if (cfg.zones.length) g.push({ key:'zn', title:'区域', items: cfg.zones.map(function(z, i){
     return { id:'zn:' + z.id, type:'zn', index:i, title: z.label || ('区域 #' + (i + 1)), badge: num(z.w) + '×' + num(z.h) + 'm',
       actions: [action('delZone', z.id, '删除', 'danger')] };
@@ -424,6 +454,7 @@ function fieldsForItem(type, cfg, index){
   if (type === 'wl') return wallEdgeFields(cfg, WALL_SIDE_KEYS[index]);
   if (type === 'iw') return wallSegFields(cfg, index);
   if (type === 'st') return studioFields(cfg.studio);
+  if (type === 'si') return studioItemFields(cfg, index);
   if (type === 'zn') return zoneFields(cfg.zones[index], index);
   if (type === 'en') return entranceFields((cfg.entrances || [])[index], index);
   if (type === 'ct') return curtainFields((cfg.curtains || [])[index], index);
@@ -455,6 +486,13 @@ var TOOL_GROUPS = [
     { kind:'entrance', label:'出入口净空', icon:'⬚' },
     { kind:'mesh', label:'网面墙', icon:'▦' },
     { kind:'pillar', label:'柱子', icon:'■' }
+  ] },
+  /* 工作室组件（2026-09-17）：选中工作室后也能从属性栏「＋」添加 */
+  { title:'工作室组件', items:[
+    { kind:'stuPeg', label:'洞洞板', icon:'⊞' },
+    { kind:'stuBench', label:'工作台', icon:'🛠' },
+    { kind:'stuStand', label:'维修架', icon:'🔧' },
+    { kind:'stuCab', label:'工具柜', icon:'▣' }
   ] }
 ];
 

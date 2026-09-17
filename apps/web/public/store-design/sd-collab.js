@@ -41,10 +41,10 @@ var Y = window.Y
    OBJECTS：单例对象，字段级同步（值可以是标量或嵌套对象，整存整取）。
    COLLECTIONS：数组集合，按 id 建索引做增删改（对象内字段级）。 */
 var OBJECTS = ['space', 'opt', 'studio', 'walls']
-var COLLECTIONS = ['wallSegs', 'pillars', 'zones', 'shelves', 'meshes', 'markers', 'bikes', 'entrances', 'curtains']
+var COLLECTIONS = ['wallSegs', 'pillars', 'zones', 'shelves', 'meshes', 'markers', 'bikes', 'entrances', 'curtains', 'studioItems']
 var ID_PREFIX = {
   sh: 'shelves', pl: 'pillars', bk: 'bikes', zn: 'zones', en: 'entrances',
-  ms: 'meshes', mk: 'markers', ct: 'curtains', iw: 'wallSegs'
+  ms: 'meshes', mk: 'markers', ct: 'curtains', iw: 'wallSegs', si: 'studioItems'
 }
 
 var WS_PATH = '/api/v1/design/ws'
@@ -435,6 +435,40 @@ function seedRoom(){
   } catch(e){}
 }
 
+/* 版本升级 / 首次接管：把「本地配置有、协作文档里还没有」的字段与条目补进文档。
+   场景：房间已存在且是旧结构（例如新版给配置加了 studioItems），本地迁移结果
+   必须先同步进文档 —— 否则第一次物化（从文档重建配置）会把它覆盖掉，
+   表现为「刚加的东西刷新后消失」。
+   只补「文档缺失」的键：文档已有的键一律以文档为准（绝不覆盖共享状态）。 */
+function adoptMissing(){
+  if (!api || !ydoc) return
+  var cfgNow
+  try { cfgNow = api.getCfg() } catch(e){ return }
+  var ops = []
+  OBJECTS.forEach(function(key){
+    var ym = yroot.get(key)
+    var local = cfgNow[key]
+    if (!local || typeof local !== 'object') return
+    for (var f in local){
+      if (local[f] === undefined) continue
+      if (ym && ym.get(f) !== undefined) continue
+      ops.push({ kind:'obj-set', key:key, field:f, value: yValueIn(local[f]) })
+    }
+  })
+  COLLECTIONS.forEach(function(key){
+    var cm = yroot.get(key)
+    var arr = cfgNow[key] || []
+    for (var i = 0; i < arr.length; i++){
+      var item = arr[i]
+      if (!item || item.id == null) continue
+      var id = String(item.id)
+      if (cm && cm.get(id)) continue
+      ops.push({ kind:'coll-add', key:key, id:id, obj: clone(item) })
+    }
+  })
+  if (ops.length) applyOpsToYdoc(ops)
+}
+
 function handleMessage(data){
   if (typeof data !== 'string') return
   if (data === 'pong'){ lastPongAt = Date.now(); return }
@@ -445,10 +479,13 @@ function handleMessage(data){
   if (msg.t === 'sync'){
     var diff = null
     try { diff = msg.u ? unb64(msg.u) : null } catch(e1){ diff = null }
+    var applied = false
     if (diff && diff.length > 2){
-      try { Y.applyUpdate(ydoc, diff, REMOTE_ORIGIN) } catch(e2){}
-      scheduleMaterialize()
+      try { Y.applyUpdate(ydoc, diff, REMOTE_ORIGIN); applied = true } catch(e2){}
     }
+    /* 房间非空时：补传文档缺失的字段 / 条目（版本升级路径，见 adoptMissing 注释） */
+    if (!serverVectorEmpty(msg.sv)) adoptMissing();
+    if (applied) scheduleMaterialize()
     /* 双向对账：把「本地有而服务端缺的」回补上去 */
     var back = null
     try {
