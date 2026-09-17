@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 
 const read = (name) => readFile(new URL(`../apps/web/src/styles/${name}`, import.meta.url), 'utf8')
 
-const NAV_LAYER_HEIGHT = 156
+const NAV_LAYER_HEIGHT = 186
 const GLOBAL_HEADER_HEIGHT = 90
 
 test('desktop rail sits in the freed left column and clears the global header', async () => {
@@ -24,7 +24,7 @@ test('desktop rail sits in the freed left column and clears the global header', 
   )
 
   if (top < NAV_LAYER_HEIGHT) {
-    // The rail now occupies the 90-156 band: it must stack above the fixed
+    // The rail now occupies the 90-186 band: it must stack above the fixed
     // navigation layer (z-index 80), otherwise the frosted backdrop veils
     // the first destination (the old "overview disappeared" bug).
     const dockZ = base.match(/\.look-dock \{[^}]*z-index:\s*(\d+) !important;/u)
@@ -250,12 +250,12 @@ test('header frosted paint is one full-width band, not an L footprint', async ()
   assert.doesNotMatch(flat, /262px/u, '页头磨砂不得再按 x=262 分臂（那是台阶的来源）')
   assert.doesNotMatch(flat, /mask-position/u, '单块全宽不需要 mask-position 的第二层')
   assert.doesNotMatch(flat, /\[?:?-webkit-\]?mask-size: 100% 90px/u, '页头磨砂不得只铺 90px 高')
-  assert.match(flat, /mask-image: linear-gradient\( to bottom, #000 0%, #000 74%/u,
+  assert.match(flat, /mask-image: linear-gradient\( to bottom, #000 0%, #000 80%/u,
     '页头磨砂必须是一条带底部羽化的全宽渐变（硬切边就是台阶）')
   assert.match(flat, /transparent 100%/u, '页头磨砂的底边必须羽化到全透明')
-  // 羽化不能吃掉次页头标题行的背板（内容会从 180px 下方滚过页头）
-  const firstFade = Number(flat.match(/#000 74%/u) ? 74 : NaN)
-  assert.ok(firstFade >= 60, '羽化必须压在模块页头标题行中线以下')
+  // 羽化不能吃掉次页头标题行的背板（层高 186，内容从 186px 下方滚过页头）
+  const firstFade = Number(flat.match(/#000 80%/u) ? 80 : NaN)
+  assert.ok(firstFade >= 70, '羽化必须压在模块页头标题行中线以下')
 })
 
 test('header icon buttons are excluded from the rebuilt focus ring', async () => {

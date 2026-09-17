@@ -99,6 +99,41 @@ test('页头磨砂是单块全宽：无 L 形分臂、底部羽化、且不抢�
   assert.match(body, /mask-image: linear-gradient\( to bottom,/u, '必须是单块纵向渐变 mask')
   const stops = [...body.matchAll(/#000 (\d+)%|rgb\(0 0 0 \/ \.(\d+)\) (\d+)%|transparent 100%/gu)]
   assert.ok(stops.length >= 4, '羽化至少要有 4 个停点，否则又会读成一条边')
-  assert.match(body, /#000 0%, #000 74%/u, '74% 之前必须完全不透明（模块标题行的背板）')
+  assert.match(body, /#000 0%, #000 80%/u, '80% 之前必须完全不透明（模块标题行的背板）')
   assert.match(body, /transparent 100%/u, '底边必须羽化到全透明')
+})
+
+test('桌面：队列工具整条嵌进次页头（搜索栏 + 计数 + 按钮），移动端保持原路径', async () => {
+  // 用户 2026-09-18：「桌面端所有模块的搜索栏都要嵌进次页头」。
+  // 当前有搜索栏的只有 pickup / poster / repair（都是 PickupLedger）。
+  const header = await readFile(new URL('../apps/web/src/components/workshop/WorkshopShellHeader.jsx', import.meta.url), 'utf8')
+  // 搜索槽必须双端常驻（此前只有 mobileLayout 才渲染，桌面根本没有落点）
+  assert.doesNotMatch(header, /\{mobileLayout \? \(\s*<div className="workshop-module-search-slot">/u,
+    '搜索槽不得再只在移动端渲染——桌面没有落点，Portal 必然回落到正文里')
+  for (const scene of ['pickup', 'poster', 'repair']) {
+    assert.match(header, new RegExp(`className="workshop-module-search" data-scene="${scene}"`, 'u'), `缺少 ${scene} 的搜索槽`)
+  }
+
+  const ledger = await readFile(new URL('../apps/web/src/components/pickup/PickupLedger.jsx', import.meta.url), 'utf8')
+  // 桌面：整条 queueControls（含 QUEUE STATUS 计数）进页头
+  assert.match(ledger, /: createPortal\(queueControls, headerSlot\)/u,
+    '桌面必须把整条队列工具 Portal 进次页头')
+  // 移动：仍是「搜索框 + 图标按钮进槽、工具按钮进 mobile-module-tools」的老路径
+  assert.match(ledger, /createPortal\(<div className="pickup-module-toolbar">/u, '移动端路径不得被改写')
+  // 挂载后必须再解析一次槽（首帧 header 还没进 DOM，读不到会先渲染在正文里再跳）
+  assert.match(ledger, /resolveHeaderSlot\(1\)/u, '缺少挂载后的插槽再解析')
+
+  const css = desktopBlock(stripComments(await read('desktop-workbench.css')))
+  // 页头因此变高：66 → 96，整层 156 → 186
+  assert.match(css, /--ops-header-height: 186px/u, '层高必须跟模块条一起长到 186')
+  assert.match(css, /\.workshop-shell-header \{[^}]*height: 186px/u, '壳层高度必须同步')
+  assert.match(css, /\.look-dock::after \{[^}]*top: 186px/u, '左栏分隔线必须跟着下移')
+  assert.match(css, /\.workshop-module-header \{[\s\S]*?min-height: 96px;/u, '模块条必须容纳队列工具')
+  // 槽按当前模块显示，且只有一格
+  for (const scene of ['pickup', 'poster', 'repair']) {
+    assert.match(css, new RegExp(`\\.workshop-shell-header\\[data-active-module='${scene}'\\] \\.workshop-module-search\\[data-scene='${scene}'\\]`, 'u'),
+      `缺少 ${scene} 的桌面显示规则`)
+  }
+  assert.match(css, /\.workshop-module-header \.pickup-queue-controls \{[\s\S]*?grid-template-columns: 240px minmax\(0, 1fr\);/u,
+    '嵌进页头的队列工具必须比正文里窄一档')
 })

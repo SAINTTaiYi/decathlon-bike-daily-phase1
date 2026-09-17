@@ -352,15 +352,22 @@ export default function PickupLedger({ records = [], closedAt, onAdd, onEdit, on
   const ledgerMode = handoverMode ? 'handover' : repairMode ? 'repair' : 'pickup'
   // 场景键：其它交接（handover）对应 poster 场景容器；修复搜索栏未进页头的 Portal 匹配错误
   const sceneKey = handoverMode ? 'poster' : repairMode ? 'repair' : 'pickup'
-  // 移动端：搜索框 Portal 进「02/06 待取车辆」行右侧小框（.workshop-module-search），
-  // 工具按钮（筛选/排序/密度/收起）进页头工具行（.workshop-mobile-module-tools）；
-  // 不再依赖 sticky（iOS 上 body overflow-x:hidden 会使 sticky 失效）；桌面端保持原布局。
+  // 搜索槽由 WorkshopShellHeader 渲染：首次 render 阶段它还没进 DOM，读不到；
+  // 挂载后强制再解析一次，否则会先按「没有槽」渲染、再跳进页头。
+  const [, resolveHeaderSlot] = useState(0)
+  useEffect(() => { resolveHeaderSlot(1) }, [sceneKey, mobileLayout])
   const toolsTarget = mobileLayout ? document.querySelector(`.workshop-mobile-module-tools[data-scene="${sceneKey}"]`) : null
-  const searchTarget = mobileLayout ? document.querySelector(`.workshop-module-search[data-scene="${sceneKey}"]`) : null
-  // 移动端：搜索框 + 图标按钮全部压缩进「02/06 待取车辆」行；已应用筛选标签行进工具容器（有条件时才显示）
-  const queueControlsRendered = searchTarget
-    ? <>{createPortal(<div className="pickup-module-toolbar">{searchField}<div className="pickup-tool-row pickup-tool-row-inline">{toolButtons}</div></div>, searchTarget)}{toolsTarget ? createPortal(appliedFilterRow, toolsTarget) : null}</>
-    : queueControls
+  const headerSlot = document.querySelector(`.workshop-module-search[data-scene="${sceneKey}"]`)
+  // 桌面（2026-09-18 用户定案）：整条「QUEUE STATUS 计数 + 搜索框 + 四个工具按钮」
+  //   一起嵌进次页头，页头因此变高（desktop-workbench.css 里 156 → 186）。
+  // 移动：只把搜索框 + 图标按钮压缩进「02/06 待取车辆」行，工具按钮进
+  //   .workshop-mobile-module-tools，已应用筛选标签行进同一容器（有条件才显示）；
+  //   不再依赖 sticky（iOS 上 body overflow-x:hidden 会使 sticky 失效）。
+  const queueControlsRendered = !headerSlot
+    ? queueControls
+    : mobileLayout
+      ? <>{createPortal(<div className="pickup-module-toolbar">{searchField}<div className="pickup-tool-row pickup-tool-row-inline">{toolButtons}</div></div>, headerSlot)}{toolsTarget ? createPortal(appliedFilterRow, toolsTarget) : null}</>
+      : createPortal(queueControls, headerSlot)
 
   const tableColumns = handoverMode
     ? ['队列号', '交接事项', '联系电话', '状态', '操作']
