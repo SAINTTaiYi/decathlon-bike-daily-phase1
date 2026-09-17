@@ -98,3 +98,17 @@ test('design 路由：WS 端点有只读拦截与 Origin 白名单（结构断�
   // 转发必须用「原始 Request 作模板」构造（保留 WebSocket 升级语义）
   assert.match(source, /new Request\(forwardUrl, c\.req\.raw\)/u)
 })
+
+test('全局中间件：升级请求与 101 响应不得注入/修改响应头（冒烟 500 的根因回归）', async () => {
+  const source = await readFile(new URL('../src/index.ts', import.meta.url), 'utf8')
+  // CORS 注入必须豁免 WebSocket 升级请求。
+  assert.match(source, /const isUpgrade = \(c\.req\.header\('upgrade'\) \?\? ''\)\.toLowerCase\(\) === 'websocket'/u)
+  assert.match(source, /if \(origin && needsSecrets\(path\) && !isUpgrade\)/u)
+  // 版本头必须豁免 101 响应（升级响应 headers 不可修改）。
+  assert.match(source, /if \(c\.res && c\.res\.status === 101\) return/u)
+})
+
+test('secureResponse：WebSocket 升级响应必须原样放行（不得重建）', async () => {
+  const source = await readFile(new URL('../src/request-routing.ts', import.meta.url), 'utf8')
+  assert.match(source, /if \(response\.status === 101 \|\| response\.webSocket\) return response/u)
+})

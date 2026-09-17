@@ -81,7 +81,11 @@ app.use('*', async (c, next) => {
       })
     }
     const origin = c.req.header('origin')
-    if (origin && needsSecrets(path)) {
+    // WebSocket 升级请求：浏览器不强制 CORS、且升级响应（101）的 headers 在
+    // Workerd 里不可修改 —— 对升级请求跳过 CORS 头注入，否则附加头会抛错、
+    // 握手直接 500（2026-09-17 冒烟实测：设计协作 WS 首连 500 的根因之一）。
+    const isUpgrade = (c.req.header('upgrade') ?? '').toLowerCase() === 'websocket'
+    if (origin && needsSecrets(path) && !isUpgrade) {
       if (!isAllowedOrigin(origin, c.get('config').allowedOrigins)) {
         throw new ApiProblem(403, 'ORIGIN_NOT_ALLOWED', '请求来源不受允许。')
       }
@@ -100,6 +104,9 @@ app.use('*', async (c, next) => {
 // 发现服务端版本变化，无需等待轮询心跳。
 app.use('/api/*', async (c, next) => {
   await next()
+  // 升级响应（101）不能附加/修改 headers，直接放行 —— 否则附加版本头会把
+  // WebSocket 握手打崩成 500（2026-09-17 冒烟实测的另一处根因）。
+  if (c.res && c.res.status === 101) return
   const config = c.get('config')
   if (config) {
     c.header('X-App-Version', config.APP_VERSION)

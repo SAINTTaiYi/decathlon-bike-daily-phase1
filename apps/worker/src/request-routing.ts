@@ -9,6 +9,10 @@ const EMBEDDABLE_ASSET_PREFIX = '/store-design/'
 const EMBEDDABLE_CSP = HTML_CSP.replace("frame-ancestors 'none'", "frame-ancestors 'self'")
 
 function secureResponse(response: Response, sensitive: boolean, embeddable: boolean): Response {
+  // WebSocket 升级响应（101，带 webSocket 属性）必须原样放行：重建 Response
+  // 会丢失升级通道，且 Workerd 不允许构造「没有 webSocket 的 101」——
+  // 重建即抛错、握手 500（2026-09-17 冒烟实测的第三处根因）。
+  if (response.status === 101 || response.webSocket) return response
   const headers = new Headers(response.headers)
   headers.set('X-Content-Type-Options', 'nosniff')
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
