@@ -85,7 +85,9 @@ test('App 接线：非 Ops 场景不渲染 Ops 容器，也不拉门店业务数
   assert.match(app, /const opsDataNeeded = effectiveApp !== 'food' && effectiveApp !== 'mass'/u, '门店设计站不得拉 bootstrap/shiphub')
   assert.match(app, /useRemoteClosingWorkflow\(authenticated && !introLocked && opsDataNeeded\)/u)
   assert.match(app, /useShipHub\(authenticated && !introLocked && opsDataNeeded\)/u)
-  assert.match(app, /\{ enabled: authenticated && !introLocked && opsDataNeeded \}/u)
+  // 长轮询的门控（2026-09-18 起追加 workflow.hydrated：bootstrap 未返回时版本号种子未知，
+  // 从 0 起步会触发一轮重复刷新）——但 opsDataNeeded 必须始终在内，非 Ops 站不得订阅。
+  assert.match(app, /enabled: authenticated && !introLocked && opsDataNeeded && workflow\.hydrated/u, '长轮询必须同时受 opsDataNeeded 与 hydrated 门控')
   // 删旧不覆盖：旧门控（只排除 food）必须整体消失，不能两套并存
   assert.doesNotMatch(stripComments(app), /introLocked && effectiveApp !== 'food'/u, '旧门控残留=两套判据打架')
   // 非 Ops 应用不拉 bootstrap ⇒ workflow.hydrated 恒为 false，SYNCING DATABASE 占位
