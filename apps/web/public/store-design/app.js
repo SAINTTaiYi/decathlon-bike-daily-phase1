@@ -61,7 +61,7 @@ try {
   }
 } catch(e1){}
 var ui = { tab: 't3d', sel: null, planZ: null, grid: true, snap: 0.5,
-           frontShelf: null, frontRow: null, frontHook: null, frontScale: null, frontFace: {} };
+           frontShelf: null, frontRow: null, frontHookGroup: null, frontScale: null, frontFace: {} };
 
 function $(q, root){ return (root || document).querySelector(q); }
 function $all(q, root){ return Array.prototype.slice.call((root || document).querySelectorAll(q)); }
@@ -387,10 +387,18 @@ function cycleAcc(id, key){
   var seq = ACC_CYCLE[key] || ['none'];
   var cur = s.acc[key];
   var idx = seq.indexOf(cur); if (idx < 0) idx = 0;
-  s.acc[key] = seq[(idx + 1) % seq.length];
+  var next = seq[(idx + 1) % seq.length];
+  var wasOn = (cur === 'adult' || cur === 'kids');
+  s.acc[key] = next;
+  /* 地架从「无」变有时：默认落到组件多的那一面（用户 2026-09-17 要求） */
+  if (key === 'rack' && !wasOn && (next === 'adult' || next === 'kids')){
+    var sideNow = s.acc.rackSide;
+    if (!(sideNow === 'pos' || sideNow === 'neg' || sideNow === 'both')) s.acc.rackSide = faceForNewComponent(s);
+  }
   afterStruct(); renderSelBar(true);
   var a = E.accOf(s);
-  toast('地架：' + (a.rack === 'none' ? '已拆除' : ((a.rack === 'kids' ? '童车' : '成人车') + ' ×' + E.rackCount(s) + '（每米 3 个）')));
+  toast('地架：' + (a.rack === 'none' ? '已拆除' : ((a.rack === 'kids' ? '童车' : '成人车') + ' ×' + E.rackCount(s) + '（每米 3 个）'
+    + (s.kind === 'double' && a.rackSide !== 'auto' && a.rackSide !== 'both' ? ' · ' + frontFaceName(s, a.rackSide) : ''))));
 }
 /* 托臂排：新增 / 删除 / 清空。排 id 依次 a1、a2…（用于稳定的派生元素 id） */
 function nextArmRowId(rows){
@@ -403,8 +411,9 @@ function nextArmRowId(rows){
 }
 function addArmRow(id, len){
   var s = shelfGet(id); if (!s) return;
-  /* 新增的排挂到「当前正在看的那一面」（双面货架可分别往两面加） */
-  var faceWanted = (ui.tab === 'tfront') ? frontFaceOf(s) : null;
+  /* 新增的排挂到「当前正在看的那一面」；不在正面视角时默认落到**组件多的那一面**
+     （2026-09-17 用户要求：不要在两面之间来回猜，跟着已有的组件走）。 */
+  var faceWanted = faceForNewComponent(s);
   s.acc = s.acc || {};
   if (!Array.isArray(s.acc.armRows)) s.acc.armRows = [];
   var rows = s.acc.armRows;
@@ -422,13 +431,12 @@ function addArmRow(id, len){
   }
   var span = Math.min(shelfLen, Math.round(fit * E.ARM_SLOT[size] * 100) / 100);
   var row = { id: nextArmRowId(rows), z: (rowZ == null) ? E.nextArmZ(s, rows) : rowZ, len: isLong ? 'long' : 'short',
-              size: size, u0: 0, u1: span };
-  if (faceWanted) row.face = faceWanted;
+              size: size, u0: 0, u1: span, face: faceWanted };
   rows.push(row);
   afterStruct(); renderSelBar(true);
   var norm = E.accOf(s).rows[rows.length - 1];
   toast('已加' + (isLong ? '长托臂 1m（成人车）' : '短托臂 0.5m（16″ 童车）')
-    + (faceWanted ? '（' + frontFaceName(s, faceWanted) + '）' : '') + '：'
+    + '（' + frontFaceName(s, faceWanted) + '）：'
     + norm.z + 'm 高 · ' + E.rowBikeCount(s, norm) + ' 台 · 占货架 ' + norm.u0 + '~' + norm.u1 + 'm'
     + (norm.u1 - norm.u0 < shelfLen - 0.05 ? '（可左右拖动）' : '（高度可在属性栏调）'));
 }
@@ -440,69 +448,65 @@ function delArmRow(id, idx){
   afterStruct(); renderSelBar(true);
   toast('已删除托臂排 ' + (idx + 1) + (n ? '' : ''));
 }
-/* 挂钩（2026-09-17 用户要求「不要固定在顶端」）：每个挂钩是一个独立对象
-   （沿架位置 u + 离地高度 z，都可自由取值）。这里只管增删；
-   位置在正面视角里直接拖动（bindFront），也可以在属性栏里改数值。 */
-function hookArr(s){
+/* 挂钩（2026-09-17 第二轮，用户口径：成组摆放、每米 4 个钩子）：
+   一组 = 一段挂杆（沿架起点 u0 / 终点 u1 + 离地高度 z），组内钩子按每米 4 个均布。
+   这里只管增删；位置在正面视角里整组拖动（bindFront），也可以在属性栏里改数值。 */
+function hookGroupArr(s){
   s.acc = s.acc || {};
-  if (!Array.isArray(s.acc.hooks)) s.acc.hooks = [];
-  return s.acc.hooks;
+  if (!Array.isArray(s.acc.hookGroups)) s.acc.hookGroups = [];
+  return s.acc.hookGroups;
 }
-function nextHookId(hooks){
+function nextHookGroupId(groups){
   var max = 0;
-  (hooks || []).forEach(function(h){
-    var m = /^h(\d+)$/.exec(h && h.id ? h.id : '');
+  (groups || []).forEach(function(g){
+    var m = /^g(\d+)$/.exec(g && g.id ? g.id : '');
     if (m) max = Math.max(max, +m[1]);
   });
-  return 'h' + Math.max(1, max + 1);
+  return 'g' + Math.max(1, max + 1);
 }
-/* 一键成排：按每米 4 个均匀铺开（旧版行为保留为入口），之后逐个拖动微调 */
-function addHooksRow(s){
-  var arr = hookArr(s);
-  var faceWanted = (ui.tab === 'tfront') ? frontFaceOf(s) : null;
-  var specs = E.hookRowSpecs(s);
-  specs.forEach(function(sp){
-    var hk = { id: nextHookId(arr), u: sp.u, z: sp.z };
-    if (faceWanted) hk.face = faceWanted;
-    arr.push(hk);
-  });
-  afterStruct(); renderSelBar(true); renderFrontNow();
-  toast('已加 ' + specs.length + ' 个挂钩（每米 4 个）' + (faceWanted ? '（' + frontFaceName(s, faceWanted) + '）' : '')
-    + '：在正面视角里可以直接拖着调位置与高度');
+/* 新增组件的默认落面（用户 2026-09-17 要求）：默认 = 「组件多的那一面」
+   （正面视角没手动切过面时也是它 —— 看到的就是要放的那一面）；
+   手动切过面、或在正面视角里时按「正在看的那一面」走。 */
+function faceForNewComponent(s){
+  if (!s) return 'pos';
+  if (ui.tab === 'tfront') return frontFaceOf(s);
+  return E.defaultAddFace(s, cfg);
 }
-/* 单个新增：位置排在已有挂钩的中缝，高度沿用已有挂钩（没有就 1.5m） */
-function addHookAt(s){
+/* 新增一整组挂钩：默认覆盖货架全长（每米 4 个），高度与已有组错开 */
+function addHookGroup(s){
   if (!s){ toast('先选中一个货架'); return; }
-  var arr = hookArr(s);
-  var faceWanted = (ui.tab === 'tfront') ? frontFaceOf(s) : null;
-  var hk = { id: nextHookId(arr), u: E.nextHookU(s, arr), z: E.nextHookZ(s, arr) };
-  if (faceWanted) hk.face = faceWanted;
-  arr.push(hk);
-  ui.sel = 'sh:' + s.id; ui.frontHook = hk.id;
+  var arr = hookGroupArr(s);
+  var faceWanted = faceForNewComponent(s);
+  var SL = (+s.len > 0) ? +s.len : 4;
+  var g = { id: nextHookGroupId(arr), u0: 0, u1: Math.round(SL * 100) / 100, z: E.nextHookZ(s, arr), face: faceWanted };
+  arr.push(g);
+  ui.sel = 'sh:' + s.id; ui.frontHookGroup = g.id;
   afterStruct(); renderSelBar(true); renderFrontNow();
-  var norm = E.accOf(s).hooks[arr.length - 1];
-  toast('已加挂钩：沿架 ' + norm.u + 'm · 离地 ' + norm.z + 'm（正面视角里可拖动）');
+  var norm = E.accOf(s).hookGroups[arr.length - 1];
+  toast('已加挂钩组：' + E.hookGroupCount(s, norm) + ' 个（每米 4 个）· 离地 ' + norm.z + 'm · '
+    + frontFaceName(s, faceWanted) + '（正面视角里可整组拖动）');
 }
-function delHookById(spec){
+function delHookGroupById(spec){
   var parts = String(spec == null ? '' : spec).split(':');
   var s = shelfGet(parts[0]); if (!s) return;
-  var arr = (s.acc && Array.isArray(s.acc.hooks)) ? s.acc.hooks : null;
+  var arr = (s.acc && Array.isArray(s.acc.hookGroups)) ? s.acc.hookGroups : null;
   if (!arr) return;
   var idx = -1;
   for (var i = 0; i < arr.length; i++){ if (String(arr[i].id) === String(parts[1])){ idx = i; break; } }
   if (idx < 0) return;
   arr.splice(idx, 1);
-  if (String(ui.frontHook) === String(parts[1])) ui.frontHook = null;
+  if (String(ui.frontHookGroup) === String(parts[1])) ui.frontHookGroup = null;
   afterStruct(); renderSelBar(true); renderFrontNow();
-  toast('已删除挂钩');
+  toast('已删除挂钩组');
 }
 function clearHooks(s, msg){
   if (!s) return;
-  var arr = (s.acc && Array.isArray(s.acc.hooks)) ? s.acc.hooks : null;
+  var arr = (s.acc && Array.isArray(s.acc.hookGroups)) ? s.acc.hookGroups : null;
   if (!arr || !arr.length) return;
-  var n = arr.length;
-  s.acc.hooks = [];
-  ui.frontHook = null;
+  var n = 0;
+  E.accOf(s).hookGroups.forEach(function(g){ n += E.hookGroupCount(s, g); });
+  s.acc.hookGroups = [];
+  ui.frontHookGroup = null;
   afterStruct(); renderSelBar(true); renderFrontNow();
   toast(msg || ('已清空 ' + n + ' 个挂钩'));
 }
@@ -574,23 +578,19 @@ var acts = {
     var s = id ? shelfGet(id) : null;
     if (!s){ toast('先选中一个货架'); return; }
     if (ui.placing) endPlacing(true);
-    ui.frontShelf = s.id; ui.frontRow = null; ui.frontHook = null;
+    ui.frontShelf = s.id; ui.frontRow = null; ui.frontHookGroup = null;
     ui.sel = 'sh:' + s.id;
     if (ui.tab !== 'tfront') setTab('tfront'); else renderFrontNow();
     buildEditors();
     toast('正面视角：拖托臂排调高度 / 左右平移，两端圆点调范围');
   },
   accRack: function(ds){ cycleAcc(ds.id, 'rack'); },
-  /* 挂钩：一点成排（每米 4 个，之后再逐个拖动微调），已有则一键清空 */
-  accHook: function(ds){
-    var s = shelfGet(ds.id); if (!s) return;
-    if (E.hookCount(s)) clearHooks(s, '已拆除 ' + E.hookCount(s) + ' 个挂钩');
-    else addHooksRow(s);
-    afterStruct(); renderSelBar(true); renderFrontNow();
-  },
-  addHook: function(ds){ addHookAt(shelfGet(ds.id), null); },
-  delHook: function(ds){ delHookById(ds.id); },
-  clearHooks: function(ds){ var s = shelfGet(ds.id); if (s) clearHooks(s, null), afterStruct(), renderSelBar(true), renderFrontNow(); },
+  /* 挂钩（2026-09-17 第二轮：成组，每米 4 个）：一点加一整组（货架全长），
+     默认落到组件多的那一面；位置在正面视角里整组拖动。 */
+  accHook: function(ds){ addHookGroup(shelfGet(ds.id)); },
+  addHook: function(ds){ addHookGroup(shelfGet(ds.id)); },
+  delHookGroup: function(ds){ delHookGroupById(ds.id); },
+  clearHooks: function(ds){ var s = shelfGet(ds.id); if (s) clearHooks(s, null); },
   addArm: function(ds){ var p = String(ds.id).split(':'); addArmRow(p[0], p[1]); },
   delArmRow: function(ds){ var p = String(ds.id).split(':'); delArmRow(p[0], +p[1]); },
   clearArms: function(ds){ clearArms(ds.id); },
@@ -1094,7 +1094,7 @@ function afterSelect(){
   /* 选中货架时把「货架正面」视图也跟随过去（在平面/大纲里换货架，正面视图同步换） */
   if (/^sh:/.test(String(ui.sel || ''))){
     var fsNext = String(ui.sel).slice(3);
-    if (String(ui.frontShelf) !== fsNext) ui.frontHook = null;   /* 换货架：旧的挂钩选中作废 */
+    if (String(ui.frontShelf) !== fsNext) ui.frontHookGroup = null;   /* 换货架：旧的挂钩组选中作废 */
     ui.frontShelf = fsNext;
   }
   renderFrontNow();
@@ -1424,12 +1424,22 @@ function frontRowGet(s, rowId){
   }
   return null;
 }
-function frontHookGet(s, hookId){
-  if (!s || !s.acc || !Array.isArray(s.acc.hooks)) return null;
-  for (var i = 0; i < s.acc.hooks.length; i++){
-    if (String(s.acc.hooks[i].id) === String(hookId)) return s.acc.hooks[i];
+function frontHookGroupGet(s, groupId){
+  if (!s || !s.acc || !Array.isArray(s.acc.hookGroups)) return null;
+  for (var i = 0; i < s.acc.hookGroups.length; i++){
+    if (String(s.acc.hookGroups[i].id) === String(groupId)) return s.acc.hookGroups[i];
   }
   return null;
+}
+/* 组内数值可能在未显式设置时走默认值：拖动前先落成显式值，避免「看不见的默认」被改坏 */
+function materializeHookGroup(s, hg){
+  var norm = E.accOf(s).hookGroups.filter(function(x){ return String(x.id) === String(hg.id); })[0];
+  if (!norm) return hg;
+  if (hg.u0 == null) hg.u0 = norm.u0;
+  if (hg.u1 == null) hg.u1 = norm.u1;
+  if (hg.z == null) hg.z = norm.z;
+  if (hg.face !== 'pos' && hg.face !== 'neg' && hg.face !== 'auto') hg.face = norm.face;
+  return hg;
 }
 /* 行内数值可能在未显式设置时走默认值：拖动前先落成显式值，避免「看不见的默认」被改坏 */
 function materializeRow(s, r){
@@ -1442,17 +1452,19 @@ function materializeRow(s, r){
   if (r.u1 == null) r.u1 = norm.u1;
   return r;
 }
-/* 当前正在看的面：优先用户选的，否则用货架的自动面 */
+/* 当前正在看的面：优先用户手动切的面；没切过时看「组件多的那一面」
+   （2026-09-17 用户要求：默认跟着组件走，打开正面视角就能看到自己摆的东西；
+   两面都没组件时回退「朝空间更空的一侧」—— 与新增组件的默认落面同一套规则）。 */
 function frontFaceOf(s){
   if (!s) return 'pos';
   var picked = ui.frontFace[s.id];
   if (picked === 'pos' || picked === 'neg') return picked;
-  return E.accFace(s, cfg);
+  return E.defaultAddFace(s, cfg);
 }
 function frontFaceSet(id, face){
   if (face !== 'pos' && face !== 'neg') delete ui.frontFace[id];
   else ui.frontFace[id] = face;
-  ui.frontHook = null;          /* 换面后原来的挂钩不在这一面，清掉选中 */
+  ui.frontHookGroup = null;     /* 换面后原来的挂钩组不在这一面，清掉选中 */
   renderFrontNow();
 }
 /* 把当前面的托臂排镜像到另一面（用户：「另一面没有办法添加组件」） */
@@ -1489,21 +1501,22 @@ function renderFrontBar(){
   var acc = E.accOf(s), rows = acc.rows.length;
   var names = E.faceNames(s);
   var here = frontFaceOf(s), there = (here === 'pos') ? 'neg' : 'pos';
-  var nHere = E.armRowsOnFace(s, cfg, here).length;
-  var nThere = E.armRowsOnFace(s, cfg, there).length;
+  /* 页签计数 = 该面「组件数」（托臂排 + 挂钩组 + 地架）——
+     用户 2026-09-17 反馈「选哪一面很难用」，这里让两面各有多少组件一眼可见。 */
+  var fCounts = E.faceCounts(s, cfg);
   var dbl = (s.kind === 'double');
   bar.innerHTML =
     (dbl
       ? '<span class="sd-d-mini sd-m-mini">挂载面</span>'
-        + '<button data-frontface="pos"' + (here === 'pos' ? ' data-on="true"' : '') + '>' + names.pos + '（' + E.armRowsOnFace(s, cfg, 'pos').length + '）</button>'
-        + '<button data-frontface="neg"' + (here === 'neg' ? ' data-on="true"' : '') + '>' + names.neg + '（' + E.armRowsOnFace(s, cfg, 'neg').length + '）</button>'
+        + '<button data-frontface="pos"' + (here === 'pos' ? ' data-on="true"' : '') + '>' + names.pos + '（' + fCounts.pos + '）</button>'
+        + '<button data-frontface="neg"' + (here === 'neg' ? ' data-on="true"' : '') + '>' + names.neg + '（' + fCounts.neg + '）</button>'
       : '')
     + '<button data-act="addArm" data-id="' + esc2(s.id) + ':short">＋短托臂 0.5m</button>'
     + '<button data-act="addArm" data-id="' + esc2(s.id) + ':long">＋长托臂 1m</button>'
-    + (dbl && nHere ? '<button data-frontmirror="1">镜像到' + names[there] + '（' + nHere + ' 排）</button>' : '')
+    + (dbl && E.armRowsOnFace(s, cfg, here).length ? '<button data-frontmirror="1">镜像托臂到' + names[there] + '（' + E.armRowsOnFace(s, cfg, here).length + ' 排）</button>' : '')
     + (rows ? '<button data-act="clearArms" data-id="' + esc2(s.id) + '" data-tone="danger">清空托臂（' + rows + ' 排）</button>' : '')
-    + '<button data-act="addHook" data-id="' + esc2(s.id) + '">＋挂钩</button>'
-    + (acc.hooks.length ? '<button data-act="clearHooks" data-id="' + esc2(s.id) + '" data-tone="danger">清空挂钩（' + acc.hooks.length + '）</button>' : '')
+    + '<button data-act="addHook" data-id="' + esc2(s.id) + '">＋挂钩（4 个/米）</button>'
+    + (acc.hookGroups.length ? '<button data-act="clearHooks" data-id="' + esc2(s.id) + '" data-tone="danger">清空挂钩（' + acc.hookGroups.length + ' 组/' + E.hookCount(s) + ' 个）</button>' : '')
     + '<button data-frontzoom="out">－</button><button data-frontzoom="in">＋</button><button data-frontzoom="fit">适应</button>';
 }
 function renderFrontNow(){
@@ -1519,7 +1532,7 @@ function renderFrontNow(){
   var vw = (els.frontScroll ? els.frontScroll.clientWidth : 900) - 18;
   var vh = els.frontScroll ? els.frontScroll.clientHeight - 12 : 0;
   var r = E.renderShelfFront(cfg, s.id, { vw: vw, vh: vh, scale: ui.frontScale || 0, selRow: ui.frontRow,
-                                          selHook: ui.frontHook, face: frontFaceOf(s) });
+                                          selHookGroup: ui.frontHookGroup, face: frontFaceOf(s) });
   els.viewfront.innerHTML = r.svg;
   var fsvgEl = els.viewfront.querySelector('svg');
   if (fsvgEl){
@@ -1527,6 +1540,7 @@ function renderFrontNow(){
     fsvgEl.setAttribute('data-rows', String(r.meta.rows || 0));
     fsvgEl.setAttribute('data-other-rows', String(r.meta.otherRows || 0));
     fsvgEl.setAttribute('data-hooks', String(r.meta.hooks || 0));
+    fsvgEl.setAttribute('data-hookgroups', String(r.meta.hookGroups || 0));
   }
   if (r.meta && !ui.frontScale) ui.frontScale = r.meta.scale;
 }
@@ -1539,15 +1553,22 @@ function frontZoom(kind){
   else ui.frontScale = Math.max(10, Math.round(cur / 1.25));
   renderFrontNow();
 }
-/* 正面视角 · 拖动挂钩（2026-09-17 用户要求「在货架上自由移动，而不是固定在顶端」）：
-   一次拖动同时改沿架位置 u 与离地高度 z（0.05m 栅格）；松手落盘，点一下 = 选中。 */
-function dragFrontHook(e, sc, svgEl, m, s, el){
-  var hkId = el.getAttribute('data-hook');
-  var hk = frontHookGet(s, hkId); if (!hk) return;
-  var start = { u: (+hk.u >= 0) ? +hk.u : s.len / 2, z: (+hk.z > 0) ? +hk.z : E.HOOK_Z_DEFAULT };
-  hk.u = Math.round(start.u * 100) / 100; hk.z = Math.round(start.z * 100) / 100;
+/* 正面视角 · 拖动挂钩组（2026-09-17 第二轮：成组，每米 4 个钩子）：
+   拖「杆」= 整组移动（左右 + 上下，0.05m 栅格）；拖两端圆点 = 调这一组的范围
+   （每米 4 个，范围一改钩子数量跟着变）。松手落盘，点一下 = 选中。 */
+function dragFrontHookGroup(e, sc, svgEl, m, s, el){
+  var isHandle = el.hasAttribute && el.hasAttribute('data-hookhandle');
+  var raw = isHandle ? String(el.getAttribute('data-hookhandle')) : String(el.getAttribute('data-hookgroup'));
+  var parts = raw.split(':');
+  var gid = parts[0];
+  var end = isHandle ? (parts[1] === '0' ? 'u0' : 'u1') : null;
+  var hg = frontHookGroupGet(s, gid); if (!hg) return;
+  materializeHookGroup(s, hg);
+  var start = { u0: +hg.u0, u1: +hg.u1, z: +hg.z };
   var pt = toFrontUZ(svgEl, e.clientX, e.clientY); if (!pt) return;
   var s0 = { u: pt.u, z: pt.z }, moved = false;
+  var spanMin = Math.min(E.HOOK_MIN_SPAN, m.len);
+  function grid05(v){ return Math.round(v / 0.05) * 0.05; }
   e.preventDefault();
   try { sc.setPointerCapture(e.pointerId); } catch(e1){}
   function blockTM(ev){ ev.preventDefault(); }
@@ -1557,9 +1578,17 @@ function dragFrontHook(e, sc, svgEl, m, s, el){
     var du = p.u - s0.u, dz = p.z - s0.z;
     if (!moved && Math.hypot(du, dz) * m.scale < 4) return;   /* 4px 死区：点选 vs 拖动 */
     moved = true;
-    var uMax = Math.max(E.HOOK_U_EDGE, m.len - E.HOOK_U_EDGE);
-    hk.u = Math.round(E.clamp(Math.round((start.u + du) / 0.05) * 0.05, E.HOOK_U_EDGE, uMax) * 100) / 100;
-    hk.z = Math.round(E.clamp(Math.round((start.z + dz) / 0.05) * 0.05, E.HOOK_Z_MIN, m.h + E.HOOK_Z_ABOVE) * 100) / 100;
+    if (end === 'u0'){
+      hg.u0 = r2c(E.clamp(grid05(start.u0 + du), 0, Math.max(0, start.u1 - spanMin)));
+    } else if (end === 'u1'){
+      hg.u1 = r2c(E.clamp(grid05(start.u1 + du), Math.min(m.len, start.u0 + spanMin), m.len));
+    } else {
+      var w = start.u1 - start.u0;
+      var u0 = E.clamp(grid05(start.u0 + du), 0, Math.max(0, m.len - w));
+      hg.u0 = r2c(u0);
+      hg.u1 = r2c(Math.min(m.len, u0 + w));
+      hg.z = r2c(E.clamp(grid05(start.z + dz), E.HOOK_Z_MIN, m.h + E.HOOK_Z_ABOVE));
+    }
     renderFrontNow();
     if (window.SDUI && SDUI.refreshSelVals) renderSelBar(true);
   }
@@ -1568,12 +1597,14 @@ function dragFrontHook(e, sc, svgEl, m, s, el){
     window.removeEventListener('pointermove', move);
     window.removeEventListener('pointerup', up);
     try { sc.releasePointerCapture(e.pointerId); } catch(e2){}
-    ui.frontHook = hkId;
+    ui.frontHookGroup = gid;
     ui.sel = 'sh:' + s.id;
     if (moved){
       saveSoon(); renderChips(); schedule3D(); renderPlanNow(); buildEditors();
       renderSelBar(); renderFrontNow();
-      toast('挂钩：沿架 ' + hk.u.toFixed(2) + 'm · 离地 ' + hk.z.toFixed(2) + 'm');
+      var norm = E.accOf(s).hookGroups.filter(function(x){ return String(x.id) === String(gid); })[0];
+      var n = norm ? E.hookGroupCount(s, norm) : 0;
+      toast('挂钩组：' + n + ' 个（每米 4 个）· 占货架 ' + hg.u0.toFixed(2) + '~' + hg.u1.toFixed(2) + 'm · 离地 ' + hg.z.toFixed(2) + 'm');
     } else {
       afterSelect();
     }
@@ -1581,6 +1612,7 @@ function dragFrontHook(e, sc, svgEl, m, s, el){
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up);
 }
+function r2c(v){ return Math.round(v * 100) / 100; }
 function bindFront(){
   var sc = els.frontScroll;
   if (!sc || sc.getAttribute('data-bound') === '1') return;
@@ -1588,7 +1620,8 @@ function bindFront(){
   /* 触摸：按在托臂排上时不滚动页面，交给拖拽 */
   sc.addEventListener('touchstart', function(ev){
     if (!ev.cancelable) return;
-    if (ev.target && ev.target.closest && (ev.target.closest('[data-row]') || ev.target.closest('[data-rowhandle]') || ev.target.closest('[data-hook]'))) ev.preventDefault();
+    if (ev.target && ev.target.closest && (ev.target.closest('[data-row]') || ev.target.closest('[data-rowhandle]')
+        || ev.target.closest('[data-hookgroup]') || ev.target.closest('[data-hookhandle]'))) ev.preventDefault();
   }, { passive:false, capture:true });
   sc.addEventListener('pointerdown', function(e){
     if (e.button != null && e.button > 0) return;
@@ -1597,8 +1630,9 @@ function bindFront(){
     var s = shelfGet(m.shelf); if (!s) return;
     var hEl = e.target && e.target.closest ? e.target.closest('[data-rowhandle]') : null;
     var rEl = e.target && e.target.closest ? e.target.closest('[data-row]') : null;
-    var kEl = e.target && e.target.closest ? e.target.closest('[data-hook]') : null;
-    if (kEl && !hEl && !rEl){ dragFrontHook(e, sc, svgEl, m, s, kEl); return; }
+    var kEl = e.target && e.target.closest ? e.target.closest('[data-hookgroup]') : null;
+    var kH = e.target && e.target.closest ? e.target.closest('[data-hookhandle]') : null;
+    if (kH || kEl){ dragFrontHookGroup(e, sc, svgEl, m, s, kH || kEl); return; }
     if (!hEl && !rEl) return;
     var rowId, mode;
     if (hEl){

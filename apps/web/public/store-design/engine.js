@@ -374,19 +374,19 @@ function bikesForShelf(s, type, opts){
        每排位宽：成人车 2.0m、16″ 童车 4/3m → 2m 货架 1 台/排；4m 货架 3 台童车/排。
        每排还可用「起始 / 结束位置」限定只占货架的一段（短长混排、成人童车混排）。
      · 地架：地面停车架，每米 3 个（1m 货架放 3 个）。
-     · 挂钩：**每个挂钩有独立位置**（沿架位置 u + 离地高度 z），可在正面视角里
-       直接拖着走（2026-09-17 用户要求「不要固定在顶端」）；「＋挂钩」按
-       每米 4 个一键成排，之后逐个拖动微调。
+     · 挂钩（2026-09-17 用户口径）：**成组摆放，每米 4 个钩子**。一组 = 一段挂杆，
+       在货架上的位置（沿架起点 / 终点）与离地高度自由；正面视角里整组拖动
+       （左右 + 上下）、两端圆点调范围。「＋挂钩」默认加一整段（货架全长，每米 4 个）。
    附件不落盘成独立元素：由货架配置派生（cfg.shelves[].acc），随货架移动 / 转向 /
    伸缩自动跟随，也不参与「越界 / 出入口净空」等独立元素检查。 */
 var ARM_SLOT = { adult: 2.0, kids: 4 / 3 };   /* 每台车占位宽度（m）：成人 / 16 寸童车 */
 var ARM_LEN = { short: 0.5, long: 1.0 };      /* 托臂伸出长度（m）：短 / 长 */
 var RACK_PER_M = 3;                           /* 地架密度（个 / m） */
-var HOOK_ROW_PER_M = 4;                       /* 「一键成排」的挂钩密度（个 / m，之后可逐个拖动） */
-var HOOK_Z_DEFAULT = 1.5;                     /* 新增挂钩的默认离地高度（m） */
+var HOOK_PER_M = 4;                           /* 挂钩密度（个 / m）：成组摆放，一组多少钩看跨度 */
+var HOOK_Z_DEFAULT = 1.5;                     /* 新增挂钩组的默认离地高度（m） */
 var HOOK_Z_MIN = 0.15;                        /* 挂钩最低离地高度（m） */
 var HOOK_Z_ABOVE = 0.30;                      /* 允许高出货架顶的高度（m） */
-var HOOK_U_EDGE = 0.06;                       /* 挂钩距货架两端的最小留边（m） */
+var HOOK_MIN_SPAN = 0.25;                     /* 一组挂钩的最小跨度（m，= 1 个钩子） */
 var SHELF_H_DEFAULT = 3.3;                    /* 门店货架实际高度（m） */
 
 /* ---------------- 挂载面（双面货架的两面） ----------------
@@ -424,34 +424,43 @@ function normArmRow(r, i, s){
   return { id: r.id || ('a' + (i + 1)), z: r2(z), len: len, size: size, u0: r2(u0), u1: r2(u1),
            face: normFace(r.face) };
 }
-/* 单个挂钩规格归一化：沿架位置 u（0..len）与离地高度 z（0.15 .. 架高+0.30）自由取值。
-   旧版「每米 4 个、固定在顶端」的开关由 migrateLegacy 换算成本数组（位置沿用旧渲染点）。 */
-function normHook(h, i, s){
-  h = h || {};
+/* 挂钩组规格归一化：一段挂杆 = 沿架起点 / 终点 + 离地高度，组内钩子按每米 4 个均布。
+   （旧版「每米 4 个、固定在顶端」的单值开关、以及中途版本的「逐个挂钩数组」，
+     都由 migrateLegacy 换算成本结构，见文件末尾。） */
+function normHookGroup(g, i, s){
+  g = g || {};
   var SL = (+s.len > 0) ? +s.len : 4;
   var hS = (s.h == null) ? SHELF_H_DEFAULT : +s.h;
   var zMax = hS + HOOK_Z_ABOVE;
-  var u = (+h.u >= 0) ? +h.u : SL / 2;
-  u = clamp(u, HOOK_U_EDGE, Math.max(HOOK_U_EDGE, SL - HOOK_U_EDGE));
-  var z = (+h.z > 0) ? +h.z : Math.min(HOOK_Z_DEFAULT, zMax);
+  var spanMin = Math.min(HOOK_MIN_SPAN, SL);
+  var u0 = isFinite(+g.u0) ? +g.u0 : 0;
+  var u1 = isFinite(+g.u1) ? +g.u1 : SL;
+  if (u1 < u0){ var t = u0; u0 = u1; u1 = t; }
+  u0 = clamp(u0, 0, SL);
+  u1 = clamp(u1, 0, SL);
+  if (u1 - u0 < spanMin) u1 = Math.min(SL, u0 + spanMin);
+  if (u1 - u0 < spanMin) u0 = Math.max(0, u1 - spanMin);
+  var z = (+g.z > 0) ? +g.z : Math.min(HOOK_Z_DEFAULT, zMax);
   z = clamp(z, HOOK_Z_MIN, zMax);
-  return { id: h.id || ('h' + (i + 1)), u: r2(u), z: r2(z), face: normFace(h.face) };
+  return { id: g.id || ('g' + (i + 1)), u0: r2(u0), u1: r2(u1), z: r2(z), face: normFace(g.face) };
 }
+/* 一组挂钩里有多少个钩子：每米 4 个（至少 1 个） */
+function hookGroupCount(s, g){ return Math.max(1, Math.round((g.u1 - g.u0) * HOOK_PER_M)); }
 /* 附件配置（归一化后的只读视图；rows = 托臂排数组，hooks = 挂钩数组） */
 function accOf(s){
   var a = (s && s.acc) || {};
   var rows = [];
   if (Array.isArray(a.armRows)){ a.armRows.forEach(function(r, i){ rows.push(normArmRow(r, i, s)); }); }
-  var hooks = [];
-  if (Array.isArray(a.hooks)){ a.hooks.forEach(function(hk, i){ hooks.push(normHook(hk, i, s)); }); }
+  var hookGroups = [];
+  if (Array.isArray(a.hookGroups)){ a.hookGroups.forEach(function(g, i){ hookGroups.push(normHookGroup(g, i, s)); }); }
   return {
     rows: rows,
-    hooks: hooks,
+    hookGroups: hookGroups,
     rack: (a.rack === 'adult' || a.rack === 'kids') ? a.rack : 'none',
     rackSide: normSide(a.rackSide)
   };
 }
-function accOn(s){ var a = accOf(s); return a.rows.length > 0 || a.rack !== 'none' || a.hooks.length > 0; }
+function accOn(s){ var a = accOf(s); return a.rows.length > 0 || a.rack !== 'none' || a.hookGroups.length > 0; }
 /* 一排托臂挂几台车（范围不足一台时按一台算） */
 function rowFace(s, r, cfg){ return (r.face === 'pos' || r.face === 'neg') ? r.face : accFace(s, cfg); }
 /* 某一面有几排托臂 / 几台车（正面视角的页签计数用） */
@@ -480,33 +489,20 @@ function nextArmZ(s, rawRows){
   return r2(Math.min(Math.max(0.4, h - 0.85), top + 1.2));
 }
 function rackCount(s){ var a = accOf(s); return a.rack === 'none' ? 0 : Math.max(1, Math.round(s.len * RACK_PER_M)); }
-function hookCount(s){ return accOf(s).hooks.length; }
-/* 挂钩的挂载面（'auto' 走货架自动面，与托臂 / 地架同一套规则） */
-function hookFace(s, hk, cfg){ return (hk.face === 'pos' || hk.face === 'neg') ? hk.face : accFace(s, cfg); }
-function hooksOnFace(s, cfg, face){ return accOf(s).hooks.filter(function(hk){ return hookFace(s, hk, cfg) === face; }); }
-/* 新增挂钩的默认位置：沿架均匀铺开（第 n+1 个落在中缝上），高度沿用已有挂钩或 1.5m */
-function nextHookU(s, rawHooks){
-  var SL = (+s.len > 0) ? +s.len : 4;
-  var n = (rawHooks || []).length;
-  var u = SL * (n + 0.5) / (n + 1);
-  return r2(clamp(u, HOOK_U_EDGE, Math.max(HOOK_U_EDGE, SL - HOOK_U_EDGE)));
-}
-function nextHookZ(s, rawHooks){
-  var last = (rawHooks || []).filter(function(h){ return +h.z > 0; }).pop();
-  if (last) return r2(+last.z);
+function hookCount(s){ var n = 0; accOf(s).hookGroups.forEach(function(g){ n += hookGroupCount(s, g); }); return n; }
+/* 挂钩组的挂载面（'auto' 走货架自动面，与托臂排 / 地架同一套规则） */
+function hookGroupFace(s, g, cfg){ return (g.face === 'pos' || g.face === 'neg') ? g.face : accFace(s, cfg); }
+function hookGroupsOnFace(s, cfg, face){ return accOf(s).hookGroups.filter(function(g){ return hookGroupFace(s, g, cfg) === face; }); }
+/* 新增挂钩组的默认高度：与已有组错开 0.6m（先往下、再往上），没有组时用 1.5m */
+function nextHookZ(s, rawGroups){
   var hS = (s.h == null) ? SHELF_H_DEFAULT : +s.h;
-  return r2(Math.min(HOOK_Z_DEFAULT, hS + HOOK_Z_ABOVE));
-}
-/* 「一键成排」：把挂钩按每米 4 个均匀铺开（旧版行为，作为新增入口保留） */
-function hookRowSpecs(s){
-  var SL = (+s.len > 0) ? +s.len : 4;
-  var n = Math.max(1, Math.round(SL * HOOK_ROW_PER_M));
-  var arr = [];
-  for (var i = 0; i < n; i++){
-    arr.push({ u: r2(clamp((i + 0.5) * SL / n, HOOK_U_EDGE, Math.max(HOOK_U_EDGE, SL - HOOK_U_EDGE))),
-               z: Math.min(HOOK_Z_DEFAULT, ((s.h == null) ? SHELF_H_DEFAULT : +s.h) + HOOK_Z_ABOVE) });
-  }
-  return arr;
+  var zMax = hS + HOOK_Z_ABOVE;
+  var zs = (rawGroups || []).map(function(g){ return +g.z || 0; }).filter(function(z){ return z > 0; });
+  if (!zs.length) return r2(Math.min(HOOK_Z_DEFAULT, zMax));
+  var lo = Math.min.apply(null, zs), hi = Math.max.apply(null, zs);
+  var cand = lo - 0.6;
+  if (cand < HOOK_Z_MIN) cand = hi + 0.6;
+  return r2(clamp(cand, HOOK_Z_MIN, zMax));
 }
 
 /* 附件展示面：默认朝空间里更空的一侧（贴墙货架自动朝外，不用手动翻面）。 */
@@ -515,6 +511,23 @@ function accFace(s, cfg){
   if (s.orient === 'h') return (sp.d - (s.y + d)) >= s.y ? 'pos' : 'neg';
   return (sp.w - (s.x + d)) >= s.x ? 'pos' : 'neg';
 }
+/* 各面的「组件数」（托臂排 + 挂钩组 + 地架）：用于新增组件的默认落面与界面提示。
+   用户 2026-09-17 要求：在货架上添加组件时默认落到「组件多的那一面」。 */
+function faceCounts(s, cfg){
+  var a = accOf(s), out = { pos: 0, neg: 0 };
+  a.rows.forEach(function(r){ var f = rowFace(s, r, cfg); out[f] = (out[f] || 0) + 1; });
+  a.hookGroups.forEach(function(g){ var f = hookGroupFace(s, g, cfg); out[f] = (out[f] || 0) + 1; });
+  if (a.rack !== 'none'){ resolveFaces(s, cfg, a.rackSide).forEach(function(f){ out[f] = (out[f] || 0) + 1; }); }
+  return out;
+}
+/* 组件多的那一面；两面一样多返回 null（交给调用方回退到老行为） */
+function busyFace(s, cfg){
+  var c = faceCounts(s, cfg);
+  if (c.pos === c.neg) return null;
+  return (c.pos > c.neg) ? 'pos' : 'neg';
+}
+/* 新增组件的默认面：优先「组件多的那一面」，两面都没有组件时沿用「朝空间更空的一侧」 */
+function defaultAddFace(s, cfg){ return busyFace(s, cfg) || accFace(s, cfg); }
 /* 货架局部坐标 → 世界坐标：u 沿货架（0..len），t 离货架面（正 = 面外）。
    斜放货架（s.rot）的所有附件几何都从这里派生，所以旋转在最后一并施加。 */
 function accPos(s, u, t, face){
@@ -1650,20 +1663,33 @@ function render3D(cfg, view){
         }
       });
     }
-    /* 挂钩（2026-09-17）：每个挂钩自带沿架位置 u 与离地高度 z，不再固定在前缘顶端。
-       形状 = 贴架面的短立柱（挂点底座）+ J 形小钩；斜放货架也正确（端点走 accPos 变换）。 */
-    a2.hooks.forEach(function(hk){
-      var zH = hk.z;
-      resolveFaces(s, cfg, hk.face).forEach(function(faceH){
-        var pBack = accPos(s, hk.u, 0.055, faceH);
-        var pMid  = accPos(s, hk.u, 0.09, faceH);
-        var pTip  = accPos(s, hk.u, 0.16, faceH);
-        var kHook = pMid.x * d3[0] + pMid.y * d3[1] + (zH - 0.10) * d3[2];
-        objBegin([[pBack.x, pBack.y, zH + 0.05], [pTip.x, pTip.y, zH - 0.12]], 0.06);
-        /* 挂点底座（贴架面的小立柱）：避免挂钩看起来悬空 */
-        add1(kHook - 0.01, lineStr([pBack.x, pBack.y, zH + 0.05], [pBack.x, pBack.y, zH - 0.16], '#9aa0a6', 1.3));
-        add1(kHook, lineStr([pMid.x, pMid.y, zH - 0.02], [pMid.x, pMid.y, zH - 0.12], '#7c8288', 0.7));
-        add1(kHook, lineStr([pMid.x, pMid.y, zH - 0.12], [pTip.x, pTip.y, zH - 0.19], '#7c8288', 0.7));
+    /* 挂钩（2026-09-17 第二轮：成组，每米 4 个）：一组 = 一段挂杆（沿架 u0~u1、离地 z），
+       钩子按每米 4 个均布挂在杆下；斜放货架端点走 accPos 变换，整组走射线遮挡登记。 */
+    a2.hookGroups.forEach(function(hg){
+      var zH = hg.z, nH = hookGroupCount(s, hg);
+      resolveFaces(s, cfg, hg.face).forEach(function(faceH){
+        if (shelfRot(s)){
+          var t0H = accLocalT(s, 0.08 - 0.014, faceH), t1H = accLocalT(s, 0.08 + 0.014, faceH);
+          var hCorners = shelfLocalBoxCorners(s, hg.u0, hg.u1, Math.min(t0H, t1H), Math.max(t0H, t1H));
+          var hMid = shelfLocalPt(s, (hg.u0 + hg.u1) / 2, (t0H + t1H) / 2);
+          var hTipR = accPos(s, (hg.u0 + hg.u1) / 2, 0.15, faceH);
+          objBegin([[hMid.x, hMid.y, zH], [hTipR.x, hTipR.y, zH - 0.12]], 0.10);
+          quadBoxAdd(hCorners, zH - 0.026, zH + 0.026, PAL_ACC);
+        } else {
+          var pAH = accPos(s, hg.u0, 0.08, faceH), pBH = accPos(s, hg.u1, 0.08, faceH);
+          var hRail = { x1: Math.min(pAH.x,pBH.x)-0.014, y1: Math.min(pAH.y,pBH.y)-0.014,
+                        x2: Math.max(pAH.x,pBH.x)+0.014, y2: Math.max(pAH.y,pBH.y)+0.014,
+                        z1: zH-0.026, z2: zH+0.026 };
+          objBegin([boxMid(hRail), [pAH.x, pAH.y, zH - 0.12]], 0.10);
+          boxAdd(hRail, PAL_ACC);
+        }
+        for (var kH = 0; kH < nH; kH++){
+          var uH = hg.u0 + (kH + 0.5) * (hg.u1 - hg.u0) / nH;
+          var phH = accPos(s, uH, 0.075, faceH), peH = accPos(s, uH, 0.145, faceH);
+          var kHook = phH.x * d3[0] + phH.y * d3[1] + (zH - 0.11) * d3[2];
+          add1(kHook, lineStr([phH.x, phH.y, zH - 0.026], [phH.x, phH.y, zH - 0.115], '#7c8288', 0.7));
+          add1(kHook, lineStr([phH.x, phH.y, zH - 0.115], [peH.x, peH.y, zH - 0.185], '#7c8288', 0.7));
+        }
         objEnd();
       });
     });
@@ -2228,10 +2254,16 @@ function renderPlan(cfg, ui){
         boxRS(uR-0.05, uR+0.05, 0.05, 0.36, '#d7dadd', '#9aa0a6', 0.02);
       }
     }
-    /* 挂钩：每个挂钩一个独立符号（位置 u 自由，平面只反映沿架位置） */
-    a2.hooks.forEach(function(hk){
-      var phH = accPos(s, hk.u, 0.10, hookFace(s, hk, cfg));
-      o.push('<circle cx="' + r2(phH.x) + '" cy="' + r2(phH.y) + '" r="0.055" fill="#7c8288"/>');
+    /* 挂钩（成组）：一组一段挂杆 + 每米 4 个的均布符号（平面只反映沿架位置） */
+    a2.hookGroups.forEach(function(hg){
+      var faceP = hookGroupFace(s, hg, cfg);
+      var nP = hookGroupCount(s, hg);
+      boxRS(hg.u0, hg.u1, 0.08 - 0.016, 0.08 + 0.016, '#9aa0a6', null, null, faceP);
+      for (var kP = 0; kP < nP; kP++){
+        var uP = hg.u0 + (kP + 0.5) * (hg.u1 - hg.u0) / nP;
+        var phP = accPos(s, uP, 0.105, faceP);
+        o.push('<circle cx="' + r2(phP.x) + '" cy="' + r2(phP.y) + '" r="0.05" fill="#7c8288"/>');
+      }
     });
   });
 
@@ -2563,42 +2595,49 @@ function renderShelfFront(cfg, shelfId, opt){
       + names[viewFace] + '还没有托臂排：点上方「＋短托臂 / ＋长托臂」添加'
       + (otherRows ? '（' + names[otherFace] + '已有 ' + otherRows + ' 排）' : '') + '</text>');
   }
-  /* 挂钩（2026-09-17）：每个挂钩有独立的沿架位置与离地高度，在这里直接拖动 ——
-     这是「不要固定在顶端」的编辑入口；选中态给虚线环与数值。 */
-  var hooksHere = acc.hooks.filter(function(hk){ return hookFace(s, hk, cfg) === viewFace; });
-  hooksHere.forEach(function(hk){
-    var on = String(opt.selHook || '') === String(hk.id);
-    var xh = X(hk.u), yh = Y(hk.z);
-    var glyph = [];
-    /* 挂点底座（贴架面的小立柱）*/
-    glyph.push('<line x1="' + xh + '" y1="' + r2(yh - 0.05 * sc) + '" x2="' + xh + '" y2="' + r2(yh + 0.19 * sc)
-      + '" stroke="#9aa0a6" stroke-width="' + r2(Math.max(1, 0.018 * sc)) + '" stroke-linecap="round"/>');
-    /* J 形钩体：向下 0.12m 后向外下方 0.07m（与 3D 同形） */
-    glyph.push('<path d="M' + xh + ' ' + yh + ' L' + xh + ' ' + r2(yh + 0.12 * sc)
-      + ' L' + r2(+xh + 0.09 * sc) + ' ' + r2(yh + 0.19 * sc) + '" fill="none" stroke="#7c8288"'
-      + ' stroke-width="' + r2(Math.max(1.2, 0.022 * sc)) + '" stroke-linecap="round"/>');
+  /* 挂钩（2026-09-17 第二轮：成组，每米 4 个）：一组 = 一段挂杆 + 均布钩子。
+     整组可拖（左右 + 上下），选中后两端圆点调范围（与托臂排同一套手势）。 */
+  var hookGroupsHere = acc.hookGroups.filter(function(g){ return hookGroupFace(s, g, cfg) === viewFace; });
+  var hookTotalHere = 0;
+  hookGroupsHere.forEach(function(g){ hookTotalHere += hookGroupCount(s, g); });
+  hookGroupsHere.forEach(function(hg){
+    var on = String(opt.selHookGroup || '') === String(hg.id);
+    var nH = hookGroupCount(s, hg);
+    var hx0 = X(hg.u0), hx1 = X(hg.u1), hy = Y(hg.z);
+    var gh = [];
     if (on){
-      glyph.push('<circle cx="' + xh + '" cy="' + r2(yh + 0.07 * sc) + '" r="' + r2(Math.max(10, 0.16 * sc))
-        + '" fill="' + ACC + '" fill-opacity="0.16" stroke="' + ACC + '" stroke-width="1.4" stroke-dasharray="3 3"/>');
+      gh.push('<rect x="' + hx0 + '" y="' + r2(hy - 0.10 * sc) + '" width="' + r2(+hx1 - +hx0) + '" height="' + r2(0.34 * sc)
+        + '" rx="' + r2(0.08 * sc) + '" fill="' + ACC + '" fill-opacity="0.14" stroke="' + ACC + '" stroke-width="1.2"/>');
     }
-    o.push('<g data-hook="' + esc(hk.id) + '" data-id="sh:' + esc(s.id) + '" data-hookz="' + fnum(hk.z) + '" data-hooku="' + fnum(hk.u) + '">'
-      + '<circle cx="' + xh + '" cy="' + r2(yh + 0.07 * sc) + '" r="' + r2(Math.max(10, 0.15 * sc))
-      + '" fill="transparent" style="cursor:grab"/>'
-      + glyph.join('') + '</g>');
+    /* 挂杆（这一组的范围） */
+    gh.push('<rect x="' + hx0 + '" y="' + r2(hy - 0.03 * sc) + '" width="' + r2(+hx1 - +hx0) + '" height="' + r2(0.06 * sc)
+      + '" fill="#c2c8cd" stroke="#9aa0a6" stroke-width="1"/>');
+    /* 钩子：每米 4 个均布（J 形，与 3D 同形） */
+    for (var kH = 0; kH < nH; kH++){
+      var ucH = hg.u0 + (kH + 0.5) * (hg.u1 - hg.u0) / nH;
+      var xhH = X(ucH);
+      gh.push('<path d="M' + xhH + ' ' + r2(hy - 0.01 * sc) + ' L' + xhH + ' ' + r2(hy + 0.115 * sc)
+        + ' L' + r2(+xhH + 0.085 * sc) + ' ' + r2(hy + 0.185 * sc) + '" fill="none" stroke="#7c8288"'
+        + ' stroke-width="' + r2(Math.max(1.1, 0.02 * sc)) + '" stroke-linecap="round"/>');
+    }
+    /* 命中区（整组）：按住拖动 = 移动（左右 + 上下） */
+    gh.push('<g data-hookgroup="' + esc(hg.id) + '" data-id="sh:' + esc(s.id) + '" data-hookg="' + nH + '"'
+      + ' data-hookz="' + fnum(hg.z) + '" data-hooku0="' + fnum(hg.u0) + '" data-hooku1="' + fnum(hg.u1) + '">'
+      + '<rect x="' + hx0 + '" y="' + r2(hy - 0.06 * sc) + '" width="' + r2(Math.max(6, +hx1 - +hx0)) + '" height="' + r2(0.30 * sc)
+      + '" fill="transparent" style="cursor:grab"/></g>');
     if (on){
-      o.push('<text x="' + xh + '" y="' + r2(yh + 0.32 * sc) + '" text-anchor="middle" font-size="11.5" fill="#7a5b06">'
-        + '挂钩 · 离地 ' + fnum(hk.z) + 'm</text>');
+      gh.push('<g data-hookhandle="' + esc(hg.id) + ':0"><circle cx="' + hx0 + '" cy="' + hy + '" r="7" fill="#fff" stroke="' + ACC + '" stroke-width="2" style="cursor:ew-resize"/></g>');
+      gh.push('<g data-hookhandle="' + esc(hg.id) + ':1"><circle cx="' + hx1 + '" cy="' + hy + '" r="7" fill="#fff" stroke="' + ACC + '" stroke-width="2" style="cursor:ew-resize"/></g>');
+      gh.push('<text x="' + r2((+hx0 + +hx1) / 2) + '" y="' + r2(hy - 0.14 * sc) + '" text-anchor="middle" font-size="11.5" fill="#7a5b06">'
+        + '挂钩组 · ' + nH + ' 个（每米 4 个）· 离地 ' + fnum(hg.z) + 'm</text>');
     }
+    o.push('<g data-hookgroupg="' + esc(hg.id) + '">' + gh.join('') + '</g>');
   });
   /* 地架贴在货架前缘 / 地面，正面上本来就看不清，给一行说明避免误以为丢了 */
   var extra = [];
   if (acc.rack !== 'none'){
     var rf = resolveFaces(s, cfg, acc.rackSide);
     extra.push('地架 ' + (rackCount(s) * rf.length) + ' 个' + (rf.length > 1 ? '（两面）' : '·' + names[rf[0]]));
-  }
-  if (acc.hooks.length){
-    var hf = acc.hooks.filter(function(hk){ return hookFace(s, hk, cfg) === viewFace; }).length;
-    extra.push('挂钩 ' + hf + ' 个（本面，可拖动）' + (acc.hooks.length > hf ? ' · ' + names[otherFace] + '另有 ' + (acc.hooks.length - hf) + ' 个' : ''));
   }
   if (extra.length){
     o.push('<text x="' + mx + '" y="' + r2(my + 44) + '" font-size="11.5" fill="' + MUT + '">'
@@ -2609,11 +2648,12 @@ function renderShelfFront(cfg, shelfId, opt){
   o.push('<text x="' + mx + '" y="' + 22 + '" font-size="12.5" fill="' + INK + '">'
     + esc(s.name || '货架') + ' · 长 ' + fnum(L) + 'm · 高 ' + fnum(H) + 'm · ' + (s.kind === 'double' ? '双面' : (s.kind === 'single' ? '单面' : '矮货架'))
     + ' · 正在看「' + names[viewFace] + '」' + (rows.length ? ' · 托臂 ' + rows.length + ' 排 / ' + rowBikes + ' 台' : '')
-    + (hooksHere.length ? ' · 挂钩 ' + hooksHere.length + ' 个（可拖动）' : '')
+    + (hookGroupsHere.length ? ' · 挂钩 ' + hookTotalHere + ' 个（' + hookGroupsHere.length + ' 组，可拖动）' : '')
     + (otherRows ? ' · ' + names[otherFace] + '另有 ' + otherRows + ' 排' : '') + '</text>');
   o.push('</svg>');
   return { svg: o.join(''), meta: { scale: sc, mx: mx, my: my, len: r2(L), h: r2(H), shelfId: s.id,
-    face: viewFace, faceName: names[viewFace], rows: rows.length, otherRows: otherRows, hooks: hooksHere.length } };
+    face: viewFace, faceName: names[viewFace], rows: rows.length, otherRows: otherRows,
+    hookGroups: hookGroupsHere.length, hooks: hookTotalHere } };
 }
 
 /* ======================== ASCII 布局转储（调试用） ======================== */
@@ -2844,31 +2884,60 @@ function migrateLegacy(cfgIn){
     delete c2.studio.peg;
     c2.studio.itemsMigrated = true;
   }
-  /* 挂钩（2026-09-17 用户要求「不要固定在顶端」）：旧的单值开关（每米 4 个、
-     固定在前缘顶端）换算成逐个个体的位置数组 —— 位置 / 高度沿用旧渲染点
-     （顶端 +0.03m），挂载面沿用旧 hookSide（'both' 展开成两面各一组）。
-     幂等：只在没有 hooks 数组时生成；生成后旧键一律删除（单一真值）。 */
+  /* 挂钩（2026-09-17 两轮迭代，用户口径：成组摆放、每米 4 个钩子）：
+     ① 更早版本的单值开关（每米 4 个、固定在前缘顶端）→ 每面一整段挂杆
+        （位置沿用旧渲染点：整长、顶端 +0.03m；hookSide='both' 展开成两面各一组）；
+     ② 中途版本的「逐个挂钩数组」→ 按面 / 高度聚合成组，钩子数量保持不变。
+     幂等：已有 hookGroups 数组时什么都不做；换算后旧键一律删除（单一真值）。 */
   (c2.shelves || []).forEach(function(s){
     var a = s.acc;
     if (!a || typeof a !== 'object') return;
-    if (!Array.isArray(a.hooks)){
-      a.hooks = [];
-      if (a.hook === 'on'){
-        var hmS = (s.h == null) ? SHELF_H_DEFAULT : +s.h;
-        var hmLen = (+s.len > 0) ? +s.len : 4;
-        var hmN = Math.max(1, Math.round(hmLen * HOOK_ROW_PER_M));
-        var hmFaces = (a.hookSide === 'both') ? ['pos', 'neg'] : [normFace(a.hookSide)];
-        hmFaces.forEach(function(faceM){
-          for (var hi = 0; hi < hmN; hi++){
-            a.hooks.push({ id: 'h' + (a.hooks.length + 1),
-              u: r2(clamp((hi + 0.5) * hmLen / hmN, HOOK_U_EDGE, Math.max(HOOK_U_EDGE, hmLen - HOOK_U_EDGE))),
-              z: r2(hmS + 0.03), face: faceM });
-          }
+    if (!Array.isArray(a.hookGroups)){
+      var hLen = (+s.len > 0) ? +s.len : 4;
+      var hH = (s.h == null) ? SHELF_H_DEFAULT : +s.h;
+      var zTop = r2(Math.min(hH + 0.03, hH + HOOK_Z_ABOVE));
+      var found = [];
+      var loose = Array.isArray(a.hooks) ? a.hooks : null;
+      if (loose && loose.length){
+        /* ② 逐个挂钩：同面、间距 ≤0.6m、高度接近的归为一簇（保持钩子数量不变） */
+        var byFace = {};
+        loose.forEach(function(hk){
+          var f = normFace(hk.face);
+          (byFace[f] = byFace[f] || []).push(hk);
         });
+        Object.keys(byFace).forEach(function(f){
+          var list = byFace[f].slice().sort(function(x, y){ return (+x.u || 0) - (+y.u || 0); });
+          var cur = null;
+          list.forEach(function(hk){
+            var u = +hk.u || 0;
+            var z = (+hk.z > 0) ? +hk.z : Math.min(HOOK_Z_DEFAULT, hH + HOOK_Z_ABOVE);
+            if (cur && (u - cur.lastU) <= 0.6 && Math.abs(z - cur.z) <= 0.06){
+              cur.n += 1; cur.lastU = u; cur.z = (cur.z * (cur.n - 1) + z) / cur.n;
+            } else {
+              if (cur) found.push(cur);
+              cur = { face: f, n: 1, firstU: u, lastU: u, z: z };
+            }
+          });
+          if (cur) found.push(cur);
+        });
+        found = found.map(function(cl){
+          var span = Math.max(Math.min(HOOK_MIN_SPAN, hLen), cl.n / HOOK_PER_M);
+          var u0 = cl.firstU - (span - (cl.lastU - cl.firstU)) / 2;
+          if (u0 < 0) u0 = 0;
+          if (u0 + span > hLen) u0 = Math.max(0, hLen - span);
+          return { u0: r2(u0), u1: r2(Math.min(hLen, u0 + span)), z: r2(cl.z), face: cl.face };
+        });
+      } else if (a.hook === 'on'){
+        /* ① 旧开关：每面一整段（沿用旧钩子数：整长 × 每米 4 个） */
+        var faces = (a.hookSide === 'both') ? ['pos', 'neg'] : [normFace(a.hookSide)];
+        faces.forEach(function(f){ found.push({ u0: 0, u1: r2(hLen), z: zTop, face: f }); });
       }
+      found.forEach(function(g, gi){ g.id = 'g' + (gi + 1); });
+      a.hookGroups = found;
     }
     delete a.hook;
     delete a.hookSide;
+    delete a.hooks;
   });
   c2.v = 2;
   return c2;
@@ -2930,17 +2999,19 @@ return {
   defaultArmZ: defaultArmZ,
   rackCount: rackCount,
   hookCount: hookCount,
-  hookFace: hookFace,
-  hooksOnFace: hooksOnFace,
-  nextHookU: nextHookU,
+  hookGroupCount: hookGroupCount,
+  hookGroupFace: hookGroupFace,
+  hookGroupsOnFace: hookGroupsOnFace,
   nextHookZ: nextHookZ,
-  hookRowSpecs: hookRowSpecs,
+  faceCounts: faceCounts,
+  busyFace: busyFace,
+  defaultAddFace: defaultAddFace,
   ARM_SLOT: ARM_SLOT,
-  HOOK_ROW_PER_M: HOOK_ROW_PER_M,
+  HOOK_PER_M: HOOK_PER_M,
   HOOK_Z_DEFAULT: HOOK_Z_DEFAULT,
   HOOK_Z_MIN: HOOK_Z_MIN,
   HOOK_Z_ABOVE: HOOK_Z_ABOVE,
-  HOOK_U_EDGE: HOOK_U_EDGE,
+  HOOK_MIN_SPAN: HOOK_MIN_SPAN,
   ARM_LEN: ARM_LEN,
   SHELF_H_DEFAULT: SHELF_H_DEFAULT,
   BIKE_LEN: BIKE_LEN,

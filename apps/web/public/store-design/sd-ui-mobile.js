@@ -318,9 +318,14 @@ function accNow(o, key){
   return (a && a[key]) ? a[key] : 'none';
 }
 /* 挂钩数量（2026-09-17：挂钩改成逐个可移动的对象） */
-function accHooks(o){
+/* 挂钩（2026-09-17 第二轮：成组，每米 4 个）：快捷条按键 = 加一整组 */
+function accHookGroups(o){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
-  return (a && a.hooks) ? a.hooks.length : 0;
+  return (a && a.hookGroups) ? a.hookGroups.length : 0;
+}
+function accHookTotal(o){
+  var e = window.Engine;
+  return (e && e.hookCount && o) ? e.hookCount(o) : 0;
 }
 function accRows(o){
   var a = (window.Engine && Engine.accOf) ? Engine.accOf(o) : null;
@@ -368,8 +373,8 @@ function selBarHTML(ctx){
       + '<button data-bact="addArm" data-arm="long">＋长托臂</button>'
       + (accRows(o).length ? '<button data-bact="clearArms">清空托臂(' + accRows(o).length + '排)</button>' : '')
       + '<button data-bact="accRack"' + (accNow(o, 'rack') !== 'none' ? ' data-on="true"' : '') + '>地架：' + accLab(accNow(o, 'rack')) + '</button>'
-      + '<button data-bact="accHook"' + (accHooks(o) ? ' data-on="true"' : '') + '>'
-      + (accHooks(o) ? '挂钩：' + accHooks(o) + ' 个' : '＋挂钩成排') + '</button></div>';
+      + '<button data-bact="accHook"' + (accHookGroups(o) ? ' data-on="true"' : '') + '>'
+      + '＋挂钩' + (accHookGroups(o) ? '（' + accHookGroups(o) + ' 组/' + accHookTotal(o) + ' 个）' : '（4 个/米）') + '</button></div>';
   } else if (k === 'si'){
     /* 工作室组件（2026-09-17）：转 90° / 转正 / 长度 / 位置 / 删除 */
     h += '<div class="sd-m-selrow">' + close + '<span class="sd-m-tag">' + esc(itemLabel(o)) + '</span>'

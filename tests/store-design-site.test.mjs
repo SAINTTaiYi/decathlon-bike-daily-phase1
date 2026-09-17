@@ -522,12 +522,11 @@ test('托臂：短/长两种长度与门店口径一致（0.5m / 1m），货架�
   const four = shelfWith(engine, { armRows: [{ id: 'a1', z: 0.9, len: 'short', size: 'kids' }] }, 4)
   assert.equal(engine.accBikesOf(four).filter((b) => b.acc === 'arm').length, 3, '4m 货架 3 台童车/排')
   // 地架 3 个/m；挂钩（2026-09-17 起逐个可移动）「一键成排」按每米 4 个铺开
-  const r1 = shelfWith(engine, { rack: 'kids', hooks: engine.hookRowSpecs({ len: 1, h: 3.3 }) }, 1)
+  const r1 = shelfWith(engine, { rack: 'kids', hookGroups: [{ id: 'g1', u0: 0, u1: 1, z: 1.5 }] }, 1)
   assert.equal(engine.rackCount(r1.shelves[0]), 3, '1m 地架 3 个')
-  assert.equal(engine.hookCount(r1.shelves[0]), 4, '1m 一键成排 4 个挂钩')
-  const hs = engine.accOf(r1.shelves[0]).hooks
-  assert.ok(hs.every((h) => h.u > 0 && h.u < 1), '成排挂钩必须落在货架长度内')
-  assert.ok(hs.every((h) => h.z > 0), '每个挂钩都要有离地高度')
+  assert.equal(engine.hookCount(r1.shelves[0]), 4, '1m 挂钩组 = 4 个钩子（每米 4 个）')
+  const twoM = shelfWith(engine, { hookGroups: [{ id: 'g1', u0: 0, u1: 2, z: 1.5 }] }, 2)
+  assert.equal(engine.hookCount(twoM.shelves[0]), 8, '2m 挂钩组 = 8 个钩子')
   // 默认方案不装任何附件
   const d = engine.defaultConfig()
   assert.equal(engine.accOn(d.shelves[0]), false, '默认货架不装附件')
@@ -770,8 +769,8 @@ test('穿模：附件装在货架另一面时前后不得颠倒（贴南墙 = �
   assert.ok(eng.includes("occl(sBox, 'shelf:' + s.id);"), '货架必须登记为实心遮挡体')
   assert.ok(eng.includes('objBegin([boxMid(aBox), boxMid(cBox)], 0.06);'), '托臂必须作为摆件走射线定位')
   assert.ok(eng.includes('objBegin([boxMid(rBox), boxMid(rStub)], 0.12);'), '地架必须作为摆件走射线定位')
-  assert.ok(eng.includes('objBegin([[pBack.x, pBack.y, zH + 0.05], [pTip.x, pTip.y, zH - 0.12]], 0.06);'),
-    '挂钩必须作为摆件走射线定位（每个挂钩自带高度 zH，不再共用顶端的横杆）')
+  assert.ok(eng.includes('objBegin([boxMid(hRail), [pAH.x, pAH.y, zH - 0.12]], 0.10);'),
+    '挂钩组必须作为摆件走射线定位（整组一段挂杆，自带高度 zH）')
   assert.ok(eng.includes('loc(-0.55, 0, 0.35), loc(0.55, 0, 0.35), loc(0, 0, 0.18),'),
     '自行车必须沿车身取多个采样点（一半被挡也能按段处理）')
   assert.ok(!eng.includes('attachFacesCamera'), '只看相机侧的旧判定不得残留（删旧不覆盖）')
@@ -862,7 +861,7 @@ test('货架正面视角：双端页签 + 入口 + 交互接线', () => {
   // 新加的托臂排默认范围 = 这排车的实际占位（默认就能左右移动），而不是整根货架
   assert.ok(app.includes('var span = Math.min(shelfLen, Math.round(fit * E.ARM_SLOT[size] * 100) / 100);'),
     '新排默认范围必须按车位数计算')
-  assert.ok(app.includes('size: size, u0: 0, u1: span }'), '新排必须使用计算出的范围')
+  assert.ok(app.includes('size: size, u0: 0, u1: span, face: faceWanted }'), '新排必须使用计算出的范围并写入默认面')
   assert.ok(app.includes("ui.frontRow = rowId;"), '点选一排必须记录排 id（用于高亮与手柄）')
   const schema = stripComments(toolSchema)
   assert.ok(schema.includes("action('openFront', s.id, '🧍 正面视角')"), '元素清单必须有正面视角入口')
@@ -923,7 +922,7 @@ test('双面货架：托臂排 / 地架 / 挂钩可分别指定挂载面（两�
         { id: 'a2', z: 2.15, len: 'long', size: 'adult', u0: 0, u1: 4, face: 'neg' }
       ],
       rack: 'kids', rackSide: 'both',
-      hooks: [{ id: 'h1', u: 1.5, z: 1.4, face: 'neg' }, { id: 'h2', u: 3.5, z: 2.2, face: 'neg' }]
+      hookGroups: [{ id: 'g1', u0: 1.5, u1: 5.5, z: 1.4, face: 'neg' }]
     }
   })]
   const s = c.shelves[0]
@@ -973,9 +972,12 @@ test('双面货架：托臂排 / 地架 / 挂钩可分别指定挂载面（两�
   assert.ok(appSrc.includes('data-frontface="neg"'), '必须有面按钮（neg）')
   assert.ok(appSrc.includes('function frontFaceSet(id, face){'), '切面必须重渲染')
   assert.ok(appSrc.includes('function mirrorRowsToOtherFace(s){'), '必须有「镜像到另一面」（另一面一键加排）')
-  assert.ok(appSrc.includes("var faceWanted = (ui.tab === 'tfront') ? frontFaceOf(s) : null;"),
-    '新加的排必须落到当前正在看的那一面')
-  assert.ok(appSrc.includes("if (faceWanted) row.face = faceWanted;"), '新排必须写入 face')
+  assert.ok(appSrc.includes('var faceWanted = faceForNewComponent(s);'),
+    '新加的排必须落到默认面（正面视角 = 正在看的那面；其它地方 = 组件多的那一面）')
+  assert.ok(appSrc.includes('function faceForNewComponent(s){'), '默认落面判定必须有单独实现')
+  assert.ok(appSrc.includes("if (ui.tab === 'tfront') return frontFaceOf(s);"), '正面视角优先用「正在看的那一面」')
+  assert.ok(appSrc.includes('return E.defaultAddFace(s, cfg);'), '其它地方默认落到组件多的那一面')
+  assert.ok(appSrc.includes('u0: 0, u1: span, face: faceWanted }'), '新排必须写入 face')
   assert.ok(appSrc.includes('var onFace = rows.filter(function(r){ return (r.face === faceWanted); });'),
     '层高避让只看同一面已有的排（两面各自排层）')
   const schema = stripComments(toolSchema)
@@ -983,8 +985,8 @@ test('双面货架：托臂排 / 地架 / 挂钩可分别指定挂载面（两�
     '属性栏每一排都要能选挂载面')
   assert.ok(schema.includes("select('shelves.' + i + '.acc.rackSide', '　地架挂载面', acc.rackSide, SIDE_OPTS)"),
     '属性栏地架要能选挂载面（含两面）')
-  assert.ok(schema.includes("select('shelves.' + i + '.acc.hooks.' + hi + '.face', '　挂载面', hk.face, FACE_OPTS)"),
-    '属性栏每个挂钩都要能选挂载面')
+  assert.ok(schema.includes("select('shelves.' + i + '.acc.hookGroups.' + gi + '.face', '　挂载面', hg.face, FACE_OPTS)"),
+    '属性栏每个挂钩组都要能选挂载面（选项里带该面组件数）')
 })
 
 test('穿模深度修复：大面细分 + 逐部件排序 + 每货架每面排序键', async () => {
@@ -1496,67 +1498,75 @@ test('云端图纸：工具侧保存 / 载入接线（同源接口、CSRF、冲�
   assert.ok(mobileCss.includes('.sd-m-cloudbox') && mobileCss.includes('.sd-m-cloudstatus') && mobileCss.includes('.sd-m-cloud'), '移动端云端样式必须落地')
 })
 
-test('挂钩：可自由移动（逐个位置 + 正面视角拖动 + 旧开关迁移），不再固定在顶端', async () => {
+test('挂钩：成组摆放、每米 4 个（整组拖动 + 两端调范围 + 旧数据迁移）', async () => {
   const engine = await loadToolEngine()
   const c = engine.defaultConfig()
   c.bikes = []
   c.shelves = [Object.assign({}, c.shelves[0], {
     id: 's1', kind: 'single', orient: 'h', x: 4, y: 6, len: 4, h: 3.3,
-    acc: { hooks: [{ id: 'h1', u: 0.8, z: 0.6 }, { id: 'h2', u: 3.1, z: 2.6 }] }
+    acc: { hookGroups: [{ id: 'g1', u0: 1, u1: 3, z: 1.2 }, { id: 'g2', u0: 0, u1: 4, z: 2.4, face: 'neg' }] }
   })]
   const s = c.shelves[0]
-  /* ① 数据模型：每个挂钩独立的沿架位置与离地高度（不再共用「顶端」） */
-  const hooks = engine.accOf(s).hooks
-  assert.equal(hooks.length, 2, '两个挂钩各自成条目')
-  /* 注意：engine 在 vm 沙箱里跑，数组元素是「另一个 realm 的对象」 —— 断言前要摊成宿主值 */
-  assert.deepEqual([...hooks].map((h) => [Number(h.u), Number(h.z)]), [[0.8, 0.6], [3.1, 2.6]],
-    '位置 / 高度按写入值保留（自由摆放）')
-  assert.equal(engine.hookCount(s), 2, '挂钩计数 = 条目数')
-  /* ② 越界夹取：位置夹在货架内、高度夹在 0.15m ~ 架高 + 0.30m */
-  const clampC = Object.assign({}, s, { acc: { hooks: [{ id: 'x1', u: 99, z: 99 }] } })
-  const cl = engine.accOf(clampC).hooks[0]
-  assert.ok(cl.u <= 4 - engine.HOOK_U_EDGE + 1e-6 && cl.u > 0, '沿架位置必须夹在货架内（留边）')
+  /* ① 数据模型：一组 = 一段挂杆（沿架起点/终点 + 离地高度），钩子每米 4 个 */
+  const groups = engine.accOf(s).hookGroups
+  assert.equal(groups.length, 2, '两组挂钩各自成条目')
+  assert.deepEqual([...groups].map((g) => [Number(g.u0), Number(g.u1), Number(g.z)]),
+    [[1, 3, 1.2], [0, 4, 2.4]], '位置 / 高度按写入值保留（自由摆放）')
+  assert.equal(engine.hookGroupCount(s, groups[0]), 8, '2m 的组 = 8 个钩子（每米 4 个）')
+  assert.equal(engine.hookGroupCount(s, groups[1]), 16, '4m 的组 = 16 个钩子')
+  assert.equal(engine.hookCount(s), 24, '挂钩总数 = 各组之和')
+  /* ② 夹取：位置在货架内、至少一个钩子的跨度、高度 0.15m ~ 架高 + 0.30m */
+  const cl = engine.accOf(Object.assign({}, s, { acc: { hookGroups: [{ id: 'x', u0: -2, u1: 99, z: 99 }] } })).hookGroups[0]
+  assert.equal(cl.u0, 0, '起点夹到 0')
+  assert.equal(cl.u1, 4, '终点夹到货架长度')
   assert.equal(cl.z, 3.6, '高度上限 = 架高 + 0.30m')
-  assert.equal(engine.accOf(Object.assign({}, s, { acc: { hooks: [{ id: 'x2', u: 1, z: 0.01 }] } })).hooks[0].z,
+  const tiny = engine.accOf(Object.assign({}, s, { acc: { hookGroups: [{ id: 'x', u0: 1, u1: 1.01, z: 1 }] } })).hookGroups[0]
+  assert.ok(tiny.u1 - tiny.u0 >= engine.HOOK_MIN_SPAN - 1e-6, '跨度至少 = 1 个钩子')
+  assert.equal(engine.accOf(Object.assign({}, s, { acc: { hookGroups: [{ id: 'x', u0: 0, u1: 1, z: 0.01 }] } })).hookGroups[0].z,
     engine.HOOK_Z_MIN, '高度下限 = 0.15m')
-  /* ③ 3D / 平面按各自高度渲染（改 z 必须换位置 —— 旧版所有挂钩挤在顶端） */
+  /* ③ 3D / 平面按组渲染（改高度必须换位置；钩子数量 = 每米 4 个） */
   const svgLow = engine.render3D(c, { az: 90, el: 33, zoom: 1, vw: 1000, vh: 700 })
   const moved = JSON.parse(JSON.stringify(c))
-  moved.shelves[0].acc.hooks[0].z = 2.0
+  moved.shelves[0].acc.hookGroups[0].z = 2.0
   const svgHigh = engine.render3D(moved, { az: 90, el: 33, zoom: 1, vw: 1000, vh: 700 })
-  assert.notEqual(svgLow, svgHigh, '改挂钩高度后 3D 必须重画（说明高度真的生效）')
-  assert.ok((svgLow.match(/#7c8288/gu) || []).length >= 4, '两个挂钩各有一根 J 形钩体')
+  assert.notEqual(svgLow, svgHigh, '改挂钩组高度后 3D 必须重画')
+  assert.ok((svgLow.match(/#7c8288/gu) || []).length >= 24, '两组共 24 个钩体都要画出来')
   const plan = engine.renderPlan(c, { sel: null })
-  assert.equal((plan.match(/r="0.055"/gu) || []).length, 2, '平面按挂钩个数画符号')
-  /* ④ 正面视角：挂钩可见、可拖动（带 data-hook 命中区与当前高度） */
+  assert.equal((plan.match(/r="0.05"/gu) || []).length, 24, '平面按钩子个数画符号')
+  /* ④ 正面视角：整组可拖动（带 data-hookgroup），选中后两端手柄可调范围 */
   const fr = engine.renderShelfFront(c, 's1', { vw: 1000, vh: 640, face: 'pos' })
-  assert.equal(fr.meta.hooks, 2, '正面视角必须知道本面有几个挂钩')
-  assert.equal((fr.svg.match(/data-hook="/gu) || []).length, 2, '每个挂钩都要有可点的命中区')
-  assert.ok(fr.svg.includes('data-hookz="0.6"') && fr.svg.includes('data-hookz="2.6"'),
-    '命中区必须带当前高度（拖动读数用）')
-  assert.ok(!/NaN|undefined/u.test(fr.svg), '正面视角不得出现 NaN/undefined')
-  const sel = engine.renderShelfFront(c, 's1', { vw: 1000, vh: 640, face: 'pos', selHook: 'h2' })
-  assert.ok(sel.svg.includes('挂钩 · 离地 2.6m'), '选中的挂钩要标出离地高度')
-  /* ⑤ 接线：拖动 / 增删 / 属性栏字段 / 快捷条 */
+  assert.equal(fr.meta.hookGroups, 1, '正面视角只看当前面的组')
+  assert.equal(fr.meta.hooks, 8, '当前面的钩子数 = 每米 4 个 × 跨度')
+  assert.equal((fr.svg.match(/data-hookgroup="/gu) || []).length, 1, '每组一个整组命中区')
+  assert.ok(fr.svg.includes('data-hookz="1.2"') && fr.svg.includes('data-hookg="8"'),
+    '命中区必须带当前高度与钩子数（拖动读数用）')
+  const sel = engine.renderShelfFront(c, 's1', { vw: 1000, vh: 640, face: 'pos', selHookGroup: 'g1' })
+  assert.equal((sel.svg.match(/data-hookhandle="/gu) || []).length, 2, '选中的组要有两端手柄（调范围）')
+  assert.ok(sel.svg.includes('挂钩组 · 8 个（每米 4 个）'), '选中的组要标出钩子数与高度')
+  assert.ok(!/NaN|undefined/u.test(fr.svg + sel.svg), '正面视角不得出现 NaN/undefined')
+  /* ⑤ 接线：整组拖动 / 手柄调范围 / 增删 / 属性栏字段 */
   const appSrc = stripComments(toolApp)
-  assert.ok(appSrc.includes("closest('[data-hook]')"), '正面视角指针事件必须能命中挂钩')
-  assert.ok(appSrc.includes('function dragFrontHook(e, sc, svgEl, m, s, el){'), '必须有专门的挂钩拖动实现')
-  assert.ok(appSrc.includes('hk.u = Math.round(E.clamp(Math.round((start.u + du) / 0.05) * 0.05, E.HOOK_U_EDGE, uMax) * 100) / 100;'),
-    '拖动要同时改沿架位置（0.05m 栅格、夹在货架内）')
-  assert.ok(appSrc.includes('hk.z = Math.round(E.clamp(Math.round((start.z + dz) / 0.05) * 0.05, E.HOOK_Z_MIN, m.h + E.HOOK_Z_ABOVE) * 100) / 100;'),
-    '拖动要同时改离地高度（0.15m ~ 架高 + 0.30m）')
-  for (const fn of ['function addHooksRow(', 'function addHookAt(', 'function delHookById(', 'function clearHooks(', 'function frontHookGet(']) {
+  assert.ok(appSrc.includes("closest('[data-hookgroup]')") && appSrc.includes("closest('[data-hookhandle]')"),
+    '正面视角指针事件必须能命中挂钩组与两端手柄')
+  assert.ok(appSrc.includes('function dragFrontHookGroup(e, sc, svgEl, m, s, el){'), '必须有挂钩组拖动实现')
+  assert.ok(appSrc.includes('hg.u0 = r2c(E.clamp(grid05(start.u0 + du), 0, Math.max(0, start.u1 - spanMin)));'),
+    '左手柄改起点（夹在货架内、留出最小跨度）')
+  assert.ok(appSrc.includes('hg.u1 = r2c(E.clamp(grid05(start.u1 + du), Math.min(m.len, start.u0 + spanMin), m.len));'),
+    '右手柄改终点（夹在货架内、留出最小跨度）')
+  assert.ok(appSrc.includes('hg.z = r2c(E.clamp(grid05(start.z + dz), E.HOOK_Z_MIN, m.h + E.HOOK_Z_ABOVE));'),
+    '整组拖动同时改离地高度')
+  for (const fn of ['function addHookGroup(', 'function delHookGroupById(', 'function clearHooks(', 'function frontHookGroupGet(']) {
     assert.ok(appSrc.includes(fn), 'app.js 必须实现 ' + fn)
   }
-  assert.ok(appSrc.includes("toast('挂钩：沿架 '"), '拖完必须报出新的位置 / 高度')
-  assert.ok(appSrc.includes("document.querySelector('[data-act=\"addHook\"]')") === false, '占位断言：新增动作不得只在测试里存在')
+  assert.ok(appSrc.includes("toast('挂钩组：' + n + ' 个（每米 4 个）"), '拖完必须报出新的位置 / 高度')
   const schemaSrc = stripComments(toolSchema)
-  assert.ok(schemaSrc.includes("number('shelves.' + i + '.acc.hooks.' + hi + '.u', '　沿架位置', hk.u,"), '属性栏要能改沿架位置')
-  assert.ok(schemaSrc.includes("number('shelves.' + i + '.acc.hooks.' + hi + '.z', '　离地高度', hk.z,"), '属性栏要能改离地高度')
-  assert.ok(schemaSrc.includes("action('addHook', s.id, '＋挂钩')"), '大纲要有单个新增')
+  for (const piece of ['.acc.hookGroups.', '　沿架起点', '　沿架终点', '　离地高度']) {
+    assert.ok(schemaSrc.includes(piece), '属性栏挂钩组字段缺少：' + piece)
+  }
+  assert.ok(schemaSrc.includes("action('addHook', s.id, '＋挂钩（4 个/米）')"), '大纲要有新增入口')
   assert.ok(schemaSrc.includes("action('clearHooks', s.id, '清空挂钩', 'danger')"), '大纲要有清空')
-  assert.ok(!/acc\.hook[^s]/u.test(schemaSrc), '旧的单值挂钩开关字段必须消失（删旧不覆盖）')
-  /* ⑥ 旧配置迁移：开关（每米 4 个、顶端）→ 逐个个体的位置数组 */
+  assert.ok(!/acc\.hooks\b/u.test(schemaSrc), '旧的「逐个挂钩」字段必须消失（删旧不覆盖）')
+  /* ⑥ 迁移：旧开关（每米 4 个、顶端）→ 每面一整组；中途版逐个挂钩 → 聚合成组（数量不变） */
   const legacy = engine.defaultConfig()
   legacy.shelves = [{ id: 'z1', name: '', kind: 'double', orient: 'h', x: 2, y: 2, len: 2, h: 3.3,
     acc: { armRows: [], rack: 'none', hook: 'on', hookSide: 'both' } }]
@@ -1564,13 +1574,59 @@ test('挂钩：可自由移动（逐个位置 + 正面视角拖动 + 旧开关�
   const ma = mig.shelves[0].acc
   assert.equal(ma.hook, undefined, '旧单值开关必须删除（单一真值）')
   assert.equal(ma.hookSide, undefined, '旧挂载面键必须删除')
-  assert.equal(ma.hooks.length, 16, "hookSide='both' → 两面各 8 个（每米 4 个）")
-  assert.ok(ma.hooks.every((h) => Math.abs(h.z - 3.33) < 1e-6), '迁移后沿用旧渲染高度（顶端 +0.03m）')
-  assert.equal(ma.hooks.filter((h) => h.face === 'pos').length, 8, '两面各自成组')
-  const mig2 = engine.migrateLegacy(mig)
-  assert.equal(JSON.stringify(mig2.shelves[0].acc.hooks), JSON.stringify(ma.hooks), '迁移必须幂等')
-  /* 用户清空后不得被迁移复活 */
+  assert.equal(ma.hookGroups.length, 2, "hookSide='both' → 两面各一组")
+  assert.equal(engine.hookCount(mig.shelves[0]), 16, '2m 货架两面共 16 个钩子（沿用旧密度）')
+  assert.ok(engine.accOf(mig.shelves[0]).hookGroups.every((g) => Math.abs(g.z - 3.33) < 1e-6),
+    '迁移后沿用旧渲染高度（顶端 +0.03m）')
+  assert.equal(engine.migrateLegacy(mig).shelves[0].acc.hookGroups.length, 2, '迁移必须幂等')
+  const interim = engine.defaultConfig()
+  const loose = []
+  for (let i = 0; i < 16; i++) loose.push({ id: 'h' + (i + 1), u: 0.125 + i * 0.25, z: 1.5, face: 'auto' })
+  interim.shelves = [{ id: 'z2', name: '', kind: 'double', orient: 'h', x: 2, y: 2, len: 4, h: 3.3,
+    acc: { armRows: [], rack: 'none', hooks: loose } }]
+  const mig2 = engine.migrateLegacy(interim)
+  assert.equal(mig2.shelves[0].acc.hooks, undefined, '中途版的逐个挂钩数组必须删除')
+  assert.equal(mig2.shelves[0].acc.hookGroups.length, 1, '16 个均布挂钩聚合成 1 组')
+  assert.equal(engine.hookCount(mig2.shelves[0]), 16, '聚合后钩子数量不变')
+  const g2 = engine.accOf(mig2.shelves[0]).hookGroups[0]
+  assert.ok(Number(g2.u1) - Number(g2.u0) <= 4, '聚合出的组不得超出货架')
   const cleared = JSON.parse(JSON.stringify(mig))
-  cleared.shelves[0].acc.hooks = []
-  assert.equal(engine.migrateLegacy(cleared).shelves[0].acc.hooks.length, 0, '清空后不得复活')
+  cleared.shelves[0].acc.hookGroups = []
+  assert.equal(engine.migrateLegacy(cleared).shelves[0].acc.hookGroups.length, 0, '用户清空后不得复活')
+})
+
+test('挂载面：新增组件默认落到「组件多的那一面」（两面一样多才回退到朝空侧）', async () => {
+  const engine = await loadToolEngine()
+  const mk = (rows, rack) => {
+    const c = engine.defaultConfig()
+    c.bikes = []
+    c.space = { w: 23, d: 17 }
+    c.shelves = [Object.assign({}, c.shelves[0], {
+      id: 's1', kind: 'double', orient: 'h', x: 4, y: 8, len: 4, h: 3.3,
+      acc: { armRows: rows, rack: rack || 'none', hookGroups: [] }
+    })]
+    return c
+  }
+  const row = (face) => ({ id: 'a' + Math.random().toString(36).slice(2, 6), z: 0.9, len: 'short', size: 'kids', u0: 0, u1: 2, face })
+  /* 北面已有 2 排 → 默认落面必须跟着北面（哪怕南面更空） */
+  const c1 = mk([row('neg'), row('neg')])
+  assert.equal(engine.accFace(c1.shelves[0], c1), 'pos', '这一场景里「朝空侧」是南面（pos）')
+  assert.deepEqual({ ...engine.faceCounts(c1.shelves[0], c1) }, { pos: 0, neg: 2 }, '北面 2 个组件')
+  assert.equal(engine.busyFace(c1.shelves[0], c1), 'neg', '组件多的面 = 北面')
+  assert.equal(engine.defaultAddFace(c1.shelves[0], c1), 'neg', '默认落面必须跟组件多的那一面走')
+  /* 只有一套地架、两面都装（both）→ 两面各 1 个组件 = 平手，回退「朝空侧」 */
+  const c2 = mk([], 'kids')
+  const c2s = c2.shelves[0]
+  c2.shelves[0].acc.rackSide = 'both'
+  assert.deepEqual({ ...engine.faceCounts(c2s, c2) }, { pos: 1, neg: 1 }, '两面一样多')
+  assert.equal(engine.busyFace(c2s, c2), null, '平手时没有「更多」的一方')
+  assert.equal(engine.defaultAddFace(c2s, c2), engine.accFace(c2s, c2), '平手 → 回退朝空侧（老行为）')
+  /* 接线：新增组件都走默认落面；正面视角没手动切面时也看「组件多的那一面」 */
+  const appSrc = stripComments(toolApp)
+  assert.ok(appSrc.includes('var faceWanted = faceForNewComponent(s);'), '新增托臂排必须走默认落面')
+  assert.ok(appSrc.includes('return E.defaultAddFace(s, cfg);'), '正面视角默认面 = 组件多的那一面')
+  assert.ok(!/return E\.accFace\(s, cfg\);\n\}/u.test(appSrc.slice(appSrc.indexOf('function frontFaceOf(s){'), appSrc.indexOf('function frontFaceSet') - 20)),
+    '正面视角的默认面不得再直接用「朝空侧」（要跟组件多的那一面走）')
+  assert.ok(appSrc.includes('s.acc.rackSide = faceForNewComponent(s);'),
+    '地架首次装上时必须落到组件多的那一面')
 })

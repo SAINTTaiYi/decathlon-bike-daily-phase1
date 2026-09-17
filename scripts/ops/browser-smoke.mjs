@@ -164,8 +164,8 @@ async function main(){
       fail('A 页无法选中工作室，跨端内容验证未执行')
     }
 
-    /* 挂钩（2026-09-17 用户要求「可自由移动，而不是固定在顶端」）：
-       正面视角里新增一个挂钩 → 出现在可拖动命中区 → 再把它删掉（净零，不留痕）。 */
+    /* 挂钩（2026-09-17 用户口径：成组摆放、每米 4 个钩子）：
+       正面视角里新增一整组 → 出现可拖动命中区（含钩子数/高度）→ 再把它删掉（净零）。 */
     const pickedShelf = await pageA.evaluate(() => {
       const g = document.querySelector('#tabplan [data-id^="sh:"]')
       if (!g) return null
@@ -186,7 +186,7 @@ async function main(){
       fail('挂钩验证前置失败：货架选择或「正面视角」入口回归（shelf=' + String(pickedShelf) + '）')
     } else {
       const hooksBefore = await pageA.evaluate(() =>
-        Array.prototype.slice.call(document.querySelectorAll('#viewfront [data-hook]')).map((g) => g.getAttribute('data-hook'))
+        Array.prototype.slice.call(document.querySelectorAll('#viewfront [data-hookgroup]')).map((g) => g.getAttribute('data-hookgroup'))
       )
       const hookAdded = await pageA.evaluate(() => {
         const b = document.querySelector('[data-act="addHook"]')
@@ -195,21 +195,31 @@ async function main(){
       })
       await sleep(800)
       const hooksAfter = await pageA.evaluate(() =>
-        Array.prototype.slice.call(document.querySelectorAll('#viewfront [data-hook]')).map((g) => g.getAttribute('data-hook'))
+        Array.prototype.slice.call(document.querySelectorAll('#viewfront [data-hookgroup]')).map((g) => g.getAttribute('data-hookgroup'))
       )
       const fresh = hooksAfter.filter((id) => hooksBefore.indexOf(id) < 0)
       if (hookAdded && hooksAfter.length === hooksBefore.length + 1 && fresh.length === 1){
-        pass('挂钩：正面视角可新增可拖动挂钩（' + hooksBefore.length + ' → ' + hooksAfter.length + '）')
-        const removed = await pageA.evaluate((hookId) => {
-          const b = document.querySelector('[data-act="delHook"][data-id$=":' + hookId + '"]')
+        /* 成组的两个硬指标：一组带「每米 4 个」的钩子数、带当前高度 */
+        const probe = await pageA.evaluate((groupId) => {
+          const el = document.querySelector('#viewfront [data-hookgroup="' + groupId + '"]')
+          return el ? { hooks: Number(el.getAttribute('data-hookg')), z: Number(el.getAttribute('data-hookz')) } : null
+        }, fresh[0])
+        if (probe && probe.hooks >= 1 && probe.z > 0){
+          pass('挂钩：正面视角可新增挂钩组（' + hooksBefore.length + ' → ' + hooksAfter.length
+            + ' 组，' + probe.hooks + ' 个钩子）')
+        } else {
+          fail('挂钩组命中区缺少钩子数 / 高度：' + JSON.stringify(probe))
+        }
+        const removed = await pageA.evaluate((groupId) => {
+          const b = document.querySelector('[data-act="delHookGroup"][data-id$=":' + groupId + '"]')
           if (b) { b.click(); return true }
           return false
         }, fresh[0])
         await sleep(600)
-        const restored = await pageA.evaluate((hookId) =>
-          !document.querySelector('#viewfront [data-hook="' + hookId + '"]'), fresh[0])
-        if (removed && restored) pass('挂钩：验证用挂钩已删除（房间净零）')
-        else fail('挂钩还原失败（delHook 或渲染回归）')
+        const restored = await pageA.evaluate((groupId) =>
+          !document.querySelector('#viewfront [data-hookgroup="' + groupId + '"]'), fresh[0])
+        if (removed && restored) pass('挂钩：验证用挂钩组已删除（房间净零）')
+        else fail('挂钩还原失败（delHookGroup 或渲染回归）')
       } else {
         fail('挂钩新增异常：' + hooksBefore.length + ' → ' + hooksAfter.length)
       }
