@@ -128,8 +128,31 @@ async function main(){
   else if (broadcast) pass('增量广播送达另一连接（from 为空，展示名缺失可接受）')
   else fail('A 的增量未广播到 B')
 
+  // 4) 常驻房间持久化：写入一个真实 Yjs 标记，再开新连接确认能读到既有状态。
+  //    标记键（smoke:last-run）在工具物化时被忽略（只提取已知配置键），无副作用。
+  const yjs = requireWs('yjs')
+  const writerDoc = new yjs.Doc()
+  writerDoc.getMap('cfg').set('smoke:last-run', String(Date.now()))
+  const realUpdate = yjs.encodeStateAsUpdate(writerDoc)
+  wsA.send(JSON.stringify({ t: 'u', u: Buffer.from(realUpdate).toString('base64') }))
+  await new Promise((resolve) => setTimeout(resolve, 400))
+
+  const wsC = await openSocket(headers)
+  wsC.send(JSON.stringify({ t: 'hello', sv: '' }))
+  const syncC = await waitMessage(wsC, (m) => m.t === 'sync', 10000).catch(() => null)
+  if (syncC && typeof syncC.u === 'string' && syncC.u.length > 4){
+    const checkDoc = new yjs.Doc()
+    yjs.applyUpdate(checkDoc, Buffer.from(syncC.u, 'base64'))
+    const marker = checkDoc.getMap('cfg').get('smoke:last-run')
+    if (typeof marker === 'string' && marker.length > 0) pass('常驻房间持久化：新连接读到既有状态（smoke:last-run=' + marker + '）')
+    else fail('新连接 sync 未包含既有状态标记')
+  } else {
+    fail('新连接 sync 内容为空，持久化可疑')
+  }
+
   try { wsA.close() } catch (e) {}
   try { wsB.close() } catch (e) {}
+  try { wsC.close() } catch (e) {}
 }
 
 const guard = setTimeout(() => {

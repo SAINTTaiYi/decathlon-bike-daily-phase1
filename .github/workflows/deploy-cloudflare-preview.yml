@@ -252,7 +252,7 @@ jobs:
             exit 0
           fi
           mkdir -p /tmp/ws-smoke
-          node scripts/ops/network-guard.mjs npm/registry npm install --prefix /tmp/ws-smoke ws@8 --silent --no-fund --no-audit
+          node scripts/ops/network-guard.mjs npm/registry npm install --prefix /tmp/ws-smoke ws@8 yjs@13 --silent --no-fund --no-audit
           SMOKE_BASE_URL="$PREVIEW_BASE_URL" SMOKE_USERNAME="$PREVIEW_SMOKE_USERNAME" SMOKE_PASSWORD="$PREVIEW_SMOKE_PASSWORD" node scripts/ops/ws-smoke.mjs
       - name: Seed admin-console acceptance data (opt-in, Preview D1 only)
         if: ${{ inputs.seed_preview_data }}
