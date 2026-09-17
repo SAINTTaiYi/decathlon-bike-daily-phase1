@@ -238,6 +238,22 @@ jobs:
           done
           echo "::error::Preview identity did not converge to $APP_VERSION / $RELEASE_SHA"
           exit 1
+      - name: Smoke the realtime design WebSocket (multi-client sync)
+        # 门店设计实时协作（2026-09-17）：验证 WS 端点全链路 ——
+        # 未登录被拒 / 登录 / hello 对账 / 增量广播 / 在线名单。
+        # 未配置冒烟账号时跳过（其他环境不会因此失败）。
+        env:
+          PREVIEW_SMOKE_USERNAME: ${{ secrets.PREVIEW_SMOKE_USERNAME }}
+          PREVIEW_SMOKE_PASSWORD: ${{ secrets.PREVIEW_SMOKE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PREVIEW_SMOKE_USERNAME:-}" ] || [ -z "${PREVIEW_SMOKE_PASSWORD:-}" ]; then
+            echo "::warning::PREVIEW_SMOKE_USERNAME/PASSWORD 未配置，跳过实时协作冒烟"
+            exit 0
+          fi
+          mkdir -p /tmp/ws-smoke
+          node scripts/ops/network-guard.mjs npm/registry npm install --prefix /tmp/ws-smoke ws@8 --silent --no-fund --no-audit
+          SMOKE_BASE_URL="$PREVIEW_BASE_URL" SMOKE_USERNAME="$PREVIEW_SMOKE_USERNAME" SMOKE_PASSWORD="$PREVIEW_SMOKE_PASSWORD" node scripts/ops/ws-smoke.mjs
       - name: Seed admin-console acceptance data (opt-in, Preview D1 only)
         if: ${{ inputs.seed_preview_data }}
         run: |
