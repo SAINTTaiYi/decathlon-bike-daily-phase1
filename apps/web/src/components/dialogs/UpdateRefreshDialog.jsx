@@ -4,55 +4,20 @@ import { APP_VERSION, currentRelease } from '../../data/releaseNotes.js'
 import { fetchReleaseInfo, onServerVersion } from '../../api/client.js'
 import { registerPendingAnnouncement, registerVisibleAnnouncement } from '../../utils/announcementVisibility.js'
 
-const STORAGE_KEY = 'workshop.ledger.seen-app-version'
-const DISMISSED_REMOTE_KEY = 'workshop.ledger.dismissed-remote-version'
-const VERSION_ENDPOINT = '/api/v1/meta/version'
+import {
+  DISMISSED_REMOTE_KEY,
+  fetchRemoteAppVersion,
+  isValidVersion,
+  readSeenVersion,
+  readStorage,
+  writeSeenVersion,
+  writeStorage
+} from '../../utils/appVersion.js'
+
 /** How often a visible tab re-checks the server while idle. */
 const POLL_INTERVAL_MS = 30_000
 /** Minimum gap between interaction-triggered checks (scroll/tap/edit). */
 const INTERACTION_THROTTLE_MS = 30_000
-
-function readStorage(key) {
-  try {
-    return window.localStorage.getItem(key) || ''
-  } catch {
-    return ''
-  }
-}
-
-function writeStorage(key, value) {
-  try {
-    window.localStorage.setItem(key, value)
-  } catch {
-    // Ignore private-mode / storage failures; the prompt may reappear.
-  }
-}
-
-function readSeenVersion() {
-  return readStorage(STORAGE_KEY)
-}
-
-function writeSeenVersion(version) {
-  writeStorage(STORAGE_KEY, version)
-}
-
-function isValidVersion(value) {
-  return typeof value === 'string' && /^\d+\.\d+\.\d+$/u.test(value)
-}
-
-async function fetchRemoteAppVersion(signal) {
-  const response = await fetch(`${VERSION_ENDPOINT}?_=${Date.now()}`, {
-    method: 'GET',
-    credentials: 'same-origin',
-    cache: 'no-store',
-    headers: { accept: 'application/json' },
-    signal
-  })
-  if (!response.ok) return ''
-  const payload = await response.json().catch(() => null)
-  const version = payload?.appVersion || payload?.version || ''
-  return isValidVersion(version) ? version : ''
-}
 
 export default function UpdateRefreshDialog({ enabled = true, onDismissed }) {
   const [open, setOpen] = useState(false)

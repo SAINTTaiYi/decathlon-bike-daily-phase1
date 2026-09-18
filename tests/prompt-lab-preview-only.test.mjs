@@ -21,11 +21,19 @@ test('仅 preview / localhost 渲染，绝不出现在生产域名', async () =>
   )
 })
 
-test('只碰 localStorage 记账键，不调接口、不伪造版本号', async () => {
+test('只碰 localStorage 记账键；版本闸门模拟仅会话内存改写版本端点', async () => {
   const source = await readFile(LAB, 'utf8')
   assert.ok(!/fetch\(/u.test(source), '调试面板不得发起网络请求')
-  assert.ok(!/setItem\(/u.test(source), '不得写入伪造值，只允许清除记账键')
+  assert.ok(!/setItem\(/u.test(source), '不得写入伪造值，只允许清除记账键（模拟只许放内存）')
   assert.ok(/removeItem\(/u.test(source), '需要通过 removeItem 清空记账键')
+  // 版本闸门模拟（2026-09-18）：只拦版本端点、只在本会话内存、安装点受 preview 门控。
+  assert.ok(
+    /import \{ VERSION_ENDPOINT \} from '\.\.\/utils\/appVersion\.js'/u.test(source),
+    '版本端点必须复用共享常量，不得另写一份字面量'
+  )
+  assert.ok(/url\.includes\(VERSION_ENDPOINT\)/u.test(source), '模拟只能命中版本端点')
+  assert.ok(/let mockedRemoteVersion = ''/u.test(source), '模拟值必须放模块内存，不得落盘')
+  assert.ok(/realRequest\.apply\(this, arguments\)/u.test(source), '未命中时必须回退真实请求')
   for (const key of [
     'workshop.ledger.seen-app-version',
     'workshop.ledger.dismissed-remote-version',

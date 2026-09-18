@@ -55,10 +55,15 @@ test('npm 脚本暴露 version:backend，且 check:version 接受后缀构建版
 })
 
 test('前端版本比较正则保持三段式：后端后缀不会触发「请刷新」公告', async () => {
+  // 2026-09-18：判定函数收敛到 utils/appVersion.js（更新公告与版本闸门共用）。
+  const versionUtils = await read('apps/web/src/utils/appVersion.js')
   const dialog = await read('apps/web/src/components/dialogs/UpdateRefreshDialog.jsx')
-  assert.match(dialog, /isValidVersion/u)
+  assert.match(versionUtils, /isValidVersion/u)
   // 源文件字面量：/^\d+\.\d+\.\d+$/u —— 只认三段式公开版本。
-  assert.ok(dialog.includes('/^\\d+\\.\\d+\\.\\d+$/u'), '前端只认三段式公开版本')
+  assert.ok(versionUtils.includes('/^\\d+\\.\\d+\\.\\d+$/u'), '前端只认三段式公开版本')
+  // 组件必须消费共享判定，不得自己再写一份正则。
+  assert.match(dialog, /isValidVersion/u)
+  assert.match(dialog, /from '\.\.\/\.\.\/utils\/appVersion\.js'/)
   // 后端构建版本带后缀 → 前端判定为无效版本 → 静默忽略，不弹窗。
   assert.equal(/^\d+\.\d+\.\d+$/u.test(`${APP_VERSION}-1`), false)
 })

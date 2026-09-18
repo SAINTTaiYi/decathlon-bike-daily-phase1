@@ -1,0 +1,56 @@
+/* 版本闸门（2026-09-18）：闭店 / 导出日报图前的旧页面拦截弹窗。
+   与更新公告（.update-refresh-*）是同一视觉家族，但独立命名空间，
+   两个弹窗的样式互不牵制（改一个不会动到另一个）。 */
+.app-dialog.version-gate-dialog {
+  width: min(calc(100% - 1rem), 34rem);
+}
+
+.version-gate-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.version-gate-card > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.version-gate-card span {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .05em;
+}
+
+.version-gate-card strong {
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -.03em;
+}
+
+.version-gate-copy {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.version-gate-copy p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.version-gate-actions {
+  margin-top: 6px;
+}
+
+@media (max-width: 420px) {
+  .version-gate-card { grid-template-columns: 1fr; }
+  .version-gate-actions { grid-template-columns: 1fr; }
+}

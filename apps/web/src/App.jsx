@@ -26,6 +26,7 @@ import GovernanceDialog from './components/dialogs/GovernanceDialog.jsx'
 import ShipHubSettingsDialog from './components/dialogs/ShipHubSettingsDialog.jsx'
 import ReportImageDialog from './components/dialogs/ReportImageDialog.jsx'
 import UpdateRefreshDialog from './components/dialogs/UpdateRefreshDialog.jsx'
+import VersionGateDialog from './components/dialogs/VersionGateDialog.jsx'
 import MenuDialog from './components/dialogs/MenuDialog.jsx'
 import OperationHistoryDialog from './components/dialogs/OperationHistoryDialog.jsx'
 import HandoverTodoDialog from './components/dialogs/HandoverTodoDialog.jsx'
@@ -45,6 +46,7 @@ import useEnvironmentMotion from './hooks/useEnvironmentMotion.js'
 import useVisualViewportMetrics from './hooks/useVisualViewportMetrics.js'
 import useShipHub from './hooks/useShipHub.js'
 import useShipHubReconnectPrompt from './hooks/useShipHubReconnectPrompt.js'
+import useVersionGate from './hooks/useVersionGate.js'
 import useStoreRealtime from './hooks/useStoreRealtime.js'
 import OpeningScene from './scenes/OpeningScene.jsx'
 import PickupScene from './scenes/PickupScene.jsx'
@@ -296,6 +298,11 @@ export default function App() {
     storeId: currentStore?.storeId || '',
     canManage: role === 'manager' || role === 'admin'
   })
+
+  // 版本闸门（2026-09-18 用户定案 B）：闭店与导出日报图前，先确认页面不是旧缓存。
+  // 日报图由本地代码绘制 —— V6.8.3 的页面在 V6.8.6 上线后仍导出黑色主题日报图（实测）。
+  // fail-open + 5 分钟记忆 + 「仍要继续」逃生门，见 hooks/useVersionGate.js 头注释。
+  const versionGate = useVersionGate()
   const loginScrollResetRef = useRef(false)
   useLayoutEffect(() => {
     if (!authenticated) {
@@ -550,7 +557,7 @@ export default function App() {
       jumpToRequirement()
       return
     }
-    setConfirmOpen(true)
+    versionGate.guard(() => setConfirmOpen(true), { label: '闭店' })
   }
 
   const generateClosingReport = useCallback(async (snapshot = {}, { automatic = false } = {}) => {
@@ -619,7 +626,7 @@ export default function App() {
     }
   }, [currentStore?.storeName, currentUser, reportImage, shiphub, workflow.closedAt, workflow.dateKey, workflow.kpi, workflow.records])
 
-  const confirmClose = async () => {
+  const performClose = async () => {
     // `result.day` is returned by the close transaction itself. It is authoritative even before React's background refresh settles.
     const result = await workflow.completeClosing()
     if (!result.ok) return setToast({ message: result.error, tone: 'error' })
@@ -634,7 +641,11 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const exportClosingReport = async () => generateClosingReport()
+  // 闭店是写入动作，且闭店完成后会立刻自动生成日报图 —— 确认前再校验一次版本。
+  const confirmClose = () => versionGate.guard(performClose, { label: '闭店' })
+
+  // 导出日报图前校验页面版本：图由本地代码绘制，旧页面画出的是旧主题（黑色）。
+  const exportClosingReport = () => versionGate.guard(() => generateClosingReport(), { label: '导出日报图' })
 
   const closeReportImage = () => {
     if (reportImage?.revoke) reportImage.revoke()
@@ -1003,6 +1014,7 @@ export default function App() {
         filename={reportImage?.filename || ''}
         onDownload={redownloadReportImage}
       />
+      <VersionGateDialog {...versionGate.dialogProps} />
       <StatusToast notice={toast} />
       <PaletteLab />
       <PromptLab onResetReconnect={shiphubReconnectPrompt.reset} />
