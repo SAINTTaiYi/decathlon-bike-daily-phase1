@@ -194,6 +194,34 @@ jobs:
             printf '%s' "$BI_PERFECO_API_KEY" | wrangler secret put BI_PERFECO_API_KEY --config wrangler.preview.jsonc
             printf '%s' "$BI_SPD_API_KEY" | wrangler secret put BI_SPD_API_KEY --config wrangler.preview.jsonc
           fi
+      - name: Inject SNB (food auto-registration) secrets into the Preview Worker
+        env:
+          SNB_CLIENT_ID: ${{ secrets.SNB_CLIENT_ID }}
+          SNB_CLIENT_SECRET: ${{ secrets.SNB_CLIENT_SECRET }}
+          SNB_RDS_API_KEY: ${{ secrets.SNB_RDS_API_KEY }}
+          SNB_RECEPTION_API_KEY: ${{ secrets.SNB_RECEPTION_API_KEY }}
+          SNB_MOVEMENTS_API_KEY: ${{ secrets.SNB_MOVEMENTS_API_KEY }}
+          SNB_LOGIN_KEY: ${{ secrets.SNB_LOGIN_KEY }}
+          SNB_LOGIN_USERNAME_ENC: ${{ secrets.SNB_LOGIN_USERNAME_ENC }}
+          SNB_LOGIN_PASSWORD_ENC: ${{ secrets.SNB_LOGIN_PASSWORD_ENC }}
+          FOOD_AUTO_BOUND_STORE: ${{ secrets.FOOD_AUTO_BOUND_STORE }}
+        run: |
+          set -euo pipefail
+          # 八项齐全才注入：食品自动登记影子系统缺任一凭据整体优雅不可用
+          # （/api/v1/food-auto/status configured:false，界面提示但绝不崩），不阻塞部署。
+          if [ -n "$SNB_CLIENT_ID" ] && [ -n "$SNB_CLIENT_SECRET" ] && [ -n "$SNB_RDS_API_KEY" ] && [ -n "$SNB_RECEPTION_API_KEY" ] && [ -n "$SNB_MOVEMENTS_API_KEY" ] && [ -n "$SNB_LOGIN_KEY" ] && [ -n "$SNB_LOGIN_USERNAME_ENC" ] && [ -n "$SNB_LOGIN_PASSWORD_ENC" ]; then
+            printf '%s' "$SNB_CLIENT_ID" | wrangler secret put SNB_CLIENT_ID --config wrangler.preview.jsonc
+            printf '%s' "$SNB_CLIENT_SECRET" | wrangler secret put SNB_CLIENT_SECRET --config wrangler.preview.jsonc
+            printf '%s' "$SNB_RDS_API_KEY" | wrangler secret put SNB_RDS_API_KEY --config wrangler.preview.jsonc
+            printf '%s' "$SNB_RECEPTION_API_KEY" | wrangler secret put SNB_RECEPTION_API_KEY --config wrangler.preview.jsonc
+            printf '%s' "$SNB_MOVEMENTS_API_KEY" | wrangler secret put SNB_MOVEMENTS_API_KEY --config wrangler.preview.jsonc
+            printf '%s' "$SNB_LOGIN_KEY" | wrangler secret put SNB_LOGIN_KEY --config wrangler.preview.jsonc
+            printf '%s' "$SNB_LOGIN_USERNAME_ENC" | wrangler secret put SNB_LOGIN_USERNAME_ENC --config wrangler.preview.jsonc
+            printf '%s' "$SNB_LOGIN_PASSWORD_ENC" | wrangler secret put SNB_LOGIN_PASSWORD_ENC --config wrangler.preview.jsonc
+            printf '%s' "$FOOD_AUTO_BOUND_STORE" | wrangler secret put FOOD_AUTO_BOUND_STORE --config wrangler.preview.jsonc
+          else
+            echo "SNB secrets not fully configured; skipping injection (food auto-registration stays gracefully disabled)."
+          fi
       - name: Inject D1 metrics read token into the Preview Worker
         env:
           D1_METRICS_TOKEN: ${{ secrets.D1_METRICS_TOKEN }}

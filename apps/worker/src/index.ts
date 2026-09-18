@@ -23,6 +23,7 @@ import { biRoutes } from './routes/bi.js'
 import { d1MetricsRoutes } from './routes/d1-metrics.js'
 import { foodRoutes } from './routes/food.js'
 import { designRoutes } from './routes/design.js'
+import { foodAutoRoutes } from './routes/food-auto.js'
 import { runScheduledShipHubSync } from './services/shiphub-sync.js'
 import { BI_SCHEDULED_CRON, runScheduledBiSync } from './services/bi-weekly.js'
 import { runD1UsageAlert } from './services/d1-usage-alert.js'
@@ -77,7 +78,8 @@ app.use('*', async (c, next) => {
         CSRF_SECRET: 'public-route-placeholder-not-used',
         PASSWORD_PEPPER: 'public-route-placeholder-not-used',
         SHIPHUB: { enabled: false, mode: 'fixture', liveConfirmed: false, oauthScope: 'read', requestTimeoutMs: 8000, activeStartHour: 10, activeEndHour: 22 },
-        MASTERDATA: { authorizeUrl: 'https://idpdecathlon.oxylane.com/as/authorization.oauth2', tokenUrl: 'https://idpdecathlon.oxylane.com/as/token.oauth2', redirectUri: 'com.decathlon.authentication://com.oxylane.android.cubeinstore', scope: 'openid profile', baseUrl: 'https://api-cn.decathlon.com.cn' }
+        MASTERDATA: { authorizeUrl: 'https://idpdecathlon.oxylane.com/as/authorization.oauth2', tokenUrl: 'https://idpdecathlon.oxylane.com/as/token.oauth2', redirectUri: 'com.decathlon.authentication://com.oxylane.android.cubeinstore', scope: 'openid profile', baseUrl: 'https://api-cn.decathlon.com.cn' },
+        SNB: {}
       })
     }
     const origin = c.req.header('origin')
@@ -132,6 +134,7 @@ app.route('/', biRoutes())
 app.route('/', d1MetricsRoutes())
 app.route('/', foodRoutes())
 app.route('/', designRoutes())
+app.route('/', foodAutoRoutes())
 
 app.all('/api/v1/attachments/*', (c) => c.json({
   error: 'MEDIA_DISABLED',

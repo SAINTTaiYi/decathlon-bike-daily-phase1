@@ -53,6 +53,21 @@ export interface WorkerEnv {
   /** 门店设计实时协作房间（每门店一个 Durable Object，2026-09-17 起）。
       可选绑定：未配置时实时协作端点返回结构化 503，工具退回手动保存模式。 */
   DESIGN_ROOM?: DurableObjectNamespace
+  /** 食品自动登记影子系统（2026-09-18）：部署级 SNB/Cube 凭据的绑定门店码。 */
+  FOOD_AUTO_BOUND_STORE?: string
+  /** SNB（Stock'n Business）oauth client —— APK 内注册一致，redirect 走 inventory scheme。 */
+  SNB_CLIENT_ID?: string
+  SNB_CLIENT_SECRET?: string
+  /** api.decathlon.net 网关 key（RDS 效期查询 / stockcontrol-bff）。 */
+  SNB_RDS_API_KEY?: string
+  /** api-cn 网关 key（stock-reception 收货单）。 */
+  SNB_RECEPTION_API_KEY?: string
+  /** api-cn 网关 key（retail-stock-movements 收货流水）。 */
+  SNB_MOVEMENTS_API_KEY?: string
+  /** SNB 账密（CHU13）AES-256-GCM 加密存储，同 BI_MASTERDATA_LOGIN_* 模式。 */
+  SNB_LOGIN_KEY?: string
+  SNB_LOGIN_USERNAME_ENC?: string
+  SNB_LOGIN_PASSWORD_ENC?: string
 }
 
 export interface ShipHubConfig {
@@ -96,6 +111,7 @@ export interface AppConfig {
   RESEND_FROM?: string
   SHIPHUB: ShipHubConfig
   MASTERDATA: MasterDataConfig
+  SNB: SnbConfig
 }
 
 // BI 车型名 masterdata 同步配置：CubeInStore 联邦 OAuth（全球 IdP，PKCE）+
@@ -176,6 +192,36 @@ function loadShipHubConfig(env: WorkerEnv): ShipHubConfig {
   }
 }
 
+// 食品自动登记影子系统配置（2026-09-18）。
+// 上游凭据为部署级（CHU13），凭据属于谁就只服务谁：FOOD_AUTO_BOUND_STORE
+// 指定绑定门店码，路由层对其它门店一律 403。SNB clientId/secret 来自
+// Stock'n Business APK 注册（公开可提取），账密与网关 key 走 CF secret。
+export type SnbConfig = {
+  boundStoreCode?: string
+  clientId?: string
+  clientSecret?: string
+  rdsApiKey?: string
+  receptionApiKey?: string
+  movementsApiKey?: string
+  loginKey?: string
+  loginUsernameEnc?: string
+  loginPasswordEnc?: string
+}
+
+function loadSnbConfig(env: WorkerEnv): SnbConfig {
+  return {
+    boundStoreCode: env.FOOD_AUTO_BOUND_STORE,
+    clientId: env.SNB_CLIENT_ID,
+    clientSecret: env.SNB_CLIENT_SECRET,
+    rdsApiKey: env.SNB_RDS_API_KEY,
+    receptionApiKey: env.SNB_RECEPTION_API_KEY,
+    movementsApiKey: env.SNB_MOVEMENTS_API_KEY,
+    loginKey: env.SNB_LOGIN_KEY,
+    loginUsernameEnc: env.SNB_LOGIN_USERNAME_ENC,
+    loginPasswordEnc: env.SNB_LOGIN_PASSWORD_ENC
+  }
+}
+
 export function loadConfig(env: WorkerEnv): AppConfig {
   const required = ['SESSION_SECRET', 'CSRF_SECRET', 'PASSWORD_PEPPER'] as const
   for (const key of required) {
@@ -203,6 +249,7 @@ export function loadConfig(env: WorkerEnv): AppConfig {
     RESEND_API_KEY: env.RESEND_API_KEY,
     RESEND_FROM: env.RESEND_FROM,
     SHIPHUB: loadShipHubConfig(env),
-    MASTERDATA: loadMasterDataConfig(env)
+    MASTERDATA: loadMasterDataConfig(env),
+    SNB: loadSnbConfig(env)
   }
 }

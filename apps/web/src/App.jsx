@@ -54,7 +54,7 @@ import SalesScene from './scenes/SalesScene.jsx'
 import { getAdminPendingCount } from './api/admin.js'
 import { foodSiteUrl, isFoodOnlySite, isMassOnlySite, isOpsProductionSite, massSiteUrl, opsSiteUrl } from './utils/siteMode.js'
 import AppSelect from './components/appselect/AppSelect.jsx'
-import FoodApp from './components/food/FoodApp.jsx'
+import FoodSiteApp from './components/food/FoodSiteApp.jsx'
 import StoreDesignApp from './components/storedesign/StoreDesignApp.jsx'
 
 // 闭店自动同步 Shiphub 的等待上限：sync() 内部含 202 回捞等待，
@@ -988,7 +988,7 @@ export default function App() {
           容器还会承载 GSAP 动效残留的 transform，fixed 元素若在其中会以容器为
           定位基准，高度不足就露出底部 Ops dock（同日用户截图确认）。 */}
       {showAppSelect ? <AppSelect userName={currentUser} storeName={currentStore?.storeName} closeState={workflow.closedAt ? 'closed' : 'open'} onChoose={chooseApp} /> : null}
-      {introDone && effectiveApp === 'food' ? <FoodApp enabled={authenticated && !introLocked} userName={currentUser} storeName={currentStore?.storeName} role={role} onExit={exitFoodApp} exitLabel={foodOnlySite ? '去 Workshop Ops ↗' : '返回应用选择'} onNotify={setToast} /> : null}
+      {introDone && effectiveApp === 'food' ? <FoodSiteApp enabled={authenticated && !introLocked} userName={currentUser} storeName={currentStore?.storeName} role={role} onExit={exitFoodApp} exitLabel={foodOnlySite ? '去 Workshop Ops ↗' : '返回应用选择'} onNotify={setToast} /> : null}
       {/* 门店设计渲染（2026-09-15）：独立站点 mass.workshop.skin 的宿主外壳。
           工具本体是 /store-design/ 下的静态页（~/web/store-3d 的原样发布副本，
           只在 index.html 加了页头退出按钮并附带 embed.js 钩子），这里只负责
