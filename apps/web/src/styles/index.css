@@ -24,6 +24,9 @@
 @import './frosted.css';
 @import './d1-metrics.css';
 
+/* 版本闸门（2026-09-18）：闭店/导出日报图前的旧页面拦截 */
+@import './version-gate.css';
+
 /* 食品保质期台账 + 应用选择屏（2026-09-13，双端双命名空间） */
 @import './food-ledger.css';
 

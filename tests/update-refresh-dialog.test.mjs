@@ -5,9 +5,13 @@ import { APP_VERSION } from '../apps/web/src/data/releaseNotes.js'
 
 const source = readFileSync(new URL('../apps/web/src/components/dialogs/UpdateRefreshDialog.jsx', import.meta.url), 'utf8')
 const appSource = readFileSync(new URL('../apps/web/src/App.jsx', import.meta.url), 'utf8')
+// 2026-09-18：版本判定与存储键收敛到 utils/appVersion.js（公告与版本闸门共用一份，
+// 避免两处解析/存储逻辑漂移）。键与端点断言跟着搬到该模块，组件侧只断言「消费它」。
+const versionUtils = readFileSync(new URL('../apps/web/src/utils/appVersion.js', import.meta.url), 'utf8')
 
 test('更新提示使用稳定 localStorage key，并绑定当前 APP_VERSION', () => {
-  assert.match(source, /workshop\.ledger\.seen-app-version/)
+  assert.match(versionUtils, /workshop\.ledger\.seen-app-version/)
+  assert.match(source, /from '\.\.\/\.\.\/utils\/appVersion\.js'/)
   assert.match(source, /APP_VERSION/)
   assert.equal(typeof APP_VERSION, 'string')
   assert.match(APP_VERSION, /^\d+\.\d+\.\d+$/)
@@ -54,8 +58,9 @@ test('更新弹窗全 App 只有一处挂载点，且位于跨分支稳定的外
 })
 
 test('已打开页面通过前台聚焦、定时轮询与交互节流检查服务端版本', () => {
-  assert.match(source, /\/api\/v1\/meta\/version/)
-  assert.match(source, /cache:\s*['"]no-store['"]/)
+  assert.match(versionUtils, /\/api\/v1\/meta\/version/)
+  assert.match(versionUtils, /cache:\s*['"]no-store['"]/)
+  assert.match(source, /fetchRemoteAppVersion/)
   assert.match(source, /addEventListener\('focus'/)
   assert.match(source, /visibilitychange/)
   assert.match(source, /setInterval/)
@@ -65,7 +70,8 @@ test('已打开页面通过前台聚焦、定时轮询与交互节流检查服�
   assert.match(source, /keydown/)
   assert.match(source, /input/)
   assert.match(source, /scroll/)
-  assert.match(source, /dismissed-remote-version/)
+  assert.match(versionUtils, /dismissed-remote-version/)
+  assert.match(source, /DISMISSED_REMOTE_KEY/)
   assert.match(source, /document\.visibilityState/)
 })
 
