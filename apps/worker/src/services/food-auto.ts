@@ -571,18 +571,28 @@ async function fetchItemMovements(config: AppConfig, item: string, window: { sta
   return []
 }
 
-/** 回查今日已确认收货单（逐商品扫收货流水）。 */
+/**
+ * 回查今日已确认收货单（逐商品扫收货流水）。
+ *
+ * 分页是硬要求（2026-09-18 复核发现的隐患）：免费版 Worker 单次请求最多 50 个
+ * 子请求，而食品清单有 168 个商品——一次全扫会在第 47 个左右被平台拒绝，
+ * 后续商品全部记失败（表现为「悄悄只查了一半」）。因此调用方必须翻页，
+ * 每页 ≤40 个商品（含可能的登录 3 次，共 43 个子请求，留足余量）。
+ */
 export async function discoverTodayReceptions(
   config: AppConfig,
-  options: { items: string[]; now?: Date; onProgress?: (done: number, total: number, found: number) => void }
+  options: { items: string[]; offset?: number; limit?: number; now?: Date; onProgress?: (done: number, total: number, found: number) => void }
 ): Promise<DiscoverResult> {
   const window = movementsWindow(options.now)
   const since = todayBjStartUtcIso(options.now)
+  const offset = Math.max(0, options.offset ?? 0)
+  const limit = Math.min(50, Math.max(1, options.limit ?? 40))
+  const slice = options.items.slice(offset, offset + limit)
   const findings: ReceiptFinding[] = []
   let scanned = 0
   let failed = 0
 
-  const queue = [...options.items]
+  const queue = [...slice]
   const worker = async () => {
     for (;;) {
       const item = queue.shift()
@@ -604,11 +614,19 @@ export async function discoverTodayReceptions(
       } catch {
         failed += 1
       }
-      options.onProgress?.(scanned + failed, options.items.length, findings.length)
+      options.onProgress?.(scanned + failed, slice.length, findings.length)
     }
   }
   await Promise.all(Array.from({ length: 6 }, worker))
 
   const receptionIds = [...new Set(findings.map((row) => row.receptionId).filter(Boolean))]
-  return { receptionIds, findings, scanned, failed }
+  return {
+    receptionIds,
+    findings,
+    scanned,
+    failed,
+    total: options.items.length,
+    offset: offset + slice.length,
+    done: offset + slice.length >= options.items.length
+  }
 }

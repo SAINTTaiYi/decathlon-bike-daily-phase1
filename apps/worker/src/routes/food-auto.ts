@@ -93,10 +93,13 @@ export function foodAutoRoutes() {
   app.post('/api/v1/food-auto/discover', ...read, async (c) => {
     const config = c.get('config')
     assertBoundStore(config, c.get('auth')!)
-    const body = (await c.req.json().catch(() => ({}))) as { items?: unknown }
+    const body = (await c.req.json().catch(() => ({}))) as { items?: unknown; offset?: unknown; limit?: unknown }
     const requested = normalizeItems(body.items)
     const items = requested.length ? requested.map((row) => row.item) : Object.keys(FOOD_SHELF_LIFE_BY_ITEM)
-    const result = await upstream(() => discoverTodayReceptions(config, { items }))
+    // 分页（50 子请求上限）：每页 ≤40 个商品，客户端按 offset/done 翻页。
+    const offset = Number.isInteger(body.offset) && (body.offset as number) >= 0 ? (body.offset as number) : 0
+    const limit = Number.isInteger(body.limit) && (body.limit as number) > 0 ? Math.min(body.limit as number, 50) : 40
+    const result = await upstream(() => discoverTodayReceptions(config, { items, offset, limit }))
     return c.json(result)
   })
 

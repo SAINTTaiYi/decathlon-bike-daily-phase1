@@ -160,7 +160,7 @@ test('编排 hook：全链路调用顺序与实时事件流（一个字也要更
   const sequence = [
     'getFoodAutoStatus(signal)',
     'fetchFoodAutoReceptions(signal)',
-    'discoverFoodAutoReceptions(signal)',
+    'discoverFoodAutoReceptions({ offset, limit: 40 }, signal)',
     'fetchFoodAutoReceptionItems({ receptionId',
     'buildFoodAutoPlan({ items: planItems }, signal)',
     'scanFoodAutoSegment({ item: segment.item',
@@ -185,7 +185,13 @@ test('编排 hook：全链路调用顺序与实时事件流（一个字也要更
   assert.match(autoHook, /运行已取消/u, '取消必须走 AbortController 并在事件流留痕')
   // ④ 失败段不阻断整批
   assert.match(autoHook, /段失败/u)
-  // ⑤ 判定载荷必须走「批次摘要」（免费层 CPU 约束：原始记录直传会 5 倍超限）
+  // ⑤ 收货单回查必须分页（50 子请求上限：168 商品一次性回查会在第 47 个左右被拒）
+  assert.match(autoHook, /discoverFoodAutoReceptions\(\{ offset, limit: 40 \}, signal\)/u, '回查必须逐页驱动')
+  assert.match(autoHook, /if \(page\.done \|\| pageNo >= 10\) break/u, '翻页需有上限护栏')
+  assert.match(workerRoutes, /offset = Number\.isInteger\(body\.offset\)/u, '路由必须接受 offset')
+  assert.match(workerService, /const slice = options\.items\.slice\(offset, offset \+ limit\)/u, '服务层必须切片后再扫')
+  assert.match(workerService, /Math\.min\(50, Math\.max\(1, options\.limit \?\? 40\)\)/u, '每页上限 50（默认 40）')
+  // ⑥ 判定载荷必须走「批次摘要」（免费层 CPU 约束：原始记录直传会 5 倍超限）
   assert.match(autoHook, /function buildAggregates\(recordsByItem\)/u, '必须有客户端摘要压缩')
   assert.match(autoHook, /const aggregates = buildAggregates\(recordsRef\.current\)/u)
   assert.doesNotMatch(autoHook, /judgeFoodAutoRecords\(\{ items: planItems, records/u, '不得直传原始记录')

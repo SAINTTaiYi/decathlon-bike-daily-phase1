@@ -163,13 +163,33 @@ export function useFoodAuto() {
       } else {
         emit('待收货列表为空 —— 从收货流水回查今日已确认的收货单…', 'warn')
         setPhase('回查今日收货流水…')
-        const discovered = await discoverFoodAutoReceptions(signal)
-        emit(`流水回查：扫描 ${discovered.scanned} 个商品｜今日 receipt ${discovered.findings.length} 条｜收货单 ${discovered.receptionIds.length} 张${discovered.failed ? `（${discovered.failed} 个商品查询失败）` : ''}`)
-        for (const row of discovered.findings.slice(0, 40)) {
+        // 分页驱动（上游单次 50 子请求上限）：每页 40 个商品，逐页报进度。
+        const allFindings = []
+        const receptionIds = new Set()
+        let offset = 0
+        let pageNo = 0
+        let scannedTotal = 0
+        let failedTotal = 0
+        for (;;) {
+          const page = await discoverFoodAutoReceptions({ offset, limit: 40 }, signal)
+          pageNo += 1
+          allFindings.push(...page.findings)
+          for (const id of page.receptionIds) receptionIds.add(id)
+          scannedTotal += page.scanned
+          failedTotal += page.failed
+          emit(
+            `  · 流水回查第 ${pageNo} 页：${page.offset}/${page.total} 个商品｜本页 receipt ${page.findings.length} 条${page.failed ? `（${page.failed} 个查询失败）` : ''}`,
+            page.findings.length ? 'hit' : 'info'
+          )
+          if (page.done || pageNo >= 10) break
+          offset = page.offset
+        }
+        emit(`流水回查完成：扫描 ${scannedTotal} 个商品${failedTotal ? `（${failedTotal} 个失败）` : ''}｜今日 receipt ${allFindings.length} 条｜收货单 ${receptionIds.size} 张`, 'target')
+        for (const row of allFindings.slice(0, 40)) {
           emit(`  · 收货 ${nameOf(row.item)} ×${row.delta}｜单号 ${row.receptionId}｜${fmtDateTime(row.at)}`, 'hit')
         }
-        if (discovered.findings.length > 40) emit(`  …其余 ${discovered.findings.length - 40} 条省略`)
-        queue = discovered.receptionIds.map((receptionId) => ({ receptionId, state: 'RECEIVED', expectedAt: null, packageCount: 0, itemCount: 0, totalQuantities: 0 }))
+        if (allFindings.length > 40) emit(`  …其余 ${allFindings.length - 40} 条省略`)
+        queue = [...receptionIds].map((receptionId) => ({ receptionId, state: 'RECEIVED', expectedAt: null, packageCount: 0, itemCount: 0, totalQuantities: 0 }))
         if (!queue.length) throw new Error('今天没有待收货单，也没有查到已确认的收货单。')
       }
       setReceptions(queue)

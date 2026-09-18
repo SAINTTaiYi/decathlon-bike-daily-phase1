@@ -8,7 +8,7 @@ export const getFoodAutoStatus = (signal) => api('/api/v1/food-auto/status', { s
 
 export const fetchFoodAutoReceptions = (signal) => api('/api/v1/food-auto/receptions', { method: 'POST', body: {}, signal })
 
-export const discoverFoodAutoReceptions = (signal) => api('/api/v1/food-auto/discover', { method: 'POST', body: {}, signal })
+export const discoverFoodAutoReceptions = (body = {}, signal) => api('/api/v1/food-auto/discover', { method: 'POST', body, signal })
 
 export const fetchFoodAutoReceptionItems = (body, signal) =>
   api('/api/v1/food-auto/reception-items', { method: 'POST', body, signal })

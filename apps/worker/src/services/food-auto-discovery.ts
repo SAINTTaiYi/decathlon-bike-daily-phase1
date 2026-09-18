@@ -20,8 +20,14 @@ export type ReceiptFinding = {
 export type DiscoverResult = {
   receptionIds: string[]
   findings: ReceiptFinding[]
+  /** 本页实际扫描的商品数（成功 + 失败）。 */
   scanned: number
   failed: number
+  /** 商品总数（分页驱动用；调用方据 offset/done 决定是否继续翻页）。 */
+  total: number
+  /** 下一页起点（本页已覆盖到 items 的下标）。 */
+  offset: number
+  done: boolean
 }
 
 /** 从流水的 reference 字段提取收货单号（格式：reception_id:9701148468|sap_order:…）。 */
