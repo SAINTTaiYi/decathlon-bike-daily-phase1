@@ -67,6 +67,9 @@ const FOOD_PREFIXES = ['food-d-', 'food-m-']
 // 九个类名样式完全缺失时测试依然全绿。凡新增 UI 组件，必须同时断言
 // ①JSX 结构存在 ②每个类名都有真实样式落地 ③关键布局约束（轨道/定位上下文）。
 test('食品台账：每个 JSX 类名都有样式落地（组件与样式不得脱节）', () => {
+  // food-m-auto / food-d-auto 是「台账 → 自动登记影子系统」的入口按钮（2026-09-18），
+  // 样式随影子系统落在 food-auto.css（该文件由 tests/food-auto-ui.test.mjs 校验落地）。
+  const AUTO_ENTRY = new Set(['food-m-auto', 'food-d-auto'])
   const missing = []
   const sources = [
     [appSelectMobile, APP_PREFIXES],
@@ -76,6 +79,7 @@ test('食品台账：每个 JSX 类名都有样式落地（组件与样式不得
   ]
   for (const [source, prefixes] of sources) {
     for (const name of classNamesIn(source, prefixes)) {
+      if (AUTO_ENTRY.has(name)) continue
       // 必须真的出现在选择器位置（类名之后到 { 之间只允许选择器字符），
       // 只在注释或属性值里出现不算落地。
       const selectorUse = new RegExp(`\\.${name}(?![\\w-])[^{}]*\\{`, 'u')
@@ -188,7 +192,7 @@ test('应用选择：登录后先选应用，非 Ops 场景根本不渲染 Ops �
   )
   assert.ok(app.includes('</div> : null}'), 'Ops 容器必须有条件闭合，否则 JSX 结构不成立')
   assert.match(app, /showAppSelect \? <AppSelect/u)
-  assert.match(app, /effectiveApp === 'food' \? <FoodApp/u)
+  assert.match(app, /effectiveApp === 'food' \? <FoodSiteApp/u, 'eat 站根是 FoodSiteApp（影子系统 + 台账双视图）')
   // 装配动画只在真正进入 Ops 时播放
   assert.match(app, /workspaceLaunching = .*&& effectiveApp === 'ops'/u)
   // 退出登录清空选择，下次登录重新二选一
@@ -213,16 +217,16 @@ test('应用选择屏与食品台账必须是 Ops 容器的兄弟节点，不得
   const container = indentOf('className="app-runtime workshop-runtime"')
   const dock = indentOf('data-workspace-layer="dock"')
   const select = indentOf('{showAppSelect ? <AppSelect')
-  const food = indentOf("effectiveApp === 'food' ? <FoodApp")
+  const food = indentOf("effectiveApp === 'food' ? <FoodSiteApp")
 
   // ① dock 是容器内的元素，缩进必须比容器深（确认缩进判据本身可信）
   assert.ok(dock.indent > container.indent, 'dock 应在容器内部（缩进更深）')
   // ② 选择屏与食品台账必须与容器同级（兄弟）——比容器更深就是被塞进了容器内
   assert.equal(select.indent, container.indent, 'AppSelect 必须与 Ops 容器同级（不得嵌进容器）')
-  assert.equal(food.indent, container.indent, 'FoodApp 必须与 Ops 容器同级（不得嵌进容器）')
+  assert.equal(food.indent, container.indent, 'FoodSiteApp 必须与 Ops 容器同级（不得嵌进容器）')
   // ③ 顺序上必须在 dock 之后（dock 是容器内最后的内容）
   assert.ok(select.index > dock.index, 'AppSelect 必须在 Ops 容器内容之后渲染')
-  assert.ok(food.index > dock.index, 'FoodApp 必须在 Ops 容器内容之后渲染')
+  assert.ok(food.index > dock.index, 'FoodSiteApp 必须在 Ops 容器内容之后渲染')
   // ④ 容器由 renderOps 条件渲染：非 Ops 场景它连节点都不存在（2026-09-14）
   assert.match(app, /\{renderOps \? <div ref=\{workspaceRootRef\}/u, 'Ops 容器必须条件渲染')
 })
