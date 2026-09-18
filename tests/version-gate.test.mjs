@@ -86,6 +86,17 @@ test('闸门对话框：立即刷新（记 seen 防连弹）+ 逃生门按钮，
   assert.doesNotMatch(dialogSource, /dismissed-remote-version/u)
 })
 
+test('Preview 验收入口：PromptLab 能模拟「服务端已发新版」触发闸门', () => {
+  // Preview 上 bundle 与服务端永远同版本，闸门不会自然触发；没有这个入口，
+  // 用户就只能靠改缓存/等待真发版来验收。模拟只在 Preview 面板里安装。
+  const lab = read('apps/web/src/components/PromptLab.jsx')
+  assert.match(lab, /模拟服务端已发新版（触发版本闸门）/u)
+  assert.match(lab, /installVersionMock\(\)/u)
+  assert.match(lab, /nextPublicVersion\(APP_VERSION\)/u)
+  assert.match(lab, /url\.includes\(VERSION_ENDPOINT\)/u)
+  assert.match(lab, /return realRequest\.apply\(this, arguments\)/u)
+})
+
 test('闸门样式：类名全部落地、无孤儿规则，且样式表被引入', () => {
   assert.match(indexCss, /@import '\.\/version-gate\.css';/u)
 
