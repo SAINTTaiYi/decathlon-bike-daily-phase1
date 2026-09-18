@@ -26,6 +26,7 @@
 
 /* 食品保质期台账 + 应用选择屏（2026-09-13，双端双命名空间） */
 @import './food-ledger.css';
+@import './food-auto.css';
 
 /* 门店设计渲染 · 宿主外壳（2026-09-15） */
 @import './store-design.css';

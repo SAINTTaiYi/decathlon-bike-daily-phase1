@@ -272,7 +272,7 @@ test('数据层：迁移 0035 建两表两索引，schema 版本跟随最新迁�
   assert.match(migration, /CREATE INDEX food_batches_store_status_warn_idx/u)
   assert.match(migration, /CREATE INDEX food_batches_store_item_idx/u)
   assert.match(migration, /store_id TEXT NOT NULL REFERENCES stores\(id\)/u, '批次表必须绑定门店外键')
-  assert.match(schemaVersion, /'0037_store_designs'/u, 'schema 版本必须跟随最新迁移（0037 门店设计云端图纸）')
+  assert.match(schemaVersion, /'0038_food_auto_shadow'/u, 'schema 版本必须跟随最新迁移（0038 食品自动登记影子系统）')
   assert.match(domainFood, /export function computeFoodDates/u)
   assert.match(domainFood, /export function foodBatchStage/u)
 })

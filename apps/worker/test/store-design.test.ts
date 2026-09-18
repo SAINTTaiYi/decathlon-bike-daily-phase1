@@ -335,7 +335,7 @@ test('服务层体积上限与「首次必须 expectedRevision=0」', async () =
   }
 })
 
-test('schema 版本跟版：0037 门店设计云端图纸', async () => {
+test('schema 版本跟版：0038 食品自动登记影子系统', async () => {
   const schemaVersion = await import('node:fs/promises').then((fs) => fs.readFile(new URL('../src/schema-version.ts', import.meta.url), 'utf8'))
-  assert.match(schemaVersion, /'0037_store_designs'/u)
+  assert.match(schemaVersion, /'0038_food_auto_shadow'/u)
 })
