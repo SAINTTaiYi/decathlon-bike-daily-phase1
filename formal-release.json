@@ -1,77 +1,34 @@
 {
   "kind": "formal-production-release",
-  "version": "6.8.6",
+  "version": "6.8.7",
   "previewRange": {
-    "fromExclusive": "479e3c4351c0fe2e04370e4b8828ef8e7db3113b",
-    "toInclusive": "fe7d2ae3958bc332c581c05e95f118ae45012e80",
+    "fromExclusive": "8369cc03a2c8c68dc82a0f2e3abafa29d61a8a53",
+    "toInclusive": "f2657afea1db74948bcf2466e04ce22d4ca32c4c",
     "commits": [
       {
-        "sha": "1b3ac75d6e7bd5601b315ddfe32fa42d80996495",
-        "subject": "chore(release): stamp V6.8.5 build metadata"
+        "sha": "556e28655f535da0c0c7e97ad374c3801c898641",
+        "subject": "chore(release): stamp V6.8.6 build metadata"
       },
       {
-        "sha": "c91e1e9ac35bdfd825055233b55cc49b452aa676",
-        "subject": "perf(startup): 首屏载入延迟优化——bootstrap 下发 changeVersion 消除重复刷新、冷启动并行预取、审计 feed 与 /auth/me 合并 batch 往返"
+        "sha": "dac7681593dc626507cb53f077ba9851957a87be",
+        "subject": "feat(food): 食品自动登记影子系统（CF 侧扫描算法 + eat 站实时直播 UI + 影子表） (#285)"
       },
       {
-        "sha": "e6c5b6d47fefd138c6bdaf35d179b06604719521",
-        "subject": "test(startup): 回归断言跟版——长轮询门控追加 hydrated（store-design 站契约同步）"
-      },
-      {
-        "sha": "9992bfb86c1c5b6ce40a02d6ee5eb4d6aa061d21",
-        "subject": "fix(update-dialog): 更新弹窗抽搐——App 全部分支改经单实例外壳 AppScreen，弹窗不再随分支切换卸载重建；新增真实浏览器公告稳定性冒烟门禁"
-      },
-      {
-        "sha": "72815d1daf35c701090244022b4f215642c15614",
-        "subject": "test(announcement-smoke): 冒烟脚本直接进 Ops 工作台并等待完整启动链路；支持本机依赖/浏览器覆盖（本地回归已验证：预修复构建报 2 次入场、修复后 1 次）"
-      },
-      {
-        "sha": "9deb018aa8186bb28a1783f2ee2813e31cba5fb8",
-        "subject": "test(announcement-smoke): 双通道采样 + 节点身份为主判据；本机实测预修复构建必红、修复构建必绿"
-      },
-      {
-        "sha": "7a3f6ffb9808aa62730323c00df15fe9d6990615",
-        "subject": "feat(shiphub): 已配置本店账号时折叠账号表单——只显示「更改账号密码」按钮，点开才展开；补回连接按钮样式（原先住在未引入的 endfield.css，生产里零样式）；preview 增加「本店账号」模拟维度"
-      },
-      {
-        "sha": "c36b9c07a9d78eeea060966695f2f7bdf7b8878e",
-        "subject": "test(shiphub): 收紧样式断言——相邻兄弟选择器会让 \".shiphub-connect-btn {\" 假命中，改为断言完整胶囊声明块（注入实测）"
-      },
-      {
-        "sha": "0c3c31fc24ecc3309fd9156393a4efa614ddd363",
-        "subject": "fix(dock): 底栏滚动悬空——底部内缩改为键盘专用（--keyboard-inset-bottom），不再把地址栏动画的视口差值当成内缩"
-      },
-      {
-        "sha": "33f0bfc37d1f726a6e8604871d12a10a05d7fff0",
-        "subject": "fix(desktop): 顶面融合——桌面端去掉黄弥散光源，页头磨砂改单块全宽带"
-      },
-      {
-        "sha": "451489926ec7fce4442f69ddbceb5db0e7055a86",
-        "subject": "fix(desktop): rail 不再被页头磨砂糊住 + 磨砂玻璃去黄"
-      },
-      {
-        "sha": "dfe22de0931f391176ac0982b490f801a4ea0159",
-        "subject": "feat(desktop): 队列工具整条嵌进次页头（搜索栏 + QUEUE STATUS + 工具按钮）"
-      },
-      {
-        "sha": "fe7d2ae3958bc332c581c05e95f118ae45012e80",
-        "subject": "test(desktop): 补「正文让位必须跟 --ops-header-height 走」断言——注入 180px 硬编码实测变红"
+        "sha": "f2657afea1db74948bcf2466e04ce22d4ca32c4c",
+        "subject": "fix(web): 闭店与导出日报图前校验页面版本（旧缓存先提示刷新）+ Preview 模拟入口 (#286)"
       }
     ]
   },
   "announcement": {
-    "title": "首屏提速 · 更新弹窗不再抽搐 · Shiphub 连接框折叠账密 · 移动底栏不再悬空 · 桌面顶面去黄雾去阶梯 · 队列工具嵌进次页头",
-    "summary": "本次集中修复载入耗时与多处桌面/移动视觉问题：打开 Ops 不再白做一轮重复刷新，更新公告弹窗不再闪断重播，Shiphub 已配置账号时不再暴露账密输入框，安卓 Edge 滚动时底栏不再悬空；桌面端去掉背景黄雾、消除页头与左栏之间的阶梯感、总览按钮不再被遮住，并把待取/其它/维修三个模块的搜索栏与筛选工具整条嵌进次页头。",
+    "title": "食品自动登记（影子）· 闭店与导出日报图前拦截旧页面",
+    "summary": "本次两件事：①食品台账上线「自动登记（影子）」——一键自动完成当天收货单回查、效期扫描与批次判定，全过程实时直播，结果先写入影子表待人工核对；②闭店与导出日报图前会先校验页面版本，检测到旧缓存时提示先刷新，避免旧页面导出过期样式的日报图。",
     "changes": [
-      "载入提速：/api/v1/bootstrap 下发 changeVersion，长轮询从它起步而不是从 0 —— 打开页面不再必然收到一次「变了」后白拉一轮 bootstrap 与 Shiphub 刷新",
-      "载入提速：冷启动并行预取 bootstrap、审计 feed 两条查询合并为一次 batch、/auth/me 的 CSRF 轮换与成员读取合并为一次 batch，减少数据库往返",
-      "更新公告弹窗不再抽搐：App 的九个分支此前各挂一份弹窗，切换分支时被卸载重建导致入场动画重播；改为单一稳定外壳承载",
-      "Shiphub 连接窗口：门店已配置本店账号密码时只显示「更改账号密码」按钮，点开才展开表单；未配置时保持默认展开",
-      "移动端底栏不再悬空：底部内缩改为只在软键盘弹出时生效，不再把浏览器地址栏/工具栏的显隐误判为内缩",
-      "桌面端去掉背景黄色弥散光源（移动端保留），页头不再泛起一层淡黄色",
-      "桌面端页头、次页头、左栏之间的阶梯感消除：磨砂背板改为整块全宽带并向下羽化，左栏第一项不再被背板遮住",
-      "桌面端待取车辆 / 其它交接 / 维修交接：搜索框、队列计数与筛选排序工具整条嵌入次页头，正文不再单独占一行"
+      "食品自动登记（影子）：eat 站默认进入「自动登记」，点开始后按阶段实时直播全过程（取当天收货单 → 汇总涉及商品 → 逐段扫描效期 → 批次判定 → 写入影子表），关闭页面即停止",
+      "食品自动登记（影子）：算法全部在云端运行，结果先写影子表，人工核对后再进正式台账；页头保留「台账」入口，运行中切换视图不打断",
+      "食品自动登记：当天收货单为空时自动用收货流水分页回查已确认单据；凭据缺失时该功能优雅禁用，不影响台账与其它页面",
+      "闭店与导出日报图前校验页面版本：服务端已发新版而当前页面仍是旧缓存时先提示刷新；也可选择「仍要闭店 / 仍要导出日报图」按当前页面继续，临近闭店不会被硬挡",
+      "版本校验失败放行：离线、超时或读不到版本号时一律不拦截；同一次闭店流程 5 分钟内不会重复提示（更新公告的「稍后」也不再能静默拦截）"
     ]
   },
-  "preparedAt": "2026-09-17T19:23:39.816Z"
+  "preparedAt": "2026-09-18T16:08:56.258Z"
 }
