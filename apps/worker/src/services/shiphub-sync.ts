@@ -26,6 +26,15 @@ const CATEGORIES: readonly ShipHubCategory[] = ['hand', 'pick', 'receive', 'ship
 // cron 为每分钟一次（见 wrangler.jsonc triggers.crons），55 秒保证每个 tick 都能命中。
 const COUNT_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 55_000, pick: 55_000, receive: 10 * 60_000, ship: 10 * 60_000 }
 const FULL_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 15 * 60_000, pick: 15 * 60_000, receive: 30 * 60_000, ship: 30 * 60_000 }
+// 多门店重活预算（2026-09-19）：免费层 CPU 上限 10ms/调用，一次 tick 顺序执行
+// 全部门店的全部重活会让 CPU 随门店数线性增长（1670 接入前只有一家店，量增即
+// 重新逼近被平台 exceededCpu 终止的阈值——2026-09-10/11 停摆的同型风险）。
+// 现在：每分钟 tick 仍对全部门店做计数探测（便宜，保 1 分钟级时效），但
+// 「拉列表 / 明细 / 写库」这类重活每次调用最多执行 MAX_HEAVY_SYNCS_PER_TICK 个，
+// 由 runScheduledShipHubSync 按分钟轮换门店优先序后注入预算；被顺延的分类
+// 不更新 last_count / last_attempt_at，下一分钟自动重试（最坏多等 1 分钟）。
+// 门店数继续增长时按需提高（每次调用 CPU 峰值随该常量线性增长，需重新评估）。
+export const MAX_HEAVY_SYNCS_PER_TICK = 1
 const MANUAL_FRESH_MS = 2 * 60_000
 // 页面打开时的「确保新鲜」门禁（2026-09-09）：前端在挂载/回到前台时调用
 // POST /api/v1/shiphub/ensure-fresh，服务端只在数据确实过期时才打上游。
@@ -416,6 +425,14 @@ export async function syncStoreCategory(
      * 仅由 runScheduledShipHubSync 注入；其它调用方不传 = 行为不变。
      */
     connectionCache?: Map<string, ShipHubClient>
+    /**
+     * tick 级重活预算（2026-09-19 多门店铺开）：{ remaining } 由
+     * runScheduledShipHubSync 每 tick 注入一次、本 tick 全部门店共享。分类同步
+     * 在确认「需要拉列表/明细」（shouldList）后扣减；预算耗尽时本次顺延且不写
+     * last_count / last_attempt_at——计数差异保持未消费，下一分钟重试。
+     * 手动/授权触发不传 = 不受限（用户显式操作不能等预算）。
+     */
+    heavyBudget?: { remaining: number }
   } = {}
 ): Promise<{ status: 'succeeded' | 'skipped' | 'failed'; reason?: string; runId?: string }> {
   requireEnabled(config)
@@ -471,6 +488,17 @@ export async function syncStoreCategory(
     const count = await client.count(category)
     const countChanged = state.last_count === null || state.last_count !== count
     const shouldList = fullReconcile || countChanged
+    if (shouldList && options.heavyBudget) {
+      // 本 tick 的重活预算已被排位靠前的门店用掉 → 顺延到下一分钟：
+      // 关键是不更新 last_count / last_attempt_at，计数差异保持「未消费」，
+      // 下一 tick 重新探测即会重试（见 MAX_HEAVY_SYNCS_PER_TICK 的说明）。
+      // run 记录标 skipped（不是 failed）：顺延是设计行为，监控不得当成错误。
+      if (options.heavyBudget.remaining <= 0) {
+        await db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'skipped', error_code = 'HEAVY_BUDGET_DEFERRED' WHERE id = ?`).bind(stamp, runId).run()
+        return { status: 'skipped', reason: 'HEAVY_BUDGET_DEFERRED', runId }
+      }
+      options.heavyBudget.remaining -= 1
+    }
     let pages = 0
     let detailCount = 0
     let orders: ShipHubOrder[] = []
@@ -685,6 +713,9 @@ export async function syncStoreCategory(
         if (relogged) {
           return syncStoreCategory(db, config, storeId, category, {
             ...options,
+            // 重登重试是恢复路径：不受 tick 预算限制（单次、且由 retriedAfterRelogin
+            // 与 HEAL_RETRY_MS 双重控频），否则恢复会被顺延成「假失败」。
+            heavyBudget: undefined,
             batchId: options.batchId ?? uuid(),
             // 沿用调用方注入的时间基准（测试/回放可确定）；未注入才取真实时钟。
             now: options.now ?? new Date(),
@@ -885,12 +916,25 @@ export async function runScheduledShipHubSync(env: WorkerEnv, now = new Date()):
     FROM shiphub_connections c
     WHERE c.enabled = 1 AND c.refresh_token_ciphertext IS NOT NULL AND c.refresh_token_nonce IS NOT NULL
       AND c.authorization_status != 'reauth_required'
+    ORDER BY c.store_id
   `))
-  for (const store of stores) {
+  // ── 门店轮换 + 重活预算（2026-09-19：多门店 CPU 错峰）────────────────────
+  // 旧实现一次 tick 顺序执行全部门店的全部重活，「拉列表 / 明细 / 写库」的 CPU
+  // 随门店数线性叠加；1670 接入后同一份 10ms 预算要供两家店使用。
+  // 现在：重活一次调用最多 MAX_HEAVY_SYNCS_PER_TICK 个，优先给本轮排位靠前的
+  // 门店；排位按分钟轮换（偶数分钟 1299 在前、奇数分钟 1670 在前），任何一家
+  // 都不会被长期饿死；被顺延的门店下一分钟自动重试（最坏多等 1 分钟）。
+  // 门店数继续增长时：重活频率按门店数分摊，单次调用的 CPU 峰值保持恒定。
+  // 排序取 store_id 保证轮换可预期（也是测试的确定性前提）。
+  const minuteIndex = Math.floor(now.getTime() / 60_000)
+  const rotation = stores.length > 0 ? ((minuteIndex % stores.length) + stores.length) % stores.length : 0
+  const orderedStores = [...stores.slice(rotation), ...stores.slice(0, rotation)]
+  const heavyBudget = { remaining: MAX_HEAVY_SYNCS_PER_TICK }
+  for (const store of orderedStores) {
     if (!activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) continue
     // tick 级连接缓存（2026-09-12 CPU 优化）：本店 4 个分类共享一次连接解析
     // （含 access token 解密）——原实现每分类独立解析，一分钟内重复 4 次解密。
     const connectionCache = new Map<string, ShipHubClient>()
-    for (const category of CATEGORIES) await syncStoreCategory(env.DB, config, store.id, category, { trigger: 'scheduled', now, connectionCache })
+    for (const category of CATEGORIES) await syncStoreCategory(env.DB, config, store.id, category, { trigger: 'scheduled', now, connectionCache, heavyBudget })
   }
 }

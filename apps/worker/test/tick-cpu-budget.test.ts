@@ -24,6 +24,9 @@ import { migratedTestDatabase, type TestD1Database } from '../security/d1-test-a
 //      → token 可用时不再解密凭据。
 //   ⑤ 同一 tick 内每个分类独立解析连接（重复 AES-GCM 解密 access token）
 //      → tick 级连接缓存。
+//   ⑥ 多门店铺开后，一次 tick 顺序执行全部门店的重活，CPU 随门店数线性叠加
+//      → tick 级重活预算 + 分钟级门店轮换（2026-09-19）：每次调用最多一个重活，
+//      另一家顺延到下一分钟（不消费 last_count，绝不成 failed）。
 //
 // 测试用真实本地 HTTP 服务模拟 Shiphub 上游（非 mock 错误码），
 // 计数 detail 请求以验证「跳过」确实发生。
@@ -278,6 +281,80 @@ test('scheduled tick 内同一门店的连接只解析一次（tick 级连接缓
     // 一次 tick 内 hand + pick 两个分类都要同步；连接解析必须只发生一次
     // （旧实现每个分类各解析一次，重复 AES-GCM 解密 access token）。
     assert.equal(connectionSelects, 1, `同一 tick 内连接解析必须复用（实际 ${connectionSelects} 次）`)
+  } finally {
+    db.close()
+    await stopServer()
+  }
+})
+
+const STORE_B = '30000000-0000-4000-8000-000000001670'
+
+async function insertLiveConnection(db: TestD1Database, storeId: string, fingerprint: string, token: string): Promise<void> {
+  const encrypted = await encryptShipHubSecret(token, TOKEN_KEY)
+  const now = '2026-09-12T03:00:00.000Z'
+  db.exec(`INSERT INTO shiphub_connections (
+      store_id, enabled, mode, refresh_token_ciphertext, refresh_token_nonce, refresh_token_key_version,
+      token_expires_at, token_updated_at, authorization_status,
+      access_token_ciphertext, access_token_nonce, access_token_key_version,
+      location_num, identity_fingerprint, created_at, updated_at)
+    VALUES ('${storeId}', 1, 'live', 'r.c', 'r.n', 'v1',
+      '${new Date(Date.now() + 2 * 3600_000).toISOString()}', '${now}', 'connected',
+      '${encrypted.ciphertext}', '${encrypted.nonce}', 'v1', '${storeId.slice(-4)}', '${fingerprint}', '${now}', '${now}')`)
+}
+
+test('多门店 tick：重活预算一次调用只服务一家门店，另一家顺延下一分钟（按分钟轮换优先序）', async () => {
+  await startServer()
+  const db = await migratedTestDatabase()
+  try {
+    // 两家已授权门店（1299 + 1670）：各自独立的身份指纹（避免身份互斥干扰断言）
+    const env = await makeEnv(db, 'A'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
+    await insertLiveConnection(db, STORE_B, 'fp-store-b', 'B'.repeat(760))
+    rows = [orderRow('order-shared', 'pending')]
+
+    // 轮换契约：rotation = floor(now/60s) % stores.length，排序按 store_id（1299 < 1670）。
+    // 选出「1299 排位在前」的分钟起点 T_A，则 T_A+60s 轮到 1670 在前、T_A+120s 又到 1299。
+    const base = Date.parse('2026-09-12T03:00:00.000Z')
+    const tEven = (Math.floor(base / 60_000) % 2 === 0) ? base : base + 60_000
+    const T_A = new Date(tEven)
+    const T_B = new Date(tEven + 60_000)
+    const T_C = new Date(tEven + 120_000)
+    const succeeded = (storeId: string, category?: string): number => {
+      const row = category
+        ? db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND category = ? AND status = 'succeeded'`, storeId, category)
+        : db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND status = 'succeeded'`, storeId)
+      return row?.n ?? 0
+    }
+
+    // ── P1（1299 优先）：预算被 1299 的 hand 消费；1670 全部重活顺延 ──
+    resetHits()
+    await runScheduledShipHubSync(env, T_A)
+    assert.equal(succeeded(STORE), 1, 'P1：优先门店本轮只执行 1 个重活（预算 = MAX_HEAVY_SYNCS_PER_TICK）')
+    assert.equal(succeeded(STORE_B), 0, 'P1：非优先门店不得执行任何重活')
+    const bDeferred = db.one<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND status = 'skipped' AND error_code = 'HEAVY_BUDGET_DEFERRED'`, STORE_B)
+    assert.ok((bDeferred?.n ?? 0) >= 1, 'P1：非优先门店的重活必须标记 HEAVY_BUDGET_DEFERRED（顺延不是失败）')
+    const bFailed = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND status = 'failed'`, STORE_B)
+    assert.equal(bFailed?.n, 0, 'P1：顺延不得留下 failed 记录（监控按 failed 告警）')
+    const bRunning = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND status = 'running'`, STORE_B)
+    assert.equal(bRunning?.n, 0, 'P1：顺延的 run 必须落定（不得悬挂 running）')
+    const bOrders = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_orders WHERE store_id = ?`, STORE_B)
+    assert.equal(bOrders?.n, 0, 'P1：被顺延门店不得写入订单')
+    const bCount = db.one<{ n: number | null }>(`SELECT last_count AS n FROM shiphub_category_state WHERE store_id = ? AND category = 'hand'`, STORE_B)
+    assert.equal(bCount?.n ?? null, null, 'P1：顺延不得消费计数差异（last_count 必须保持未写，下一 tick 才能重试）')
+    assert.ok(hits.count >= 8, `P1：计数探测不受预算限制，两家店都要探测（实际 ${hits.count} 次）`)
+
+    // ── P2（1670 优先）：上一轮被顺延的门店下一分钟即被服务 ──
+    resetHits()
+    await runScheduledShipHubSync(env, T_B)
+    assert.ok(succeeded(STORE_B) >= 1, 'P2：轮换到优先位的门店必须在下一次 tick 拿到预算（不得饿死）')
+    const bOrders2 = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_orders WHERE store_id = ?`, STORE_B)
+    assert.ok((bOrders2?.n ?? 0) >= 1, 'P2：被顺延门店的订单必须已写入')
+    const bCount2 = db.one<{ n: number | null }>(`SELECT last_count AS n FROM shiphub_category_state WHERE store_id = ? AND category = 'hand'`, STORE_B)
+    assert.notEqual(bCount2?.n ?? null, null, 'P2：重活执行后计数差异必须落库（已消费）')
+
+    // ── P3（1299 又优先）：P1 被顺延的 1299 分类回到优先位时被补上 ──
+    await runScheduledShipHubSync(env, T_C)
+    assert.ok(succeeded(STORE, 'pick') >= 1, 'P3：前一轮被顺延的分类在门店回到优先位时必须被服务')
   } finally {
     db.close()
     await stopServer()
