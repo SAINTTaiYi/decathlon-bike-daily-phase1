@@ -21,7 +21,7 @@ import {
   type PlanItem,
   type RawRecord
 } from '../services/food-auto.js'
-import { isSnbConfigured } from '../services/snb-identity.js'
+import { getSnbToken, isSnbConfigured } from '../services/snb-identity.js'
 import { ApiProblem } from '../services/problems.js'
 
 type Vars = { config: AppConfig; auth: AuthContext | null }
@@ -67,6 +67,45 @@ export function foodAutoRoutes() {
     }
     return bound
   }
+
+  // ⚠️ 临时探针（2026-09-18 验证 CF 出口连通性，验证后立即移除）：
+  // 检查 Worker 出口能否到达 api.decathlon.net（RDS）与 api-cn.decathlon.com.cn（收货单）。
+  app.get('/api/v1/food-auto/__probe', async (c) => {
+    const config = c.get('config')
+    const out: Record<string, unknown> = { at: new Date().toISOString() }
+    try {
+      const token = await getSnbToken(config)
+      out.snbToken = token.length
+    } catch (error) {
+      out.snbLoginError = String((error as Error).message).slice(0, 160)
+    }
+    try {
+      const response = await fetch('https://api.decathlon.net/rds/v1/epc/expiryList', {
+        method: 'POST',
+        headers: {
+          'user-agent': 'Mozilla/5.0 (Linux; Android 16)',
+          authorization: `Bearer ${await getSnbToken(config)}`,
+          'x-api-key': config.SNB.rdsApiKey!,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({ epcs: ['30395DFA8332E48000ECE0C7'] }),
+        signal: AbortSignal.timeout(20_000)
+      })
+      const text = await response.text()
+      out.rdsStatus = response.status
+      out.rdsBytes = text.length
+      out.rdsSample = text.slice(0, 160)
+    } catch (error) {
+      out.rdsError = String((error as Error).message).slice(0, 200)
+    }
+    try {
+      const receptions = await fetchPendingReceptions(config)
+      out.receptions = receptions.length
+    } catch (error) {
+      out.receptionError = String((error as Error).message).slice(0, 200)
+    }
+    return c.json(out)
+  })
 
   app.get('/api/v1/food-auto/status', ...read, async (c) => {
     const config = c.get('config')
