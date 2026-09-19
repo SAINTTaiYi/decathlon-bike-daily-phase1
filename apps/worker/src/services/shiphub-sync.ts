@@ -35,6 +35,13 @@ const FULL_INTERVAL_MS: Record<ShipHubCategory, number> = { hand: 15 * 60_000, p
 // 不更新 last_count / last_attempt_at，下一分钟自动重试（最坏多等 1 分钟）。
 // 门店数继续增长时按需提高（每次调用 CPU 峰值随该常量线性增长，需重新评估）。
 export const MAX_HEAVY_SYNCS_PER_TICK = 1
+// 被平台中断的尝试判定窗口（2026-09-19 事故修复）：免费层超 CPU 预算的调用会被
+// 直接终止，来不及执行 catch/finally；有窗口内 scheduled 'running' 记录 = 上一次
+// 尝试被中断，本轮让出（见 syncStoreCategory 的守卫段）。
+const ZOMBIE_WINDOW_MS = 15 * 60_000
+// 连续失败退避阈值：>= 3 次后按指数推后重试（封顶 10 分钟），避免一个持续失败的
+// 上游每分钟吃掉 tick 预算、饿死同门店其它分类。
+const FAILURE_BACKOFF_THRESHOLD = 3
 const MANUAL_FRESH_MS = 2 * 60_000
 // 页面打开时的「确保新鲜」门禁（2026-09-09）：前端在挂载/回到前台时调用
 // POST /api/v1/shiphub/ensure-fresh，服务端只在数据确实过期时才打上游。
@@ -427,9 +434,9 @@ export async function syncStoreCategory(
     connectionCache?: Map<string, ShipHubClient>
     /**
      * tick 级重活预算（2026-09-19 多门店铺开）：{ remaining } 由
-     * runScheduledShipHubSync 每 tick 注入一次、本 tick 全部门店共享。分类同步
-     * 在确认「需要拉列表/明细」（shouldList）后扣减；预算耗尽时本次顺延且不写
-     * last_count / last_attempt_at——计数差异保持未消费，下一分钟重试。
+     * runScheduledShipHubSync 每 tick 注入一次、本 tick 全部门店共享。预算耗尽后
+     * 其余分类**完全静默**（不探测、不建 run、不写状态，见函数顶部的短路），
+     * 计数差异保持未消费，下一分钟重试。
      * 手动/授权触发不传 = 不受限（用户显式操作不能等预算）。
      */
     heavyBudget?: { remaining: number }
@@ -439,6 +446,14 @@ export async function syncStoreCategory(
   const trigger = options.trigger ?? 'scheduled'
   const now = options.now ?? new Date()
   const stamp = now.toISOString()
+  // ── tick 预算短路（2026-09-19 深夜事故修复）───────────────────────────────
+  // 预算被本 tick 里排位更靠前的分类/门店用掉后，其余分类完全静默：不探测、
+  // 不建 run 记录、不写任何状态、零 D1 操作直接返回。旧实现先做一次计数探测、
+  // 建 run、再标记「顺延」——两店轮流执行时等于每分钟多出 6-7 次无意义的
+  // 探测与记账，是免费层 10ms/次 CPU 预算被击穿（平台终止同步）的放大器。
+  if (options.heavyBudget && options.heavyBudget.remaining <= 0) {
+    return { status: 'skipped', reason: 'HEAVY_BUDGET_DEFERRED' }
+  }
   if (trigger === 'manual' && !options.batchId) {
     const recent = await first<{ id: string }>(db.prepare(`
       SELECT id FROM shiphub_sync_runs
@@ -455,9 +470,39 @@ export async function syncStoreCategory(
   }
   const lastSuccess = state.last_success_at ? Date.parse(state.last_success_at) : 0
   if (trigger === 'manual' && lastSuccess && now.getTime() - lastSuccess < MANUAL_FRESH_MS) return { status: 'skipped', reason: 'CACHE_FRESH' }
+  // 显式退避保持（2026-09-19 事故修复）：last_attempt_at 被写为未来时刻 = 连续
+  // 失败退避中（见 catch 路径的失败退避段）。退避期内 scheduled 一律不尝试，
+  // 手动/授权触发不受限（用户显式操作不能等退避）。
+  // 注意必须放在 countDue 之前：从未成功过的分类 fullReconcile 恒为真，只靠
+  // last_attempt 的常规间隔无法拦住它每分钟重试。
+  if (trigger === 'scheduled' && state.last_attempt_at && Date.parse(state.last_attempt_at) > now.getTime()) {
+    return { status: 'skipped', reason: 'FAILURE_BACKOFF' }
+  }
   const fullReconcile = trigger === 'manual' || isDue(state.last_full_reconcile_at, FULL_INTERVAL_MS[category], now.getTime())
   const countDue = fullReconcile || isDue(state.last_attempt_at, COUNT_INTERVAL_MS[category], now.getTime())
   if (!countDue) return { status: 'skipped', reason: 'NOT_DUE' }
+
+  // ── 被平台中断的尝试守卫（2026-09-19 深夜事故修复）─────────────────────────
+  // 免费层超预算调用会被平台直接终止：被终止的尝试来不及走 catch/finally，
+  // run 记录永远停在 running、状态与租约都不更新——同一重活于是下个 tick 原样
+  // 重跑、再被终止，形成「每分钟自杀一次」的死循环（2026-09-19 11:48 起 1299
+  // 门店所有分类卡死即此机制；2026-09-10/11 停摆同源）。
+  // 判定：存在窗口内 scheduled 'running' 记录 = 上一次尝试被中断并被抛弃。
+  // 处置：把僵尸记录标记为 skipped/INVOCATION_TERMINATED（带专用原因码，
+  // 不是 failed、不触发失败告警），推后本分类重试节奏（last_attempt_at = now），
+  // 本轮直接让出，把 CPU 预算留给其它分类；恢复成功时既有成功路径会清零计数。
+  const zombieCutoff = new Date(now.getTime() - ZOMBIE_WINDOW_MS).toISOString()
+  const zombies = await all<{ id: string }>(db.prepare(`
+    SELECT id FROM shiphub_sync_runs
+    WHERE store_id = ? AND category = ? AND status = 'running' AND trigger_source = 'scheduled' AND started_at >= ?
+  `).bind(storeId, category, zombieCutoff))
+  if (zombies.length > 0) {
+    await db.batch([
+      ...zombies.map((zombie) => db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'skipped', error_code = 'INVOCATION_TERMINATED' WHERE id = ?`).bind(stamp, zombie.id)),
+      db.prepare(`UPDATE shiphub_category_state SET last_attempt_at = ?, consecutive_failures = consecutive_failures + 1, updated_at = ? WHERE store_id = ? AND category = ?`).bind(stamp, stamp, storeId, category)
+    ])
+    return { status: 'skipped', reason: 'INVOCATION_TERMINATED' }
+  }
 
   const owner = uuid()
   if (!(await acquireLease(db, storeId, owner, stamp))) return { status: 'skipped', reason: 'LEASE_BUSY' }
@@ -489,14 +534,8 @@ export async function syncStoreCategory(
     const countChanged = state.last_count === null || state.last_count !== count
     const shouldList = fullReconcile || countChanged
     if (shouldList && options.heavyBudget) {
-      // 本 tick 的重活预算已被排位靠前的门店用掉 → 顺延到下一分钟：
-      // 关键是不更新 last_count / last_attempt_at，计数差异保持「未消费」，
-      // 下一 tick 重新探测即会重试（见 MAX_HEAVY_SYNCS_PER_TICK 的说明）。
-      // run 记录标 skipped（不是 failed）：顺延是设计行为，监控不得当成错误。
-      if (options.heavyBudget.remaining <= 0) {
-        await db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'skipped', error_code = 'HEAVY_BUDGET_DEFERRED' WHERE id = ?`).bind(stamp, runId).run()
-        return { status: 'skipped', reason: 'HEAVY_BUDGET_DEFERRED', runId }
-      }
+      // 到达这里说明本 tick 预算尚有空位（耗尽的情形已在函数顶部短路返回）：
+      // 消费一个；此后本 tick 内其余门店/分类将完全静默顺延。
       options.heavyBudget.remaining -= 1
     }
     let pages = 0
@@ -518,10 +557,20 @@ export async function syncStoreCategory(
         if (pages > 1000) throw new ShipHubUpstreamError('PAGINATION_LIMIT')
       } while (cursor)
       const detailed: ShipHubOrder[] = []
+      // 2026-09-19 性能（CPU 预算事故配套）：此前逐单 SELECT 现有行，10 单就是
+      // 10 次 D1 往返、全部计入重活那一次调用的 CPU；改为按 ≤90 一批的 IN 查询
+      // 预取（D1 单查询绑定参数上限 100），结果按 upstream_order_id 建索引。
+      const existingById = new Map<string, { upstream_updated_at: string | null; list_fingerprint: string | null; upstream_absent_at: string | null; detail_filtered: number | null }>()
+      for (let offset = 0; offset < orders.length; offset += 90) {
+        const chunk = orders.slice(offset, offset + 90)
+        const chunkRows = await all<{ upstream_order_id: string; upstream_updated_at: string | null; list_fingerprint: string | null; upstream_absent_at: string | null; detail_filtered: number | null }>(db.prepare(`
+          SELECT upstream_order_id, upstream_updated_at, list_fingerprint, upstream_absent_at, detail_filtered FROM shiphub_orders
+          WHERE store_id = ? AND category = ? AND upstream_order_id IN (${chunk.map(() => '?').join(',')})
+        `).bind(storeId, category, ...chunk.map((order) => order.id)))
+        for (const row of chunkRows) existingById.set(row.upstream_order_id, row)
+      }
       for (const order of orders) {
-        const existing = await first<{ upstream_updated_at: string | null; list_fingerprint: string | null; upstream_absent_at: string | null; detail_filtered: number | null }>(db.prepare(`
-          SELECT upstream_updated_at, list_fingerprint, upstream_absent_at, detail_filtered FROM shiphub_orders WHERE store_id = ? AND category = ? AND upstream_order_id = ?
-        `).bind(storeId, category, order.id))
+        const existing = existingById.get(order.id) ?? null
         // 2026-09-12（migration 0031 + 0032）：list 层指纹不变、且订单处于已知状态
         // （活跃，或已确认明细无自行车）→ 数据无变化，跳过 detail 重拉。
         // 旧实现的判断 `upstream_updated_at !== order.updatedAt` 因 list 不返回
@@ -686,6 +735,15 @@ export async function syncStoreCategory(
       SELECT consecutive_failures FROM shiphub_category_state WHERE store_id = ? AND category = ?
     `).bind(storeId, category))
     const failures = Number(stateAfter?.consecutive_failures ?? 1)
+    // ── 连续失败退避（2026-09-19 事故修复）─────────────────────────────────
+    // 上游持续失败（如 1670 pick 的 5xx）时，每分钟重试会持续吃掉 tick 预算、
+    // 饿死同门店其它分类。>= 阈值后按指数推后重试（封顶 10 分钟）：
+    // 2^0→2min、2^1→4min、2^2→8min…；token 类失败有自己的重登/自愈链路，不在此退避。
+    if (!isToken4xx && failures >= FAILURE_BACKOFF_THRESHOLD) {
+      const backoffMs = Math.min(120_000 * 2 ** (failures - FAILURE_BACKOFF_THRESHOLD), 10 * 60_000)
+      await db.prepare(`UPDATE shiphub_category_state SET last_attempt_at = ? WHERE store_id = ? AND category = ?`)
+        .bind(new Date(now.getTime() + backoffMs).toISOString(), storeId, category).run()
+    }
     const shouldMarkReauth = isCredentialGone || (isToken4xx && failures >= TOKEN_REAUTH_THRESHOLD)
     await db.batch([
       db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'failed', error_code = ? WHERE id = ?`).bind(failedAt, code, runId),

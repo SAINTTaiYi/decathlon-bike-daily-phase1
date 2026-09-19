@@ -26,7 +26,13 @@ import { migratedTestDatabase, type TestD1Database } from '../security/d1-test-a
 //      → tick 级连接缓存。
 //   ⑥ 多门店铺开后，一次 tick 顺序执行全部门店的重活，CPU 随门店数线性叠加
 //      → tick 级重活预算 + 分钟级门店轮换（2026-09-19）：每次调用最多一个重活，
-//      另一家顺延到下一分钟（不消费 last_count，绝不成 failed）。
+//      另一家完全静默顺延（零探测、零记录；计数差异保持未消费）。
+//   ⑦ 被平台中断的尝试留下僵尸 running 记录，同一重活每分钟原样重跑再被终止
+//      （「每分钟自杀一次」死循环，2026-09-19 11:48 起 1299 全部分类卡死）
+//      → 僵尸守卫：到期分类发现窗口内 scheduled running 记录时标记为
+//      INVOCATION_TERMINATED 并让出本轮。
+//   ⑧ 上游持续失败（1670 pick 的 5xx）每分钟重试持续吃预算、饿死其它分类
+//      → 连续失败 >= 3 次按指数退避（封顶 10 分钟）。
 //
 // 测试用真实本地 HTTP 服务模拟 Shiphub 上游（非 mock 错误码），
 // 计数 detail 请求以验证「跳过」确实发生。
@@ -54,6 +60,8 @@ function orderRow(id: string, status: string, latestStatus = '1000'): Record<str
 
 /** 明细里全是非自行车（universe_id 非 2）→ normalizeDetailOrder 返回 null。 */
 let detailIsBike = true
+/** 指定分类的 list 端点返回 5xx（模拟上游持续失败，验证失败退避）。 */
+let listFailureCategory: string | null = null
 
 function detailBody(id: string): string {
   const item = detailIsBike
@@ -77,6 +85,11 @@ async function startServer(): Promise<void> {
     }
     if (path.endsWith('/list')) {
       hits.list += 1
+      if (listFailureCategory && path.includes(`/orders/${listFailureCategory}/list`)) {
+        response.writeHead(500, { 'content-type': 'application/json' })
+        response.end('{"error":"synthetic upstream failure"}')
+        return
+      }
       send(JSON.stringify({ total_page_num: 1, order_list: rows }))
       return
     }
@@ -302,60 +315,125 @@ async function insertLiveConnection(db: TestD1Database, storeId: string, fingerp
       '${encrypted.ciphertext}', '${encrypted.nonce}', 'v1', '${storeId.slice(-4)}', '${fingerprint}', '${now}', '${now}')`)
 }
 
-test('多门店 tick：重活预算一次调用只服务一家门店，另一家顺延下一分钟（按分钟轮换优先序）', async () => {
+test('多门店 tick：重活预算一次调用只服务一家门店；预算耗尽后其余分类完全静默；按分钟轮换不饿死', async () => {
   await startServer()
   const db = await migratedTestDatabase()
   try {
-    // 两家已授权门店（1299 + 1670）：各自独立的身份指纹（避免身份互斥干扰断言）
     const env = await makeEnv(db, 'A'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
     await insertLiveConnection(db, STORE_B, 'fp-store-b', 'B'.repeat(760))
     rows = [orderRow('order-shared', 'pending')]
 
     // 轮换契约：rotation = floor(now/60s) % stores.length，排序按 store_id（1299 < 1670）。
-    // 选出「1299 排位在前」的分钟起点 T_A，则 T_A+60s 轮到 1670 在前、T_A+120s 又到 1299。
     const base = Date.parse('2026-09-12T03:00:00.000Z')
     const tEven = (Math.floor(base / 60_000) % 2 === 0) ? base : base + 60_000
     const T_A = new Date(tEven)
     const T_B = new Date(tEven + 60_000)
     const T_C = new Date(tEven + 120_000)
-    const succeeded = (storeId: string, category?: string): number => {
-      const row = category
-        ? db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND category = ? AND status = 'succeeded'`, storeId, category)
-        : db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND status = 'succeeded'`, storeId)
+    const stampA = T_A.toISOString()
+    const stampB = T_B.toISOString()
+    const stampC = T_C.toISOString()
+    const runsAt = (storeId: string, stamp: string): number => {
+      const row = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND started_at = ?`, storeId, stamp)
       return row?.n ?? 0
     }
 
-    // ── P1（1299 优先）：预算被 1299 的 hand 消费；1670 全部重活顺延 ──
+    // ── P1（1299 优先）：预算被 1299 的 hand 消费；1670 完全静默（零探测、零记录、零状态） ──
     resetHits()
     await runScheduledShipHubSync(env, T_A)
-    assert.equal(succeeded(STORE), 1, 'P1：优先门店本轮只执行 1 个重活（预算 = MAX_HEAVY_SYNCS_PER_TICK）')
-    assert.equal(succeeded(STORE_B), 0, 'P1：非优先门店不得执行任何重活')
-    const bDeferred = db.one<{ n: number }>(
-      `SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND status = 'skipped' AND error_code = 'HEAVY_BUDGET_DEFERRED'`, STORE_B)
-    assert.ok((bDeferred?.n ?? 0) >= 1, 'P1：非优先门店的重活必须标记 HEAVY_BUDGET_DEFERRED（顺延不是失败）')
-    const bFailed = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND status = 'failed'`, STORE_B)
-    assert.equal(bFailed?.n, 0, 'P1：顺延不得留下 failed 记录（监控按 failed 告警）')
-    const bRunning = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND status = 'running'`, STORE_B)
-    assert.equal(bRunning?.n, 0, 'P1：顺延的 run 必须落定（不得悬挂 running）')
-    const bOrders = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_orders WHERE store_id = ?`, STORE_B)
-    assert.equal(bOrders?.n, 0, 'P1：被顺延门店不得写入订单')
-    const bCount = db.one<{ n: number | null }>(`SELECT last_count AS n FROM shiphub_category_state WHERE store_id = ? AND category = 'hand'`, STORE_B)
-    assert.equal(bCount?.n ?? null, null, 'P1：顺延不得消费计数差异（last_count 必须保持未写，下一 tick 才能重试）')
-    assert.ok(hits.count >= 8, `P1：计数探测不受预算限制，两家店都要探测（实际 ${hits.count} 次）`)
+    assert.equal(hits.count, 1, `P1：预算耗尽后其余分类不得再探测上游（实际 ${hits.count} 次；旧实现会为每个分类探测并写「顺延」记录）`)
+    assert.equal(hits.list, 1, 'P1：本 tick 只允许一次列表重活')
+    assert.equal(runsAt(STORE_B, stampA), 0, 'P1：非优先门店必须完全静默——不得产生任何 run 记录（含 skipped）')
+    assert.equal(db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_orders WHERE store_id = ?`, STORE_B)?.n, 0, 'P1：非优先门店不得写入订单')
+    const bState = db.one<{ c: number | null; a: string | null }>(`SELECT last_count AS c, last_attempt_at AS a FROM shiphub_category_state WHERE store_id = ? AND category = 'hand'`, STORE_B)
+    assert.equal(bState?.c ?? null, null, 'P1：静默顺延不得消费计数差异（last_count 保持未写）')
+    assert.equal(bState?.a ?? null, null, 'P1：静默顺延不得写 last_attempt_at')
+    assert.equal(db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND error_code = 'HEAVY_BUDGET_DEFERRED'`, STORE_B)?.n ?? 0, 0, 'P1：静默顺延不写任何记录（新语义：完全静默）')
+    assert.equal(runsAt(STORE, stampA), 1, 'P1：优先门店本轮只执行 1 个重活（hand）')
 
-    // ── P2（1670 优先）：上一轮被顺延的门店下一分钟即被服务 ──
+    // ── P2（1670 优先）：上一轮被完全让出的门店下一分钟即被服务 ──
     resetHits()
     await runScheduledShipHubSync(env, T_B)
-    assert.ok(succeeded(STORE_B) >= 1, 'P2：轮换到优先位的门店必须在下一次 tick 拿到预算（不得饿死）')
-    const bOrders2 = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_orders WHERE store_id = ?`, STORE_B)
-    assert.ok((bOrders2?.n ?? 0) >= 1, 'P2：被顺延门店的订单必须已写入')
-    const bCount2 = db.one<{ n: number | null }>(`SELECT last_count AS n FROM shiphub_category_state WHERE store_id = ? AND category = 'hand'`, STORE_B)
-    assert.notEqual(bCount2?.n ?? null, null, 'P2：重活执行后计数差异必须落库（已消费）')
+    assert.equal(hits.count, 1, `P2：轮到优先位后只探测一次并消费预算（实际 ${hits.count}）`)
+    assert.equal(db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND category = 'hand' AND status = 'succeeded' AND started_at = ?`, STORE_B, stampB)?.n, 1, 'P2：被让出的门店本轮应完成 hand 同步（不得饿死）')
+    assert.ok((db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_orders WHERE store_id = ?`, STORE_B)?.n ?? 0) >= 1, 'P2：被让出门店的订单必须已写入')
+    assert.equal(runsAt(STORE, stampB), 0, 'P2：本轮 1299 必须完全静默（预算被 1670 用掉）')
 
-    // ── P3（1299 又优先）：P1 被顺延的 1299 分类回到优先位时被补上 ──
+    // ── P3（1299 又优先）：上轮被让出的分类（pick）在回到优先位时被补上 ──
+    resetHits()
     await runScheduledShipHubSync(env, T_C)
-    assert.ok(succeeded(STORE, 'pick') >= 1, 'P3：前一轮被顺延的分类在门店回到优先位时必须被服务')
+    assert.equal(hits.count, 2, 'P3：hand 计数未变（只探测不消费）、pick 需要重活（消费）——共 2 次探测')
+    assert.equal(db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND category = 'pick' AND status = 'succeeded' AND started_at = ?`, STORE, stampC)?.n, 1, 'P3：上轮被让出的分类在回到优先位时必须被服务')
   } finally {
+    db.close()
+    await stopServer()
+  }
+})
+
+test('被平台中断的尝试（僵尸 running）被识别并让出本轮，恢复成功自动清零', async () => {
+  await startServer()
+  const db = await migratedTestDatabase()
+  try {
+    const env = await makeEnv(db, 'Z'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
+    rows = [orderRow('order-zombie', 'pending')]
+    const T_A = new Date('2026-09-12T03:00:00.000Z')
+    const T_B = new Date(T_A.getTime() + 60_000)
+    const stampA = T_A.toISOString()
+    const stampB = T_B.toISOString()
+
+    // 复刻一次「被平台中断」的现场：run 停在 running、状态从未更新（免费层超预算
+    // 调用被直接终止时 catch/finally 都来不及执行）。同时植入一条 manual running
+    // 记录：守卫只处理 scheduled（manual 可能来自并发中的真实请求，不得误伤）。
+    db.exec(`INSERT INTO shiphub_sync_runs (id, store_id, category, trigger_source, started_at, status) VALUES ('zombie-1', '${STORE}', 'hand', 'scheduled', '${new Date(T_A.getTime() - 120_000).toISOString()}', 'running')`)
+    db.exec(`INSERT INTO shiphub_sync_runs (id, store_id, category, trigger_source, started_at, status) VALUES ('zombie-manual', '${STORE}', 'hand', 'manual', '${new Date(T_A.getTime() - 120_000).toISOString()}', 'running')`)
+
+    await runScheduledShipHubSync(env, T_A)
+    const zombie = db.one<{ status: string; code: string | null; finished: string | null }>(`SELECT status, error_code AS code, finished_at AS finished FROM shiphub_sync_runs WHERE id = 'zombie-1'`)
+    assert.equal(zombie?.status, 'skipped', '僵尸记录必须被标记（否则监控永远显示 running）')
+    assert.equal(zombie?.code, 'INVOCATION_TERMINATED', '僵尸记录必须使用专用原因码（不是 failed，不触发失败告警）')
+    assert.ok(zombie?.finished, '僵尸记录必须补上 finished_at')
+    assert.equal(db.one<{ status: string }>(`SELECT status FROM shiphub_sync_runs WHERE id = 'zombie-manual'`)?.status, 'running', 'manual 记录不得被守卫误伤（可能是并发中的真实请求）')
+    assert.equal(db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND category = 'hand' AND started_at = ?`, STORE, stampA)?.n, 0, '本轮 hand 必须让出（不得在僵尸后立刻重跑同一个重活）')
+    const stateA = db.one<{ a: string | null; f: number }>(`SELECT last_attempt_at AS a, consecutive_failures AS f FROM shiphub_category_state WHERE store_id = ? AND category = 'hand'`, STORE)
+    assert.equal(stateA?.a ?? null, stampA, '让出时必须推进 last_attempt_at（下一轮再试，不形成每分钟自杀循环）')
+    assert.ok((stateA?.f ?? 0) >= 1, '让出时必须累计 consecutive_failures（作为反复被中断的观测证据）')
+    assert.equal(db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND category = 'pick' AND started_at = ? AND status = 'succeeded'`, STORE, stampA)?.n, 1, 'hand 让出后 pick 应照常获得预算（不得整体停摆）')
+
+    // 下一分钟：僵尸已标记、无新 running → hand 正常重试并成功；失败计数清零
+    await runScheduledShipHubSync(env, T_B)
+    assert.equal(db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND category = 'hand' AND started_at = ? AND status = 'succeeded'`, STORE, stampB)?.n, 1, '下一轮恢复正常重试并成功')
+    assert.equal(db.one<{ consecutive_failures: number }>(`SELECT consecutive_failures FROM shiphub_category_state WHERE store_id = ? AND category = 'hand'`, STORE)?.consecutive_failures, 0, '恢复成功后失败计数必须清零')
+  } finally {
+    db.close()
+    await stopServer()
+  }
+})
+
+test('持续失败的分类按指数退避，不再每分钟吃掉 tick 预算', async () => {
+  await startServer()
+  const db = await migratedTestDatabase()
+  try {
+    const env = await makeEnv(db, 'E'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
+    rows = [orderRow('order-bf', 'pending')]
+    listFailureCategory = 'pick'
+
+    const T0 = new Date('2026-09-12T03:00:00.000Z')
+    for (let i = 0; i < 3; i += 1) {
+      const r = await syncStoreCategory(db as unknown as D1Database, loadConfig(env), STORE, 'pick', { trigger: 'scheduled', now: new Date(T0.getTime() + i * 60_000) })
+      assert.equal(r.status, 'failed', `第 ${i + 1} 次应失败（上游 5xx）`)
+    }
+    const state = db.one<{ f: number; a: string }>(`SELECT consecutive_failures AS f, last_attempt_at AS a FROM shiphub_category_state WHERE store_id = ? AND category = 'pick'`, STORE)
+    assert.equal(state?.f, 3, '连续失败计数必须累计')
+    assert.ok(Date.parse(state!.a) > T0.getTime() + 2 * 60_000, '第 3 次失败后 last_attempt_at 必须被推后（退避生效）')
+
+    const before = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND category = 'pick'`, STORE)?.n ?? 0
+    resetHits()
+    const skip = await syncStoreCategory(db as unknown as D1Database, loadConfig(env), STORE, 'pick', { trigger: 'scheduled', now: new Date(T0.getTime() + 150_000) })
+    assert.equal(skip.status, 'skipped', '退避期内必须跳过')
+    assert.equal(skip.reason, 'FAILURE_BACKOFF', '退避期内必须是 FAILURE_BACKOFF（显式退避门禁）')
+    assert.equal(hits.count, 0, '退避期内不得探测上游')
+    assert.equal(db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND category = 'pick'`, STORE)?.n ?? 0, before, '退避期内不得产生新 run 记录')
+  } finally {
+    listFailureCategory = null
     db.close()
     await stopServer()
   }
