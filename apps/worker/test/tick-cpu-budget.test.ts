@@ -51,9 +51,12 @@ const TOKEN_KEY = Buffer.from('t'.repeat(32)).toString('base64url')
 let server: Server | null = null
 let baseUrl = ''
 let rows: Array<Record<string, unknown>> = []
-const hits = { detail: 0, list: 0, receiver: 0, count: 0, countsAgg: 0 }
-/** 聚合计数端点强制失败（验证单类回退路径）。 */
-let aggregateFailure = false
+const hits = { detail: 0, list: 0, receiver: 0, count: 0, aggregateHits: 0 }
+/**
+ * 聚合端点探针（2026-09-19 生产实测固化）：上游 `/stores/orders/count`
+ * 仅返回 dictionary_data（取消原因字典），没有任何计数键——代码绝不允许
+ * 依赖它取分类计数。这里照生产原样返回，若将来有人误接此端点，断言会命中。
+ */
 /** 分类计数覆盖（默认取 rows.length；满载测试用它让计数按轮变化）。 */
 let countOverrides: Record<string, number> = {}
 function countFor(category: string): number {
@@ -97,14 +100,9 @@ async function startServer(): Promise<void> {
       response.end(body)
     }
     if (path.endsWith('/orders/count')) {
-      // 聚合计数（2026-09-19 第二轮优化）：一次返回全部分类计数
-      hits.countsAgg += 1
-      if (aggregateFailure) {
-        response.writeHead(500, { 'content-type': 'application/json' })
-        response.end('{"error":"aggregate unavailable"}')
-        return
-      }
-      send(JSON.stringify({ to_hand_count: countFor('hand'), to_pick_count: countFor('pick'), to_receive_count: countFor('receive'), to_ship_count: countFor('ship') }))
+      // 聚合端点探针：照生产原样只返回字典（无计数键）。代码不得调用它。
+      hits.aggregateHits += 1
+      send(JSON.stringify({ dictionary_data: { '21001': '库存与stcom不一致', '21002': '无合适包装' } }))
       return
     }
     if (path.includes('/count/')) {
@@ -184,7 +182,7 @@ function resetHits(): void {
   hits.list = 0
   hits.receiver = 0
   hits.count = 0
-  hits.countsAgg = 0
+  hits.aggregateHits = 0
   urls.length = 0
 }
 
@@ -373,8 +371,8 @@ test('多门店 tick：重活预算一次调用只服务一家门店；预算耗
     // ── P1（1299 优先）：预算被 1299 的 hand 消费；1670 完全静默（零探测、零记录、零状态） ──
     resetHits()
     await runScheduledShipHubSync(env, T_A)
-    assert.equal(hits.countsAgg, 1, `P1：预算耗尽后其余分类不得再探测上游（实际聚合 ${hits.countsAgg} 次；旧实现会为每个分类探测并写「顺延」记录）`)
-    assert.equal(hits.count, 0, 'P1：聚合可用时不得再发单类计数请求')
+    assert.equal(hits.count, 1, `P1：预算耗尽后其余分类不得再探测上游（实际 ${hits.count} 次；旧实现会为每个分类探测并写「顺延」记录）`)
+    assert.equal(hits.aggregateHits, 0, 'P1：不得调用聚合端点（生产实测其无计数键）')
     assert.equal(hits.list, 1, 'P1：本 tick 只允许一次列表重活')
     assert.equal(runsAt(STORE_B, stampA), 0, 'P1：非优先门店必须完全静默——不得产生任何 run 记录（含 skipped）')
     assert.equal(db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_orders WHERE store_id = ?`, STORE_B)?.n, 0, 'P1：非优先门店不得写入订单')
@@ -387,8 +385,8 @@ test('多门店 tick：重活预算一次调用只服务一家门店；预算耗
     // ── P2（1670 优先）：上一轮被完全让出的门店下一分钟即被服务 ──
     resetHits()
     await runScheduledShipHubSync(env, T_B)
-    assert.equal(hits.countsAgg, 1, `P2：轮到优先位后只探测一次（聚合）并消费预算（实际 ${hits.countsAgg}）`)
-    assert.equal(hits.count, 0, 'P2：聚合可用时不得再发单类计数请求')
+    assert.equal(hits.count, 1, `P2：轮到优先位后只探测一次并消费预算（实际 ${hits.count}）`)
+    assert.equal(hits.aggregateHits, 0, 'P2：不得调用聚合端点')
     assert.equal(db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND category = 'hand' AND status = 'succeeded' AND started_at = ?`, STORE_B, stampB)?.n, 1, 'P2：被让出的门店本轮应完成 hand 同步（不得饿死）')
     assert.ok((db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_orders WHERE store_id = ?`, STORE_B)?.n ?? 0) >= 1, 'P2：被让出门店的订单必须已写入')
     assert.equal(runsAt(STORE, stampB), 0, 'P2：本轮 1299 必须完全静默（预算被 1670 用掉）')
@@ -396,8 +394,7 @@ test('多门店 tick：重活预算一次调用只服务一家门店；预算耗
     // ── P3（1299 又优先）：上轮被让出的分类（pick）在回到优先位时被补上 ──
     resetHits()
     await runScheduledShipHubSync(env, T_C)
-    assert.equal(hits.countsAgg, 1, 'P3：hand/pick 共用同一份聚合快照——本店本 tick 只发 1 次计数请求（旧实现 2 次）')
-    assert.equal(hits.count, 0, 'P3：聚合可用时不得再发单类计数请求')
+    assert.equal(hits.count, 2, 'P3：hand 计数未变（只探测不消费）、pick 需要重活（消费）——共 2 次探测')
     assert.equal(db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND category = 'pick' AND status = 'succeeded' AND started_at = ?`, STORE, stampC)?.n, 1, 'P3：上轮被让出的分类在回到优先位时必须被服务')
   } finally {
     db.close()
@@ -564,9 +561,9 @@ test('轻量轮次（计数未变）不建租约与 running 行：全 tick 仅�
     const terminalRuns = prepared.filter((q) => q.includes("'succeeded', 0, 0, 0")).length
     assert.equal(terminalRuns, 2, '到点的 hand/pick 各落一条终态 succeeded run（监控契约不变）')
     assert.ok(prepared.length <= 12, `轻量 tick 语句总数必须 <= 12（实际 ${prepared.length}；改造前同口径约 20）`)
-    // 上游探测不受影响：hand/pick 照常每分钟探测（实时性不变），且共用聚合快照
-    assert.equal(hits.countsAgg, 1, '轻量轮次仍须完成计数探测（保 1 分钟级时效），且每店每 tick 只发 1 次聚合请求')
-    assert.equal(hits.count, 0, '聚合可用时不得再发单类计数请求')
+    // 上游探测不受影响：hand/pick 照常每分钟探测（实时性不变）
+    assert.equal(hits.count, 2, '轻量轮次仍须完成 hand/pick 计数探测（保 1 分钟级时效）')
+    assert.equal(hits.aggregateHits, 0, '不得调用聚合端点')
     const running = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE status = 'running'`)?.n
     assert.equal(running, 0, '轻量轮次不得留下 running 行')
     const leases = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_leases`)?.n
@@ -592,44 +589,37 @@ test('营业窗口外（每天 12 小时）函数入口直接返回：零 D1 操
     // 北京 23:00（UTC 15:00）——窗口外
     await runScheduledShipHubSync({ ...outside, DB: countingDb } as WorkerEnv, new Date('2026-09-12T15:00:00.000Z'))
     assert.equal(prepared.length, 0, `窗口外必须零 D1 语句（实际 ${prepared.length}；改造前每 tick 仍有预取/建行回退等多条空转查询）`)
-    assert.equal(hits.count + hits.countsAgg + hits.list, 0, '窗口外不得调用上游')
+    assert.equal(hits.count + hits.list, 0, '窗口外不得调用上游')
   } finally {
     db.close()
     await stopServer()
   }
 })
 
-test('聚合计数：稳态每店每 tick 一次请求覆盖四分类；聚合失败自动回退单类且结果一致', async () => {
+test('计数请求基线：双店稳态每分钟 4 次单类请求（每店 hand/pick 各一），聚合端点绝不调用', async () => {
   await startServer()
   const db = await migratedTestDatabase()
   try {
     const env = await makeEnv(db, 'G'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
     await insertLiveConnection(db, STORE_B, 'fp-store-g', 'G'.repeat(760))
-    rows = [orderRow('o-agg', 'pending')]
+    rows = [orderRow('o-base', 'pending')]
     const T = Date.parse('2026-09-12T03:00:00.000Z')
-    // 预热 8 轮：重活预算 1/tick + 分钟轮换下，两店 × 四分类的首次同步恰好
-    // 在 T+0..T+7 完成（A: hand T+0 / pick T+2 / receive T+4 / ship T+6；
-    // B: hand T+1 / pick T+3 / receive T+5 / ship T+7）。
+    // 预热 8 轮：预算 1/tick + 分钟轮换下两店四分类的首次同步恰好 T+0..T+7 完成。
     for (let i = 0; i < 8; i += 1) await runScheduledShipHubSync(env, new Date(T + i * 60_000))
 
-    // 阶段一：稳态（T+8：仅 hand/pick 到点且计数无变化）——两店各 1 次聚合、单类 0 次
+    // 稳态（T+8：仅 hand/pick 到点且计数无变化）：
+    // 双店各 2 次单类计数 = 4 次——这是「1 分钟时效」契约下的请求下界。
+    // （2026-09-19 用生产 token 实测：上游 /orders/count 只返回取消原因字典，
+    //   没有任何计数键；不存在能一次取回多分类计数的端点。）
     resetHits()
     await runScheduledShipHubSync(env, new Date(T + 8 * 60_000))
-    assert.equal(hits.countsAgg, 2, `稳态两家店各发 1 次聚合（实际 ${hits.countsAgg}；旧实现 4 次单类请求）`)
-    assert.equal(hits.count, 0, '聚合可用时不得再发单类计数请求')
-
-    // 阶段二：聚合强制失败——回退单类请求，且计数结果照常落库（正确性不依赖聚合）
-    aggregateFailure = true
-    resetHits()
-    await runScheduledShipHubSync(env, new Date(T + 9 * 60_000))
-    assert.ok(hits.countsAgg >= 1, '聚合失败仍须被尝试（失败即回退）')
-    assert.ok(hits.count >= 4, `聚合失败后两店 hand/pick 各回退一次单类请求（实际 ${hits.count}）`)
+    assert.equal(hits.count, 4, `双店稳态每分钟 4 次单类计数（实际 ${hits.count}）`)
+    assert.equal(hits.aggregateHits, 0, '聚合端点不得被调用（生产实测其无计数键）')
     const handA = db.one<{ last_count: number }>(`SELECT last_count FROM shiphub_category_state WHERE store_id = ? AND category = 'hand'`, STORE)
     const handB = db.one<{ last_count: number }>(`SELECT last_count FROM shiphub_category_state WHERE store_id = ? AND category = 'hand'`, STORE_B)
-    assert.equal(handA?.last_count, 1, '回退路径的计数结果必须照常落库（店 A）')
-    assert.equal(handB?.last_count, 1, '回退路径的计数结果必须照常落库（店 B）')
+    assert.equal(handA?.last_count, 1, '计数结果照常落库（店 A）')
+    assert.equal(handB?.last_count, 1, '计数结果照常落库（店 B）')
   } finally {
-    aggregateFailure = false
     db.close()
     await stopServer()
   }
@@ -646,7 +636,7 @@ test('双店满载有界性：每分钟语句/批量/上游请求均有硬上限
     const T = Date.parse('2026-09-12T03:00:00.000Z')
 
     // 采集 12 个连续 tick（含首轮建表 + 稳态 + 变化轮），逐 tick 统计上限
-    const perTick: Array<{ stmts: number; batches: number; agg: number; lists: number }> = []
+    const perTick: Array<{ stmts: number; batches: number; counts: number; lists: number }> = []
     for (let i = 0; i < 12; i += 1) {
       countOverrides = { hand: 3 + (i % 4) } // 每轮变化 → 每分钟至少一个重活
       const prepared: string[] = []
@@ -657,18 +647,18 @@ test('双店满载有界性：每分钟语句/批量/上游请求均有硬上限
       } as unknown as D1Database
       resetHits()
       await runScheduledShipHubSync({ ...env, DB: countingDb } as WorkerEnv, new Date(T + i * 60_000))
-      perTick.push({ stmts: prepared.length, batches: batchCount, agg: hits.countsAgg, lists: hits.list })
+      perTick.push({ stmts: prepared.length, batches: batchCount, counts: hits.count, lists: hits.list })
     }
 
     const maxStmts = Math.max(...perTick.map((t) => t.stmts))
     const maxBatches = Math.max(...perTick.map((t) => t.batches))
-    const maxAgg = Math.max(...perTick.map((t) => t.agg))
+    const maxCounts = Math.max(...perTick.map((t) => t.counts))
     const maxLists = Math.max(...perTick.map((t) => t.lists))
     // 硬上限（2026-09-19 满载有界性契约）：双店最忙单 tick 也必须落在这些界内，
     // 这是「免费层 10ms 预算不被击穿」的结构性保证。
     assert.ok(maxStmts <= 60, `单 tick 语句数上限 60（实测 ${maxStmts}）`)
     assert.ok(maxBatches <= 4, `单 tick 批量调用上限 4（实测 ${maxBatches}）`)
-    assert.ok(maxAgg <= 2, `单 tick 聚合计数请求上限 2（两店各一；实测 ${maxAgg}）`)
+    assert.ok(maxCounts <= 8, `单 tick 计数请求上限 8（2 店 × 4 分类全到期；实测 ${maxCounts}）`)
     assert.ok(maxLists <= 1, `单 tick 重活预算 = 1：列表拉取上限 1（实测 ${maxLists}）`)
   } finally {
     countOverrides = {}

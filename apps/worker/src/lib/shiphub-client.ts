@@ -49,13 +49,6 @@ export type ShipHubPage = { orders: ShipHubOrder[]; nextCursor: string | null }
 export interface ShipHubClient {
   readonly mode: ShipHubMode
   count(category: ShipHubCategory): Promise<number>
-  /**
-   * 一次请求取回全部分类计数（2026-09-19 第二轮深度 CPU 优化）。
-   * 上游 `/stores/orders/count` 聚合端点返回字典（前端 dashboard 徽标即用它）。
-   * 返回对象可能只含部分分类（上游字段缺失/异常时）——调用方对缺失分类回退
-   * 到 count() 单类请求，正确性不依赖本方法。
-   */
-  counts(): Promise<Partial<Record<ShipHubCategory, number>>>
   list(category: ShipHubCategory, cursor?: string | null, pageSize?: number): Promise<ShipHubPage>
   detail(category: ShipHubCategory, id: string, detailKey?: string | null): Promise<ShipHubOrder | null>
 }
@@ -192,14 +185,6 @@ export class FixtureShipHubClient implements ShipHubClient {
 
   count(category: ShipHubCategory): Promise<number> {
     return Promise.resolve(this.orders.filter((order) => order.category === category).length)
-  }
-
-  counts(): Promise<Partial<Record<ShipHubCategory, number>>> {
-    const out: Partial<Record<ShipHubCategory, number>> = {}
-    for (const category of SHIPHUB_CATEGORIES) {
-      out[category] = this.orders.filter((order) => order.category === category).length
-    }
-    return Promise.resolve(out)
   }
 
   list(category: ShipHubCategory, cursor?: string | null, pageSize = 100): Promise<ShipHubPage> {
@@ -409,25 +394,6 @@ export class HttpShipHubClient implements ShipHubClient {
       const count = Number(body)
       if (!Number.isInteger(count) || count < 0) return 0
       return count
-    })
-  }
-
-  /**
-   * 聚合计数（2026-09-19 第二轮深度 CPU 优化）：`/stores/orders/count` 一次返回
-   * 全部分类计数（前端 dashboard 徽标同款端点）。仅信任能解析为「非负整数」的
-   * `to_{category}_count` 键；缺失/非法的一律不填，由调用方回退单类请求——
-   * 即上游字段名有任何出入都不会影响正确性，最多不省那一次请求。
-   */
-  counts(): Promise<Partial<Record<ShipHubCategory, number>>> {
-    return this.request<unknown>(`/shiphub_web/stores/orders/count?location_num=${encodeURIComponent(this.locationNum)}`).then((body) => {
-      const out: Partial<Record<ShipHubCategory, number>> = {}
-      if (!body || typeof body !== 'object') return out
-      const dict = body as Record<string, unknown>
-      for (const category of SHIPHUB_CATEGORIES) {
-        const value = Number(dict[`to_${category}_count`])
-        if (Number.isInteger(value) && value >= 0) out[category] = value
-      }
-      return out
     })
   }
 
