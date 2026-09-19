@@ -418,31 +418,6 @@ async function ensureState(db: D1Database, storeId: string, category: ShipHubCat
   return row
 }
 
-/**
- * 分类计数解析（2026-09-19 第二轮深度 CPU 优化）：优先用 tick 级聚合快照
- * （一次请求覆盖四分类），快照不可用时逐类单查——两条路径结果语义一致，
- * 差异只在请求次数。快照的加载失败（网络/字段异常）被吞掉并标记为 null，
- * 后续分类走单查路径，不影响同步正确性。
- */
-async function resolveCategoryCount(
-  client: ShipHubClient,
-  category: ShipHubCategory,
-  snapshot?: { loaded: boolean; values: Partial<Record<ShipHubCategory, number>> | null }
-): Promise<number> {
-  if (!snapshot) return client.count(category)
-  if (!snapshot.loaded) {
-    try {
-      snapshot.values = await client.counts()
-    } catch {
-      snapshot.values = null
-    }
-    snapshot.loaded = true
-  }
-  const fromSnapshot = snapshot.values?.[category]
-  if (typeof fromSnapshot === 'number') return fromSnapshot
-  return client.count(category)
-}
-
 function errorCode(error: unknown): string {
   if (error instanceof ShipHubUpstreamError) {
     // 诊断增强（2026-09-19）：上游 4xx/5xx 的 HTTP 状态并入错误码（如
@@ -502,13 +477,6 @@ export async function syncStoreCategory(
       zombieIds?: string[]
       connectionRow?: Record<string, unknown> | null
     }
-    /**
-     * tick 级聚合计数快照（2026-09-19 第二轮深度 CPU 优化）：本店本 tick 内
-     * 首次需要计数时用一次聚合请求取回全部分类计数（上游
-     * `/stores/orders/count`），其余分类复用——把每分钟的 4 次计数请求压成 1 次。
-     * 聚合失败或字段缺失时自动回退单类请求（正确性不依赖聚合端点）。
-     */
-    countsSnapshot?: { loaded: boolean; values: Partial<Record<ShipHubCategory, number>> | null }
     /**
      * tick 级延迟写入队列（2026-09-19 第二轮深度 CPU 优化）：轻量轮次的心跳写入
      * （状态 UPDATE + 终态 run INSERT）不各自发一次 db.batch，而是推进本队列，
@@ -622,7 +590,7 @@ export async function syncStoreCategory(
         }
       }
     }
-    const count = await resolveCategoryCount(client, category, options.countsSnapshot)
+    const count = await client.count(category)
     const countChanged = state.last_count === null || state.last_count !== count
     const shouldList = fullReconcile || countChanged
     // ── 轻量轮次（2026-09-19 深度 CPU 优化）──────────────────────────────
@@ -1199,15 +1167,12 @@ export async function runScheduledShipHubSync(env: WorkerEnv, now = new Date()):
     // （含 access token 解密）；2026-09-19 起同时携带「是否需要降级清理」标记，
     // 免去常态每分类一次的 no-op conn UPDATE。
     const connectionCache = new Map<string, { client: ShipHubClient; needsCleanup: boolean }>()
-    // 本店本 tick 的聚合计数快照（一次请求覆盖四分类；见 resolveCategoryCount）。
-    const countsSnapshot: { loaded: boolean; values: Partial<Record<ShipHubCategory, number>> | null } = { loaded: false, values: null }
     for (const category of CATEGORIES) {
       await syncStoreCategory(env.DB, config, store.id, category, {
         trigger: 'scheduled',
         now,
         connectionCache,
         heavyBudget,
-        countsSnapshot,
         pendingWrites,
         prefetched: {
           state: statesByKey.get(`${store.id}|${category}`),
