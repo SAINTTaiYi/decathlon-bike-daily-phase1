@@ -57,7 +57,14 @@ export class ShipHubUpstreamError extends Error {
   constructor(
     readonly code: string,
     readonly status?: number,
-    readonly retryable = false
+    readonly retryable = false,
+    /**
+     * 诊断详情（2026-09-19）：上游失败时的定位信息——HTTP 状态、请求路径与
+     * 响应片段（截断 320 字符）。由 shiphub-sync 的失败路径持久化到
+     * shiphub_sync_runs.error_detail，用于区分 4xx/5xx 与上游给出的理由。
+     * 仅诊断用途，绝不包含凭据（响应体是上游公开错误信息）。
+     */
+    readonly detail?: string
   ) {
     super(code)
     this.name = 'ShipHubUpstreamError'
@@ -358,6 +365,15 @@ function normalizeDetailOrder(category: ShipHubCategory, listOrder: ShipHubOrder
   }
 }
 
+async function readErrorSnippet(response: Response): Promise<string> {
+  try {
+    const text = (await response.text()).replace(/\s+/gu, ' ').trim()
+    return text.slice(0, 280)
+  } catch {
+    return ''
+  }
+}
+
 export class HttpShipHubClient implements ShipHubClient {
   readonly mode = 'live' as const
   constructor(
@@ -437,9 +453,11 @@ export class HttpShipHubClient implements ShipHubClient {
         }
         if (!response.ok) {
           const status = response.status
-          if (status === 404) throw new ShipHubUpstreamError('UPSTREAM_NOT_FOUND', status)
-          if (status === 401 || status === 403) throw new ShipHubUpstreamError('OAUTH_UNAUTHORIZED', status)
-          throw new ShipHubUpstreamError('UPSTREAM_ERROR', status, status >= 500 && status < 600)
+          const snippet = await readErrorSnippet(response)
+          const detail = `HTTP ${status} ${url.pathname}${url.search}${snippet ? ` :: ${snippet}` : ''}`.slice(0, 320)
+          if (status === 404) throw new ShipHubUpstreamError('UPSTREAM_NOT_FOUND', status, false, detail)
+          if (status === 401 || status === 403) throw new ShipHubUpstreamError('OAUTH_UNAUTHORIZED', status, false, detail)
+          throw new ShipHubUpstreamError('UPSTREAM_ERROR', status, status >= 500 && status < 600, detail)
         }
         return await response.json() as T
       } catch (error: unknown) {
