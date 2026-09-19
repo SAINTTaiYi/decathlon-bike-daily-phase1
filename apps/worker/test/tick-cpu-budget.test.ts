@@ -33,6 +33,14 @@ import { migratedTestDatabase, type TestD1Database } from '../security/d1-test-a
 //      INVOCATION_TERMINATED 并让出本轮。
 //   ⑧ 上游持续失败（1670 pick 的 5xx）每分钟重试持续吃预算、饿死其它分类
 //      → 连续失败 >= 3 次按指数退避（封顶 10 分钟）。
+//   ⑨ 深度 CPU 优化（2026-09-19 晚，用户要求「极致的降低 ms」）：
+//      · tick 批量预取：自愈候选/门店/僵尸 + 状态/连接 合并为两次 db.batch，
+//        语句 14+ → 5，往返 14+ → 2；僵尸扫描由每分类一次降为每 tick 一次；
+//      · 轻量轮次（计数未变化）：不建租约、不建 running 行，仅 2 条语句
+//        （状态心跳 + 终态 run），常态每 tick 语句数 8/分类 → 2/分类；
+//      · 窗口外（每天 12 小时）：函数入口直接返回，零 D1 操作；
+//      · 干态连接不再每分类提交 no-op 的降级清理 UPDATE；
+//      · 租约释放并入 success/failure batch（省一条独立往返）。
 //
 // 测试用真实本地 HTTP 服务模拟 Shiphub 上游（非 mock 错误码），
 // 计数 detail 请求以验证「跳过」确实发生。
@@ -283,11 +291,13 @@ test('scheduled tick 内同一门店的连接只解析一次（tick 级连接缓
     const env = await makeEnv(db, 'B'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
     rows = [orderRow('order-cache', 'pending')]
 
-    // 包装 DB：计数 connectionForSync 的连接查询（JOIN stores 的形态是它独有）
+    // 包装 DB：计数连接行读取（2026-09-19 深度优化后，连接选择在批量预取里
+    // 以 `FROM shiphub_connections c WHERE store_id IN (...)` 形态出现；旧的
+    // JOIN stores 形态已删除）。语义不变：一次 tick 内连接只解析一次。
     let connectionSelects = 0
     const countingDb = {
       prepare: (sql: string) => {
-        if (sql.includes('FROM shiphub_connections c JOIN stores')) connectionSelects += 1
+        if (sql.includes('FROM shiphub_connections c') && sql.includes('WHERE c.store_id IN')) connectionSelects += 1
         return db.prepare(sql)
       },
       batch: (statements: D1PreparedStatement[]) => db.batch(statements)
@@ -482,6 +492,77 @@ test('短码 location_num 在请求上游前自动展开为 partyNumber（1670 �
     assert.ok(locationParams.length > 0 && locationParams.every((v) => v !== null), '每个上游请求都必须带 location_num')
     const distinct = [...new Set(locationParams)]
     assert.deepEqual(distinct, ['0070167001670'], `上游请求必须使用展开后的 partyNumber（实际：${distinct.join(', ')}）`)
+  } finally {
+    db.close()
+    await stopServer()
+  }
+})
+
+test('轻量轮次（计数未变）不建租约与 running 行：全 tick 仅两次批量往返、每分类 2 条语句', async () => {
+  await startServer()
+  const db = await migratedTestDatabase()
+  try {
+    const env = await makeEnv(db, 'L'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
+    rows = []
+    const T0 = new Date('2026-09-12T03:00:00.000Z')
+    // 预热四轮：重活预算每 tick 只服务一个分类，hand/pick/receive/ship 各需一轮
+    // 完成首次全量同步（轻量轮次不消费预算，因此首次同步在连续四轮内完成；
+    // count 端点的值 = rows.length 恒为 0，预热后全部分类 last_count 均为 0）。
+    await runScheduledShipHubSync(env, T0)
+    await runScheduledShipHubSync(env, new Date(T0.getTime() + 60_000))
+    await runScheduledShipHubSync(env, new Date(T0.getTime() + 2 * 60_000))
+    await runScheduledShipHubSync(env, new Date(T0.getTime() + 3 * 60_000))
+
+    // 语句记录代理（第二轮稳态：全部为轻量轮次）
+    const prepared: string[] = []
+    const countingDb = {
+      prepare: (sql: string) => { prepared.push(sql); return db.prepare(sql) },
+      batch: (statements: D1PreparedStatement[]) => db.batch(statements)
+    } as unknown as D1Database
+    resetHits()
+    // +4 分钟：hand/pick 到点（55 秒）→ 轻量轮次；receive/ship 未到点（10 分钟）→ 零操作
+    await runScheduledShipHubSync({ ...env, DB: countingDb } as WorkerEnv, new Date(T0.getTime() + 4 * 60_000))
+
+    const sql = prepared.join('\n')
+    assert.ok(!sql.includes('INSERT INTO shiphub_sync_leases'), '轻量轮次不得建租约')
+    assert.ok(!sql.includes("'running')"), '轻量轮次不得建 running 行')
+    const zombieSelects = prepared.filter((q) => q.includes("status = 'running' AND trigger_source = 'scheduled'")).length
+    assert.equal(zombieSelects, 1, '僵尸扫描每 tick 只做一次（旧实现每分类一次 = 8 次）')
+    const stateSelects = prepared.filter((q) => q.includes('FROM shiphub_category_state WHERE store_id IN')).length
+    assert.equal(stateSelects, 1, '分类状态必须批量预取（一次查询覆盖全部门店）')
+    const connSelects = prepared.filter((q) => q.includes('FROM shiphub_connections c') && q.includes('store_id IN')).length
+    assert.equal(connSelects, 1, '连接行必须批量预取（一次查询覆盖全部门店）')
+    const terminalRuns = prepared.filter((q) => q.includes("'succeeded', 0, 0, 0")).length
+    assert.equal(terminalRuns, 2, '到点的 hand/pick 各落一条终态 succeeded run（监控契约不变）')
+    assert.ok(prepared.length <= 12, `轻量 tick 语句总数必须 <= 12（实际 ${prepared.length}；改造前同口径约 20）`)
+    // 上游探测不受影响：hand/pick 照常每分钟探测（实时性不变）
+    assert.equal(hits.count, 2, '轻量轮次仍须完成 hand/pick 计数探测（保 1 分钟级时效）')
+    const running = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE status = 'running'`)?.n
+    assert.equal(running, 0, '轻量轮次不得留下 running 行')
+    const leases = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_leases`)?.n
+    assert.equal(leases, 0, '轻量轮次不得留下租约')
+  } finally {
+    db.close()
+    await stopServer()
+  }
+})
+
+test('营业窗口外（每天 12 小时）函数入口直接返回：零 D1 操作、零上游调用', async () => {
+  await startServer()
+  const db = await migratedTestDatabase()
+  try {
+    const env = await makeEnv(db, 'O'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
+    const outside = { ...env, SHIPHUB_ACTIVE_START_HOUR: '10', SHIPHUB_ACTIVE_END_HOUR: '22' } as WorkerEnv
+    const prepared: string[] = []
+    const countingDb = {
+      prepare: (sql: string) => { prepared.push(sql); return db.prepare(sql) },
+      batch: (statements: D1PreparedStatement[]) => db.batch(statements)
+    } as unknown as D1Database
+    resetHits()
+    // 北京 23:00（UTC 15:00）——窗口外
+    await runScheduledShipHubSync({ ...outside, DB: countingDb } as WorkerEnv, new Date('2026-09-12T15:00:00.000Z'))
+    assert.equal(prepared.length, 0, `窗口外必须零 D1 语句（实际 ${prepared.length}；改造前每 tick 仍有预取/建行回退等多条空转查询）`)
+    assert.equal(hits.count + hits.list, 0, '窗口外不得调用上游')
   } finally {
     db.close()
     await stopServer()

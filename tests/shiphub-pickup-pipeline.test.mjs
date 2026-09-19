@@ -177,7 +177,12 @@ test('cron 同步前自愈 reauth_required 连接，冷却用专用列（2026-09
   // 旧实现遍历全部 active 门店每分钟写入，烧穿 D1 写配额）；自愈受营业时间窗口约束。
   assert.match(sync, /if \(config\.SHIPHUB\.mode === 'fixture'\) return\n/u, 'fixture 定时同步必须提前返回（不驱动任何门店）')
   assert.doesNotMatch(sync, /SELECT s\.id FROM stores s WHERE s\.status = 'active'/u, '不得再遍历全部 active 门店（2026-09-12 事故根因）')
-  assert.match(sync, /if \(activeInStoreTimezone\(SHIPHUB_SYNC_TIMEZONE, now, config\.SHIPHUB\.activeStartHour, config\.SHIPHUB\.activeEndHour\)\) \{\s*await healShipHubConnections\(env, config, now\)/u, '自愈必须仍受营业时间窗口约束')
+  // 2026-09-19 深度 CPU 优化后形态变化（断言跟随实现搬家，要求不变且更强）：
+  // 窗口判定在函数入口完成并直接早退——窗口外连「必然空转的查询」都不再做；
+  // 自愈仍只在窗口内调用。
+  assert.match(sync, /const inWindow = activeInStoreTimezone\(SHIPHUB_SYNC_TIMEZONE, now, config\.SHIPHUB\.activeStartHour, config\.SHIPHUB\.activeEndHour\)/u, '自愈与同步必须仍受营业时间窗口约束')
+  assert.match(sync, /if \(!inWindow\) return/u, '营业窗口外必须直接返回（零 D1 操作）')
+  assert.match(sync, /await healShipHubConnections\(env, config, now, healCandidates\)/u, '自愈仍须在窗口内调用')
 })
 
 test('整合看板的每个类名都有样式落地（防样式缺失回归）', () => {
