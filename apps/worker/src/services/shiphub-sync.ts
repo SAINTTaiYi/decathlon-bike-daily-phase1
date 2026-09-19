@@ -418,6 +418,31 @@ async function ensureState(db: D1Database, storeId: string, category: ShipHubCat
   return row
 }
 
+/**
+ * 分类计数解析（2026-09-19 第二轮深度 CPU 优化）：优先用 tick 级聚合快照
+ * （一次请求覆盖四分类），快照不可用时逐类单查——两条路径结果语义一致，
+ * 差异只在请求次数。快照的加载失败（网络/字段异常）被吞掉并标记为 null，
+ * 后续分类走单查路径，不影响同步正确性。
+ */
+async function resolveCategoryCount(
+  client: ShipHubClient,
+  category: ShipHubCategory,
+  snapshot?: { loaded: boolean; values: Partial<Record<ShipHubCategory, number>> | null }
+): Promise<number> {
+  if (!snapshot) return client.count(category)
+  if (!snapshot.loaded) {
+    try {
+      snapshot.values = await client.counts()
+    } catch {
+      snapshot.values = null
+    }
+    snapshot.loaded = true
+  }
+  const fromSnapshot = snapshot.values?.[category]
+  if (typeof fromSnapshot === 'number') return fromSnapshot
+  return client.count(category)
+}
+
 function errorCode(error: unknown): string {
   if (error instanceof ShipHubUpstreamError) {
     // 诊断增强（2026-09-19）：上游 4xx/5xx 的 HTTP 状态并入错误码（如
@@ -477,6 +502,22 @@ export async function syncStoreCategory(
       zombieIds?: string[]
       connectionRow?: Record<string, unknown> | null
     }
+    /**
+     * tick 级聚合计数快照（2026-09-19 第二轮深度 CPU 优化）：本店本 tick 内
+     * 首次需要计数时用一次聚合请求取回全部分类计数（上游
+     * `/stores/orders/count`），其余分类复用——把每分钟的 4 次计数请求压成 1 次。
+     * 聚合失败或字段缺失时自动回退单类请求（正确性不依赖聚合端点）。
+     */
+    countsSnapshot?: { loaded: boolean; values: Partial<Record<ShipHubCategory, number>> | null }
+    /**
+     * tick 级延迟写入队列（2026-09-19 第二轮深度 CPU 优化）：轻量轮次的心跳写入
+     * （状态 UPDATE + 终态 run INSERT）不各自发一次 db.batch，而是推进本队列，
+     * 由 runScheduledShipHubSync 在 tick 末尾一次性 flush——把常态每分钟的
+     * 4 个分类批量调用合并为 1 个。仅 scheduled 路径注入；独立调用（手动/授权/
+     * ensure-fresh）不传 = 立即执行（行为不变）。flush 失败只丢失心跳行，
+     * 下一轮自动重算，不影响业务数据。
+     */
+    pendingWrites?: D1PreparedStatement[]
     /**
      * tick 级重活预算（2026-09-19 多门店铺开）：{ remaining } 由
      * runScheduledShipHubSync 每 tick 注入一次、本 tick 全部门店共享。预算耗尽后
@@ -581,7 +622,7 @@ export async function syncStoreCategory(
         }
       }
     }
-    const count = await client.count(category)
+    const count = await resolveCategoryCount(client, category, options.countsSnapshot)
     const countChanged = state.last_count === null || state.last_count !== count
     const shouldList = fullReconcile || countChanged
     // ── 轻量轮次（2026-09-19 深度 CPU 优化）──────────────────────────────
@@ -590,12 +631,18 @@ export async function syncStoreCategory(
     // （监控契约与重活轮次一致：status=succeeded、时间戳完整）。
     // 这是常态（每分钟每店 hand/pick 各一轮）的 CPU 主路径：语句数 8 → 2。
     if (!shouldList) {
-      await db.batch([
+      const lightStatements = [
         db.prepare(`UPDATE shiphub_category_state SET last_count = ?, last_attempt_at = ?, last_success_at = ?, next_reconcile_at = ?, last_error_code = NULL, consecutive_failures = 0, updated_at = ? WHERE store_id = ? AND category = ?`)
           .bind(count, stamp, stamp, nextAt(now, COUNT_INTERVAL_MS[category]), stamp, storeId, category),
         db.prepare(`INSERT INTO shiphub_sync_runs (id, store_id, category, trigger_source, batch_id, started_at, finished_at, status, pages, orders, detail_count) VALUES (?, ?, ?, ?, ?, ?, ?, 'succeeded', 0, 0, 0)`)
           .bind(uuid(), storeId, category, trigger, options.batchId ?? null, stamp, stamp)
-      ])
+      ]
+      if (options.pendingWrites) {
+        // tick 级延迟（见 pendingWrites 文档）：由调度器在末尾一次 flush。
+        options.pendingWrites.push(...lightStatements)
+      } else {
+        await db.batch(lightStatements)
+      }
       return { status: 'succeeded' }
     }
     if (options.heavyBudget) {
@@ -1069,12 +1116,14 @@ export async function runScheduledShipHubSync(env: WorkerEnv, now = new Date()):
   const inWindow = activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)
   if (!inWindow) return
 
-  // ── 批量预取（2026-09-19 深度 CPU 优化）───────────────────────────────────
+  // ── 批量预取（2026-09-19 两轮深度 CPU 优化）───────────────────────────────
   // 旧路径一次 tick：自愈候选 + 门店列表 + 每分类(ensureState + 僵尸) + 每店连接
   // ≈ 14 次独立 D1 往返（每次往返都有序列化与调度开销，是免费层 CPU 的主要成本）。
-  // 新路径合并为两次 db.batch：
-  //   ① 自愈候选 / 门店列表 / 僵尸扫描（一次往返，3 条语句）
-  //   ② 分类状态 / 连接行（一次往返，2 条语句）
+  // 第一轮合并为两次 db.batch；第二轮（本版）进一步合成单次往返、5 条语句：
+  //   自愈候选 / 门店列表 / 僵尸扫描 / 全部分类状态 / 全部连接行。
+  // 状态与连接行不再按门店过滤（两张表都是「每店几行」的小表，全量读取的行数
+  // 随门店数线性且极小），从而消除「拿门店列表 → 再查其状态」的批次依赖，
+  // 两次往返合为一次。
   // 取舍：自愈恢复的门店从「本轮即参与」变为「下一轮参与」（≤60 秒）——自愈本身
   // 走 5 分钟冷却，不影响恢复节奏；僵尸扫描由每分类一次（8 次）降为全 tick 一次。
   const zombieCutoff = new Date(now.getTime() - ZOMBIE_WINDOW_MS).toISOString()
@@ -1100,11 +1149,20 @@ export async function runScheduledShipHubSync(env: WorkerEnv, now = new Date()):
     env.DB.prepare(`
       SELECT id, store_id, category FROM shiphub_sync_runs
       WHERE status = 'running' AND trigger_source = 'scheduled' AND started_at >= ?
-    `).bind(zombieCutoff)
+    `).bind(zombieCutoff),
+    env.DB.prepare('SELECT * FROM shiphub_category_state'),
+    env.DB.prepare(`
+      SELECT c.store_id, c.enabled, c.mode, c.refresh_token_ciphertext, c.refresh_token_nonce,
+             c.access_token_ciphertext, c.access_token_nonce, c.token_expires_at,
+             c.location_num, c.identity_fingerprint, c.authorization_status, c.last_auth_error_code
+      FROM shiphub_connections c
+    `)
   ])
   const healCandidates = (headResults[0]?.results ?? []) as Array<{ store_id: string; login_username_enc: string | null; login_password_enc: string | null }>
   const stores = (headResults[1]?.results ?? []) as Array<{ id: string }>
   const zombieRows = (headResults[2]?.results ?? []) as Array<{ id: string; store_id: string; category: string }>
+  const stateRows = (headResults[3]?.results ?? []) as Array<CategoryState & { store_id: string }>
+  const connectionRows = (headResults[4]?.results ?? []) as Array<Record<string, unknown> & { store_id: string }>
 
   // 自愈（候选来自同一批量预取；恢复成功的门店下一轮参与同步）。
   await healShipHubConnections(env, config, now, healCandidates)
@@ -1118,28 +1176,11 @@ export async function runScheduledShipHubSync(env: WorkerEnv, now = new Date()):
     else zombieIdsByKey.set(key, [row.id])
   }
 
-  // 分类状态 + 连接行预取（一次往返；无门店时整体跳过）。
+  // 分类状态 + 连接行索引（来自同一次批量预取；两张小表全量读取）。
   const statesByKey = new Map<string, CategoryState>()
+  for (const row of stateRows) statesByKey.set(`${row.store_id}|${row.category}`, row)
   const connectionsById = new Map<string, Record<string, unknown>>()
-  if (stores.length > 0) {
-    const placeholders = stores.map(() => '?').join(',')
-    const ids = stores.map((store) => store.id)
-    const prefetchResults = await env.DB.batch([
-      env.DB.prepare(`SELECT * FROM shiphub_category_state WHERE store_id IN (${placeholders})`).bind(...ids),
-      env.DB.prepare(`
-        SELECT c.store_id, c.enabled, c.mode, c.refresh_token_ciphertext, c.refresh_token_nonce,
-               c.access_token_ciphertext, c.access_token_nonce, c.token_expires_at,
-               c.location_num, c.identity_fingerprint, c.authorization_status, c.last_auth_error_code
-        FROM shiphub_connections c WHERE c.store_id IN (${placeholders})
-      `).bind(...ids)
-    ])
-    for (const row of (prefetchResults[0]?.results ?? []) as Array<CategoryState & { store_id: string }>) {
-      statesByKey.set(`${row.store_id}|${row.category}`, row)
-    }
-    for (const row of (prefetchResults[1]?.results ?? []) as Array<Record<string, unknown> & { store_id: string }>) {
-      connectionsById.set(row.store_id, row)
-    }
-  }
+  for (const row of connectionRows) connectionsById.set(row.store_id, row)
 
   // ── 门店轮换 + 重活预算（2026-09-19：多门店 CPU 错峰）────────────────────
   // 重活一次调用最多 MAX_HEAVY_SYNCS_PER_TICK 个，优先给本轮排位靠前的门店；
@@ -1150,23 +1191,38 @@ export async function runScheduledShipHubSync(env: WorkerEnv, now = new Date()):
   const rotation = stores.length > 0 ? ((minuteIndex % stores.length) + stores.length) % stores.length : 0
   const orderedStores = [...stores.slice(rotation), ...stores.slice(0, rotation)]
   const heavyBudget = { remaining: MAX_HEAVY_SYNCS_PER_TICK }
+  // tick 级延迟写入队列（2026-09-19 第二轮深度 CPU 优化）：所有轻量心跳写汇聚为
+  // 一次 flush（见 pendingWrites 文档），常态每分钟的批量调用 3 → 2。
+  const pendingWrites: D1PreparedStatement[] = []
   for (const store of orderedStores) {
     // tick 级连接缓存（2026-09-12 CPU 优化）：本店 4 个分类共享一次连接解析
     // （含 access token 解密）；2026-09-19 起同时携带「是否需要降级清理」标记，
     // 免去常态每分类一次的 no-op conn UPDATE。
     const connectionCache = new Map<string, { client: ShipHubClient; needsCleanup: boolean }>()
+    // 本店本 tick 的聚合计数快照（一次请求覆盖四分类；见 resolveCategoryCount）。
+    const countsSnapshot: { loaded: boolean; values: Partial<Record<ShipHubCategory, number>> | null } = { loaded: false, values: null }
     for (const category of CATEGORIES) {
       await syncStoreCategory(env.DB, config, store.id, category, {
         trigger: 'scheduled',
         now,
         connectionCache,
         heavyBudget,
+        countsSnapshot,
+        pendingWrites,
         prefetched: {
           state: statesByKey.get(`${store.id}|${category}`),
           zombieIds: zombieIdsByKey.get(`${store.id}|${category}`) ?? [],
           connectionRow: connectionsById.get(store.id) ?? null
         }
       })
+    }
+  }
+  // tick 末尾一次性 flush 心跳写入（失败只丢心跳行，下一轮重算，不影响业务数据）。
+  if (pendingWrites.length > 0) {
+    try {
+      await env.DB.batch(pendingWrites)
+    } catch (error) {
+      console.error(`[shiphub-sync] tick flush failed count=${pendingWrites.length} err=${error instanceof Error ? error.message : String(error)}`)
     }
   }
 }
