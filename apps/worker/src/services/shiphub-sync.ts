@@ -4,6 +4,7 @@ import { ShipHubUpstreamError, createShipHubClient, type ShipHubCategory, type S
 import { readCachedAccessToken, readRefreshToken, rotateRefreshToken, shipHubIdentityFingerprint } from '../lib/shiphub-oauth.js'
 import { performShipHubProgrammaticLogin, splitEncryptedBlob } from '../lib/shiphub-login.js'
 import { decryptShipHubSecret, encryptShipHubSecret } from '../lib/shiphub-crypto.js'
+import { normalizeShipHubLocationNum } from '../lib/shiphub-location.js'
 import { getCubeIdentityInfo } from './cube-identity.js'
 import { refreshShipHubAccessToken } from '../lib/shiphub-token.js'
 import { ApiProblem } from './problems.js'
@@ -314,7 +315,9 @@ async function connectionForSync(db: D1Database, config: AppConfig, storeId: str
   `).bind(storeId))
   if (!row || !(row.enabled === 1 || row.enabled === true)) throw new ShipHubUpstreamError('CONNECTION_DISABLED')
   if (row.mode === 'fixture') return { client: createShipHubClient({ ...config.SHIPHUB, mode: 'fixture' }) }
-  const locationNum = row.location_num?.trim() || config.SHIPHUB.locationNum?.trim()
+  // 位置标识规范化（2026-09-19）：读取路径同样规范化——历史遗留的短码行
+  // 无需人工修数即可恢复（1670 曾以短码入库导致 pick/ship 全面失败）。
+  const locationNum = normalizeShipHubLocationNum(row.location_num) ?? normalizeShipHubLocationNum(config.SHIPHUB.locationNum) ?? undefined
   // ── access token 复用优先（2026-09-09 OAUTH_TOKEN_HTTP_400 修复）─────────
   // 剩余寿命充足时直接用缓存 token，完全不碰 refresh token 族。
   // 这是修复的核心：上游 RT 是族级的，重新登录（BI/Cube 链路）会作废它，

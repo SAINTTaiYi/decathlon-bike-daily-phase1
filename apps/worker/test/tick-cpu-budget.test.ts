@@ -44,6 +44,8 @@ let server: Server | null = null
 let baseUrl = ''
 let rows: Array<Record<string, unknown>> = []
 const hits = { detail: 0, list: 0, receiver: 0, count: 0 }
+/** 记录全部上游请求 URL（含 query）：验证 location_num 等参数（2026-09-19 诊断）。 */
+const urls: string[] = []
 
 function orderRow(id: string, status: string, latestStatus = '1000'): Record<string, unknown> {
   return {
@@ -74,6 +76,7 @@ async function startServer(): Promise<void> {
   server = createServer((request, response) => {
     const url = new URL(request.url ?? '/', 'http://127.0.0.1')
     const path = url.pathname
+    urls.push(`${url.pathname}${url.search}`)
     const send = (body: string): void => {
       response.writeHead(200, { 'content-type': 'application/json' })
       response.end(body)
@@ -155,6 +158,7 @@ function resetHits(): void {
   hits.list = 0
   hits.receiver = 0
   hits.count = 0
+  urls.length = 0
 }
 
 const T0 = new Date('2026-09-12T03:00:00.000Z')
@@ -457,6 +461,28 @@ test('上游错误持久化 HTTP 状态与响应片段（诊断：error_detail�
     assert.match(run?.error_detail ?? '', /synthetic upstream failure/u, '详情必须记录响应片段（上游给出的理由）')
   } finally {
     listFailureCategory = null
+    db.close()
+    await stopServer()
+  }
+})
+
+test('短码 location_num 在请求上游前自动展开为 partyNumber（1670 事故回归）', async () => {
+  await startServer()
+  const db = await migratedTestDatabase()
+  try {
+    const env = await makeEnv(db, 'F'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
+    // 复刻 2026-09-19 事故现场：门店连接里存的是 4 位短码（上游 pick/ship
+    // 的门店解析会因此失败——500/417；规范化后读取路径必须自动展开）。
+    db.exec(`UPDATE shiphub_connections SET location_num = '1670' WHERE store_id = '${STORE}'`)
+    rows = []
+    resetHits()
+    await runScheduledShipHubSync(env, T0)
+    assert.ok(urls.length > 0, '必须实际发起上游请求')
+    const locationParams = urls.map((u) => new URL(`http://x${u}`).searchParams.get('location_num'))
+    assert.ok(locationParams.length > 0 && locationParams.every((v) => v !== null), '每个上游请求都必须带 location_num')
+    const distinct = [...new Set(locationParams)]
+    assert.deepEqual(distinct, ['0070167001670'], `上游请求必须使用展开后的 partyNumber（实际：${distinct.join(', ')}）`)
+  } finally {
     db.close()
     await stopServer()
   }

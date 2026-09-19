@@ -8,6 +8,7 @@ import { ShipHubUpstreamError, type ShipHubCategory } from '../lib/shiphub-clien
 import { completeShipHubAuthorization, createShipHubAuthorization, shipHubIdentityFingerprint } from '../lib/shiphub-oauth.js'
 import { decryptShipHubSecret, encryptShipHubSecret } from '../lib/shiphub-crypto.js'
 import { performShipHubProgrammaticLogin, splitEncryptedBlob } from '../lib/shiphub-login.js'
+import { normalizeShipHubLocationNum } from '../lib/shiphub-location.js'
 import { getCubeIdentityInfo, isCubeIdentityConfigured, probeStoreCubeIdentity } from '../services/cube-identity.js'
 import { first, nowIso } from '../db.js'
 import { idempotent } from '../services/idempotency.js'
@@ -148,7 +149,9 @@ export function shipHubRoutes() {
     const resolvedCredentials = perStoreLogin && storeUsername && storePassword
       ? { username: storeUsername, password: storePassword }
       : storedCredentials
-    const effectiveLocationNum = login?.locationNum?.trim() || config.SHIPHUB.locationNum?.trim() || null
+    // 位置标识规范化（2026-09-19）：短码（4 位门店号）必须展开为 partyNumber 后再入库，
+    // 否则上游 pick/ship 的门店解析链路会失败（1670 门店事故根因）。
+    const effectiveLocationNum = normalizeShipHubLocationNum(login?.locationNum) ?? normalizeShipHubLocationNum(config.SHIPHUB.locationNum)
     const fingerprint = await shipHubIdentityFingerprint(effectiveLocationNum, resolvedCredentials?.username)
     // 同一上游身份只允许一个门店连接：拒绝把共享账号连接到第二家店（历史事故根因）
     if (fingerprint) {
