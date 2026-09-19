@@ -51,7 +51,14 @@ const TOKEN_KEY = Buffer.from('t'.repeat(32)).toString('base64url')
 let server: Server | null = null
 let baseUrl = ''
 let rows: Array<Record<string, unknown>> = []
-const hits = { detail: 0, list: 0, receiver: 0, count: 0 }
+const hits = { detail: 0, list: 0, receiver: 0, count: 0, countsAgg: 0 }
+/** 聚合计数端点强制失败（验证单类回退路径）。 */
+let aggregateFailure = false
+/** 分类计数覆盖（默认取 rows.length；满载测试用它让计数按轮变化）。 */
+let countOverrides: Record<string, number> = {}
+function countFor(category: string): number {
+  return typeof countOverrides[category] === 'number' ? countOverrides[category] : rows.length
+}
 /** 记录全部上游请求 URL（含 query）：验证 location_num 等参数（2026-09-19 诊断）。 */
 const urls: string[] = []
 
@@ -89,9 +96,20 @@ async function startServer(): Promise<void> {
       response.writeHead(200, { 'content-type': 'application/json' })
       response.end(body)
     }
+    if (path.endsWith('/orders/count')) {
+      // 聚合计数（2026-09-19 第二轮优化）：一次返回全部分类计数
+      hits.countsAgg += 1
+      if (aggregateFailure) {
+        response.writeHead(500, { 'content-type': 'application/json' })
+        response.end('{"error":"aggregate unavailable"}')
+        return
+      }
+      send(JSON.stringify({ to_hand_count: countFor('hand'), to_pick_count: countFor('pick'), to_receive_count: countFor('receive'), to_ship_count: countFor('ship') }))
+      return
+    }
     if (path.includes('/count/')) {
       hits.count += 1
-      send(String(rows.length))
+      send(String(countFor(path.split('/count/')[1] ?? '')))
       return
     }
     if (path.endsWith('/list')) {
@@ -166,6 +184,7 @@ function resetHits(): void {
   hits.list = 0
   hits.receiver = 0
   hits.count = 0
+  hits.countsAgg = 0
   urls.length = 0
 }
 
@@ -291,13 +310,13 @@ test('scheduled tick 内同一门店的连接只解析一次（tick 级连接缓
     const env = await makeEnv(db, 'B'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
     rows = [orderRow('order-cache', 'pending')]
 
-    // 包装 DB：计数连接行读取（2026-09-19 深度优化后，连接选择在批量预取里
-    // 以 `FROM shiphub_connections c WHERE store_id IN (...)` 形态出现；旧的
-    // JOIN stores 形态已删除）。语义不变：一次 tick 内连接只解析一次。
+    // 包装 DB：计数连接行读取（2026-09-19 两轮优化后，连接行来自单批次预取的
+    // 全量读取 `FROM shiphub_connections c`——用特征列 access_token_ciphertext
+    // 与门店列表查询区分）。语义不变：一次 tick 内连接只解析一次。
     let connectionSelects = 0
     const countingDb = {
       prepare: (sql: string) => {
-        if (sql.includes('FROM shiphub_connections c') && sql.includes('WHERE c.store_id IN')) connectionSelects += 1
+        if (sql.includes('FROM shiphub_connections c') && sql.includes('access_token_ciphertext')) connectionSelects += 1
         return db.prepare(sql)
       },
       batch: (statements: D1PreparedStatement[]) => db.batch(statements)
@@ -354,7 +373,8 @@ test('多门店 tick：重活预算一次调用只服务一家门店；预算耗
     // ── P1（1299 优先）：预算被 1299 的 hand 消费；1670 完全静默（零探测、零记录、零状态） ──
     resetHits()
     await runScheduledShipHubSync(env, T_A)
-    assert.equal(hits.count, 1, `P1：预算耗尽后其余分类不得再探测上游（实际 ${hits.count} 次；旧实现会为每个分类探测并写「顺延」记录）`)
+    assert.equal(hits.countsAgg, 1, `P1：预算耗尽后其余分类不得再探测上游（实际聚合 ${hits.countsAgg} 次；旧实现会为每个分类探测并写「顺延」记录）`)
+    assert.equal(hits.count, 0, 'P1：聚合可用时不得再发单类计数请求')
     assert.equal(hits.list, 1, 'P1：本 tick 只允许一次列表重活')
     assert.equal(runsAt(STORE_B, stampA), 0, 'P1：非优先门店必须完全静默——不得产生任何 run 记录（含 skipped）')
     assert.equal(db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_orders WHERE store_id = ?`, STORE_B)?.n, 0, 'P1：非优先门店不得写入订单')
@@ -367,7 +387,8 @@ test('多门店 tick：重活预算一次调用只服务一家门店；预算耗
     // ── P2（1670 优先）：上一轮被完全让出的门店下一分钟即被服务 ──
     resetHits()
     await runScheduledShipHubSync(env, T_B)
-    assert.equal(hits.count, 1, `P2：轮到优先位后只探测一次并消费预算（实际 ${hits.count}）`)
+    assert.equal(hits.countsAgg, 1, `P2：轮到优先位后只探测一次（聚合）并消费预算（实际 ${hits.countsAgg}）`)
+    assert.equal(hits.count, 0, 'P2：聚合可用时不得再发单类计数请求')
     assert.equal(db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND category = 'hand' AND status = 'succeeded' AND started_at = ?`, STORE_B, stampB)?.n, 1, 'P2：被让出的门店本轮应完成 hand 同步（不得饿死）')
     assert.ok((db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_orders WHERE store_id = ?`, STORE_B)?.n ?? 0) >= 1, 'P2：被让出门店的订单必须已写入')
     assert.equal(runsAt(STORE, stampB), 0, 'P2：本轮 1299 必须完全静默（预算被 1670 用掉）')
@@ -375,7 +396,8 @@ test('多门店 tick：重活预算一次调用只服务一家门店；预算耗
     // ── P3（1299 又优先）：上轮被让出的分类（pick）在回到优先位时被补上 ──
     resetHits()
     await runScheduledShipHubSync(env, T_C)
-    assert.equal(hits.count, 2, 'P3：hand 计数未变（只探测不消费）、pick 需要重活（消费）——共 2 次探测')
+    assert.equal(hits.countsAgg, 1, 'P3：hand/pick 共用同一份聚合快照——本店本 tick 只发 1 次计数请求（旧实现 2 次）')
+    assert.equal(hits.count, 0, 'P3：聚合可用时不得再发单类计数请求')
     assert.equal(db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE store_id = ? AND category = 'pick' AND status = 'succeeded' AND started_at = ?`, STORE, stampC)?.n, 1, 'P3：上轮被让出的分类在回到优先位时必须被服务')
   } finally {
     db.close()
@@ -515,9 +537,10 @@ test('轻量轮次（计数未变）不建租约与 running 行：全 tick 仅�
 
     // 语句记录代理（第二轮稳态：全部为轻量轮次）
     const prepared: string[] = []
+    const batchSizes: number[] = []
     const countingDb = {
       prepare: (sql: string) => { prepared.push(sql); return db.prepare(sql) },
-      batch: (statements: D1PreparedStatement[]) => db.batch(statements)
+      batch: (statements: D1PreparedStatement[]) => { batchSizes.push(statements.length); return db.batch(statements) }
     } as unknown as D1Database
     resetHits()
     // +4 分钟：hand/pick 到点（55 秒）→ 轻量轮次；receive/ship 未到点（10 分钟）→ 零操作
@@ -528,15 +551,22 @@ test('轻量轮次（计数未变）不建租约与 running 行：全 tick 仅�
     assert.ok(!sql.includes("'running')"), '轻量轮次不得建 running 行')
     const zombieSelects = prepared.filter((q) => q.includes("status = 'running' AND trigger_source = 'scheduled'")).length
     assert.equal(zombieSelects, 1, '僵尸扫描每 tick 只做一次（旧实现每分类一次 = 8 次）')
-    const stateSelects = prepared.filter((q) => q.includes('FROM shiphub_category_state WHERE store_id IN')).length
-    assert.equal(stateSelects, 1, '分类状态必须批量预取（一次查询覆盖全部门店）')
-    const connSelects = prepared.filter((q) => q.includes('FROM shiphub_connections c') && q.includes('store_id IN')).length
-    assert.equal(connSelects, 1, '连接行必须批量预取（一次查询覆盖全部门店）')
+    const stateSelects = prepared.filter((q) => q.includes('FROM shiphub_category_state')).length
+    assert.equal(stateSelects, 1, '分类状态必须批量预取（一次查询）')
+    const connSelects = prepared.filter((q) => q.includes('FROM shiphub_connections c') && q.includes('access_token_ciphertext')).length
+    assert.equal(connSelects, 1, '连接行必须批量预取（一次查询）')
+    // 单批次预取（2026-09-19 第二轮）：tick 首个 batch 必须同时携带 5 条预取语句
+    // （自愈候选 / 门店列表 / 僵尸扫描 / 分类状态 / 连接行）——两次往返合为一次。
+    assert.equal(batchSizes[0], 5, `首个批量调用必须合并全部 5 条预取语句（实际 ${batchSizes[0]}）`)
+    // 轻量心跳写延迟到 tick 末尾一次 flush：常态每分钟批量调用 3 → 2
+    assert.equal(batchSizes.length, 2, `批量调用总数必须为 2（预取 1 + 末尾 flush 1；实际 ${batchSizes.length}）`)
+    assert.equal(batchSizes[1], 4, `flush 必须携带 hand/pick 两分类的心跳语句（2 + 2 = 4；实际 ${batchSizes[1]}）`)
     const terminalRuns = prepared.filter((q) => q.includes("'succeeded', 0, 0, 0")).length
     assert.equal(terminalRuns, 2, '到点的 hand/pick 各落一条终态 succeeded run（监控契约不变）')
     assert.ok(prepared.length <= 12, `轻量 tick 语句总数必须 <= 12（实际 ${prepared.length}；改造前同口径约 20）`)
-    // 上游探测不受影响：hand/pick 照常每分钟探测（实时性不变）
-    assert.equal(hits.count, 2, '轻量轮次仍须完成 hand/pick 计数探测（保 1 分钟级时效）')
+    // 上游探测不受影响：hand/pick 照常每分钟探测（实时性不变），且共用聚合快照
+    assert.equal(hits.countsAgg, 1, '轻量轮次仍须完成计数探测（保 1 分钟级时效），且每店每 tick 只发 1 次聚合请求')
+    assert.equal(hits.count, 0, '聚合可用时不得再发单类计数请求')
     const running = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_runs WHERE status = 'running'`)?.n
     assert.equal(running, 0, '轻量轮次不得留下 running 行')
     const leases = db.one<{ n: number }>(`SELECT COUNT(*) AS n FROM shiphub_sync_leases`)?.n
@@ -562,8 +592,86 @@ test('营业窗口外（每天 12 小时）函数入口直接返回：零 D1 操
     // 北京 23:00（UTC 15:00）——窗口外
     await runScheduledShipHubSync({ ...outside, DB: countingDb } as WorkerEnv, new Date('2026-09-12T15:00:00.000Z'))
     assert.equal(prepared.length, 0, `窗口外必须零 D1 语句（实际 ${prepared.length}；改造前每 tick 仍有预取/建行回退等多条空转查询）`)
-    assert.equal(hits.count + hits.list, 0, '窗口外不得调用上游')
+    assert.equal(hits.count + hits.countsAgg + hits.list, 0, '窗口外不得调用上游')
   } finally {
+    db.close()
+    await stopServer()
+  }
+})
+
+test('聚合计数：稳态每店每 tick 一次请求覆盖四分类；聚合失败自动回退单类且结果一致', async () => {
+  await startServer()
+  const db = await migratedTestDatabase()
+  try {
+    const env = await makeEnv(db, 'G'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
+    await insertLiveConnection(db, STORE_B, 'fp-store-g', 'G'.repeat(760))
+    rows = [orderRow('o-agg', 'pending')]
+    const T = Date.parse('2026-09-12T03:00:00.000Z')
+    // 预热 8 轮：重活预算 1/tick + 分钟轮换下，两店 × 四分类的首次同步恰好
+    // 在 T+0..T+7 完成（A: hand T+0 / pick T+2 / receive T+4 / ship T+6；
+    // B: hand T+1 / pick T+3 / receive T+5 / ship T+7）。
+    for (let i = 0; i < 8; i += 1) await runScheduledShipHubSync(env, new Date(T + i * 60_000))
+
+    // 阶段一：稳态（T+8：仅 hand/pick 到点且计数无变化）——两店各 1 次聚合、单类 0 次
+    resetHits()
+    await runScheduledShipHubSync(env, new Date(T + 8 * 60_000))
+    assert.equal(hits.countsAgg, 2, `稳态两家店各发 1 次聚合（实际 ${hits.countsAgg}；旧实现 4 次单类请求）`)
+    assert.equal(hits.count, 0, '聚合可用时不得再发单类计数请求')
+
+    // 阶段二：聚合强制失败——回退单类请求，且计数结果照常落库（正确性不依赖聚合）
+    aggregateFailure = true
+    resetHits()
+    await runScheduledShipHubSync(env, new Date(T + 9 * 60_000))
+    assert.ok(hits.countsAgg >= 1, '聚合失败仍须被尝试（失败即回退）')
+    assert.ok(hits.count >= 4, `聚合失败后两店 hand/pick 各回退一次单类请求（实际 ${hits.count}）`)
+    const handA = db.one<{ last_count: number }>(`SELECT last_count FROM shiphub_category_state WHERE store_id = ? AND category = 'hand'`, STORE)
+    const handB = db.one<{ last_count: number }>(`SELECT last_count FROM shiphub_category_state WHERE store_id = ? AND category = 'hand'`, STORE_B)
+    assert.equal(handA?.last_count, 1, '回退路径的计数结果必须照常落库（店 A）')
+    assert.equal(handB?.last_count, 1, '回退路径的计数结果必须照常落库（店 B）')
+  } finally {
+    aggregateFailure = false
+    db.close()
+    await stopServer()
+  }
+})
+
+test('双店满载有界性：每分钟语句/批量/上游请求均有硬上限（不为门店数失控）', async () => {
+  await startServer()
+  const db = await migratedTestDatabase()
+  try {
+    const env = await makeEnv(db, 'H'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
+    await insertLiveConnection(db, STORE_B, 'fp-store-h', 'H'.repeat(760))
+    // 两店共 6 个订单；hand 计数每轮都变化（最忙的真实形态）
+    rows = Array.from({ length: 6 }, (_, i) => orderRow(`busy-${i}`))
+    const T = Date.parse('2026-09-12T03:00:00.000Z')
+
+    // 采集 12 个连续 tick（含首轮建表 + 稳态 + 变化轮），逐 tick 统计上限
+    const perTick: Array<{ stmts: number; batches: number; agg: number; lists: number }> = []
+    for (let i = 0; i < 12; i += 1) {
+      countOverrides = { hand: 3 + (i % 4) } // 每轮变化 → 每分钟至少一个重活
+      const prepared: string[] = []
+      let batchCount = 0
+      const countingDb = {
+        prepare: (sql: string) => { prepared.push(sql); return db.prepare(sql) },
+        batch: (statements: D1PreparedStatement[]) => { batchCount += 1; return db.batch(statements) }
+      } as unknown as D1Database
+      resetHits()
+      await runScheduledShipHubSync({ ...env, DB: countingDb } as WorkerEnv, new Date(T + i * 60_000))
+      perTick.push({ stmts: prepared.length, batches: batchCount, agg: hits.countsAgg, lists: hits.list })
+    }
+
+    const maxStmts = Math.max(...perTick.map((t) => t.stmts))
+    const maxBatches = Math.max(...perTick.map((t) => t.batches))
+    const maxAgg = Math.max(...perTick.map((t) => t.agg))
+    const maxLists = Math.max(...perTick.map((t) => t.lists))
+    // 硬上限（2026-09-19 满载有界性契约）：双店最忙单 tick 也必须落在这些界内，
+    // 这是「免费层 10ms 预算不被击穿」的结构性保证。
+    assert.ok(maxStmts <= 60, `单 tick 语句数上限 60（实测 ${maxStmts}）`)
+    assert.ok(maxBatches <= 4, `单 tick 批量调用上限 4（实测 ${maxBatches}）`)
+    assert.ok(maxAgg <= 2, `单 tick 聚合计数请求上限 2（两店各一；实测 ${maxAgg}）`)
+    assert.ok(maxLists <= 1, `单 tick 重活预算 = 1：列表拉取上限 1（实测 ${maxLists}）`)
+  } finally {
+    countOverrides = {}
     db.close()
     await stopServer()
   }
