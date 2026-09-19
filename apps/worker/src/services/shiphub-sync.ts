@@ -405,7 +405,13 @@ async function ensureState(db: D1Database, storeId: string, category: ShipHubCat
 }
 
 function errorCode(error: unknown): string {
-  if (error instanceof ShipHubUpstreamError) return error.code
+  if (error instanceof ShipHubUpstreamError) {
+    // 诊断增强（2026-09-19）：上游 4xx/5xx 的 HTTP 状态并入错误码（如
+    // UPSTREAM_ERROR_500），从 D1 即可区分上游故障形态；无状态的传输类错误
+    // （超时/网络）保持原码不变。
+    if (error.code === 'UPSTREAM_ERROR' && typeof error.status === 'number') return `UPSTREAM_ERROR_${error.status}`
+    return error.code
+  }
   return 'SYNC_FAILED'
 }
 
@@ -715,6 +721,12 @@ export async function syncStoreCategory(
   } catch (error) {
     const code = errorCode(error)
     const failedAt = stamp
+    // 诊断详情（2026-09-19）：上游状态/路径/响应片段落库（列 error_detail），
+    // 并写一条 console.error 留痕（部署若开启 Workers Logs 即可检索）。
+    const errorDetail = error instanceof ShipHubUpstreamError && error.detail
+      ? error.detail.slice(0, 320)
+      : error instanceof Error ? `${error.name}: ${error.message}`.slice(0, 320) : null
+    console.error(`[shiphub-sync] ${storeId} ${category} ${code}${errorDetail ? ` — ${errorDetail}` : ''}`)
     // ── 失败分类（2026-09-09 OAUTH_TOKEN_HTTP_400 修复 · 第 3 项）───────────
     // 旧实现：任何 OAUTH_TOKEN_HTTP_4xx 都把连接标成 reauth_required（要门店
     // 手动重连）。但实测这类失败绝大多数是「BI/Cube 链路重新登录作废了 RT 族」
@@ -746,7 +758,7 @@ export async function syncStoreCategory(
     }
     const shouldMarkReauth = isCredentialGone || (isToken4xx && failures >= TOKEN_REAUTH_THRESHOLD)
     await db.batch([
-      db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'failed', error_code = ? WHERE id = ?`).bind(failedAt, code, runId),
+      db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'failed', error_code = ?, error_detail = ? WHERE id = ?`).bind(failedAt, code, errorDetail, runId),
       db.prepare(`UPDATE shiphub_connections SET authorization_status = CASE WHEN ? = 1 THEN 'reauth_required' ELSE authorization_status END, last_auth_error_code = ?, updated_at = ? WHERE store_id = ?`).bind(shouldMarkReauth ? 1 : 0, code, failedAt, storeId)
     ])
     // 连续失败告警：连接级错误（token/授权）在三类分类上同步出现，只在 hand 类触发避免三连发；

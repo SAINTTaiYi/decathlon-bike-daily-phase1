@@ -247,6 +247,6 @@ test('台账双端均带自动登记入口（FoodApp 透传）', () => {
   assert.match(autoMobile || '', /台账 ↗/u)
 })
 
-test('旧断言不回归：food-ledger 测试里的 schema 版本已随 0038 前移', () => {
-  assert.match(clickableTest, /'0038_food_auto_shadow'/u)
+test('旧断言不回归：food-ledger 测试里的 schema 版本已随 0039 前移', () => {
+  assert.match(clickableTest, /'0039_shiphub_sync_error_detail'/u)
 })

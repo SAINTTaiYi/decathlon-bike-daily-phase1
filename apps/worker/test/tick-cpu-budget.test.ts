@@ -439,6 +439,29 @@ test('持续失败的分类按指数退避，不再每分钟吃掉 tick 预算',
   }
 })
 
+test('上游错误持久化 HTTP 状态与响应片段（诊断：error_detail）', async () => {
+  await startServer()
+  const db = await migratedTestDatabase()
+  try {
+    const env = await makeEnv(db, 'D'.repeat(760), new Date(Date.now() + 2 * 3600_000).toISOString())
+    rows = []
+    listFailureCategory = 'pick'
+    const T0 = new Date('2026-09-12T03:00:00.000Z')
+    const result = await syncStoreCategory(db as unknown as D1Database, loadConfig(env), STORE, 'pick', { trigger: 'scheduled', now: T0 })
+    assert.equal(result.status, 'failed', '上游 500 必须失败')
+    const run = db.one<{ error_code: string | null; error_detail: string | null }>(
+      `SELECT error_code, error_detail FROM shiphub_sync_runs WHERE store_id = ? AND category = 'pick' ORDER BY started_at DESC LIMIT 1`, STORE)
+    assert.equal(run?.error_code, 'UPSTREAM_ERROR_500', '错误码必须并入上游 HTTP 状态（从 D1 直接可读）')
+    assert.match(run?.error_detail ?? '', /HTTP 500/u, '详情必须记录 HTTP 状态')
+    assert.match(run?.error_detail ?? '', /\/orders\/pick\/list/u, '详情必须记录失败的上游路径（区分 count 与 list）')
+    assert.match(run?.error_detail ?? '', /synthetic upstream failure/u, '详情必须记录响应片段（上游给出的理由）')
+  } finally {
+    listFailureCategory = null
+    db.close()
+    await stopServer()
+  }
+})
+
 test('cube token 可用时不再解密本店凭据（且凭据密文损坏不阻塞 token 复用）', async () => {
   const db = await migratedTestDatabase()
   try {
