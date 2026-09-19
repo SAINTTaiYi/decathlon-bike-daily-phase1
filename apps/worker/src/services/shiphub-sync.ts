@@ -300,21 +300,32 @@ export async function getShipHubOrder(db: D1Database, storeId: string, category:
   }
 }
 
-async function connectionForSync(db: D1Database, config: AppConfig, storeId: string): Promise<{ client: ShipHubClient; refresh?: { ciphertext: string; nonce: string } }> {
-  if (config.SHIPHUB.mode === 'fixture') return { client: createShipHubClient(config.SHIPHUB) }
-  // 不再自动 bootstrap：没有显式授权（connect）的连接不做上游调用。历史「共享 bootstrap
-  // refresh token」写入任意门店是 2026-08-19 全部门店 token 族被打废的根因，
-  // 连接必须由门店显式发起并记录自己的上游身份。
-  const row = await first<any>(db.prepare(`
-    SELECT c.enabled, c.mode, c.refresh_token_ciphertext, c.refresh_token_nonce,
-           c.access_token_ciphertext, c.access_token_nonce, c.token_expires_at,
-           c.location_num, c.identity_fingerprint,
-           st.code AS store_code, st.name AS store_name
-    FROM shiphub_connections c JOIN stores st ON st.id = c.store_id
-    WHERE c.store_id = ?
-  `).bind(storeId))
+async function connectionForSync(
+  db: D1Database,
+  config: AppConfig,
+  storeId: string,
+  prefetchedRow?: Record<string, unknown> | null
+): Promise<{ client: ShipHubClient; refresh?: { ciphertext: string; nonce: string }; needsCleanup: boolean }> {
+  if (config.SHIPHUB.mode === 'fixture') return { client: createShipHubClient(config.SHIPHUB), needsCleanup: false }
+  // 2026-09-19 深度 CPU 优化：定时 tick 由 runScheduledShipHubSync 批量预取连接行
+  // （prefetchedRow）注入，免去每店一次 D1 往返；独立调用（手动/授权/ensure-fresh）
+  // 未提供时回退单条查询。原查询里的 JOIN stores（取 code/name 作错误上下文）从未
+  // 被使用，一并删除——每次少一行读取、少一次 JOIN。
+  const row = prefetchedRow !== undefined && prefetchedRow !== null
+    ? prefetchedRow
+    : await first<any>(db.prepare(`
+        SELECT c.enabled, c.mode, c.refresh_token_ciphertext, c.refresh_token_nonce,
+               c.access_token_ciphertext, c.access_token_nonce, c.token_expires_at,
+               c.location_num, c.identity_fingerprint,
+               c.authorization_status, c.last_auth_error_code
+        FROM shiphub_connections c
+        WHERE c.store_id = ?
+      `).bind(storeId))
   if (!row || !(row.enabled === 1 || row.enabled === true)) throw new ShipHubUpstreamError('CONNECTION_DISABLED')
-  if (row.mode === 'fixture') return { client: createShipHubClient({ ...config.SHIPHUB, mode: 'fixture' }) }
+  // 成功同步时的连接降级清理只在确需时才提交（2026-09-19 深度 CPU 优化：
+  // 常态连接无降级状态，省去每分类一条 no-op UPDATE）。
+  const needsCleanup = row.authorization_status !== 'connected' || row.last_auth_error_code != null
+  if (row.mode === 'fixture') return { client: createShipHubClient({ ...config.SHIPHUB, mode: 'fixture' }), needsCleanup: false }
   // 位置标识规范化（2026-09-19）：读取路径同样规范化——历史遗留的短码行
   // 无需人工修数即可恢复（1670 曾以短码入库导致 pick/ship 全面失败）。
   const locationNum = normalizeShipHubLocationNum(row.location_num) ?? normalizeShipHubLocationNum(config.SHIPHUB.locationNum) ?? undefined
@@ -325,7 +336,7 @@ async function connectionForSync(db: D1Database, config: AppConfig, storeId: str
   // 因此这里刻意放在 refresh_token 检查之前——即便 RT 暂时缺失，
   // 只要 access token 还有效，本轮同步照常进行。
   const cached = await readCachedAccessToken(config, row)
-  if (cached) return { client: createShipHubClient(config.SHIPHUB, cached.accessToken, locationNum) }
+  if (cached) return { client: createShipHubClient(config.SHIPHUB, cached.accessToken, locationNum), needsCleanup }
   if (!row.refresh_token_ciphertext || !row.refresh_token_nonce) throw new ShipHubUpstreamError('REFRESH_TOKEN_MISSING')
   const fingerprint = row.identity_fingerprint ?? await shipHubIdentityFingerprint(locationNum)
   // 同一上游身份全局互斥：轮换前必须拿到 fingerprint 租约，防止共享身份的多店并发
@@ -346,14 +357,14 @@ async function connectionForSync(db: D1Database, config: AppConfig, storeId: str
       FROM shiphub_connections WHERE store_id = ?
     `).bind(storeId))
     const afterLease = await readCachedAccessToken(config, fresh ?? row)
-    if (afterLease) return { client: createShipHubClient(config.SHIPHUB, afterLease.accessToken, locationNum) }
+    if (afterLease) return { client: createShipHubClient(config.SHIPHUB, afterLease.accessToken, locationNum), needsCleanup }
     const latest = fresh ?? row
     const latestCiphertext = latest.refresh_token_ciphertext ?? row.refresh_token_ciphertext
     const latestNonce = latest.refresh_token_nonce ?? row.refresh_token_nonce
     const refreshToken = await readRefreshToken(config, { refresh_token_ciphertext: latestCiphertext, refresh_token_nonce: latestNonce })
     const token = await refreshShipHubAccessToken(config.SHIPHUB, refreshToken)
     await rotateRefreshToken(db, config, storeId, latestCiphertext, latestNonce, token)
-    return { client: createShipHubClient(config.SHIPHUB, token.accessToken, locationNum), refresh: { ciphertext: latestCiphertext, nonce: latestNonce } }
+    return { client: createShipHubClient(config.SHIPHUB, token.accessToken, locationNum), refresh: { ciphertext: latestCiphertext, nonce: latestNonce }, needsCleanup }
   } finally {
     await releaseIdentityLease(db, fingerprint, owner)
   }
@@ -423,6 +434,20 @@ function normalizeOrderForWrite(order: ShipHubOrder, category: ShipHubCategory):
   return order
 }
 
+/**
+ * 找出窗口内被平台中断的 scheduled run（僵尸守卫的查询半边，2026-09-19）。
+ * 定时 tick 通过批量预取注入（prefetched.zombieIds）不调用本函数；独立调用
+ * （手动/授权/ensure-fresh）用本函数自查，保持相同语义。
+ */
+async function findTerminatedRunIds(db: D1Database, storeId: string, category: ShipHubCategory, now: Date): Promise<string[]> {
+  const cutoff = new Date(now.getTime() - ZOMBIE_WINDOW_MS).toISOString()
+  const rows = await all<{ id: string }>(db.prepare(`
+    SELECT id FROM shiphub_sync_runs
+    WHERE store_id = ? AND category = ? AND status = 'running' AND trigger_source = 'scheduled' AND started_at >= ?
+  `).bind(storeId, category, cutoff))
+  return rows.map((row) => row.id)
+}
+
 export async function syncStoreCategory(
   db: D1Database,
   config: AppConfig,
@@ -440,7 +465,18 @@ export async function syncStoreCategory(
      * 解密，约几百微秒）。同一 tick 内连接配置不会变化，解析结果可安全复用。
      * 仅由 runScheduledShipHubSync 注入；其它调用方不传 = 行为不变。
      */
-    connectionCache?: Map<string, ShipHubClient>
+    connectionCache?: Map<string, { client: ShipHubClient; needsCleanup: boolean }>
+    /**
+     * tick 级批量预取（2026-09-19 深度 CPU 优化）：把「分类状态 / 僵尸运行记录 /
+     * 连接行」由 runScheduledShipHubSync 用两次 db.batch 预取后注入，免去每分类
+     * 2 次独立 D1 往返（ensureState + 僵尸查询）与每店 1 次连接查询。
+     * 未提供时（手动/授权/ensure-fresh 等独立调用）自动回退到各自的单条查询。
+     */
+    prefetched?: {
+      state?: CategoryState | null
+      zombieIds?: string[]
+      connectionRow?: Record<string, unknown> | null
+    }
     /**
      * tick 级重活预算（2026-09-19 多门店铺开）：{ remaining } 由
      * runScheduledShipHubSync 每 tick 注入一次、本 tick 全部门店共享。预算耗尽后
@@ -471,7 +507,8 @@ export async function syncStoreCategory(
     `).bind(storeId, new Date(now.getTime() - MANUAL_FRESH_MS).toISOString()))
     if (recent) return { status: 'skipped', reason: 'MANUAL_COOLDOWN' }
   }
-  const state = await ensureState(db, storeId, category)
+  // 分类状态优先用 tick 级批量预取（2026-09-19 深度 CPU 优化）；未命中时回退单查。
+  const state = options.prefetched?.state ?? await ensureState(db, storeId, category)
   // 硬规则兜底：live 模式在建立任何上游连接（token 刷新/数据拉取）前校验营业时间，
   // 防止未来新增调用路径绕过路由层与调度层的门禁。
   if (!options.client && config.SHIPHUB.mode === 'live' && !activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) {
@@ -497,43 +534,48 @@ export async function syncStoreCategory(
   // 重跑、再被终止，形成「每分钟自杀一次」的死循环（2026-09-19 11:48 起 1299
   // 门店所有分类卡死即此机制；2026-09-10/11 停摆同源）。
   // 判定：存在窗口内 scheduled 'running' 记录 = 上一次尝试被中断并被抛弃。
-  // 处置：把僵尸记录标记为 skipped/INVOCATION_TERMINATED（带专用原因码，
-  // 不是 failed、不触发失败告警），推后本分类重试节奏（last_attempt_at = now），
-  // 本轮直接让出，把 CPU 预算留给其它分类；恢复成功时既有成功路径会清零计数。
-  const zombieCutoff = new Date(now.getTime() - ZOMBIE_WINDOW_MS).toISOString()
-  const zombies = await all<{ id: string }>(db.prepare(`
-    SELECT id FROM shiphub_sync_runs
-    WHERE store_id = ? AND category = ? AND status = 'running' AND trigger_source = 'scheduled' AND started_at >= ?
-  `).bind(storeId, category, zombieCutoff))
-  if (zombies.length > 0) {
+  // 处置：标记为 skipped/INVOCATION_TERMINATED（专用原因码，不是 failed、不触发
+  // 失败告警），推后本分类重试节奏（last_attempt_at = now），本轮让出。
+  // 2026-09-19 深度 CPU 优化：定时 tick 由批量预取注入 zombieIds（tick 内一次
+  // 全表扫描替代每分类一次查询）；独立调用回退到 findTerminatedRunIds 自查。
+  const zombieIds = options.prefetched?.zombieIds ?? await findTerminatedRunIds(db, storeId, category, now)
+  if (zombieIds.length > 0) {
     await db.batch([
-      ...zombies.map((zombie) => db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'skipped', error_code = 'INVOCATION_TERMINATED' WHERE id = ?`).bind(stamp, zombie.id)),
+      ...zombieIds.map((id) => db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'skipped', error_code = 'INVOCATION_TERMINATED' WHERE id = ?`).bind(stamp, id)),
       db.prepare(`UPDATE shiphub_category_state SET last_attempt_at = ?, consecutive_failures = consecutive_failures + 1, updated_at = ? WHERE store_id = ? AND category = ?`).bind(stamp, stamp, storeId, category)
     ])
     return { status: 'skipped', reason: 'INVOCATION_TERMINATED' }
   }
 
-  const owner = uuid()
-  if (!(await acquireLease(db, storeId, owner, stamp))) return { status: 'skipped', reason: 'LEASE_BUSY' }
-  const runId = uuid()
-  await db.prepare(`INSERT INTO shiphub_sync_runs (id, store_id, category, trigger_source, batch_id, started_at, status) VALUES (?, ?, ?, ?, ?, ?, 'running')`).bind(runId, storeId, category, trigger, options.batchId ?? null, stamp).run()
+  // ── 客户端解析（2026-09-19 深度 CPU 优化）────────────────────────────────
+  // 提前到 count 之前：轻量轮次（计数未变化）不再创建 run 记录与租约。
+  let owner: string | null = null
+  let leaseReleased = false
+  let runId: string | null = null
   try {
     let client: ShipHubClient
+    let needsCleanup = true
     if (options.client) {
       client = options.client
     } else {
-      const cachedClient = options.connectionCache?.get(storeId)
-      if (cachedClient) {
+      const cached = options.connectionCache?.get(storeId)
+      if (cached) {
         // 同一 tick 内已解析过本店连接（含 access token 解密）：直接复用。
-        client = cachedClient
+        client = cached.client
+        needsCleanup = cached.needsCleanup
       } else {
         try {
-          client = (await connectionForSync(db, config, storeId)).client
-          options.connectionCache?.set(storeId, client)
+          const resolved = await connectionForSync(db, config, storeId, options.prefetched?.connectionRow ?? undefined)
+          client = resolved.client
+          needsCleanup = resolved.needsCleanup
+          options.connectionCache?.set(storeId, { client, needsCleanup })
         } catch (error) {
           if (error instanceof ShipHubUpstreamError && error.code === 'IDENTITY_LEASE_BUSY') {
-            await db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'skipped', error_code = 'IDENTITY_LEASE_BUSY' WHERE id = ?`).bind(stamp, runId).run()
-            return { status: 'skipped', reason: 'IDENTITY_LEASE_BUSY', runId }
+            // 可观测性契约（2026-09-19 优化调整）：租约竞争记录一条终态 skipped
+            // run（旧实现先建 running 行再改 skipped；语义等价、少一次写）。
+            await db.prepare(`INSERT INTO shiphub_sync_runs (id, store_id, category, trigger_source, batch_id, started_at, finished_at, status, error_code) VALUES (?, ?, ?, ?, ?, ?, ?, 'skipped', 'IDENTITY_LEASE_BUSY')`)
+              .bind(uuid(), storeId, category, trigger, options.batchId ?? null, stamp, stamp).run()
+            return { status: 'skipped', reason: 'IDENTITY_LEASE_BUSY' }
           }
           throw error
         }
@@ -542,11 +584,30 @@ export async function syncStoreCategory(
     const count = await client.count(category)
     const countChanged = state.last_count === null || state.last_count !== count
     const shouldList = fullReconcile || countChanged
-    if (shouldList && options.heavyBudget) {
+    // ── 轻量轮次（2026-09-19 深度 CPU 优化）──────────────────────────────
+    // 计数未变化且未到完整对账：不拉列表、不写订单、无并发写竞争——因此不建租约、
+    // 不建 running 行。仅一次 batch 落两条：分类状态心跳 + 终态 run 记录
+    // （监控契约与重活轮次一致：status=succeeded、时间戳完整）。
+    // 这是常态（每分钟每店 hand/pick 各一轮）的 CPU 主路径：语句数 8 → 2。
+    if (!shouldList) {
+      await db.batch([
+        db.prepare(`UPDATE shiphub_category_state SET last_count = ?, last_attempt_at = ?, last_success_at = ?, next_reconcile_at = ?, last_error_code = NULL, consecutive_failures = 0, updated_at = ? WHERE store_id = ? AND category = ?`)
+          .bind(count, stamp, stamp, nextAt(now, COUNT_INTERVAL_MS[category]), stamp, storeId, category),
+        db.prepare(`INSERT INTO shiphub_sync_runs (id, store_id, category, trigger_source, batch_id, started_at, finished_at, status, pages, orders, detail_count) VALUES (?, ?, ?, ?, ?, ?, ?, 'succeeded', 0, 0, 0)`)
+          .bind(uuid(), storeId, category, trigger, options.batchId ?? null, stamp, stamp)
+      ])
+      return { status: 'succeeded' }
+    }
+    if (options.heavyBudget) {
       // 到达这里说明本 tick 预算尚有空位（耗尽的情形已在函数顶部短路返回）：
       // 消费一个；此后本 tick 内其余门店/分类将完全静默顺延。
       options.heavyBudget.remaining -= 1
     }
+    // ── 重活轮次：租约 + running 行（并发互斥 + 中断可观测性）───────────────
+    owner = uuid()
+    if (!(await acquireLease(db, storeId, owner, stamp))) return { status: 'skipped', reason: 'LEASE_BUSY' }
+    runId = uuid()
+    await db.prepare(`INSERT INTO shiphub_sync_runs (id, store_id, category, trigger_source, batch_id, started_at, status) VALUES (?, ?, ?, ?, ?, ?, 'running')`).bind(runId, storeId, category, trigger, options.batchId ?? null, stamp).run()
     let pages = 0
     let detailCount = 0
     let orders: ShipHubOrder[] = []
@@ -706,16 +767,19 @@ export async function syncStoreCategory(
     `).bind(count, stamp, successAt, fullReconcile ? 1 : 0, successAt, nextAt(now, fullReconcile ? FULL_INTERVAL_MS[category] : COUNT_INTERVAL_MS[category]), successAt, storeId, category))
     statements.push(db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'succeeded', pages = ?, orders = ?, detail_count = ? WHERE id = ?`).bind(successAt, pages, orders.length, detailCount, runId))
     // 同步成功即证明凭据可用 → 清除连接级的 reauth_required 与错误码
-    // （2026-09-09 修复 · 第 3 项配套）：否则连续失败 3 次标上的降级状态会一直
-    // 挂着，即便内联重登已经救回来，前端仍显示「需重新连接」。
-    statements.push(db.prepare(`
-      UPDATE shiphub_connections SET authorization_status = 'connected', last_auth_error_code = NULL, updated_at = ?
-      WHERE store_id = ? AND (authorization_status = 'reauth_required' OR last_auth_error_code IS NOT NULL)
-    `).bind(successAt, storeId))
-    // 同步成功即证明凭据可用 → 清除连接级的 reauth_required 与错误码
-    // （2026-09-09 修复 · 第 3 项配套）：否则连续失败 3 次标上的降级状态会一直
-    // 挂着，即便内联重登已经救回来，前端仍显示「需重新连接」。
+    // （2026-09-09 修复 · 第 3 项配套）。2026-09-19 深度 CPU 优化：仅当连接确
+    // 有降级状态（或清除条件可能命中）时才追加这条语句——常态每分类省 1 条。
+    if (needsCleanup) {
+      statements.push(db.prepare(`
+        UPDATE shiphub_connections SET authorization_status = 'connected', last_auth_error_code = NULL, updated_at = ?
+        WHERE store_id = ? AND (authorization_status = 'reauth_required' OR last_auth_error_code IS NOT NULL)
+      `).bind(successAt, storeId))
+    }
+    // 租约释放并入同一批（2026-09-19 深度 CPU 优化）：写库成功即原子释放，
+    // 成功路径不再单独发一条 DELETE 往返；batch 抛错时由 finally 兜底释放。
+    statements.push(db.prepare('DELETE FROM shiphub_sync_leases WHERE store_id = ? AND lease_owner = ?').bind(storeId, owner))
     await db.batch(statements)
+    leaseReleased = true
     // 后台同步成功 → 标记门店变更（2026-09-09 实时推送）：前端长轮询据此
     // 自动重新拉取，页面无需手动刷新。仅在本轮确实写入了订单数据时 bump，
     // 避免空轮次（上游无变化）无意义地打断前端挂起。
@@ -760,10 +824,21 @@ export async function syncStoreCategory(
         .bind(new Date(now.getTime() + backoffMs).toISOString(), storeId, category).run()
     }
     const shouldMarkReauth = isCredentialGone || (isToken4xx && failures >= TOKEN_REAUTH_THRESHOLD)
-    await db.batch([
-      db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'failed', error_code = ?, error_detail = ? WHERE id = ?`).bind(failedAt, code, errorDetail, runId),
-      db.prepare(`UPDATE shiphub_connections SET authorization_status = CASE WHEN ? = 1 THEN 'reauth_required' ELSE authorization_status END, last_auth_error_code = ?, updated_at = ? WHERE store_id = ?`).bind(shouldMarkReauth ? 1 : 0, code, failedAt, storeId)
-    ])
+    const failureStatements: D1PreparedStatement[] = []
+    if (runId) {
+      failureStatements.push(db.prepare(`UPDATE shiphub_sync_runs SET finished_at = ?, status = 'failed', error_code = ?, error_detail = ? WHERE id = ?`).bind(failedAt, code, errorDetail, runId))
+    } else {
+      // run 行未及创建（例如客户端解析阶段失败，2026-09-19 优化后该路径提前）：
+      // 补一条终态 failed 记录，保持「每次尝试都有记录」的可观测性契约。
+      failureStatements.push(db.prepare(`INSERT INTO shiphub_sync_runs (id, store_id, category, trigger_source, batch_id, started_at, finished_at, status, error_code, error_detail) VALUES (?, ?, ?, ?, ?, ?, ?, 'failed', ?, ?)`)
+        .bind(uuid(), storeId, category, trigger, options.batchId ?? null, failedAt, failedAt, code, errorDetail))
+    }
+    failureStatements.push(db.prepare(`UPDATE shiphub_connections SET authorization_status = CASE WHEN ? = 1 THEN 'reauth_required' ELSE authorization_status END, last_auth_error_code = ?, updated_at = ? WHERE store_id = ?`).bind(shouldMarkReauth ? 1 : 0, code, failedAt, storeId))
+    // 租约释放并入失败批次（2026-09-19 优化）：与失败状态原子落库；
+    // batch 抛错时由 finally 兜底释放。
+    if (owner) failureStatements.push(db.prepare('DELETE FROM shiphub_sync_leases WHERE store_id = ? AND lease_owner = ?').bind(storeId, owner))
+    await db.batch(failureStatements)
+    if (owner) leaseReleased = true
     // 连续失败告警：连接级错误（token/授权）在三类分类上同步出现，只在 hand 类触发避免三连发；
     // 首次跨过 3 次 + 每再失败 10 次各补一封（邮件可选，未配置时仅状态可见）。
     if (category === 'hand') {
@@ -797,9 +872,11 @@ export async function syncStoreCategory(
         }
       }
     }
-    return { status: 'failed', reason: code, runId }
+    return { status: 'failed', reason: code, runId: runId ?? undefined }
   } finally {
-    await releaseLease(db, storeId, owner)
+    // 兜底释放（2026-09-19 优化）：正常路径已把 DELETE 并入 success/failure batch，
+    // 只有 batch 自身抛错等异常路径才会走到这里（leaseReleased 仍为 false）。
+    if (owner && !leaseReleased) await releaseLease(db, storeId, owner)
   }
 }
 
@@ -875,14 +952,21 @@ async function claimHealAttempt(db: D1Database, storeId: string, minIntervalMs: 
 // 自愈：对 reauth_required 且持有可用登录凭据的连接，尝试程序化重登恢复。
 // 只处理能静默恢复的情形；无凭据（仅浏览器 SSO 授权）的连接保持 reauth_required，
 // 由前端提示门店手动重连。失败不抛出，不能拖坠整轮 cron。
-async function healShipHubConnections(env: WorkerEnv, config: AppConfig, now: Date): Promise<void> {
+async function healShipHubConnections(
+  env: WorkerEnv,
+  config: AppConfig,
+  now: Date,
+  prefetchedCandidates?: Array<{ store_id: string; login_username_enc: string | null; login_password_enc: string | null }>
+): Promise<void> {
   if (!config.SHIPHUB.loginKey || !config.SHIPHUB.tokenEncryptionKey) return
   // 冷却判定只用专用列 heal_last_attempted_at（2026-09-08 事故根因：旧实现复用
   // updated_at，而 cube token 每小时刷新、手动同步失败、token 轮换都写同一列，
   // 把 30 分钟冷却实际推成 40-45 分钟，token 死亡期间看板整段停摆）。
   const retryCutoff = new Date(now.getTime() - HEAL_RETRY_MS).toISOString()
   const backoffCutoff = new Date(now.getTime() - SELF_HEAL_BACKOFF_MS).toISOString()
-  const candidates = await all<{ store_id: string; login_username_enc: string | null; login_password_enc: string | null }>(env.DB.prepare(`
+  // 2026-09-19 深度 CPU 优化：候选由 runScheduledShipHubSync 的批量预取注入
+  // （与门店列表/僵尸扫描同一次 db.batch）；独立调用（无预取）时回退单查。
+  const candidates = prefetchedCandidates ?? await all<{ store_id: string; login_username_enc: string | null; login_password_enc: string | null }>(env.DB.prepare(`
     SELECT store_id, login_username_enc, login_password_enc
     FROM shiphub_connections
     WHERE enabled = 1 AND authorization_status = 'reauth_required'
@@ -978,36 +1062,111 @@ export async function runScheduledShipHubSync(env: WorkerEnv, now = new Date()):
   // live 模式只同步「已授权且持有有效 token 的连接」：不再对每个 active store 自动
   // bootstrap——多个门店共享同一 bootstrap refresh token 并发刷新会被上游轮换机制
   // 立即作废（OAUTH_TOKEN_HTTP_400，全部门店翻成 reauth_required）。
-  // reauth_required 连接也排除：避免对失效 token 空转，待门店重新授权后恢复。
-  // 先尝试自愈：恢复成功的连接本轮就能参与同步，无需等下一轮。
-  // 同样受营业时间约束（不在窗口内不碰上游）。
-  if (activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) {
-    await healShipHubConnections(env, config, now)
+  //
+  // 营业时间硬规则（2026-09-19 深度 CPU 优化补强）：窗口外直接返回、零 D1 操作。
+  // 旧实现在窗口外仍会做「自愈候选 + 门店列表」两次查询后才逐店 continue——
+  // 每天一半的 tick（12 小时）为必然空转的查询付出 CPU。
+  const inWindow = activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)
+  if (!inWindow) return
+
+  // ── 批量预取（2026-09-19 深度 CPU 优化）───────────────────────────────────
+  // 旧路径一次 tick：自愈候选 + 门店列表 + 每分类(ensureState + 僵尸) + 每店连接
+  // ≈ 14 次独立 D1 往返（每次往返都有序列化与调度开销，是免费层 CPU 的主要成本）。
+  // 新路径合并为两次 db.batch：
+  //   ① 自愈候选 / 门店列表 / 僵尸扫描（一次往返，3 条语句）
+  //   ② 分类状态 / 连接行（一次往返，2 条语句）
+  // 取舍：自愈恢复的门店从「本轮即参与」变为「下一轮参与」（≤60 秒）——自愈本身
+  // 走 5 分钟冷却，不影响恢复节奏；僵尸扫描由每分类一次（8 次）降为全 tick 一次。
+  const zombieCutoff = new Date(now.getTime() - ZOMBIE_WINDOW_MS).toISOString()
+  const healCandidatesStatement = env.DB.prepare(`
+    SELECT store_id, login_username_enc, login_password_enc
+    FROM shiphub_connections
+    WHERE enabled = 1 AND authorization_status = 'reauth_required'
+      AND (
+        heal_last_attempted_at IS NULL
+        OR (last_auth_error_code = 'SELF_HEAL_FAILED' AND heal_last_attempted_at <= ?)
+        OR (last_auth_error_code IS NOT 'SELF_HEAL_FAILED' AND heal_last_attempted_at <= ?)
+      )
+  `).bind(new Date(now.getTime() - SELF_HEAL_BACKOFF_MS).toISOString(), new Date(now.getTime() - HEAL_RETRY_MS).toISOString())
+  const headResults = await env.DB.batch([
+    healCandidatesStatement,
+    env.DB.prepare(`
+      SELECT c.store_id AS id
+      FROM shiphub_connections c
+      WHERE c.enabled = 1 AND c.refresh_token_ciphertext IS NOT NULL AND c.refresh_token_nonce IS NOT NULL
+        AND c.authorization_status != 'reauth_required'
+      ORDER BY c.store_id
+    `),
+    env.DB.prepare(`
+      SELECT id, store_id, category FROM shiphub_sync_runs
+      WHERE status = 'running' AND trigger_source = 'scheduled' AND started_at >= ?
+    `).bind(zombieCutoff)
+  ])
+  const healCandidates = (headResults[0]?.results ?? []) as Array<{ store_id: string; login_username_enc: string | null; login_password_enc: string | null }>
+  const stores = (headResults[1]?.results ?? []) as Array<{ id: string }>
+  const zombieRows = (headResults[2]?.results ?? []) as Array<{ id: string; store_id: string; category: string }>
+
+  // 自愈（候选来自同一批量预取；恢复成功的门店下一轮参与同步）。
+  await healShipHubConnections(env, config, now, healCandidates)
+
+  // 僵尸记录按「店|分类」索引（供 syncStoreCategory 免查询判定）。
+  const zombieIdsByKey = new Map<string, string[]>()
+  for (const row of zombieRows) {
+    const key = `${row.store_id}|${row.category}`
+    const existing = zombieIdsByKey.get(key)
+    if (existing) existing.push(row.id)
+    else zombieIdsByKey.set(key, [row.id])
   }
-  const stores = await all<{ id: string }>(env.DB.prepare(`
-    SELECT c.store_id AS id
-    FROM shiphub_connections c
-    WHERE c.enabled = 1 AND c.refresh_token_ciphertext IS NOT NULL AND c.refresh_token_nonce IS NOT NULL
-      AND c.authorization_status != 'reauth_required'
-    ORDER BY c.store_id
-  `))
+
+  // 分类状态 + 连接行预取（一次往返；无门店时整体跳过）。
+  const statesByKey = new Map<string, CategoryState>()
+  const connectionsById = new Map<string, Record<string, unknown>>()
+  if (stores.length > 0) {
+    const placeholders = stores.map(() => '?').join(',')
+    const ids = stores.map((store) => store.id)
+    const prefetchResults = await env.DB.batch([
+      env.DB.prepare(`SELECT * FROM shiphub_category_state WHERE store_id IN (${placeholders})`).bind(...ids),
+      env.DB.prepare(`
+        SELECT c.store_id, c.enabled, c.mode, c.refresh_token_ciphertext, c.refresh_token_nonce,
+               c.access_token_ciphertext, c.access_token_nonce, c.token_expires_at,
+               c.location_num, c.identity_fingerprint, c.authorization_status, c.last_auth_error_code
+        FROM shiphub_connections c WHERE c.store_id IN (${placeholders})
+      `).bind(...ids)
+    ])
+    for (const row of (prefetchResults[0]?.results ?? []) as Array<CategoryState & { store_id: string }>) {
+      statesByKey.set(`${row.store_id}|${row.category}`, row)
+    }
+    for (const row of (prefetchResults[1]?.results ?? []) as Array<Record<string, unknown> & { store_id: string }>) {
+      connectionsById.set(row.store_id, row)
+    }
+  }
+
   // ── 门店轮换 + 重活预算（2026-09-19：多门店 CPU 错峰）────────────────────
-  // 旧实现一次 tick 顺序执行全部门店的全部重活，「拉列表 / 明细 / 写库」的 CPU
-  // 随门店数线性叠加；1670 接入后同一份 10ms 预算要供两家店使用。
-  // 现在：重活一次调用最多 MAX_HEAVY_SYNCS_PER_TICK 个，优先给本轮排位靠前的
-  // 门店；排位按分钟轮换（偶数分钟 1299 在前、奇数分钟 1670 在前），任何一家
-  // 都不会被长期饿死；被顺延的门店下一分钟自动重试（最坏多等 1 分钟）。
-  // 门店数继续增长时：重活频率按门店数分摊，单次调用的 CPU 峰值保持恒定。
-  // 排序取 store_id 保证轮换可预期（也是测试的确定性前提）。
+  // 重活一次调用最多 MAX_HEAVY_SYNCS_PER_TICK 个，优先给本轮排位靠前的门店；
+  // 排位按分钟轮换（偶数分钟 1299 在前、奇数分钟 1670 在前），任何一家都不会被
+  // 长期饿死；被顺延的门店下一分钟自动重试（最坏多等 1 分钟）。排序取 store_id
+  // 保证轮换可预期（也是测试的确定性前提）。
   const minuteIndex = Math.floor(now.getTime() / 60_000)
   const rotation = stores.length > 0 ? ((minuteIndex % stores.length) + stores.length) % stores.length : 0
   const orderedStores = [...stores.slice(rotation), ...stores.slice(0, rotation)]
   const heavyBudget = { remaining: MAX_HEAVY_SYNCS_PER_TICK }
   for (const store of orderedStores) {
-    if (!activeInStoreTimezone(SHIPHUB_SYNC_TIMEZONE, now, config.SHIPHUB.activeStartHour, config.SHIPHUB.activeEndHour)) continue
     // tick 级连接缓存（2026-09-12 CPU 优化）：本店 4 个分类共享一次连接解析
-    // （含 access token 解密）——原实现每分类独立解析，一分钟内重复 4 次解密。
-    const connectionCache = new Map<string, ShipHubClient>()
-    for (const category of CATEGORIES) await syncStoreCategory(env.DB, config, store.id, category, { trigger: 'scheduled', now, connectionCache, heavyBudget })
+    // （含 access token 解密）；2026-09-19 起同时携带「是否需要降级清理」标记，
+    // 免去常态每分类一次的 no-op conn UPDATE。
+    const connectionCache = new Map<string, { client: ShipHubClient; needsCleanup: boolean }>()
+    for (const category of CATEGORIES) {
+      await syncStoreCategory(env.DB, config, store.id, category, {
+        trigger: 'scheduled',
+        now,
+        connectionCache,
+        heavyBudget,
+        prefetched: {
+          state: statesByKey.get(`${store.id}|${category}`),
+          zombieIds: zombieIdsByKey.get(`${store.id}|${category}`) ?? [],
+          connectionRow: connectionsById.get(store.id) ?? null
+        }
+      })
+    }
   }
 }
